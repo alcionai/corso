@@ -576,8 +576,8 @@ func inflateCollectionTree(
 		ownerCats.ServiceCats[serviceCat] = ServiceCat{}
 		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
-		// Make sure we haven't moved and made a new instance of the collection at
-		// this path.
+		// Make sure there's only a single collection adding items for any given
+		// path in the new hierarchy.
 		if node.collection != nil {
 			return nil, nil, errors.Errorf("multiple instances of collection at %s", s.FullPath())
 		}
