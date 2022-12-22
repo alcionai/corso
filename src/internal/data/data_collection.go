@@ -48,7 +48,7 @@ type Collection interface {
 	// unless said items/Collections were moved.
 	State() CollectionState
 	// DoNotMergeItems informs kopia that the collection is rebuilding its contents
-	// from scratch, and that any items currently stored in that collection should
+	// from scratch, and that any items currently stored at the previousPath should
 	// be skipped during the process of merging historical data into the new backup.
 	// This flag is normally expected to be false.  It should only be flagged under
 	// specific circumstances.  Example: if the link token used for incremental queries
