@@ -273,9 +273,15 @@ func sharePointBackupCreateSelectors(
 	sites, weburls []string,
 	gc *connector.GraphConnector,
 ) (*selectors.SharePointBackup, error) {
+	if len(sites) == 0 && len(weburls) == 0 {
+		return selectors.NewSharePointBackup(selectors.None()), nil
+	}
+
 	for _, site := range sites {
 		if site == utils.Wildcard {
 			sel := selectors.NewSharePointBackup(selectors.Any())
+			sel.Include(sel.Sites(selectors.Any()))
+
 			return sel, nil
 		}
 	}
@@ -283,6 +289,8 @@ func sharePointBackupCreateSelectors(
 	for _, wURL := range weburls {
 		if wURL == utils.Wildcard {
 			sel := selectors.NewSharePointBackup(selectors.Any())
+			sel.Include(sel.Sites(selectors.Any()))
+
 			return sel, nil
 		}
 	}
@@ -292,7 +300,10 @@ func sharePointBackupCreateSelectors(
 		return nil, err
 	}
 
-	return selectors.NewSharePointBackup(union), nil
+	sel := selectors.NewSharePointBackup(union)
+	sel.Include(sel.Sites(union))
+
+	return sel, nil
 }
 
 // ------------------------------------------------------------------------------------------------
