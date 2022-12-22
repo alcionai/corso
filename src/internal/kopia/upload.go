@@ -777,6 +777,15 @@ func traverseBaseDir(
 			return errors.Errorf("unable to get tree node for path %s", currentPath)
 		}
 
+		// Now that we have the node we need to check if there is a collection
+		// marked DoNotMerge. If there is, skip adding a reference to this base dir
+		// in the node. That allows us to propagate subtree operations (e.x. move)
+		// while selectively skipping merging old and new versions for some
+		// directories. The expected usecase for this is delta token expiry in M365.
+		if node.collection != nil && node.collection.DoNotMergeItems() {
+			return nil
+		}
+
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)
 		if err != nil {
 			return errors.Errorf(
