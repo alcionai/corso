@@ -184,6 +184,10 @@ func (dc *streamCollection) State() data.CollectionState {
 	return data.NewState
 }
 
+func (dc *streamCollection) DoNotMergeItems() bool {
+	return false
+}
+
 // Items() always returns a channel with a single data.Stream
 // representing the object to be persisted
 func (dc *streamCollection) Items() <-chan data.Stream {
