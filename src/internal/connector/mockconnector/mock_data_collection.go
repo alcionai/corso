@@ -15,14 +15,15 @@ import (
 
 // MockExchangeDataCollection represents a mock exchange mailbox
 type MockExchangeDataCollection struct {
-	fullPath     path.Path
-	messageCount int
-	Data         [][]byte
-	Names        []string
-	ModTimes     []time.Time
-	ColState     data.CollectionState
-	PrevPath     path.Path
-	DeletedItems []bool
+	fullPath        path.Path
+	messageCount    int
+	Data            [][]byte
+	Names           []string
+	ModTimes        []time.Time
+	ColState        data.CollectionState
+	PrevPath        path.Path
+	DeletedItems    []bool
+	doNotMergeItems bool
 }
 
 var (
@@ -102,6 +103,10 @@ func (medc MockExchangeDataCollection) PreviousPath() path.Path {
 
 func (medc MockExchangeDataCollection) State() data.CollectionState {
 	return medc.ColState
+}
+
+func (medc MockExchangeDataCollection) DoNotMergeItems() bool {
+	return medc.doNotMergeItems
 }
 
 // Items returns a channel that has the next items in the collection. The

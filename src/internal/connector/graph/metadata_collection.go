@@ -127,6 +127,10 @@ func (md MetadataCollection) State() data.CollectionState {
 	return data.NewState
 }
 
+func (md MetadataCollection) DoNotMergeItems() bool {
+	return false
+}
+
 func (md MetadataCollection) Items() <-chan data.Stream {
 	res := make(chan data.Stream)
 

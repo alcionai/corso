@@ -81,10 +81,12 @@ func (sc Collection) PreviousPath() path.Path {
 	return nil
 }
 
-// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
-// hierarchies.
 func (sc Collection) State() data.CollectionState {
 	return data.NewState
+}
+
+func (sc Collection) DoNotMergeItems() bool {
+	return false
 }
 
 func (sc *Collection) Items() <-chan data.Stream {
