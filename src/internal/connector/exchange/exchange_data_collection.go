@@ -157,7 +157,7 @@ func (col *Collection) FullPath() path.Path {
 // TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
 // and new folder hierarchies.
 func (col Collection) PreviousPath() path.Path {
-	return nil
+	return col.prevPath
 }
 
 func (col Collection) State() data.CollectionState {

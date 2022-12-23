@@ -756,7 +756,8 @@ func traverseBaseDir(
 		// in the node. That allows us to propagate subtree operations (e.x. move)
 		// while selectively skipping merging old and new versions for some
 		// directories. The expected usecase for this is delta token expiry in M365.
-		if node.collection != nil && node.collection.DoNotMergeItems() {
+		if node.collection != nil &&
+			(node.collection.DoNotMergeItems() || node.collection.State() == data.NewState) {
 			return nil
 		}
 
