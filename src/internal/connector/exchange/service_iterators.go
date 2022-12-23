@@ -146,7 +146,7 @@ func filterContainersAndFillCollections(
 		}
 
 		if collections[id] != nil {
-			errs = support.WrapAndAppend(p, errors.New("conflict: tombstone exists for a non-delete collection"), errs)
+			errs = support.WrapAndAppend(p, errors.New("conflict: tombstone exists for a live collection"), errs)
 			continue
 		}
 
