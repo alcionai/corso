@@ -532,14 +532,14 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				[]string{DefaultCalendar},
 				selectors.PrefixMatch())[0],
 		},
-		{
-			name:     "Birthday Calendar",
-			expected: "Birthdays",
-			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				users,
-				[]string{"Birthdays"},
-				selectors.PrefixMatch())[0],
-		},
+		// {
+		// 	name:     "Birthday Calendar",
+		// 	expected: "Birthdays",
+		// 	scope: selectors.NewExchangeBackup(users).EventCalendars(
+		// 		users,
+		// 		[]string{"Birthdays"},
+		// 		selectors.PrefixMatch())[0],
+		// },
 	}
 
 	for _, test := range tests {
@@ -554,7 +554,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				control.Options{},
 				newStatusUpdater(t, &wg))
 			require.NoError(t, err)
-			require.Equal(t, len(collections), 2)
+			require.Len(t, collections, 2)
 
 			wg.Add(len(collections))
 

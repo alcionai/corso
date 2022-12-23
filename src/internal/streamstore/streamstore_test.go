@@ -59,7 +59,7 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 
 	ss := New(kw, "tenant", path.ExchangeService)
 
-	id, err := ss.WriteBackupDetails(ctx, deets)
+	id, err := ss.WriteBackupDetails(ctx, deets, false)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 

@@ -89,8 +89,12 @@ type backupStats struct {
 }
 
 type detailsWriter interface {
-	WriteBackupDetails(context.Context, *details.Details) (string, error)
+	WriteBackupDetails(context.Context, *details.Details, bool) (string, error)
 }
+
+// ---------------------------------------------------------------------------
+// Primary Controller
+// ---------------------------------------------------------------------------
 
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
@@ -104,6 +108,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
 		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
+		oc            = selectorToOwnersCats(op.Selectors)
+		uib           = useIncrementalBackup(op.Selectors, op.Options)
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -133,16 +139,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			detailsStore,
 			opStats.k.SnapshotID,
 			backupDetails.Details(),
-		)
+			uib)
 		if err != nil {
 			opStats.writeErr = err
 		}
 	}()
 
-	oc := selectorToOwnersCats(op.Selectors)
-	srm := shouldRetrieveMetadata(op.Selectors, op.Options)
-
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, srm)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, uib)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -168,7 +171,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		oc,
 		mans,
 		cs,
-		op.Results.BackupID)
+		op.Results.BackupID,
+		uib)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "backing up service data")
 		return opStats.writeErr
@@ -199,10 +203,48 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	return err
 }
 
-// checker to see if conditions are correct for retrieving metadata like delta tokens
-// and previous paths.
-func shouldRetrieveMetadata(sel selectors.Selector, opts control.Options) bool {
+// checker to see if conditions are correct for incremental backup behavior such as
+// retrieving metadata like delta tokens and previous paths.
+func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 	return opts.EnabledFeatures.ExchangeIncrementals && sel.Service == selectors.ServiceExchange
+}
+
+// ---------------------------------------------------------------------------
+// Producer funcs
+// ---------------------------------------------------------------------------
+
+// calls the producer to generate collections of data to backup
+func produceBackupDataCollections(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	sel selectors.Selector,
+	metadata []data.Collection,
+	ctrlOpts control.Options,
+) ([]data.Collection, error) {
+	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+}
+
+// ---------------------------------------------------------------------------
+// Consumer funcs
+// ---------------------------------------------------------------------------
+
+type backuper interface {
+	BackupCollections(
+		ctx context.Context,
+		bases []kopia.IncrementalBase,
+		cs []data.Collection,
+		service path.ServiceType,
+		oc *kopia.OwnersCats,
+		tags map[string]string,
+		buildTreeWithBase bool,
+	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
 }
 
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
@@ -255,15 +297,6 @@ func produceManifestsAndMetadata(
 	}
 
 	return ms, collections, err
-}
-
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-	) ([]data.Collection, error)
 }
 
 func collectMetadata(
@@ -327,24 +360,6 @@ func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
 	return oc
 }
 
-// calls the producer to generate collections of data to backup
-func produceBackupDataCollections(
-	ctx context.Context,
-	gc *connector.GraphConnector,
-	sel selectors.Selector,
-	metadata []data.Collection,
-	ctrlOpts control.Options,
-) ([]data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-		closer()
-	}()
-
-	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
-}
-
 func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
 	// This is hacky, but we want the path package to format the path the right
 	// way (e.x. proper order for service, category, etc), but we don't care about
@@ -368,17 +383,6 @@ func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
 	return p.ToBuilder().Dir(), nil
 }
 
-type backuper interface {
-	BackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.Collection,
-		service path.ServiceType,
-		oc *kopia.OwnersCats,
-		tags map[string]string,
-	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
-}
-
 // calls kopia to backup the collections of data
 func consumeBackupDataCollections(
 	ctx context.Context,
@@ -389,6 +393,7 @@ func consumeBackupDataCollections(
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
+	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
@@ -422,7 +427,7 @@ func consumeBackupDataCollections(
 		})
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
+	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags, isIncremental)
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
@@ -582,12 +587,13 @@ func (op *BackupOperation) createBackupModels(
 	detailsStore detailsWriter,
 	snapID string,
 	backupDetails *details.Details,
+	isIncremental bool,
 ) error {
 	if backupDetails == nil {
 		return errors.New("no backup details to record")
 	}
 
-	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
+	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails, isIncremental)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
