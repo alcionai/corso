@@ -142,6 +142,7 @@ func FolderEntriesForPath(parent *path.Builder) []FolderEntry {
 			ParentRef: nextParent.ShortRef(),
 			Info: ItemInfo{
 				Folder: &FolderInfo{
+					ItemType:    FolderItem,
 					DisplayName: parent.Elements()[len(parent.Elements())-1],
 				},
 			},
