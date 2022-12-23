@@ -140,9 +140,7 @@ func (w Wrapper) BackupCollections(
 		toMerge: map[string]path.Path{},
 	}
 
-	// TODO(ashmrtn): Pass previousSnapshots here to enable building the directory
-	// hierarchy with them.
-	dirTree, err := inflateDirTree(ctx, w.c, nil, collections, progress)
+	dirTree, err := inflateDirTree(ctx, w.c, previousSnapshots, collections, progress)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
