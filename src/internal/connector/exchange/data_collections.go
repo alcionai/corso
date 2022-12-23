@@ -192,7 +192,7 @@ func DataCollections(
 			acct,
 			scope,
 			dps,
-			control.Options{},
+			ctrlOpts,
 			su)
 		if err != nil {
 			user := scope.Get(selectors.ExchangeUser)
