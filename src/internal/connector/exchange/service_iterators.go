@@ -141,7 +141,12 @@ func filterContainersAndFillCollections(
 	for id, p := range tombstones {
 		service, err := createService(qp.Credentials)
 		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+			errs = support.WrapAndAppend(p, err, errs)
+			continue
+		}
+
+		if collections[id] != nil {
+			errs = support.WrapAndAppend(p, errors.New("conflict: tombstone exists for a live collection"), errs)
 			continue
 		}
 

@@ -289,6 +289,7 @@ type mockBackuper struct {
 		service path.ServiceType,
 		oc *kopia.OwnersCats,
 		tags map[string]string,
+		buildTreeWithBase bool,
 	)
 }
 
@@ -299,12 +300,13 @@ func (mbu mockBackuper) BackupCollections(
 	service path.ServiceType,
 	oc *kopia.OwnersCats,
 	tags map[string]string,
-) (*kopia.BackupStats, *details.Details, map[string]path.Path, error) {
+	buildTreeWithBase bool,
+) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	if mbu.checkFunc != nil {
-		mbu.checkFunc(bases, cs, service, oc, tags)
+		mbu.checkFunc(bases, cs, service, oc, tags, buildTreeWithBase)
 	}
 
-	return &kopia.BackupStats{}, &details.Details{}, nil, nil
+	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
 }
 
 func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
@@ -440,6 +442,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 					service path.ServiceType,
 					oc *kopia.OwnersCats,
 					tags map[string]string,
+					buildTreeWithBase bool,
 				) {
 					assert.ElementsMatch(t, test.expected, bases)
 				},
@@ -455,6 +458,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				test.inputMan,
 				nil,
 				model.StableID(""),
+				true,
 			)
 		})
 	}

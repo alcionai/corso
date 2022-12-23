@@ -554,7 +554,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				control.Options{},
 				newStatusUpdater(t, &wg))
 			require.NoError(t, err)
-			require.Equal(t, len(collections), 2)
+			require.Len(t, collections, 2)
 
 			wg.Add(len(collections))
 
