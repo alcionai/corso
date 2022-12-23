@@ -72,13 +72,9 @@ func filterContainersAndFillCollections(
 		}
 
 		cID := *c.GetId()
+		delete(tombstones, cID)
 
 		currPath, ok := includeContainer(qp, c, scope)
-		if currPath != nil {
-			// this path exists, do not delete it, even if it isn't
-			// included in this backup.
-			delete(tombstones, currPath.String())
-		}
 		// Only create a collection if the path matches the scope.
 		if !ok {
 			continue
@@ -101,13 +97,15 @@ func filterContainersAndFillCollections(
 
 		jobs, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
-			// race conditions happen, containers might get deleted while
-			// this process is in flight.  If it was deleted, we remake the
-			// tombstone, just to be sure it gets deleted from storage.
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 			} else {
-				tombstones[currPath.String()] = struct{}{}
+				// race conditions happen, containers might get deleted while
+				// this process is in flight.  If that happens, force the collection
+				// to reset which will prevent any old items from being retained in
+				// storage.  If the container (or its children) are sill missing
+				// on the next backup, they'll get tombstoned.
+				newDelta = deltaUpdate{reset: true}
 			}
 
 			continue
@@ -115,14 +113,6 @@ func filterContainersAndFillCollections(
 
 		if len(newDelta.url) > 0 {
 			deltaURLs[cID] = newDelta.url
-		}
-
-		if newDelta.reset {
-			// the previous delta was invalid or otherwise unusable.
-			// We need to mark the collection as New, and tombstone
-			// the path to clear out any data for a clean refresh.
-			prevPath = nil
-			tombstones[currPath.String()] = struct{}{}
 		}
 
 		edc := NewCollection(
@@ -133,6 +123,7 @@ func filterContainersAndFillCollections(
 			service,
 			statusUpdater,
 			ctrlOpts,
+			newDelta.reset,
 		)
 
 		collections[cID] = &edc
@@ -143,23 +134,28 @@ func filterContainersAndFillCollections(
 		currPaths[cID] = currPath.String()
 	}
 
-	// A tombstone is a collection path that needs to be marked for deletion.
-	// Tombstones can occur for a number of reasons: the delta token expired,
-	// the container was deleted in flight, or the user deleted the container
-	// between backup runs.  If events combine to both delete and write content
-	// to the same container (ex: container_1 gets deleted, then container_2
-	// gets created with the same name), it is assumed that the backup consumer
-	// processes deletions before creations, making the combined operation safe.
-	for p := range tombstones {
+	// A tombstone is a folder that needs to be marked for deletion.
+	// The only situation where a tombstone should appear is if the folder exists
+	// in the `previousPath` set, but does not exist in the current container
+	// resolver (which contains all the resource owners' current containers).
+	for id, p := range tombstones {
 		service, err := createService(qp.Credentials)
 		if err != nil {
 			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 			continue
 		}
 
+		// only occurs if it was a new folder that we picked up during the container
+		// resolver phase that got deleted in flight by the time we hit this stage.
+		if len(p) == 0 {
+			continue
+		}
+
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
-			logger.Ctx(ctx).Error(err)
+			// technically shouldn't ever happen.  But just in case, we need to catch
+			// it for protection.
+			logger.Ctx(ctx).Errorw("parsing tombstone path", "err", err)
 			continue
 		}
 
@@ -171,8 +167,9 @@ func filterContainersAndFillCollections(
 			service,
 			statusUpdater,
 			ctrlOpts,
+			false,
 		)
-		collections[p] = &edc
+		collections[id] = &edc
 	}
 
 	entries := []graph.MetadataCollectionEntry{
@@ -199,14 +196,14 @@ func filterContainersAndFillCollections(
 	return errs
 }
 
-// produces a set keyed by path strings from the deltapaths map.
+// produces a set of id:path pairs from the deltapaths map.
 // Each entry in the set will, if not removed, produce a collection
 // that will delete the tombstone by path.
-func makeTombstones(dps DeltaPaths) map[string]struct{} {
-	r := make(map[string]struct{}, len(dps))
+func makeTombstones(dps DeltaPaths) map[string]string {
+	r := make(map[string]string, len(dps))
 
-	for _, v := range dps {
-		r[v.path] = struct{}{}
+	for id, v := range dps {
+		r[id] = v.path
 	}
 
 	return r

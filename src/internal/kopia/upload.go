@@ -183,25 +183,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		*d.info,
 	)
 
-	folders := []details.FolderEntry{}
-
-	for len(parent.Elements()) > 0 {
-		nextParent := parent.Dir()
-
-		folders = append(folders, details.FolderEntry{
-			RepoRef:   parent.String(),
-			ShortRef:  parent.ShortRef(),
-			ParentRef: nextParent.ShortRef(),
-			Info: details.ItemInfo{
-				Folder: &details.FolderInfo{
-					DisplayName: parent.Elements()[len(parent.Elements())-1],
-				},
-			},
-		})
-
-		parent = nextParent
-	}
-
+	folders := details.FolderEntriesForPath(parent)
 	cp.deets.AddFoldersForItem(folders, *d.info)
 }
 
@@ -767,6 +749,15 @@ func traverseBaseDir(
 		node := getTreeNode(roots, currentPath.Elements())
 		if node == nil {
 			return errors.Errorf("unable to get tree node for path %s", currentPath)
+		}
+
+		// Now that we have the node we need to check if there is a collection
+		// marked DoNotMerge. If there is, skip adding a reference to this base dir
+		// in the node. That allows us to propagate subtree operations (e.x. move)
+		// while selectively skipping merging old and new versions for some
+		// directories. The expected usecase for this is delta token expiry in M365.
+		if node.collection != nil && node.collection.DoNotMergeItems() {
+			return nil
 		}
 
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)

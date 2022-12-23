@@ -1189,6 +1189,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		[]string{testTenant, service, testUser, category, testInboxDir},
 		false,
 	)
+	inboxFileName1 := testFileName4
+	inboxFileData1 := testFileData4
+	inboxFileName2 := testFileName5
+	inboxFileData2 := testFileData5
 
 	personalPath := makePath(
 		suite.T(),
@@ -1213,6 +1217,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//     - user1
 	//       - email
 	//         - Inbox
+	//           - file4
 	//           - personal
 	//             - file1
 	//             - file2
@@ -1230,6 +1235,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxDir)[0],
 					[]fs.Entry{
+						virtualfs.StreamingFileWithModTimeFromReader(
+							encodeElements(inboxFileName1)[0],
+							time.Time{},
+							bytes.NewReader(inboxFileData1),
+						),
 						virtualfs.NewStaticDirectory(
 							encodeElements(personalDir)[0],
 							[]fs.Entry{
@@ -1293,6 +1303,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir + "2",
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: personalDir,
 								children: []*expectedNode{
 									{
@@ -1354,6 +1368,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir + "2",
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1445,6 +1463,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir,
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: personalDir,
 								children: []*expectedNode{
 									{
@@ -1487,6 +1509,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir,
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1542,6 +1568,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir,
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: workDir,
 								children: []*expectedNode{
 									{
@@ -1565,6 +1595,157 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							{
 								name: testFileName4,
 								data: testFileData4,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MoveParentDeleteFileNoMergeSubtreeMerge",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newInboxPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, personalDir},
+					false,
+				)
+
+				// This path is implicitly updated because we update the inbox path. If
+				// we didn't update it here then it would end up at the old location
+				// still.
+				newWorkPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, personalDir, workDir},
+					false,
+				)
+
+				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 1)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.MovedState
+				inbox.DoNotMerge = true
+				// First file in inbox is implicitly deleted as we're not merging items
+				// and it's not listed.
+				inbox.Names[0] = inboxFileName2
+				inbox.Data[0] = inboxFileData2
+
+				work := mockconnector.NewMockExchangeCollection(newWorkPath, 1)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+				work.Names[0] = testFileName6
+				work.Data[0] = testFileData6
+
+				return []data.Collection{inbox, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: personalDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
+									},
+									{
+										name:     testFileName6,
+										children: []*expectedNode{},
+										data:     testFileData6,
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "NoMoveParentDeleteFileNoMergeSubtreeMerge",
+			inputCollections: func(t *testing.T) []data.Collection {
+				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.NotMovedState
+				inbox.DoNotMerge = true
+				// First file in inbox is implicitly deleted as we're not merging items
+				// and it's not listed.
+				inbox.Names[0] = inboxFileName2
+				inbox.Data[0] = inboxFileData2
+
+				work := mockconnector.NewMockExchangeCollection(workPath, 1)
+				work.PrevPath = workPath
+				work.ColState = data.NotMovedState
+				work.Names[0] = testFileName6
+				work.Data[0] = testFileData6
+
+				return []data.Collection{inbox, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
+									},
+									{
+										name:     testFileName6,
+										children: []*expectedNode{},
+										data:     testFileData6,
+									},
+								},
 							},
 						},
 					},
