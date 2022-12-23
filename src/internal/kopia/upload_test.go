@@ -1430,7 +1430,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				personal.PrevPath = personalPath
 				personal.ColState = data.DeletedState
 
-				work := mockconnector.NewMockExchangeCollection(personalPath, 1)
+				work := mockconnector.NewMockExchangeCollection(personalPath, 0)
 				work.PrevPath = workPath
 				work.ColState = data.MovedState
 
