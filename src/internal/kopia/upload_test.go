@@ -1148,6 +1148,37 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				},
 			),
 		},
+		{
+			name: "NewDoesntMerge",
+			inputCollections: func() []data.Collection {
+				mc1 := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc1.ColState = data.NewState
+				mc1.Names[0] = testFileName2
+				mc1.Data[0] = testFileData2
+
+				return []data.Collection{mc1}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
 	}
 
 	for _, test := range table {
