@@ -619,7 +619,7 @@ func makeManifest(backupID model.StableID, incompleteReason string) *snapshot.Ma
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
+func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	var (
 		tenant = "a-tenant"
 		ro     = "a-user"
@@ -1116,6 +1116,127 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 			assert.ElementsMatch(t, test.expectedEntries, deets.Details().Items())
 		})
 	}
+}
+
+func makeFolderEntry(
+	pb *path.Builder,
+	size int64,
+	modTime time.Time,
+) *details.DetailsEntry {
+	return &details.DetailsEntry{
+		RepoRef:   pb.String(),
+		ShortRef:  pb.ShortRef(),
+		ParentRef: pb.Dir().ShortRef(),
+		ItemInfo: details.ItemInfo{
+			Folder: &details.FolderInfo{
+				ItemType:    details.FolderItem,
+				DisplayName: pb.Elements()[len(pb.Elements())-1],
+				Modified:    modTime,
+				Size:        size,
+			},
+		},
+	}
+}
+
+func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
+	var (
+		t = suite.T()
+
+		tenant = "a-tenant"
+		ro     = "a-user"
+
+		pathElems = []string{
+			tenant,
+			path.ExchangeService.String(),
+			ro,
+			path.EmailCategory.String(),
+			"work",
+			"item1",
+		}
+
+		itemPath1 = makePath(
+			t,
+			pathElems,
+			true,
+		)
+
+		backup1 = backup.Backup{
+			BaseModel: model.BaseModel{
+				ID: "bid1",
+			},
+			DetailsID: "did1",
+		}
+
+		pathReason1 = kopia.Reason{
+			ResourceOwner: itemPath1.ResourceOwner(),
+			Service:       itemPath1.Service(),
+			Category:      itemPath1.Category(),
+		}
+
+		inputToMerge = map[string]path.Path{
+			itemPath1.ShortRef(): itemPath1,
+		}
+
+		inputMans = []*kopia.ManifestEntry{
+			{
+				Manifest: makeManifest(backup1.ID, ""),
+				Reasons: []kopia.Reason{
+					pathReason1,
+				},
+			},
+		}
+
+		populatedModels = map[model.StableID]backup.Backup{
+			backup1.ID: backup1,
+		}
+
+		itemSize    = 42
+		itemDetails = makeDetailsEntry(t, itemPath1, itemSize, false)
+
+		populatedDetails = map[string]*details.Details{
+			backup1.DetailsID: {
+				DetailsModel: details.DetailsModel{
+					Entries: []details.DetailsEntry{
+						*itemDetails,
+					},
+				},
+			},
+		}
+
+		expectedEntries = []details.DetailsEntry{
+			*itemDetails,
+		}
+	)
+
+	itemDetails.Exchange.Modified = time.Now()
+
+	for i := 1; i < len(pathElems); i++ {
+		expectedEntries = append(expectedEntries, *makeFolderEntry(
+			path.Builder{}.Append(pathElems[:i]...),
+			int64(itemSize),
+			itemDetails.Exchange.Modified,
+		))
+	}
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	mdr := mockDetailsReader{entries: populatedDetails}
+	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
+
+	deets := details.Builder{}
+
+	err := mergeDetails(
+		ctx,
+		w,
+		mdr,
+		inputMans,
+		inputToMerge,
+		&deets,
+	)
+
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
 }
 
 // ---------------------------------------------------------------------------
