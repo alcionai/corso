@@ -697,31 +697,31 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 	require.NoError(suite.T(), err)
 
 	table := []struct {
-		name             string
-		populatedModels  map[model.StableID]backup.Backup
-		populatedDetails map[string]*details.Details
-		inputMans        []*kopia.ManifestEntry
-		inputToMerge     map[string]path.Path
+		name                         string
+		populatedModels              map[model.StableID]backup.Backup
+		populatedDetails             map[string]*details.Details
+		inputMans                    []*kopia.ManifestEntry
+		inputShortRefsFromPrevBackup map[string]path.Path
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.DetailsEntry
 	}{
 		{
-			name:     "NilToMerge",
+			name:     "NilShortRefsFromPrevBackup",
 			errCheck: assert.NoError,
 			// Use empty slice so we don't error out on nil != empty.
 			expectedEntries: []*details.DetailsEntry{},
 		},
 		{
-			name:         "EmptyToMerge",
-			inputToMerge: map[string]path.Path{},
-			errCheck:     assert.NoError,
+			name:                         "EmptyShortRefsFromPrevBackup",
+			inputShortRefsFromPrevBackup: map[string]path.Path{},
+			errCheck:                     assert.NoError,
 			// Use empty slice so we don't error out on nil != empty.
 			expectedEntries: []*details.DetailsEntry{},
 		},
 		{
 			name: "BackupIDNotFound",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -736,7 +736,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "DetailsIDNotFound",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -759,7 +759,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "BaseMissingItems",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 				itemPath2.ShortRef(): itemPath2,
 			},
@@ -787,7 +787,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "TooManyItems",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -820,7 +820,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "BadBaseRepoRef",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -866,7 +866,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "BadOneDrivePath",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): makePath(
 					suite.T(),
 					[]string{
@@ -904,7 +904,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "ItemMerged",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -934,7 +934,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "ItemMergedExtraItemsInBase",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -965,7 +965,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "ItemMoved",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath2,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -995,7 +995,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "MultipleBases",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 				itemPath3.ShortRef(): itemPath3,
 			},
@@ -1044,7 +1044,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 		},
 		{
 			name: "SomeBasesIncomplete",
-			inputToMerge: map[string]path.Path{
+			inputShortRefsFromPrevBackup: map[string]path.Path{
 				itemPath1.ShortRef(): itemPath1,
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -1104,7 +1104,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails() {
 				w,
 				mdr,
 				test.inputMans,
-				test.inputToMerge,
+				test.inputShortRefsFromPrevBackup,
 				&deets,
 			)
 

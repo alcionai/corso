@@ -419,12 +419,12 @@ func mergeDetails(
 	ms *store.Wrapper,
 	detailsStore detailsReader,
 	mans []*kopia.ManifestEntry,
-	toMerge map[string]path.Path,
+	shortRefsFromPrevBackup map[string]path.Path,
 	deets *details.Builder,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to
 	// merge.
-	if len(toMerge) == 0 {
+	if len(shortRefsFromPrevBackup) == 0 {
 		return nil
 	}
 
@@ -455,9 +455,9 @@ func mergeDetails(
 			if err != nil {
 				return errors.Wrapf(
 					err,
-					"parsing base item info in backup %s at path %s",
-					bID,
+					"parsing base item info path %s in backup %s",
 					entry.RepoRef,
+					bID,
 				)
 			}
 
@@ -471,7 +471,7 @@ func mergeDetails(
 				continue
 			}
 
-			newPath := toMerge[rr.ShortRef()]
+			newPath := shortRefsFromPrevBackup[rr.ShortRef()]
 			if newPath == nil {
 				// This entry was not sourced from a base snapshot or cached from a
 				// previous backup, skip it.
@@ -504,11 +504,11 @@ func mergeDetails(
 		}
 	}
 
-	if addedEntries != len(toMerge) {
+	if addedEntries != len(shortRefsFromPrevBackup) {
 		return errors.Errorf(
-			"merging details: wanted %v entries but added %v",
-			len(toMerge),
+			"incomplete migration of backup details: found %v of %v expected items",
 			addedEntries,
+			len(shortRefsFromPrevBackup),
 		)
 	}
 
