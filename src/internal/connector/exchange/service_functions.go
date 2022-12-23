@@ -176,7 +176,9 @@ func populateExchangeContainerResolver(
 	return res, nil
 }
 
-func pathAndMatch(
+// Returns true if the container passes the scope comparison and should be included.
+// Also returns the path representing the directory.
+func includeContainer(
 	qp graph.QueryParams,
 	c graph.CachedContainer,
 	scope selectors.ExchangeScope,
@@ -213,6 +215,6 @@ func pathAndMatch(
 	case path.EventsCategory:
 		return dirPath, scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
-		return nil, false
+		return dirPath, false
 	}
 }

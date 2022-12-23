@@ -118,21 +118,16 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		}
 	}()
 
-	dID, bup, err := op.store.GetDetailsIDFromBackupID(ctx, op.BackupID)
-	if err != nil {
-		err = errors.Wrap(err, "getting backup details ID for restore")
-		opStats.readErr = err
+	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
-		return nil, err
-	}
-
-	deets, err := streamstore.New(
-		op.kopia,
-		op.account.ID(),
-		op.Selectors.PathService(),
-	).ReadBackupDetails(ctx, dID)
+	bup, deets, err := getBackupAndDetailsFromID(
+		ctx,
+		op.BackupID,
+		op.store,
+		detailsStore,
+	)
 	if err != nil {
-		err = errors.Wrap(err, "getting backup details data for restore")
+		err = errors.Wrap(err, "restore")
 		opStats.readErr = err
 
 		return nil, err

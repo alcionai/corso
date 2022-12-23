@@ -25,8 +25,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makePath(t *testing.T, elements []string) path.Path {
-	p, err := path.FromDataLayerPath(stdpath.Join(elements...), false)
+func makePath(t *testing.T, elements []string, isItem bool) path.Path {
+	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
 	require.NoError(t, err)
 
 	return p
@@ -389,7 +389,7 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info:       &itemDetails{details.ItemInfo{}, fpath},
+					info:       &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
 					err:        nil,
 					totalBytes: 100,
 				},
@@ -416,7 +416,7 @@ var finishedFileTable = []struct {
 		cachedItems: func(fname string, fpath path.Path) map[string]testInfo {
 			return map[string]testInfo{
 				fname: {
-					info: &itemDetails{details.ItemInfo{}, fpath},
+					info: &itemDetails{info: &details.ItemInfo{}, repoPath: fpath},
 					err:  assert.AnError,
 				},
 			}
@@ -460,7 +460,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	}
 }
 
-func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 	t := suite.T()
 	// Order of folders in hierarchy from root to leaf (excluding the item).
 	expectedFolderOrder := suite.targetFilePath.ToBuilder().Dir().Elements()
@@ -471,13 +471,16 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
+		toMerge:        map[string]path.Path{},
 	}
 
-	deets := &itemDetails{details.ItemInfo{}, suite.targetFilePath}
+	deets := &itemDetails{info: &details.ItemInfo{}, repoPath: suite.targetFilePath}
 	cp.put(suite.targetFileName, deets)
 	require.Len(t, cp.pending, 1)
 
 	cp.FinishedFile(suite.targetFileName, nil)
+
+	assert.Empty(t, cp.toMerge)
 
 	// Gather information about the current state.
 	var (
@@ -521,6 +524,42 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchy() {
 	assert.Empty(t, rootRef.ParentRef)
 }
 
+func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
+	t := suite.T()
+
+	prevPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir, testFileName2},
+		true,
+	)
+
+	expectedToMerge := map[string]path.Path{
+		prevPath.ShortRef(): suite.targetFilePath,
+	}
+
+	// Setup stuff.
+	bd := &details.Builder{}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+		toMerge:        map[string]path.Path{},
+	}
+
+	deets := &itemDetails{
+		info:     nil,
+		repoPath: suite.targetFilePath,
+		prevPath: prevPath,
+	}
+	cp.put(suite.targetFileName, deets)
+	require.Len(t, cp.pending, 1)
+
+	cp.FinishedFile(suite.targetFileName, nil)
+
+	assert.Equal(t, expectedToMerge, cp.toMerge)
+	assert.Empty(t, cp.deets)
+}
+
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 	for _, test := range finishedFileTable {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -552,6 +591,7 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 	suite.testPath = makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 }
 
@@ -572,7 +612,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	user2 := "user2"
 	user2Encoded := encodeAsPath(user2)
 
-	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir})
+	p2 := makePath(t, []string{tenant, service, user2, category, testInboxDir}, false)
 
 	// Encode user names here so we don't have to decode things later.
 	expectedFileCount := map[string]int{
@@ -644,7 +684,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	subdir := "subfolder"
 
-	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir))
+	p2 := makePath(suite.T(), append(suite.testPath.Elements(), subdir), false)
 
 	// Test multiple orders of items because right now order can matter. Both
 	// orders result in a directory structure like:
@@ -739,6 +779,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 	p2 := makePath(
 		suite.T(),
 		[]string{"tenant2", service, "user2", category, testInboxDir},
+		false,
 	)
 
 	table := []struct {
@@ -816,10 +857,96 @@ func mockIncrementalBase(
 	}
 }
 
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
+	dirPath := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
+	)
+	dirPath2 := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testArchiveDir},
+		false,
+	)
+
+	table := []struct {
+		name   string
+		states []data.CollectionState
+	}{
+		{
+			name: "DeletedAndNotMoved",
+			states: []data.CollectionState{
+				data.NotMovedState,
+				data.DeletedState,
+			},
+		},
+		{
+			name: "NotMovedAndDeleted",
+			states: []data.CollectionState{
+				data.DeletedState,
+				data.NotMovedState,
+			},
+		},
+		{
+			name: "DeletedAndMoved",
+			states: []data.CollectionState{
+				data.DeletedState,
+				data.MovedState,
+			},
+		},
+		{
+			name: "NotMovedAndMoved",
+			states: []data.CollectionState{
+				data.NotMovedState,
+				data.MovedState,
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			tester.LogTimeOfTest(t)
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+
+			cols := []data.Collection{}
+			for _, s := range test.states {
+				prevPath := dirPath
+				nowPath := dirPath
+
+				switch s {
+				case data.DeletedState:
+					nowPath = nil
+				case data.MovedState:
+					nowPath = dirPath2
+				}
+
+				mc := mockconnector.NewMockExchangeCollection(nowPath, 0)
+				mc.ColState = s
+				mc.PrevPath = prevPath
+
+				cols = append(cols, mc)
+			}
+
+			_, err := inflateDirTree(ctx, nil, nil, cols, progress)
+			require.Error(t, err)
+		})
+	}
+}
+
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	dirPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
+	)
+	dirPath2 := makePath(
+		suite.T(),
+		[]string{testTenant, service, testUser, category, testArchiveDir},
+		false,
 	)
 
 	// Must be a function that returns a new instance each time as StreamingFile
@@ -942,6 +1069,85 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				},
 			),
 		},
+		{
+			name: "DeleteAndNew",
+			inputCollections: func() []data.Collection {
+				mc1 := mockconnector.NewMockExchangeCollection(dirPath, 0)
+				mc1.ColState = data.DeletedState
+				mc1.PrevPath = dirPath
+
+				mc2 := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc2.ColState = data.NewState
+				mc2.Names[0] = testFileName2
+				mc2.Data[0] = testFileData2
+
+				return []data.Collection{mc1, mc2}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MovedAndNew",
+			inputCollections: func() []data.Collection {
+				mc1 := mockconnector.NewMockExchangeCollection(dirPath2, 0)
+				mc1.ColState = data.MovedState
+				mc1.PrevPath = dirPath
+
+				mc2 := mockconnector.NewMockExchangeCollection(dirPath, 1)
+				mc2.ColState = data.NewState
+				mc2.Names[0] = testFileName2
+				mc2.Data[0] = testFileData2
+
+				return []data.Collection{mc1, mc2}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName2,
+								children: []*expectedNode{},
+								data:     testFileData2,
+							},
+						},
+					},
+					{
+						name: testArchiveDir,
+						children: []*expectedNode{
+							{
+								name:     testFileName,
+								children: []*expectedNode{},
+							},
+						},
+					},
+				},
+			),
+		},
 	}
 
 	for _, test := range table {
@@ -981,11 +1187,17 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	inboxPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
+	inboxFileName1 := testFileName4
+	inboxFileData1 := testFileData4
+	inboxFileName2 := testFileName5
+	inboxFileData2 := testFileData5
 
 	personalPath := makePath(
 		suite.T(),
 		append(inboxPath.Elements(), personalDir),
+		false,
 	)
 	personalFileName1 := testFileName
 	personalFileName2 := testFileName2
@@ -993,6 +1205,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	workPath := makePath(
 		suite.T(),
 		append(inboxPath.Elements(), workDir),
+		false,
 	)
 	workFileName := testFileName3
 
@@ -1004,6 +1217,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//     - user1
 	//       - email
 	//         - Inbox
+	//           - file4
 	//           - personal
 	//             - file1
 	//             - file2
@@ -1021,6 +1235,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				virtualfs.NewStaticDirectory(
 					encodeElements(testInboxDir)[0],
 					[]fs.Entry{
+						virtualfs.StreamingFileWithModTimeFromReader(
+							encodeElements(inboxFileName1)[0],
+							time.Time{},
+							bytes.NewReader(inboxFileData1),
+						),
 						virtualfs.NewStaticDirectory(
 							encodeElements(personalDir)[0],
 							[]fs.Entry{
@@ -1063,6 +1282,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+					false,
 				)
 
 				mc := mockconnector.NewMockExchangeCollection(newPath, 0)
@@ -1082,6 +1302,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir + "2",
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1115,10 +1339,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newInboxPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
+					false,
 				)
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 0)
@@ -1142,6 +1368,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir + "2",
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1175,6 +1405,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
@@ -1232,6 +1463,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir,
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: personalDir,
 								children: []*expectedNode{
 									{
@@ -1250,6 +1485,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir},
+					false,
 				)
 
 				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 0)
@@ -1273,6 +1509,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					{
 						name: testInboxDir,
 						children: []*expectedNode{
+							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
 							{
 								name: personalDir,
 								children: []*expectedNode{
@@ -1303,6 +1543,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
+					false,
 				)
 
 				personal := mockconnector.NewMockExchangeCollection(newPersonalPath, 2)
@@ -1327,6 +1568,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir,
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: workDir,
 								children: []*expectedNode{
 									{
@@ -1350,6 +1595,157 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							{
 								name: testFileName4,
 								data: testFileData4,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "MoveParentDeleteFileNoMergeSubtreeMerge",
+			inputCollections: func(t *testing.T) []data.Collection {
+				newInboxPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, personalDir},
+					false,
+				)
+
+				// This path is implicitly updated because we update the inbox path. If
+				// we didn't update it here then it would end up at the old location
+				// still.
+				newWorkPath := makePath(
+					t,
+					[]string{testTenant, service, testUser, category, personalDir, workDir},
+					false,
+				)
+
+				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 1)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.MovedState
+				inbox.DoNotMerge = true
+				// First file in inbox is implicitly deleted as we're not merging items
+				// and it's not listed.
+				inbox.Names[0] = inboxFileName2
+				inbox.Data[0] = inboxFileData2
+
+				work := mockconnector.NewMockExchangeCollection(newWorkPath, 1)
+				work.PrevPath = workPath
+				work.ColState = data.MovedState
+				work.Names[0] = testFileName6
+				work.Data[0] = testFileData6
+
+				return []data.Collection{inbox, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: personalDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
+									},
+									{
+										name:     testFileName6,
+										children: []*expectedNode{},
+										data:     testFileData6,
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
+		{
+			name: "NoMoveParentDeleteFileNoMergeSubtreeMerge",
+			inputCollections: func(t *testing.T) []data.Collection {
+				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+				inbox.PrevPath = inboxPath
+				inbox.ColState = data.NotMovedState
+				inbox.DoNotMerge = true
+				// First file in inbox is implicitly deleted as we're not merging items
+				// and it's not listed.
+				inbox.Names[0] = inboxFileName2
+				inbox.Data[0] = inboxFileData2
+
+				work := mockconnector.NewMockExchangeCollection(workPath, 1)
+				work.PrevPath = workPath
+				work.ColState = data.NotMovedState
+				work.Names[0] = testFileName6
+				work.Data[0] = testFileData6
+
+				return []data.Collection{inbox, work}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name:     inboxFileName2,
+								children: []*expectedNode{},
+								data:     inboxFileData2,
+							},
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName1,
+										children: []*expectedNode{},
+									},
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName,
+										children: []*expectedNode{},
+									},
+									{
+										name:     testFileName6,
+										children: []*expectedNode{},
+										data:     testFileData6,
+									},
+								},
 							},
 						},
 					},
@@ -1568,6 +1964,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	inboxPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir},
+		false,
 	)
 
 	inboxFileName1 := testFileName
