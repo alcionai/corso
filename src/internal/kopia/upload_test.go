@@ -1607,6 +1607,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newInboxPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir},
+					false,
 				)
 
 				// This path is implicitly updated because we update the inbox path. If
@@ -1615,6 +1616,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir, workDir},
+					false,
 				)
 
 				inbox := mockconnector.NewMockExchangeCollection(newInboxPath, 1)
