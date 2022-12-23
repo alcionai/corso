@@ -99,7 +99,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	var (
 		opStats       backupStats
-		backupDetails *details.Details
+		backupDetails *details.Builder
 		toMerge       map[string]path.Path
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
@@ -128,7 +128,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			return
 		}
 
-		err = op.createBackupModels(ctx, detailsStore, opStats.k.SnapshotID, backupDetails)
+		err = op.createBackupModels(
+			ctx,
+			detailsStore,
+			opStats.k.SnapshotID,
+			backupDetails.Details(),
+		)
 		if err != nil {
 			opStats.writeErr = err
 		}
@@ -371,7 +376,7 @@ type backuper interface {
 		service path.ServiceType,
 		oc *kopia.OwnersCats,
 		tags map[string]string,
-	) (*kopia.BackupStats, *details.Details, map[string]path.Path, error)
+	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
 }
 
 // calls kopia to backup the collections of data
@@ -384,7 +389,7 @@ func consumeBackupDataCollections(
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
-) (*kopia.BackupStats, *details.Details, map[string]path.Path, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
 		complete <- struct{}{}
