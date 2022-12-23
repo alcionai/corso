@@ -195,7 +195,7 @@ html[data-theme='dark'] {
         display: inline-block;
         line-height: 1.2em;
         vertical-align: top;
-        color: #e74c3c;
+        color: var(--ifm-color-primary-dark);
         background-color: unset;
       }
 

@@ -24,14 +24,14 @@ func TestOneDriveSelectorSuite(t *testing.T) {
 
 func (suite *OneDriveSelectorSuite) TestNewOneDriveBackup() {
 	t := suite.T()
-	ob := NewOneDriveBackup()
+	ob := NewOneDriveBackup(Any())
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
 
 func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	t := suite.T()
-	ob := NewOneDriveBackup()
+	ob := NewOneDriveBackup(Any())
 	s := ob.Selector
 	ob, err := s.ToOneDriveBackup()
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			eb := NewOneDriveBackup()
+			eb := NewOneDriveBackup(test.include)
 			eb.Include(eb.Users(test.include))
 
 			scopes := eb.DiscreteScopes(test.discrete)
@@ -83,14 +83,18 @@ func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
 
 func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 	t := suite.T()
-	sel := NewOneDriveBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
-	userScopes := sel.Users([]string{u1, u2})
+	var (
+		users      = []string{u1, u2}
+		sel        = NewOneDriveBackup(users)
+		userScopes = sel.Users(users)
+	)
+
 	for _, scope := range userScopes {
 		// Scope value is either u1 or u2
 		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
@@ -122,14 +126,19 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 
 func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 	t := suite.T()
-	sel := NewOneDriveBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
-	sel.Include(sel.Users([]string{u1, u2}))
+	var (
+		users      = []string{u1, u2}
+		sel        = NewOneDriveBackup(users)
+		userScopes = sel.Users(users)
+	)
+
+	sel.Include(userScopes)
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
@@ -144,14 +153,19 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 
 func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 	t := suite.T()
-	sel := NewOneDriveBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
-	sel.Exclude(sel.Users([]string{u1, u2}))
+	var (
+		users      = []string{u1, u2}
+		sel        = NewOneDriveBackup(users)
+		userScopes = sel.Users(users)
+	)
+
+	sel.Exclude(userScopes)
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
@@ -166,14 +180,14 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 
 func (suite *OneDriveSelectorSuite) TestNewOneDriveRestore() {
 	t := suite.T()
-	or := NewOneDriveRestore()
+	or := NewOneDriveRestore(Any())
 	assert.Equal(t, or.Service, ServiceOneDrive)
 	assert.NotZero(t, or.Scopes())
 }
 
 func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 	t := suite.T()
-	eb := NewOneDriveRestore()
+	eb := NewOneDriveRestore(Any())
 	s := eb.Selector
 	or, err := s.ToOneDriveRestore()
 	require.NoError(t, err)
@@ -233,7 +247,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			"all",
 			deets,
 			func() *OneDriveRestore {
-				odr := NewOneDriveRestore()
+				odr := NewOneDriveRestore(Any())
 				odr.Include(odr.Users(Any()))
 				return odr
 			},
@@ -243,7 +257,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			"only match file",
 			deets,
 			func() *OneDriveRestore {
-				odr := NewOneDriveRestore()
+				odr := NewOneDriveRestore(Any())
 				odr.Include(odr.Items(Any(), Any(), []string{"file2"}))
 				return odr
 			},
@@ -253,7 +267,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			"only match folder",
 			deets,
 			func() *OneDriveRestore {
-				odr := NewOneDriveRestore()
+				odr := NewOneDriveRestore([]string{"uid"})
 				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
@@ -290,7 +304,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
-	ods := NewOneDriveRestore()
+	ods := NewOneDriveRestore(Any())
 
 	var (
 		epoch  = time.Time{}

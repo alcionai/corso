@@ -8,6 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -48,12 +50,7 @@ func cloneTestConfig() map[string]string {
 		return map[string]string{}
 	}
 
-	clone := map[string]string{}
-	for k, v := range testConfig {
-		clone[k] = v
-	}
-
-	return clone
+	return maps.Clone(testConfig)
 }
 
 func NewTestViper() (*viper.Viper, error) {
@@ -162,11 +159,9 @@ func readTestConfig() (map[string]string, error) {
 // The overrides prop replaces config values with the provided value.
 //
 // Returns a filepath string pointing to the location of the temp file.
-func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.Viper, string, error) {
+func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.Viper, string) {
 	cfg, err := readTestConfig()
-	if err != nil {
-		return nil, "", err
-	}
+	require.NoError(t, err, "reading tester config")
 
 	fName := filepath.Base(os.Getenv(EnvCorsoTestConfigFilePath))
 	if len(fName) == 0 || fName == "." || fName == "/" {
@@ -176,9 +171,8 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 	tDir := t.TempDir()
 	tDirFp := filepath.Join(tDir, fName)
 
-	if _, err := os.Create(tDirFp); err != nil {
-		return nil, "", err
-	}
+	_, err = os.Create(tDirFp)
+	require.NoError(t, err, "creating temp test dir")
 
 	ext := filepath.Ext(fName)
 	vpr := viper.New()
@@ -196,11 +190,9 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 		vpr.Set(k, v)
 	}
 
-	if err := vpr.WriteConfig(); err != nil {
-		return nil, "", err
-	}
+	require.NoError(t, vpr.WriteConfig(), "writing temp dir viper config file")
 
-	return vpr, tDirFp, nil
+	return vpr, tDirFp
 }
 
 // writes the first non-zero valued string to the map at the key.

@@ -140,7 +140,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewSharePointRestore()
+	sel := selectors.NewSharePointRestore(nil) // TODO: generate selector in IncludeSharePointRestoreDataSelectors
 	utils.IncludeSharePointRestoreDataSelectors(sel, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 

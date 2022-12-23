@@ -57,10 +57,13 @@ func CreateHTTPClient() *nethttp.Client {
 	return httpClient
 }
 
+// ---------------------------------------------------------------------------
+// Logging Middleware
+// ---------------------------------------------------------------------------
+
 // LoggingMiddleware can be used to log the http request sent by the graph client
 type LoggingMiddleware struct{}
 
-// Intercept implements the RequestInterceptor interface and decodes the parameters name
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -96,6 +99,10 @@ func (handler *LoggingMiddleware) Intercept(
 
 	return resp, err
 }
+
+// ---------------------------------------------------------------------------
+// Other Helpers
+// ---------------------------------------------------------------------------
 
 func StringToPathCategory(input string) path.CategoryType {
 	param := strings.ToLower(input)

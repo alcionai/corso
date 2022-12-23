@@ -212,7 +212,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	for _, scope := range sel.DiscreteScopes(gc.GetSiteIDs()) {
 		for _, selSite := range scope.Get(selectors.SharePointSite) {
-			opSel := selectors.NewSharePointBackup()
+			opSel := selectors.NewSharePointBackup([]string{selSite})
 			opSel.Include([]selectors.SharePointScope{scope.DiscreteCopy(selSite)})
 
 			bo, err := r.NewBackup(ctx, opSel.Selector)
@@ -273,19 +273,24 @@ func sharePointBackupCreateSelectors(
 	sites, weburls []string,
 	gc *connector.GraphConnector,
 ) (*selectors.SharePointBackup, error) {
-	sel := selectors.NewSharePointBackup()
+	if len(sites) == 0 && len(weburls) == 0 {
+		return selectors.NewSharePointBackup(selectors.None()), nil
+	}
 
 	for _, site := range sites {
 		if site == utils.Wildcard {
-			sel.Include(sel.Sites(sites))
+			sel := selectors.NewSharePointBackup(selectors.Any())
+			sel.Include(sel.Sites(selectors.Any()))
+
 			return sel, nil
 		}
 	}
 
 	for _, wURL := range weburls {
 		if wURL == utils.Wildcard {
-			// due to the wildcard, selectors will drop any url values.
-			sel.Include(sel.Sites(weburls))
+			sel := selectors.NewSharePointBackup(selectors.Any())
+			sel.Include(sel.Sites(selectors.Any()))
+
 			return sel, nil
 		}
 	}
@@ -295,6 +300,7 @@ func sharePointBackupCreateSelectors(
 		return nil, err
 	}
 
+	sel := selectors.NewSharePointBackup(union)
 	sel.Include(sel.Sites(union))
 
 	return sel, nil
@@ -478,7 +484,7 @@ func runDetailsSharePointCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewSharePointRestore()
+	sel := selectors.NewSharePointRestore(nil) // TODO: generate selector in IncludeSharePointRestoreDataSelectors
 	utils.IncludeSharePointRestoreDataSelectors(sel, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 

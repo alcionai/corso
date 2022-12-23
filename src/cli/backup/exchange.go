@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -106,6 +105,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
+		options.AddFeatureFlags(cmd, options.ExchangeIncrementals())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
@@ -263,7 +263,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, control.Options{})
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -284,7 +284,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	for _, scope := range sel.DiscreteScopes(users) {
 		for _, selUser := range scope.Get(selectors.ExchangeUser) {
-			opSel := selectors.NewExchangeBackup()
+			opSel := selectors.NewExchangeBackup([]string{selUser})
 			opSel.Include([]selectors.ExchangeScope{scope.DiscreteCopy(selUser)})
 
 			bo, err := r.NewBackup(ctx, opSel.Selector)
@@ -328,7 +328,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 }
 
 func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
-	sel := selectors.NewExchangeBackup()
+	sel := selectors.NewExchangeBackup(userIDs)
 
 	if len(data) == 0 {
 		sel.Include(sel.ContactFolders(userIDs, selectors.Any()))
@@ -510,7 +510,7 @@ func runDetailsExchangeCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewExchangeRestore()
+	sel := selectors.NewExchangeRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
 	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 

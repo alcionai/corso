@@ -95,6 +95,15 @@ type restoreStats struct {
 	restoreID string
 }
 
+type restorer interface {
+	RestoreMultipleItems(
+		ctx context.Context,
+		snapshotID string,
+		paths []path.Path,
+		bc kopia.ByteCounter,
+	) ([]data.Collection, error)
+}
+
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	ctx, end := D.Span(ctx, "operations:restore:run")
@@ -118,21 +127,16 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		}
 	}()
 
-	dID, bup, err := op.store.GetDetailsIDFromBackupID(ctx, op.BackupID)
-	if err != nil {
-		err = errors.Wrap(err, "getting backup details ID for restore")
-		opStats.readErr = err
+	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
-		return nil, err
-	}
-
-	deets, err := streamstore.New(
-		op.kopia,
-		op.account.ID(),
-		op.Selectors.PathService(),
-	).ReadBackupDetails(ctx, dID)
+	bup, deets, err := getBackupAndDetailsFromID(
+		ctx,
+		op.BackupID,
+		op.store,
+		detailsStore,
+	)
 	if err != nil {
-		err = errors.Wrap(err, "getting backup details data for restore")
+		err = errors.Wrap(err, "restore")
 		opStats.readErr = err
 
 		return nil, err

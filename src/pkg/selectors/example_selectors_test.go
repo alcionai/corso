@@ -12,10 +12,19 @@ import (
 func Example_newSelector() {
 	// Selectors should use application-specific constructors.
 	// Generate a selector for backup operations.
-	seb := selectors.NewExchangeBackup()
+	seb := selectors.NewExchangeBackup(nil)
 
 	// Generate a selector for restore and 'backup details' operations.
-	ser := selectors.NewExchangeRestore()
+	ser := selectors.NewExchangeRestore(nil)
+
+	// Selectors specify the data that should be handled
+	// in an operation by specifying the Scope of data.
+	// Initially, the selector will ask for the resource
+	// owners (users, in this example).  Only these users
+	// will be involved in the backup.
+	seb = selectors.NewExchangeBackup(
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
+	)
 
 	// The core selector can be passed around without slicing any
 	// application-specific data.
@@ -46,42 +55,11 @@ func Example_newSelector() {
 	// Output: OneDrive service is not Exchange: wrong selector service type
 }
 
-// ExampleIncludeUsers demonstrates how to specify users in a selector.
-func Example_includeUsers() {
-	seb := selectors.NewExchangeBackup()
-
-	// Selectors specify the data that should be handled
-	// in an operation by specifying the Scope of data.
-	seb.Include(
-		// Selector application instances own the API which describes
-		// the scopes of data that callers may specify.
-		seb.Users([]string{"my-user-id"}),
-	)
-
-	// Selection scopes can be passed around independently.
-	yourUser := seb.Users([]string{"your-user-id"})
-
-	// Most scopes accept multiple values, unioning them into the final selection.
-	otherUsers := seb.Users([]string{"foo-user-id", "bar-user-id"})
-
-	// Multiple scopes can be added at a time.
-	// All calls to Include append those scopes to the current set,
-	// so this addition will also include "my-user-id" from before.
-	seb.Include(
-		yourUser,
-		otherUsers,
-	)
-
-	// Two predefined sets of values exist: any and none.
-	// Any is a wildcard that accepts all values.
-	seb.Users(selectors.Any())
-	// None is the opposite of Any: rejecting all values.
-	seb.Users(selectors.None())
-}
-
 // ExampleIncludeFoldersAndItems demonstrates how to select for granular data.
 func Example_includeFoldersAndItems() {
-	seb := selectors.NewExchangeBackup()
+	seb := selectors.NewExchangeBackup(
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
+	)
 
 	// Much of the data handled by Corso exists within an established hierarchy.
 	// Resource Owner-level data (such as users) sits at the top, with Folder
@@ -116,7 +94,9 @@ func Example_includeFoldersAndItems() {
 
 // ExampleFilters demonstrates selector filters.
 func Example_filters() {
-	ser := selectors.NewExchangeRestore()
+	ser := selectors.NewExchangeRestore(
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
+	)
 
 	// In addition to data ownership details (user, folder, itemID), certain operations
 	// like `backup details` and restores allow items to be selected by filtering on
@@ -164,7 +144,9 @@ var (
 
 // ExampleReduceDetails demonstrates how selectors are used to filter backup details.
 func Example_reduceDetails() {
-	ser := selectors.NewExchangeRestore()
+	ser := selectors.NewExchangeRestore(
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
+	)
 
 	// The Reduce() call is where our constructed selectors are applied to the data
 	// from a previous backup record.
@@ -189,7 +171,9 @@ func Example_scopeMatching() {
 	// Just like sets of backup data can be filtered down using Reduce(), we can check
 	// if an individual bit of data matches our scopes, too.
 	scope := selectors.
-		NewExchangeBackup().
+		NewExchangeBackup(
+			[]string{"your-user-id", "foo-user-id", "bar-user-id"},
+		).
 		Mails(
 			[]string{"id-1"},
 			[]string{"Inbox"},

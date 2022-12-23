@@ -75,8 +75,7 @@ func (suite *NoBackupSharePointIntegrationSuite) SetupSuite() {
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
 
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx = config.SetViper(ctx, suite.vpr)
 	suite.m365SiteID = tester.M365SiteID(t)
@@ -159,8 +158,7 @@ func (suite *BackupDeleteSharePointIntegrationSuite) SetupSuite() {
 		tester.TestCfgStorageProvider: "S3",
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -172,10 +170,11 @@ func (suite *BackupDeleteSharePointIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	m365SiteID := tester.M365SiteID(t)
+	sites := []string{m365SiteID}
 
 	// some tests require an existing backup
-	sel := selectors.NewSharePointBackup()
-	sel.Include(sel.Libraries([]string{m365SiteID}, selectors.Any()))
+	sel := selectors.NewSharePointBackup(sites)
+	sel.Include(sel.Libraries(sites, selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

@@ -20,7 +20,7 @@ func RestoreCollections(
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
-	deets *details.Details,
+	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics

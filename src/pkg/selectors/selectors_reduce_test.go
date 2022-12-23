@@ -35,7 +35,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeAllMail",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Mails(
 					selectors.Any(),
 					selectors.Any(),
@@ -49,7 +49,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailFolderPrefixMatch",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeEmailInboxPath.Folder()},
@@ -62,7 +62,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailSubject",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Filter(sel.MailSubject("foo"))
 
 				return sel
@@ -72,7 +72,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailSubjectExcludeItem",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Filter(sel.MailSender("a-person"))
 				sel.Exclude(sel.Mails(
 					selectors.Any(),
@@ -87,7 +87,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailSender",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Filter(sel.MailSender("a-person"))
 
 				return sel
@@ -100,7 +100,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailReceivedTime",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Filter(sel.MailReceivedBefore(
 					common.FormatTime(testdata.Time1.Add(time.Second)),
 				))
@@ -112,7 +112,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailID",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Mails(
 					selectors.Any(),
 					selectors.Any(),
@@ -126,7 +126,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailShortRef",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Mails(
 					selectors.Any(),
 					selectors.Any(),
@@ -140,7 +140,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeAllEventsAndMailWithSubject",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Events(
 					selectors.Any(),
 					selectors.Any(),
@@ -155,7 +155,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeEventsAndMailWithSubject",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Filter(sel.EventSubject("foo"))
 				sel.Filter(sel.MailSubject("foo"))
 
@@ -166,7 +166,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeAll",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.Users(
 					selectors.Any(),
 				))
@@ -185,7 +185,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailByFolder",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeEmailBasePath.Folder()},
@@ -201,7 +201,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailByFolderPrefix",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeEmailBasePath.Folder()},
@@ -215,7 +215,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeMailByFolderRoot",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeEmailInboxPath.Folder()},
@@ -228,7 +228,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeContactByFolder",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.ContactFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeContactsBasePath.Folder()},
@@ -241,7 +241,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeContactByFolderRoot",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.ContactFolders(
 					selectors.Any(),
 					[]string{testdata.ExchangeContactsRootPath.Folder()},
@@ -255,7 +255,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeEventsByFolder",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.EventCalendars(
 					selectors.Any(),
 					[]string{testdata.ExchangeEventsBasePath.Folder()},
@@ -268,7 +268,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 		{
 			name: "ExchangeEventsByFolderRoot",
 			selFunc: func() selectors.Reducer {
-				sel := selectors.NewExchangeRestore()
+				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.EventCalendars(
 					selectors.Any(),
 					[]string{testdata.ExchangeEventsRootPath.Folder()},

@@ -69,6 +69,9 @@ type Collection struct {
 	prevPath path.Path
 
 	state data.CollectionState
+
+	// doNotMergeItems should only be true if the old delta token expired.
+	doNotMergeItems bool
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection.
@@ -84,18 +87,20 @@ func NewCollection(
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
+	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		user:           user,
-		data:           make(chan data.Stream, collectionChannelBufferSize),
-		jobs:           make([]string, 0),
-		service:        service,
-		statusUpdater:  statusUpdater,
-		fullPath:       curr,
-		prevPath:       prev,
-		collectionType: collectionType,
-		ctrl:           ctrlOpts,
-		state:          stateOf(prev, curr),
+		collectionType:  collectionType,
+		ctrl:            ctrlOpts,
+		data:            make(chan data.Stream, collectionChannelBufferSize),
+		doNotMergeItems: doNotMergeItems,
+		fullPath:        curr,
+		jobs:            make([]string, 0),
+		prevPath:        prev,
+		service:         service,
+		state:           stateOf(prev, curr),
+		statusUpdater:   statusUpdater,
+		user:            user,
 	}
 
 	return collection
@@ -156,10 +161,12 @@ func (col Collection) PreviousPath() path.Path {
 	return nil
 }
 
-// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
-// hierarchies.
 func (col Collection) State() data.CollectionState {
 	return col.state
+}
+
+func (col Collection) DoNotMergeItems() bool {
+	return col.doNotMergeItems
 }
 
 // populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize

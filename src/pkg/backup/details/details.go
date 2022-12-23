@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type FolderEntry struct {
@@ -100,6 +102,88 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 	return res
 }
 
+// Builder should be used to create a details model.
+type Builder struct {
+	d            Details
+	mu           sync.Mutex             `json:"-"`
+	knownFolders map[string]FolderEntry `json:"-"`
+}
+
+func (b *Builder) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.d.add(repoRef, shortRef, parentRef, updated, info)
+}
+
+func (b *Builder) Details() *Details {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Write the cached folder entries to details
+	for _, folder := range b.knownFolders {
+		b.d.addFolder(folder)
+	}
+
+	return &b.d
+}
+
+// TODO(ashmrtn): If we never need to pre-populate the modified time of a folder
+// we should just merge this with AddFoldersForItem, have Add call
+// AddFoldersForItem, and unexport AddFoldersForItem.
+func FolderEntriesForPath(parent *path.Builder) []FolderEntry {
+	folders := []FolderEntry{}
+
+	for len(parent.Elements()) > 0 {
+		nextParent := parent.Dir()
+
+		folders = append(folders, FolderEntry{
+			RepoRef:   parent.String(),
+			ShortRef:  parent.ShortRef(),
+			ParentRef: nextParent.ShortRef(),
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: parent.Elements()[len(parent.Elements())-1],
+				},
+			},
+		})
+
+		parent = nextParent
+	}
+
+	return folders
+}
+
+// AddFoldersForItem adds entries for the given folders. It skips adding entries that
+// have been added by previous calls.
+func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.knownFolders == nil {
+		b.knownFolders = map[string]FolderEntry{}
+	}
+
+	for _, folder := range folders {
+		if existing, ok := b.knownFolders[folder.ShortRef]; ok {
+			// We've seen this folder before for a different item.
+			// Update the "cached" folder entry
+			folder = existing
+		}
+
+		// Update the folder's size and modified time
+		itemModified := itemInfo.modified()
+
+		folder.Info.Folder.Size += itemInfo.size()
+
+		if folder.Info.Folder.Modified.Before(itemModified) {
+			folder.Info.Folder.Modified = itemModified
+		}
+
+		b.knownFolders[folder.ShortRef] = folder
+	}
+}
+
 // --------------------------------------------------------------------------------
 // Details
 // --------------------------------------------------------------------------------
@@ -109,15 +193,9 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 // printing.
 type Details struct {
 	DetailsModel
-
-	// internal
-	mu           sync.Mutex          `json:"-"`
-	knownFolders map[string]struct{} `json:"-"`
 }
 
-func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+func (d *Details) add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
 	d.Entries = append(d.Entries, DetailsEntry{
 		RepoRef:   repoRef,
 		ShortRef:  shortRef,
@@ -127,30 +205,14 @@ func (d *Details) Add(repoRef, shortRef, parentRef string, updated bool, info It
 	})
 }
 
-// AddFolders adds entries for the given folders. It skips adding entries that
-// have been added by previous calls.
-func (d *Details) AddFolders(folders []FolderEntry) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.knownFolders == nil {
-		d.knownFolders = map[string]struct{}{}
-	}
-
-	for _, folder := range folders {
-		if _, ok := d.knownFolders[folder.ShortRef]; ok {
-			// Entry already exists, nothing to do.
-			continue
-		}
-
-		d.knownFolders[folder.ShortRef] = struct{}{}
-		d.Entries = append(d.Entries, DetailsEntry{
-			RepoRef:   folder.RepoRef,
-			ShortRef:  folder.ShortRef,
-			ParentRef: folder.ParentRef,
-			ItemInfo:  folder.Info,
-		})
-	}
+// addFolder adds an entry for the given folder.
+func (d *Details) addFolder(folder FolderEntry) {
+	d.Entries = append(d.Entries, DetailsEntry{
+		RepoRef:   folder.RepoRef,
+		ShortRef:  folder.ShortRef,
+		ParentRef: folder.ParentRef,
+		ItemInfo:  folder.Info,
+	})
 }
 
 // --------------------------------------------------------------------------------
@@ -247,6 +309,20 @@ const (
 	FolderItem ItemType = iota + 300
 )
 
+func UpdateItem(item *ItemInfo, newPath path.Path) error {
+	// Only OneDrive and SharePoint have information about parent folders
+	// contained in them.
+	switch item.infoType() {
+	case SharePointItem:
+		return item.SharePoint.UpdateParentPath(newPath)
+
+	case OneDriveItem:
+		return item.OneDrive.UpdateParentPath(newPath)
+	}
+
+	return nil
+}
+
 // ItemInfo is a oneOf that contains service specific
 // information about the item it tracks
 type ItemInfo struct {
@@ -278,6 +354,42 @@ func (i ItemInfo) infoType() ItemType {
 	}
 
 	return UnknownType
+}
+
+func (i ItemInfo) size() int64 {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.Size
+
+	case i.OneDrive != nil:
+		return i.OneDrive.Size
+
+	case i.SharePoint != nil:
+		return i.SharePoint.Size
+
+	case i.Folder != nil:
+		return i.Folder.Size
+	}
+
+	return 0
+}
+
+func (i ItemInfo) modified() time.Time {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.Modified
+
+	case i.OneDrive != nil:
+		return i.OneDrive.Modified
+
+	case i.SharePoint != nil:
+		return i.SharePoint.Modified
+
+	case i.Folder != nil:
+		return i.Folder.Modified
+	}
+
+	return time.Time{}
 }
 
 type FolderInfo struct {
@@ -385,6 +497,17 @@ func (i SharePointInfo) Values() []string {
 	}
 }
 
+func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
+	newParent, err := path.GetDriveFolderPath(newPath)
+	if err != nil {
+		return errors.Wrapf(err, "making sharepoint path from %s", newPath)
+	}
+
+	i.ParentPath = newParent
+
+	return nil
+}
+
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
@@ -413,4 +536,15 @@ func (i OneDriveInfo) Values() []string {
 		common.FormatTabularDisplayTime(i.Created),
 		common.FormatTabularDisplayTime(i.Modified),
 	}
+}
+
+func (i *OneDriveInfo) UpdateParentPath(newPath path.Path) error {
+	newParent, err := path.GetDriveFolderPath(newPath)
+	if err != nil {
+		return errors.Wrapf(err, "making drive path from %s", newPath)
+	}
+
+	i.ParentPath = newParent
+
+	return nil
 }

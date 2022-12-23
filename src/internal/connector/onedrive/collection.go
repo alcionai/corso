@@ -4,7 +4,6 @@ package onedrive
 import (
 	"context"
 	"io"
-	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -58,6 +57,9 @@ type Collection struct {
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
 	ctrl          control.Options
+
+	// should only be true if the old delta token expired
+	doNotMergeItems bool
 }
 
 // itemReadFunc returns a reader for the specified item
@@ -124,6 +126,10 @@ func (oc Collection) State() data.CollectionState {
 	return data.NewState
 }
 
+func (oc Collection) DoNotMergeItems() bool {
+	return oc.doNotMergeItems
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
@@ -156,19 +162,6 @@ func (od *Item) Info() details.ItemInfo {
 //	return od.info.Modified
 //}
 
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
-	switch err := err.(type) {
-	case *url.Error:
-		return err.Timeout()
-	default:
-		return false
-	}
-}
-
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
@@ -182,7 +175,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
-	parentPathString, err := getDriveFolderPath(oc.folderPath)
+	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
 		oc.reportAsCompleted(ctx, 0, 0, err)
 		return
@@ -228,11 +221,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			for i := 1; i <= maxRetries; i++ {
 				itemInfo, itemData, err = oc.itemReader(ctx, item)
 
-				// We only retry if it is a timeout error. Other
-				// errors like throttling are already handled within
-				// the graph client via a retry middleware.
-				// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-				if err == nil || !isTimeoutErr(err) {
+				// retry on Timeout type errors, break otherwise.
+				if err == nil || graph.IsErrTimeout(err) == nil {
 					break
 				}
 
