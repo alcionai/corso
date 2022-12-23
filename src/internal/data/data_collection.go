@@ -98,6 +98,18 @@ func ResourceOwnerSet(cs []Collection) []string {
 
 	for _, c := range cs {
 		fp := c.FullPath()
+		if fp == nil {
+			// Deleted collections have their full path set to nil but the previous
+			// path will be populated.
+			fp = c.PreviousPath()
+		}
+
+		if fp == nil {
+			// This should not happen, but keep us from hitting a nil pointer
+			// exception if it does somehow occur. Statistics will be off though.
+			continue
+		}
+
 		rs[fp.ResourceOwner()] = struct{}{}
 	}
 
