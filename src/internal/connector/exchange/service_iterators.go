@@ -95,7 +95,7 @@ func filterContainersAndFillCollections(
 			}
 		}
 
-		jobs, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
@@ -127,7 +127,8 @@ func filterContainersAndFillCollections(
 		)
 
 		collections[cID] = &edc
-		edc.jobs = append(edc.jobs, jobs...)
+		edc.added = append(edc.added, added...)
+		edc.removed = append(edc.removed, removed...)
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
@@ -278,7 +279,7 @@ type FetchIDFunc func(
 	ctx context.Context,
 	gs graph.Servicer,
 	user, containerID, oldDeltaToken string,
-) ([]string, deltaUpdate, error)
+) ([]string, []string, deltaUpdate, error)
 
 func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
 	switch category {
@@ -302,7 +303,7 @@ func FetchEventIDsFromCalendar(
 	ctx context.Context,
 	gs graph.Servicer,
 	user, calendarID, oldDelta string,
-) ([]string, deltaUpdate, error) {
+) ([]string, []string, deltaUpdate, error) {
 	var (
 		errs *multierror.Error
 		ids  []string
@@ -310,7 +311,7 @@ func FetchEventIDsFromCalendar(
 
 	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
-		return nil, deltaUpdate{}, err
+		return nil, nil, deltaUpdate{}, err
 	}
 
 	builder := gs.Client().
@@ -322,10 +323,10 @@ func FetchEventIDsFromCalendar(
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, deltaUpdate{}, err
+				return nil, nil, deltaUpdate{}, err
 			}
 
-			return nil, deltaUpdate{}, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, nil, deltaUpdate{}, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, item := range resp.GetValue() {
@@ -351,7 +352,7 @@ func FetchEventIDsFromCalendar(
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
-	return ids, deltaUpdate{}, errs.ErrorOrNil()
+	return ids, nil, deltaUpdate{}, errs.ErrorOrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -364,17 +365,18 @@ func FetchContactIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Servicer,
 	user, directoryID, oldDelta string,
-) ([]string, deltaUpdate, error) {
+) ([]string, []string, deltaUpdate, error) {
 	var (
 		errs       *multierror.Error
 		ids        []string
+		removedIDs []string
 		deltaURL   string
 		resetDelta bool
 	)
 
 	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
-		return nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
+		return nil, nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
 	}
 
 	getIDs := func(builder *msuser.ItemContactFoldersItemContactsDeltaRequestBuilder) error {
@@ -403,7 +405,11 @@ func FetchContactIDsFromDirectory(
 					continue
 				}
 
-				ids = append(ids, *item.GetId())
+				if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
+					ids = append(ids, *item.GetId())
+				} else {
+					removedIDs = append(removedIDs, *item.GetId())
+				}
 			}
 
 			delta := resp.GetOdataDeltaLink()
@@ -426,12 +432,12 @@ func FetchContactIDsFromDirectory(
 		err := getIDs(msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter()))
 		// happy path
 		if err == nil {
-			return ids, deltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return ids, removedIDs, deltaUpdate{deltaURL, false}, errs.ErrorOrNil()
 		}
 		// only return on error if it is NOT a delta issue.
 		// otherwise we'll retry the call with the regular builder
 		if graph.IsErrInvalidDelta(err) == nil {
-			return nil, deltaUpdate{}, err
+			return nil, nil, deltaUpdate{}, err
 		}
 
 		resetDelta = true
@@ -445,10 +451,10 @@ func FetchContactIDsFromDirectory(
 		Delta()
 
 	if err := getIDs(builder); err != nil {
-		return nil, deltaUpdate{}, err
+		return nil, nil, deltaUpdate{}, err
 	}
 
-	return ids, deltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return ids, removedIDs, deltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -461,17 +467,18 @@ func FetchMessageIDsFromDirectory(
 	ctx context.Context,
 	gs graph.Servicer,
 	user, directoryID, oldDelta string,
-) ([]string, deltaUpdate, error) {
+) ([]string, []string, deltaUpdate, error) {
 	var (
 		errs       *multierror.Error
 		ids        []string
+		removedIDs []string
 		deltaURL   string
 		resetDelta bool
 	)
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {
-		return nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
+		return nil, nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
 	}
 
 	getIDs := func(builder *msuser.ItemMailFoldersItemMessagesDeltaRequestBuilder) error {
@@ -500,7 +507,11 @@ func FetchMessageIDsFromDirectory(
 					continue
 				}
 
-				ids = append(ids, *item.GetId())
+				if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
+					ids = append(ids, *item.GetId())
+				} else {
+					removedIDs = append(removedIDs, *item.GetId())
+				}
 			}
 
 			delta := resp.GetOdataDeltaLink()
@@ -523,12 +534,12 @@ func FetchMessageIDsFromDirectory(
 		err := getIDs(msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter()))
 		// happy path
 		if err == nil {
-			return ids, deltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return ids, removedIDs, deltaUpdate{deltaURL, false}, errs.ErrorOrNil()
 		}
 		// only return on error if it is NOT a delta issue.
 		// otherwise we'll retry the call with the regular builder
 		if graph.IsErrInvalidDelta(err) == nil {
-			return nil, deltaUpdate{}, err
+			return nil, nil, deltaUpdate{}, err
 		}
 
 		resetDelta = true
@@ -542,8 +553,8 @@ func FetchMessageIDsFromDirectory(
 		Delta()
 
 	if err := getIDs(builder); err != nil {
-		return nil, deltaUpdate{}, err
+		return nil, nil, deltaUpdate{}, err
 	}
 
-	return ids, deltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return ids, removedIDs, deltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
 }
