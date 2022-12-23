@@ -89,7 +89,7 @@ type backupStats struct {
 }
 
 type detailsWriter interface {
-	WriteBackupDetails(context.Context, *details.Details, bool) (string, error)
+	WriteBackupDetails(context.Context, *details.Details) (string, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -138,8 +138,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			ctx,
 			detailsStore,
 			opStats.k.SnapshotID,
-			backupDetails.Details(),
-			uib)
+			backupDetails.Details())
 		if err != nil {
 			opStats.writeErr = err
 		}
@@ -587,13 +586,12 @@ func (op *BackupOperation) createBackupModels(
 	detailsStore detailsWriter,
 	snapID string,
 	backupDetails *details.Details,
-	isIncremental bool,
 ) error {
 	if backupDetails == nil {
 		return errors.New("no backup details to record")
 	}
 
-	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails, isIncremental)
+	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}

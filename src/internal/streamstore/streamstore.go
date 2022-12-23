@@ -45,7 +45,6 @@ const (
 func (ss *streamStore) WriteBackupDetails(
 	ctx context.Context,
 	backupDetails *details.Details,
-	isIncremental bool,
 ) (string, error) {
 	// construct the path of the container for the `details` item
 	p, err := path.Builder{}.
@@ -81,7 +80,7 @@ func (ss *streamStore) WriteBackupDetails(
 		ss.service,
 		nil,
 		nil,
-		isIncremental,
+		false,
 	)
 	if err != nil {
 		return "", nil
