@@ -88,6 +88,10 @@ type backupStats struct {
 	readErr, writeErr error
 }
 
+type detailsWriter interface {
+	WriteBackupDetails(context.Context, *details.Details) (string, error)
+}
+
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := D.Span(ctx, "operations:backup:run")
@@ -95,9 +99,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	var (
 		opStats       backupStats
-		backupDetails *details.Details
+		backupDetails *details.Builder
+		toMerge       map[string]path.Path
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
+		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -122,7 +128,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			return
 		}
 
-		err = op.createBackupModels(ctx, opStats.k.SnapshotID, backupDetails)
+		err = op.createBackupModels(
+			ctx,
+			detailsStore,
+			opStats.k.SnapshotID,
+			backupDetails.Details(),
+		)
 		if err != nil {
 			opStats.writeErr = err
 		}
@@ -149,7 +160,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	opStats.k, backupDetails, _, err = consumeBackupDataCollections(
+	opStats.k, backupDetails, toMerge, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
 		tenantID,
@@ -167,6 +178,18 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"Backed up %d directories and %d files",
 		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
 	)
+
+	if err = mergeDetails(
+		ctx,
+		op.store,
+		detailsStore,
+		mans,
+		toMerge,
+		backupDetails,
+	); err != nil {
+		opStats.writeErr = errors.Wrap(err, "merging backup details")
+		return opStats.writeErr
+	}
 
 	// TODO: should always be 1, since backups are 1:1 with resourceOwners now.
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
@@ -353,7 +376,7 @@ type backuper interface {
 		service path.ServiceType,
 		oc *kopia.OwnersCats,
 		tags map[string]string,
-	) (*kopia.BackupStats, *details.Details, map[string]path.Path, error)
+	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
 }
 
 // calls kopia to backup the collections of data
@@ -366,7 +389,7 @@ func consumeBackupDataCollections(
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
-) (*kopia.BackupStats, *details.Details, map[string]path.Path, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
 		complete <- struct{}{}
@@ -556,6 +579,7 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
+	detailsStore detailsWriter,
 	snapID string,
 	backupDetails *details.Details,
 ) error {
@@ -563,11 +587,7 @@ func (op *BackupOperation) createBackupModels(
 		return errors.New("no backup details to record")
 	}
 
-	detailsID, err := streamstore.New(
-		op.kopia,
-		op.account.ID(),
-		op.Selectors.PathService(),
-	).WriteBackupDetails(ctx, backupDetails)
+	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}
