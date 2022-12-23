@@ -498,6 +498,9 @@ func mergeDetails(
 				item,
 			)
 
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
+			deets.AddFoldersForItem(folders, item)
+
 			// Track how many entries we added so that we know if we got them all when
 			// we're done.
 			addedEntries++
