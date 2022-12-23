@@ -1508,6 +1508,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						name: testInboxDir,
 						children: []*expectedNode{
 							{
+								name:     inboxFileName1,
+								children: []*expectedNode{},
+							},
+							{
 								name: personalDir,
 								children: []*expectedNode{
 									{
