@@ -122,6 +122,7 @@ func (w Wrapper) BackupCollections(
 	service path.ServiceType,
 	oc *OwnersCats,
 	tags map[string]string,
+	buildTreeWithBase bool,
 ) (*BackupStats, *details.Builder, map[string]path.Path, error) {
 	if w.c == nil {
 		return nil, nil, nil, errNotConnected
@@ -140,7 +141,15 @@ func (w Wrapper) BackupCollections(
 		toMerge: map[string]path.Path{},
 	}
 
-	dirTree, err := inflateDirTree(ctx, w.c, previousSnapshots, collections, progress)
+	// When running an incremental backup, we need to pass the prior
+	// snapshot bases into inflateDirTree so that the new snapshot
+	// includes historical data.
+	var base []IncrementalBase
+	if buildTreeWithBase {
+		base = previousSnapshots
+	}
+
+	dirTree, err := inflateDirTree(ctx, w.c, base, collections, progress)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
