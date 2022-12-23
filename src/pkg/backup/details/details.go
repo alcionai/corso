@@ -127,6 +127,32 @@ func (b *Builder) Details() *Details {
 	return &b.d
 }
 
+// TODO(ashmrtn): If we never need to pre-populate the modified time of a folder
+// we should just merge this with AddFoldersForItem, have Add call
+// AddFoldersForItem, and unexport AddFoldersForItem.
+func FolderEntriesForPath(parent *path.Builder) []FolderEntry {
+	folders := []FolderEntry{}
+
+	for len(parent.Elements()) > 0 {
+		nextParent := parent.Dir()
+
+		folders = append(folders, FolderEntry{
+			RepoRef:   parent.String(),
+			ShortRef:  parent.ShortRef(),
+			ParentRef: nextParent.ShortRef(),
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					DisplayName: parent.Elements()[len(parent.Elements())-1],
+				},
+			},
+		})
+
+		parent = nextParent
+	}
+
+	return folders
+}
+
 // AddFoldersForItem adds entries for the given folders. It skips adding entries that
 // have been added by previous calls.
 func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
