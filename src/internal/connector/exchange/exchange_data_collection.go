@@ -50,9 +50,12 @@ type Collection struct {
 	// M365 user
 	user string // M365 user
 	data chan data.Stream
-	// jobs represents items from the inventory of M365 objectIds whose information
-	// is desired to be sent through the data channel for eventual storage
-	jobs []string
+
+	// added is a list of existing item IDs that were added to a container
+	added []string
+	// removed is a list of item IDs that were deleted from, or moved out, of a container
+	removed []string
+
 	// service - client/adapter pair used to access M365 back store
 	service graph.Servicer
 
@@ -95,7 +98,8 @@ func NewCollection(
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
 		fullPath:        curr,
-		jobs:            make([]string, 0),
+		added:           make([]string, 0),
+		removed:         make([]string, 0),
 		prevPath:        prev,
 		service:         service,
 		state:           stateOf(prev, curr),
@@ -122,15 +126,10 @@ func stateOf(prev, curr path.Path) data.CollectionState {
 	return data.NotMovedState
 }
 
-// AddJob appends additional objectID to structure's jobs field
-func (col *Collection) AddJob(objID string) {
-	col.jobs = append(col.jobs, objID)
-}
-
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (col *Collection) Items() <-chan data.Stream {
-	go col.populateByOptionIdentifier(context.TODO())
+	go col.streamItems(context.TODO())
 	return col.data
 }
 
@@ -139,11 +138,11 @@ func (col *Collection) Items() <-chan data.Stream {
 func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
 	switch optID {
 	case contacts:
-		return RetrieveContactDataForUser, contactToDataCollection
+		return RetrieveContactDataForUser, serializeAndStreamContact
 	case events:
-		return RetrieveEventDataForUser, eventToDataCollection
+		return RetrieveEventDataForUser, serializeAndStreamEvent
 	case messages:
-		return RetrieveMessageDataForUser, messageToDataCollection
+		return RetrieveMessageDataForUser, serializeAndStreamMessage
 	// Unsupported options returns nil, nil
 	default:
 		return nil, nil
@@ -169,9 +168,13 @@ func (col Collection) DoNotMergeItems() bool {
 	return col.doNotMergeItems
 }
 
-// populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
-// all the M365IDs defined in the jobs field. data channel is closed by this function
-func (col *Collection) populateByOptionIdentifier(ctx context.Context) {
+// ---------------------------------------------------------------------------
+// Items() channel controller
+// ---------------------------------------------------------------------------
+
+// streamItems is a utility function that uses col.collectionType to be able to serialize
+// all the M365IDs defined in the added field. data channel is closed by this function
+func (col *Collection) streamItems(ctx context.Context) {
 	var (
 		errs       error
 		success    int64
@@ -206,15 +209,44 @@ func (col *Collection) populateByOptionIdentifier(ctx context.Context) {
 		errs = support.WrapAndAppend(user, err, errs)
 	}
 
-	for _, identifier := range col.jobs {
+	// delete all removed items
+	for _, id := range col.removed {
 		if col.ctrl.FailFast && errs != nil {
 			break
 		}
+
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
-		go func(identifier string) {
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			col.data <- &Stream{
+				id:      id,
+				modTime: time.Now().UTC(), // removed items have no modTime entry.
+				deleted: true,
+			}
+
+			atomic.AddInt64(&success, 1)
+			atomic.AddInt64(&totalBytes, 0)
+
+			colProgress <- struct{}{}
+		}(id)
+	}
+
+	// add any new items
+	for _, id := range col.added {
+		if col.ctrl.FailFast && errs != nil {
+			break
+		}
+
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(id string) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -224,7 +256,7 @@ func (col *Collection) populateByOptionIdentifier(ctx context.Context) {
 			)
 
 			for i := 1; i <= numberOfRetries; i++ {
-				response, err = query(ctx, col.service, user, identifier)
+				response, err = query(ctx, col.service, user, id)
 				if err == nil {
 					break
 				}
@@ -255,7 +287,7 @@ func (col *Collection) populateByOptionIdentifier(ctx context.Context) {
 			atomic.AddInt64(&totalBytes, int64(byteCount))
 
 			colProgress <- struct{}{}
-		}(identifier)
+		}(id)
 	}
 
 	wg.Wait()
@@ -265,7 +297,7 @@ func (col *Collection) populateByOptionIdentifier(ctx context.Context) {
 // and to send the status update through the channel.
 func (col *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
 	close(col.data)
-	attempted := len(col.jobs)
+	attempted := len(col.added) + len(col.removed)
 	status := support.CreateStatus(ctx,
 		support.Backup,
 		1,
@@ -285,7 +317,7 @@ type modTimer interface {
 }
 
 func getModTime(mt modTimer) time.Time {
-	res := time.Now()
+	res := time.Now().UTC()
 
 	if t := mt.GetLastModifiedDateTime(); t != nil {
 		res = *t
@@ -305,9 +337,9 @@ type GraphSerializeFunc func(
 	user string,
 ) (int, error)
 
-// eventToDataCollection is a GraphSerializeFunc used to serialize models.Eventable objects into
+// serializeAndStreamEvent is a GraphSerializeFunc used to serialize models.Eventable objects into
 // data.Stream objects. Returns an error the process finishes unsuccessfully.
-func eventToDataCollection(
+func serializeAndStreamEvent(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kioser.JsonSerializationWriter,
@@ -373,8 +405,8 @@ func eventToDataCollection(
 	return len(byteArray), nil
 }
 
-// contactToDataCollection is a GraphSerializeFunc for models.Contactable
-func contactToDataCollection(
+// serializeAndStreamContact is a GraphSerializeFunc for models.Contactable
+func serializeAndStreamContact(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kioser.JsonSerializationWriter,
@@ -399,24 +431,20 @@ func contactToDataCollection(
 		return 0, support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
 
-	addtl := contact.GetAdditionalData()
-	_, removed := addtl[graph.AddtlDataRemoved]
-
-	if len(bs) > 0 || removed {
+	if len(bs) > 0 {
 		dataChannel <- &Stream{
 			id:      *contact.GetId(),
 			message: bs,
 			info:    ContactInfo(contact, int64(len(bs))),
 			modTime: getModTime(contact),
-			deleted: removed,
 		}
 	}
 
 	return len(bs), nil
 }
 
-// messageToDataCollection is the GraphSerializeFunc for models.Messageable
-func messageToDataCollection(
+// serializeAndStreamMessage is the GraphSerializeFunc for models.Messageable
+func serializeAndStreamMessage(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	objectWriter *kioser.JsonSerializationWriter,
@@ -468,15 +496,11 @@ func messageToDataCollection(
 		return 0, support.SetNonRecoverableError(err)
 	}
 
-	addtl := msg.GetAdditionalData()
-	_, removed := addtl[graph.AddtlDataRemoved]
-
 	dataChannel <- &Stream{
 		id:      *msg.GetId(),
 		message: bs,
 		info:    MessageInfo(msg, int64(len(bs))),
 		modTime: getModTime(msg),
-		deleted: removed,
 	}
 
 	return len(bs), nil
