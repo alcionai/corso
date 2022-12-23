@@ -420,7 +420,7 @@ func mergeDetails(
 	detailsStore detailsReader,
 	mans []*kopia.ManifestEntry,
 	toMerge map[string]path.Path,
-	deets *details.Details,
+	deets *details.Builder,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to
 	// merge.
