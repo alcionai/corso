@@ -211,10 +211,6 @@ func (col *Collection) streamItems(ctx context.Context) {
 
 	// delete all removed items
 	for _, id := range col.removed {
-		if col.ctrl.FailFast && errs != nil {
-			break
-		}
-
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
