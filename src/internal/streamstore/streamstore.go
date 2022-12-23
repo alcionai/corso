@@ -80,6 +80,7 @@ func (ss *streamStore) WriteBackupDetails(
 		ss.service,
 		nil,
 		nil,
+		false,
 	)
 	if err != nil {
 		return "", nil

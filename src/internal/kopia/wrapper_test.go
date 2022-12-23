@@ -272,6 +272,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				path.ExchangeService,
 				oc,
 				customTags,
+				true,
 			)
 			assert.NoError(t, err)
 
@@ -285,7 +286,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			// 47 file and 6 folder entries.
 			assert.Len(
 				t,
-				deets.Entries,
+				deets.Details().Entries,
 				test.expectedUploadedFiles+test.expectedCachedFiles+6,
 			)
 
@@ -353,6 +354,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		path.ExchangeService,
 		oc,
 		nil,
+		true,
 	)
 	require.NoError(t, err)
 
@@ -435,6 +437,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		path.ExchangeService,
 		oc,
 		nil,
+		true,
 	)
 	require.NoError(t, err)
 
@@ -444,7 +447,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Equal(t, 1, stats.IgnoredErrorCount)
 	assert.False(t, stats.Incomplete)
 	// 5 file and 6 folder entries.
-	assert.Len(t, deets.Entries, 5+6)
+	assert.Len(t, deets.Details().Entries, 5+6)
 }
 
 type backedupFile struct {
@@ -480,11 +483,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				path.UnknownService,
 				&OwnersCats{},
 				nil,
+				true,
 			)
 			require.NoError(t, err)
 
 			assert.Equal(t, BackupStats{}, *s)
-			assert.Empty(t, d.Entries)
+			assert.Empty(t, d.Details().Entries)
 		})
 	}
 }
@@ -641,6 +645,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		path.ExchangeService,
 		oc,
 		nil,
+		false,
 	)
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
@@ -649,7 +654,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
 	// 6 file and 6 folder entries.
-	assert.Len(t, deets.Entries, expectedFiles+expectedDirs)
+	assert.Len(t, deets.Details().Entries, expectedFiles+expectedDirs)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
