@@ -1719,7 +1719,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								name: workDir,
 								children: []*expectedNode{
 									{
-										name:     workFileName,
+										name:     workFileName1,
 										children: []*expectedNode{},
 									},
 									{
@@ -1787,7 +1787,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								name: workDir,
 								children: []*expectedNode{
 									{
-										name:     workFileName,
+										name:     workFileName1,
 										children: []*expectedNode{},
 									},
 									{
