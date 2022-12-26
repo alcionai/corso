@@ -48,7 +48,7 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errUpdater)
-		default: // pretend this exists
+		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
 
