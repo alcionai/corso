@@ -48,7 +48,7 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errUpdater)
-		default:
+		default: // pretend this exists
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
 
@@ -67,4 +67,22 @@ func RestoreCollections(
 			restoreErrors,
 			dest.ContainerName),
 		nil
+}
+
+// createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
+// of the last folder entry in the hiearchy
+// List Folders
+func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID string, restoreFolders []string,
+) (string, error) {
+	// Get Main Drive for Site, Documents
+	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
+	if err != nil {
+		return "", errors.Wrapf(
+			err,
+			"failed to get site drive root. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
 }
