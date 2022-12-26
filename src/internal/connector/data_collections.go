@@ -56,8 +56,16 @@ func (gc *GraphConnector) DataCollections(
 			return nil, err
 		}
 
-		for range colls {
-			gc.incrementAwaitingMessages()
+		for _, c := range colls {
+			// kopia doesn't stream Items() from deleted collections,
+			// and so they never end up calling the UpdateStatus closer.
+			// This is a brittle workaround, since changes in consumer
+			// behavior (such as calling Items()) could inadvertently
+			// break the process state, putting us into deadlock or
+			// panics.
+			if c.State() != data.DeletedState {
+				gc.incrementAwaitingMessages()
+			}
 		}
 
 		return colls, nil

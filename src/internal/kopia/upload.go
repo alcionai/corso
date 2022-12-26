@@ -575,10 +575,6 @@ func inflateCollectionTree(
 	// Temporary variable just to track the things that have been marked as
 	// changed while keeping a reference to their path.
 	changedPaths := []path.Path{}
-	ownerCats := &OwnersCats{
-		ResourceOwners: make(map[string]struct{}),
-		ServiceCats:    make(map[string]ServiceCat),
-	}
 
 	for _, s := range collections {
 		switch s.State() {
@@ -620,10 +616,6 @@ func inflateCollectionTree(
 				s.FullPath(),
 			)
 		}
-
-		serviceCat := serviceCatTag(s.FullPath())
-		ownerCats.ServiceCats[serviceCat] = ServiceCat{}
-		ownerCats.ResourceOwners[s.FullPath().ResourceOwner()] = struct{}{}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
@@ -764,7 +756,8 @@ func traverseBaseDir(
 		// in the node. That allows us to propagate subtree operations (e.x. move)
 		// while selectively skipping merging old and new versions for some
 		// directories. The expected usecase for this is delta token expiry in M365.
-		if node.collection != nil && node.collection.DoNotMergeItems() {
+		if node.collection != nil &&
+			(node.collection.DoNotMergeItems() || node.collection.State() == data.NewState) {
 			return nil
 		}
 
