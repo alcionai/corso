@@ -27,12 +27,17 @@ import (
 // helpers
 // ---------------------------------------------------------------------------
 
+// prepNewBackupOp generates all clients required to run a backup operation,
+// returning both a backup operation created with those clients, as well as
+// the clients themselves.
+//
 //revive:disable:context-as-argument
 func prepNewBackupOp(
 	t *testing.T,
 	ctx context.Context,
 	bus events.Eventer,
 	sel selectors.Selector,
+	featureFlags control.FeatureFlags,
 ) (BackupOperation, account.Account, *kopia.Wrapper, *kopia.ModelStore, func()) {
 	//revive:enable:context-as-argument
 	acct := tester.NewM365Account(t)
@@ -70,22 +75,43 @@ func prepNewBackupOp(
 		ms.Close(ctx)
 	}
 
-	sw := store.NewKopiaStore(ms)
+	bo := newBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
 
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		sel,
-		bus)
+	return bo, acct, kw, ms, closer
+}
+
+// newBackupOp accepts the clients required to compose a backup operation, plus
+// any other metadata, and uses them to generate a new backup operation.  This
+// allows backup chains to utilize the same temp directory and configuration
+// details.
+//
+//revive:disable:context-as-argument
+func newBackupOp(
+	t *testing.T,
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	ms *kopia.ModelStore,
+	acct account.Account,
+	sel selectors.Selector,
+	bus events.Eventer,
+	featureFlags control.FeatureFlags,
+	closer func(),
+) BackupOperation {
+	//revive:enable:context-as-argument
+	var (
+		sw   = store.NewKopiaStore(ms)
+		opts = control.Options{}
+	)
+
+	opts.EnabledFeatures = featureFlags
+
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, bus)
 	if !assert.NoError(t, err) {
 		closer()
 		t.FailNow()
 	}
 
-	return bo, acct, kw, ms, closer
+	return bo
 }
 
 //revive:disable:context-as-argument
@@ -97,23 +123,23 @@ func runAndCheckBackup(
 ) {
 	//revive:enable:context-as-argument
 	require.NoError(t, bo.Run(ctx))
-	require.NotEmpty(t, bo.Results)
-	require.NotEmpty(t, bo.Results.BackupID)
+	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
+	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
 	require.Equalf(
 		t,
 		Completed,
 		bo.Status,
-		"backup status %s is not Completed",
+		"backup status should be Completed, got %s",
 		bo.Status,
 	)
 	require.Less(t, 0, bo.Results.ItemsWritten)
 
-	assert.Less(t, 0, bo.Results.ItemsRead)
+	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
-	assert.Equal(t, 1, bo.Results.ResourceOwners)
-	assert.NoError(t, bo.Results.ReadErrors)
-	assert.NoError(t, bo.Results.WriteErrors)
+	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
+	assert.NoError(t, bo.Results.ReadErrors, "errors reading data")
+	assert.NoError(t, bo.Results.WriteErrors, "errors writing data")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
 	assert.Equal(t,
@@ -354,20 +380,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			var (
-				mb                       = evmock.NewBus()
-				sel                      = test.selector()
-				bo, acct, kw, ms, closer = prepNewBackupOp(t, ctx, mb, sel.Selector)
+				mb  = evmock.NewBus()
+				sel = test.selector().Selector
+				ffs = control.FeatureFlags{ExchangeIncrementals: test.runIncremental}
 			)
 
+			bo, acct, kw, ms, closer := prepNewBackupOp(t, ctx, mb, sel, ffs)
 			defer closer()
-
-			runAndCheckBackup(t, ctx, &bo, mb)
-
-			checkBackupIsInManifests(t, ctx, kw, &bo, sel.Selector, test.resourceOwner, test.category)
 
 			m365, err := acct.M365Config()
 			require.NoError(t, err)
 
+			// run the tests
+			runAndCheckBackup(t, ctx, &bo, mb)
+			checkBackupIsInManifests(t, ctx, kw, &bo, sel, test.resourceOwner, test.category)
 			checkMetadataFilesExist(
 				t,
 				ctx,
@@ -380,6 +406,47 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				test.category,
 				test.metadataFiles,
 			)
+
+			if !test.runIncremental {
+				return
+			}
+
+			// Basic, happy path incremental test.  No changes are dictated or expected.
+			// This only tests that an incremental backup is runnable at all, and that it
+			// produces fewer results than the last backup.
+			var (
+				incMB = evmock.NewBus()
+				incBO = newBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
+			)
+
+			runAndCheckBackup(t, ctx, &incBO, incMB)
+			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, test.resourceOwner, test.category)
+			checkMetadataFilesExist(
+				t,
+				ctx,
+				incBO.Results.BackupID,
+				kw,
+				ms,
+				m365.AzureTenantID,
+				test.resourceOwner,
+				path.ExchangeService,
+				test.category,
+				test.metadataFiles,
+			)
+
+			// do some additional checks to ensure the incremental dealt with fewer items.
+			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
+			assert.Greater(t, bo.Results.ItemsRead, incBO.Results.ItemsRead, "incremental items read")
+			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
+			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
+			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
+			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
+			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
+			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
+			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
+			assert.Equal(t,
+				incMB.CalledWith[events.BackupStart][0][events.BackupID],
+				incBO.Results.BackupID, "incremental backupID pre-declaration")
 		})
 	}
 }
@@ -397,7 +464,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.Users([]string{m365UserID}))
 
-	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
+	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
@@ -415,7 +482,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.Sites([]string{suite.site}))
 
-	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
+	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
