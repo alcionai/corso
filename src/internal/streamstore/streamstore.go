@@ -73,7 +73,15 @@ func (ss *streamStore) WriteBackupDetails(
 		},
 	}
 
-	backupStats, _, err := ss.kw.BackupCollections(ctx, nil, []data.Collection{dc}, ss.service, nil, nil)
+	backupStats, _, _, err := ss.kw.BackupCollections(
+		ctx,
+		nil,
+		[]data.Collection{dc},
+		ss.service,
+		nil,
+		nil,
+		false,
+	)
 	if err != nil {
 		return "", nil
 	}
@@ -175,6 +183,10 @@ func (dc *streamCollection) PreviousPath() path.Path {
 
 func (dc *streamCollection) State() data.CollectionState {
 	return data.NewState
+}
+
+func (dc *streamCollection) DoNotMergeItems() bool {
+	return false
 }
 
 // Items() always returns a channel with a single data.Stream

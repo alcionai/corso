@@ -125,6 +125,7 @@ func Initialize(
 		Account:    acct,
 		Storage:    s,
 		Bus:        bus,
+		Opts:       opts,
 		dataLayer:  w,
 		modelStore: ms,
 	}
@@ -192,6 +193,7 @@ func Connect(
 		Account:    acct,
 		Storage:    s,
 		Bus:        bus,
+		Opts:       opts,
 		dataLayer:  w,
 		modelStore: ms,
 	}, nil

@@ -47,6 +47,15 @@ type Collection interface {
 	// backup along with all items and Collections below them in the hierarchy
 	// unless said items/Collections were moved.
 	State() CollectionState
+	// DoNotMergeItems informs kopia that the collection is rebuilding its contents
+	// from scratch, and that any items currently stored at the previousPath should
+	// be skipped during the process of merging historical data into the new backup.
+	// This flag is normally expected to be false.  It should only be flagged under
+	// specific circumstances.  Example: if the link token used for incremental queries
+	// expires or otherwise becomes unusable, thus requiring the backup producer to
+	// re-discover all data in the container.  This flag only affects the path of the
+	// collection, and does not cascade to subfolders.
+	DoNotMergeItems() bool
 }
 
 // Stream represents a single item within a Collection
@@ -89,6 +98,18 @@ func ResourceOwnerSet(cs []Collection) []string {
 
 	for _, c := range cs {
 		fp := c.FullPath()
+		if fp == nil {
+			// Deleted collections have their full path set to nil but the previous
+			// path will be populated.
+			fp = c.PreviousPath()
+		}
+
+		if fp == nil {
+			// This should not happen, but keep us from hitting a nil pointer
+			// exception if it does somehow occur. Statistics will be off though.
+			continue
+		}
+
 		rs[fp.ResourceOwner()] = struct{}{}
 	}
 

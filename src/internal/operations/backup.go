@@ -91,6 +91,14 @@ type backupStats struct {
 	readErr, writeErr error
 }
 
+type detailsWriter interface {
+	WriteBackupDetails(context.Context, *details.Details) (string, error)
+}
+
+// ---------------------------------------------------------------------------
+// Primary Controller
+// ---------------------------------------------------------------------------
+
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, end := D.Span(ctx, "operations:backup:run")
@@ -98,9 +106,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	var (
 		opStats       backupStats
-		backupDetails *details.Details
+		backupDetails *details.Builder
+		toMerge       map[string]path.Path
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
+		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
+		oc            = selectorToOwnersCats(op.Selectors)
+		uib           = useIncrementalBackup(op.Selectors, op.Options)
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -125,16 +137,17 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			return
 		}
 
-		err = op.createBackupModels(ctx, opStats.k.SnapshotID, backupDetails)
+		err = op.createBackupModels(
+			ctx,
+			detailsStore,
+			opStats.k.SnapshotID,
+			backupDetails.Details())
 		if err != nil {
 			opStats.writeErr = err
 		}
 	}()
 
-	oc := selectorToOwnersCats(op.Selectors)
-	srm := shouldRetrieveMetadata(op.Selectors, op.Options)
-
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, srm)
+	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, uib)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -152,31 +165,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	// These should be the returned collections from Sharepoint... Step I
-	//  Disassemble the data.
-	// readData, err := io.ReadAll(readItem.ToReader()) Get this at the end and short circuit.
-	//fmt.Printf("What is this: %v\n", rc.Read( ))
-	// [] Collection
-	// Single collection
-	// Single Item --> SharePoint Library
-	// Single SharePoint Library vite
-	writer := kioser.NewJsonSerializationWriter()
-	singleCollection := cs[0]
-	for stream := range singleCollection.Items() {
-		readData, err := io.ReadAll(stream.ToReader())
-		logger.Ctx(ctx).Debug("Items Called Error: " + err.Error())
-		temp := string(readData)
-		writer.WriteStringValue("", &temp)
-		break
-	}
-	byteArray, err := writer.GetSerializedContent()
-	logger.Ctx(ctx).Debug("Error Received during serialization: " + err.Error())
-	logger.Ctx(ctx).Debug("JSon to string")
-	logger.Ctx(ctx).Debugf("Value %v\n", string(byteArray))
 
-	os.Exit(1)
-
-	opStats.k, backupDetails, err = consumeBackupDataCollections(
+	opStats.k, backupDetails, toMerge, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
 		tenantID,
@@ -184,7 +174,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		oc,
 		mans,
 		cs,
-		op.Results.BackupID)
+		op.Results.BackupID,
+		uib)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "backing up service data")
 		return opStats.writeErr
@@ -195,6 +186,18 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
 	)
 
+	if err = mergeDetails(
+		ctx,
+		op.store,
+		detailsStore,
+		mans,
+		toMerge,
+		backupDetails,
+	); err != nil {
+		opStats.writeErr = errors.Wrap(err, "merging backup details")
+		return opStats.writeErr
+	}
+
 	// TODO: should always be 1, since backups are 1:1 with resourceOwners now.
 	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
 	opStats.started = true
@@ -203,10 +206,48 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	return err
 }
 
-// checker to see if conditions are correct for retrieving metadata like delta tokens
-// and previous paths.
-func shouldRetrieveMetadata(sel selectors.Selector, opts control.Options) bool {
+// checker to see if conditions are correct for incremental backup behavior such as
+// retrieving metadata like delta tokens and previous paths.
+func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 	return opts.EnabledFeatures.ExchangeIncrementals && sel.Service == selectors.ServiceExchange
+}
+
+// ---------------------------------------------------------------------------
+// Producer funcs
+// ---------------------------------------------------------------------------
+
+// calls the producer to generate collections of data to backup
+func produceBackupDataCollections(
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	sel selectors.Selector,
+	metadata []data.Collection,
+	ctrlOpts control.Options,
+) ([]data.Collection, error) {
+	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+}
+
+// ---------------------------------------------------------------------------
+// Consumer funcs
+// ---------------------------------------------------------------------------
+
+type backuper interface {
+	BackupCollections(
+		ctx context.Context,
+		bases []kopia.IncrementalBase,
+		cs []data.Collection,
+		service path.ServiceType,
+		oc *kopia.OwnersCats,
+		tags map[string]string,
+		buildTreeWithBase bool,
+	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
 }
 
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
@@ -247,16 +288,6 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		// TODO(ashmrtn): Uncomment this again when we need to fetch and merge
-		// backup details from previous snapshots.
-		// k, _ := kopia.MakeTagKV(kopia.TagBackupID)
-		// bupID := man.Tags[k]
-
-		// bup, err := sw.GetBackup(ctx, model.StableID(bupID))
-		// if err != nil {
-		// 	return nil, nil, err
-		// }
-
 		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
@@ -269,15 +300,6 @@ func produceManifestsAndMetadata(
 	}
 
 	return ms, collections, err
-}
-
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-	) ([]data.Collection, error)
 }
 
 func collectMetadata(
@@ -382,17 +404,6 @@ func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
 	return p.ToBuilder().Dir(), nil
 }
 
-type backuper interface {
-	BackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.Collection,
-		service path.ServiceType,
-		oc *kopia.OwnersCats,
-		tags map[string]string,
-	) (*kopia.BackupStats, *details.Details, error)
-}
-
 // calls kopia to backup the collections of data
 func consumeBackupDataCollections(
 	ctx context.Context,
@@ -403,7 +414,8 @@ func consumeBackupDataCollections(
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
-) (*kopia.BackupStats, *details.Details, error) {
+	isIncremental bool,
+) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	complete, closer := observe.MessageWithCompletion("Backing up data:")
 	defer func() {
 		complete <- struct{}{}
@@ -424,7 +436,7 @@ func consumeBackupDataCollections(
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(tenantID, reason)
 			if err != nil {
-				return nil, nil, errors.Wrap(err, "getting subtree paths for bases")
+				return nil, nil, nil, errors.Wrap(err, "getting subtree paths for bases")
 			}
 
 			paths = append(paths, pb)
@@ -436,7 +448,123 @@ func consumeBackupDataCollections(
 		})
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags)
+	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags, isIncremental)
+}
+
+func matchesReason(reasons []kopia.Reason, p path.Path) bool {
+	for _, reason := range reasons {
+		if p.ResourceOwner() == reason.ResourceOwner &&
+			p.Service() == reason.Service &&
+			p.Category() == reason.Category {
+			return true
+		}
+	}
+
+	return false
+}
+
+func mergeDetails(
+	ctx context.Context,
+	ms *store.Wrapper,
+	detailsStore detailsReader,
+	mans []*kopia.ManifestEntry,
+	shortRefsFromPrevBackup map[string]path.Path,
+	deets *details.Builder,
+) error {
+	// Don't bother loading any of the base details if there's nothing we need to
+	// merge.
+	if len(shortRefsFromPrevBackup) == 0 {
+		return nil
+	}
+
+	var addedEntries int
+
+	for _, man := range mans {
+		// For now skip snapshots that aren't complete. We will need to revisit this
+		// when we tackle restartability.
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		k, _ := kopia.MakeTagKV(kopia.TagBackupID)
+		bID := man.Tags[k]
+
+		_, baseDeets, err := getBackupAndDetailsFromID(
+			ctx,
+			model.StableID(bID),
+			ms,
+			detailsStore,
+		)
+		if err != nil {
+			return errors.Wrapf(err, "backup fetching base details for backup %s", bID)
+		}
+
+		for _, entry := range baseDeets.Items() {
+			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
+			if err != nil {
+				return errors.Wrapf(
+					err,
+					"parsing base item info path %s in backup %s",
+					entry.RepoRef,
+					bID,
+				)
+			}
+
+			// Although this base has an entry it may not be the most recent. Check
+			// the reasons a snapshot was returned to ensure we only choose the recent
+			// entries.
+			//
+			// TODO(ashmrtn): This logic will need expanded to cover entries from
+			// checkpoints if we start doing kopia-assisted incrementals for those.
+			if !matchesReason(man.Reasons, rr) {
+				continue
+			}
+
+			newPath := shortRefsFromPrevBackup[rr.ShortRef()]
+			if newPath == nil {
+				// This entry was not sourced from a base snapshot or cached from a
+				// previous backup, skip it.
+				continue
+			}
+
+			// Fixup paths in the item.
+			item := entry.ItemInfo
+			if err := details.UpdateItem(&item, newPath); err != nil {
+				return errors.Wrapf(
+					err,
+					"updating item info for entry from backup %s",
+					bID,
+				)
+			}
+
+			deets.Add(
+				newPath.String(),
+				newPath.ShortRef(),
+				newPath.ToBuilder().Dir().ShortRef(),
+				// TODO(ashmrtn): This may need updated if we start using this merge
+				// strategry for items that were cached in kopia.
+				newPath.String() != rr.String(),
+				item,
+			)
+
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
+			deets.AddFoldersForItem(folders, item)
+
+			// Track how many entries we added so that we know if we got them all when
+			// we're done.
+			addedEntries++
+		}
+	}
+
+	if addedEntries != len(shortRefsFromPrevBackup) {
+		return errors.Errorf(
+			"incomplete migration of backup details: found %v of %v expected items",
+			addedEntries,
+			len(shortRefsFromPrevBackup),
+		)
+	}
+
+	return nil
 }
 
 // writes the results metrics to the operation results.
@@ -477,6 +605,7 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
+	detailsStore detailsWriter,
 	snapID string,
 	backupDetails *details.Details,
 ) error {
@@ -484,11 +613,7 @@ func (op *BackupOperation) createBackupModels(
 		return errors.New("no backup details to record")
 	}
 
-	detailsID, err := streamstore.New(
-		op.kopia,
-		op.account.ID(),
-		op.Selectors.PathService(),
-	).WriteBackupDetails(ctx, backupDetails)
+	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
 		return errors.Wrap(err, "creating backupdetails model")
 	}

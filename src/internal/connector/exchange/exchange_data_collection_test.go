@@ -92,21 +92,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 	suite.Equal(fullPath, edc.FullPath())
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
-	eoc := Collection{
-		user:     "Dexter",
-		fullPath: nil,
-	}
-	suite.Zero(len(eoc.jobs))
-
-	shopping := []string{"tomotoes", "potatoes", "pasta", "ice tea"}
-	for _, item := range shopping {
-		eoc.AddJob(item)
-	}
-
-	suite.Equal(len(shopping), len(eoc.jobs))
-}
-
 func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 	fooP, err := path.Builder{}.
 		Append("foo").
@@ -151,7 +136,8 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 			c := NewCollection(
 				"u",
 				test.curr, test.prev,
-				0, nil, nil, control.Options{})
+				0, nil, nil, control.Options{},
+				false)
 			assert.Equal(t, test.expect, c.State())
 		})
 	}

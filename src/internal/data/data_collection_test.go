@@ -11,7 +11,8 @@ import (
 )
 
 type mockColl struct {
-	p path.Path
+	p     path.Path
+	prevP path.Path
 }
 
 func (mc mockColl) Items() <-chan Stream {
@@ -23,11 +24,15 @@ func (mc mockColl) FullPath() path.Path {
 }
 
 func (mc mockColl) PreviousPath() path.Path {
-	return nil
+	return mc.prevP
 }
 
 func (mc mockColl) State() CollectionState {
 	return NewState
+}
+
+func (mc mockColl) DoNotMergeItems() bool {
+	return false
 }
 
 type CollectionSuite struct {
@@ -50,7 +55,7 @@ func (suite *CollectionSuite) TestResourceOwnerSet() {
 			ToDataLayerExchangePathForCategory("tid", resource, path.EventsCategory, false)
 		require.NoError(t, err)
 
-		return mockColl{p}
+		return mockColl{p, nil}
 	}
 
 	table := []struct {

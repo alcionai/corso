@@ -102,7 +102,7 @@ func RestoreCollection(
 	logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
-	restoreFolderID, err := createRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
+	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
 		return metrics, false
@@ -159,7 +159,7 @@ func RestoreCollection(
 
 // createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
 // of the last folder entry in the hiearchy
-func createRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
+func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {

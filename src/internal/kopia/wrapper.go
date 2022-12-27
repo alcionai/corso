@@ -122,28 +122,36 @@ func (w Wrapper) BackupCollections(
 	service path.ServiceType,
 	oc *OwnersCats,
 	tags map[string]string,
-) (*BackupStats, *details.Details, error) {
+	buildTreeWithBase bool,
+) (*BackupStats, *details.Builder, map[string]path.Path, error) {
 	if w.c == nil {
-		return nil, nil, errNotConnected
+		return nil, nil, nil, errNotConnected
 	}
 
 	ctx, end := D.Span(ctx, "kopia:backupCollections")
 	defer end()
 
 	if len(collections) == 0 {
-		return &BackupStats{}, (&details.Builder{}).Details(), nil
+		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
+		toMerge: map[string]path.Path{},
 	}
 
-	// TODO(ashmrtn): Pass previousSnapshots here to enable building the directory
-	// hierarchy with them.
-	dirTree, err := inflateDirTree(ctx, w.c, nil, collections, progress)
+	// When running an incremental backup, we need to pass the prior
+	// snapshot bases into inflateDirTree so that the new snapshot
+	// includes historical data.
+	var base []IncrementalBase
+	if buildTreeWithBase {
+		base = previousSnapshots
+	}
+
+	dirTree, err := inflateDirTree(ctx, w.c, base, collections, progress)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "building kopia directories")
+		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
 
 	s, err := w.makeSnapshotWithRoot(
@@ -155,10 +163,10 @@ func (w Wrapper) BackupCollections(
 		progress,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return s, progress.deets.Details(), nil
+	return s, progress.deets, progress.toMerge, nil
 }
 
 func (w Wrapper) makeSnapshotWithRoot(

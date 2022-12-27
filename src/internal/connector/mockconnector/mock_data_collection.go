@@ -23,6 +23,7 @@ type MockExchangeDataCollection struct {
 	ColState     data.CollectionState
 	PrevPath     path.Path
 	DeletedItems []bool
+	DoNotMerge   bool
 }
 
 var (
@@ -102,6 +103,10 @@ func (medc MockExchangeDataCollection) PreviousPath() path.Path {
 
 func (medc MockExchangeDataCollection) State() data.CollectionState {
 	return medc.ColState
+}
+
+func (medc MockExchangeDataCollection) DoNotMergeItems() bool {
+	return medc.DoNotMerge
 }
 
 // Items returns a channel that has the next items in the collection. The
