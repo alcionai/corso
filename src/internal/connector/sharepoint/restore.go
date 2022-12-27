@@ -68,3 +68,20 @@ func RestoreCollections(
 			dest.ContainerName),
 		nil
 }
+
+// createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
+// of the last folder entry given in the hiearchy
+func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID string, restoreFolders []string,
+) (string, error) {
+	// Get Main Drive for Site, Documents
+	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
+	if err != nil {
+		return "", errors.Wrapf(
+			err,
+			"failed to get site drive root. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
+}
