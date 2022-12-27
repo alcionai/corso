@@ -37,7 +37,7 @@ func (mlc *MockListCollection) DoNotMergeItems() bool {
 }
 
 func (mlc *MockListCollection) PreviousPath() path.Path {
-	return mlc.fullPath
+	return nil
 }
 
 func (mlc *MockListCollection) Items() <-chan data.Stream {
