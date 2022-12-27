@@ -6,20 +6,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-type mockBus struct {
+type MockBus struct {
 	TimesCalled map[string]int
 	CalledWith  map[string][]map[string]any
 	TimesClosed int
 }
 
-func NewBus() *mockBus {
-	return &mockBus{
+func NewBus() *MockBus {
+	return &MockBus{
 		TimesCalled: map[string]int{},
 		CalledWith:  map[string][]map[string]any{},
 	}
 }
 
-func (b *mockBus) Event(ctx context.Context, key string, data map[string]any) {
+func (b *MockBus) Event(ctx context.Context, key string, data map[string]any) {
 	b.TimesCalled[key] = b.TimesCalled[key] + 1
 
 	cw := b.CalledWith[key]
@@ -31,7 +31,7 @@ func (b *mockBus) Event(ctx context.Context, key string, data map[string]any) {
 	b.CalledWith[key] = cw
 }
 
-func (b *mockBus) Close() error {
+func (b *MockBus) Close() error {
 	b.TimesClosed++
 
 	if b.TimesClosed > 1 {

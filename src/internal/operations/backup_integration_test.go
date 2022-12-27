@@ -89,6 +89,74 @@ func prepNewBackupOp(
 }
 
 //revive:disable:context-as-argument
+func runAndCheckBackup(
+	t *testing.T,
+	ctx context.Context,
+	bo *BackupOperation,
+	mb *evmock.MockBus,
+) {
+	//revive:enable:context-as-argument
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results)
+	require.NotEmpty(t, bo.Results.BackupID)
+	require.Equalf(
+		t,
+		Completed,
+		bo.Status,
+		"backup status %s is not Completed",
+		bo.Status,
+	)
+	require.Less(t, 0, bo.Results.ItemsWritten)
+
+	assert.Less(t, 0, bo.Results.ItemsRead)
+	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
+	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
+	assert.Equal(t, 1, bo.Results.ResourceOwners)
+	assert.NoError(t, bo.Results.ReadErrors)
+	assert.NoError(t, bo.Results.WriteErrors)
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		mb.CalledWith[events.BackupStart][0][events.BackupID],
+		bo.Results.BackupID, "backupID pre-declaration")
+}
+
+//revive:disable:context-as-argument
+func checkBackupIsInManifests(
+	t *testing.T,
+	ctx context.Context,
+	kw *kopia.Wrapper,
+	bo *BackupOperation,
+	sel selectors.Selector,
+	resourceOwner string,
+	category path.CategoryType,
+) {
+	//revive:enable:context-as-argument
+	var (
+		sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
+		oc       = &kopia.OwnersCats{
+			ResourceOwners: map[string]struct{}{resourceOwner: {}},
+			ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+		}
+		tags  = map[string]string{kopia.TagBackupCategory: ""}
+		found bool
+	)
+
+	mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+	require.NoError(t, err)
+
+	for _, man := range mans {
+		tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
+		if man.Tags[tk] == string(bo.Results.BackupID) {
+			found = true
+			break
+		}
+	}
+
+	assert.True(t, found, "backup retrieved by previous snapshot manifest")
+}
+
+//revive:disable:context-as-argument
 func checkMetadataFilesExist(
 	t *testing.T,
 	ctx context.Context,
@@ -166,6 +234,7 @@ func checkMetadataFilesExist(
 
 type BackupOpIntegrationSuite struct {
 	suite.Suite
+	user, site string
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
@@ -185,6 +254,9 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 		tester.AWSStorageCredEnvs,
 		tester.M365AcctCredEnvs)
 	require.NoError(suite.T(), err)
+
+	suite.user = tester.M365UserID(suite.T())
+	suite.site = tester.M365SiteID(suite.T())
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
@@ -229,30 +301,31 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	m365UserID := tester.M365UserID(suite.T())
-	users := []string{m365UserID}
+	users := []string{suite.user}
 
 	tests := []struct {
-		name          string
-		selectFunc    func() *selectors.ExchangeBackup
-		resourceOwner string
-		category      path.CategoryType
-		metadataFiles []string
+		name           string
+		selector       func() *selectors.ExchangeBackup
+		resourceOwner  string
+		category       path.CategoryType
+		metadataFiles  []string
+		runIncremental bool
 	}{
 		{
 			name: "Mail",
-			selectFunc: func() *selectors.ExchangeBackup {
+			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 				return sel
 			},
-			resourceOwner: m365UserID,
-			category:      path.EmailCategory,
-			metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
+			resourceOwner:  suite.user,
+			category:       path.EmailCategory,
+			metadataFiles:  exchange.MetadataFileNames(path.EmailCategory),
+			runIncremental: true,
 		},
 		{
 			name: "Contacts",
-			selectFunc: func() *selectors.ExchangeBackup {
+			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.ContactFolders(
 					users,
@@ -261,88 +334,36 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 
 				return sel
 			},
-			resourceOwner: m365UserID,
-			category:      path.ContactsCategory,
-			metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
+			resourceOwner:  suite.user,
+			category:       path.ContactsCategory,
+			metadataFiles:  exchange.MetadataFileNames(path.ContactsCategory),
+			runIncremental: true,
 		},
 		{
 			name: "Calendar Events",
-			selectFunc: func() *selectors.ExchangeBackup {
+			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
-			resourceOwner: m365UserID,
+			resourceOwner: suite.user,
 			category:      path.EventsCategory,
 			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			mb := evmock.NewBus()
-			sel := test.selectFunc()
-			bo, acct, kw, ms, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
-			defer closer()
-
-			failed := false
-
-			require.NoError(t, bo.Run(ctx))
-			require.NotEmpty(t, bo.Results)
-			require.NotEmpty(t, bo.Results.BackupID)
-
-			if !assert.Equalf(
-				t,
-				Completed,
-				bo.Status,
-				"backup status %s is not Completed",
-				bo.Status,
-			) {
-				failed = true
-			}
-
-			if !assert.Less(t, 0, bo.Results.ItemsWritten) {
-				failed = true
-			}
-
-			assert.Less(t, 0, bo.Results.ItemsRead)
-			assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
-			assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
-			assert.Equal(t, 1, bo.Results.ResourceOwners)
-			assert.NoError(t, bo.Results.ReadErrors)
-			assert.NoError(t, bo.Results.WriteErrors)
-			assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
-			assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-			assert.Equal(t,
-				mb.CalledWith[events.BackupStart][0][events.BackupID],
-				bo.Results.BackupID, "backupID pre-declaration")
-
-			// verify that we can find the new backup id in the manifests
 			var (
-				sck, scv = kopia.MakeServiceCat(sel.PathService(), test.category)
-				oc       = &kopia.OwnersCats{
-					ResourceOwners: map[string]struct{}{test.resourceOwner: {}},
-					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
-				}
-				tags  = map[string]string{kopia.TagBackupCategory: ""}
-				found bool
+				mb                       = evmock.NewBus()
+				sel                      = test.selector()
+				bo, acct, kw, ms, closer = prepNewBackupOp(t, ctx, mb, sel.Selector)
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
-			assert.NoError(t, err)
+			defer closer()
 
-			for _, man := range mans {
-				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-				if man.Tags[tk] == string(bo.Results.BackupID) {
-					found = true
-					break
-				}
-			}
+			runAndCheckBackup(t, ctx, &bo, mb)
 
-			assert.True(t, found, "backup retrieved by previous snapshot manifest")
-
-			if failed {
-				return
-			}
+			checkBackupIsInManifests(t, ctx, kw, &bo, sel.Selector, test.resourceOwner, test.category)
 
 			m365, err := acct.M365Config()
 			require.NoError(t, err)
@@ -354,7 +375,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				kw,
 				ms,
 				m365.AzureTenantID,
-				m365UserID,
+				test.resourceOwner,
 				path.ExchangeService,
 				test.category,
 				test.metadataFiles,
@@ -379,21 +400,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 	defer closer()
 
-	require.NoError(t, bo.Run(ctx))
-	require.NotEmpty(t, bo.Results)
-	require.NotEmpty(t, bo.Results.BackupID)
-	assert.Equalf(t, Completed, bo.Status, "backup status %s is not Completed", bo.Status)
-	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
-	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
-	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
-	assert.Equal(t, 1, bo.Results.ResourceOwners)
-	assert.NoError(t, bo.Results.ReadErrors)
-	assert.NoError(t, bo.Results.WriteErrors)
-	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
-	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-	assert.Equal(t,
-		mb.CalledWith[events.BackupStart][0][events.BackupID],
-		bo.Results.BackupID, "backupID pre-declaration")
+	runAndCheckBackup(t, ctx, &bo, mb)
 }
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
@@ -401,30 +408,15 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 	defer flush()
 
 	var (
-		t      = suite.T()
-		mb     = evmock.NewBus()
-		siteID = tester.M365SiteID(t)
-		sel    = selectors.NewSharePointBackup([]string{siteID})
+		t   = suite.T()
+		mb  = evmock.NewBus()
+		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
-	sel.Include(sel.Sites([]string{siteID}))
+	sel.Include(sel.Sites([]string{suite.site}))
 
 	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector)
 	defer closer()
 
-	require.NoError(t, bo.Run(ctx))
-	require.NotEmpty(t, bo.Results)
-	require.NotEmpty(t, bo.Results.BackupID)
-	assert.Equalf(t, Completed, bo.Status, "backup status %s is not Completed", bo.Status)
-	assert.Equal(t, bo.Results.ItemsRead, bo.Results.ItemsWritten)
-	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
-	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
-	assert.Equal(t, 1, bo.Results.ResourceOwners)
-	assert.NoError(t, bo.Results.ReadErrors)
-	assert.NoError(t, bo.Results.WriteErrors)
-	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
-	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-	assert.Equal(t,
-		mb.CalledWith[events.BackupStart][0][events.BackupID],
-		bo.Results.BackupID, "backupID pre-declaration")
+	runAndCheckBackup(t, ctx, &bo, mb)
 }
