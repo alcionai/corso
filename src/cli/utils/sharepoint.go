@@ -9,8 +9,8 @@ import (
 const (
 	LibraryItemFN = "library-item"
 	LibraryFN     = "library"
-	ListsItemFN   = "lists-item"
-	ListsFN       = "lists"
+	ListItemFN   = "list-item"
+	ListFN       = "list"
 	WebURLFN      = "web-url"
 )
 
