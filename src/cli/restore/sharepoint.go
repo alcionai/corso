@@ -69,7 +69,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&listPaths,
 			utils.ListFN, nil,
-			"Restore list items by SharePoint path")
+			"Restore list items by SharePoint list ID")
 
 		fs.StringSliceVar(
 			&listItems,
