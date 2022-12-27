@@ -11,6 +11,7 @@ import (
 func GetMockList(title string) models.Listable {
 	requestBody := models.NewList()
 	requestBody.SetDisplayName(&title)
+	requestBody.SetName(&title)
 
 	columnDef := models.NewColumnDefinition()
 	name := "Author"
