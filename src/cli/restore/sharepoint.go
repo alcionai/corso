@@ -16,6 +16,8 @@ import (
 )
 
 var (
+	listItems    []string
+	listPaths    []string
 	libraryItems []string
 	libraryPaths []string
 	site         []string
@@ -115,6 +117,8 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.SharePointOpts{
+		ListItems:    listItems,
+		ListPaths:    listPaths,
 		LibraryItems: libraryItems,
 		LibraryPaths: libraryPaths,
 		Sites:        site,

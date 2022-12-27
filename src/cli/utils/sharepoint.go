@@ -9,12 +9,16 @@ import (
 const (
 	LibraryItemFN = "library-item"
 	LibraryFN     = "library"
+	ListsItemFN   = "lists-item"
+	ListsFN       = "lists"
 	WebURLFN      = "web-url"
 )
 
 type SharePointOpts struct {
 	LibraryItems []string
 	LibraryPaths []string
+	ListItems    []string
+	ListPaths    []string
 	Sites        []string
 	WebURLs      []string
 
@@ -56,12 +60,13 @@ func IncludeSharePointRestoreDataSelectors(
 ) {
 	lp, li := len(opts.LibraryPaths), len(opts.LibraryItems)
 	ls, lwu := len(opts.Sites), len(opts.WebURLs)
+	slp, sli := len(opts.ListPaths), len(opts.ListItems)
 
 	if ls == 0 {
 		opts.Sites = selectors.Any()
 	}
 
-	if lp+li+lwu == 0 {
+	if lp+li+lwu+slp+sli == 0 {
 		sel.Include(sel.Sites(opts.Sites))
 
 		return
@@ -81,6 +86,23 @@ func IncludeSharePointRestoreDataSelectors(
 
 		if len(prefixFolders) > 0 {
 			sel.Include(sel.LibraryItems(opts.Sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+		}
+	}
+
+	if slp+sli > 0 {
+		if sli == 0 {
+			opts.ListItems = selectors.Any()
+		}
+
+		opts.ListPaths = trimFolderSlash(opts.ListPaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListPaths)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.ListItems(opts.Sites, containsFolders, opts.ListItems))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.ListItems(opts.Sites, prefixFolders, opts.ListItems, selectors.PrefixMatch()))
 		}
 	}
 
