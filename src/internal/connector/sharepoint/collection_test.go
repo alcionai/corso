@@ -121,7 +121,7 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
-	deets, err := restoreItem(ctx, service, listData, siteID, destName)
+	deets, err := restoreListItem(ctx, service, listData, siteID, destName)
 	assert.NoError(t, err)
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
 }
