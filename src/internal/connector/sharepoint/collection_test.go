@@ -124,7 +124,6 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 	deets, err := restoreItem(ctx, service, listData, siteID, destName)
 	assert.NoError(t, err)
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
-
 }
 
 // TestRestoreLocation temporary test for greater restore operation
