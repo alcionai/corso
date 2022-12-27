@@ -87,7 +87,37 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestRestoreList() {
+func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t            = suite.T()
+		tenant       = "Mocked Tenant"
+		a            = tester.NewM365Account(t)
+		siteID       = tester.M365SiteID(t)
+		name         = "MockRestoreList"
+		mockList     = mockconnector.GetMockList(name)
+		account, err = a.M365Config()
+	)
+
+	require.NoError(t, err)
+
+	dir, err := path.Builder{}.Append(name).
+		ToDataLayerSharePointPath(
+			tenant,
+			siteID,
+			path.ListsCategory,
+			false)
+	collection := NewCollection(dir, nil, nil)
+
+	service, err := createTestService(account)
+	require.NoError(t, err)
+
+	driveID := *siteDrive.GetId()
+	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
+	assert.NoError(t, err)
+
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -96,7 +126,6 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
 	require.NoError(t, err)
 	siteID := tester.M365SiteID(t)
 
@@ -121,9 +150,9 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
-	deets, err := restoreItem(ctx, service, listData, siteID, destName)
-	assert.NoError(t, err)
-	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
+	_, canceled := RestoreCollection(ctx, service, collection, destName, deets, updater)
+	assert.False(t, canceled)
+
 }
 
 // TestRestoreLocation temporary test for greater restore operation
