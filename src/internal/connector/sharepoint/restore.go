@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/trace"
 
 	"github.com/pkg/errors"
 
@@ -14,6 +15,7 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -51,6 +53,15 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errUpdater)
+		case path.ListsCategory:
+			metrics, canceled = RestoreCollection(
+				ctx,
+				service,
+				dc,
+				dest.ContainerName,
+				deets,
+				errUpdater,
+			)
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
@@ -143,4 +154,72 @@ func restoreItem(
 	dii.SharePoint = sharePointListInfo(restoredList, written)
 
 	return dii, nil
+}
+
+func RestoreCollection(
+	ctx context.Context,
+	service graph.Servicer,
+	dc data.Collection,
+	restoreContainerName string,
+	deets *details.Builder,
+	errUpdater func(string, error),
+) (support.CollectionMetrics, bool) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restoreCollection", D.Label("path", dc.FullPath()))
+	defer end()
+
+	var (
+		metrics   = support.CollectionMetrics{}
+		directory = dc.FullPath()
+	)
+
+	trace.Log(ctx, "gc:sharepoint:restoreCollection", directory.String())
+	siteID := directory.ResourceOwner()
+
+	// Restore items from the collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return metrics, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return metrics, false
+			}
+			metrics.Objects++
+
+			itemInfo, err := restoreItem(
+				ctx,
+				service,
+				itemData,
+				siteID,
+				restoreContainerName,
+			)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			metrics.TotalBytes += itemInfo.SharePoint.Size
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				true,
+				itemInfo)
+
+			metrics.Successes++
+		}
+	}
 }
