@@ -74,7 +74,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&listItems,
 			utils.ListItemFN, nil,
-			"Restore list items by file name or ID")
+			"Restore list items by ID")
 
 		// sharepoint info flags
 
