@@ -2,13 +2,21 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -17,22 +25,25 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+const incrementalsDestFolderPrefix = "incrementals_ci_"
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 
-// prepNewBackupOp generates all clients required to run a backup operation,
+// prepNewTestBackupOp generates all clients required to run a backup operation,
 // returning both a backup operation created with those clients, as well as
 // the clients themselves.
 //
 //revive:disable:context-as-argument
-func prepNewBackupOp(
+func prepNewTestBackupOp(
 	t *testing.T,
 	ctx context.Context,
 	bus events.Eventer,
@@ -75,18 +86,18 @@ func prepNewBackupOp(
 		ms.Close(ctx)
 	}
 
-	bo := newBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
+	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
 
 	return bo, acct, kw, ms, closer
 }
 
-// newBackupOp accepts the clients required to compose a backup operation, plus
+// newTestBackupOp accepts the clients required to compose a backup operation, plus
 // any other metadata, and uses them to generate a new backup operation.  This
 // allows backup chains to utilize the same temp directory and configuration
 // details.
 //
 //revive:disable:context-as-argument
-func newBackupOp(
+func newTestBackupOp(
 	t *testing.T,
 	ctx context.Context,
 	kw *kopia.Wrapper,
@@ -155,31 +166,35 @@ func checkBackupIsInManifests(
 	bo *BackupOperation,
 	sel selectors.Selector,
 	resourceOwner string,
-	category path.CategoryType,
+	categories ...path.CategoryType,
 ) {
 	//revive:enable:context-as-argument
-	var (
-		sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
-		oc       = &kopia.OwnersCats{
-			ResourceOwners: map[string]struct{}{resourceOwner: {}},
-			ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
-		}
-		tags  = map[string]string{kopia.TagBackupCategory: ""}
-		found bool
-	)
+	for _, category := range categories {
+		t.Run(category.String(), func(t *testing.T) {
+			var (
+				sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
+				oc       = &kopia.OwnersCats{
+					ResourceOwners: map[string]struct{}{resourceOwner: {}},
+					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+				}
+				tags  = map[string]string{kopia.TagBackupCategory: ""}
+				found bool
+			)
 
-	mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
-	require.NoError(t, err)
+			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+			require.NoError(t, err)
 
-	for _, man := range mans {
-		tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-		if man.Tags[tk] == string(bo.Results.BackupID) {
-			found = true
-			break
-		}
+			for _, man := range mans {
+				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
+				if man.Tags[tk] == string(bo.Results.BackupID) {
+					found = true
+					break
+				}
+			}
+
+			assert.True(t, found, "backup retrieved by previous snapshot manifest")
+		})
 	}
-
-	assert.True(t, found, "backup retrieved by previous snapshot manifest")
 }
 
 //revive:disable:context-as-argument
@@ -191,67 +206,211 @@ func checkMetadataFilesExist(
 	ms *kopia.ModelStore,
 	tenant, user string,
 	service path.ServiceType,
-	category path.CategoryType,
-	files []string,
+	filesByCat map[path.CategoryType][]string,
 ) {
 	//revive:enable:context-as-argument
-	bup := &backup.Backup{}
+	for category, files := range filesByCat {
+		t.Run(category.String(), func(t *testing.T) {
+			bup := &backup.Backup{}
 
-	err := ms.Get(ctx, model.BackupSchema, backupID, bup)
-	if !assert.NoError(t, err) {
-		return
+			err := ms.Get(ctx, model.BackupSchema, backupID, bup)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			paths := []path.Path{}
+			pathsByRef := map[string][]string{}
+
+			for _, fName := range files {
+				p, err := path.Builder{}.
+					Append(fName).
+					ToServiceCategoryMetadataPath(tenant, user, service, category, true)
+				if !assert.NoError(t, err, "bad metadata path") {
+					continue
+				}
+
+				dir, err := p.Dir()
+				if !assert.NoError(t, err, "parent path") {
+					continue
+				}
+
+				paths = append(paths, p)
+				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
+			}
+
+			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil)
+			assert.NoError(t, err)
+
+			for _, col := range cols {
+				itemNames := []string{}
+
+				for item := range col.Items() {
+					assert.Implements(t, (*data.StreamSize)(nil), item)
+
+					s := item.(data.StreamSize)
+					assert.Greaterf(
+						t,
+						s.Size(),
+						int64(0),
+						"empty metadata file: %s/%s",
+						col.FullPath(),
+						item.UUID(),
+					)
+
+					itemNames = append(itemNames, item.UUID())
+				}
+
+				assert.ElementsMatchf(
+					t,
+					pathsByRef[col.FullPath().ShortRef()],
+					itemNames,
+					"collection %s missing expected files",
+					col.FullPath(),
+				)
+			}
+		})
 	}
+}
 
-	paths := []path.Path{}
-	pathsByRef := map[string][]string{}
+// ---------------------------------------------------------------------------
+// Incremental Item Generators
+// TODO: this is ripped from factory.go, which is ripped from other tests.
+// At this point, three variation of the sameish code in three locations
+// feels like something we can clean up.  But, it's not a strong need, so
+// this gets to stay for now.
+// ---------------------------------------------------------------------------
 
-	for _, fName := range files {
-		p, err := path.Builder{}.
-			Append(fName).
-			ToServiceCategoryMetadataPath(tenant, user, service, category, true)
-		if !assert.NoError(t, err, "bad metadata path") {
-			continue
-		}
+// the params here are what generateContainerOfItems passes into the func.
+// the callback provider can use them, or not, as wanted.
+type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
 
-		dir, err := p.Dir()
-		if !assert.NoError(t, err, "parent path") {
-			continue
-		}
+//revive:disable:context-as-argument
+func generateContainerOfItems(
+	t *testing.T,
+	ctx context.Context,
+	gc *connector.GraphConnector,
+	service path.ServiceType,
+	cat path.CategoryType,
+	sel selectors.Selector,
+	tenantID, userID, destFldr string,
+	howManyItems int,
+	dbf dataBuilderFunc,
+) *details.Details {
+	//revive:enable:context-as-argument
+	t.Helper()
 
-		paths = append(paths, p)
-		pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
-	}
+	items := make([]incrementalItem, 0, howManyItems)
 
-	cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil)
-	assert.NoError(t, err)
-
-	for _, col := range cols {
-		itemNames := []string{}
-
-		for item := range col.Items() {
-			assert.Implements(t, (*data.StreamSize)(nil), item)
-
-			s := item.(data.StreamSize)
-			assert.Greaterf(
-				t,
-				s.Size(),
-				int64(0),
-				"empty metadata file: %s/%s",
-				col.FullPath(),
-				item.UUID(),
-			)
-
-			itemNames = append(itemNames, item.UUID())
-		}
-
-		assert.ElementsMatchf(
-			t,
-			pathsByRef[col.FullPath().ShortRef()],
-			itemNames,
-			"collection %s missing expected files",
-			col.FullPath(),
+	for i := 0; i < howManyItems; i++ {
+		var (
+			now       = common.Now()
+			nowLegacy = common.FormatLegacyTime(time.Now())
+			id        = uuid.NewString()
+			subject   = "incr_test " + now[:16] + " - " + id[:8]
+			body      = "incr_test " + cat.String() + " generation for " + userID + " at " + now + " - " + id
 		)
+
+		items = append(items, incrementalItem{
+			name: id,
+			data: dbf(id, nowLegacy, subject, body),
+		})
 	}
+
+	collections := []incrementalCollection{{
+		pathFolders: []string{destFldr},
+		category:    cat,
+		items:       items,
+	}}
+
+	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest.ContainerName = destFldr
+
+	dataColls := buildCollections(
+		t,
+		service,
+		tenantID, userID,
+		dest,
+		collections)
+
+	deets, err := gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+	require.NoError(t, err)
+
+	return deets
+}
+
+type incrementalItem struct {
+	name string
+	data []byte
+}
+
+type incrementalCollection struct {
+	pathFolders []string
+	category    path.CategoryType
+	items       []incrementalItem
+}
+
+func buildCollections(
+	t *testing.T,
+	service path.ServiceType,
+	tenant, user string,
+	dest control.RestoreDestination,
+	colls []incrementalCollection,
+) []data.Collection {
+	t.Helper()
+
+	collections := make([]data.Collection, 0, len(colls))
+
+	for _, c := range colls {
+		pth := toDataLayerPath(
+			t,
+			service,
+			tenant,
+			user,
+			c.category,
+			c.pathFolders,
+			false)
+
+		mc := mockconnector.NewMockExchangeCollection(pth, len(c.items))
+
+		for i := 0; i < len(c.items); i++ {
+			mc.Names[i] = c.items[i].name
+			mc.Data[i] = c.items[i].data
+		}
+
+		collections = append(collections, mc)
+	}
+
+	return collections
+}
+
+func toDataLayerPath(
+	t *testing.T,
+	service path.ServiceType,
+	tenant, user string,
+	category path.CategoryType,
+	elements []string,
+	isItem bool,
+) path.Path {
+	t.Helper()
+
+	var (
+		pb  = path.Builder{}.Append(elements...)
+		p   path.Path
+		err error
+	)
+
+	switch service {
+	case path.ExchangeService:
+		p, err = pb.ToDataLayerExchangePathForCategory(tenant, user, category, isItem)
+	case path.OneDriveService:
+		p, err = pb.ToDataLayerOneDrivePath(tenant, user, isItem)
+	default:
+		err = errors.Errorf("unknown service %s", service.String())
+	}
+
+	require.NoError(t, err)
+
+	return p
 }
 
 // ---------------------------------------------------------------------------
@@ -321,6 +480,10 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Exchange
+// ---------------------------------------------------------------------------
+
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
@@ -385,7 +548,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.FeatureFlags{ExchangeIncrementals: test.runIncremental}
 			)
 
-			bo, acct, kw, ms, closer := prepNewBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -403,8 +566,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				test.resourceOwner,
 				path.ExchangeService,
-				test.category,
-				test.metadataFiles,
+				map[path.CategoryType][]string{test.category: test.metadataFiles},
 			)
 
 			if !test.runIncremental {
@@ -416,7 +578,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB)
@@ -430,8 +592,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				test.resourceOwner,
 				path.ExchangeService,
-				test.category,
-				test.metadataFiles,
+				map[path.CategoryType][]string{test.category: test.metadataFiles},
 			)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
@@ -451,6 +612,165 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	}
 }
 
+// TestBackup_Run ensures that Integration Testing works
+// for the following scopes: Contacts, Events, and Mail
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t          = suite.T()
+		acct       = tester.NewM365Account(t)
+		ffs        = control.FeatureFlags{ExchangeIncrementals: true}
+		mb         = evmock.NewBus()
+		now        = common.Now()
+		users      = []string{suite.user}
+		categories = map[path.CategoryType][]string{
+			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
+			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
+		}
+		folder1 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 1, now)
+		folder2 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 2, now)
+	)
+
+	m365, err := acct.M365Config()
+	require.NoError(t, err)
+
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
+	require.NoError(t, err)
+
+	// generate 2 new folders with two items each.
+	// This should be enough to cover most delta actions, since moving one
+	// folder into another generates a delta for both addition and deletion.
+	// TODO: get the folder IDs somehow, so that we can call mutations on
+	// the folders by ID.
+	dataset := map[path.CategoryType]struct {
+		dbf   dataBuilderFunc
+		dests map[string]*details.Details
+	}{
+		path.EmailCategory: {
+			dbf: func(id, timeStamp, subject, body string) []byte {
+				user := suite.user
+
+				return mockconnector.GetMockMessageWith(
+					user, user, user,
+					subject, body, body,
+					now, now, now, now)
+			},
+			dests: map[string]*details.Details{
+				folder1: nil,
+				folder2: nil,
+			},
+		},
+		path.ContactsCategory: {
+			dbf: func(id, timeStamp, subject, body string) []byte {
+				given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
+
+				return mockconnector.GetMockContactBytesWith(
+					given+" "+sur,
+					sur+", "+given,
+					given, mid, sur,
+					"123-456-7890",
+				)
+			},
+			dests: map[string]*details.Details{
+				folder1: nil,
+				folder2: nil,
+			},
+		},
+	}
+
+	for category, gen := range dataset {
+		for dest := range gen.dests {
+			dataset[category].dests[dest] = generateContainerOfItems(
+				t,
+				ctx,
+				gc,
+				path.ExchangeService,
+				category,
+				selectors.NewExchangeRestore(users).Selector,
+				m365.AzureTenantID, suite.user, dest,
+				2,
+				gen.dbf)
+		}
+	}
+
+	// use the new folders here
+	sel := selectors.NewExchangeBackup(users)
+	sel.Include(
+		sel.MailFolders(users, []string{folder1, folder2}, selectors.PrefixMatch()),
+		sel.ContactFolders(users, []string{folder1, folder2}, selectors.PrefixMatch()),
+	)
+
+	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	defer closer()
+
+	// run the initial backup
+	runAndCheckBackup(t, ctx, &bo, mb)
+
+	// incrementals changes to make (all changes apply to both email and contacts)
+	// [ ] add a new item to an existing folder
+	// [ ] remove an item from an existing folder
+	// [ ] add a new folder
+	// [ ] rename a folder
+	// [ ] relocate one folder into another
+	// [ ] remove a folder
+
+	table := []struct {
+		name string
+		// performs the incremental update required for the test.
+		updateUserData func(t *testing.T)
+		itemsRead      int
+		itemsWritten   int
+	}{
+		{
+			name:           "clean incremental, no changes",
+			updateUserData: func(t *testing.T) {},
+			itemsRead:      0,
+			itemsWritten:   0,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				incMB = evmock.NewBus()
+				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+			)
+
+			test.updateUserData(t)
+			require.NoError(t, incBO.Run(ctx))
+			checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, suite.user, maps.Keys(categories)...)
+			checkMetadataFilesExist(
+				t,
+				ctx,
+				incBO.Results.BackupID,
+				kw,
+				ms,
+				m365.AzureTenantID,
+				suite.user,
+				path.ExchangeService,
+				categories,
+			)
+
+			// do some additional checks to ensure the incremental dealt with fewer items.
+			// +4 on read/writes to account for metadata
+			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
+			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
+			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
+			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
+			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
+			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
+			assert.Equal(t,
+				incMB.CalledWith[events.BackupStart][0][events.BackupID],
+				incBO.Results.BackupID, "incremental backupID pre-declaration")
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// OneDrive
+// ---------------------------------------------------------------------------
+
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -464,11 +784,15 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.Users([]string{m365UserID}))
 
-	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
 }
+
+// ---------------------------------------------------------------------------
+// SharePoint
+// ---------------------------------------------------------------------------
 
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 	ctx, flush := tester.NewContext()
@@ -482,7 +806,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.Sites([]string{suite.site}))
 
-	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
