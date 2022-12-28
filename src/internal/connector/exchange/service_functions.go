@@ -125,11 +125,11 @@ func DeleteContactFolder(ctx context.Context, gs graph.Servicer, user, folderID 
 	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 }
 
-// populateExchangeContainerResolver gets a folder resolver if one is available for
+// PopulateExchangeContainerResolver gets a folder resolver if one is available for
 // this category of data. If one is not available, returns nil so that other
 // logic in the caller can complete as long as they check if the resolver is not
 // nil. If an error occurs populating the resolver, returns an error.
-func populateExchangeContainerResolver(
+func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
 ) (graph.ContainerResolver, error) {
