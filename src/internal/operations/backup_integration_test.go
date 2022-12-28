@@ -38,12 +38,12 @@ const incrementalsDestFolderPrefix = "incrementals_ci_"
 // helpers
 // ---------------------------------------------------------------------------
 
-// prepNewBackupOp generates all clients required to run a backup operation,
+// prepNewTestBackupOp generates all clients required to run a backup operation,
 // returning both a backup operation created with those clients, as well as
 // the clients themselves.
 //
 //revive:disable:context-as-argument
-func prepNewBackupOp(
+func prepNewTestBackupOp(
 	t *testing.T,
 	ctx context.Context,
 	bus events.Eventer,
@@ -86,18 +86,18 @@ func prepNewBackupOp(
 		ms.Close(ctx)
 	}
 
-	bo := newBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
+	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
 
 	return bo, acct, kw, ms, closer
 }
 
-// newBackupOp accepts the clients required to compose a backup operation, plus
+// newTestBackupOp accepts the clients required to compose a backup operation, plus
 // any other metadata, and uses them to generate a new backup operation.  This
 // allows backup chains to utilize the same temp directory and configuration
 // details.
 //
 //revive:disable:context-as-argument
-func newBackupOp(
+func newTestBackupOp(
 	t *testing.T,
 	ctx context.Context,
 	kw *kopia.Wrapper,
@@ -282,7 +282,7 @@ func checkMetadataFilesExist(
 
 // the params here are what generateContainerOfItems passes into the func.
 // the callback provider can use them, or not, as wanted.
-type dataBuilderFunc func(id, now, subject, body string) []byte
+type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
 
 //revive:disable:context-as-argument
 func generateContainerOfItems(
@@ -293,15 +293,15 @@ func generateContainerOfItems(
 	cat path.CategoryType,
 	sel selectors.Selector,
 	tenantID, userID, destFldr string,
-	howMany int,
+	howManyItems int,
 	dbf dataBuilderFunc,
-) (*details.Details, error) {
+) *details.Details {
 	//revive:enable:context-as-argument
 	t.Helper()
 
-	items := make([]incrementalItem, 0, howMany)
+	items := make([]incrementalItem, 0, howManyItems)
 
-	for i := 0; i < howMany; i++ {
+	for i := 0; i < howManyItems; i++ {
 		var (
 			now       = common.Now()
 			nowLegacy = common.FormatLegacyTime(time.Now())
@@ -317,25 +317,25 @@ func generateContainerOfItems(
 	}
 
 	collections := []incrementalCollection{{
-		pathElements: []string{destFldr},
-		category:     cat,
-		items:        items,
+		pathFolders: []string{destFldr},
+		category:    cat,
+		items:       items,
 	}}
 
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 
-	dataColls, err := buildCollections(
+	dataColls := buildCollections(
 		t,
 		service,
 		tenantID, userID,
 		dest,
 		collections)
-	if err != nil {
-		return nil, err
-	}
 
-	return gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+	deets, err := gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+	require.NoError(t, err)
+
+	return deets
 }
 
 type incrementalItem struct {
@@ -344,13 +344,9 @@ type incrementalItem struct {
 }
 
 type incrementalCollection struct {
-	// Elements (in order) for the path representing this collection. Should
-	// only contain elements after the prefix that corso uses for the path. For
-	// example, a collection for the Inbox folder in exchange mail would just be
-	// "Inbox".
-	pathElements []string
-	category     path.CategoryType
-	items        []incrementalItem
+	pathFolders []string
+	category    path.CategoryType
+	items       []incrementalItem
 }
 
 func buildCollections(
@@ -359,23 +355,20 @@ func buildCollections(
 	tenant, user string,
 	dest control.RestoreDestination,
 	colls []incrementalCollection,
-) ([]data.Collection, error) {
+) []data.Collection {
 	t.Helper()
 
 	collections := make([]data.Collection, 0, len(colls))
 
 	for _, c := range colls {
-		pth, err := toDataLayerPath(
+		pth := toDataLayerPath(
 			t,
 			service,
 			tenant,
 			user,
 			c.category,
-			c.pathElements,
+			c.pathFolders,
 			false)
-		if err != nil {
-			return nil, err
-		}
 
 		mc := mockconnector.NewMockExchangeCollection(pth, len(c.items))
 
@@ -387,7 +380,7 @@ func buildCollections(
 		collections = append(collections, mc)
 	}
 
-	return collections, nil
+	return collections
 }
 
 func toDataLayerPath(
@@ -397,19 +390,27 @@ func toDataLayerPath(
 	category path.CategoryType,
 	elements []string,
 	isItem bool,
-) (path.Path, error) {
+) path.Path {
 	t.Helper()
 
-	pb := path.Builder{}.Append(elements...)
+	var (
+		pb  = path.Builder{}.Append(elements...)
+		p   path.Path
+		err error
+	)
 
 	switch service {
 	case path.ExchangeService:
-		return pb.ToDataLayerExchangePathForCategory(tenant, user, category, isItem)
+		p, err = pb.ToDataLayerExchangePathForCategory(tenant, user, category, isItem)
 	case path.OneDriveService:
-		return pb.ToDataLayerOneDrivePath(tenant, user, isItem)
+		p, err = pb.ToDataLayerOneDrivePath(tenant, user, isItem)
+	default:
+		err = errors.Errorf("unknown service %s", service.String())
 	}
 
-	return nil, errors.Errorf("unknown service %s", service.String())
+	require.NoError(t, err)
+
+	return p
 }
 
 // ---------------------------------------------------------------------------
@@ -547,7 +548,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.FeatureFlags{ExchangeIncrementals: test.runIncremental}
 			)
 
-			bo, acct, kw, ms, closer := prepNewBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -577,7 +578,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB)
@@ -638,14 +639,17 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	require.NoError(t, err)
 
-	// generate 2 new folders and add data to them.
-	// need 2 points of data in each folder for testing purposes.
+	// generate 2 new folders with two items each.
+	// This should be enough to cover most delta actions, since moving one
+	// folder into another generates a delta for both addition and deletion.
+	// TODO: get the folder IDs somehow, so that we can call mutations on
+	// the folders by ID.
 	dataset := map[path.CategoryType]struct {
 		dbf   dataBuilderFunc
 		dests map[string]*details.Details
 	}{
 		path.EmailCategory: {
-			dbf: func(id, nw, subject, body string) []byte {
+			dbf: func(id, timeStamp, subject, body string) []byte {
 				user := suite.user
 
 				return mockconnector.GetMockMessageWith(
@@ -659,7 +663,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			},
 		},
 		path.ContactsCategory: {
-			dbf: func(id, nw, subject, body string) []byte {
+			dbf: func(id, timeStamp, subject, body string) []byte {
 				given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
 
 				return mockconnector.GetMockContactBytesWith(
@@ -678,7 +682,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	for category, gen := range dataset {
 		for dest := range gen.dests {
-			deets, err := generateContainerOfItems(
+			dataset[category].dests[dest] = generateContainerOfItems(
 				t,
 				ctx,
 				gc,
@@ -688,9 +692,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				m365.AzureTenantID, suite.user, dest,
 				2,
 				gen.dbf)
-			require.NoError(t, err)
-
-			dataset[category].dests[dest] = deets
 		}
 	}
 
@@ -701,7 +702,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		sel.ContactFolders(users, []string{folder1, folder2}, selectors.PrefixMatch()),
 	)
 
-	bo, _, kw, ms, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
 	defer closer()
 
 	// run the initial backup
@@ -733,7 +734,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			var (
 				incMB = evmock.NewBus()
-				incBO = newBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
 			)
 
 			test.updateUserData(t)
@@ -783,7 +784,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.Users([]string{m365UserID}))
 
-	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
@@ -805,7 +806,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.Sites([]string{suite.site}))
 
-	bo, _, _, _, closer := prepNewBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
