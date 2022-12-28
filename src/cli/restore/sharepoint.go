@@ -16,6 +16,8 @@ import (
 )
 
 var (
+	listItems    []string
+	listPaths    []string
 	libraryItems []string
 	libraryPaths []string
 	site         []string
@@ -55,7 +57,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// sharepoint hierarchy (path/name) flags
 
 		fs.StringSliceVar(
-			&folderPaths,
+			&libraryPaths,
 			utils.LibraryFN, nil,
 			"Restore library items by SharePoint library")
 
@@ -63,6 +65,16 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&libraryItems,
 			utils.LibraryItemFN, nil,
 			"Restore library items by file name or ID")
+
+		fs.StringSliceVar(
+			&listPaths,
+			utils.ListFN, nil,
+			"Restore list items by SharePoint list ID")
+
+		fs.StringSliceVar(
+			&listItems,
+			utils.ListItemFN, nil,
+			"Restore list items by ID")
 
 		// sharepoint info flags
 
@@ -115,6 +127,8 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.SharePointOpts{
+		ListItems:    listItems,
+		ListPaths:    listPaths,
 		LibraryItems: libraryItems,
 		LibraryPaths: libraryPaths,
 		Sites:        site,
