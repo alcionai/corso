@@ -36,7 +36,6 @@ func StubRootCmd(args ...string) *cobra.Command {
 func NewContext() (context.Context, func()) {
 	level := logger.Info
 
-	fmt.Printf("\n-----\nargs %v\n-----\n", os.Args)
 	for _, a := range os.Args {
 		if a == "-test.v=true" {
 			level = logger.Development
