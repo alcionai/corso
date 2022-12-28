@@ -100,10 +100,11 @@ func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID st
 	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
 }
 
-// restoreItem utility function restores a List to the siteID. The name is changed to to Corso_Restore_{timeStame}_name
+// restoreListItem utility function restores a List to the siteID.
+// The name is changed to to Corso_Restore_{timeStame}_name
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
 // Restored List can be verified within the Site contents
-func restoreItem(
+func restoreListItem(
 	ctx context.Context,
 	service graph.Servicer,
 	itemData data.Stream,
@@ -190,7 +191,7 @@ func RestoreCollection(
 			}
 			metrics.Objects++
 
-			itemInfo, err := restoreItem(
+			itemInfo, err := restoreListItem(
 				ctx,
 				service,
 				itemData,
