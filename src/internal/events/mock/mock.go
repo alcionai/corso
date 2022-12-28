@@ -6,20 +6,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-type MockBus struct {
+type Bus struct {
 	TimesCalled map[string]int
 	CalledWith  map[string][]map[string]any
 	TimesClosed int
 }
 
-func NewBus() *MockBus {
-	return &MockBus{
+func NewBus() *Bus {
+	return &Bus{
 		TimesCalled: map[string]int{},
 		CalledWith:  map[string][]map[string]any{},
 	}
 }
 
-func (b *MockBus) Event(ctx context.Context, key string, data map[string]any) {
+func (b *Bus) Event(ctx context.Context, key string, data map[string]any) {
 	b.TimesCalled[key] = b.TimesCalled[key] + 1
 
 	cw := b.CalledWith[key]
@@ -31,11 +31,11 @@ func (b *MockBus) Event(ctx context.Context, key string, data map[string]any) {
 	b.CalledWith[key] = cw
 }
 
-func (b *MockBus) Close() error {
+func (b *Bus) Close() error {
 	b.TimesClosed++
 
 	if b.TimesClosed > 1 {
-		return errors.New("multiple closes on mockBus")
+		return errors.New("multiple closes on Bus")
 	}
 
 	return nil

@@ -93,7 +93,7 @@ func runAndCheckBackup(
 	t *testing.T,
 	ctx context.Context,
 	bo *BackupOperation,
-	mb *evmock.MockBus,
+	mb *evmock.Bus,
 ) {
 	//revive:enable:context-as-argument
 	require.NoError(t, bo.Run(ctx))
