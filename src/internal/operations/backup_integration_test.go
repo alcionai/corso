@@ -306,6 +306,7 @@ func generateContainerOfItems(
 
 	for i := 0; i < howManyItems; i++ {
 		id, d := generateItemData(t, cat, userID, dbf)
+
 		items = append(items, incrementalItem{
 			name: id,
 			data: d,
