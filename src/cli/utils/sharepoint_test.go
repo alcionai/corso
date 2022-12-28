@@ -54,6 +54,18 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			expectIncludeLen: 3,
 		},
 		{
+			name: "single extended",
+			opts: utils.SharePointOpts{
+				LibraryItems: single,
+				LibraryPaths: single,
+				ListItems:    single,
+				ListPaths:    single,
+				Sites:        single,
+				WebURLs:      single,
+			},
+			expectIncludeLen: 4,
+		},
+		{
 			name: "multi inputs",
 			opts: utils.SharePointOpts{
 				LibraryItems: multi,
@@ -90,6 +102,32 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				LibraryPaths: containsAndPrefix,
 				Sites:        empty,
 				WebURLs:      empty,
+			},
+			expectIncludeLen: 2,
+		},
+		{
+			name: "list contains",
+			opts: utils.SharePointOpts{
+				LibraryItems: empty,
+				LibraryPaths: empty,
+				ListItems:    empty,
+				ListPaths:    containsOnly,
+				Sites:        empty,
+				WebURLs:      empty,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "list prefixes",
+			opts: utils.SharePointOpts{
+				ListPaths: prefixOnly,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "list prefixes and contains",
+			opts: utils.SharePointOpts{
+				ListPaths: containsAndPrefix,
 			},
 			expectIncludeLen: 2,
 		},
