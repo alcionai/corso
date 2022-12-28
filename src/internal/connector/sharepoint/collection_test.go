@@ -13,8 +13,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -92,15 +94,22 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	defer flush()
 
 	var (
-		t            = suite.T()
-		tenant       = "Mocked Tenant"
-		a            = tester.NewM365Account(t)
-		siteID       = tester.M365SiteID(t)
+		restoreErrors error
+		t             = suite.T()
+		deets         = &details.Builder{}
+		tenant        = "Mocked Tenant"
+		a             = tester.NewM365Account(t)
+		siteID        = tester.M365SiteID(t)
+		errUpdater    = func(id string, err error) {
+			restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
+		}
 		name         = "MockRestoreList"
-		mockList     = mockconnector.GetMockList(name)
+		mockList     = mockconnector.GetMockListStream(t, name)
 		account, err = a.M365Config()
 	)
+	require.NoError(t, err)
 
+	service, err := createTestService(account)
 	require.NoError(t, err)
 
 	dir, err := path.Builder{}.Append(name).
@@ -108,49 +117,18 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 			tenant,
 			siteID,
 			path.ListsCategory,
-			false)
-	collection := NewCollection(dir, nil, nil)
-
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
-	driveID := *siteDrive.GetId()
-	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
-	assert.NoError(t, err)
-
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	a := tester.NewM365Account(t)
-	account, err := a.M365Config()
-	require.NoError(t, err)
+			false,
+		)
 
 	require.NoError(t, err)
-	siteID := tester.M365SiteID(t)
-
-	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
-	testName := "MockListing"
-	listing.SetDisplayName(&testName)
-
-	err = ow.WriteObjectValue("", listing)
-	require.NoError(t, err)
-
-	byteArray, err := ow.GetSerializedContent()
-	require.NoError(t, err)
-
-	require.NoError(t, err)
-
-	listData := &Item{
-		id:   testName,
-		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: sharePointListInfo(listing, int64(len(byteArray))),
+	collection := &mockconnector.MockListCollection{
+		Data: make([]*mockconnector.MockListData, 0),
 	}
-
+	collection.Data = append(collection.Data, mockList)
+	collection.SetPath(dir)
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
-	_, canceled := RestoreCollection(ctx, service, collection, destName, deets, updater)
+	_, canceled := RestoreCollection(ctx, service, collection, destName, deets, errUpdater)
 	assert.False(t, canceled)
 
 }
