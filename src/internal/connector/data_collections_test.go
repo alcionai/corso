@@ -2,6 +2,7 @@ package connector
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -334,6 +335,20 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			cols, err := gc.DataCollections(ctx, test.sel(), nil, control.Options{})
 			require.NoError(t, err)
 			test.comparator(t, 0, len(cols))
+
+			if test.name == "SharePoint.Lists" {
+				for _, collection := range cols {
+					t.Logf("Path: %s\n", collection.FullPath().String())
+					for item := range collection.Items() {
+						t.Log("File: " + item.UUID())
+
+						bytes, err := io.ReadAll(item.ToReader())
+						require.NoError(t, err)
+						t.Log(string(bytes))
+
+					}
+				}
+			}
 		})
 	}
 }

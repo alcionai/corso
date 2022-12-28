@@ -87,6 +87,45 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
+func (suite *SharePointCollectionSuite) TestRestoreList() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+	a := tester.NewM365Account(t)
+	account, err := a.M365Config()
+	require.NoError(t, err)
+
+	service, err := createTestService(account)
+	require.NoError(t, err)
+	siteID := tester.M365SiteID(t)
+
+	ow := kw.NewJsonSerializationWriter()
+	listing := mockconnector.GetMockList("Mock List")
+	testName := "MockListing"
+	listing.SetDisplayName(&testName)
+
+	err = ow.WriteObjectValue("", listing)
+	require.NoError(t, err)
+
+	byteArray, err := ow.GetSerializedContent()
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	listData := &Item{
+		id:   testName,
+		data: io.NopCloser(bytes.NewReader(byteArray)),
+		info: sharePointListInfo(listing, int64(len(byteArray))),
+	}
+
+	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
+
+	deets, err := restoreListItem(ctx, service, listData, siteID, destName)
+	assert.NoError(t, err)
+	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
+}
+
 // TestRestoreLocation temporary test for greater restore operation
 // TODO delete after full functionality tested in GraphConnector
 func (suite *SharePointCollectionSuite) TestRestoreLocation() {
