@@ -13,7 +13,7 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoft/kiota-http-go v0.11.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
-	github.com/microsoftgraph/msgraph-sdk-go v0.49.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.50.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.31.1
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
@@ -37,6 +37,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
+	github.com/microsoft/kiota-serialization-form-go v0.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect

@@ -263,12 +263,14 @@ github.com/microsoft/kiota-authentication-azure-go v0.5.0 h1:RVA/tTgMnDIN3u4qPZt
 github.com/microsoft/kiota-authentication-azure-go v0.5.0/go.mod h1:1Io6h+88FlDRmrajdjSnXPz8oyObUVjNuQZLhrF9kQk=
 github.com/microsoft/kiota-http-go v0.11.0 h1:0K0y/wZcTvEEX2Xdj5tngJqknqYQpArLdtjB/fo88Dc=
 github.com/microsoft/kiota-http-go v0.11.0/go.mod h1:4D6vMjT7jQ3IRAJrpFoaDtfS9eMaSjQKHY6ETSV2cc0=
+github.com/microsoft/kiota-serialization-form-go v0.2.0 h1:jgPE+8DtrWhL+KwnAwRm13HnMNydbelC/NP9wRGwDUo=
+github.com/microsoft/kiota-serialization-form-go v0.2.0/go.mod h1:chOuh09tO7IrNtubAumdlG5wnrcYdMkjV7joVVGDyGs=
 github.com/microsoft/kiota-serialization-json-go v0.7.2 h1:DSb4fNDi5O+DqJwrHo+vRy2kSvfxG5VtN6m1EHzn5Vw=
 github.com/microsoft/kiota-serialization-json-go v0.7.2/go.mod h1:Ojum5prlijopyCOZ2XctRcVlE2pU8h+43r3tMdiWoDU=
 github.com/microsoft/kiota-serialization-text-go v0.6.0 h1:3N2vftYZlwKdog69AN7ha+FZT0QxPG7xp/hLv0/W2OQ=
 github.com/microsoft/kiota-serialization-text-go v0.6.0/go.mod h1:OUA4dNH+f6afiJUs+rQAatJos7QVF5PJkyrqoD89lx4=
-github.com/microsoftgraph/msgraph-sdk-go v0.49.0 h1:ZCjnH6AElZ20wXXTzJn3sfZeG+2Q2+KGvUsFrmhJzZY=
-github.com/microsoftgraph/msgraph-sdk-go v0.49.0/go.mod h1:pZ3XhqN+Ll9trl1HEGQhyS905PcqHv9EhuCMMxPR9EQ=
+github.com/microsoftgraph/msgraph-sdk-go v0.50.0 h1:yfPBDr7+tSdq8jKiNCvY5XzQji1kZzOHXvxQ9XxQ4E4=
+github.com/microsoftgraph/msgraph-sdk-go v0.50.0/go.mod h1:XoTT9lzRSersVV4/lsFup3sOLfOLEf2dMsLckiAAKq8=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.31.1 h1:aVvnO5l8qLCEcvELc5n9grt7UXhAVtpog1QeQKLMlTE=
 github.com/microsoftgraph/msgraph-sdk-go-core v0.31.1/go.mod h1:RE4F2qGCTehGtQGc9Txafc4l+XMpbjYuO4amDLFgOWE=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
