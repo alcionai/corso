@@ -36,7 +36,7 @@ type Collection interface {
 	FullPath() path.Path
 	// PreviousPath returns the path.Path this collection used to reside at
 	// (according to the M365 ID for the container) if the collection was moved or
-	// renamed. Returns nil if the collection is new or has been deleted.
+	// renamed. Returns nil if the collection is new.
 	PreviousPath() path.Path
 	// State represents changes to the Collection compared to the last backup
 	// involving the Collection. State changes are based on the M365 ID of the

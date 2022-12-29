@@ -579,13 +579,16 @@ func inflateCollectionTree(
 	for _, s := range collections {
 		switch s.State() {
 		case data.DeletedState:
+			if s.PreviousPath() == nil {
+				return nil, nil, errors.Errorf("nil previous path on deleted collection")
+			}
+
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, errors.Errorf(
 					"multiple previous state changes to collection %s",
-					s.PreviousPath(),
-				)
+					s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
