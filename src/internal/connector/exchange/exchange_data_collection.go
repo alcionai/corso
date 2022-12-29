@@ -18,6 +18,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -135,14 +136,14 @@ func (col *Collection) Items() <-chan data.Stream {
 
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
 // required to convert M365 identifier into a byte array filled with the serialized data
-func GetQueryAndSerializeFunc(category path.CategoryType) (GraphRetrievalFunc, GraphSerializeFunc) {
+func GetQueryAndSerializeFunc(category path.CategoryType) (api.GraphRetrievalFunc, GraphSerializeFunc) {
 	switch category {
 	case path.ContactsCategory:
-		return RetrieveContactDataForUser, serializeAndStreamContact
+		return api.RetrieveContactDataForUser, serializeAndStreamContact
 	case path.EventsCategory:
-		return RetrieveEventDataForUser, serializeAndStreamEvent
+		return api.RetrieveEventDataForUser, serializeAndStreamEvent
 	case path.EmailCategory:
-		return RetrieveMessageDataForUser, serializeAndStreamMessage
+		return api.RetrieveMessageDataForUser, serializeAndStreamMessage
 	// Unsupported options returns nil, nil
 	default:
 		return nil, nil
