@@ -101,7 +101,7 @@ func runDisplayM365JSON(
 
 	switch cat {
 	case path.EmailCategory, path.EventsCategory, path.ContactsCategory:
-		get, serializeFunc = exchange.GetQueryAndSerializeFunc(exchange.CategoryToOptionIdentifier(cat))
+		get, serializeFunc = exchange.GetQueryAndSerializeFunc(cat)
 	default:
 		return fmt.Errorf("unable to process category: %s", cat)
 	}

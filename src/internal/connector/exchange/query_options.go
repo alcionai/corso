@@ -4,9 +4,6 @@ import (
 	"fmt"
 
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // -----------------------------------------------------------------------
@@ -15,97 +12,71 @@ import (
 // selectors for M365 objects
 // -----------------------------------------------------------------------
 var (
-	fieldsForCalendars = map[string]int{
-		"changeKey":         1,
-		"events":            2,
-		"id":                3,
-		"isDefaultCalendar": 4,
-		"name":              5,
-		"owner":             6,
+	fieldsForCalendars = map[string]struct{}{
+		"changeKey":         {},
+		"events":            {},
+		"id":                {},
+		"isDefaultCalendar": {},
+		"name":              {},
+		"owner":             {},
 	}
 
-	fieldsForEvents = map[string]int{
-		"calendar":          1,
-		"end":               2,
-		"id":                3,
-		"isOnlineMeeting":   4,
-		"isReminderOn":      5,
-		"responseStatus":    6,
-		"responseRequested": 7,
-		"showAs":            8,
-		"subject":           9,
+	fieldsForEvents = map[string]struct{}{
+		"calendar":          {},
+		"end":               {},
+		"id":                {},
+		"isOnlineMeeting":   {},
+		"isReminderOn":      {},
+		"responseStatus":    {},
+		"responseRequested": {},
+		"showAs":            {},
+		"subject":           {},
 	}
 
-	fieldsForFolders = map[string]int{
-		"childFolderCount": 1,
-		"displayName":      2,
-		"id":               3,
-		"isHidden":         4,
-		"parentFolderId":   5,
-		"totalItemCount":   6,
-		"unreadItemCount":  7,
+	fieldsForFolders = map[string]struct{}{
+		"childFolderCount": {},
+		"displayName":      {},
+		"id":               {},
+		"isHidden":         {},
+		"parentFolderId":   {},
+		"totalItemCount":   {},
+		"unreadItemCount":  {},
 	}
 
-	fieldsForUsers = map[string]int{
-		"birthday":          1,
-		"businessPhones":    2,
-		"city":              3,
-		"companyName":       4,
-		"department":        5,
-		"displayName":       6,
-		"employeeId":        7,
-		"id":                8,
-		"mail":              9,
-		"userPrincipalName": 10,
+	fieldsForUsers = map[string]struct{}{
+		"birthday":          {},
+		"businessPhones":    {},
+		"city":              {},
+		"companyName":       {},
+		"department":        {},
+		"displayName":       {},
+		"employeeId":        {},
+		"id":                {},
+		"mail":              {},
+		"userPrincipalName": {},
 	}
 
-	fieldsForMessages = map[string]int{
-		"conservationId":    1,
-		"conversationIndex": 2,
-		"parentFolderId":    3,
-		"subject":           4,
-		"webLink":           5,
-		"id":                6,
-		"isRead":            7,
+	fieldsForMessages = map[string]struct{}{
+		"conservationId":    {},
+		"conversationIndex": {},
+		"parentFolderId":    {},
+		"subject":           {},
+		"webLink":           {},
+		"id":                {},
+		"isRead":            {},
 	}
 
-	fieldsForContacts = map[string]int{
-		"id":             1,
-		"companyName":    2,
-		"department":     3,
-		"displayName":    4,
-		"fileAs":         5,
-		"givenName":      6,
-		"manager":        7,
-		"parentFolderId": 8,
+	fieldsForContacts = map[string]struct{}{
+		"id":             {},
+		"companyName":    {},
+		"department":     {},
+		"displayName":    {},
+		"fileAs":         {},
+		"givenName":      {},
+		"manager":        {},
+		"parentFolderId": {},
 	}
 )
-
-type optionIdentifier int
-
-//go:generate stringer -type=optionIdentifier
-const (
-	unknown optionIdentifier = iota
-	folders
-	calendars
-	events
-	messages
-	users
-	contacts
-)
-
-func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
-	switch category {
-	case path.EmailCategory:
-		return messages
-	case path.ContactsCategory:
-		return contacts
-	case path.EventsCategory:
-		return events
-	default:
-		return unknown
-	}
-}
 
 // -----------------------------------------------------------------------
 // exchange.Query Option Section
@@ -117,7 +88,7 @@ func CategoryToOptionIdentifier(category path.CategoryType) optionIdentifier {
 func optionsForFolderMessagesDelta(
 	moreOps []string,
 ) (*msuser.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, messages)
+	selecting, err := buildOptions(moreOps, fieldsForMessages)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +110,7 @@ func optionsForCalendars(moreOps []string) (
 	*msuser.ItemCalendarsRequestBuilderGetRequestConfiguration,
 	error,
 ) {
-	selecting, err := buildOptions(moreOps, calendars)
+	selecting, err := buildOptions(moreOps, fieldsForCalendars)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +131,7 @@ func optionsForContactFolders(moreOps []string) (
 	*msuser.ItemContactFoldersRequestBuilderGetRequestConfiguration,
 	error,
 ) {
-	selecting, err := buildOptions(moreOps, folders)
+	selecting, err := buildOptions(moreOps, fieldsForFolders)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +150,7 @@ func optionsForContactFolderByID(moreOps []string) (
 	*msuser.ItemContactFoldersContactFolderItemRequestBuilderGetRequestConfiguration,
 	error,
 ) {
-	selecting, err := buildOptions(moreOps, folders)
+	selecting, err := buildOptions(moreOps, fieldsForFolders)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +171,7 @@ func optionsForContactFolderByID(moreOps []string) (
 func optionsForMailFolders(
 	moreOps []string,
 ) (*msuser.ItemMailFoldersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, folders)
+	selecting, err := buildOptions(moreOps, fieldsForFolders)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +192,7 @@ func optionsForMailFolders(
 func optionsForMailFoldersItem(
 	moreOps []string,
 ) (*msuser.ItemMailFoldersMailFolderItemRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, folders)
+	selecting, err := buildOptions(moreOps, fieldsForFolders)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +210,7 @@ func optionsForMailFoldersItem(
 func optionsForContactFoldersItemDelta(
 	moreOps []string,
 ) (*msuser.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, contacts)
+	selecting, err := buildOptions(moreOps, fieldsForContacts)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +229,7 @@ func optionsForContactFoldersItemDelta(
 // optionsForEvents ensures valid option inputs for exchange.Events
 // @return is first call in Events().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForEvents(moreOps []string) (*msuser.ItemEventsRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, events)
+	selecting, err := buildOptions(moreOps, fieldsForEvents)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +248,7 @@ func optionsForEvents(moreOps []string) (*msuser.ItemEventsRequestBuilderGetRequ
 func optionsForEventsByCalendar(
 	moreOps []string,
 ) (*msuser.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, events)
+	selecting, err := buildOptions(moreOps, fieldsForEvents)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +268,7 @@ func optionsForEventsByCalendar(
 func optionsForContactChildFolders(
 	moreOps []string,
 ) (*msuser.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, contacts)
+	selecting, err := buildOptions(moreOps, fieldsForContacts)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +286,7 @@ func optionsForContactChildFolders(
 // optionsForContacts transforms options into select query for MailContacts
 // @return is the first call in Contacts().GetWithRequestConfigurationAndResponseHandler(options, handler)
 func optionsForContacts(moreOps []string) (*msuser.ItemContactsRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, contacts)
+	selecting, err := buildOptions(moreOps, fieldsForContacts)
 	if err != nil {
 		return nil, err
 	}
@@ -333,39 +304,15 @@ func optionsForContacts(moreOps []string) (*msuser.ItemContactsRequestBuilderGet
 // buildOptions - Utility Method for verifying if select options are valid for the m365 object type
 // @return is a pair. The first is a string literal of allowable options based on the object type,
 // the second is an error. An error is returned if an unsupported option or optionIdentifier was used
-func buildOptions(options []string, optID optionIdentifier) ([]string, error) {
-	var (
-		allowedOptions  map[string]int
-		returnedOptions = []string{"id"}
-	)
+func buildOptions(fields []string, allowed map[string]struct{}) ([]string, error) {
+	returnedOptions := []string{"id"}
 
-	switch optID {
-	case calendars:
-		allowedOptions = fieldsForCalendars
-	case contacts:
-		allowedOptions = fieldsForContacts
-	case events:
-		allowedOptions = fieldsForEvents
-	case folders:
-		allowedOptions = fieldsForFolders
-	case users:
-		allowedOptions = fieldsForUsers
-	case messages:
-		allowedOptions = fieldsForMessages
-	case unknown:
-		fallthrough
-	default:
-		return nil, errors.New("unsupported option")
-	}
-
-	for _, entry := range options {
-		_, ok := allowedOptions[entry]
+	for _, entry := range fields {
+		_, ok := allowed[entry]
 		if !ok {
-			return nil, fmt.Errorf("unsupported element passed to buildOptions: %v", entry)
+			return nil, fmt.Errorf("unsupported field: %v", entry)
 		}
-
-		returnedOptions = append(returnedOptions, entry)
 	}
 
-	return returnedOptions, nil
+	return append(returnedOptions, fields...), nil
 }
