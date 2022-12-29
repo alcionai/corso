@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -897,7 +898,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := exchange.FetchMessageIDsFromDirectory(ctx, gc.Service, suite.user, folderID, "")
+						ids, _, _, err := api.FetchMessageIDsFromDirectory(ctx, gc.Service, suite.user, folderID, "")
 						require.NoError(t, err, "getting message ids")
 						require.NotEmpty(t, ids, "message ids in folder")
 
@@ -905,7 +906,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
 
 					case path.ContactsCategory:
-						ids, _, _, err := exchange.FetchContactIDsFromDirectory(ctx, gc.Service, suite.user, folderID, "")
+						ids, _, _, err := api.FetchContactIDsFromDirectory(ctx, gc.Service, suite.user, folderID, "")
 						require.NoError(t, err, "getting contact ids")
 						require.NotEmpty(t, ids, "contact ids in folder")
 
