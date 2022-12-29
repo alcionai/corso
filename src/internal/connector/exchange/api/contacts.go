@@ -40,10 +40,6 @@ func (p *contactPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactPager) idsIn(pl pageLinker) ([]getIDer, error) {
-	return toIders(pl)
-}
-
 // ---------------------------------------------------------------------------
 // methods
 // ---------------------------------------------------------------------------
@@ -197,7 +193,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		builder := users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
 		pgr := &contactPager{service, builder, options}
 
-		added, removed, deltaURL, err := getContainerIDs(ctx, pgr, errUpdater)
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
 		// note: happy path, not the error condition
 		if err == nil {
 			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
@@ -215,7 +211,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
 	pgr := &contactPager{service, builder, options}
 
-	added, removed, deltaURL, err := getContainerIDs(ctx, pgr, errUpdater)
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

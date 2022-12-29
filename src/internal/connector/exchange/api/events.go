@@ -50,10 +50,6 @@ func (p *eventPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventPager) idsIn(pl pageLinker) ([]getIDer, error) {
-	return toIders(pl)
-}
-
 // ---------------------------------------------------------------------------
 // methods
 // ---------------------------------------------------------------------------
@@ -179,7 +175,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
 	pgr := &eventPager{service, builder, options}
 
-	added, _, _, err := getContainerIDs(ctx, pgr, errUpdater)
+	added, _, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

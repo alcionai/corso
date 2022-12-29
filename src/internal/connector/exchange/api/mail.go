@@ -40,10 +40,6 @@ func (p *mailPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *mailPager) idsIn(pl pageLinker) ([]getIDer, error) {
-	return toIders(pl)
-}
-
 // ---------------------------------------------------------------------------
 // methods
 // ---------------------------------------------------------------------------
@@ -196,7 +192,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		builder := users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter())
 		pgr := &mailPager{service, builder, options}
 
-		added, removed, deltaURL, err := getContainerIDs(ctx, pgr, errUpdater)
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
 		// note: happy path, not the error condition
 		if err == nil {
 			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
@@ -214,7 +210,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	builder := service.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
 	pgr := &mailPager{service, builder, options}
 
-	added, removed, deltaURL, err := getContainerIDs(ctx, pgr, errUpdater)
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
