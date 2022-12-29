@@ -255,13 +255,6 @@ func produceManifestsAndMetadata(
 	tenantID string,
 	getMetadata bool,
 ) ([]*kopia.ManifestEntry, []data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion("Fetching backup heuristics:")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-		closer()
-	}()
-
 	var (
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.Collection

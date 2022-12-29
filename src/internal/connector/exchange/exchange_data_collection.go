@@ -176,21 +176,29 @@ func (col Collection) DoNotMergeItems() bool {
 // all the M365IDs defined in the added field. data channel is closed by this function
 func (col *Collection) streamItems(ctx context.Context) {
 	var (
-		errs       error
-		success    int64
-		totalBytes int64
-		wg         sync.WaitGroup
+		errs        error
+		success     int64
+		totalBytes  int64
+		wg          sync.WaitGroup
+		colProgress chan<- struct{}
 
 		user = col.user
 	)
 
-	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
-	go closer()
-
 	defer func() {
-		close(colProgress)
 		col.finishPopulation(ctx, int(success), totalBytes, errs)
 	}()
+
+	if len(col.added)+len(col.removed) > 0 {
+		var closer func()
+		colProgress, closer = observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
+
+		go closer()
+
+		defer func() {
+			close(colProgress)
+		}()
+	}
 
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
@@ -228,7 +236,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, 0)
 
-			colProgress <- struct{}{}
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
 		}(id)
 	}
 
@@ -282,7 +292,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, int64(byteCount))
 
-			colProgress <- struct{}{}
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
 		}(id)
 	}
 
