@@ -515,18 +515,20 @@ func mergeDetails(
 				)
 			}
 
+			// TODO(ashmrtn): This may need updated if we start using this merge
+			// strategry for items that were cached in kopia.
+			itemUpdated := newPath.String() != rr.String()
+
 			deets.Add(
 				newPath.String(),
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
-				// TODO(ashmrtn): This may need updated if we start using this merge
-				// strategry for items that were cached in kopia.
-				newPath.String() != rr.String(),
+				itemUpdated,
 				item,
 			)
 
 			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
-			deets.AddFoldersForItem(folders, item)
+			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when
 			// we're done.

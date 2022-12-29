@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Folder entries in backup details now indicate whether an item in the hierarchy was updated
+
 ## [v0.0.4] (alpha)
 
 ### Added
