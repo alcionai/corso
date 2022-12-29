@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -16,28 +15,10 @@ import (
 
 var ErrFolderNotFound = errors.New("folder not found")
 
-type exchangeService struct {
-	client      msgraphsdk.GraphServiceClient
-	adapter     msgraphsdk.GraphRequestAdapter
-	credentials account.M365Config
-}
-
-// ------------------------------------------------------------
-// Functions to comply with graph.Servicer Interface
-// ------------------------------------------------------------
-
-func (es *exchangeService) Client() *msgraphsdk.GraphServiceClient {
-	return &es.client
-}
-
-func (es *exchangeService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &es.adapter
-}
-
 // createService internal constructor for exchangeService struct returns an error
 // iff the params for the entry are incorrect (e.g. len(TenantID) == 0, etc.)
 // NOTE: Incorrect account information will result in errors on subsequent queries.
-func createService(credentials account.M365Config) (*exchangeService, error) {
+func createService(credentials account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
@@ -47,13 +28,7 @@ func createService(credentials account.M365Config) (*exchangeService, error) {
 		return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
 	}
 
-	service := exchangeService{
-		adapter:     *adapter,
-		client:      *msgraphsdk.NewGraphServiceClient(adapter),
-		credentials: credentials,
-	}
-
-	return &service, nil
+	return graph.NewService(adapter), nil
 }
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
