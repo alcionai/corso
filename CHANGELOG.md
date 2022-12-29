@@ -7,14 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- Folder entries in backup details now indicate whether an item in the hierarchy was updated
+- Fixed issue where repository connect progress bar was clobbering backup/restore operation output.
 
 ## [v0.0.4] (alpha)
 
 ### Added
 
+- Folder entries in backup details now indicate whether an item in the hierarchy was updated
 - Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`   
   with the `backup create` command. This functionality will be enabled by default in an upcoming release.
 - Folder entries in backup details now include size and modified time for the hierarchy ([#1896](https://github.com/alcionai/corso/issues/1896))
