@@ -1,7 +1,6 @@
 package tester
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -40,19 +39,17 @@ const CorsoGraphConnectorTestSupportFile = "CORSO_TEST_SUPPORT_FILE"
 // an error if all of them are zero valued.  Implication being:
 // if any of those env vars are truthy, you should run the
 // subsequent tests.
-func RunOnAny(tests ...string) error {
+func RunOnAny(t *testing.T, tests ...string) {
 	var l int
 	for _, test := range tests {
 		l += len(os.Getenv(test))
 	}
 
 	if l == 0 {
-		return fmt.Errorf(
-			"%s env vars are not flagged for testing",
+		t.Skipf(
+			"one or more env vars mus be flagged to run this test: %v",
 			strings.Join(tests, ", "))
 	}
-
-	return nil
 }
 
 // LogTimeOfTest logs the test name and the time that it was run.

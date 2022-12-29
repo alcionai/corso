@@ -35,13 +35,11 @@ func (suite *ItemIntegrationSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 }
 
 func TestItemIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorOneDriveTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoGraphConnectorOneDriveTests)
 
 	suite.Run(t, new(ItemIntegrationSuite))
 }
@@ -52,11 +50,9 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
-
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 

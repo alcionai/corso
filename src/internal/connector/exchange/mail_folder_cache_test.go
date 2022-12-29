@@ -29,15 +29,22 @@ type MailFolderCacheIntegrationSuite struct {
 	gs graph.Servicer
 }
 
+func TestMailFolderCacheIntegrationSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorExchangeTests)
+
+	suite.Run(t, new(MailFolderCacheIntegrationSuite))
+}
+
 func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
-	require.NoError(t, err)
-
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
@@ -45,18 +52,6 @@ func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	suite.gs = service
-}
-
-func TestMailFolderCacheIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests,
-	); err != nil {
-		t.Skip(err)
-	}
-
-	suite.Run(t, new(MailFolderCacheIntegrationSuite))
 }
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
