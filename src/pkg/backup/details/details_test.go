@@ -1,4 +1,4 @@
-package details_test
+package details
 
 import (
 	"testing"
@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -33,13 +32,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 
 	table := []struct {
 		name     string
-		entry    details.DetailsEntry
+		entry    DetailsEntry
 		expectHs []string
 		expectVs []string
 	}{
 		{
 			name: "no info",
-			entry: details.DetailsEntry{
+			entry: DetailsEntry{
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
 			},
@@ -48,12 +47,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exchange event info",
-			entry: details.DetailsEntry{
+			entry: DetailsEntry{
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
-				ItemInfo: details.ItemInfo{
-					Exchange: &details.ExchangeInfo{
-						ItemType:    details.ExchangeEvent,
+				ItemInfo: ItemInfo{
+					Exchange: &ExchangeInfo{
+						ItemType:    ExchangeEvent,
 						EventStart:  now,
 						EventEnd:    now,
 						Organizer:   "organizer",
@@ -67,12 +66,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exchange contact info",
-			entry: details.DetailsEntry{
+			entry: DetailsEntry{
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
-				ItemInfo: details.ItemInfo{
-					Exchange: &details.ExchangeInfo{
-						ItemType:    details.ExchangeContact,
+				ItemInfo: ItemInfo{
+					Exchange: &ExchangeInfo{
+						ItemType:    ExchangeContact,
 						ContactName: "contactName",
 					},
 				},
@@ -82,12 +81,12 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "exchange mail info",
-			entry: details.DetailsEntry{
+			entry: DetailsEntry{
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
-				ItemInfo: details.ItemInfo{
-					Exchange: &details.ExchangeInfo{
-						ItemType: details.ExchangeMail,
+				ItemInfo: ItemInfo{
+					Exchange: &ExchangeInfo{
+						ItemType: ExchangeMail,
 						Sender:   "sender",
 						Subject:  "subject",
 						Received: now,
@@ -99,11 +98,11 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "sharepoint info",
-			entry: details.DetailsEntry{
+			entry: DetailsEntry{
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
-				ItemInfo: details.ItemInfo{
-					SharePoint: &details.SharePointInfo{
+				ItemInfo: ItemInfo{
+					SharePoint: &SharePointInfo{
 						ItemName:   "itemName",
 						ParentPath: "parentPath",
 						Size:       1000,
@@ -118,11 +117,11 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		},
 		{
 			name: "oneDrive info",
-			entry: details.DetailsEntry{
+			entry: DetailsEntry{
 				RepoRef:  "reporef",
 				ShortRef: "deadbeef",
-				ItemInfo: details.ItemInfo{
-					OneDrive: &details.OneDriveInfo{
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{
 						ItemName:   "itemName",
 						ParentPath: "parentPath",
 						Size:       1000,
@@ -149,7 +148,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 
 var pathItemsTable = []struct {
 	name       string
-	ents       []details.DetailsEntry
+	ents       []DetailsEntry
 	expectRefs []string
 }{
 	{
@@ -159,14 +158,14 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "single entry",
-		ents: []details.DetailsEntry{
+		ents: []DetailsEntry{
 			{RepoRef: "abcde"},
 		},
 		expectRefs: []string{"abcde"},
 	},
 	{
 		name: "multiple entries",
-		ents: []details.DetailsEntry{
+		ents: []DetailsEntry{
 			{RepoRef: "abcde"},
 			{RepoRef: "12345"},
 		},
@@ -174,13 +173,13 @@ var pathItemsTable = []struct {
 	},
 	{
 		name: "multiple entries with folder",
-		ents: []details.DetailsEntry{
+		ents: []DetailsEntry{
 			{RepoRef: "abcde"},
 			{RepoRef: "12345"},
 			{
 				RepoRef: "deadbeef",
-				ItemInfo: details.ItemInfo{
-					Folder: &details.FolderInfo{
+				ItemInfo: ItemInfo{
+					Folder: &FolderInfo{
 						DisplayName: "test folder",
 					},
 				},
@@ -193,8 +192,8 @@ var pathItemsTable = []struct {
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 	for _, test := range pathItemsTable {
 		suite.T().Run(test.name, func(t *testing.T) {
-			d := details.Details{
-				DetailsModel: details.DetailsModel{
+			d := Details{
+				DetailsModel: DetailsModel{
 					Entries: test.ents,
 				},
 			}
@@ -206,8 +205,8 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 	for _, test := range pathItemsTable {
 		suite.T().Run(test.name, func(t *testing.T) {
-			d := details.Details{
-				DetailsModel: details.DetailsModel{
+			d := Details{
+				DetailsModel: DetailsModel{
 					Entries: test.ents,
 				},
 			}
@@ -227,8 +226,8 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
 	folderTimeNewerThanItem := time.Date(2022, 11, 21, 10, 0, 0, 0, time.UTC)
 
-	itemInfo := details.ItemInfo{
-		Exchange: &details.ExchangeInfo{
+	itemInfo := ItemInfo{
+		Exchange: &ExchangeInfo{
 			Size:     20,
 			Modified: itemTime,
 		},
@@ -236,19 +235,19 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 
 	table := []struct {
 		name               string
-		folders            []details.FolderEntry
+		folders            []folderEntry
 		expectedShortRefs  []string
-		expectedFolderInfo map[string]details.FolderInfo
+		expectedFolderInfo map[string]FolderInfo
 	}{
 		{
 			name: "MultipleFolders",
-			folders: []details.FolderEntry{
+			folders: []folderEntry{
 				{
 					RepoRef:   "rr1",
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
-					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{
+					Info: ItemInfo{
+						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
 						},
 					},
@@ -257,28 +256,28 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					RepoRef:   "rr2",
 					ShortRef:  "sr2",
 					ParentRef: "pr2",
-					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{
+					Info: ItemInfo{
+						Folder: &FolderInfo{
 							Modified: folderTimeNewerThanItem,
 						},
 					},
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2"},
-			expectedFolderInfo: map[string]details.FolderInfo{
+			expectedFolderInfo: map[string]FolderInfo{
 				"sr1": {Size: 20, Modified: itemTime},
 				"sr2": {Size: 20, Modified: folderTimeNewerThanItem},
 			},
 		},
 		{
 			name: "MultipleFoldersWithRepeats",
-			folders: []details.FolderEntry{
+			folders: []folderEntry{
 				{
 					RepoRef:   "rr1",
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
-					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{
+					Info: ItemInfo{
+						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
 						},
 					},
@@ -287,8 +286,8 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					RepoRef:   "rr2",
 					ShortRef:  "sr2",
 					ParentRef: "pr2",
-					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{
+					Info: ItemInfo{
+						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
 						},
 					},
@@ -297,8 +296,8 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					RepoRef:   "rr1",
 					ShortRef:  "sr1",
 					ParentRef: "pr1",
-					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{
+					Info: ItemInfo{
+						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
 						},
 					},
@@ -307,15 +306,15 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					RepoRef:   "rr3",
 					ShortRef:  "sr3",
 					ParentRef: "pr3",
-					Info: details.ItemInfo{
-						Folder: &details.FolderInfo{
+					Info: ItemInfo{
+						Folder: &FolderInfo{
 							Modified: folderTimeNewerThanItem,
 						},
 					},
 				},
 			},
 			expectedShortRefs: []string{"sr1", "sr2", "sr3"},
-			expectedFolderInfo: map[string]details.FolderInfo{
+			expectedFolderInfo: map[string]FolderInfo{
 				// Two items were added
 				"sr1": {Size: 40, Modified: itemTime},
 				"sr2": {Size: 20, Modified: itemTime},
@@ -325,8 +324,8 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			builder := details.Builder{}
-			builder.AddFoldersForItem(test.folders, itemInfo)
+			builder := Builder{}
+			builder.AddFoldersForItem(test.folders, itemInfo, true)
 			deets := builder.Details()
 			assert.Len(t, deets.Entries, len(test.expectedShortRefs))
 
@@ -339,49 +338,132 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	}
 }
 
+func (suite *DetailsUnitSuite) TestDetails_AddFoldersUpdate() {
+	itemInfo := ItemInfo{
+		Exchange: &ExchangeInfo{},
+	}
+
+	table := []struct {
+		name                       string
+		folders                    []folderEntry
+		itemUpdated                bool
+		expectedFolderUpdatedValue map[string]bool
+	}{
+		{
+			name: "ItemNotUpdated_NoChange",
+			folders: []folderEntry{
+				{
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
+					Info: ItemInfo{
+						Folder: &FolderInfo{},
+					},
+					Updated: true,
+				},
+				{
+					RepoRef:   "rr2",
+					ShortRef:  "sr2",
+					ParentRef: "pr2",
+					Info: ItemInfo{
+						Folder: &FolderInfo{},
+					},
+				},
+			},
+			itemUpdated: false,
+			expectedFolderUpdatedValue: map[string]bool{
+				"sr1": true,
+				"sr2": false,
+			},
+		},
+		{
+			name: "ItemUpdated",
+			folders: []folderEntry{
+				{
+					RepoRef:   "rr1",
+					ShortRef:  "sr1",
+					ParentRef: "pr1",
+					Info: ItemInfo{
+						Folder: &FolderInfo{},
+					},
+				},
+				{
+					RepoRef:   "rr2",
+					ShortRef:  "sr2",
+					ParentRef: "pr2",
+					Info: ItemInfo{
+						Folder: &FolderInfo{},
+					},
+				},
+			},
+			itemUpdated: true,
+			expectedFolderUpdatedValue: map[string]bool{
+				"sr1": true,
+				"sr2": true,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			builder := Builder{}
+			builder.AddFoldersForItem(test.folders, itemInfo, test.itemUpdated)
+			deets := builder.Details()
+			assert.Len(t, deets.Entries, len(test.expectedFolderUpdatedValue))
+
+			for _, e := range deets.Entries {
+				assert.Equalf(
+					t,
+					test.expectedFolderUpdatedValue[e.ShortRef],
+					e.Updated, "%s updated value incorrect",
+					e.ShortRef)
+			}
+		})
+	}
+}
+
 func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
 
 	table := []struct {
 		name               string
-		item               details.ItemInfo
-		expectedFolderInfo details.FolderInfo
+		item               ItemInfo
+		expectedFolderInfo FolderInfo
 	}{
 		{
 			name: "Exchange",
-			item: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
+			item: ItemInfo{
+				Exchange: &ExchangeInfo{
 					Size:     20,
 					Modified: itemTime,
 				},
 			},
-			expectedFolderInfo: details.FolderInfo{
+			expectedFolderInfo: FolderInfo{
 				Size:     20,
 				Modified: itemTime,
 			},
 		},
 		{
 			name: "OneDrive",
-			item: details.ItemInfo{
-				OneDrive: &details.OneDriveInfo{
+			item: ItemInfo{
+				OneDrive: &OneDriveInfo{
 					Size:     20,
 					Modified: itemTime,
 				},
 			},
-			expectedFolderInfo: details.FolderInfo{
+			expectedFolderInfo: FolderInfo{
 				Size:     20,
 				Modified: itemTime,
 			},
 		},
 		{
 			name: "SharePoint",
-			item: details.ItemInfo{
-				SharePoint: &details.SharePointInfo{
+			item: ItemInfo{
+				SharePoint: &SharePointInfo{
 					Size:     20,
 					Modified: itemTime,
 				},
 			},
-			expectedFolderInfo: details.FolderInfo{
+			expectedFolderInfo: FolderInfo{
 				Size:     20,
 				Modified: itemTime,
 			},
@@ -389,17 +471,17 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			folderEntry := details.FolderEntry{
+			folder := folderEntry{
 				RepoRef:   "rr1",
 				ShortRef:  "sr1",
 				ParentRef: "pr1",
-				Info: details.ItemInfo{
-					Folder: &details.FolderInfo{},
+				Info: ItemInfo{
+					Folder: &FolderInfo{},
 				},
 			}
 
-			builder := details.Builder{}
-			builder.AddFoldersForItem([]details.FolderEntry{folderEntry}, test.item)
+			builder := Builder{}
+			builder.AddFoldersForItem([]folderEntry{folder}, test.item, true)
 			deets := builder.Details()
 			require.Len(t, deets.Entries, 1)
 
@@ -469,92 +551,92 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 
 	table := []struct {
 		name         string
-		input        details.ItemInfo
+		input        ItemInfo
 		newPath      path.Path
 		errCheck     assert.ErrorAssertionFunc
-		expectedItem details.ItemInfo
+		expectedItem ItemInfo
 	}{
 		{
 			name: "ExchangeEventNoChange",
-			input: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
-					ItemType: details.ExchangeEvent,
+			input: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeEvent,
 				},
 			},
 			errCheck: assert.NoError,
-			expectedItem: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
-					ItemType: details.ExchangeEvent,
+			expectedItem: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeEvent,
 				},
 			},
 		},
 		{
 			name: "ExchangeContactNoChange",
-			input: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
-					ItemType: details.ExchangeContact,
+			input: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeContact,
 				},
 			},
 			errCheck: assert.NoError,
-			expectedItem: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
-					ItemType: details.ExchangeContact,
+			expectedItem: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeContact,
 				},
 			},
 		},
 		{
 			name: "ExchangeMailNoChange",
-			input: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
+			input: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
 				},
 			},
 			errCheck: assert.NoError,
-			expectedItem: details.ItemInfo{
-				Exchange: &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
+			expectedItem: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
 				},
 			},
 		},
 		{
 			name: "OneDrive",
-			input: details.ItemInfo{
-				OneDrive: &details.OneDriveInfo{
-					ItemType:   details.OneDriveItem,
+			input: ItemInfo{
+				OneDrive: &OneDriveInfo{
+					ItemType:   OneDriveItem,
 					ParentPath: folder1,
 				},
 			},
 			newPath:  newOneDrivePath,
 			errCheck: assert.NoError,
-			expectedItem: details.ItemInfo{
-				OneDrive: &details.OneDriveInfo{
-					ItemType:   details.OneDriveItem,
+			expectedItem: ItemInfo{
+				OneDrive: &OneDriveInfo{
+					ItemType:   OneDriveItem,
 					ParentPath: folder2,
 				},
 			},
 		},
 		{
 			name: "SharePoint",
-			input: details.ItemInfo{
-				SharePoint: &details.SharePointInfo{
-					ItemType:   details.SharePointItem,
+			input: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   SharePointItem,
 					ParentPath: folder1,
 				},
 			},
 			newPath:  newOneDrivePath,
 			errCheck: assert.NoError,
-			expectedItem: details.ItemInfo{
-				SharePoint: &details.SharePointInfo{
-					ItemType:   details.SharePointItem,
+			expectedItem: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   SharePointItem,
 					ParentPath: folder2,
 				},
 			},
 		},
 		{
 			name: "OneDriveBadPath",
-			input: details.ItemInfo{
-				OneDrive: &details.OneDriveInfo{
-					ItemType:   details.OneDriveItem,
+			input: ItemInfo{
+				OneDrive: &OneDriveInfo{
+					ItemType:   OneDriveItem,
 					ParentPath: folder1,
 				},
 			},
@@ -563,9 +645,9 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 		},
 		{
 			name: "SharePointBadPath",
-			input: details.ItemInfo{
-				SharePoint: &details.SharePointInfo{
-					ItemType:   details.SharePointItem,
+			input: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType:   SharePointItem,
 					ParentPath: folder1,
 				},
 			},
@@ -577,7 +659,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			item := test.input
-			err := details.UpdateItem(&item, test.newPath)
+			err := UpdateItem(&item, test.newPath)
 			test.errCheck(t, err)
 
 			if err != nil {
