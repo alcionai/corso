@@ -20,7 +20,8 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
 	*containerResolver
-	gs     graph.Servicer
+	// gs     graph.Servicer
+	ac     api.Client
 	userID string
 }
 
@@ -35,7 +36,7 @@ func (mc *mailFolderCache) populateMailRoot(
 	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
 		var directory string
 
-		f, err := api.GetMailFolderByID(ctx, mc.gs, mc.userID, fldr, "displayName", "parentFolderId")
+		f, err := mc.ac.GetMailFolderByID(ctx, mc.userID, fldr, "displayName", "parentFolderId")
 		if err != nil {
 			return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 		}
@@ -67,7 +68,10 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
-	query := api.GetAllMailFoldersBuilder(ctx, mc.gs, mc.userID)
+	query, servicer, err := mc.ac.GetAllMailFoldersBuilder(ctx, mc.userID)
+	if err != nil {
+		return err
+	}
 
 	var errs *multierror.Error
 
@@ -94,7 +98,7 @@ func (mc *mailFolderCache) Populate(
 			break
 		}
 
-		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, mc.gs.Adapter())
+		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, servicer.Adapter())
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {

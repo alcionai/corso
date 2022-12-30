@@ -35,6 +35,7 @@ func filterContainersAndFillCollections(
 ) error {
 	var (
 		errs error
+		ac   = api.Client{Credentials: qp.Credentials}
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -43,7 +44,7 @@ func filterContainersAndFillCollections(
 		tombstones = makeTombstones(dps)
 	)
 
-	getJobs, err := getFetchIDFunc(qp.Category)
+	getJobs, err := getFetchIDFunc(ac, qp.Category)
 	if err != nil {
 		return support.WrapAndAppend(qp.ResourceOwner, err, errs)
 	}
@@ -85,7 +86,7 @@ func filterContainersAndFillCollections(
 			}
 		}
 
-		added, removed, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getJobs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
@@ -110,11 +111,11 @@ func filterContainersAndFillCollections(
 			currPath,
 			prevPath,
 			scope.Category().PathType(),
+			ac,
 			service,
 			statusUpdater,
 			ctrlOpts,
-			newDelta.Reset,
-		)
+			newDelta.Reset)
 
 		collections[cID] = &edc
 		edc.added = append(edc.added, added...)
@@ -160,11 +161,11 @@ func filterContainersAndFillCollections(
 			nil, // marks the collection as deleted
 			prevPath,
 			scope.Category().PathType(),
+			ac,
 			service,
 			statusUpdater,
 			ctrlOpts,
-			false,
-		)
+			false)
 		collections[id] = &edc
 	}
 
@@ -267,18 +268,17 @@ func IterativeCollectCalendarContainers(
 // container supports fetching delta records.
 type FetchIDFunc func(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, containerID, oldDeltaToken string,
 ) ([]string, []string, api.DeltaUpdate, error)
 
-func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
+func getFetchIDFunc(ac api.Client, category path.CategoryType) (FetchIDFunc, error) {
 	switch category {
 	case path.EmailCategory:
-		return api.FetchMessageIDsFromDirectory, nil
+		return ac.FetchMessageIDsFromDirectory, nil
 	case path.EventsCategory:
-		return api.FetchEventIDsFromCalendar, nil
+		return ac.FetchEventIDsFromCalendar, nil
 	case path.ContactsCategory:
-		return api.FetchContactIDsFromDirectory, nil
+		return ac.FetchContactIDsFromDirectory, nil
 	default:
 		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
 	}
