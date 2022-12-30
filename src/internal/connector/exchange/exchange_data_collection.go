@@ -59,6 +59,7 @@ type Collection struct {
 
 	// service - client/adapter pair used to access M365 back store
 	service graph.Servicer
+	ac      api.Client
 
 	category      path.CategoryType
 	statusUpdater support.StatusUpdater
@@ -88,12 +89,14 @@ func NewCollection(
 	user string,
 	curr, prev path.Path,
 	category path.CategoryType,
+	ac api.Client,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
+		ac:              ac,
 		category:        category,
 		ctrl:            ctrlOpts,
 		data:            make(chan data.Stream, collectionChannelBufferSize),
@@ -136,14 +139,14 @@ func (col *Collection) Items() <-chan data.Stream {
 
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
 // required to convert M365 identifier into a byte array filled with the serialized data
-func GetQueryAndSerializeFunc(category path.CategoryType) (api.GraphRetrievalFunc, GraphSerializeFunc) {
+func GetQueryAndSerializeFunc(ac api.Client, category path.CategoryType) (api.GraphRetrievalFunc, GraphSerializeFunc) {
 	switch category {
 	case path.ContactsCategory:
-		return api.RetrieveContactDataForUser, serializeAndStreamContact
+		return ac.RetrieveContactDataForUser, serializeAndStreamContact
 	case path.EventsCategory:
-		return api.RetrieveEventDataForUser, serializeAndStreamEvent
+		return ac.RetrieveEventDataForUser, serializeAndStreamEvent
 	case path.EmailCategory:
-		return api.RetrieveMessageDataForUser, serializeAndStreamMessage
+		return ac.RetrieveMessageDataForUser, serializeAndStreamMessage
 	// Unsupported options returns nil, nil
 	default:
 		return nil, nil
@@ -204,7 +207,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
 	// serializationFunction
-	query, serializeFunc := GetQueryAndSerializeFunc(col.category)
+	query, serializeFunc := GetQueryAndSerializeFunc(col.ac, col.category)
 	if query == nil {
 		errs = fmt.Errorf("unrecognized collection type: %s", col.category)
 		return
@@ -263,7 +266,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 			)
 
 			for i := 1; i <= numberOfRetries; i++ {
-				response, err = query(ctx, col.service, user, id)
+				response, err = query(ctx, user, id)
 				if err == nil {
 					break
 				}

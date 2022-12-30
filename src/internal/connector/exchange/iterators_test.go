@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -84,7 +85,7 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 
 	tests := []struct {
 		name              string
-		queryFunc         api.GraphQuery
+		queryFunc         func(account.M365Config) api.GraphQuery
 		scope             selectors.ExchangeScope
 		iterativeFunction func(
 			container map[string]graph.Container,
@@ -93,14 +94,18 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 		transformer absser.ParsableFactory
 	}{
 		{
-			name:              "Contacts Iterative Check",
-			queryFunc:         api.GetAllContactFolderNamesForUser,
+			name: "Contacts Iterative Check",
+			queryFunc: func(amc account.M365Config) api.GraphQuery {
+				return api.Client{Credentials: amc}.GetAllContactFolderNamesForUser
+			},
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 			iterativeFunction: IterativeCollectContactContainers,
 		},
 		{
-			name:              "Events Iterative Check",
-			queryFunc:         api.GetAllCalendarNamesForUser,
+			name: "Events Iterative Check",
+			queryFunc: func(amc account.M365Config) api.GraphQuery {
+				return api.Client{Credentials: amc}.GetAllCalendarNamesForUser
+			},
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 			iterativeFunction: IterativeCollectCalendarContainers,
 		},
@@ -114,7 +119,7 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 			service, err := createService(m365)
 			require.NoError(t, err)
 
-			response, err := test.queryFunc(ctx, service, userID)
+			response, err := test.queryFunc(m365)(ctx, userID)
 			require.NoError(t, err)
 
 			// Iterator Creation

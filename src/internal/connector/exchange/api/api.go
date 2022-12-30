@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/account"
 )
 
 // ---------------------------------------------------------------------------
@@ -26,14 +28,13 @@ type DeltaUpdate struct {
 // into M365 backstore. Responses -> returned items will only contain the information
 // that is included in the options
 // TODO: use selector or path for granularity into specific folders or specific date ranges
-type GraphQuery func(ctx context.Context, gs graph.Servicer, userID string) (serialization.Parsable, error)
+type GraphQuery func(ctx context.Context, userID string) (serialization.Parsable, error)
 
 // GraphRetrievalFunctions are functions from the Microsoft Graph API that retrieve
 // the default associated data of a M365 object. This varies by object. Additional
 // Queries must be run to obtain the omitted fields.
 type GraphRetrievalFunc func(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, m365ID string,
 ) (serialization.Parsable, error)
 
@@ -41,10 +42,25 @@ type GraphRetrievalFunc func(
 // interfaces
 // ---------------------------------------------------------------------------
 
-// API is a struct used to fulfill the interface for exchange
+// Client is used to fulfill the interface for exchange
 // queries that are traditionally backed by GraphAPI.  A
 // struct is used in this case, instead of deferring to
 // pure function wrappers, so that the boundary separates the
 // granular implementation of the graphAPI and kiota away
 // from the exchange package's broader intents.
-// type API struct{}
+type Client struct {
+	Credentials account.M365Config
+}
+
+func (c Client) service() (*graph.Service, error) {
+	adapter, err := graph.CreateAdapter(
+		c.Credentials.AzureTenantID,
+		c.Credentials.AzureClientID,
+		c.Credentials.AzureClientSecret,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "generating graph api service client")
+	}
+
+	return graph.NewService(adapter), nil
+}

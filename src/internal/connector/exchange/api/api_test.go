@@ -164,6 +164,8 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	c := Client{suite.credentials}
+
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
 		name     string
@@ -171,17 +173,17 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 	}{
 		{
 			name:     "GraphQuery: Get All ContactFolders",
-			function: GetAllContactFolderNamesForUser,
+			function: c.GetAllContactFolderNamesForUser,
 		},
 		{
 			name:     "GraphQuery: Get All Calendars for User",
-			function: GetAllCalendarNamesForUser,
+			function: c.GetAllCalendarNamesForUser,
 		},
 	}
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			response, err := test.function(ctx, suite.gs, userID)
+			response, err := test.function(ctx, userID)
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
 		})

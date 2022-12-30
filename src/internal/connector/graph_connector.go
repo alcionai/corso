@@ -252,6 +252,7 @@ func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls 
 // SideEffect: gc.status is updated at the completion of operation
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
+	acct account.Account,
 	selector selectors.Selector,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
@@ -265,9 +266,14 @@ func (gc *GraphConnector) RestoreDataCollections(
 		deets  = &details.Builder{}
 	)
 
+	creds, err := acct.M365Config()
+	if err != nil {
+		return nil, errors.Wrap(err, "malformed azure credentials")
+	}
+
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.Service, dest, dcs, deets)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
 	case selectors.ServiceSharePoint:

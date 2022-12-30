@@ -294,6 +294,7 @@ func generateContainerOfItems(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	service path.ServiceType,
+	acct account.Account,
 	cat path.CategoryType,
 	sel selectors.Selector,
 	tenantID, userID, destFldr string,
@@ -330,7 +331,7 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
-	deets, err := gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, dataColls)
 	require.NoError(t, err)
 
 	return deets
@@ -705,6 +706,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				ctx,
 				gc,
 				path.ExchangeService,
+				acct,
 				category,
 				selectors.NewExchangeRestore(users).Selector,
 				m365.AzureTenantID, suite.user, destName,
