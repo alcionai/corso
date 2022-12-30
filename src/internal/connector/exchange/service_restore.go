@@ -635,7 +635,7 @@ func establishEventsRestoreLocation(
 			return "", errors.Wrap(err, "populating event cache")
 		}
 
-		transform := CreateCalendarDisplayable(temp)
+		transform := api.CreateCalendarDisplayable(temp)
 		if err = ecc.AddToCache(ctx, transform); err != nil {
 			return "", errors.Wrap(err, "adding new calendar to cache")
 		}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
@@ -54,31 +55,62 @@ func (c Client) GetAllCalendarNamesForUser(
 	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
 }
 
-// TODO: we want this to be the full handler, not only the builder.
-// but this halfway point minimizes changes for now.
-func (c Client) GetCalendarsBuilder(
+// EnumerateCalendars iterates through all of the users current
+// contacts folders, converting each to a graph.CacheFolder, and
+// calling fn(cf) on each one.  If fn(cf) errors, the error is
+// aggregated into a multierror that gets returned to the caller.
+// Folder hierarchy is represented in its current state, and does
+// not contain historical data.
+func (c Client) EnumerateCalendars(
 	ctx context.Context,
 	userID string,
-	optionalFields ...string,
-) (
-	*users.ItemCalendarsRequestBuilder,
-	*users.ItemCalendarsRequestBuilderGetRequestConfiguration,
-	*graph.Service,
-	error,
-) {
+	fn func(graph.CacheFolder) error,
+) error {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	ofcf, err := optionsForCalendars(optionalFields)
+	var errs *multierror.Error
+
+	ofc, err := optionsForCalendars([]string{})
 	if err != nil {
-		return nil, nil, nil, errors.Wrapf(err, "options for event calendars: %v", optionalFields)
+		return errors.Wrapf(err, "options for event calendars")
 	}
 
 	builder := service.Client().UsersById(userID).Calendars()
 
-	return builder, ofcf, service, nil
+	for {
+		resp, err := builder.Get(ctx, ofc)
+		if err != nil {
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		}
+
+		for _, cal := range resp.GetValue() {
+			cd := CreateCalendarDisplayable(cal)
+
+			if err := checkIDAndName(cd); err != nil {
+				errs = multierror.Append(err, errs)
+				continue
+			}
+
+			temp := graph.NewCacheFolder(cd, path.Builder{}.Append(*cd.GetDisplayName()))
+
+			err = fn(temp)
+			if err != nil {
+				errs = multierror.Append(err, errs)
+				continue
+			}
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = users.NewItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), service.Adapter())
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
@@ -137,4 +169,44 @@ func (c Client) FetchEventIDsFromCalendar(
 
 	// Events don't have a delta endpoint so just return an empty string.
 	return ids, nil, DeltaUpdate{}, errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// helper funcs
+// ---------------------------------------------------------------------------
+
+// CalendarDisplayable is a wrapper that complies with the
+// models.Calendarable interface with the graph.Container
+// interfaces. Calendars do not have a parentFolderID.
+// Therefore, that value will always return nil.
+type CalendarDisplayable struct {
+	models.Calendarable
+}
+
+// GetDisplayName returns the *string of the models.Calendable
+// variant:  calendar.GetName()
+func (c CalendarDisplayable) GetDisplayName() *string {
+	return c.GetName()
+}
+
+// GetParentFolderId returns the default calendar name address
+// EventCalendars have a flat hierarchy and Calendars are rooted
+// at the default
+//
+//nolint:revive
+func (c CalendarDisplayable) GetParentFolderId() *string {
+	return nil
+}
+
+// CreateCalendarDisplayable creates a calendarDisplayable from
+// the interface returned by graph when iterating over event calendars.
+func CreateCalendarDisplayable(entry any) CalendarDisplayable {
+	calendar, ok := entry.(models.Calendarable)
+	if !ok {
+		return CalendarDisplayable{}
+	}
+
+	return CalendarDisplayable{
+		Calendarable: calendar,
+	}
 }

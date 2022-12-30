@@ -66,30 +66,54 @@ func (c Client) RetrieveMessageDataForUser(
 	return c.stable.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
 }
 
-// GetMailFoldersBuilder retrieves all of the users current mail folders.
+// EnumeratetMailFolders iterates through all of the users current
+// mail folders, converting each to a graph.CacheFolder, and calling
+// fn(cf) on each one.  If fn(cf) errors, the error is aggregated
+// into a multierror that gets returned to the caller.
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
-// TODO: we want this to be the full handler, not only the builder.
-// but this halfway point minimizes changes for now.
-func (c Client) GetAllMailFoldersBuilder(
+func (c Client) EnumerateMailFolders(
 	ctx context.Context,
 	userID string,
-) (
-	*users.ItemMailFoldersDeltaRequestBuilder,
-	*graph.Service,
-	error,
-) {
+	fn func(graph.CacheFolder) error,
+) error {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	builder := service.Client().
-		UsersById(userID).
-		MailFolders().
-		Delta()
+	var (
+		errs    *multierror.Error
+		builder = service.Client().
+			UsersById(userID).
+			MailFolders().
+			Delta()
+	)
 
-	return builder, service, nil
+	for {
+		resp, err := builder.Get(ctx, nil)
+		if err != nil {
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		}
+
+		for _, v := range resp.GetValue() {
+			temp := graph.NewCacheFolder(v, nil)
+
+			if err := fn(temp); err != nil {
+				errs = multierror.Append(errs, errors.Wrap(err, "iterating mail folders delta"))
+				continue
+			}
+		}
+
+		link := resp.GetOdataNextLink()
+		if link == nil {
+			break
+		}
+
+		builder = users.NewItemMailFoldersDeltaRequestBuilder(*link, service.Adapter())
+	}
+
+	return errs.ErrorOrNil()
 }
 
 func (c Client) GetMailFolderByID(
