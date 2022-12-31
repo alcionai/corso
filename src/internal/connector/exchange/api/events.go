@@ -14,9 +14,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ---------------------------------------------------------------------------
+// controller
+// ---------------------------------------------------------------------------
+
+type Events struct {
+	Client
+}
+
+// ---------------------------------------------------------------------------
+// methods
+// ---------------------------------------------------------------------------
+
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
-func (c Client) CreateCalendar(
+func (c Events) CreateCalendar(
 	ctx context.Context,
 	user, calendarName string,
 ) (models.Calendarable, error) {
@@ -28,7 +40,7 @@ func (c Client) CreateCalendar(
 
 // DeleteCalendar removes calendar from user's M365 account
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
-func (c Client) DeleteCalendar(
+func (c Events) DeleteCalendar(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
@@ -36,7 +48,7 @@ func (c Client) DeleteCalendar(
 }
 
 // RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
-func (c Client) RetrieveEventDataForUser(
+func (c Events) RetrieveEventDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
@@ -55,15 +67,15 @@ func (c Client) GetAllCalendarNamesForUser(
 	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
 }
 
-// EnumerateCalendars iterates through all of the users current
-// contacts folders, converting each to a graph.CacheFolder, and
+// EnumerateContainers iterates through all of the users current
+// calendars, converting each to a graph.CacheFolder, and
 // calling fn(cf) on each one.  If fn(cf) errors, the error is
 // aggregated into a multierror that gets returned to the caller.
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
-func (c Client) EnumerateCalendars(
+func (c Events) EnumerateContainers(
 	ctx context.Context,
-	userID string,
+	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
 ) error {
 	service, err := c.service()
@@ -112,8 +124,7 @@ func (c Client) EnumerateCalendars(
 	return errs.ErrorOrNil()
 }
 
-// FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
-func (c Client) FetchEventIDsFromCalendar(
+func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {

@@ -13,9 +13,21 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
+// ---------------------------------------------------------------------------
+// controller
+// ---------------------------------------------------------------------------
+
+type Mail struct {
+	Client
+}
+
+// ---------------------------------------------------------------------------
+// methods
+// ---------------------------------------------------------------------------
+
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
-func (c Client) CreateMailFolder(
+func (c Mail) CreateMailFolder(
 	ctx context.Context,
 	user, folder string,
 ) (models.MailFolderable, error) {
@@ -27,7 +39,7 @@ func (c Client) CreateMailFolder(
 	return c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
 }
 
-func (c Client) CreateMailFolderWithParent(
+func (c Mail) CreateMailFolderWithParent(
 	ctx context.Context,
 	user, folder, parentID string,
 ) (models.MailFolderable, error) {
@@ -51,30 +63,47 @@ func (c Client) CreateMailFolderWithParent(
 
 // DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func (c Client) DeleteMailFolder(
+func (c Mail) DeleteMailFolder(
 	ctx context.Context,
 	user, folderID string,
 ) error {
 	return c.stable.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
 }
 
+func (c Mail) GetContainerByID(
+	ctx context.Context,
+	userID, dirID string,
+) (graph.Container, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, err
+	}
+
+	ofmf, err := optionsForMailFoldersItem([]string{"displayName", "parentFolderId"})
+	if err != nil {
+		return nil, errors.Wrap(err, "options for mail folder")
+	}
+
+	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+}
+
 // RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
-func (c Client) RetrieveMessageDataForUser(
+func (c Mail) RetrieveMessageDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
 	return c.stable.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
 }
 
-// EnumeratetMailFolders iterates through all of the users current
+// EnumerateContainers iterates through all of the users current
 // mail folders, converting each to a graph.CacheFolder, and calling
 // fn(cf) on each one.  If fn(cf) errors, the error is aggregated
 // into a multierror that gets returned to the caller.
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
-func (c Client) EnumerateMailFolders(
+func (c Mail) EnumerateContainers(
 	ctx context.Context,
-	userID string,
+	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
 ) error {
 	service, err := c.service()
@@ -116,22 +145,7 @@ func (c Client) EnumerateMailFolders(
 	return errs.ErrorOrNil()
 }
 
-func (c Client) GetMailFolderByID(
-	ctx context.Context,
-	userID, dirID string,
-	optionalFields ...string,
-) (models.MailFolderable, error) {
-	ofmf, err := optionsForMailFoldersItem(optionalFields)
-	if err != nil {
-		return nil, errors.Wrapf(err, "options for mail folder: %v", optionalFields)
-	}
-
-	return c.stable.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
-}
-
-// FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
-// of the targeted directory
-func (c Client) FetchMessageIDsFromDirectory(
+func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {

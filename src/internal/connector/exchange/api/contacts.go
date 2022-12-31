@@ -13,9 +13,21 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
+// ---------------------------------------------------------------------------
+// controller
+// ---------------------------------------------------------------------------
+
+type Contacts struct {
+	Client
+}
+
+// ---------------------------------------------------------------------------
+// methods
+// ---------------------------------------------------------------------------
+
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
-func (c Client) CreateContactFolder(
+func (c Contacts) CreateContactFolder(
 	ctx context.Context,
 	user, folderName string,
 ) (models.ContactFolderable, error) {
@@ -28,7 +40,7 @@ func (c Client) CreateContactFolder(
 
 // DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
 // Errors returned if the function call was not successful.
-func (c Client) DeleteContactFolder(
+func (c Contacts) DeleteContactFolder(
 	ctx context.Context,
 	user, folderID string,
 ) error {
@@ -36,7 +48,7 @@ func (c Client) DeleteContactFolder(
 }
 
 // RetrieveContactDataForUser is a GraphRetrievalFun that returns all associated fields.
-func (c Client) RetrieveContactDataForUser(
+func (c Contacts) RetrieveContactDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
@@ -46,7 +58,7 @@ func (c Client) RetrieveContactDataForUser(
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting
 // ContactFolderId and display names for contacts. All other information is omitted.
 // Does not return the default Contact Folder
-func (c Client) GetAllContactFolderNamesForUser(
+func (c Contacts) GetAllContactFolderNamesForUser(
 	ctx context.Context,
 	user string,
 ) (serialization.Parsable, error) {
@@ -58,16 +70,13 @@ func (c Client) GetAllContactFolderNamesForUser(
 	return c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
 }
 
-func (c Client) GetContactFolderByID(
+func (c Contacts) GetContainerByID(
 	ctx context.Context,
 	userID, dirID string,
-	optionalFields ...string,
-) (models.ContactFolderable, error) {
-	fields := append([]string{"displayName", "parentFolderId"}, optionalFields...)
-
-	ofcf, err := optionsForContactFolderByID(fields)
+) (graph.Container, error) {
+	ofcf, err := optionsForContactFolderByID([]string{"displayName", "parentFolderId"})
 	if err != nil {
-		return nil, errors.Wrapf(err, "options for contact folder: %v", fields)
+		return nil, errors.Wrap(err, "options for contact folder")
 	}
 
 	return c.stable.Client().
@@ -76,13 +85,13 @@ func (c Client) GetContactFolderByID(
 		Get(ctx, ofcf)
 }
 
-// EnumerateContactsFolders iterates through all of the users current
+// EnumerateContainers iterates through all of the users current
 // contacts folders, converting each to a graph.CacheFolder, and calling
 // fn(cf) on each one.  If fn(cf) errors, the error is aggregated
 // into a multierror that gets returned to the caller.
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
-func (c Client) EnumerateContactsFolders(
+func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
@@ -138,9 +147,7 @@ func (c Client) EnumerateContactsFolders(
 	return errs.ErrorOrNil()
 }
 
-// FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
-// of the targeted directory
-func (c Client) FetchContactIDsFromDirectory(
+func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {

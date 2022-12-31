@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -15,7 +14,8 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	ac     api.Client
+	enumer enumerateContainerser
+	getter containerGetter
 	userID string
 }
 
@@ -24,7 +24,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 	directoryID string,
 	baseContainerPath []string,
 ) error {
-	f, err := cfc.ac.GetContactFolderByID(ctx, cfc.userID, directoryID)
+	f, err := cfc.getter.GetContainerByID(ctx, cfc.userID, directoryID)
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -53,7 +53,7 @@ func (cfc *contactFolderCache) Populate(
 		return err
 	}
 
-	err := cfc.ac.EnumerateContactsFolders(ctx, cfc.userID, baseID, cfc.addFolder)
+	err := cfc.enumer.EnumerateContainers(ctx, cfc.userID, baseID, cfc.addFolder)
 	if err != nil {
 		return err
 	}

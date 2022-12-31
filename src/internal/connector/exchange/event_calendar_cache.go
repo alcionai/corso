@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -14,7 +13,7 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	ac     api.Client
+	enumer enumerateContainerser
 	userID string
 }
 
@@ -30,7 +29,7 @@ func (ecc *eventCalendarCache) Populate(
 		ecc.containerResolver = newContainerResolver()
 	}
 
-	err := ecc.ac.EnumerateCalendars(ctx, ecc.userID, ecc.addFolder)
+	err := ecc.enumer.EnumerateContainers(ctx, ecc.userID, "", ecc.addFolder)
 	if err != nil {
 		return err
 	}
