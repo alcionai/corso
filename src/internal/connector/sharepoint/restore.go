@@ -156,49 +156,35 @@ func restoreListItem(
 		contents = append(contents, temp)
 	}
 
-	// Restore to M365 store
+	// Restore to List base to M365 back store
 	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
-		fmt.Printf("Error for columns: %s\n", support.ConnectorStackErrorTrace(err))
-		return dii, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		errorMsg := fmt.Sprintf(
+			"failure to create list foundation ID: %s API Error Details: %s",
+			itemData.UUID(),
+			support.ConnectorStackErrorTrace(err),
+		)
+
+		return dii, errors.Wrap(err, errorMsg)
 	}
 
-	// Restosre Items or attempt it
+	// Restore Items or attempt it
 	if len(contents) > 0 {
-		for _, row := range contents {
-			row.GetETag()
-
-			// requestBody := models.NewListItem()
-			// fields := models.NewFieldValueSet()
-			// additionalData := map[string]interface{}{
-			// 	"Title":     "Deep Work",
-			// 	"Author0":   "Cal Newton",
-			// 	"PageCount": 307,
-			// }
-			// fields.SetAdditionalData(additionalData)
-			// requestBody.SetFields(fields)
-
-			fmt.Println("restore List ID: " + *restoredList.GetId())
+		for _, lItem := range contents {
 			_, err := service.Client().
-				SitesById(siteID).ListsById(*restoredList.GetId()).
-				Items().Post(ctx, row, nil)
+				SitesById(siteID).
+				ListsById(*restoredList.GetId()).
+				Items().
+				Post(ctx, lItem, nil)
 
 			if err != nil {
-				fmt.Println("Error on item: " + support.ConnectorStackErrorTrace(err))
-				return dii, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+				fmt.Println("Error on ListItem: " + support.ConnectorStackErrorTrace(err))
+				return dii, errors.Wrap(err, *lItem.GetId()+support.ConnectorStackErrorTrace(err))
 			}
-
-			// writer := kw.NewJsonSerializationWriter()
-			// writer.WriteObjectValue("", irony)
-			// byteArray, _ := writer.GetSerializedContent()
-			// fmt.Println(string(byteArray))
-
 		}
 	}
 
-	written := int64(len(byteArray))
-
-	dii.SharePoint = sharePointListInfo(restoredList, written)
+	dii.SharePoint = sharePointListInfo(restoredList, int64(len(byteArray)))
 
 	return dii, nil
 }
