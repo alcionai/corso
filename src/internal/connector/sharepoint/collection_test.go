@@ -89,6 +89,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
+// TestRestoreListCollection verifies Graph Restore API for the List Collection
 func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -107,6 +108,7 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 		mockList     = mockconnector.GetMockListStream(t, name)
 		account, err = a.M365Config()
 	)
+
 	require.NoError(t, err)
 
 	service, err := createTestService(account)
@@ -119,18 +121,16 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 			path.ListsCategory,
 			false,
 		)
-
 	require.NoError(t, err)
-	collection := &mockconnector.MockListCollection{
-		Data: make([]*mockconnector.MockListData, 0),
-	}
-	collection.Data = append(collection.Data, mockList)
-	collection.SetPath(dir)
-	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
+	collection := &mockconnector.MockListCollection{
+		Data: []*mockconnector.MockListData{mockList},
+	}
+	collection.SetPath(dir)
+
+	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 	_, canceled := RestoreCollection(ctx, service, collection, destName, deets, errUpdater)
 	assert.False(t, canceled)
-
 }
 
 // TestRestoreLocation temporary test for greater restore operation
