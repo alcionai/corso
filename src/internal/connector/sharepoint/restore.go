@@ -6,6 +6,7 @@ import (
 	"io"
 	"runtime/trace"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -18,6 +19,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+//----------------------------------------------------------------------------
+// SharePoint Restore WorkFlow:
+// - RestoreCollections called by GC component
+// -- Collections are iterated within, Control Flow Switch
+// -- Switch:
+// ---- Libraries restored via the same workflow as oneDrive
+// ---- Lists call RestoreCollection()
+// ----> for each data.Stream within  Collection.Items()
+// ----> restoreListItems() is called
+// Restored List can be found in the Site's `Site content` page
+// Restored Libraries can be found within the Site's `Pages` page
+//------------------------------------------
 
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
@@ -103,7 +117,7 @@ func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID st
 // restoreListItem utility function restores a List to the siteID.
 // The name is changed to to Corso_Restore_{timeStame}_name
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
-// Restored List can be verified within the Site contents
+// Restored List can be verified within the Site contents.
 func restoreListItem(
 	ctx context.Context,
 	service graph.Servicer,
@@ -114,9 +128,8 @@ func restoreListItem(
 	defer end()
 
 	var (
-		dii         = details.ItemInfo{}
-		itemName    = itemData.UUID()
-		displayName = itemName
+		dii      = details.ItemInfo{}
+		listName = itemData.UUID()
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
@@ -124,30 +137,63 @@ func restoreListItem(
 		return dii, errors.Wrap(err, "sharepoint restoreItem failed to retrieve bytes from data.Stream")
 	}
 	// Create Item
-	newItem, err := support.CreateListFromBytes(byteArray)
+	oldList, err := support.CreateListFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "failed to construct list item %s", itemName)
+		return dii, errors.Wrapf(err, "failed to build list item %s", listName)
 	}
 
-	// If field "name" is set, this will trigger the following error:
-	// invalidRequest Cannot define a 'name' for a list as it is assigned by the server. Instead, provide 'displayName'
-	if newItem.GetName() != nil {
-		adtlData := newItem.GetAdditionalData()
-		adtlData["list_name"] = *newItem.GetName()
-		newItem.SetName(nil)
+	if oldList.GetDisplayName() != nil {
+		listName = *oldList.GetDisplayName()
 	}
 
-	if newItem.GetDisplayName() != nil {
-		displayName = *newItem.GetDisplayName()
-	}
+	newName := fmt.Sprintf("%s_%s", destName, listName)
+	newList := support.ToListable(oldList, newName)
 
-	newName := fmt.Sprintf("%s_%s", destName, displayName)
-	newItem.SetDisplayName(&newName)
+	contents := make([]models.ListItemable, 0)
+
+	for _, itm := range oldList.GetItems() {
+		temp := support.CloneListItem(itm)
+		contents = append(contents, temp)
+	}
 
 	// Restore to M365 store
-	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newItem, nil)
+	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
+		fmt.Printf("Error for columns: %s\n", support.ConnectorStackErrorTrace(err))
 		return dii, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	// Restosre Items or attempt it
+	if len(contents) > 0 {
+		for _, row := range contents {
+			row.GetETag()
+
+			// requestBody := models.NewListItem()
+			// fields := models.NewFieldValueSet()
+			// additionalData := map[string]interface{}{
+			// 	"Title":     "Deep Work",
+			// 	"Author0":   "Cal Newton",
+			// 	"PageCount": 307,
+			// }
+			// fields.SetAdditionalData(additionalData)
+			// requestBody.SetFields(fields)
+
+			fmt.Println("restore List ID: " + *restoredList.GetId())
+			_, err := service.Client().
+				SitesById(siteID).ListsById(*restoredList.GetId()).
+				Items().Post(ctx, row, nil)
+
+			if err != nil {
+				fmt.Println("Error on item: " + support.ConnectorStackErrorTrace(err))
+				return dii, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			}
+
+			// writer := kw.NewJsonSerializationWriter()
+			// writer.WriteObjectValue("", irony)
+			// byteArray, _ := writer.GetSerializedContent()
+			// fmt.Println(string(byteArray))
+
+		}
 	}
 
 	written := int64(len(byteArray))
