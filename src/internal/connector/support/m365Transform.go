@@ -119,3 +119,60 @@ func insertStringToBody(body getContenter, newContent string) string {
 
 	return newContent + content
 }
+
+// CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
+// M365 data into it set fields.
+// - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
+func CloneListItem(orig models.ListItemable) models.ListItemable {
+	newItem := models.NewListItem()
+	newFieldData := retrieveFieldData(orig.GetFields())
+
+	newItem.SetAdditionalData(orig.GetAdditionalData())
+	newItem.SetAnalytics(orig.GetAnalytics())
+	newItem.SetContentType(orig.GetContentType())
+	newItem.SetCreatedBy(orig.GetCreatedBy())
+	newItem.SetCreatedByUser(orig.GetCreatedByUser())
+	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newItem.SetDescription(orig.GetDescription())
+	// ETag cannot be carried forward
+	newItem.SetFields(newFieldData)
+	newItem.SetLastModifiedBy(orig.GetLastModifiedBy())
+	newItem.SetLastModifiedByUser(orig.GetLastModifiedByUser())
+	newItem.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
+	newItem.SetOdataType(orig.GetOdataType())
+	// parentReference and SharePointIDs cause error on upload.
+	// POST Command will link items to the created list.
+	newItem.SetVersions(orig.GetVersions())
+
+	return newItem
+}
+
+// retrieveFieldData utility function to clone raw listItem data from the embedded
+// additionalData map
+// Further details on FieldValueSets:
+// - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
+func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
+	fields := models.NewFieldValueSet()
+	additionalData := make(map[string]interface{})
+	fieldData := orig.GetAdditionalData()
+
+	// M365 Book keeping values removed during new Item Creation
+	// Removed Values:
+	// -- Prefixes -> @odata.context : absolute path to previous list
+	// .           -> @odata.etag : Embedded link to Prior M365 ID
+	// -- String Match: Read-Only Fields
+	// -> id : previous un
+	for key, value := range fieldData {
+		if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
+			key == "Edit" || key == "Created" || key == "Modified" ||
+			strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
+			continue
+		}
+
+		additionalData[key] = value
+	}
+
+	fields.SetAdditionalData(additionalData)
+
+	return fields
+}
