@@ -631,9 +631,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
 		}
-		folder1 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 1, now)
-		folder2 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 2, now)
-		folder3 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 3, now)
+		folder1      = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 1, now)
+		folder2      = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 2, now)
+		folder3      = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 3, now)
+		folderRename = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 4, now)
 	)
 
 	m365, err := acct.M365Config()
@@ -746,10 +747,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	// incrementals changes to make (all changes apply to both email and contacts)
 	// [ ] add a new item to an existing folder
 	// [ ] remove an item from an existing folder
-	// [ ] add a new folder
-	// [ ] rename a folder
+	// [x] add a new folder
+	// [x] rename a folder
 	// [x] relocate one folder into another
-	// [ ] remove a folder
+	// [x] remove a folder
 
 	table := []struct {
 		name string
@@ -784,6 +785,74 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			},
 			itemsRead:    0, // zero because we don't count container reads
 			itemsWritten: 2,
+		},
+		{
+			name: "delete a folder",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					folderID := d.dests[folder2].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						require.NoError(
+							t,
+							cli.MailFoldersById(folderID).Delete(ctx, nil),
+							"deleting an email folder")
+					case path.ContactsCategory:
+						require.NoError(
+							t,
+							cli.ContactFoldersById(folderID).Delete(ctx, nil),
+							"deleting a contacts folder")
+					}
+				}
+			},
+			itemsRead:    0,
+			itemsWritten: 0, // deletions are not counted as "writes"
+		},
+		{
+			name: "add a new folder",
+			updateUserData: func(t *testing.T) {
+				// instead of working through graph, we'll mutate he selector to now
+				// include an additional folder.  Since all backups in this test have
+				// avoided folder3, it should appear as a new backup.
+				sel = selectors.NewExchangeBackup(users)
+				sel.Include(
+					sel.MailFolders(users, []string{folder1, folder2, folder3}, selectors.PrefixMatch()),
+					sel.ContactFolders(users, []string{folder1, folder2, folder3}, selectors.PrefixMatch()),
+				)
+			},
+			itemsRead:    0,
+			itemsWritten: 0,
+		},
+		{
+			name: "rename a folder",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					folderID := d.dests[folder3].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						cmf := cli.MailFoldersById(folderID)
+						body, err := cmf.Get(ctx, nil)
+						require.NoError(t, err, "getting mail folder")
+						body.SetDisplayName(&folderRename)
+						_, err = cmf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating mail folder name")
+
+					case path.ContactsCategory:
+						ccf := cli.ContactFoldersById(folderID)
+						body, err := ccf.Get(ctx, nil)
+						require.NoError(t, err, "getting contact folder")
+						body.SetDisplayName(&folderRename)
+						_, err = ccf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating contact folder name")
+					}
+				}
+			},
+			itemsRead:    0,
+			itemsWritten: 0,
 		},
 	}
 	for _, test := range table {
