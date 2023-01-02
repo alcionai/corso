@@ -312,7 +312,7 @@ func RestoreExchangeDataCollections(
 			userCaches = directoryCaches[userID]
 		}
 
-		containerID, err := MakeContainerDestinaion(
+		containerID, err := CreateContainerDestinaion(
 			ctx,
 			gs,
 			dc.FullPath(),
@@ -425,12 +425,12 @@ func restoreCollection(
 	}
 }
 
-// MakeContainerDestinaion builds the destination into the container
+// CreateContainerDestinaion builds the destination into the container
 // at the provided path.  As a precondition, the destination cannot
 // already exist.  If it does then an error is returned.  The provided
 // containerResolver is updated with the new destination.
 // @ returns the container ID of the new destination container.
-func MakeContainerDestinaion(
+func CreateContainerDestinaion(
 	ctx context.Context,
 	gs graph.Servicer,
 	directory path.Path,

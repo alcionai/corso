@@ -560,7 +560,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			folderID, err := MakeContainerDestinaion(
+			folderID, err := CreateContainerDestinaion(
 				ctx,
 				connector,
 				test.pathFunc1(t),
@@ -572,7 +572,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 			_, err = resolver.IDToPath(ctx, folderID)
 			assert.NoError(t, err)
 
-			secondID, err := MakeContainerDestinaion(
+			secondID, err := CreateContainerDestinaion(
 				ctx,
 				connector,
 				test.pathFunc2(t),
