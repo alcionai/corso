@@ -28,6 +28,7 @@ func (suite *SharePointSuite) SetupSuite() {
 func TestSharePointSuite(t *testing.T) {
 	if err := tester.RunOnAny(
 		tester.CorsoCITests,
+		tester.CorsoGraphConnectorSharePointTests,
 	); err != nil {
 		t.Skip(err)
 	}
