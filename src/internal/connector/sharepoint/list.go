@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -355,4 +356,20 @@ func fetchColumnLinks(
 	}
 
 	return links, nil
+}
+
+// DeleteList removes a list object from a site.
+func DeleteList(
+	ctx context.Context,
+	gs graph.Servicer,
+	siteID, listID string,
+) error {
+	err := gs.Client().SitesById(siteID).ListsById(listID).Delete(ctx, nil)
+	errorMsg := fmt.Sprintf("failure deleting listID %s from site %s. Details: %s",
+		listID,
+		siteID,
+		support.ConnectorStackErrorTrace(err),
+	)
+
+	return errors.Wrap(err, errorMsg)
 }
