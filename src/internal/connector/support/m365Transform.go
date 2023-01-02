@@ -124,7 +124,7 @@ func insertStringToBody(body getContenter, newContent string) string {
 // New Listable omits trackable fields such as `id` or `ETag` and other read-only
 // objects that are prevented upon upload. Additionally, read-Only columns are
 // not attached in this method.
-// ListItems not included in creation of new list. ListItems  have to be restored
+// ListItems are not included in creation of new list, and have to be restored
 // in separate call.
 func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList := models.NewList()
@@ -143,12 +143,10 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	leg := make(map[string]struct{})
-	empty := struct{}{}
-	legacyNames := []string{"Attachments", "Edit", "Content Type"}
-
-	for _, entry := range legacyNames {
-		leg[entry] = empty
+	leg := map[string]struct{}{
+		"Attachments":  {},
+		"Edit":         {},
+		"Content Type": {},
 	}
 
 	for _, cd := range orig.GetColumns() {
