@@ -119,3 +119,93 @@ func insertStringToBody(body getContenter, newContent string) string {
 
 	return newContent + content
 }
+
+// ToListable utility function to encapsulate stored data for restoration.
+// New Listable omits trackable fields such as `id` or `ETag` and other read-only
+// objects that are prevented upon upload. Additionally, read-Only columns are
+// not attached in this method.
+// ListItems are not included in creation of new list, and have to be restored
+// in separate call.
+func ToListable(orig models.Listable, displayName string) models.Listable {
+	newList := models.NewList()
+
+	newList.SetContentTypes(orig.GetContentTypes())
+	newList.SetCreatedBy(orig.GetCreatedBy())
+	newList.SetCreatedByUser(orig.GetCreatedByUser())
+	newList.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newList.SetDescription(orig.GetDescription())
+	newList.SetDisplayName(&displayName)
+	newList.SetLastModifiedBy(orig.GetLastModifiedBy())
+	newList.SetLastModifiedByUser(orig.GetLastModifiedByUser())
+	newList.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
+	newList.SetList(orig.GetList())
+	newList.SetOdataType(orig.GetOdataType())
+	newList.SetParentReference(orig.GetParentReference())
+
+	columns := make([]models.ColumnDefinitionable, 0)
+	leg := map[string]struct{}{
+		"Attachments":  {},
+		"Edit":         {},
+		"Content Type": {},
+	}
+
+	for _, cd := range orig.GetColumns() {
+		tag := *cd.GetDisplayName()
+		_, isLegacy := leg[tag]
+
+		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
+		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
+		if *cd.GetReadOnly() || tag == "Title" || isLegacy {
+			continue
+		}
+
+		columns = append(columns, cloneColumnDefinitionable(cd))
+	}
+
+	newList.SetColumns(columns)
+
+	return newList
+}
+
+// cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
+// into new object for upload.
+func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
+	newColumn := models.NewColumnDefinition()
+
+	newColumn.SetAdditionalData(orig.GetAdditionalData())
+	newColumn.SetBoolean(orig.GetBoolean())
+	newColumn.SetCalculated(orig.GetCalculated())
+	newColumn.SetChoice(orig.GetChoice())
+	newColumn.SetColumnGroup(orig.GetColumnGroup())
+	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
+	newColumn.SetCurrency(orig.GetCurrency())
+	newColumn.SetDateTime(orig.GetDateTime())
+	newColumn.SetDefaultValue(orig.GetDefaultValue())
+	newColumn.SetDescription(orig.GetDescription())
+	newColumn.SetDisplayName(orig.GetDisplayName())
+	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+	newColumn.SetGeolocation(orig.GetGeolocation())
+	newColumn.SetHidden(orig.GetHidden())
+	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
+	newColumn.SetIndexed(orig.GetIndexed())
+	newColumn.SetIsDeletable(orig.GetIsDeletable())
+	newColumn.SetIsReorderable(orig.GetIsReorderable())
+	newColumn.SetIsSealed(orig.GetIsSealed())
+	newColumn.SetLookup(orig.GetLookup())
+	newColumn.SetName(orig.GetName())
+	newColumn.SetNumber(orig.GetNumber())
+	newColumn.SetOdataType(orig.GetOdataType())
+	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	newColumn.SetReadOnly(orig.GetReadOnly())
+	newColumn.SetRequired(orig.GetRequired())
+	newColumn.SetSourceColumn(orig.GetSourceColumn())
+	newColumn.SetSourceContentType(orig.GetSourceContentType())
+	newColumn.SetTerm(orig.GetTerm())
+	newColumn.SetText(orig.GetText())
+	newColumn.SetThumbnail(orig.GetThumbnail())
+	newColumn.SetType(orig.GetType())
+	newColumn.SetValidation(orig.GetValidation())
+
+	return newColumn
+}
