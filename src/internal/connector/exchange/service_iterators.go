@@ -44,7 +44,6 @@ func filterContainersAndFillCollections(
 ) error {
 	var (
 		errs error
-		oi   = CategoryToOptionIdentifier(qp.Category)
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -119,7 +118,7 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner,
 			currPath,
 			prevPath,
-			oi,
+			scope.Category().PathType(),
 			service,
 			statusUpdater,
 			ctrlOpts,
@@ -169,7 +168,7 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner,
 			nil, // marks the collection as deleted
 			prevPath,
-			oi,
+			scope.Category().PathType(),
 			service,
 			statusUpdater,
 			ctrlOpts,

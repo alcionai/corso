@@ -37,14 +37,12 @@ func RestoreExchangeObject(
 		return nil, fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
 	}
 
-	setting := CategoryToOptionIdentifier(category)
-
-	switch setting {
-	case messages:
+	switch category {
+	case path.EmailCategory:
 		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
-	case contacts:
+	case path.ContactsCategory:
 		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
-	case events:
+	case path.EventsCategory:
 		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
 	default:
 		return nil, fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
