@@ -43,19 +43,6 @@ var (
 		"unreadItemCount":  {},
 	}
 
-	fieldsForUsers = map[string]struct{}{
-		"birthday":          {},
-		"businessPhones":    {},
-		"city":              {},
-		"companyName":       {},
-		"department":        {},
-		"displayName":       {},
-		"employeeId":        {},
-		"id":                {},
-		"mail":              {},
-		"userPrincipalName": {},
-	}
-
 	fieldsForMessages = map[string]struct{}{
 		"conservationId":    {},
 		"conversationIndex": {},
