@@ -176,10 +176,15 @@ func restoreListItem(
 				ListsById(*restoredList.GetId()).
 				Items().
 				Post(ctx, lItem, nil)
-
 			if err != nil {
-				fmt.Println("Error on ListItem: " + support.ConnectorStackErrorTrace(err))
-				return dii, errors.Wrap(err, *lItem.GetId()+support.ConnectorStackErrorTrace(err))
+				errorMsg := fmt.Sprintf(
+					"listItem  failed for listID %s. Details: %s. Content: %v",
+					*restoredList.GetId(),
+					support.ConnectorStackErrorTrace(err),
+					lItem.GetAdditionalData(),
+				)
+
+				return dii, errors.Wrap(err, errorMsg)
 			}
 		}
 	}
