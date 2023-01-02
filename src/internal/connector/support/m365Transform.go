@@ -153,7 +153,7 @@ func CloneListItem(orig models.ListItemable) models.ListItemable {
 // - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
 func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
-	additionalData := make(map[string]interface{})
+	additionalData := make(map[string]any)
 	fieldData := orig.GetAdditionalData()
 
 	// M365 Book keeping values removed during new Item Creation
