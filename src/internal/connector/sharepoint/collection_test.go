@@ -47,7 +47,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
 
 	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
+	listing := mockconnector.GetMockList("Mock List", 3)
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
@@ -101,7 +101,7 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 	siteID := tester.M365SiteID(t)
 
 	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
+	listing := mockconnector.GetMockList("Mock List", 1)
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
