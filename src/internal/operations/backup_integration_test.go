@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -629,8 +631,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
 		}
-		folder1 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 1, now)
-		folder2 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 2, now)
+		folder1      = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 1, now)
+		folder2      = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 2, now)
+		folder3      = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 3, now)
+		folderRename = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 4, now)
 	)
 
 	m365, err := acct.M365Config()
@@ -639,14 +643,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	require.NoError(t, err)
 
-	// generate 2 new folders with two items each.
+	// generate 3 new folders with two items each.
+	// Only the first two folders will be part of the initial backup and
+	// incrementals.  The third folder will be introduced partway through
+	// the changes.
 	// This should be enough to cover most delta actions, since moving one
 	// folder into another generates a delta for both addition and deletion.
-	// TODO: get the folder IDs somehow, so that we can call mutations on
-	// the folders by ID.
+	type contDeets struct {
+		containerID string
+		deets       *details.Details
+	}
+
 	dataset := map[path.CategoryType]struct {
 		dbf   dataBuilderFunc
-		dests map[string]*details.Details
+		dests map[string]contDeets
 	}{
 		path.EmailCategory: {
 			dbf: func(id, timeStamp, subject, body string) []byte {
@@ -657,9 +667,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					subject, body, body,
 					now, now, now, now)
 			},
-			dests: map[string]*details.Details{
-				folder1: nil,
-				folder2: nil,
+			dests: map[string]contDeets{
+				folder1: {},
+				folder2: {},
+				folder3: {},
 			},
 		},
 		path.ContactsCategory: {
@@ -673,25 +684,50 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					"123-456-7890",
 				)
 			},
-			dests: map[string]*details.Details{
-				folder1: nil,
-				folder2: nil,
+			dests: map[string]contDeets{
+				folder1: {},
+				folder2: {},
+				folder3: {},
 			},
 		},
 	}
 
 	for category, gen := range dataset {
-		for dest := range gen.dests {
-			dataset[category].dests[dest] = generateContainerOfItems(
+		for destName := range gen.dests {
+			deets := generateContainerOfItems(
 				t,
 				ctx,
 				gc,
 				path.ExchangeService,
 				category,
 				selectors.NewExchangeRestore(users).Selector,
-				m365.AzureTenantID, suite.user, dest,
+				m365.AzureTenantID, suite.user, destName,
 				2,
 				gen.dbf)
+
+			dataset[category].dests[destName] = contDeets{"", deets}
+		}
+	}
+
+	for category, gen := range dataset {
+		qp := graph.QueryParams{
+			Category:      category,
+			ResourceOwner: suite.user,
+			Credentials:   m365,
+		}
+		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+		require.NoError(t, err, "populating %s container resolver", category)
+
+		for destName, dest := range gen.dests {
+			p, err := path.FromDataLayerPath(dest.deets.Entries[0].RepoRef, true)
+			require.NoError(t, err)
+
+			id, ok := cr.PathInCache(p.Folder())
+			require.True(t, ok, "dir %s found in %s cache", p.Folder(), category)
+
+			d := dataset[category].dests[destName]
+			d.containerID = id
+			dataset[category].dests[destName] = d
 		}
 	}
 
@@ -711,10 +747,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	// incrementals changes to make (all changes apply to both email and contacts)
 	// [ ] add a new item to an existing folder
 	// [ ] remove an item from an existing folder
-	// [ ] add a new folder
-	// [ ] rename a folder
-	// [ ] relocate one folder into another
-	// [ ] remove a folder
+	// [x] add a new folder
+	// [x] rename a folder
+	// [x] relocate one folder into another
+	// [x] remove a folder
 
 	table := []struct {
 		name string
@@ -728,6 +764,95 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {},
 			itemsRead:      0,
 			itemsWritten:   0,
+		},
+		{
+			name: "move an email folder to a subfolder",
+			updateUserData: func(t *testing.T) {
+				// contacts cannot be sufoldered; this is an email-only change
+				toFolder := dataset[path.EmailCategory].dests[folder1].containerID
+				fromFolder := dataset[path.EmailCategory].dests[folder2].containerID
+
+				body := msuser.NewItemMailFoldersItemMovePostRequestBody()
+				body.SetDestinationId(&toFolder)
+
+				_, err := gc.Service.
+					Client().
+					UsersById(suite.user).
+					MailFoldersById(fromFolder).
+					Move().
+					Post(ctx, body, nil)
+				require.NoError(t, err)
+			},
+			itemsRead:    0, // zero because we don't count container reads
+			itemsWritten: 2,
+		},
+		{
+			name: "delete a folder",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					folderID := d.dests[folder2].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						require.NoError(
+							t,
+							cli.MailFoldersById(folderID).Delete(ctx, nil),
+							"deleting an email folder")
+					case path.ContactsCategory:
+						require.NoError(
+							t,
+							cli.ContactFoldersById(folderID).Delete(ctx, nil),
+							"deleting a contacts folder")
+					}
+				}
+			},
+			itemsRead:    0,
+			itemsWritten: 0, // deletions are not counted as "writes"
+		},
+		{
+			name: "add a new folder",
+			updateUserData: func(t *testing.T) {
+				// instead of working through graph, we'll mutate he selector to now
+				// include an additional folder.  Since all backups in this test have
+				// avoided folder3, it should appear as a new backup.
+				sel = selectors.NewExchangeBackup(users)
+				sel.Include(
+					sel.MailFolders(users, []string{folder1, folder2, folder3}, selectors.PrefixMatch()),
+					sel.ContactFolders(users, []string{folder1, folder2, folder3}, selectors.PrefixMatch()),
+				)
+			},
+			itemsRead:    0,
+			itemsWritten: 0,
+		},
+		{
+			name: "rename a folder",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					folderID := d.dests[folder3].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						cmf := cli.MailFoldersById(folderID)
+						body, err := cmf.Get(ctx, nil)
+						require.NoError(t, err, "getting mail folder")
+						body.SetDisplayName(&folderRename)
+						_, err = cmf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating mail folder name")
+
+					case path.ContactsCategory:
+						ccf := cli.ContactFoldersById(folderID)
+						body, err := ccf.Get(ctx, nil)
+						require.NoError(t, err, "getting contact folder")
+						body.SetDisplayName(&folderRename)
+						_, err = ccf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating contact folder name")
+					}
+				}
+			},
+			itemsRead:    0,
+			itemsWritten: 0,
 		},
 	}
 	for _, test := range table {
@@ -753,7 +878,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
-			// +4 on read/writes to account for metadata
+			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
 			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
 			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
