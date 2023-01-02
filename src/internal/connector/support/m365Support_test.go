@@ -122,7 +122,7 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 }
 
 func (suite *DataSupportSuite) TestCreateListFromBytes() {
-	listBytes, err := mockconnector.GetMockListBytes("DataSupportSuite")
+	listBytes, err := mockconnector.GetMockListBytes("DataSupportSuite", 1)
 	require.NoError(suite.T(), err)
 
 	tests := []struct {
