@@ -14,10 +14,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type FolderEntry struct {
+type folderEntry struct {
 	RepoRef   string
 	ShortRef  string
 	ParentRef string
+	Updated   bool
 	Info      ItemInfo
 }
 
@@ -106,7 +107,7 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 type Builder struct {
 	d            Details
 	mu           sync.Mutex             `json:"-"`
-	knownFolders map[string]FolderEntry `json:"-"`
+	knownFolders map[string]folderEntry `json:"-"`
 }
 
 func (b *Builder) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
@@ -130,13 +131,13 @@ func (b *Builder) Details() *Details {
 // TODO(ashmrtn): If we never need to pre-populate the modified time of a folder
 // we should just merge this with AddFoldersForItem, have Add call
 // AddFoldersForItem, and unexport AddFoldersForItem.
-func FolderEntriesForPath(parent *path.Builder) []FolderEntry {
-	folders := []FolderEntry{}
+func FolderEntriesForPath(parent *path.Builder) []folderEntry {
+	folders := []folderEntry{}
 
 	for len(parent.Elements()) > 0 {
 		nextParent := parent.Dir()
 
-		folders = append(folders, FolderEntry{
+		folders = append(folders, folderEntry{
 			RepoRef:   parent.String(),
 			ShortRef:  parent.ShortRef(),
 			ParentRef: nextParent.ShortRef(),
@@ -156,12 +157,12 @@ func FolderEntriesForPath(parent *path.Builder) []FolderEntry {
 
 // AddFoldersForItem adds entries for the given folders. It skips adding entries that
 // have been added by previous calls.
-func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
+func (b *Builder) AddFoldersForItem(folders []folderEntry, itemInfo ItemInfo, updated bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.knownFolders == nil {
-		b.knownFolders = map[string]FolderEntry{}
+		b.knownFolders = map[string]folderEntry{}
 	}
 
 	for _, folder := range folders {
@@ -178,6 +179,12 @@ func (b *Builder) AddFoldersForItem(folders []FolderEntry, itemInfo ItemInfo) {
 
 		if folder.Info.Folder.Modified.Before(itemModified) {
 			folder.Info.Folder.Modified = itemModified
+		}
+
+		// If the item being added was "updated" - propagate that to the
+		// folder entries
+		if updated {
+			folder.Updated = true
 		}
 
 		b.knownFolders[folder.ShortRef] = folder
@@ -206,12 +213,13 @@ func (d *Details) add(repoRef, shortRef, parentRef string, updated bool, info It
 }
 
 // addFolder adds an entry for the given folder.
-func (d *Details) addFolder(folder FolderEntry) {
+func (d *Details) addFolder(folder folderEntry) {
 	d.Entries = append(d.Entries, DetailsEntry{
 		RepoRef:   folder.RepoRef,
 		ShortRef:  folder.ShortRef,
 		ParentRef: folder.ParentRef,
 		ItemInfo:  folder.Info,
+		Updated:   folder.Updated,
 	})
 }
 

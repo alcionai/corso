@@ -59,9 +59,9 @@ type Collection struct {
 	// service - client/adapter pair used to access M365 back store
 	service graph.Servicer
 
-	collectionType optionIdentifier
-	statusUpdater  support.StatusUpdater
-	ctrl           control.Options
+	category      path.CategoryType
+	statusUpdater support.StatusUpdater
+	ctrl          control.Options
 
 	// FullPath is the current hierarchical path used by this collection.
 	fullPath path.Path
@@ -86,14 +86,14 @@ type Collection struct {
 func NewCollection(
 	user string,
 	curr, prev path.Path,
-	collectionType optionIdentifier,
+	category path.CategoryType,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		collectionType:  collectionType,
+		category:        category,
 		ctrl:            ctrlOpts,
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
@@ -135,13 +135,13 @@ func (col *Collection) Items() <-chan data.Stream {
 
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
 // required to convert M365 identifier into a byte array filled with the serialized data
-func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
-	switch optID {
-	case contacts:
+func GetQueryAndSerializeFunc(category path.CategoryType) (GraphRetrievalFunc, GraphSerializeFunc) {
+	switch category {
+	case path.ContactsCategory:
 		return RetrieveContactDataForUser, serializeAndStreamContact
-	case events:
+	case path.EventsCategory:
 		return RetrieveEventDataForUser, serializeAndStreamEvent
-	case messages:
+	case path.EmailCategory:
 		return RetrieveMessageDataForUser, serializeAndStreamMessage
 	// Unsupported options returns nil, nil
 	default:
@@ -203,9 +203,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
 	// serializationFunction
-	query, serializeFunc := GetQueryAndSerializeFunc(col.collectionType)
+	query, serializeFunc := GetQueryAndSerializeFunc(col.category)
 	if query == nil {
-		errs = fmt.Errorf("unrecognized collection type: %s", col.collectionType.String())
+		errs = fmt.Errorf("unrecognized collection type: %s", col.category)
 		return
 	}
 
