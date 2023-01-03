@@ -164,8 +164,7 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 	ss := make([]Selector, 0, len(targets))
 
 	for _, ro := range targets {
-		var c Selector
-		c = s
+		c := s
 		c.DiscreteOwner = ro
 
 		// TODO: when the rootCat gets removed from the scopes, we can remove this
