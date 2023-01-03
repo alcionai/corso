@@ -101,7 +101,10 @@ func runDisplayM365JSON(
 		cat           = graph.StringToPathCategory(category)
 	)
 
-	ac := api.Client{Credentials: creds}
+	ac, err := api.NewClient(creds)
+	if err != nil {
+		return err
+	}
 
 	switch cat {
 	case path.EmailCategory, path.EventsCategory, path.ContactsCategory:

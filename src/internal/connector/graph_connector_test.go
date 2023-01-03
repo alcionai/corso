@@ -134,10 +134,9 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
-	connector   *GraphConnector
-	user        string
-	acct        account.Account
-	credentials account.M365Config
+	connector *GraphConnector
+	user      string
+	acct      account.Account
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {

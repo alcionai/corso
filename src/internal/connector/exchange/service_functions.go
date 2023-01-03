@@ -41,25 +41,30 @@ func PopulateExchangeContainerResolver(
 		cacheRoot string
 	)
 
+	ac, err := api.NewClient(qp.Credentials)
+	if err != nil {
+		return nil, err
+	}
+
 	switch qp.Category {
 	case path.EmailCategory:
 		res = &mailFolderCache{
 			userID: qp.ResourceOwner,
-			ac:     api.Client{Credentials: qp.Credentials},
+			ac:     ac,
 		}
 		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
 		res = &contactFolderCache{
 			userID: qp.ResourceOwner,
-			ac:     api.Client{Credentials: qp.Credentials},
+			ac:     ac,
 		}
 		cacheRoot = DefaultContactFolder
 
 	case path.EventsCategory:
 		res = &eventCalendarCache{
 			userID: qp.ResourceOwner,
-			ac:     api.Client{Credentials: qp.Credentials},
+			ac:     ac,
 		}
 		cacheRoot = DefaultCalendar
 

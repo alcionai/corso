@@ -85,7 +85,7 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 
 	tests := []struct {
 		name              string
-		queryFunc         func(account.M365Config) api.GraphQuery
+		queryFunc         func(*testing.T, account.M365Config) api.GraphQuery
 		scope             selectors.ExchangeScope
 		iterativeFunction func(
 			container map[string]graph.Container,
@@ -95,16 +95,20 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 	}{
 		{
 			name: "Contacts Iterative Check",
-			queryFunc: func(amc account.M365Config) api.GraphQuery {
-				return api.Client{Credentials: amc}.GetAllContactFolderNamesForUser
+			queryFunc: func(t *testing.T, amc account.M365Config) api.GraphQuery {
+				ac, err := api.NewClient(amc)
+				require.NoError(t, err)
+				return ac.GetAllContactFolderNamesForUser
 			},
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 			iterativeFunction: IterativeCollectContactContainers,
 		},
 		{
 			name: "Events Iterative Check",
-			queryFunc: func(amc account.M365Config) api.GraphQuery {
-				return api.Client{Credentials: amc}.GetAllCalendarNamesForUser
+			queryFunc: func(t *testing.T, amc account.M365Config) api.GraphQuery {
+				ac, err := api.NewClient(amc)
+				require.NoError(t, err)
+				return ac.GetAllCalendarNamesForUser
 			},
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 			iterativeFunction: IterativeCollectCalendarContainers,
@@ -119,7 +123,7 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 			service, err := createService(m365)
 			require.NoError(t, err)
 
-			response, err := test.queryFunc(m365)(ctx, userID)
+			response, err := test.queryFunc(t, m365)(ctx, userID)
 			require.NoError(t, err)
 
 			// Iterator Creation

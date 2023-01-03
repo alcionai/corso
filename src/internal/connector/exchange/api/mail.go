@@ -19,17 +19,12 @@ func (c Client) CreateMailFolder(
 	ctx context.Context,
 	user, folder string,
 ) (models.MailFolderable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	isHidden := false
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
 	requestBody.SetIsHidden(&isHidden)
 
-	return service.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+	return c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
 }
 
 func (c Client) CreateMailFolderWithParent(
@@ -60,12 +55,7 @@ func (c Client) DeleteMailFolder(
 	ctx context.Context,
 	user, folderID string,
 ) error {
-	service, err := c.service()
-	if err != nil {
-		return err
-	}
-
-	return service.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
+	return c.stable.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
 }
 
 // RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
@@ -74,12 +64,7 @@ func (c Client) RetrieveMessageDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
-	return service.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
+	return c.stable.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
 }
 
 // GetMailFoldersBuilder retrieves all of the users current mail folders.
@@ -113,17 +98,12 @@ func (c Client) GetMailFolderByID(
 	userID, dirID string,
 	optionalFields ...string,
 ) (models.MailFolderable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	ofmf, err := optionsForMailFoldersItem(optionalFields)
 	if err != nil {
 		return nil, errors.Wrapf(err, "options for mail folder: %v", optionalFields)
 	}
 
-	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+	return c.stable.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 }
 
 // FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail

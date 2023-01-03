@@ -19,16 +19,11 @@ func (c Client) CreateContactFolder(
 	ctx context.Context,
 	user, folderName string,
 ) (models.ContactFolderable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	requestBody := models.NewContactFolder()
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
 
-	return service.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
+	return c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 }
 
 // DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
@@ -37,12 +32,7 @@ func (c Client) DeleteContactFolder(
 	ctx context.Context,
 	user, folderID string,
 ) error {
-	service, err := c.service()
-	if err != nil {
-		return err
-	}
-
-	return service.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+	return c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 }
 
 // RetrieveContactDataForUser is a GraphRetrievalFun that returns all associated fields.
@@ -50,12 +40,7 @@ func (c Client) RetrieveContactDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
-	return service.Client().UsersById(user).ContactsById(m365ID).Get(ctx, nil)
+	return c.stable.Client().UsersById(user).ContactsById(m365ID).Get(ctx, nil)
 }
 
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting
@@ -65,17 +50,12 @@ func (c Client) GetAllContactFolderNamesForUser(
 	ctx context.Context,
 	user string,
 ) (serialization.Parsable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
 	if err != nil {
 		return nil, err
 	}
 
-	return service.Client().UsersById(user).ContactFolders().Get(ctx, options)
+	return c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
 }
 
 func (c Client) GetContactFolderByID(
@@ -83,11 +63,6 @@ func (c Client) GetContactFolderByID(
 	userID, dirID string,
 	optionalFields ...string,
 ) (models.ContactFolderable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	fields := append([]string{"displayName", "parentFolderId"}, optionalFields...)
 
 	ofcf, err := optionsForContactFolderByID(fields)
@@ -95,7 +70,7 @@ func (c Client) GetContactFolderByID(
 		return nil, errors.Wrapf(err, "options for contact folder: %v", fields)
 	}
 
-	return service.Client().
+	return c.stable.Client().
 		UsersById(userID).
 		ContactFoldersById(dirID).
 		Get(ctx, ofcf)

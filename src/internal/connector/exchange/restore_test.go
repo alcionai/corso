@@ -45,15 +45,8 @@ func (suite *ExchangeRestoreSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	suite.credentials = m365
-	suite.ac = api.Client{Credentials: m365}
-
-	// adpt, err := graph.CreateAdapter(
-	// 	m365.AzureTenantID,
-	// 	m365.AzureClientID,
-	// 	m365.AzureClientSecret)
-	// require.NoError(t, err)
-
-	// suite.gs = graph.NewService(adpt)
+	suite.ac, err = api.NewClient(m365)
+	require.NoError(t, err)
 
 	require.NoError(suite.T(), err)
 }
