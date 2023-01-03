@@ -199,7 +199,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Libraries(selSites, selectors.Any()))
-
+				sel.DiscreteOwner = suite.site
 				return sel.Selector
 			},
 		},
@@ -209,7 +209,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Lists(selSites, selectors.Any()))
-
+				sel.DiscreteOwner = suite.site
 				return sel.Selector
 			},
 		},
@@ -220,7 +220,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collections, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(),
-				selSites,
 				connector.credentials.AzureTenantID,
 				connector.Service,
 				connector,
