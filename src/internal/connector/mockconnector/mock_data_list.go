@@ -125,6 +125,7 @@ func GetMockList(title string, count int) models.Listable {
 		}
 
 		fields.SetAdditionalData(entry)
+		temp.SetFields(fields)
 
 		itms = append(itms, temp)
 		index++
