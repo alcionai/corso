@@ -37,14 +37,12 @@ func RestoreExchangeObject(
 		return nil, fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
 	}
 
-	setting := CategoryToOptionIdentifier(category)
-
-	switch setting {
-	case messages:
+	switch category {
+	case path.EmailCategory:
 		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
-	case contacts:
+	case path.ContactsCategory:
 		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
-	case events:
+	case path.EventsCategory:
 		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
 	default:
 		return nil, fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
@@ -312,7 +310,7 @@ func RestoreExchangeDataCollections(
 			userCaches = directoryCaches[userID]
 		}
 
-		containerID, err := GetContainerIDFromCache(
+		containerID, err := CreateContainerDestinaion(
 			ctx,
 			gs,
 			dc.FullPath(),
@@ -425,10 +423,12 @@ func restoreCollection(
 	}
 }
 
-// generateRestoreContainerFunc utility function that holds logic for creating
-// Root Directory or necessary functions based on path.CategoryType
-// Assumption: collisionPolicy == COPY
-func GetContainerIDFromCache(
+// CreateContainerDestinaion builds the destination into the container
+// at the provided path.  As a precondition, the destination cannot
+// already exist.  If it does then an error is returned.  The provided
+// containerResolver is updated with the new destination.
+// @ returns the container ID of the new destination container.
+func CreateContainerDestinaion(
 	ctx context.Context,
 	gs graph.Servicer,
 	directory path.Path,

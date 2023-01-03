@@ -57,17 +57,6 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 	assert.NotNil(t, aDescendable.GetParentFolderId())
 }
 
-func loadService(t *testing.T) *exchangeService {
-	a := tester.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err)
-
-	service, err := createService(m365)
-	require.NoError(t, err)
-
-	return service
-}
-
 // TestCollectionFunctions verifies ability to gather
 // containers functions are valid for current versioning of msgraph-go-sdk.
 // Tests for mail have been moved to graph_connector_test.go.
@@ -119,24 +108,36 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			service := loadService(t)
+			a := tester.NewM365Account(t)
+			m365, err := a.M365Config()
+			require.NoError(t, err)
+
+			service, err := createService(m365)
+			require.NoError(t, err)
+
 			response, err := test.queryFunc(ctx, service, userID)
 			require.NoError(t, err)
+
 			// Iterator Creation
-			pageIterator, err := msgraphgocore.NewPageIterator(response,
-				&service.adapter,
+			pageIterator, err := msgraphgocore.NewPageIterator(
+				response,
+				service.Adapter(),
 				test.transformer)
 			require.NoError(t, err)
+
 			// Create collection for iterate test
 			collections := make(map[string]graph.Container)
+
 			var errs error
+
 			errUpdater := func(id string, err error) {
 				errs = support.WrapAndAppend(id, err, errs)
 			}
+
 			// callbackFunc iterates through all models.Messageable and fills exchange.Collection.added[]
 			// with corresponding item IDs. New collections are created for each directory
-			callbackFunc := test.iterativeFunction(
-				collections, "", errUpdater)
+			callbackFunc := test.iterativeFunction(collections, "", errUpdater)
+
 			iterateError := pageIterator.Iterate(ctx, callbackFunc)
 			assert.NoError(t, iterateError)
 			assert.NoError(t, errs)

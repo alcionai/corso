@@ -184,7 +184,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	)
 
 	folders := details.FolderEntriesForPath(parent)
-	cp.deets.AddFoldersForItem(folders, *d.info)
+	cp.deets.AddFoldersForItem(
+		folders,
+		*d.info,
+		true, // itemUpdated = true
+	)
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
@@ -579,13 +583,16 @@ func inflateCollectionTree(
 	for _, s := range collections {
 		switch s.State() {
 		case data.DeletedState:
+			if s.PreviousPath() == nil {
+				return nil, nil, errors.Errorf("nil previous path on deleted collection")
+			}
+
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, errors.Errorf(
 					"multiple previous state changes to collection %s",
-					s.PreviousPath(),
-				)
+					s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
