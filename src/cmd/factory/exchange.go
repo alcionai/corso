@@ -47,7 +47,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, tenantID, err := getGCAndVerifyUser(ctx, user)
+	gc, acct, err := getGCAndVerifyUser(ctx, user)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -55,10 +55,11 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 	deets, err := generateAndRestoreItems(
 		ctx,
 		gc,
+		acct,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{user}).Selector,
-		tenantID, user, destination,
+		user, destination,
 		count,
 		func(id, now, subject, body string) []byte {
 			return mockconnector.GetMockMessageWith(
@@ -87,7 +88,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, tenantID, err := getGCAndVerifyUser(ctx, user)
+	gc, acct, err := getGCAndVerifyUser(ctx, user)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -95,10 +96,11 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 	deets, err := generateAndRestoreItems(
 		ctx,
 		gc,
+		acct,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{user}).Selector,
-		tenantID, user, destination,
+		user, destination,
 		count,
 		func(id, now, subject, body string) []byte {
 			return mockconnector.GetMockEventWith(
@@ -126,7 +128,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, tenantID, err := getGCAndVerifyUser(ctx, user)
+	gc, acct, err := getGCAndVerifyUser(ctx, user)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -134,10 +136,11 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 	deets, err := generateAndRestoreItems(
 		ctx,
 		gc,
+		acct,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{user}).Selector,
-		tenantID, user, destination,
+		user, destination,
 		count,
 		func(id, now, subject, body string) []byte {
 			given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
