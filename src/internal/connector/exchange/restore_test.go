@@ -48,6 +48,11 @@ func (suite *ExchangeRestoreSuite) SetupSuite() {
 	suite.ac, err = api.NewClient(m365)
 	require.NoError(t, err)
 
+	adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+	require.NoError(t, err)
+
+	suite.gs = graph.NewService(adpt)
+
 	require.NoError(suite.T(), err)
 }
 
@@ -75,7 +80,8 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 		assert.NoError(t, err)
 	}()
 
-	info, err := RestoreExchangeContact(ctx,
+	info, err := RestoreExchangeContact(
+		ctx,
 		mockconnector.GetMockContactBytes("Corso TestContact"),
 		suite.gs,
 		control.Copy,
