@@ -28,12 +28,10 @@ type ConnectorDataCollectionIntegrationSuite struct {
 }
 
 func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(t,
 		tester.CorsoCITests,
 		tester.CorsoConnectorDataCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+	)
 
 	suite.Run(t, new(ConnectorDataCollectionIntegrationSuite))
 }
@@ -42,11 +40,12 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvVars(suite.T(), tester.M365AcctCredEnvs...)
+
 	suite.connector = loadConnector(ctx, suite.T(), AllResources)
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
+
 	tester.LogTimeOfTest(suite.T())
 }
 
@@ -199,7 +198,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Libraries(selSites, selectors.Any()))
-
+				sel.DiscreteOwner = suite.site
 				return sel.Selector
 			},
 		},
@@ -209,7 +208,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Lists(selSites, selectors.Any()))
-
+				sel.DiscreteOwner = suite.site
 				return sel.Selector
 			},
 		},
@@ -220,7 +219,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collections, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(),
-				selSites,
 				connector.credentials.AzureTenantID,
 				connector.Service,
 				connector,
@@ -261,12 +259,10 @@ type ConnectorCreateSharePointCollectionIntegrationSuite struct {
 }
 
 func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoConnectorCreateSharePointCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoConnectorCreateSharePointCollectionTests)
 
 	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
 }
@@ -275,10 +271,11 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
+
 	suite.connector = loadConnector(ctx, suite.T(), Sites)
 	suite.user = tester.M365UserID(suite.T())
+
 	tester.LogTimeOfTest(suite.T())
 }
 

@@ -77,7 +77,6 @@ func (gc *GraphConnector) DataCollections(
 		colls, err := sharepoint.DataCollections(
 			ctx,
 			sels,
-			gc.GetSiteIDs(),
 			gc.credentials.AzureTenantID,
 			gc.Service,
 			gc,
@@ -155,7 +154,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	var (
-		scopes      = odb.DiscreteScopes(gc.GetUsers())
+		scopes      = odb.DiscreteScopes([]string{selector.DiscreteOwner})
 		collections = []data.Collection{}
 		errs        error
 	)

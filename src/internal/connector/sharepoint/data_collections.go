@@ -26,7 +26,6 @@ type statusUpdater interface {
 func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	siteIDs []string,
 	tenantID string,
 	serv graph.Servicer,
 	su statusUpdater,
@@ -38,7 +37,7 @@ func DataCollections(
 	}
 
 	var (
-		scopes      = b.DiscreteScopes(siteIDs)
+		scopes      = b.DiscreteScopes([]string{selector.DiscreteOwner})
 		collections = []data.Collection{}
 		errs        error
 	)

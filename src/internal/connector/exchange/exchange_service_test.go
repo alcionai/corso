@@ -26,25 +26,20 @@ type ExchangeServiceSuite struct {
 }
 
 func TestExchangeServiceSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoGraphConnectorExchangeTests)
 
 	suite.Run(t, new(ExchangeServiceSuite))
 }
 
 func (suite *ExchangeServiceSuite) SetupSuite() {
 	t := suite.T()
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
-	require.NoError(t, err)
-
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 

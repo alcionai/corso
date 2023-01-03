@@ -138,13 +138,11 @@ type GraphConnectorIntegrationSuite struct {
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoGraphConnectorExchangeTests)
 
 	suite.Run(t, new(GraphConnectorIntegrationSuite))
 }
@@ -153,10 +151,11 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
+
 	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
+
 	tester.LogTimeOfTest(suite.T())
 }
 

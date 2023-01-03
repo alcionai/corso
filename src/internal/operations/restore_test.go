@@ -133,12 +133,10 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoOperationTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoOperationTests)
 
 	suite.Run(t, new(RestoreOpIntegrationSuite))
 }
@@ -147,8 +145,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	t := suite.T()
 

@@ -65,6 +65,17 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 	return &src, nil
 }
 
+func (s ExchangeBackup) SplitByResourceOwner(users []string) []ExchangeBackup {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+
+	ss := make([]ExchangeBackup, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, ExchangeBackup{exchange{sel}})
+	}
+
+	return ss
+}
+
 // NewExchangeRestore produces a new Selector with the service set to ServiceExchange.
 func NewExchangeRestore(users []string) *ExchangeRestore {
 	src := ExchangeRestore{
@@ -86,6 +97,17 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 	src := ExchangeRestore{exchange{s}}
 
 	return &src, nil
+}
+
+func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore {
+	sels := splitByResourceOwner[ExchangeScope](sr.Selector, users, ExchangeUser)
+
+	ss := make([]ExchangeRestore, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, ExchangeRestore{exchange{sel}})
+	}
+
+	return ss
 }
 
 // Printable creates the minimized display of a selector, formatted for human readability.
@@ -176,7 +198,15 @@ func (s *exchange) Scopes() []ExchangeScope {
 // If any Include scope's User category is set to Any, replaces that
 // scope's value with the list of userPNs instead.
 func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
-	return discreteScopes[ExchangeScope](s.Selector, ExchangeUser, userPNs)
+	scopes := discreteScopes[ExchangeScope](s.Includes, ExchangeUser, userPNs)
+
+	ss := make([]ExchangeScope, 0, len(scopes))
+
+	for _, scope := range scopes {
+		ss = append(ss, ExchangeScope(scope))
+	}
+
+	return ss
 }
 
 type ExchangeItemScopeConstructor func([]string, []string, []string, ...option) []ExchangeScope
@@ -688,12 +718,6 @@ func (s ExchangeScope) setDefaults() {
 		s[ExchangeMailFolder.String()] = passAny
 		s[ExchangeMail.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
-// user comparison with only the provided user.
-func (s ExchangeScope) DiscreteCopy(user string) ExchangeScope {
-	return discreteCopy(s, user)
 }
 
 // ---------------------------------------------------------------------------

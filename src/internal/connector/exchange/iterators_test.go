@@ -22,13 +22,11 @@ type ExchangeIteratorSuite struct {
 }
 
 func TestExchangeIteratorSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoGraphConnectorExchangeTests)
 
 	suite.Run(t, new(ExchangeIteratorSuite))
 }
