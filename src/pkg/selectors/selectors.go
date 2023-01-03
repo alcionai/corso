@@ -98,6 +98,9 @@ type Selector struct {
 	// A record of the resource owners matched by this selector.
 	ResourceOwners filters.Filter `json:"resourceOwners,omitempty"`
 
+	// The single resource owner used by the selector after splitting.
+	DiscreteOwner string `json:"discreteOwner,omitempty"`
+
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
 	Excludes []scope `json:"exclusions,omitempty"`
@@ -120,8 +123,58 @@ func newSelector(s service, resourceOwners []string) Selector {
 
 // DiscreteResourceOwners returns the list of individual resourceOwners used
 // in the selector.
+// TODO(rkeepers): remove in favor of split and s.DiscreteOwner
 func (s Selector) DiscreteResourceOwners() []string {
 	return split(s.ResourceOwners.Target)
+}
+
+// isAnyResourceOwner returns true if the selector includes all resource owners.
+func isAnyResourceOwner(s Selector) bool {
+	return s.ResourceOwners.Comparator == filters.Passes
+}
+
+// isNoneResourceOwner returns true if the selector includes no resource owners.
+func isNoneResourceOwner(s Selector) bool {
+	return s.ResourceOwners.Comparator == filters.Fails
+}
+
+// SplitByResourceOwner makes one shallow clone for each resourceOwner in the
+// selector, specifying a new DiscreteOwner for each one.
+// If the original selector already specified a discrete slice of resource owners,
+// only those owners are used in the result.
+// If the original selector allowed Any() resource owner, the allOwners parameter
+// is used to populate the slice.  allOwners is assumed to be the complete slice of
+// resourceOwners in the tenant for the given service.
+// If the original selector specified None(), thus failing all resource owners,
+// an empty slice is returned.
+//
+// temporarily, clones all scopes in each selector and replaces the owners with
+// the discrete owner.
+func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string, rootCat C) []Selector {
+	if isNoneResourceOwner(s) {
+		return []Selector{}
+	}
+
+	targets := allOwners
+
+	if !isAnyResourceOwner(s) {
+		targets = split(s.ResourceOwners.Target)
+	}
+
+	ss := make([]Selector, 0, len(targets))
+
+	for _, ro := range targets {
+		c := s
+		c.DiscreteOwner = ro
+
+		// TODO: when the rootCat gets removed from the scopes, we can remove this
+		c.Includes = discreteScopes[T](s.Includes, rootCat, []string{ro})
+		c.Filters = discreteScopes[T](s.Filters, rootCat, []string{ro})
+
+		ss = append(ss, c)
+	}
+
+	return ss
 }
 
 func (s Selector) String() string {
@@ -170,17 +223,17 @@ func scopes[T scopeT](s Selector) []T {
 // If discreteIDs is an empty slice, returns the normal scopes(s).
 // future TODO: if Includes is nil, return filters.
 func discreteScopes[T scopeT, C categoryT](
-	s Selector,
+	scopes []scope,
 	rootCat C,
 	discreteIDs []string,
-) []T {
-	sl := []T{}
+) []scope {
+	sl := []scope{}
 
 	if len(discreteIDs) == 0 {
-		return scopes[T](s)
+		return scopes
 	}
 
-	for _, v := range s.Includes {
+	for _, v := range scopes {
 		t := T(v)
 
 		if isAnyTarget(t, rootCat) {
@@ -189,7 +242,7 @@ func discreteScopes[T scopeT, C categoryT](
 			t = w
 		}
 
-		sl = append(sl, t)
+		sl = append(sl, scope(t))
 	}
 
 	return sl
