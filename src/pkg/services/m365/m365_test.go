@@ -15,19 +15,12 @@ type M365IntegrationSuite struct {
 }
 
 func TestM365IntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-	); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoCITests)
 	suite.Run(t, new(M365IntegrationSuite))
 }
 
 func (suite *M365IntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 }
 
 func (suite *M365IntegrationSuite) TestUsers() {

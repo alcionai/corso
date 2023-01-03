@@ -1,11 +1,13 @@
 package tester
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -40,19 +42,17 @@ const CorsoGraphConnectorTestSupportFile = "CORSO_TEST_SUPPORT_FILE"
 // an error if all of them are zero valued.  Implication being:
 // if any of those env vars are truthy, you should run the
 // subsequent tests.
-func RunOnAny(tests ...string) error {
+func RunOnAny(t *testing.T, tests ...string) {
 	var l int
 	for _, test := range tests {
 		l += len(os.Getenv(test))
 	}
 
 	if l == 0 {
-		return fmt.Errorf(
-			"%s env vars are not flagged for testing",
+		t.Skipf(
+			"one or more env vars mus be flagged to run this test: %v",
 			strings.Join(tests, ", "))
 	}
-
-	return nil
 }
 
 // LogTimeOfTest logs the test name and the time that it was run.
@@ -68,4 +68,34 @@ func LogTimeOfTest(t *testing.T) string {
 	t.Logf("%s run at %s", name, now)
 
 	return now
+}
+
+// MustGetEnvVars retrieves the provided env vars from the os.
+// Retrieved values are populated into the resulting map.
+// If any of the env values are zero length, the test errors.
+func MustGetEnvVars(t *testing.T, evs ...string) map[string]string {
+	vals := map[string]string{}
+
+	for _, ev := range evs {
+		ge := os.Getenv(ev)
+		require.NotEmpty(t, ev, ev+" env var required for test suite")
+
+		vals[ev] = ge
+	}
+
+	return vals
+}
+
+// MustGetEnvSls retrieves the provided env vars from the os.
+// Retrieved values are populated into the resulting map.
+// If any of the env values are zero length, the test errors.
+func MustGetEnvSets(t *testing.T, evs ...[]string) map[string]string {
+	vals := map[string]string{}
+
+	for _, ev := range evs {
+		r := MustGetEnvVars(t, ev...)
+		maps.Copy(vals, r)
+	}
+
+	return vals
 }

@@ -40,13 +40,7 @@ type NoBackupSharePointIntegrationSuite struct {
 }
 
 func TestNoBackupSharePointIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+	tester.RunOnAny(t, tester.CorsoCITests, tester.CorsoCLITests, tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(NoBackupSharePointIntegrationSuite))
 }
@@ -57,10 +51,7 @@ func (suite *NoBackupSharePointIntegrationSuite) SetupSuite() {
 
 	defer flush()
 
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -128,23 +119,14 @@ type BackupDeleteSharePointIntegrationSuite struct {
 }
 
 func TestBackupDeleteSharePointIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+	tester.RunOnAny(t, tester.CorsoCITests, tester.CorsoCLITests, tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(BackupDeleteSharePointIntegrationSuite))
 }
 
 func (suite *BackupDeleteSharePointIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
