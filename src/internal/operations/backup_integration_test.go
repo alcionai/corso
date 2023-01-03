@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -304,17 +305,11 @@ func generateContainerOfItems(
 	items := make([]incrementalItem, 0, howManyItems)
 
 	for i := 0; i < howManyItems; i++ {
-		var (
-			now       = common.Now()
-			nowLegacy = common.FormatLegacyTime(time.Now())
-			id        = uuid.NewString()
-			subject   = "incr_test " + now[:16] + " - " + id[:8]
-			body      = "incr_test " + cat.String() + " generation for " + userID + " at " + now + " - " + id
-		)
+		id, d := generateItemData(t, cat, userID, dbf)
 
 		items = append(items, incrementalItem{
 			name: id,
-			data: dbf(id, nowLegacy, subject, body),
+			data: d,
 		})
 	}
 
@@ -338,6 +333,23 @@ func generateContainerOfItems(
 	require.NoError(t, err)
 
 	return deets
+}
+
+func generateItemData(
+	t *testing.T,
+	category path.CategoryType,
+	resourceOwner string,
+	dbf dataBuilderFunc,
+) (string, []byte) {
+	var (
+		now       = common.Now()
+		nowLegacy = common.FormatLegacyTime(time.Now())
+		id        = uuid.NewString()
+		subject   = "incr_test " + now[:16] + " - " + id[:8]
+		body      = "incr_test " + category.String() + " generation for " + resourceOwner + " at " + now + " - " + id
+	)
+
+	return id, dbf(id, nowLegacy, subject, body)
 }
 
 type incrementalItem struct {
@@ -654,19 +666,30 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		deets       *details.Details
 	}
 
+	mailDBF := func(id, timeStamp, subject, body string) []byte {
+		return mockconnector.GetMockMessageWith(
+			suite.user, suite.user, suite.user,
+			subject, body, body,
+			now, now, now, now)
+	}
+
+	contactDBF := func(id, timeStamp, subject, body string) []byte {
+		given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
+
+		return mockconnector.GetMockContactBytesWith(
+			given+" "+sur,
+			sur+", "+given,
+			given, mid, sur,
+			"123-456-7890",
+		)
+	}
+
 	dataset := map[path.CategoryType]struct {
 		dbf   dataBuilderFunc
 		dests map[string]contDeets
 	}{
 		path.EmailCategory: {
-			dbf: func(id, timeStamp, subject, body string) []byte {
-				user := suite.user
-
-				return mockconnector.GetMockMessageWith(
-					user, user, user,
-					subject, body, body,
-					now, now, now, now)
-			},
+			dbf: mailDBF,
 			dests: map[string]contDeets{
 				folder1: {},
 				folder2: {},
@@ -674,16 +697,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			},
 		},
 		path.ContactsCategory: {
-			dbf: func(id, timeStamp, subject, body string) []byte {
-				given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
-
-				return mockconnector.GetMockContactBytesWith(
-					given+" "+sur,
-					sur+", "+given,
-					given, mid, sur,
-					"123-456-7890",
-				)
-			},
+			dbf: contactDBF,
 			dests: map[string]contDeets{
 				folder1: {},
 				folder2: {},
@@ -744,14 +758,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb)
 
-	// incrementals changes to make (all changes apply to both email and contacts)
-	// [ ] add a new item to an existing folder
-	// [ ] remove an item from an existing folder
-	// [x] add a new folder
-	// [x] rename a folder
-	// [x] relocate one folder into another
-	// [x] remove a folder
-
+	// Although established as a table, these tests are no isolated from each other.
+	// Assume that every test's side effects cascade to all following test cases.
+	// The changes are split across the table so that we can monitor the deltas
+	// in isolation, rather than debugging one change from the rest of a series.
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
@@ -853,6 +863,64 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			},
 			itemsRead:    0,
 			itemsWritten: 0,
+		},
+		{
+			name: "add a new item",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					folderID := d.dests[folder1].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						_, itemData := generateItemData(t, category, suite.user, mailDBF)
+						body, err := support.CreateMessageFromBytes(itemData)
+						require.NoError(t, err, "transforming mail bytes to messageable")
+
+						_, err = cli.MailFoldersById(folderID).Messages().Post(ctx, body, nil)
+						require.NoError(t, err, "posting email item")
+
+					case path.ContactsCategory:
+						_, itemData := generateItemData(t, category, suite.user, contactDBF)
+						body, err := support.CreateContactFromBytes(itemData)
+						require.NoError(t, err, "transforming contact bytes to contactable")
+
+						_, err = cli.ContactFoldersById(folderID).Contacts().Post(ctx, body, nil)
+						require.NoError(t, err, "posting contact item")
+					}
+				}
+			},
+			itemsRead:    2,
+			itemsWritten: 2,
+		},
+		{
+			name: "delete an existing item",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					folderID := d.dests[folder1].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						ids, _, _, err := exchange.FetchMessageIDsFromDirectory(ctx, gc.Service, suite.user, folderID, "")
+						require.NoError(t, err, "getting message ids")
+						require.NotEmpty(t, ids, "message ids in folder")
+
+						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
+						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
+
+					case path.ContactsCategory:
+						ids, _, _, err := exchange.FetchContactIDsFromDirectory(ctx, gc.Service, suite.user, folderID, "")
+						require.NoError(t, err, "getting contact ids")
+						require.NotEmpty(t, ids, "contact ids in folder")
+
+						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
+						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
+					}
+				}
+			},
+			itemsRead:    2,
+			itemsWritten: 0, // deletes are not counted as "writes"
 		},
 	}
 	for _, test := range table {
