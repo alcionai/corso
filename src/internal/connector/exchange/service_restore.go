@@ -439,13 +439,18 @@ func CreateContainerDestinaion(
 	caches map[path.CategoryType]graph.ContainerResolver,
 ) (string, error) {
 	var (
-		ac             = api.Client{Credentials: creds}
 		newCache       = false
 		user           = directory.ResourceOwner()
 		category       = directory.Category()
 		directoryCache = caches[category]
 		newPathFolders = append([]string{destination}, directory.Folders()...)
 	)
+
+	// TODO(rkeepers): pass the api client into this func, rather than generating one.
+	ac, err := api.NewClient(creds)
+	if err != nil {
+		return "", err
+	}
 
 	switch category {
 	case path.EmailCategory:

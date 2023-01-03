@@ -35,7 +35,6 @@ func filterContainersAndFillCollections(
 ) error {
 	var (
 		errs error
-		ac   = api.Client{Credentials: qp.Credentials}
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -43,6 +42,12 @@ func filterContainersAndFillCollections(
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 	)
+
+	// TODO(rkeepers): pass in the api client instead of generating it here.
+	ac, err := api.NewClient(qp.Credentials)
+	if err != nil {
+		return err
+	}
 
 	getJobs, err := getFetchIDFunc(ac, qp.Category)
 	if err != nil {

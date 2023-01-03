@@ -44,17 +44,20 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	ac, err := api.NewClient(suite.credentials)
+	require.NoError(suite.T(), err)
+
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
-			ac:     api.Client{Credentials: suite.credentials},
+			ac:     ac,
 		}
 	}
 
 	contactFunc := func(t *testing.T) graph.ContainerResolver {
 		return &contactFolderCache{
 			userID: tester.M365UserID(t),
-			ac:     api.Client{Credentials: suite.credentials},
+			ac:     ac,
 		}
 	}
 

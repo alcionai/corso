@@ -19,15 +19,10 @@ func (c Client) CreateCalendar(
 	ctx context.Context,
 	user, calendarName string,
 ) (models.Calendarable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	return service.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	return c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 }
 
 // DeleteCalendar removes calendar from user's M365 account
@@ -36,12 +31,7 @@ func (c Client) DeleteCalendar(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
-	service, err := c.service()
-	if err != nil {
-		return err
-	}
-
-	return service.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
 // RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
@@ -50,29 +40,19 @@ func (c Client) RetrieveEventDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
-	return service.Client().UsersById(user).EventsById(m365ID).Get(ctx, nil)
+	return c.stable.Client().UsersById(user).EventsById(m365ID).Get(ctx, nil)
 }
 
 func (c Client) GetAllCalendarNamesForUser(
 	ctx context.Context,
 	user string,
 ) (serialization.Parsable, error) {
-	service, err := c.service()
-	if err != nil {
-		return nil, err
-	}
-
 	options, err := optionsForCalendars([]string{"name", "owner"})
 	if err != nil {
 		return nil, err
 	}
 
-	return service.Client().UsersById(user).Calendars().Get(ctx, options)
+	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
 }
 
 // TODO: we want this to be the full handler, not only the builder.
