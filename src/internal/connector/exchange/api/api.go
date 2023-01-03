@@ -83,5 +83,6 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "generating graph api service client")
 	}
+
 	return graph.NewService(adapter), nil
 }

@@ -164,7 +164,8 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	c := Client{suite.credentials}
+	c, err := NewClient(suite.credentials)
+	require.NoError(suite.T(), err)
 
 	userID := tester.M365UserID(suite.T())
 	tests := []struct {
