@@ -21,7 +21,8 @@ import (
 
 type ExchangeServiceSuite struct {
 	suite.Suite
-	es *exchangeService
+	credentials account.M365Config
+	gs          graph.Servicer
 }
 
 func TestExchangeServiceSuite(t *testing.T) {
@@ -43,12 +44,15 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	require.NoError(t, err)
+
 	m365, err := a.M365Config()
 	require.NoError(t, err)
+
 	service, err := createService(m365)
 	require.NoError(t, err)
 
-	suite.es = service
+	suite.credentials = m365
+	suite.gs = service
 }
 
 // TestCreateService verifies that services are created
@@ -56,8 +60,8 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 // incorrect tenant or password information will NOT generate
 // an error.
 func (suite *ExchangeServiceSuite) TestCreateService() {
-	creds := suite.es.credentials
-	invalidCredentials := suite.es.credentials
+	creds := suite.credentials
+	invalidCredentials := suite.credentials
 	invalidCredentials.AzureClientSecret = ""
 
 	tests := []struct {
@@ -235,7 +239,7 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			response, err := test.function(ctx, suite.es, userID)
+			response, err := test.function(ctx, suite.gs, userID)
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
 		})
@@ -259,20 +263,20 @@ func (suite *ExchangeServiceSuite) TestRestoreContact() {
 		folderName = "TestRestoreContact: " + common.FormatSimpleDateTime(now)
 	)
 
-	aFolder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
+	aFolder, err := CreateContactFolder(ctx, suite.gs, userID, folderName)
 	require.NoError(t, err)
 
 	folderID := *aFolder.GetId()
 
 	defer func() {
 		// Remove the folder containing contact prior to exiting test
-		err = DeleteContactFolder(ctx, suite.es, userID, folderID)
+		err = DeleteContactFolder(ctx, suite.gs, userID, folderID)
 		assert.NoError(t, err)
 	}()
 
 	info, err := RestoreExchangeContact(ctx,
 		mockconnector.GetMockContactBytes("Corso TestContact"),
-		suite.es,
+		suite.gs,
 		control.Copy,
 		folderID,
 		userID)
@@ -292,20 +296,20 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	)
 
-	calendar, err := CreateCalendar(ctx, suite.es, userID, name)
+	calendar, err := CreateCalendar(ctx, suite.gs, userID, name)
 	require.NoError(t, err)
 
 	calendarID := *calendar.GetId()
 
 	defer func() {
 		// Removes calendar containing events created during the test
-		err = DeleteCalendar(ctx, suite.es, userID, calendarID)
+		err = DeleteCalendar(ctx, suite.gs, userID, calendarID)
 		assert.NoError(t, err)
 	}()
 
 	info, err := RestoreExchangeEvent(ctx,
 		mockconnector.GetMockEventWithAttendeesBytes(name),
-		suite.es,
+		suite.gs,
 		control.Copy,
 		calendarID,
 		userID)
@@ -315,7 +319,12 @@ func (suite *ExchangeServiceSuite) TestRestoreEvent() {
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
-	service := loadService(suite.T())
+	a := tester.NewM365Account(suite.T())
+	m365, err := a.M365Config()
+	require.NoError(suite.T(), err)
+
+	service, err := createService(m365)
+	require.NoError(suite.T(), err)
 
 	userID := tester.M365UserID(suite.T())
 	now := time.Now()
@@ -333,7 +342,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				folder, err := CreateMailFolder(ctx, suite.gs, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -346,7 +355,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				folder, err := CreateMailFolder(ctx, suite.gs, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -359,7 +368,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				folder, err := CreateMailFolder(ctx, suite.gs, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -372,7 +381,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				folder, err := CreateMailFolder(ctx, suite.gs, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -385,7 +394,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateMailFolder(ctx, suite.es, userID, folderName)
+				folder, err := CreateMailFolder(ctx, suite.gs, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -399,7 +408,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteContactFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
-				folder, err := CreateContactFolder(ctx, suite.es, userID, folderName)
+				folder, err := CreateContactFolder(ctx, suite.gs, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -412,7 +421,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteCalendar,
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
-				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
+				calendar, err := CreateCalendar(ctx, suite.gs, userID, calendarName)
 				require.NoError(t, err)
 
 				return *calendar.GetId()
@@ -425,7 +434,7 @@ func (suite *ExchangeServiceSuite) TestRestoreExchangeObject() {
 			cleanupFunc: DeleteCalendar,
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject_" + common.FormatSimpleDateTime(now)
-				calendar, err := CreateCalendar(ctx, suite.es, userID, calendarName)
+				calendar, err := CreateCalendar(ctx, suite.gs, userID, calendarName)
 				require.NoError(t, err)
 
 				return *calendar.GetId()
@@ -462,9 +471,15 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	a := tester.NewM365Account(suite.T())
+	m365, err := a.M365Config()
+	require.NoError(suite.T(), err)
+
+	connector, err := createService(m365)
+	require.NoError(suite.T(), err)
+
 	var (
 		user            = tester.M365UserID(suite.T())
-		connector       = loadService(suite.T())
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
 		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
@@ -479,7 +494,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc1: func(t *testing.T) path.Path {
 					pth, err := path.Builder{}.Append("Griffindor").
 						Append("Croix").ToDataLayerExchangePathForCategory(
-						suite.es.credentials.AzureTenantID,
+						suite.credentials.AzureTenantID,
 						user,
 						path.EmailCategory,
 						false,
@@ -491,7 +506,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc2: func(t *testing.T) path.Path {
 					pth, err := path.Builder{}.Append("Griffindor").
 						Append("Felicius").ToDataLayerExchangePathForCategory(
-						suite.es.credentials.AzureTenantID,
+						suite.credentials.AzureTenantID,
 						user,
 						path.EmailCategory,
 						false,
@@ -507,7 +522,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc1: func(t *testing.T) path.Path {
 					aPath, err := path.Builder{}.Append("HufflePuff").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.AzureTenantID,
+							suite.credentials.AzureTenantID,
 							user,
 							path.ContactsCategory,
 							false,
@@ -519,7 +534,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc2: func(t *testing.T) path.Path {
 					aPath, err := path.Builder{}.Append("Ravenclaw").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.AzureTenantID,
+							suite.credentials.AzureTenantID,
 							user,
 							path.ContactsCategory,
 							false,
@@ -535,7 +550,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc1: func(t *testing.T) path.Path {
 					aPath, err := path.Builder{}.Append("Durmstrang").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.AzureTenantID,
+							suite.credentials.AzureTenantID,
 							user,
 							path.EventsCategory,
 							false,
@@ -546,7 +561,7 @@ func (suite *ExchangeServiceSuite) TestGetContainerIDFromCache() {
 				pathFunc2: func(t *testing.T) path.Path {
 					aPath, err := path.Builder{}.Append("Beauxbatons").
 						ToDataLayerExchangePathForCategory(
-							suite.es.credentials.AzureTenantID,
+							suite.credentials.AzureTenantID,
 							user,
 							path.EventsCategory,
 							false,
