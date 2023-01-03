@@ -655,10 +655,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	require.NoError(t, err)
 
-	// generate 3 new containers with two items each.
-	// Only the first two container will be part of the initial backup and
-	// incrementals.  The third container will be introduced partway through
-	// the changes.
+	// generate 2 new containers with two items each.
+	// A third container will be introduced partway through the changes.
 	// This should be enough to cover most delta actions, since moving one
 	// container into another generates a delta for both addition and deletion.
 	type contDeets struct {
@@ -743,9 +741,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		}
 	}
 
-	// use the new containers here
-	// container3 and containerRename don't exist yet.  Those will appear
-	// later on during the tests.
+	// container3 and containerRename don't exist yet.  Those will get created
+	// later on during the tests.  Putting their identifiers into the selector
+	// at this point is harmless.
 	containers := []string{container1, container2, container3, containerRename}
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(
