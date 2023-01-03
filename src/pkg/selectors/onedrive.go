@@ -64,6 +64,17 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 	return &src, nil
 }
 
+func (s OneDriveBackup) SplitByResourceOwner(users []string) []OneDriveBackup {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, OneDriveUser)
+
+	ss := make([]OneDriveBackup, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, OneDriveBackup{oneDrive{sel}})
+	}
+
+	return ss
+}
+
 // NewOneDriveRestore produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveRestore(users []string) *OneDriveRestore {
 	src := OneDriveRestore{
@@ -85,6 +96,17 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 	src := OneDriveRestore{oneDrive{s}}
 
 	return &src, nil
+}
+
+func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+
+	ss := make([]OneDriveRestore, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, OneDriveRestore{oneDrive{sel}})
+	}
+
+	return ss
 }
 
 // Printable creates the minimized display of a selector, formatted for human readability.
@@ -169,7 +191,15 @@ func (s *oneDrive) Scopes() []OneDriveScope {
 // If any Include scope's User category is set to Any, replaces that
 // scope's value with the list of userPNs instead.
 func (s *oneDrive) DiscreteScopes(userPNs []string) []OneDriveScope {
-	return discreteScopes[OneDriveScope](s.Selector, OneDriveUser, userPNs)
+	scopes := discreteScopes[OneDriveScope](s.Includes, OneDriveUser, userPNs)
+
+	ss := make([]OneDriveScope, 0, len(scopes))
+
+	for _, scope := range scopes {
+		ss = append(ss, OneDriveScope(scope))
+	}
+
+	return ss
 }
 
 // -------------------
