@@ -7,13 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 )
 
 type CacheResolverSuite struct {
 	suite.Suite
-	gs graph.Servicer
+	credentials account.M365Config
 }
 
 func TestCacheResolverIntegrationSuite(t *testing.T) {
@@ -35,27 +37,27 @@ func (suite *CacheResolverSuite) SetupSuite() {
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createService(m365)
-	require.NoError(t, err)
-
-	suite.gs = service
+	suite.credentials = m365
 }
 
 func (suite *CacheResolverSuite) TestPopulate() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	ac, err := api.NewClient(suite.credentials)
+	require.NoError(suite.T(), err)
+
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
-			gs:     suite.gs,
+			ac:     ac,
 		}
 	}
 
 	contactFunc := func(t *testing.T) graph.ContainerResolver {
 		return &contactFolderCache{
 			userID: tester.M365UserID(t),
-			gs:     suite.gs,
+			ac:     ac,
 		}
 	}
 

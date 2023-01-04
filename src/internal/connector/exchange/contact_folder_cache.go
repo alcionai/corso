@@ -16,7 +16,7 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	gs     graph.Servicer
+	ac     api.Client
 	userID string
 }
 
@@ -25,7 +25,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 	directoryID string,
 	baseContainerPath []string,
 ) error {
-	f, err := api.GetContactFolderByID(ctx, cfc.gs, cfc.userID, directoryID)
+	f, err := cfc.ac.GetContactFolderByID(ctx, cfc.userID, directoryID)
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -56,9 +56,8 @@ func (cfc *contactFolderCache) Populate(
 
 	var errs error
 
-	builder, options, err := api.GetContactChildFoldersBuilder(
+	builder, options, servicer, err := cfc.ac.GetContactChildFoldersBuilder(
 		ctx,
-		cfc.gs,
 		cfc.userID,
 		baseID)
 	if err != nil {
@@ -97,7 +96,7 @@ func (cfc *contactFolderCache) Populate(
 			break
 		}
 
-		builder = msuser.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
+		builder = msuser.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), servicer.Adapter())
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {

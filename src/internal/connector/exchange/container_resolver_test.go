@@ -494,9 +494,6 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err)
 
-	connector, err := createService(m365)
-	require.NoError(suite.T(), err)
-
 	var (
 		user            = tester.M365UserID(suite.T())
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
@@ -596,11 +593,10 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			folderID, err := CreateContainerDestinaion(
 				ctx,
-				connector,
+				m365,
 				test.pathFunc1(t),
 				folderName,
-				directoryCaches,
-			)
+				directoryCaches)
 
 			require.NoError(t, err)
 			resolver := directoryCaches[test.category]
@@ -609,11 +605,10 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 
 			secondID, err := CreateContainerDestinaion(
 				ctx,
-				connector,
+				m365,
 				test.pathFunc2(t),
 				folderName,
-				directoryCaches,
-			)
+				directoryCaches)
 
 			require.NoError(t, err)
 			_, err = resolver.IDToPath(ctx, secondID)
