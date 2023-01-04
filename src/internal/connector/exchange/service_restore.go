@@ -476,8 +476,8 @@ func CreateContainerDestinaion(
 			newCache)
 
 	case path.ContactsCategory:
-		acc := ac.Contacts()
 		if directoryCache == nil {
+			acc := ac.Contacts()
 			cfc := &contactFolderCache{
 				userID: user,
 				enumer: acc,
