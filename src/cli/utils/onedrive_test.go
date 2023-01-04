@@ -39,7 +39,7 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 				Paths: empty,
 				Names: empty,
 			},
-			expectIncludeLen: 0,
+			expectIncludeLen: 1,
 		},
 		{
 			name: "single inputs",

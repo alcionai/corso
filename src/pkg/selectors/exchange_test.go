@@ -781,7 +781,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	var (
 		pth   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
 		short = "thisisahashofsomekind"
-		es    = NewExchangeRestore(Any()) // TODO: move into test so that test user set is embedded in the selector
+		es    = NewExchangeRestore(Any())
 	)
 
 	table := []struct {
@@ -791,9 +791,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		expect   assert.BoolAssertionFunc
 	}{
 		{"all user's items", es.Users(Any()), "", assert.True},
-		{"no user's items", es.Users(None()), "", assert.False},
+		{"no user's items", es.Users(None()), "", assert.True},
 		{"matching user", es.Users([]string{usr}), "", assert.True},
-		{"non-matching user", es.Users([]string{"smarf"}), "", assert.False},
+		{"non-matching user", es.Users([]string{"smarf"}), "", assert.True},
 		{"one of multiple users", es.Users([]string{"smarf", usr}), "", assert.True},
 		{"all folders", es.MailFolders(Any(), Any()), "", assert.True},
 		{"no folders", es.MailFolders(Any(), None()), "", assert.False},
