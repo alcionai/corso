@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -83,7 +84,7 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 
 	tests := []struct {
 		name              string
-		queryFunc         GraphQuery
+		queryFunc         api.GraphQuery
 		scope             selectors.ExchangeScope
 		iterativeFunction func(
 			container map[string]graph.Container,
@@ -93,13 +94,13 @@ func (suite *ExchangeIteratorSuite) TestCollectionFunctions() {
 	}{
 		{
 			name:              "Contacts Iterative Check",
-			queryFunc:         GetAllContactFolderNamesForUser,
+			queryFunc:         api.GetAllContactFolderNamesForUser,
 			transformer:       models.CreateContactFolderCollectionResponseFromDiscriminatorValue,
 			iterativeFunction: IterativeCollectContactContainers,
 		},
 		{
 			name:              "Events Iterative Check",
-			queryFunc:         GetAllCalendarNamesForUser,
+			queryFunc:         api.GetAllCalendarNamesForUser,
 			transformer:       models.CreateCalendarCollectionResponseFromDiscriminatorValue,
 			iterativeFunction: IterativeCollectCalendarContainers,
 		},

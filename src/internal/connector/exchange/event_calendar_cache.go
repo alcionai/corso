@@ -6,6 +6,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,7 +32,7 @@ func (ecc *eventCalendarCache) Populate(
 		ecc.containerResolver = newContainerResolver()
 	}
 
-	options, err := optionsForCalendars([]string{"name"})
+	builder, options, err := api.GetCalendarsBuilder(ctx, ecc.gs, ecc.userID, "name")
 	if err != nil {
 		return err
 	}
@@ -40,8 +41,6 @@ func (ecc *eventCalendarCache) Populate(
 		errs        error
 		directories = make([]graph.Container, 0)
 	)
-
-	builder := ecc.gs.Client().UsersById(ecc.userID).Calendars()
 
 	for {
 		resp, err := builder.Get(ctx, options)

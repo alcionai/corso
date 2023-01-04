@@ -22,6 +22,8 @@ const (
 	CorsoConnectorCreateExchangeCollectionTests   = "CORSO_CONNECTOR_CREATE_EXCHANGE_COLLECTION_TESTS"
 	CorsoConnectorCreateSharePointCollectionTests = "CORSO_CONNECTOR_CREATE_SHAREPOINT_COLLECTION_TESTS"
 	CorsoConnectorDataCollectionTests             = "CORSO_CONNECTOR_DATA_COLLECTION_TESTS"
+	CorsoConnectorExchangeFolderCacheTests        = "CORSO_CONNECTOR_EXCHANGE_FOLDER_CACHE_TESTS"
+	CorsoConnectorRestoreExchangeCollectionTests  = "CORSO_CONNECTOR_RESTORE_EXCHANGE_COLLECTION_TESTS"
 	CorsoGraphConnectorTests                      = "CORSO_GRAPH_CONNECTOR_TESTS"
 	CorsoGraphConnectorExchangeTests              = "CORSO_GRAPH_CONNECTOR_EXCHANGE_TESTS"
 	CorsoGraphConnectorOneDriveTests              = "CORSO_GRAPH_CONNECTOR_ONE_DRIVE_TESTS"
