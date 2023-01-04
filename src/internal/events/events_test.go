@@ -19,10 +19,7 @@ type EventsIntegrationSuite struct {
 }
 
 func TestMetricsIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoCITests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoCITests)
 	suite.Run(t, new(EventsIntegrationSuite))
 }
 

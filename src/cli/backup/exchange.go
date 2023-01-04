@@ -282,12 +282,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, scope := range sel.DiscreteScopes(users) {
-		for _, selUser := range scope.Get(selectors.ExchangeUser) {
-			opSel := selectors.NewExchangeBackup([]string{selUser})
-			opSel.Include([]selectors.ExchangeScope{scope.DiscreteCopy(selUser)})
-
-			bo, err := r.NewBackup(ctx, opSel.Selector)
+	for _, sel := range sel.SplitByResourceOwner(users) {
+		// TODO: pass in entire selector, not individual scopes
+		for _, scope := range sel.Scopes() {
+			bo, err := r.NewBackup(ctx, sel.Selector)
 			if err != nil {
 				errs = multierror.Append(errs, errors.Wrapf(
 					err,

@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -94,7 +95,7 @@ func runDisplayM365JSON(
 	gs graph.Servicer,
 ) error {
 	var (
-		get           exchange.GraphRetrievalFunc
+		get           api.GraphRetrievalFunc
 		serializeFunc exchange.GraphSerializeFunc
 		cat           = graph.StringToPathCategory(category)
 	)

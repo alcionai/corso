@@ -16,7 +16,7 @@
 - [ ] :world_map: Documentation
 - [ ] :robot: Test
 - [ ] :computer: CI/Deployment
-- [ ] :hamster: Trivial/Minor
+- [ ] :broom: Tech Debt/Cleanup
 
 ## Issue(s)
 

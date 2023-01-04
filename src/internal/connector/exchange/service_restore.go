@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -532,8 +533,12 @@ func establishMailRestoreLocation(
 			continue
 		}
 
-		temp, err := CreateMailFolderWithParent(ctx,
-			service, user, folder, folderID)
+		temp, err := api.CreateMailFolderWithParent(
+			ctx,
+			service,
+			user,
+			folder,
+			folderID)
 		if err != nil {
 			// Should only error if cache malfunctions or incorrect parameters
 			return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -580,7 +585,7 @@ func establishContactsRestoreLocation(
 		return cached, nil
 	}
 
-	temp, err := CreateContactFolder(ctx, gs, user, folders[0])
+	temp, err := api.CreateContactFolder(ctx, gs, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -613,7 +618,7 @@ func establishEventsRestoreLocation(
 		return cached, nil
 	}
 
-	temp, err := CreateCalendar(ctx, gs, user, folders[0])
+	temp, err := api.CreateCalendar(ctx, gs, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}

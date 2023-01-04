@@ -148,19 +148,16 @@ type KopiaIntegrationSuite struct {
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoKopiaWrapperTests)
 
 	suite.Run(t, new(KopiaIntegrationSuite))
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 
 	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
 		testTenant,
@@ -509,19 +506,16 @@ type KopiaSimpleRepoIntegrationSuite struct {
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoKopiaWrapperTests)
 
 	suite.Run(t, new(KopiaSimpleRepoIntegrationSuite))
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 
 	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
 		testTenant,

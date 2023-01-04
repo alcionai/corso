@@ -62,6 +62,17 @@ func (s Selector) ToSharePointBackup() (*SharePointBackup, error) {
 	return &src, nil
 }
 
+func (s SharePointBackup) SplitByResourceOwner(sites []string) []SharePointBackup {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, sites, SharePointSite)
+
+	ss := make([]SharePointBackup, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, SharePointBackup{sharePoint{sel}})
+	}
+
+	return ss
+}
+
 // NewSharePointRestore produces a new Selector with the service set to ServiceSharePoint.
 func NewSharePointRestore(sites []string) *SharePointRestore {
 	src := SharePointRestore{
@@ -83,6 +94,17 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 	src := SharePointRestore{sharePoint{s}}
 
 	return &src, nil
+}
+
+func (s SharePointRestore) SplitByResourceOwner(users []string) []SharePointRestore {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+
+	ss := make([]SharePointRestore, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, SharePointRestore{sharePoint{sel}})
+	}
+
+	return ss
 }
 
 // Printable creates the minimized display of a selector, formatted for human readability.
@@ -167,7 +189,15 @@ func (s *sharePoint) Scopes() []SharePointScope {
 // If any Include scope's Site category is set to Any, replaces that
 // scope's value with the list of siteIDs instead.
 func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
-	return discreteScopes[SharePointScope](s.Selector, SharePointSite, siteIDs)
+	scopes := discreteScopes[SharePointScope](s.Includes, SharePointSite, siteIDs)
+
+	ss := make([]SharePointScope, 0, len(scopes))
+
+	for _, scope := range scopes {
+		ss = append(ss, SharePointScope(scope))
+	}
+
+	return ss
 }
 
 // -------------------
