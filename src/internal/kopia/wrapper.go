@@ -437,7 +437,9 @@ func (w Wrapper) RestoreMultipleItems(
 			break
 		}
 
+		// Create all folder collections including parents
 		errored := false
+		icols := []*kopiaDataCollection{}
 		for {
 			if len(ip.Elements()) <= 7 {
 				break
@@ -446,30 +448,16 @@ func (w Wrapper) RestoreMultipleItems(
 			key := ip.ShortRef()
 			_, ok := visited[key]
 			if !ok {
-
-				parent, err := ip.Dir()
-				if err != nil {
-					errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
-					errored = true
-				}
-
 				mr, err := getMetaReader(ctx, snapshotRoot, ip)
 				if err != nil {
 					errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
 					errored = true
 				}
 
-				_, ok := visited[parent.ShortRef()]
-				if ok {
-					visited[key] = len(cols)
-					cols = append(cols, &kopiaDataCollection{path: ip, meta: mr})
-				} else {
-					for k := range visited {
-						visited[k] += 1
-					}
-					visited[key] = 0
-					cols = append([]*kopiaDataCollection{{path: ip, meta: mr}}, cols...)
-				}
+				// Adding in reverse so as to make sure parent is
+				// created before we attempt to create the child
+				// directory
+				icols = append([]*kopiaDataCollection{{path: ip, meta: mr}}, icols...)
 			}
 
 			ip, err = ip.Dir()
@@ -480,6 +468,11 @@ func (w Wrapper) RestoreMultipleItems(
 		if errored {
 			errored = false
 			break
+		}
+
+		for _, c := range icols {
+			visited[c.path.ShortRef()] = len(cols)
+			cols = append(cols, c)
 		}
 
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
