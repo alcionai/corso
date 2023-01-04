@@ -239,7 +239,8 @@ func createItem(
 	service graph.Servicer,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
-	meta ItemMeta,
+	permAdded []UserPermission,
+	permRemoved []UserPermission,
 ) (models.DriveItemable, error) {
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
@@ -256,7 +257,7 @@ func createItem(
 		)
 	}
 
-	for _, p := range meta.Permissions {
+	for _, p := range permAdded {
 		pbody := drive.NewItemsItemInvitePostRequestBody()
 		pbody.SetRoles(p.Roles)
 		if p.Expiration != nil {
@@ -273,6 +274,18 @@ func createItem(
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
 		_, err := service.Client().DrivesById(driveID).ItemsById(*newItem.GetId()).Invite().Post(ctx, pbody, nil)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"failed to set permissions for item %s. details: %s",
+				*newItem.GetId(),
+				support.ConnectorStackErrorTrace(err),
+			)
+		}
+	}
+
+	for _, p := range permRemoved {
+		err := service.Client().DrivesById(driveID).ItemsById(*newItem.GetId()).PermissionsById(p.ID).Delete(ctx, nil)
 		if err != nil {
 			return nil, errors.Wrapf(
 				err,

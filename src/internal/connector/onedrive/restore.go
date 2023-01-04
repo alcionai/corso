@@ -27,6 +27,13 @@ const (
 	copyBufferSize = 5 * 1024 * 1024
 )
 
+// dirEntry is used to keep track of the data that we will need
+// for subsequent folder creations.
+type dirEntry struct {
+	ID   string
+	meta ItemMeta
+}
+
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
@@ -70,10 +77,10 @@ func RestoreCollections(
 	// from the backup under this the restore folder instead of root)
 	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
 
-	pids := map[string]string{}
+	pids := map[string]dirEntry{}
 
 	// Create initial root container to hold the restore
-	containerId, err := CreateRestoreFolder(ctx, service, driveID, dest.ContainerName, nil, *driveRoot.GetId())
+	containerId, err := CreateRestoreFolder(ctx, service, driveID, dest.ContainerName, []UserPermission{}, []UserPermission{}, *driveRoot.GetId())
 	if err != nil {
 		return nil, errors.New("unable to create restore container")
 	}
@@ -84,22 +91,26 @@ func RestoreCollections(
 		path := strings.Join(elms, "/")
 		parentPath := strings.Join(elms[:len(elms)-1], "/")
 
-		pid, ok := pids[parentPath]
+		parent, ok := pids[parentPath]
 		if !ok {
 			if len(dc.FullPath().Elements()) == 8 { // base folders
-				pid = containerId
+				parent = dirEntry{ID: containerId, meta: ItemMeta{}}
 			} else {
 				errUpdater(dc.FullPath().String(), errors.New("unable to find parent path"))
-				continue 
+				continue
 			}
 		}
 
-		id, metrics, cancelled := RestoreCollection(ctx, service, dc, OneDriveSource, deets, errUpdater, pid)
+		id, pmeta, metrics, cancelled := RestoreCollection(
+			ctx, service, dc,
+			OneDriveSource, deets,
+			errUpdater,
+			parent)
 		restoreMetrics.Combine(metrics)
 		if cancelled {
 			break
 		}
-		pids[path] = id
+		pids[path] = dirEntry{ID: id, meta: pmeta}
 	}
 
 	return support.CreateStatus(
@@ -123,8 +134,8 @@ func RestoreCollection(
 	source driveSource,
 	deets *details.Builder,
 	errUpdater func(string, error),
-	parentFolderID string,
-) (string, support.CollectionMetrics, bool) {
+	parent dirEntry,
+) (string, ItemMeta, support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
@@ -136,15 +147,22 @@ func RestoreCollection(
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
-		return "", metrics, false
+		return "", ItemMeta{}, metrics, false
 	}
 
 	elms := directory.Elements()
 	folder := elms[len(elms)-1]
-	parentFolderID, err = CreateRestoreFolder(ctx, service, drivePath.DriveID, folder, dc.Meta(), parentFolderID)
+	meta, err := getItemMeta(dc.Meta())
+	if err != nil {
+		errUpdater(folder, errors.Wrapf(err, "failed to parse metadata %v", folder))
+		return "", ItemMeta{}, metrics, false
+	}
+
+	permAdded, permRemoved := getChildPermissions(meta.Permissions, parent.meta.Permissions)
+	parentFolderID, err := CreateRestoreFolder(ctx, service, drivePath.DriveID, folder, permAdded, permRemoved, parent.ID)
 	if err != nil {
 		errUpdater(folder, errors.Wrapf(err, "failed to create folder %v", folder))
-		return "", metrics, false
+		return "", ItemMeta{}, metrics, false
 	}
 
 	// Restore items from the collection
@@ -154,11 +172,11 @@ func RestoreCollection(
 		select {
 		case <-ctx.Done():
 			errUpdater("context canceled", ctx.Err())
-			return parentFolderID, metrics, true
+			return parentFolderID, meta, metrics, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return parentFolderID, metrics, false
+				return parentFolderID, meta, metrics, false
 			}
 			metrics.Objects++
 
@@ -196,23 +214,65 @@ func RestoreCollection(
 	}
 }
 
-func CreateRestoreFolder(ctx context.Context, service graph.Servicer, driveID, folder string, metar io.ReadCloser, parentFolderID string) (string, error) {
+func getItemMeta(metar io.ReadCloser) (ItemMeta, error) {
 	var meta ItemMeta
 	// `metar` will be nil for the top level container folder
-	// TODO(meain): Should we make `metar` into ItemMeta instead of io.ReadCloser?
 	if metar != nil {
 		metaraw, err := ioutil.ReadAll(metar)
 		if err != nil {
-			return "", err
+			return ItemMeta{}, err
 		}
 
 		err = json.Unmarshal(metaraw[4:], &meta) // TODO(meain): First 4 bytes are somehow 00 00 00 01
 		if err != nil {
-			return "", err
+			return ItemMeta{}, err
 		}
 	}
 
-	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true), meta)
+	return meta, nil
+}
+
+// getChildPermissions is to filter out permissions present in the
+// parent from the ones that are available for child. This is
+// necessary as we store the nested permissions in the child. We
+// cannot avoid storing the nested permissions as it is possible that
+// a file in a folder can remove the nested permission that is present
+// on itself.
+func getChildPermissions(childPermissions, parentPermissions []UserPermission) ([]UserPermission, []UserPermission) {
+	addedPermissions := []UserPermission{}
+	removedPermissions := []UserPermission{}
+
+	for _, cp := range childPermissions {
+		found := false
+		for _, pp := range parentPermissions {
+			if cp.ID == pp.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			addedPermissions = append(addedPermissions, cp)
+		}
+	}
+
+	for _, pp := range parentPermissions {
+		found := false
+		for _, cp := range childPermissions {
+			if pp.ID == cp.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			removedPermissions = append(removedPermissions, pp)
+		}
+	}
+
+	return addedPermissions, removedPermissions
+}
+
+func CreateRestoreFolder(ctx context.Context, service graph.Servicer, driveID, folder string, permAdded, permRemoved []UserPermission, parentFolderID string) (string, error) {
+	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true), permAdded, permRemoved)
 	if err != nil {
 		return "", errors.Wrapf(
 			err,
@@ -264,7 +324,8 @@ func restoreItem(
 	}
 
 	// Create Item
-	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false), meta)
+	// TODO(meain): handle file permissions
+	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false), []UserPermission{}, []UserPermission{})
 	if err != nil {
 		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
 	}

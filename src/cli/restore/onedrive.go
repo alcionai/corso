@@ -1,6 +1,8 @@
 package restore
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -173,6 +175,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to run OneDrive restore"))
 	}
 
+	fmt.Println("Restored to", restoreDest.ContainerName)
 	ds.PrintEntries(ctx)
 
 	return nil
