@@ -16,22 +16,17 @@ type RepositoryModelSuite struct {
 }
 
 func TestRepositoryModelSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoRepositoryTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoRepositoryTests)
 
 	suite.Run(t, new(RepositoryModelSuite))
 }
 
 // ensure all required env values are populated
 func (suite *RepositoryModelSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *RepositoryModelSuite) TestWriteGetModel() {

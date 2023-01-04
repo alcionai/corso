@@ -96,22 +96,17 @@ type RepositoryIntegrationSuite struct {
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoRepositoryTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoRepositoryTests)
 
 	suite.Run(t, new(RepositoryIntegrationSuite))
 }
 
 // ensure all required env values are populated
 func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {

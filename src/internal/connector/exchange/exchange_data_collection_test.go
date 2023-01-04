@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -136,7 +137,7 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 			c := NewCollection(
 				"u",
 				test.curr, test.prev,
-				0, nil, nil, control.Options{},
+				0, api.Client{}, nil, nil, control.Options{},
 				false)
 			assert.Equal(t, test.expect, c.State())
 		})

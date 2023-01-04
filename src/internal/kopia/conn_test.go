@@ -59,19 +59,16 @@ type WrapperIntegrationSuite struct {
 }
 
 func TestWrapperIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoKopiaWrapperTests)
 
 	suite.Run(t, new(WrapperIntegrationSuite))
 }
 
 func (suite *WrapperIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 }
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {

@@ -210,12 +210,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, scope := range sel.DiscreteScopes(gc.GetSiteIDs()) {
-		for _, selSite := range scope.Get(selectors.SharePointSite) {
-			opSel := selectors.NewSharePointBackup([]string{selSite})
-			opSel.Include([]selectors.SharePointScope{scope.DiscreteCopy(selSite)})
-
-			bo, err := r.NewBackup(ctx, opSel.Selector)
+	for _, sel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
+		// TODO: pass in entire selector, not individual scopes
+		for _, scope := range sel.Scopes() {
+			bo, err := r.NewBackup(ctx, sel.Selector)
 			if err != nil {
 				errs = multierror.Append(errs, errors.Wrapf(
 					err,

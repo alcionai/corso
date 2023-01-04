@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -76,12 +77,12 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, err := getGC(ctx)
+	gc, creds, err := getGC(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = runDisplayM365JSON(ctx, gc.Service)
+	err = runDisplayM365JSON(ctx, gc.Service, creds)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "unable to create mock from M365: %s", m365ID))
 	}
@@ -92,16 +93,22 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 func runDisplayM365JSON(
 	ctx context.Context,
 	gs graph.Servicer,
+	creds account.M365Config,
 ) error {
 	var (
-		get           exchange.GraphRetrievalFunc
+		get           api.GraphRetrievalFunc
 		serializeFunc exchange.GraphSerializeFunc
 		cat           = graph.StringToPathCategory(category)
 	)
 
+	ac, err := api.NewClient(creds)
+	if err != nil {
+		return err
+	}
+
 	switch cat {
 	case path.EmailCategory, path.EventsCategory, path.ContactsCategory:
-		get, serializeFunc = exchange.GetQueryAndSerializeFunc(cat)
+		get, serializeFunc = exchange.GetQueryAndSerializeFunc(ac, cat)
 	default:
 		return fmt.Errorf("unable to process category: %s", cat)
 	}
@@ -110,7 +117,7 @@ func runDisplayM365JSON(
 
 	sw := kw.NewJsonSerializationWriter()
 
-	response, err := get(ctx, gs, user, m365ID)
+	response, err := get(ctx, user, m365ID)
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -158,7 +165,7 @@ func runDisplayM365JSON(
 // Helpers
 //-------------------------------------------------------------------------------
 
-func getGC(ctx context.Context) (*connector.GraphConnector, error) {
+func getGC(ctx context.Context) (*connector.GraphConnector, account.M365Config, error) {
 	// get account info
 	m365Cfg := account.M365Config{
 		M365:          credentials.GetM365(),
@@ -167,13 +174,13 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, Only(ctx, errors.Wrap(err, "finding m365 account details"))
+		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "finding m365 account details"))
 	}
 
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
-		return nil, Only(ctx, errors.Wrap(err, "connecting to graph API"))
+		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "connecting to graph API"))
 	}
 
-	return gc, nil
+	return gc, m365Cfg, nil
 }
