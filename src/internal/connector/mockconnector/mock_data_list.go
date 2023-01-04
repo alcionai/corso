@@ -2,7 +2,6 @@ package mockconnector
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -76,18 +74,19 @@ func (mld *MockListData) ToReader() io.ReadCloser {
 	return mld.Reader
 }
 
-// GetMockList returns a Listable object with generic
-// information. The max amount of unique values is:
-// If count exceeds max amount, the returned list will not be able to be loaded into
-// the M365 back store.
+// GetMockList returns a Listable object with two columns.
+// @param: Name of the displayable list
+// @param: Column Name: Defines the 2nd Column Name of the created list the values from the map.
+// The key values of the input map are used for the `Title` column.
+// The values of the map are placed within the 2nd column.
 // Source: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=go
-func GetMockList(title string, count int) models.Listable {
+func GetMockList(title, columnName string, items map[string]string) models.Listable {
 	requestBody := models.NewList()
 	requestBody.SetDisplayName(&title)
 	requestBody.SetName(&title)
 
 	columnDef := models.NewColumnDefinition()
-	name := "Artist"
+	name := columnName
 	text := models.NewTextColumn()
 
 	columnDef.SetName(&name)
@@ -103,36 +102,22 @@ func GetMockList(title string, count int) models.Listable {
 	aList.SetTemplate(&template)
 	requestBody.SetList(aList)
 
-	if count == 0 {
-		return requestBody
-	}
-
 	// item Creation
-	index := 0
 	itms := make([]models.ListItemable, 0)
 
-	itemMap := getItems()
-	if count > len(itemMap) {
-		logger.Ctx(context.TODO()).Info("returned mock list cannot be uploaded. Non-unique items included")
-	}
-
-	for k, v := range getItems() {
-		temp := models.NewListItem()
-		fields := models.NewFieldValueSet()
+	for k, v := range items {
 		entry := map[string]interface{}{
-			"Title":  k,
-			"Artist": v,
+			"Title":    k,
+			columnName: v,
 		}
 
+		fields := models.NewFieldValueSet()
 		fields.SetAdditionalData(entry)
+
+		temp := models.NewListItem()
 		temp.SetFields(fields)
 
 		itms = append(itms, temp)
-		index++
-
-		if index == count {
-			break
-		}
 	}
 
 	requestBody.SetItems(itms)
@@ -140,9 +125,15 @@ func GetMockList(title string, count int) models.Listable {
 	return requestBody
 }
 
+// GetMockListDefault returns a two-list column list of
+// Music lbums and the associated artist.
+func GetMockListDefault(title string) models.Listable {
+	return GetMockList(title, "Artist", getItems())
+}
+
 // GetMockListBytes returns the byte representation of GetMockList
-func GetMockListBytes(title string, numOfItems int) ([]byte, error) {
-	list := GetMockList(title, numOfItems)
+func GetMockListBytes(title string) ([]byte, error) {
+	list := GetMockListDefault(title)
 
 	objectWriter := kw.NewJsonSerializationWriter()
 	defer objectWriter.Close()
@@ -158,7 +149,7 @@ func GetMockListBytes(title string, numOfItems int) ([]byte, error) {
 // GetMockListStream returns the data.Stream representation
 // of the Mocked SharePoint List
 func GetMockListStream(t *testing.T, title string, numOfItems int) *MockListData {
-	byteArray, err := GetMockListBytes(title, numOfItems)
+	byteArray, err := GetMockListBytes(title)
 	require.NoError(t, err)
 
 	listData := &MockListData{
@@ -195,76 +186,6 @@ func getItems() map[string]string {
 		"Live at the Apollo, 1962":        "James Brown",
 		"Rumours":                         "Fleetwood Mac",
 		"The Joshua Tree":                 "U2",
-		"Who's Next":                      "The Who",
-		"Led Zeppelin":                    "Led Zeppelin",
-		"Blue":                            "Joni Mitchell",
-		"Bringing It All Back Home":       "Bob Dylan",
-		"Let It Bleed":                    "The Rolling Stones",
-		"Ramones":                         "Ramones",
-		"Music From Big Pink":             "The Band",
-		"The Rise and Fall of Ziggy Stardust and the Spiders From Mars": "David Bowie",
-		"Tapestry":         "Carole King",
-		"Hotel California": "Eagles",
-		"The Anthology":    "Muddy Waters",
-		"Please Please Me": "The Beatles",
-		"Forever Changes":  "Love",
-		"Never Mind the Bollocks Here's the Sex Pistols": "Sex Pistols",
-		"The Doors":                    "The Doors",
-		"The Dark Side of the Moon":    "Pink Floyd",
-		"Horses":                       "Patti Smith",
-		"The Band `(The Brown Album)`": "The Band",
-		"Legend: The Best of Bob Marley and The Wailers": "Bob Marley & The Wailers",
-		"A Love Supreme": "John Coltrane",
-		"It Takes a Nation of Millions to Hold Us Back": "Public Enemy",
-		"At Fillmore East":                       "The Allman Brothers Band",
-		"Here's Little Richard":                  "Little Richard",
-		"Bridge Over Troubled Water":             "Simon & Garfunkel",
-		"Greatest Hits":                          "Al Green",
-		"Meet The Beatles!":                      "The Beatles",
-		"The Birth of Soul":                      "Ray Charles",
-		"Electric Ladyland":                      "The Jimi Hendrix Experience",
-		"Elvis Presley":                          "Elvis Presley",
-		"Songs in the Key of Life":               "Stevie Wonder",
-		"Beggars Banquet":                        "The Rolling Stones",
-		"Trout Mask Replica":                     "Captain Beefheart & His Magic Band",
-		"Appetite for Destruction":               "Guns N' Roses",
-		"Achtung Baby":                           "U2",
-		"Sticky Fingers":                         "The Rolling Stones",
-		"Back to Mono (1958-1969)":               "Phil Spector",
-		"Moondance":                              "Van Morrison",
-		"Kid A":                                  "Radiohead",
-		"Off the Wall":                           "Michael Jackson",
-		"[Led Zeppelin IV]":                      "Led Zeppelin",
-		"The Stranger":                           "Billy Joel",
-		"Graceland":                              "Paul Simon",
-		"Superfly":                               "Curtis Mayfield",
-		"Physical Graffiti":                      "Led Zeppelin",
-		"After the Gold Rush":                    "Neil Young",
-		"Star Time":                              "James Brown",
-		"Purple Rain":                            "Prince and the Revolution",
-		"Back in Black":                          "AC/DC",
-		"Otis Blue: Otis Redding Sings Soul":     "Otis Redding",
-		"Led Zeppelin II":                        "Led Zeppelin",
-		"Imagine":                                "John Lennon",
-		"The Clash":                              "The Clash",
-		"Harvest":                                "Neil Young",
-		"Axis: Bold as Love":                     "The Jimi Hendrix Experience",
-		"I Never Loved a Man the Way I Love You": "Aretha Franklin",
-		"Lady Soul":                              "Aretha Franklin",
-		"Born in the U.S.A.":                     "Bruce Springsteen",
-		"The Wall":                               "Pink Floyd",
-		"At Folsom Prison":                       "Johnny Cash",
-		"Dusty in Memphis":                       "Dusty Springfield",
-		"Talking Book":                           "Stevie Wonder",
-		"Goodbye Yellow Brick Road":              "Elton John",
-		"20 Golden Greats":                       "Buddy Holly",
-		"Sign 'Peace' the Times":                 "Prince",
-		"40 Greatest Hits":                       "Hank Williams",
-		"Tommy":                                  "The Who",
-		"The Freewheelin' Bob Dylan":             "Bob Dylan",
-		"This Year's Model":                      "Elvis Costello",
-		"There's a Riot Goin' On":                "Sly & The Family Stone",
-		"Odessey and Oracle":                     "The Zombies",
 	}
 
 	return items
