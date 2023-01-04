@@ -939,20 +939,37 @@ func collectionsForInfo(
 }
 
 //nolint:deadcode
-func getSelectorWith(service path.ServiceType) selectors.Selector {
-	s := selectors.ServiceUnknown
-
+func getSelectorWith(
+	t *testing.T,
+	service path.ServiceType,
+	resourceOwners []string,
+	forRestore bool,
+) selectors.Selector {
 	switch service {
 	case path.ExchangeService:
-		s = selectors.ServiceExchange
-	case path.OneDriveService:
-		s = selectors.ServiceOneDrive
-	case path.SharePointService:
-		s = selectors.ServiceSharePoint
-	}
+		if forRestore {
+			return selectors.NewExchangeRestore(resourceOwners).Selector
+		}
 
-	return selectors.Selector{
-		Service: s,
+		return selectors.NewExchangeBackup(resourceOwners).Selector
+
+	case path.OneDriveService:
+		if forRestore {
+			return selectors.NewOneDriveRestore(resourceOwners).Selector
+		}
+
+		return selectors.NewOneDriveBackup(resourceOwners).Selector
+
+	case path.SharePointService:
+		if forRestore {
+			return selectors.NewSharePointRestore(resourceOwners).Selector
+		}
+
+		return selectors.NewSharePointBackup(resourceOwners).Selector
+
+	default:
+		require.FailNow(t, "unknown path service")
+		return selectors.Selector{}
 	}
 }
 
