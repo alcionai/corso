@@ -34,9 +34,10 @@ import (
 type BackupOperation struct {
 	operation
 
-	Results   BackupResults      `json:"results"`
-	Selectors selectors.Selector `json:"selectors"`
-	Version   string             `json:"version"`
+	ResourceOwner string             `json:"resourceOwner"`
+	Results       BackupResults      `json:"results"`
+	Selectors     selectors.Selector `json:"selectors"`
+	Version       string             `json:"version"`
 
 	account account.Account
 }
@@ -60,10 +61,11 @@ func NewBackupOperation(
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation: newOperation(opts, bus, kw, sw),
-		Selectors: selector,
-		Version:   "v0",
-		account:   acct,
+		operation:     newOperation(opts, bus, kw, sw),
+		ResourceOwner: selector.DiscreteOwner,
+		Selectors:     selector,
+		Version:       "v0",
+		account:       acct,
 	}
 	if err := op.validate(); err != nil {
 		return BackupOperation{}, err
@@ -73,6 +75,10 @@ func NewBackupOperation(
 }
 
 func (op BackupOperation) validate() error {
+	if len(op.ResourceOwner) == 0 {
+		return errors.New("backup requires a resource owner")
+	}
+
 	return op.operation.validate()
 }
 
@@ -320,7 +326,10 @@ func collectMetadata(
 
 	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting prior metadata")
+		// Restore is best-effort and we want to keep it that way since we want to
+		// return as much metadata as we can to reduce the work we'll need to do.
+		// Just wrap the error here for better reporting/debugging.
+		return dcs, errors.Wrap(err, "collecting prior metadata")
 	}
 
 	return dcs, nil
@@ -333,9 +342,7 @@ func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
 		ServiceCats:    map[string]kopia.ServiceCat{},
 	}
 
-	for _, ro := range sel.DiscreteResourceOwners() {
-		oc.ResourceOwners[ro] = struct{}{}
-	}
+	oc.ResourceOwners[sel.DiscreteOwner] = struct{}{}
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
