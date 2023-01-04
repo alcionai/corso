@@ -831,6 +831,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						ctx,
 						gc,
 						path.ExchangeService,
+						acct,
 						category,
 						selectors.NewExchangeRestore(users).Selector,
 						m365.AzureTenantID, suite.user, container3,
