@@ -364,7 +364,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 				kw,
 				sw,
 				acct,
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				evmock.NewBus())
 			require.NoError(t, err)
 			test.expectErr(t, op.persistResults(now, &test.stats))
