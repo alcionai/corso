@@ -37,7 +37,6 @@ type (
 
 var (
 	_ Reducer        = &OneDriveRestore{}
-	_ printabler     = &OneDriveRestore{}
 	_ pathCategorier = &OneDriveRestore{}
 )
 
@@ -107,11 +106,6 @@ func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore 
 	}
 
 	return ss
-}
-
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s oneDrive) Printable() Printable {
-	return toPrintable[OneDriveScope](s.Selector)
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.
