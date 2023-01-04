@@ -3,7 +3,6 @@ package sharepoint
 import (
 	"bytes"
 	"io"
-	"strings"
 	"testing"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -154,51 +153,6 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 		err := DeleteList(ctx, service, siteID, deleteID)
 		assert.NoError(t, err)
 		t.Logf("Skipping deletion of %s", deleteID)
-	}
-}
-
-func (suite *SharePointCollectionSuite) TestRemoveLists() {
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	a := tester.NewM365Account(t)
-	account, err := a.M365Config()
-	require.NoError(t, err)
-
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
-	deleteList := make([]string, 0)
-	builder := service.Client().SitesById(siteID).Lists()
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "experienced query error during clean up. Details:  "+support.ConnectorStackErrorTrace(err))
-
-		for _, temp := range resp.GetValue() {
-			name := temp.GetDisplayName()
-			if name == nil {
-				continue
-			}
-
-			if strings.HasPrefix(*name, "Corso_Restore") {
-				deleteList = append(deleteList, *temp.GetId())
-			}
-		}
-		// Get Next Link
-		link := resp.GetOdataNextLink()
-		if link == nil {
-			break
-		}
-
-		builder = sites.NewItemListsRequestBuilder(*link, service.Adapter())
-	}
-
-	for _, listID := range deleteList {
-		err := DeleteList(ctx, service, siteID, listID)
-		assert.NoError(t, err)
 	}
 }
 
