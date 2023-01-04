@@ -50,8 +50,7 @@ func (s Service) Client() *msgraphsdk.GraphServiceClient {
 func (s Service) Serialize(object absser.Parsable) ([]byte, error) {
 	writer, err := s.adapter.GetSerializationWriterFactory().GetSerializationWriter("application/json")
 	if err != nil || writer == nil {
-		errorMessage := "service unable to create json serialization writer"
-		return nil, errors.Wrap(err, errorMessage)
+		return nil, errors.Wrap(err, "creating json serialization writer")
 	}
 
 	err = writer.WriteObjectValue("", object)
