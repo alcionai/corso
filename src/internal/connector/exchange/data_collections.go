@@ -163,7 +163,6 @@ func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
 	metadata []data.Collection,
-	userPNs []string,
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
@@ -174,7 +173,8 @@ func DataCollections(
 	}
 
 	var (
-		scopes      = eb.DiscreteScopes(userPNs)
+		user        = selector.DiscreteOwner
+		scopes      = eb.DiscreteScopes([]string{user})
 		collections = []data.Collection{}
 		errs        error
 	)
@@ -190,13 +190,13 @@ func DataCollections(
 		dcs, err := createCollections(
 			ctx,
 			acct,
+			user,
 			scope,
 			dps,
 			ctrlOpts,
 			su)
 		if err != nil {
-			user := scope.Get(selectors.ExchangeUser)
-			return nil, support.WrapAndAppend(user[0], err, errs)
+			return nil, support.WrapAndAppend(user, err, errs)
 		}
 
 		collections = append(collections, dcs...)
@@ -211,6 +211,7 @@ func DataCollections(
 func createCollections(
 	ctx context.Context,
 	acct account.M365Config,
+	user string,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
@@ -218,48 +219,45 @@ func createCollections(
 ) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
-		users          = scope.Get(selectors.ExchangeUser)
 		allCollections = make([]data.Collection, 0)
 	)
 
 	// Create collection of ExchangeDataCollection
-	for _, user := range users {
-		collections := make(map[string]data.Collection)
+	collections := make(map[string]data.Collection)
 
-		qp := graph.QueryParams{
-			Category:      scope.Category().PathType(),
-			ResourceOwner: user,
-			Credentials:   acct,
-		}
+	qp := graph.QueryParams{
+		Category:      scope.Category().PathType(),
+		ResourceOwner: user,
+		Credentials:   acct,
+	}
 
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
-		defer closer()
-		defer close(foldersComplete)
+	foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
+	defer closer()
+	defer close(foldersComplete)
 
-		resolver, err := PopulateExchangeContainerResolver(ctx, qp)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting folder cache")
-		}
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting folder cache")
+	}
 
-		err = filterContainersAndFillCollections(
-			ctx,
-			qp,
-			collections,
-			su,
-			resolver,
-			scope,
-			dps,
-			ctrlOpts)
+	err = filterContainersAndFillCollections(
+		ctx,
+		qp,
+		collections,
+		su,
+		resolver,
+		scope,
+		dps,
+		ctrlOpts)
 
-		if err != nil {
-			return nil, errors.Wrap(err, "filling collections")
-		}
+	if err != nil {
+		return nil, errors.Wrap(err, "filling collections")
+	}
 
-		foldersComplete <- struct{}{}
+	foldersComplete <- struct{}{}
 
-		for _, coll := range collections {
-			allCollections = append(allCollections, coll)
-		}
+	for _, coll := range collections {
+		allCollections = append(allCollections, coll)
 	}
 
 	return allCollections, errs.ErrorOrNil()

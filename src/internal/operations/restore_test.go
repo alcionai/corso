@@ -98,7 +98,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				sw,
 				acct,
 				"foo",
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
 			require.NoError(t, err)
@@ -250,7 +250,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.sw,
 				test.acct,
 				"backup-id",
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
 			test.errCheck(t, err)

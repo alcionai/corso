@@ -319,7 +319,7 @@ func runRestoreBackupTest(
 	acct account.Account,
 	test restoreBackupInfo,
 	tenant string,
-	users []string,
+	resourceOwners []string,
 ) {
 	var (
 		collections  []data.Collection
@@ -332,32 +332,32 @@ func runRestoreBackupTest(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	for _, user := range users {
-		numItems, userCollections, userExpectedData := collectionsForInfo(
+	for _, owner := range resourceOwners {
+		numItems, ownerCollections, userExpectedData := collectionsForInfo(
 			t,
 			test.service,
 			tenant,
-			user,
+			owner,
 			dest,
 			test.collections,
 		)
 
-		collections = append(collections, userCollections...)
+		collections = append(collections, ownerCollections...)
 		totalItems += numItems
 
 		maps.Copy(expectedData, userExpectedData)
 	}
 
 	t.Logf(
-		"Restoring collections to %s for user(s) %v\n",
+		"Restoring collections to %s for resourceOwners(s) %v\n",
 		dest.ContainerName,
-		users,
+		resourceOwners,
 	)
 
 	start := time.Now()
 
 	restoreGC := loadConnector(ctx, t, test.resource)
-	restoreSel := getSelectorWith(test.service)
+	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
 		acct,
@@ -386,10 +386,10 @@ func runRestoreBackupTest(
 		cats[c.category] = struct{}{}
 	}
 
-	expectedDests := make([]destAndCats, 0, len(users))
-	for _, u := range users {
+	expectedDests := make([]destAndCats, 0, len(resourceOwners))
+	for _, ro := range resourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
-			resourceOwner: u,
+			resourceOwner: ro,
 			dest:          dest.ContainerName,
 			cats:          cats,
 		})
@@ -809,7 +809,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			restoreSel := getSelectorWith(test.service)
+			restoreSel := getSelectorWith(t, test.service, []string{suite.user}, true)
 			expectedDests := make([]destAndCats, 0, len(test.collections))
 			allItems := 0
 			allExpectedData := map[string]map[string][]byte{}
@@ -880,118 +880,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			status := backupGC.AwaitStatus()
 			assert.Equal(t, allItems+skipped, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, allItems+skipped, status.Successful, "status.Successful")
-		})
-	}
-}
-
-func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
-	bodyText := "This email has some text. However, all the text is on the same line."
-	subjectText := "Test message for restore"
-
-	users := []string{
-		suite.user,
-		tester.SecondaryM365UserID(suite.T()),
-	}
-	table := []restoreBackupInfo{
-		{
-			name:     "Email",
-			service:  path.ExchangeService,
-			resource: Users,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Inbox"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-1",
-								bodyText+" 1.",
-								bodyText+" 1.",
-							),
-							lookupKey: subjectText + "-1",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Archive"},
-					category:     path.EmailCategory,
-					items: []itemInfo{
-						{
-							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithBodyBytes(
-								subjectText+"-2",
-								bodyText+" 2.",
-								bodyText+" 2.",
-							),
-							lookupKey: subjectText + "-2",
-						},
-					},
-				},
-			},
-		},
-		{
-			name:     "Contacts",
-			service:  path.ExchangeService,
-			resource: Users,
-			collections: []colInfo{
-				{
-					pathElements: []string{"Work"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID",
-							data:      mockconnector.GetMockContactBytes("Ghimley"),
-							lookupKey: "Ghimley",
-						},
-					},
-				},
-				{
-					pathElements: []string{"Personal"},
-					category:     path.ContactsCategory,
-					items: []itemInfo{
-						{
-							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockContactBytes("Irgot"),
-							lookupKey: "Irgot",
-						},
-					},
-				},
-			},
-		},
-		// {
-		// 	name:    "Events",
-		// 	service: path.ExchangeService,
-		// 	collections: []colInfo{
-		// 		{
-		// 			pathElements: []string{"Work"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
-		// 				{
-		// 					name:      "someencodeditemID",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
-		// 					lookupKey: "Ghimley",
-		// 				},
-		// 			},
-		// 		},
-		// 		{
-		// 			pathElements: []string{"Personal"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
-		// 				{
-		// 					name:      "someencodeditemID2",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
-		// 					lookupKey: "Irgot",
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(t, suite.acct, test, suite.connector.tenant, users)
 		})
 	}
 }

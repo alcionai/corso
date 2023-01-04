@@ -282,33 +282,30 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, sel := range sel.SplitByResourceOwner(users) {
-		// TODO: pass in entire selector, not individual scopes
-		for _, scope := range sel.Scopes() {
-			bo, err := r.NewBackup(ctx, sel.Selector)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to initialize Exchange backup for user %s",
-					scope.Get(selectors.ExchangeUser),
-				))
+	for _, discSel := range sel.SplitByResourceOwner(users) {
+		bo, err := r.NewBackup(ctx, discSel.Selector)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to initialize Exchange backup for user %s",
+				discSel.DiscreteOwner,
+			))
 
-				continue
-			}
-
-			err = bo.Run(ctx)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to run Exchange backup for user %s",
-					scope.Get(selectors.ExchangeUser),
-				))
-
-				continue
-			}
-
-			bIDs = append(bIDs, bo.Results.BackupID)
+			continue
 		}
+
+		err = bo.Run(ctx)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to run Exchange backup for user %s",
+				discSel.DiscreteOwner,
+			))
+
+			continue
+		}
+
+		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
 	bups, err := r.Backups(ctx, bIDs)

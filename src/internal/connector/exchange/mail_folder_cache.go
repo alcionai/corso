@@ -3,8 +3,6 @@ package exchange
 import (
 	"context"
 
-	multierror "github.com/hashicorp/go-multierror"
-	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -67,44 +65,16 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
-	query, servicer, err := mc.ac.GetAllMailFoldersBuilder(ctx, mc.userID)
+	err := mc.ac.EnumerateMailFolders(ctx, mc.userID, mc.addFolder)
 	if err != nil {
 		return err
 	}
 
-	var errs *multierror.Error
-
-	for {
-		resp, err := query.Get(ctx, nil)
-		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, f := range resp.GetValue() {
-			temp := graph.NewCacheFolder(f, nil)
-
-			// Use addFolder instead of AddToCache to be conservative about path
-			// population. The fetch order of the folders could cause failures while
-			// trying to resolve paths, so put it off until we've gotten all folders.
-			if err := mc.addFolder(temp); err != nil {
-				errs = multierror.Append(errs, errors.Wrap(err, "delta fetch"))
-				continue
-			}
-		}
-
-		link := resp.GetOdataNextLink()
-		if link == nil {
-			break
-		}
-
-		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, servicer.Adapter())
-	}
-
 	if err := mc.populatePaths(ctx); err != nil {
-		errs = multierror.Append(errs, errors.Wrap(err, "mail resolver"))
+		return errors.Wrap(err, "mail resolver")
 	}
 
-	return errs.ErrorOrNil()
+	return nil
 }
 
 // init ensures that the structure's fields are initialized.

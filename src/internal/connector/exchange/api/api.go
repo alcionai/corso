@@ -86,3 +86,23 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 
 	return graph.NewService(adapter), nil
 }
+
+// ---------------------------------------------------------------------------
+// helper funcs
+// ---------------------------------------------------------------------------
+
+// checkIDAndName is a helper function to ensure that
+// the ID and name pointers are set prior to being called.
+func checkIDAndName(c graph.Container) error {
+	idPtr := c.GetId()
+	if idPtr == nil || len(*idPtr) == 0 {
+		return errors.New("folder without ID")
+	}
+
+	ptr := c.GetDisplayName()
+	if ptr == nil || len(*ptr) == 0 {
+		return errors.Errorf("folder %s without display name", *idPtr)
+	}
+
+	return nil
+}
