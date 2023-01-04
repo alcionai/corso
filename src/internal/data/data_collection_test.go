@@ -1,13 +1,13 @@
 package data
 
 import (
+	"io"
 	"testing"
 
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type mockColl struct {
@@ -21,6 +21,10 @@ func (mc mockColl) Items() <-chan Stream {
 
 func (mc mockColl) FullPath() path.Path {
 	return mc.p
+}
+
+func (mc mockColl) Meta() io.ReadCloser {
+	return nil
 }
 
 func (mc mockColl) PreviousPath() path.Path {

@@ -119,7 +119,7 @@ func oneDriveItemMetaInfo(ctx context.Context, driveID string, di models.DriveIt
 	itemID := di.GetId()
 	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
 	if err != nil {
-		return ItemMeta{}, errors.Wrapf(err, "failed to get item permissions %s", itemID)
+		return ItemMeta{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
 	}
 
 	up := []UserPermission{}

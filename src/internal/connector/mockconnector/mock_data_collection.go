@@ -105,6 +105,10 @@ func (medc MockExchangeDataCollection) State() data.CollectionState {
 	return medc.ColState
 }
 
+func (medc MockExchangeDataCollection) Meta() io.ReadCloser {
+	return nil
+}
+
 func (medc MockExchangeDataCollection) DoNotMergeItems() bool {
 	return medc.DoNotMerge
 }
@@ -155,6 +159,10 @@ func (med *MockExchangeData) ToReader() io.ReadCloser {
 	}
 
 	return med.Reader
+}
+
+func (med *MockExchangeData) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func (med *MockExchangeData) Info() details.ItemInfo {

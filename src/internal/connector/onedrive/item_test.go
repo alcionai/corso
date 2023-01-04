@@ -163,7 +163,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
 			suite.T().Logf("Test will create folder %s", newFolderName)
 
-			newFolder, err := createItem(ctx, suite, test.driveID, *folder.GetId(), newItem(newFolderName, true))
+			newFolder, err := createItem(ctx, suite, test.driveID, *folder.GetId(), newItem(newFolderName, true), []UserPermission{}, []UserPermission{})
 			require.NoError(suite.T(), err)
 
 			require.NotNil(suite.T(), newFolder.GetId())
@@ -171,7 +171,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
 			suite.T().Logf("Test will create item %s", newItemName)
 
-			newItem, err := createItem(ctx, suite, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
+			newItem, err := createItem(ctx, suite, test.driveID, *newFolder.GetId(), newItem(newItemName, false), []UserPermission{}, []UserPermission{})
 			require.NoError(suite.T(), err)
 
 			require.NotNil(suite.T(), newItem.GetId())

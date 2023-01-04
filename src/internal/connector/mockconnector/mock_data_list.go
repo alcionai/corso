@@ -32,6 +32,10 @@ func (mlc *MockListCollection) FullPath() path.Path {
 	return mlc.fullPath
 }
 
+func (mlc *MockListCollection) Meta() io.ReadCloser {
+	return nil
+}
+
 func (mlc *MockListCollection) DoNotMergeItems() bool {
 	return false
 }
@@ -72,6 +76,10 @@ func (mld MockListData) Deleted() bool {
 
 func (mld *MockListData) ToReader() io.ReadCloser {
 	return mld.Reader
+}
+
+func (mld *MockListData) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
 }
 
 // GetMockList returns a Listable object with two columns.
