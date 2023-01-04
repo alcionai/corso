@@ -204,13 +204,13 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, sel := range sel.SplitByResourceOwner(users) {
-		bo, err := r.NewBackup(ctx, sel.Selector)
+	for _, discSel := range sel.SplitByResourceOwner(users) {
+		bo, err := r.NewBackup(ctx, discSel.Selector)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrapf(
 				err,
 				"Failed to initialize OneDrive backup for user %s",
-				sel.DiscreteOwner,
+				discSel.DiscreteOwner,
 			))
 
 			continue
@@ -221,7 +221,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 			errs = multierror.Append(errs, errors.Wrapf(
 				err,
 				"Failed to run OneDrive backup for user %s",
-				sel.DiscreteOwner,
+				discSel.DiscreteOwner,
 			))
 
 			continue

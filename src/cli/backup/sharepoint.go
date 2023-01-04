@@ -210,13 +210,13 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, sel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
-		bo, err := r.NewBackup(ctx, sel.Selector)
+	for _, discSel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
+		bo, err := r.NewBackup(ctx, discSel.Selector)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrapf(
 				err,
 				"Failed to initialize SharePoint backup for site %s",
-				sel.DiscreteOwner,
+				discSel.DiscreteOwner,
 			))
 
 			continue
@@ -227,7 +227,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 			errs = multierror.Append(errs, errors.Wrapf(
 				err,
 				"Failed to run SharePoint backup for site %s",
-				sel.DiscreteOwner,
+				discSel.DiscreteOwner,
 			))
 
 			continue
