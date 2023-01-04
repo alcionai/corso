@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -47,7 +49,10 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
 
 	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
+	artistAndAlbum := map[string]string{
+		"Our Love to  Admire": "Interpol",
+	}
+	listing := mockconnector.GetMockList("Mock List", "Artist", artistAndAlbum)
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
@@ -101,7 +106,7 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 	siteID := tester.M365SiteID(t)
 
 	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
+	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
@@ -124,6 +129,39 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 	deets, err := restoreListItem(ctx, service, listData, siteID, destName)
 	assert.NoError(t, err)
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
+
+	// Clean-Up
+	var (
+		builder  = service.Client().SitesById(siteID).Lists()
+		isFound  bool
+		deleteID string
+	)
+
+	for {
+		resp, err := builder.Get(ctx, nil)
+		assert.NoError(t, err, "experienced query error during clean up. Details:  "+support.ConnectorStackErrorTrace(err))
+
+		for _, temp := range resp.GetValue() {
+			if *temp.GetDisplayName() == deets.SharePoint.ItemName {
+				isFound = true
+				deleteID = *temp.GetId()
+
+				break
+			}
+		}
+		// Get Next Link
+		link := resp.GetOdataNextLink()
+		if link == nil {
+			break
+		}
+
+		builder = sites.NewItemListsRequestBuilder(*link, service.Adapter())
+	}
+
+	if isFound {
+		err := DeleteList(ctx, service, siteID, deleteID)
+		assert.NoError(t, err)
+	}
 }
 
 // TestRestoreLocation temporary test for greater restore operation
