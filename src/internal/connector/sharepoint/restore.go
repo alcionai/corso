@@ -156,6 +156,8 @@ func restoreListItem(
 		contents = append(contents, temp)
 	}
 
+	newList.SetItems(contents)
+
 	// Restore to List base to M365 back store
 	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
@@ -168,7 +170,8 @@ func restoreListItem(
 		return dii, errors.Wrap(err, errorMsg)
 	}
 
-	// Restore Items or attempt it
+	// Uploading of ListItems is conducted after the List is restored
+	// Reference: https://learn.microsoft.com/en-us/graph/api/listitem-create?view=graph-rest-1.0&tabs=http
 	if len(contents) > 0 {
 		for _, lItem := range contents {
 			_, err := service.Client().
