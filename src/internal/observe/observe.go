@@ -344,6 +344,7 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
 			decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
 		),
+		mpb.BarFillerOnComplete(spinFrames[0]),
 	}
 
 	if !cfg.keepBarsAfterComplete {

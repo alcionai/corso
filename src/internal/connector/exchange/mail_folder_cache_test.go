@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 )
 
 const (
@@ -26,37 +27,29 @@ const (
 
 type MailFolderCacheIntegrationSuite struct {
 	suite.Suite
-	gs graph.Servicer
+	credentials account.M365Config
+}
+
+func TestMailFolderCacheIntegrationSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorExchangeTests)
+
+	suite.Run(t, new(MailFolderCacheIntegrationSuite))
 }
 
 func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
-	require.NoError(t, err)
-
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createService(m365)
-	require.NoError(t, err)
-
-	suite.gs = service
-}
-
-func TestMailFolderCacheIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests,
-	); err != nil {
-		t.Skip(err)
-	}
-
-	suite.Run(t, new(MailFolderCacheIntegrationSuite))
+	suite.credentials = m365
 }
 
 func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
@@ -88,9 +81,12 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ac, err := api.NewClient(suite.credentials)
+			require.NoError(t, err)
+
 			mfc := mailFolderCache{
 				userID: userID,
-				gs:     suite.gs,
+				ac:     ac,
 			}
 
 			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))

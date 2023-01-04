@@ -7,6 +7,7 @@ import (
 	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -19,7 +20,7 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
 	*containerResolver
-	gs     graph.Servicer
+	ac     api.Client
 	userID string
 }
 
@@ -31,22 +32,10 @@ type mailFolderCache struct {
 func (mc *mailFolderCache) populateMailRoot(
 	ctx context.Context,
 ) error {
-	wantedOpts := []string{"displayName", "parentFolderId"}
-
-	opts, err := optionsForMailFoldersItem(wantedOpts)
-	if err != nil {
-		return errors.Wrapf(err, "getting options for mail folders %v", wantedOpts)
-	}
-
 	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
 		var directory string
 
-		f, err := mc.
-			gs.
-			Client().
-			UsersById(mc.userID).
-			MailFoldersById(fldr).
-			Get(ctx, opts)
+		f, err := mc.ac.GetMailFolderByID(ctx, mc.userID, fldr, "displayName", "parentFolderId")
 		if err != nil {
 			return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 		}
@@ -56,7 +45,6 @@ func (mc *mailFolderCache) populateMailRoot(
 		}
 
 		temp := graph.NewCacheFolder(f, path.Builder{}.Append(directory))
-
 		if err := mc.addFolder(temp); err != nil {
 			return errors.Wrap(err, "initializing mail resolver")
 		}
@@ -79,15 +67,10 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
-	// Even though this uses the `Delta` query, we do no store or re-use
-	// the delta-link tokens like with other queries.  The goal is always
-	// to retrieve the complete history of folders.
-	query := mc.
-		gs.
-		Client().
-		UsersById(mc.userID).
-		MailFolders().
-		Delta()
+	query, servicer, err := mc.ac.GetAllMailFoldersBuilder(ctx, mc.userID)
+	if err != nil {
+		return err
+	}
 
 	var errs *multierror.Error
 
@@ -114,7 +97,7 @@ func (mc *mailFolderCache) Populate(
 			break
 		}
 
-		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, mc.gs.Adapter())
+		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, servicer.Adapter())
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {

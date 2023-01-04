@@ -48,24 +48,23 @@ func singleUserSet(t *testing.T) []string {
 var loadCtx context.Context
 
 func TestMain(m *testing.M) {
-	ctx, logFlush := tester.NewContext()
-	loadCtx = ctx
-	flush := func() {
-		logFlush()
+	if len(os.Getenv(tester.CorsoLoadTests)) == 0 {
+		return
 	}
 
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err == nil {
-		if err := D.InitCollector(); err != nil {
-			fmt.Println("initializing load tests:", err)
-			os.Exit(1)
-		}
+	ctx, logFlush := tester.NewContext()
+	loadCtx = ctx
 
-		ctx, spanFlush := D.Start(ctx, "Load_Testing_Main")
-		loadCtx = ctx
-		flush = func() {
-			spanFlush()
-			logFlush()
-		}
+	if err := D.InitCollector(); err != nil {
+		fmt.Println("initializing load tests:", err)
+		os.Exit(1)
+	}
+
+	ctx, spanFlush := D.Start(ctx, "Load_Testing_Main")
+	loadCtx = ctx
+	flush := func() {
+		spanFlush()
+		logFlush()
 	}
 
 	exitVal := m.Run()
@@ -80,13 +79,12 @@ func TestMain(m *testing.M) {
 // ------------------------------------------------------------------------------------------------
 
 func initM365Repo(t *testing.T) (
-	context.Context, repository.Repository, account.Account, storage.Storage,
+	context.Context,
+	repository.Repository,
+	account.Account,
+	storage.Storage,
 ) {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs,
-	)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	ctx, flush := tester.WithContext(loadCtx)
 	defer flush()
@@ -378,10 +376,7 @@ type RepositoryLoadTestExchangeSuite struct {
 }
 
 func TestRepositoryLoadTestExchangeSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoLoadTests)
 	suite.Run(t, new(RepositoryLoadTestExchangeSuite))
 }
 
@@ -428,10 +423,7 @@ type RepositoryIndividualLoadTestExchangeSuite struct {
 }
 
 func TestRepositoryIndividualLoadTestExchangeSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoLoadTests)
 	suite.Run(t, new(RepositoryIndividualLoadTestExchangeSuite))
 }
 
@@ -481,10 +473,7 @@ type RepositoryLoadTestOneDriveSuite struct {
 }
 
 func TestRepositoryLoadTestOneDriveSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoLoadTests)
 	suite.Run(t, new(RepositoryLoadTestOneDriveSuite))
 }
 
@@ -528,10 +517,7 @@ type RepositoryIndividualLoadTestOneDriveSuite struct {
 }
 
 func TestRepositoryIndividualLoadTestOneDriveSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoLoadTests)
 	suite.Run(t, new(RepositoryIndividualLoadTestOneDriveSuite))
 }
 
@@ -579,10 +565,7 @@ type RepositoryLoadTestSharePointSuite struct {
 }
 
 func TestRepositoryLoadTestSharePointSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoLoadTests)
 	suite.Run(t, new(RepositoryLoadTestSharePointSuite))
 }
 
@@ -626,10 +609,7 @@ type RepositoryIndividualLoadTestSharePointSuite struct {
 }
 
 func TestRepositoryIndividualLoadTestSharePointSuite(t *testing.T) {
-	if err := tester.RunOnAny(tester.CorsoLoadTests); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoLoadTests)
 	suite.Run(t, new(RepositoryIndividualLoadTestOneDriveSuite))
 }
 

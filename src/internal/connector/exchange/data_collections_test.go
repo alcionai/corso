@@ -209,19 +209,16 @@ type DataCollectionsIntegrationSuite struct {
 }
 
 func TestDataCollectionsIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoConnectorCreateExchangeCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoConnectorCreateExchangeCollectionTests)
 
 	suite.Run(t, new(DataCollectionsIntegrationSuite))
 }
 
 func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())

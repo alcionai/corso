@@ -6,6 +6,7 @@ import (
 	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -15,7 +16,7 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	gs     graph.Servicer
+	ac     api.Client
 	userID string
 }
 
@@ -24,19 +25,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 	directoryID string,
 	baseContainerPath []string,
 ) error {
-	wantedOpts := []string{"displayName", "parentFolderId"}
-
-	opts, err := optionsForContactFolderByID(wantedOpts)
-	if err != nil {
-		return errors.Wrapf(err, "getting options for contact folder cache: %v", wantedOpts)
-	}
-
-	f, err := cfc.
-		gs.
-		Client().
-		UsersById(cfc.userID).
-		ContactFoldersById(directoryID).
-		Get(ctx, opts)
+	f, err := cfc.ac.GetContactFolderByID(ctx, cfc.userID, directoryID)
 	if err != nil {
 		return errors.Wrapf(
 			err,
@@ -65,20 +54,15 @@ func (cfc *contactFolderCache) Populate(
 		return err
 	}
 
-	var (
-		errs         error
-		options, err = optionsForContactChildFolders([]string{"displayName", "parentFolderId"})
-	)
+	var errs error
 
+	builder, options, servicer, err := cfc.ac.GetContactChildFoldersBuilder(
+		ctx,
+		cfc.userID,
+		baseID)
 	if err != nil {
 		return errors.Wrap(err, "contact cache resolver option")
 	}
-
-	builder := cfc.
-		gs.Client().
-		UsersById(cfc.userID).
-		ContactFoldersById(baseID).
-		ChildFolders()
 
 	for {
 		resp, err := builder.Get(ctx, options)
@@ -112,7 +96,7 @@ func (cfc *contactFolderCache) Populate(
 			break
 		}
 
-		builder = msuser.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
+		builder = msuser.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), servicer.Adapter())
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {
