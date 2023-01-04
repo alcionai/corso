@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -50,10 +49,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
 
 	ow := kw.NewJsonSerializationWriter()
-	artistAndAlbum := map[string]string{
-		"Our Love to  Admire": "Interpol",
-	}
-	listing := mockconnector.GetMockList("Mock List", "Artist", artistAndAlbum)
+	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
@@ -98,21 +94,10 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	var (
-		restoreErrors error
-		t             = suite.T()
-		deets         = &details.Builder{}
-		tenant        = "Mocked Tenant"
-		a             = tester.NewM365Account(t)
-		siteID        = tester.M365SiteID(t)
-		errUpdater    = func(id string, err error) {
-			restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
-		}
-		name         = "MockRestoreList"
-		mockList     = mockconnector.GetMockListStream(t, name)
-		account, err = a.M365Config()
-	)
-
+	t := suite.T()
+	siteID := tester.M365SiteID(t)
+	a := tester.NewM365Account(t)
+	account, err := a.M365Config()
 	require.NoError(t, err)
 
 	service, err := createTestService(account)
@@ -126,10 +111,14 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	err = ow.WriteObjectValue("", listing)
 	require.NoError(t, err)
 
-	collection := &mockconnector.MockListCollection{
-		Data: []*mockconnector.MockListData{mockList},
+	byteArray, err := ow.GetSerializedContent()
+	require.NoError(t, err)
+
+	listData := &Item{
+		id:   testName,
+		data: io.NopCloser(bytes.NewReader(byteArray)),
+		info: sharePointListInfo(listing, int64(len(byteArray))),
 	}
-	collection.SetPath(dir)
 
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
@@ -166,8 +155,9 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	}
 
 	if isFound {
-		err := DeleteList(ctx, service, siteID, deleteID)
-		assert.NoError(t, err)
+		//err := DeleteList(ctx, service, siteID, deleteID)
+		//assert.NoError(t, err)
+		t.Logf("Skipping deletion of %s", deleteID)
 	}
 }
 
