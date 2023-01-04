@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -178,16 +179,24 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 		{
 			name: "SharePoint: List Empty",
 			transformation: func(t *testing.T) error {
-				bytes, err := mockconnector.GetMockListBytes(subject, 0)
+				emptyMap := make(map[string]string)
+				temp := mockconnector.GetMockList(subject, "Artist", emptyMap)
+				writer := kioser.NewJsonSerializationWriter()
+				err := writer.WriteObjectValue("", temp)
+				require.NoError(t, err)
+
+				bytes, err := writer.GetSerializedContent()
 				require.NoError(suite.T(), err)
+
 				_, err = support.CreateListFromBytes(bytes)
+
 				return err
 			},
 		},
 		{
 			name: "SharePoint: List 6 Items",
 			transformation: func(t *testing.T) error {
-				bytes, err := mockconnector.GetMockListBytes(subject, 6)
+				bytes, err := mockconnector.GetMockListBytes(subject)
 				require.NoError(suite.T(), err)
 				_, err = support.CreateListFromBytes(bytes)
 				return err
