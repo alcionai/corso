@@ -65,9 +65,6 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
-	// Use addFolder instead of AddToCache to be conservative about path
-	// population. The fetch order of the folders could cause failures while
-	// trying to resolve paths, so put it off until we've gotten all folders.
 	err := mc.ac.EnumerateMailFolders(ctx, mc.userID, mc.addFolder)
 	if err != nil {
 		return err
