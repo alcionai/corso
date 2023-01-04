@@ -55,7 +55,7 @@ func (s Service) Serialize(object absser.Parsable) ([]byte, error) {
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "writeObjectValue call failed during Service.Serialize call")
+		return nil, errors.Wrap(err, "writeObjecValue serialization")
 	}
 
 	return writer.GetSerializedContent()
