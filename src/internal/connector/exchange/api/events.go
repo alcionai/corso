@@ -73,7 +73,7 @@ func (c Client) EnumerateCalendars(
 
 	var errs *multierror.Error
 
-	ofc, err := optionsForCalendars([]string{})
+	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
 		return errors.Wrapf(err, "options for event calendars")
 	}
@@ -87,8 +87,7 @@ func (c Client) EnumerateCalendars(
 		}
 
 		for _, cal := range resp.GetValue() {
-			cd := CreateCalendarDisplayable(cal)
-
+			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
@@ -196,17 +195,4 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
 	return nil
-}
-
-// CreateCalendarDisplayable creates a calendarDisplayable from
-// the interface returned by graph when iterating over event calendars.
-func CreateCalendarDisplayable(entry any) CalendarDisplayable {
-	calendar, ok := entry.(models.Calendarable)
-	if !ok {
-		return CalendarDisplayable{}
-	}
-
-	return CalendarDisplayable{
-		Calendarable: calendar,
-	}
 }
