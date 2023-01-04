@@ -345,7 +345,7 @@ func getItemStream(
 
 func getMetaReader(ctx context.Context, snapshotRoot fs.Entry, itemPath path.Path) (io.ReadCloser, error) {
 	pe := itemPath.PopFront().Elements()
-	pe[len(pe)-1] += ".meta"
+	pe[len(pe)-1] += MetaFileSuffix
 
 	em, err := snapshotfs.GetNestedEntry(ctx, snapshotRoot, encodeElements(pe...))
 	if err != nil {

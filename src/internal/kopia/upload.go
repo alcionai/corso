@@ -26,6 +26,10 @@ import (
 
 const maxInflateTraversalDepth = 500
 
+// ":" is not a valid char for file/folder names and so will not be
+// present in the source
+const MetaFileSuffix = ":meta"
+
 var versionSize = int(unsafe.Sizeof(serializationVersion))
 
 func newBackupStreamReader(version uint32, reader io.ReadCloser) *backupStreamReader {
@@ -310,10 +314,6 @@ func collectionEntries(
 			if e.ToReader() != nil {
 				// For folder metadata, there will be no data
 				entry := virtualfs.StreamingFileWithModTimeFromReader(
-					// TODO(meain): Add a suffix for encodedName so
-					// that we will not have conflicts even if there
-					// is a file with `.meta` suffix in the original
-					// drive
 					encodedName,
 					modTime,
 					newBackupStreamReader(serializationVersion, e.ToReader()),
@@ -328,7 +328,7 @@ func collectionEntries(
 
 			if em != nil {
 				entry := virtualfs.StreamingFileWithModTimeFromReader(
-					encodeAsPath(e.UUID()+".meta"),
+					encodeAsPath(e.UUID()+MetaFileSuffix),
 					modTime,
 					newBackupStreamReader(serializationVersion, em),
 				)
