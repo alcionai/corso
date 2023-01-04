@@ -652,8 +652,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	require.NoError(t, err)
 
-	// generate 2 new containers with two items each.
-	// A third container will be introduced partway through the changes.
+	ac, err := api.NewClient(m365)
+	require.NoError(t, err)
+
+	// generate 3 new folders with two items each.
+	// Only the first two folders will be part of the initial backup and
+	// incrementals.  The third folder will be introduced partway through
+	// the changes.
 	// This should be enough to cover most delta actions, since moving one
 	// container into another generates a delta for both addition and deletion.
 	type contDeets struct {
@@ -927,7 +932,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := api.FetchMessageIDsFromDirectory(ctx, gc.Service, suite.user, containerID, "")
+						ids, _, _, err := ac.FetchMessageIDsFromDirectory(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting message ids")
 						require.NotEmpty(t, ids, "message ids in folder")
 
@@ -935,7 +940,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
 
 					case path.ContactsCategory:
-						ids, _, _, err := api.FetchContactIDsFromDirectory(ctx, gc.Service, suite.user, containerID, "")
+						ids, _, _, err := ac.FetchContactIDsFromDirectory(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting contact ids")
 						require.NotEmpty(t, ids, "contact ids in folder")
 
