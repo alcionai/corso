@@ -182,9 +182,24 @@ func RestoreCollection(
 
 			metrics.TotalBytes += int64(len(copyBuffer))
 
+			metar, err := itemData.ToMetaReader()
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			cmeta, err := getItemMeta(metar)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+			permAdded, permRemoved := getChildPermissions(cmeta.Permissions, meta.Permissions)
+
 			itemInfo, err := restoreItem(ctx,
 				service,
 				itemData,
+				permAdded,
+				permRemoved,
 				drivePath.DriveID,
 				parentFolderID,
 				copyBuffer,
@@ -198,7 +213,6 @@ func RestoreCollection(
 			if err != nil {
 				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
 				errUpdater(itemData.UUID(), err)
-
 				continue
 			}
 
@@ -223,7 +237,13 @@ func getItemMeta(metar io.ReadCloser) (ItemMeta, error) {
 			return ItemMeta{}, err
 		}
 
-		err = json.Unmarshal(metaraw[4:], &meta) // TODO(meain): First 4 bytes are somehow 00 00 00 01
+		// TODO(meain): First 4 bytes are somehow 00 00 00 01 for
+		// folder metadata
+		start := 0
+		if metaraw[0] != '{' {
+			start = 4
+		}
+		err = json.Unmarshal(metaraw[start:], &meta)
 		if err != nil {
 			return ItemMeta{}, err
 		}
@@ -291,6 +311,7 @@ func restoreItem(
 	ctx context.Context,
 	service graph.Servicer,
 	itemData data.Stream,
+	permAdded, permRemoved []UserPermission,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
 	source driveSource,
@@ -307,25 +328,8 @@ func restoreItem(
 		return details.ItemInfo{}, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
 	}
 
-	imReader, err := itemData.ToMetaReader()
-	if err != nil {
-		return details.ItemInfo{}, errors.Wrapf(err, "failed to fetch metadata: item %s", itemName)
-	}
-
-	rmeta, err := ioutil.ReadAll(imReader)
-	if err != nil {
-		return details.ItemInfo{}, errors.Wrapf(err, "failed to read metadata: item %s", itemName)
-	}
-
-	var meta ItemMeta
-	err = json.Unmarshal(rmeta, &meta)
-	if err != nil {
-		return details.ItemInfo{}, errors.Wrapf(err, "failed to parse metadata: item %s", itemName)
-	}
-
 	// Create Item
-	// TODO(meain): handle file permissions
-	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false), []UserPermission{}, []UserPermission{})
+	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false), permAdded, permRemoved)
 	if err != nil {
 		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
 	}
