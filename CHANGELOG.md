@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed issue where repository connect progress bar was clobbering backup/restore operation output.
-- Fixed issue where a `backup create` produced one backup record per data type.
+- Fixed issue where a `backup create exchange` produced one backup record per data type.
 
 ### Known Issues
 
