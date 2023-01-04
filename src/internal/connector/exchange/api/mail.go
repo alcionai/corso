@@ -59,7 +59,6 @@ func (c Client) DeleteMailFolder(
 }
 
 // RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
-// Attachment field is omitted due to size.
 func (c Client) RetrieveMessageDataForUser(
 	ctx context.Context,
 	user, m365ID string,

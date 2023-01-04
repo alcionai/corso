@@ -35,7 +35,6 @@ func (c Client) DeleteCalendar(
 }
 
 // RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
-// Calendarable and attachment fields are omitted due to size
 func (c Client) RetrieveEventDataForUser(
 	ctx context.Context,
 	user, m365ID string,

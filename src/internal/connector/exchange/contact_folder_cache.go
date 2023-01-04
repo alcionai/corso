@@ -16,8 +16,7 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	ac api.Client
-	// gs     graph.Servicer
+	ac     api.Client
 	userID string
 }
 
