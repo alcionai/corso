@@ -484,7 +484,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.kw,
 				test.sw,
 				test.acct,
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				evmock.NewBus())
 			test.errCheck(t, err)
 		})
@@ -516,6 +516,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
+
 				return sel
 			},
 			resourceOwner:  suite.user,
@@ -531,6 +533,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 					users,
 					[]string{exchange.DefaultContactFolder},
 					selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
 
 				return sel
 			},
@@ -544,6 +547,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
+
 				return sel
 			},
 			resourceOwner: suite.user,
@@ -876,16 +881,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					switch category {
 					case path.EmailCategory:
 						cmf := cli.MailFoldersById(containerID)
+
 						body, err := cmf.Get(ctx, nil)
 						require.NoError(t, err, "getting mail folder")
+
 						body.SetDisplayName(&containerRename)
 						_, err = cmf.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating mail folder name")
 
 					case path.ContactsCategory:
 						ccf := cli.ContactFoldersById(containerID)
+
 						body, err := ccf.Get(ctx, nil)
 						require.NoError(t, err, "getting contact folder")
+
 						body.SetDisplayName(&containerRename)
 						_, err = ccf.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating contact folder name")

@@ -47,7 +47,6 @@ func (gc *GraphConnector) DataCollections(
 			ctx,
 			sels,
 			metadata,
-			gc.GetUsers(),
 			gc.credentials,
 			// gc.Service,
 			gc.UpdateStatus,
@@ -154,31 +153,29 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	var (
-		scopes      = odb.DiscreteScopes([]string{selector.DiscreteOwner})
+		user        = selector.DiscreteOwner
 		collections = []data.Collection{}
 		errs        error
 	)
 
 	// for each scope that includes oneDrive items, get all
-	for _, scope := range scopes {
-		for _, user := range scope.Get(selectors.OneDriveUser) {
-			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
+	for _, scope := range odb.Scopes() {
+		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
-			odcs, err := onedrive.NewCollections(
-				gc.credentials.AzureTenantID,
-				user,
-				onedrive.OneDriveSource,
-				odFolderMatcher{scope},
-				gc.Service,
-				gc.UpdateStatus,
-				ctrlOpts,
-			).Get(ctx)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, errs)
-			}
-
-			collections = append(collections, odcs...)
+		odcs, err := onedrive.NewCollections(
+			gc.credentials.AzureTenantID,
+			user,
+			onedrive.OneDriveSource,
+			odFolderMatcher{scope},
+			gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts,
+		).Get(ctx)
+		if err != nil {
+			return nil, support.WrapAndAppend(user, err, errs)
 		}
+
+		collections = append(collections, odcs...)
 	}
 
 	for range collections {

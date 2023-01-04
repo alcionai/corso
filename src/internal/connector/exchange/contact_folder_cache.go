@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 
-	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -54,60 +53,16 @@ func (cfc *contactFolderCache) Populate(
 		return err
 	}
 
-	var errs error
-
-	builder, options, servicer, err := cfc.ac.GetContactChildFoldersBuilder(
-		ctx,
-		cfc.userID,
-		baseID)
+	err := cfc.ac.EnumerateContactsFolders(ctx, cfc.userID, baseID, cfc.addFolder)
 	if err != nil {
-		return errors.Wrap(err, "contact cache resolver option")
-	}
-
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, fold := range resp.GetValue() {
-			if err := checkIDAndName(fold); err != nil {
-				errs = support.WrapAndAppend(
-					"adding folder to contact resolver",
-					err,
-					errs,
-				)
-
-				continue
-			}
-
-			temp := graph.NewCacheFolder(fold, nil)
-
-			err = cfc.addFolder(temp)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					"cache build in cfc.Populate",
-					err,
-					errs)
-			}
-		}
-
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = msuser.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), servicer.Adapter())
+		return err
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {
-		errs = support.WrapAndAppend(
-			"contacts resolver",
-			err,
-			errs,
-		)
+		return errors.Wrap(err, "contacts resolver")
 	}
 
-	return errs
+	return nil
 }
 
 func (cfc *contactFolderCache) init(

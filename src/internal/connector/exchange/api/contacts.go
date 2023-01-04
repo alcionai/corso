@@ -76,28 +76,30 @@ func (c Client) GetContactFolderByID(
 		Get(ctx, ofcf)
 }
 
-// TODO: we want this to be the full handler, not only the builder.
-// but this halfway point minimizes changes for now.
-func (c Client) GetContactChildFoldersBuilder(
+// EnumerateContactsFolders iterates through all of the users current
+// contacts folders, converting each to a graph.CacheFolder, and calling
+// fn(cf) on each one.  If fn(cf) errors, the error is aggregated
+// into a multierror that gets returned to the caller.
+// Folder hierarchy is represented in its current state, and does
+// not contain historical data.
+func (c Client) EnumerateContactsFolders(
 	ctx context.Context,
 	userID, baseDirID string,
-	optionalFields ...string,
-) (
-	*users.ItemContactFoldersItemChildFoldersRequestBuilder,
-	*users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration,
-	*graph.Service,
-	error,
-) {
+	fn func(graph.CacheFolder) error,
+) error {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	fields := append([]string{"displayName", "parentFolderId"}, optionalFields...)
+	var (
+		errs   *multierror.Error
+		fields = []string{"displayName", "parentFolderId"}
+	)
 
 	ofcf, err := optionsForContactChildFolders(fields)
 	if err != nil {
-		return nil, nil, nil, errors.Wrapf(err, "options for contact child folders: %v", fields)
+		return errors.Wrapf(err, "options for contact child folders: %v", fields)
 	}
 
 	builder := service.Client().
@@ -105,7 +107,35 @@ func (c Client) GetContactChildFoldersBuilder(
 		ContactFoldersById(baseDirID).
 		ChildFolders()
 
-	return builder, ofcf, service, nil
+	for {
+		resp, err := builder.Get(ctx, ofcf)
+		if err != nil {
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		}
+
+		for _, fold := range resp.GetValue() {
+			if err := checkIDAndName(fold); err != nil {
+				errs = multierror.Append(err, errs)
+				continue
+			}
+
+			temp := graph.NewCacheFolder(fold, nil)
+
+			err = fn(temp)
+			if err != nil {
+				errs = multierror.Append(err, errs)
+				continue
+			}
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), service.Adapter())
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
