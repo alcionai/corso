@@ -15,68 +15,82 @@ import (
 
 // CreateCalendar makes an event Calendar with the name in the user's M365 exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-calendars?view=graph-rest-1.0&tabs=go
-func CreateCalendar(ctx context.Context, gs graph.Servicer, user, calendarName string) (models.Calendarable, error) {
+func (c Client) CreateCalendar(
+	ctx context.Context,
+	user, calendarName string,
+) (models.Calendarable, error) {
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	return gs.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	return c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 }
 
 // DeleteCalendar removes calendar from user's M365 account
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
-func DeleteCalendar(ctx context.Context, gs graph.Servicer, user, calendarID string) error {
-	return gs.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+func (c Client) DeleteCalendar(
+	ctx context.Context,
+	user, calendarID string,
+) error {
+	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
 // RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
-// Calendarable and attachment fields are omitted due to size
-func RetrieveEventDataForUser(
+func (c Client) RetrieveEventDataForUser(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
-	return gs.Client().UsersById(user).EventsById(m365ID).Get(ctx, nil)
+	return c.stable.Client().UsersById(user).EventsById(m365ID).Get(ctx, nil)
 }
 
-func GetAllCalendarNamesForUser(ctx context.Context, gs graph.Servicer, user string) (serialization.Parsable, error) {
+func (c Client) GetAllCalendarNamesForUser(
+	ctx context.Context,
+	user string,
+) (serialization.Parsable, error) {
 	options, err := optionsForCalendars([]string{"name", "owner"})
 	if err != nil {
 		return nil, err
 	}
 
-	return gs.Client().UsersById(user).Calendars().Get(ctx, options)
+	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
 }
 
 // TODO: we want this to be the full handler, not only the builder.
 // but this halfway point minimizes changes for now.
-func GetCalendarsBuilder(
+func (c Client) GetCalendarsBuilder(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID string,
 	optionalFields ...string,
 ) (
 	*users.ItemCalendarsRequestBuilder,
 	*users.ItemCalendarsRequestBuilderGetRequestConfiguration,
+	*graph.Service,
 	error,
 ) {
-	ofcf, err := optionsForCalendars(optionalFields)
+	service, err := c.service()
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "options for event calendars: %v", optionalFields)
+		return nil, nil, nil, err
 	}
 
-	builder := gs.Client().
-		UsersById(userID).
-		Calendars()
+	ofcf, err := optionsForCalendars(optionalFields)
+	if err != nil {
+		return nil, nil, nil, errors.Wrapf(err, "options for event calendars: %v", optionalFields)
+	}
 
-	return builder, ofcf, nil
+	builder := service.Client().UsersById(userID).Calendars()
+
+	return builder, ofcf, service, nil
 }
 
 // FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
-func FetchEventIDsFromCalendar(
+func (c Client) FetchEventIDsFromCalendar(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, calendarID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
 	var (
 		errs *multierror.Error
 		ids  []string
@@ -87,10 +101,7 @@ func FetchEventIDsFromCalendar(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	builder := gs.Client().
-		UsersById(user).
-		CalendarsById(calendarID).
-		Events()
+	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
 
 	for {
 		resp, err := builder.Get(ctx, options)
@@ -121,7 +132,7 @@ func FetchEventIDsFromCalendar(
 			break
 		}
 
-		builder = users.NewItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
+		builder = users.NewItemCalendarsItemEventsRequestBuilder(*nextLink, service.Adapter())
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,11 +37,11 @@ func PopulateExchangeContainerResolver(
 	qp graph.QueryParams,
 ) (graph.ContainerResolver, error) {
 	var (
-		res          graph.ContainerResolver
-		cacheRoot    string
-		service, err = createService(qp.Credentials)
+		res       graph.ContainerResolver
+		cacheRoot string
 	)
 
+	ac, err := api.NewClient(qp.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -49,21 +50,21 @@ func PopulateExchangeContainerResolver(
 	case path.EmailCategory:
 		res = &mailFolderCache{
 			userID: qp.ResourceOwner,
-			gs:     service,
+			ac:     ac,
 		}
 		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
 		res = &contactFolderCache{
 			userID: qp.ResourceOwner,
-			gs:     service,
+			ac:     ac,
 		}
 		cacheRoot = DefaultContactFolder
 
 	case path.EventsCategory:
 		res = &eventCalendarCache{
 			userID: qp.ResourceOwner,
-			gs:     service,
+			ac:     ac,
 		}
 		cacheRoot = DefaultCalendar
 

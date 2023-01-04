@@ -15,39 +15,39 @@ import (
 
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
-func CreateContactFolder(
+func (c Client) CreateContactFolder(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, folderName string,
 ) (models.ContactFolderable, error) {
 	requestBody := models.NewContactFolder()
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
 
-	return gs.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
+	return c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 }
 
 // DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
 // Errors returned if the function call was not successful.
-func DeleteContactFolder(ctx context.Context, gs graph.Servicer, user, folderID string) error {
-	return gs.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+func (c Client) DeleteContactFolder(
+	ctx context.Context,
+	user, folderID string,
+) error {
+	return c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 }
 
 // RetrieveContactDataForUser is a GraphRetrievalFun that returns all associated fields.
-func RetrieveContactDataForUser(
+func (c Client) RetrieveContactDataForUser(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
-	return gs.Client().UsersById(user).ContactsById(m365ID).Get(ctx, nil)
+	return c.stable.Client().UsersById(user).ContactsById(m365ID).Get(ctx, nil)
 }
 
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting
 // ContactFolderId and display names for contacts. All other information is omitted.
 // Does not return the default Contact Folder
-func GetAllContactFolderNamesForUser(
+func (c Client) GetAllContactFolderNamesForUser(
 	ctx context.Context,
-	gs graph.Servicer,
 	user string,
 ) (serialization.Parsable, error) {
 	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
@@ -55,12 +55,11 @@ func GetAllContactFolderNamesForUser(
 		return nil, err
 	}
 
-	return gs.Client().UsersById(user).ContactFolders().Get(ctx, options)
+	return c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
 }
 
-func GetContactFolderByID(
+func (c Client) GetContactFolderByID(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, dirID string,
 	optionalFields ...string,
 ) (models.ContactFolderable, error) {
@@ -71,7 +70,7 @@ func GetContactFolderByID(
 		return nil, errors.Wrapf(err, "options for contact folder: %v", fields)
 	}
 
-	return gs.Client().
+	return c.stable.Client().
 		UsersById(userID).
 		ContactFoldersById(dirID).
 		Get(ctx, ofcf)
@@ -79,38 +78,47 @@ func GetContactFolderByID(
 
 // TODO: we want this to be the full handler, not only the builder.
 // but this halfway point minimizes changes for now.
-func GetContactChildFoldersBuilder(
+func (c Client) GetContactChildFoldersBuilder(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, baseDirID string,
 	optionalFields ...string,
 ) (
 	*users.ItemContactFoldersItemChildFoldersRequestBuilder,
 	*users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration,
+	*graph.Service,
 	error,
 ) {
+	service, err := c.service()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	fields := append([]string{"displayName", "parentFolderId"}, optionalFields...)
 
 	ofcf, err := optionsForContactChildFolders(fields)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "options for contact child folders: %v", fields)
+		return nil, nil, nil, errors.Wrapf(err, "options for contact child folders: %v", fields)
 	}
 
-	builder := gs.Client().
+	builder := service.Client().
 		UsersById(userID).
 		ContactFoldersById(baseDirID).
 		ChildFolders()
 
-	return builder, ofcf, nil
+	return builder, ofcf, service, nil
 }
 
 // FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
 // of the targeted directory
-func FetchContactIDsFromDirectory(
+func (c Client) FetchContactIDsFromDirectory(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, directoryID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
 	var (
 		errs       *multierror.Error
 		ids        []string
@@ -167,14 +175,14 @@ func FetchContactIDsFromDirectory(
 				break
 			}
 
-			builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
+			builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, service.Adapter())
 		}
 
 		return nil
 	}
 
 	if len(oldDelta) > 0 {
-		err := getIDs(users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter()))
+		err := getIDs(users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter()))
 		// note: happy path, not the error condition
 		if err == nil {
 			return ids, removedIDs, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
@@ -189,7 +197,7 @@ func FetchContactIDsFromDirectory(
 		errs = nil
 	}
 
-	builder := gs.Client().
+	builder := service.Client().
 		UsersById(user).
 		ContactFoldersById(directoryID).
 		Contacts().

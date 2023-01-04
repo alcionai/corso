@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -135,6 +136,7 @@ type GraphConnectorIntegrationSuite struct {
 	suite.Suite
 	connector *GraphConnector
 	user      string
+	acct      account.Account
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
@@ -155,6 +157,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
+	suite.acct = tester.NewM365Account(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -265,7 +268,12 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			deets, err := suite.connector.RestoreDataCollections(ctx, test.sel, dest, test.col)
+			deets, err := suite.connector.RestoreDataCollections(
+				ctx,
+				suite.acct,
+				test.sel,
+				dest,
+				test.col)
 			require.NoError(t, err)
 			assert.NotNil(t, deets)
 
@@ -308,6 +316,7 @@ func mustGetDefaultDriveID(
 
 func runRestoreBackupTest(
 	t *testing.T,
+	acct account.Account,
 	test restoreBackupInfo,
 	tenant string,
 	users []string,
@@ -349,7 +358,12 @@ func runRestoreBackupTest(
 
 	restoreGC := loadConnector(ctx, t, test.resource)
 	restoreSel := getSelectorWith(test.service)
-	deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+	deets, err := restoreGC.RestoreDataCollections(
+		ctx,
+		acct,
+		restoreSel,
+		dest,
+		collections)
 	require.NoError(t, err)
 	assert.NotNil(t, deets)
 
@@ -724,7 +738,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(t, test, suite.connector.tenant, []string{suite.user})
+			runRestoreBackupTest(t, suite.acct, test, suite.connector.tenant, []string{suite.user})
 		})
 	}
 }
@@ -833,7 +847,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				)
 
 				restoreGC := loadConnector(ctx, t, test.resource)
-				deets, err := restoreGC.RestoreDataCollections(ctx, restoreSel, dest, collections)
+				deets, err := restoreGC.RestoreDataCollections(ctx, suite.acct, restoreSel, dest, collections)
 				require.NoError(t, err)
 				require.NotNil(t, deets)
 
@@ -977,7 +991,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiuserRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(t, test, suite.connector.tenant, users)
+			runRestoreBackupTest(t, suite.acct, test, suite.connector.tenant, users)
 		})
 	}
 }

@@ -16,7 +16,7 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	gs     graph.Servicer
+	ac     api.Client
 	userID string
 }
 
@@ -32,7 +32,7 @@ func (ecc *eventCalendarCache) Populate(
 		ecc.containerResolver = newContainerResolver()
 	}
 
-	builder, options, err := api.GetCalendarsBuilder(ctx, ecc.gs, ecc.userID, "name")
+	builder, options, servicer, err := ecc.ac.GetCalendarsBuilder(ctx, ecc.userID, "name")
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (ecc *eventCalendarCache) Populate(
 			break
 		}
 
-		builder = msuser.NewItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
+		builder = msuser.NewItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), servicer.Adapter())
 	}
 
 	for _, container := range directories {

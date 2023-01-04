@@ -168,18 +168,20 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
-	t := suite.T()
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	gc := GraphConnector{wg: &sync.WaitGroup{}}
-	sel := selectors.Selector{
-		Service: selectors.ServiceUnknown,
-	}
-	dest := tester.DefaultTestRestoreDestination()
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		dest = tester.DefaultTestRestoreDestination()
+		gc   = GraphConnector{wg: &sync.WaitGroup{}}
+		sel  = selectors.Selector{
+			Service: selectors.ServiceUnknown,
+		}
+	)
 
-	deets, err := gc.RestoreDataCollections(ctx, sel, dest, nil)
+	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, nil)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 

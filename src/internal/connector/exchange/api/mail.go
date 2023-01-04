@@ -15,26 +15,34 @@ import (
 
 // CreateMailFolder makes a mail folder iff a folder of the same name does not exist
 // Reference: https://docs.microsoft.com/en-us/graph/api/user-post-mailfolders?view=graph-rest-1.0&tabs=http
-func CreateMailFolder(ctx context.Context, gs graph.Servicer, user, folder string) (models.MailFolderable, error) {
-	isHidden := false
-	requestBody := models.NewMailFolder()
-	requestBody.SetDisplayName(&folder)
-	requestBody.SetIsHidden(&isHidden)
-
-	return gs.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
-}
-
-func CreateMailFolderWithParent(
+func (c Client) CreateMailFolder(
 	ctx context.Context,
-	gs graph.Servicer,
-	user, folder, parentID string,
+	user, folder string,
 ) (models.MailFolderable, error) {
 	isHidden := false
 	requestBody := models.NewMailFolder()
 	requestBody.SetDisplayName(&folder)
 	requestBody.SetIsHidden(&isHidden)
 
-	return gs.Client().
+	return c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+}
+
+func (c Client) CreateMailFolderWithParent(
+	ctx context.Context,
+	user, folder, parentID string,
+) (models.MailFolderable, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, err
+	}
+
+	isHidden := false
+	requestBody := models.NewMailFolder()
+	requestBody.SetDisplayName(&folder)
+	requestBody.SetIsHidden(&isHidden)
+
+	return service.
+		Client().
 		UsersById(user).
 		MailFoldersById(parentID).
 		ChildFolders().
@@ -43,18 +51,19 @@ func CreateMailFolderWithParent(
 
 // DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func DeleteMailFolder(ctx context.Context, gs graph.Servicer, user, folderID string) error {
-	return gs.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
+func (c Client) DeleteMailFolder(
+	ctx context.Context,
+	user, folderID string,
+) error {
+	return c.stable.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
 }
 
 // RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
-// Attachment field is omitted due to size.
-func RetrieveMessageDataForUser(
+func (c Client) RetrieveMessageDataForUser(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
-	return gs.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
+	return c.stable.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
 }
 
 // GetMailFoldersBuilder retrieves all of the users current mail folders.
@@ -62,20 +71,29 @@ func RetrieveMessageDataForUser(
 // not contain historical data.
 // TODO: we want this to be the full handler, not only the builder.
 // but this halfway point minimizes changes for now.
-func GetAllMailFoldersBuilder(
+func (c Client) GetAllMailFoldersBuilder(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID string,
-) *users.ItemMailFoldersDeltaRequestBuilder {
-	return gs.Client().
+) (
+	*users.ItemMailFoldersDeltaRequestBuilder,
+	*graph.Service,
+	error,
+) {
+	service, err := c.service()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	builder := service.Client().
 		UsersById(userID).
 		MailFolders().
 		Delta()
+
+	return builder, service, nil
 }
 
-func GetMailFolderByID(
+func (c Client) GetMailFolderByID(
 	ctx context.Context,
-	gs graph.Servicer,
 	userID, dirID string,
 	optionalFields ...string,
 ) (models.MailFolderable, error) {
@@ -84,19 +102,20 @@ func GetMailFolderByID(
 		return nil, errors.Wrapf(err, "options for mail folder: %v", optionalFields)
 	}
 
-	return gs.Client().
-		UsersById(userID).
-		MailFoldersById(dirID).
-		Get(ctx, ofmf)
+	return c.stable.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 }
 
 // FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
 // of the targeted directory
-func FetchMessageIDsFromDirectory(
+func (c Client) FetchMessageIDsFromDirectory(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, directoryID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
+	}
+
 	var (
 		errs       *multierror.Error
 		ids        []string
@@ -153,14 +172,14 @@ func FetchMessageIDsFromDirectory(
 				break
 			}
 
-			builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
+			builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, service.Adapter())
 		}
 
 		return nil
 	}
 
 	if len(oldDelta) > 0 {
-		err := getIDs(users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter()))
+		err := getIDs(users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter()))
 		// note: happy path, not the error condition
 		if err == nil {
 			return ids, removedIDs, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
@@ -175,11 +194,7 @@ func FetchMessageIDsFromDirectory(
 		errs = nil
 	}
 
-	builder := gs.Client().
-		UsersById(user).
-		MailFoldersById(directoryID).
-		Messages().
-		Delta()
+	builder := service.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
 
 	if err := getIDs(builder); err != nil {
 		return nil, nil, DeltaUpdate{}, err
