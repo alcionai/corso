@@ -20,22 +20,17 @@ type S3IntegrationSuite struct {
 }
 
 func TestS3IntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIRepoTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIRepoTests)
 
 	suite.Run(t, new(S3IntegrationSuite))
 }
 
 func (suite *S3IntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *S3IntegrationSuite) TestInitS3Cmd() {

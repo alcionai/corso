@@ -21,12 +21,10 @@ type OneDriveSuite struct {
 }
 
 func TestOneDriveDriveSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoOneDriveTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoOneDriveTests)
 
 	suite.Run(t, new(OneDriveSuite))
 }

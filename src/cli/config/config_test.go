@@ -187,21 +187,16 @@ type ConfigIntegrationSuite struct {
 }
 
 func TestConfigIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoCLIConfigTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIConfigTests)
 
 	suite.Run(t, new(ConfigIntegrationSuite))
 }
 
 func (suite *ConfigIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
