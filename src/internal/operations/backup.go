@@ -326,7 +326,10 @@ func collectMetadata(
 
 	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "collecting prior metadata")
+		// Restore is best-effort and we want to keep it that way since we want to
+		// return as much metadata as we can to reduce the work we'll need to do.
+		// Just wrap the error here for better reporting/debugging.
+		return dcs, errors.Wrap(err, "collecting prior metadata")
 	}
 
 	return dcs, nil
