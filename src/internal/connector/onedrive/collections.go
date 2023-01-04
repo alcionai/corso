@@ -129,10 +129,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		}
 
 		switch {
-		case item.GetPackage() != nil:
-			// Leave this here so we don't fall into the default case.
-
-		case item.GetFolder() != nil, item.GetFile() != nil:
+		case item.GetPackage() != nil, item.GetFolder() != nil, item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
 				col = NewCollection(
