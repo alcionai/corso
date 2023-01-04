@@ -3,9 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -218,54 +216,6 @@ func pathFromPrevString(ps string) (path.Path, error) {
 	}
 
 	return p, nil
-}
-
-func IterativeCollectContactContainers(
-	containers map[string]graph.Container,
-	nameContains string,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		folder, ok := entry.(models.ContactFolderable)
-		if !ok {
-			errUpdater("iterateCollectContactContainers",
-				errors.New("casting item to models.ContactFolderable"))
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			strings.Contains(*folder.GetDisplayName(), nameContains)
-
-		if include {
-			containers[*folder.GetDisplayName()] = folder
-		}
-
-		return true
-	}
-}
-
-func IterativeCollectCalendarContainers(
-	containers map[string]graph.Container,
-	nameContains string,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		cal, ok := entry.(models.Calendarable)
-		if !ok {
-			errUpdater("iterativeCollectCalendarContainers",
-				errors.New("casting item to models.Calendarable"))
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			strings.Contains(*cal.GetName(), nameContains)
-		if include {
-			temp := CreateCalendarDisplayable(cal)
-			containers[*temp.GetDisplayName()] = temp
-		}
-
-		return true
-	}
 }
 
 // FetchIDFunc collection of helper functions which return a list of all item
