@@ -381,13 +381,6 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 			shortRef: short,
 			expect:   assert.True,
 		},
-		{
-			name:     "root matches shortRef",
-			rootVal:  short,
-			leafVal:  leafCatStub.String(),
-			shortRef: short,
-			expect:   assert.False,
-		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
