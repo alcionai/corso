@@ -104,15 +104,10 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	service, err := createTestService(account)
 	require.NoError(t, err)
 
-	ow := kw.NewJsonSerializationWriter()
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
-
-	err = ow.WriteObjectValue("", listing)
-	require.NoError(t, err)
-
-	byteArray, err := ow.GetSerializedContent()
+	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err)
 
 	listData := &Item{
@@ -204,9 +199,7 @@ func (suite *SharePointCollectionSuite) TestRemoveLists() {
 	for _, listID := range deleteList {
 		err := DeleteList(ctx, service, siteID, listID)
 		assert.NoError(t, err)
-
 	}
-
 }
 
 // TestRestoreLocation temporary test for greater restore operation
