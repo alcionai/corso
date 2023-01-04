@@ -382,26 +382,26 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		}
 	)
 
-	prevPath := func(t *testing.T, at string) path.Path {
+	prevPath := func(t *testing.T, at ...string) path.Path {
 		p, err := path.Builder{}.
-			Append(at).
+			Append(at...).
 			ToDataLayerExchangePathForCategory(tenantID, userID, cat, false)
 		require.NoError(t, err)
 
 		return p
 	}
 
+	type endState struct {
+		state      data.CollectionState
+		doNotMerge bool
+	}
+
 	table := []struct {
-		name                  string
-		getter                mockGetter
-		resolver              graph.ContainerResolver
-		dps                   DeltaPaths
-		expectNewColls        int
-		expectNotMovedColls   int
-		expectMovedColls      int
-		expectDeletedColls    int
-		expectMetadataColls   int
-		expectDoNotMergeColls int
+		name     string
+		getter   mockGetter
+		resolver graph.ContainerResolver
+		dps      DeltaPaths
+		expect   map[string]endState
 	}{
 		{
 			name: "new container",
@@ -411,11 +411,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(mockResolvedContainer{
 				id:          "1",
 				displayName: "new",
-				p:           path.Builder{}.Append("new"),
+				p:           path.Builder{}.Append("1", "new"),
 			}),
-			dps:                 DeltaPaths{},
-			expectNewColls:      1,
-			expectMetadataColls: 1,
+			dps: DeltaPaths{},
+			expect: map[string]endState{
+				"1": {data.NewState, false},
+			},
 		},
 		{
 			name: "not moved container",
@@ -425,16 +426,17 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(mockResolvedContainer{
 				id:          "1",
 				displayName: "not_moved",
-				p:           path.Builder{}.Append("not_moved"),
+				p:           path.Builder{}.Append("1", "not_moved"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "not_moved").String(),
+					path:  prevPath(suite.T(), "1", "not_moved").String(),
 				},
 			},
-			expectNotMovedColls: 1,
-			expectMetadataColls: 1,
+			expect: map[string]endState{
+				"1": {data.NotMovedState, false},
+			},
 		},
 		{
 			name: "moved container",
@@ -444,16 +446,17 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(mockResolvedContainer{
 				id:          "1",
 				displayName: "moved",
-				p:           path.Builder{}.Append("moved"),
+				p:           path.Builder{}.Append("1", "moved"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "prev").String(),
+					path:  prevPath(suite.T(), "1", "prev").String(),
 				},
 			},
-			expectMovedColls:    1,
-			expectMetadataColls: 1,
+			expect: map[string]endState{
+				"1": {data.MovedState, false},
+			},
 		},
 		{
 			name:     "deleted container",
@@ -462,11 +465,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "deleted").String(),
+					path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
 			},
-			expectDeletedColls:  1,
-			expectMetadataColls: 1,
+			expect: map[string]endState{
+				"1": {data.DeletedState, false},
+			},
 		},
 		{
 			name: "one deleted, one new",
@@ -476,17 +480,18 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(mockResolvedContainer{
 				id:          "2",
 				displayName: "new",
-				p:           path.Builder{}.Append("new"),
+				p:           path.Builder{}.Append("2", "new"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "deleted").String(),
+					path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
 			},
-			expectNewColls:      1,
-			expectDeletedColls:  1,
-			expectMetadataColls: 1,
+			expect: map[string]endState{
+				"1": {data.DeletedState, false},
+				"2": {data.NewState, false},
+			},
 		},
 		{
 			name: "bad previous path strings",
@@ -496,20 +501,21 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(mockResolvedContainer{
 				id:          "1",
 				displayName: "not_moved",
-				p:           path.Builder{}.Append("not_moved"),
+				p:           path.Builder{}.Append("1", "not_moved"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					delta: "old_delta_url",
-					path:  "fnords/mc/smarfs",
+					path:  "1/fnords/mc/smarfs",
 				},
 				"2": DeltaPath{
 					delta: "old_delta_url",
-					path:  "fnords/mc/smarfs",
+					path:  "2/fnords/mc/smarfs",
 				},
 			},
-			expectNewColls:      1,
-			expectMetadataColls: 1,
+			expect: map[string]endState{
+				"1": {data.NewState, false},
+			},
 		},
 		{
 			name: "delta expiration",
@@ -519,17 +525,17 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			resolver: newMockResolver(mockResolvedContainer{
 				id:          "1",
 				displayName: "same",
-				p:           path.Builder{}.Append("same"),
+				p:           path.Builder{}.Append("1", "same"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "same").String(),
+					path:  prevPath(suite.T(), "1", "same").String(),
 				},
 			},
-			expectNotMovedColls:   1,
-			expectMetadataColls:   1,
-			expectDoNotMergeColls: 1,
+			expect: map[string]endState{
+				"1": {data.NotMovedState, true},
+			},
 		},
 		{
 			name: "a little bit of everything",
@@ -544,48 +550,49 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				mockResolvedContainer{
 					id:          "1",
 					displayName: "new",
-					p:           path.Builder{}.Append("new"),
+					p:           path.Builder{}.Append("1", "new"),
 				},
 				mockResolvedContainer{
 					id:          "2",
 					displayName: "not_moved",
-					p:           path.Builder{}.Append("not_moved"),
+					p:           path.Builder{}.Append("2", "not_moved"),
 				},
 				mockResolvedContainer{
 					id:          "3",
 					displayName: "moved",
-					p:           path.Builder{}.Append("moved"),
+					p:           path.Builder{}.Append("3", "moved"),
 				},
 				mockResolvedContainer{
 					id:          "4",
 					displayName: "moved",
-					p:           path.Builder{}.Append("moved"),
+					p:           path.Builder{}.Append("4", "moved"),
 				},
 			),
 			dps: DeltaPaths{
 				"2": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "not_moved").String(),
+					path:  prevPath(suite.T(), "2", "not_moved").String(),
 				},
 				"3": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "prev").String(),
+					path:  prevPath(suite.T(), "3", "prev").String(),
 				},
 				"4": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "prev").String(),
+					path:  prevPath(suite.T(), "4", "prev").String(),
 				},
 				"5": DeltaPath{
 					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "deleted").String(),
+					path:  prevPath(suite.T(), "5", "deleted").String(),
 				},
 			},
-			expectNotMovedColls:   1,
-			expectMovedColls:      2,
-			expectNewColls:        1,
-			expectDeletedColls:    1,
-			expectDoNotMergeColls: 1,
-			expectMetadataColls:   1,
+			expect: map[string]endState{
+				"1": {data.NewState, false},
+				"2": {data.NotMovedState, false},
+				"3": {data.MovedState, false},
+				"4": {data.MovedState, true},
+				"5": {data.DeletedState, false},
+			},
 		},
 	}
 	for _, test := range table {
@@ -612,40 +619,30 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			)
 			assert.NoError(t, err)
 
-			deleteds, news, notMoveds, moveds, metadatas, doNotMerges := 0, 0, 0, 0, 0, 0
+			metadatas := 0
 			for _, c := range collections {
-				if c.FullPath() != nil && c.FullPath().Service() == path.ExchangeMetadataService {
+				p := c.FullPath()
+				if p == nil {
+					p = c.PreviousPath()
+				}
+
+				require.NotNil(t, p)
+
+				if p.Service() == path.ExchangeMetadataService {
 					metadatas++
 					continue
 				}
 
-				if c.State() == data.DeletedState {
-					deleteds++
-				}
+				p0 := p.Folders()[0]
 
-				if c.State() == data.NotMovedState {
-					notMoveds++
-				}
+				expect, ok := test.expect[p0]
+				assert.True(t, ok, "collection is expected in result")
 
-				if c.State() == data.MovedState {
-					moveds++
-				}
-
-				if c.State() == data.NewState {
-					news++
-				}
-
-				if c.DoNotMergeItems() {
-					doNotMerges++
-				}
+				assert.Equalf(t, expect.state, c.State(), "collection %s state", p0)
+				assert.Equalf(t, expect.doNotMerge, c.DoNotMergeItems(), "collection %s DoNotMergeItems", p0)
 			}
 
-			assert.Equal(t, test.expectDeletedColls, deleteds, "deleted collections")
-			assert.Equal(t, test.expectNewColls, news, "new collections")
-			assert.Equal(t, test.expectNotMovedColls, notMoveds, "not moved collections")
-			assert.Equal(t, test.expectMovedColls, moveds, "moved collections")
-			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
-			assert.Equal(t, test.expectDoNotMergeColls, doNotMerges, "doNotMerge collections")
+			assert.Equal(t, 1, metadatas, "metadata collections")
 		})
 	}
 }
