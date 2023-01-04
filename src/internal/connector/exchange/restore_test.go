@@ -149,7 +149,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			cleanupFunc: suite.ac.DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.NewName(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -162,7 +162,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			cleanupFunc: suite.ac.DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.NewName(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -175,7 +175,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			cleanupFunc: suite.ac.DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.NewName(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -188,7 +188,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			cleanupFunc: suite.ac.DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.NewName(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -201,7 +201,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			cleanupFunc: suite.ac.DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.NewName(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
