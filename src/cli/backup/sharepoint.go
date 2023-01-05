@@ -479,8 +479,7 @@ func runDetailsSharePointCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewSharePointRestore(nil) // TODO: generate selector in IncludeSharePointRestoreDataSelectors
-	utils.IncludeSharePointRestoreDataSelectors(sel, opts)
+	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.

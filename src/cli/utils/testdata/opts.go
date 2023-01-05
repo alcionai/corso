@@ -268,6 +268,7 @@ var (
 		{
 			Name: "BadFileCreatedAfter",
 			Opts: utils.OneDriveOpts{
+				Users:            selectors.Any(),
 				FileCreatedAfter: "foo",
 				Populated: utils.PopulatedFlags{
 					utils.FileCreatedAfterFN: struct{}{},

@@ -131,12 +131,11 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 }
 
 // TestInvalidUserForDataCollections ensures verification process for users
-func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataCollections() {
+func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invalidResourceOwner() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	invalidUser := "foo@example.com"
-	selUsers := []string{invalidUser}
+	owners := []string{"snuffleupagus"}
 
 	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
@@ -146,16 +145,51 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 		{
 			name: "invalid exchange backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.MailFolders(selUsers, selectors.Any()))
+				sel := selectors.NewExchangeBackup(owners)
+				sel.Include(sel.MailFolders(owners, selectors.Any()))
 				return sel.Selector
 			},
 		},
 		{
 			name: "Invalid onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup(selUsers)
-				sel.Include(sel.Folders(selUsers, selectors.Any()))
+				sel := selectors.NewOneDriveBackup(owners)
+				sel.Include(sel.Folders(owners, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "Invalid sharepoint backup site",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup(owners)
+				sel.Include(sel.Libraries(owners, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing exchange backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup(owners)
+				sel.Include(sel.MailFolders(owners, selectors.Any()))
+				sel.DiscreteOwner = ""
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing onedrive backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup(owners)
+				sel.Include(sel.Folders(owners, selectors.Any()))
+				sel.DiscreteOwner = ""
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing sharepoint backup site",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup(owners)
+				sel.Include(sel.Libraries(owners, selectors.Any()))
+				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
 		},

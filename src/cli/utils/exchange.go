@@ -128,30 +128,32 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 
 // IncludeExchangeRestoreDataSelectors builds the common data-selector
 // inclusions for exchange commands.
-func IncludeExchangeRestoreDataSelectors(
-	sel *selectors.ExchangeRestore,
-	opts ExchangeOpts,
-) {
+func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeRestore {
+	users := opts.Users
+	if len(users) == 0 {
+		users = selectors.Any()
+	}
+
+	sel := selectors.NewExchangeRestore(users)
+
 	lc, lcf := len(opts.Contact), len(opts.ContactFolder)
 	le, lef := len(opts.Email), len(opts.EmailFolder)
 	lev, lec := len(opts.Event), len(opts.EventCalendar)
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
-		if len(opts.Users) == 0 {
-			opts.Users = selectors.Any()
-		}
+		sel.Include(sel.Users(users))
 
-		sel.Include(sel.Users(opts.Users))
-
-		return
+		return sel
 	}
 
 	opts.EmailFolder = trimFolderSlash(opts.EmailFolder)
 
 	// or add selectors for each type of data
-	AddExchangeInclude(sel, opts.Users, opts.ContactFolder, opts.Contact, sel.Contacts)
-	AddExchangeInclude(sel, opts.Users, opts.EmailFolder, opts.Email, sel.Mails)
-	AddExchangeInclude(sel, opts.Users, opts.EventCalendar, opts.Event, sel.Events)
+	AddExchangeInclude(sel, users, opts.ContactFolder, opts.Contact, sel.Contacts)
+	AddExchangeInclude(sel, users, opts.EmailFolder, opts.Email, sel.Mails)
+	AddExchangeInclude(sel, users, opts.EventCalendar, opts.Event, sel.Events)
+
+	return sel
 }
 
 // FilterExchangeRestoreInfoSelectors builds the common info-selector filters.
