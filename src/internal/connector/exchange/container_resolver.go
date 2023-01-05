@@ -10,6 +10,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ---------------------------------------------------------------------------
+// common interfaces
+// ---------------------------------------------------------------------------
+
+type containerGetter interface {
+	GetContainerByID(
+		ctx context.Context,
+		userID, dirID string,
+	) (graph.Container, error)
+}
+
+type containersEnumerator interface {
+	EnumerateContainers(
+		ctx context.Context,
+		userID, baseDirID string,
+		fn func(graph.CacheFolder) error,
+	) error
+}
+
+// ---------------------------------------------------------------------------
+// controller
+// ---------------------------------------------------------------------------
+
 // Exchange has a limit of 300 for folder depth. OneDrive has a limit on path
 // length of 400 characters (including separators) which would be roughly 200
 // folders if each folder is only a single character.

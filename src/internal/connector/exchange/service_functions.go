@@ -48,23 +48,27 @@ func PopulateExchangeContainerResolver(
 
 	switch qp.Category {
 	case path.EmailCategory:
+		acm := ac.Mail()
 		res = &mailFolderCache{
 			userID: qp.ResourceOwner,
-			ac:     ac,
+			getter: acm,
+			enumer: acm,
 		}
 		cacheRoot = rootFolderAlias
 
 	case path.ContactsCategory:
+		acc := ac.Contacts()
 		res = &contactFolderCache{
 			userID: qp.ResourceOwner,
-			ac:     ac,
+			getter: acc,
+			enumer: acc,
 		}
 		cacheRoot = DefaultContactFolder
 
 	case path.EventsCategory:
 		res = &eventCalendarCache{
 			userID: qp.ResourceOwner,
-			ac:     ac,
+			enumer: ac.Events(),
 		}
 		cacheRoot = DefaultCalendar
 

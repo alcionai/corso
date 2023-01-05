@@ -174,11 +174,11 @@ func (suite *ExchangeServiceSuite) TestGraphQueryFunctions() {
 	}{
 		{
 			name:     "GraphQuery: Get All ContactFolders",
-			function: c.GetAllContactFolderNamesForUser,
+			function: c.Contacts().GetAllContactFolderNamesForUser,
 		},
 		{
 			name:     "GraphQuery: Get All Calendars for User",
-			function: c.GetAllCalendarNamesForUser,
+			function: c.Events().GetAllCalendarNamesForUser,
 		},
 	}
 
