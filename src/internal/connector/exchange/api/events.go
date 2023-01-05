@@ -27,29 +27,6 @@ type Events struct {
 	Client
 }
 
-type eventPager struct {
-	gs      graph.Servicer
-	builder *users.ItemCalendarsItemEventsRequestBuilder
-	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
-}
-
-type eventWrapper struct {
-	models.EventCollectionResponseable
-}
-
-func (ew eventWrapper) GetOdataDeltaLink() *string {
-	return nil
-}
-
-func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
-	return eventWrapper{resp}, err
-}
-
-func (p *eventPager) setNext(nextLink string) {
-	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
-}
-
 // ---------------------------------------------------------------------------
 // methods
 // ---------------------------------------------------------------------------
@@ -150,6 +127,33 @@ func (c Events) EnumerateContainers(
 	}
 
 	return errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
+
+type eventPager struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsItemEventsRequestBuilder
+	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
+}
+
+type eventWrapper struct {
+	models.EventCollectionResponseable
+}
+
+func (ew eventWrapper) GetOdataDeltaLink() *string {
+	return nil
+}
+
+func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return eventWrapper{resp}, err
+}
+
+func (p *eventPager) setNext(nextLink string) {
+	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (c Events) GetAddedAndRemovedItemIDs(

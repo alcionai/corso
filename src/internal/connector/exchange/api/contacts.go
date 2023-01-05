@@ -26,20 +26,6 @@ type Contacts struct {
 	Client
 }
 
-type contactPager struct {
-	gs      graph.Servicer
-	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
-	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
-}
-
-func (p *contactPager) getPage(ctx context.Context) (pageLinker, error) {
-	return p.builder.Get(ctx, p.options)
-}
-
-func (p *contactPager) setNext(nextLink string) {
-	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
-}
-
 // ---------------------------------------------------------------------------
 // methods
 // ---------------------------------------------------------------------------
@@ -164,6 +150,24 @@ func (c Contacts) EnumerateContainers(
 	}
 
 	return errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
+
+type contactPager struct {
+	gs      graph.Servicer
+	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func (p *contactPager) getPage(ctx context.Context) (pageLinker, error) {
+	return p.builder.Get(ctx, p.options)
+}
+
+func (p *contactPager) setNext(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (c Contacts) GetAddedAndRemovedItemIDs(

@@ -26,20 +26,6 @@ type Mail struct {
 	Client
 }
 
-type mailPager struct {
-	gs      graph.Servicer
-	builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
-	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
-}
-
-func (p *mailPager) getPage(ctx context.Context) (pageLinker, error) {
-	return p.builder.Get(ctx, p.options)
-}
-
-func (p *mailPager) setNext(nextLink string) {
-	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
-}
-
 // ---------------------------------------------------------------------------
 // methods
 // ---------------------------------------------------------------------------
@@ -162,6 +148,24 @@ func (c Mail) EnumerateContainers(
 	}
 
 	return errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
+
+type mailPager struct {
+	gs      graph.Servicer
+	builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
+	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
+}
+
+func (p *mailPager) getPage(ctx context.Context) (pageLinker, error) {
+	return p.builder.Get(ctx, p.options)
+}
+
+func (p *mailPager) setNext(nextLink string) {
+	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (c Mail) GetAddedAndRemovedItemIDs(
