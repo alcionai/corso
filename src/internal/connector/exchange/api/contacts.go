@@ -170,6 +170,10 @@ func (p *contactPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+func (p *contactPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+	return toValues(pl)
+}
+
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,

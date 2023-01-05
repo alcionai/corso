@@ -168,6 +168,10 @@ func (p *mailPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+func (p *mailPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+	return toValues(pl)
+}
+
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,

@@ -16,6 +16,7 @@ import (
 type itemPager interface {
 	getPage(context.Context) (pageLinker, error)
 	setNext(string)
+	valuesIn(pageLinker) ([]getIDAndAddtler, error)
 }
 
 type pageLinker interface {
@@ -26,6 +27,20 @@ type pageLinker interface {
 type getIDAndAddtler interface {
 	GetId() *string
 	GetAdditionalData() map[string]any
+}
+
+// uses a models interface compliant with { GetValues() []T }
+// to transform its results into a slice of getIDer interfaces.
+// Generics used here to handle the variation of msoft interfaces
+// that all _almost_ comply with GetValue, but all return a different
+// interface.
+func toValues(a any) ([]getIDAndAddtler, error) {
+	gv, ok := a.(interface{ GetValue() []getIDAndAddtler })
+	if !ok {
+		return nil, errors.New("response does not comply with getIDAndAddtler interface")
+	}
+
+	return gv.GetValue(), nil
 }
 
 // generic controller for retrieving all item ids in a container.
@@ -57,13 +72,13 @@ func getItemsAddedAndRemovedFromContainer(
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
-		gv, ok := resp.(interface{ GetValue() []getIDAndAddtler })
-		if !ok {
-			return nil, nil, deltaURL, errors.New("response does not comply with GetValue interface")
+		items, err := pager.valuesIn(resp)
+		if err != nil {
+			return nil, nil, "", err
 		}
 
 		// iterate through the items in the page
-		for _, item := range gv.GetValue() {
+		for _, item := range items {
 			if item.GetId() == nil {
 				errUpdater(errors.Errorf("item with nil ID"))
 

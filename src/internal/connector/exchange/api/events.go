@@ -156,6 +156,10 @@ func (p *eventPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+	return toValues(pl)
+}
+
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
