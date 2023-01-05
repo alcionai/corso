@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	kw "github.com/microsoft/kiota-serialization-json-go"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,11 +48,8 @@ func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
 func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
 
-	ow := kw.NewJsonSerializationWriter()
-	artistAndAlbum := map[string]string{
-		"Our Love to  Admire": "Interpol",
-	}
-	listing := mockconnector.GetMockList("Mock List", "Artist", artistAndAlbum)
+	ow := kioser.NewJsonSerializationWriter()
+	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
@@ -92,30 +89,24 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestRestoreList() {
+// TestRestoreListCollection verifies Graph Restore API for the List Collection
+func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	t := suite.T()
+	siteID := tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
 	service, err := createTestService(account)
 	require.NoError(t, err)
-	siteID := tester.M365SiteID(t)
 
-	ow := kw.NewJsonSerializationWriter()
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
-
-	err = ow.WriteObjectValue("", listing)
-	require.NoError(t, err)
-
-	byteArray, err := ow.GetSerializedContent()
-	require.NoError(t, err)
-
+	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err)
 
 	listData := &Item{
