@@ -505,8 +505,7 @@ func runDetailsExchangeCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewExchangeRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
-	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
+	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.

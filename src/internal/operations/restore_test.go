@@ -178,6 +178,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	users := []string{m365UserID}
 
 	bsel := selectors.NewExchangeBackup(users)
+	bsel.DiscreteOwner = m365UserID
 	bsel.Include(
 		bsel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
 		bsel.ContactFolders(users, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
