@@ -39,49 +39,6 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
-	usrs := []string{"u1", "u2"}
-	table := []struct {
-		name     string
-		include  []string
-		discrete []string
-		expect   []string
-	}{
-		{
-			name:     "any user",
-			include:  Any(),
-			discrete: usrs,
-			expect:   usrs,
-		},
-		{
-			name:     "discrete user",
-			include:  []string{"u3"},
-			discrete: usrs,
-			expect:   []string{"u3"},
-		},
-		{
-			name:     "nil discrete slice",
-			include:  Any(),
-			discrete: nil,
-			expect:   Any(),
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			// todo: remove discreteScopes
-			// eb := NewOneDriveBackup(test.include)
-			// eb.Include(eb.AllData())
-
-			// scopes := eb.DiscreteScopes(test.discrete)
-			// for _, sc := range scopes {
-			// 	users := sc.Get(OneDriveUser)
-			// 	assert.Equal(t, test.expect, users)
-			// }
-		})
-	}
-}
-
 func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 	t := suite.T()
 
