@@ -108,10 +108,11 @@ type dataBuilderFunc func(id, now, subject, body string) []byte
 func generateAndRestoreItems(
 	ctx context.Context,
 	gc *connector.GraphConnector,
+	acct account.Account,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
-	tenantID, userID, destFldr string,
+	userID, destFldr string,
 	howMany int,
 	dbf dataBuilderFunc,
 ) (*details.Details, error) {
@@ -144,7 +145,7 @@ func generateAndRestoreItems(
 
 	dataColls, err := buildCollections(
 		service,
-		tenantID, userID,
+		acct.ID(), userID,
 		dest,
 		collections,
 	)
@@ -154,14 +155,14 @@ func generateAndRestoreItems(
 
 	Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, destination)
 
-	return gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+	return gc.RestoreDataCollections(ctx, acct, sel, dest, dataColls)
 }
 
 // ------------------------------------------------------------------------------------------
 // Common Helpers
 // ------------------------------------------------------------------------------------------
 
-func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, string, error) {
+func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, account.Account, error) {
 	tid := common.First(tenant, os.Getenv(account.AzureTenantID))
 
 	// get account info
@@ -172,13 +173,13 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "finding m365 account details")
+		return nil, account.Account{}, errors.Wrap(err, "finding m365 account details")
 	}
 
 	// build a graph connector
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "connecting to graph api")
+		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}
 
 	normUsers := map[string]struct{}{}
@@ -188,10 +189,10 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	if _, ok := normUsers[strings.ToLower(user)]; !ok {
-		return nil, "", errors.New("user not found within tenant")
+		return nil, account.Account{}, errors.New("user not found within tenant")
 	}
 
-	return gc, tid, nil
+	return gc, acct, nil
 }
 
 type item struct {

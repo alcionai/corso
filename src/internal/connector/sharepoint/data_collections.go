@@ -26,7 +26,6 @@ type statusUpdater interface {
 func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	siteIDs []string,
 	tenantID string,
 	serv graph.Servicer,
 	su statusUpdater,
@@ -38,55 +37,50 @@ func DataCollections(
 	}
 
 	var (
-		scopes      = b.DiscreteScopes(siteIDs)
+		site        = b.DiscreteOwner
 		collections = []data.Collection{}
 		errs        error
 	)
 
-	for _, scope := range scopes {
-		// due to DiscreteScopes(siteIDs), each range should only contain one site.
-		for _, site := range scope.Get(selectors.SharePointSite) {
-			foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf(
-				"∙ %s - %s:",
-				scope.Category().PathType(), site))
-			defer closer()
-			defer close(foldersComplete)
+	for _, scope := range b.Scopes() {
+		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf(
+			"∙ %s - %s:",
+			scope.Category().PathType(), site))
+		defer closer()
+		defer close(foldersComplete)
 
-			var spcs []data.Collection
+		var spcs []data.Collection
 
-			switch scope.Category().PathType() {
-			case path.ListsCategory:
-				spcs, err = collectLists(
-					ctx,
-					serv,
-					tenantID,
-					site,
-					scope,
-					su,
-					ctrlOpts,
-				)
-				if err != nil {
-					return nil, support.WrapAndAppend(site, err, errs)
-				}
-
-			case path.LibrariesCategory:
-				spcs, err = collectLibraries(
-					ctx,
-					serv,
-					tenantID,
-					site,
-					scope,
-					su,
-					ctrlOpts)
-				if err != nil {
-					return nil, support.WrapAndAppend(site, err, errs)
-				}
+		switch scope.Category().PathType() {
+		case path.ListsCategory:
+			spcs, err = collectLists(
+				ctx,
+				serv,
+				tenantID,
+				site,
+				scope,
+				su,
+				ctrlOpts)
+			if err != nil {
+				return nil, support.WrapAndAppend(site, err, errs)
 			}
 
-			collections = append(collections, spcs...)
-
-			foldersComplete <- struct{}{}
+		case path.LibrariesCategory:
+			spcs, err = collectLibraries(
+				ctx,
+				serv,
+				tenantID,
+				site,
+				scope,
+				su,
+				ctrlOpts)
+			if err != nil {
+				return nil, support.WrapAndAppend(site, err, errs)
+			}
 		}
+
+		collections = append(collections, spcs...)
+		foldersComplete <- struct{}{}
 	}
 
 	return collections, errs

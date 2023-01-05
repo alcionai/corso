@@ -209,19 +209,16 @@ type DataCollectionsIntegrationSuite struct {
 }
 
 func TestDataCollectionsIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoConnectorCreateExchangeCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoConnectorCreateExchangeCollectionTests)
 
 	suite.Run(t, new(DataCollectionsIntegrationSuite))
 }
 
 func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
@@ -259,13 +256,12 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		},
 	}
 
-	// gc := loadConnector(ctx, t, Users)
-
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			collections, err := createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -327,6 +323,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err := createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -354,6 +351,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err = createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				dps,
 				control.Options{},
@@ -398,6 +396,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	collections, err := createCollections(
 		ctx,
 		acct,
+		suite.user,
 		sel.Scopes()[0],
 		DeltaPaths{},
 		control.Options{},
@@ -465,6 +464,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 			edcs, err := createCollections(
 				ctx,
 				acct,
+				suite.user,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -549,6 +549,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			collections, err := createCollections(
 				ctx,
 				acct,
+				suite.user,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},

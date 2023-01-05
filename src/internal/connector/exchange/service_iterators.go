@@ -3,13 +3,10 @@ package exchange
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	multierror "github.com/hashicorp/go-multierror"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -18,14 +15,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-// carries details about delta retrieval in aggregators
-type deltaUpdate struct {
-	// the deltaLink itself
-	url string
-	// true if the old delta was marked as invalid
-	reset bool
-}
 
 // filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
@@ -44,7 +33,6 @@ func filterContainersAndFillCollections(
 ) error {
 	var (
 		errs error
-		oi   = CategoryToOptionIdentifier(qp.Category)
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -53,7 +41,13 @@ func filterContainersAndFillCollections(
 		tombstones = makeTombstones(dps)
 	)
 
-	getJobs, err := getFetchIDFunc(qp.Category)
+	// TODO(rkeepers): pass in the api client instead of generating it here.
+	ac, err := api.NewClient(qp.Credentials)
+	if err != nil {
+		return err
+	}
+
+	getJobs, err := getFetchIDFunc(ac, qp.Category)
 	if err != nil {
 		return support.WrapAndAppend(qp.ResourceOwner, err, errs)
 	}
@@ -95,7 +89,7 @@ func filterContainersAndFillCollections(
 			}
 		}
 
-		added, removed, newDelta, err := getJobs(ctx, service, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getJobs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
@@ -105,26 +99,26 @@ func filterContainersAndFillCollections(
 				// to reset which will prevent any old items from being retained in
 				// storage.  If the container (or its children) are sill missing
 				// on the next backup, they'll get tombstoned.
-				newDelta = deltaUpdate{reset: true}
+				newDelta = api.DeltaUpdate{Reset: true}
 			}
 
 			continue
 		}
 
-		if len(newDelta.url) > 0 {
-			deltaURLs[cID] = newDelta.url
+		if len(newDelta.URL) > 0 {
+			deltaURLs[cID] = newDelta.URL
 		}
 
 		edc := NewCollection(
 			qp.ResourceOwner,
 			currPath,
 			prevPath,
-			oi,
+			scope.Category().PathType(),
+			ac,
 			service,
 			statusUpdater,
 			ctrlOpts,
-			newDelta.reset,
-		)
+			newDelta.Reset)
 
 		collections[cID] = &edc
 		edc.added = append(edc.added, added...)
@@ -169,12 +163,12 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner,
 			nil, // marks the collection as deleted
 			prevPath,
-			oi,
+			scope.Category().PathType(),
+			ac,
 			service,
 			statusUpdater,
 			ctrlOpts,
-			false,
-		)
+			false)
 		collections[id] = &edc
 	}
 
@@ -224,337 +218,23 @@ func pathFromPrevString(ps string) (path.Path, error) {
 	return p, nil
 }
 
-func IterativeCollectContactContainers(
-	containers map[string]graph.Container,
-	nameContains string,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		folder, ok := entry.(models.ContactFolderable)
-		if !ok {
-			errUpdater("iterateCollectContactContainers",
-				errors.New("casting item to models.ContactFolderable"))
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			strings.Contains(*folder.GetDisplayName(), nameContains)
-
-		if include {
-			containers[*folder.GetDisplayName()] = folder
-		}
-
-		return true
-	}
-}
-
-func IterativeCollectCalendarContainers(
-	containers map[string]graph.Container,
-	nameContains string,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		cal, ok := entry.(models.Calendarable)
-		if !ok {
-			errUpdater("iterativeCollectCalendarContainers",
-				errors.New("casting item to models.Calendarable"))
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			strings.Contains(*cal.GetName(), nameContains)
-		if include {
-			temp := CreateCalendarDisplayable(cal)
-			containers[*temp.GetDisplayName()] = temp
-		}
-
-		return true
-	}
-}
-
 // FetchIDFunc collection of helper functions which return a list of all item
 // IDs in the given container and a delta token for future requests if the
 // container supports fetching delta records.
 type FetchIDFunc func(
 	ctx context.Context,
-	gs graph.Servicer,
 	user, containerID, oldDeltaToken string,
-) ([]string, []string, deltaUpdate, error)
+) ([]string, []string, api.DeltaUpdate, error)
 
-func getFetchIDFunc(category path.CategoryType) (FetchIDFunc, error) {
+func getFetchIDFunc(ac api.Client, category path.CategoryType) (FetchIDFunc, error) {
 	switch category {
 	case path.EmailCategory:
-		return FetchMessageIDsFromDirectory, nil
+		return ac.FetchMessageIDsFromDirectory, nil
 	case path.EventsCategory:
-		return FetchEventIDsFromCalendar, nil
+		return ac.FetchEventIDsFromCalendar, nil
 	case path.ContactsCategory:
-		return FetchContactIDsFromDirectory, nil
+		return ac.FetchContactIDsFromDirectory, nil
 	default:
 		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// events
-// ---------------------------------------------------------------------------
-
-// FetchEventIDsFromCalendar returns a list of all M365IDs of events of the targeted Calendar.
-func FetchEventIDsFromCalendar(
-	ctx context.Context,
-	gs graph.Servicer,
-	user, calendarID, oldDelta string,
-) ([]string, []string, deltaUpdate, error) {
-	var (
-		errs *multierror.Error
-		ids  []string
-	)
-
-	options, err := optionsForEventsByCalendar([]string{"id"})
-	if err != nil {
-		return nil, nil, deltaUpdate{}, err
-	}
-
-	builder := gs.Client().
-		UsersById(user).
-		CalendarsById(calendarID).
-		Events()
-
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, nil, deltaUpdate{}, err
-			}
-
-			return nil, nil, deltaUpdate{}, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, item := range resp.GetValue() {
-			if item.GetId() == nil {
-				errs = multierror.Append(
-					errs,
-					errors.Errorf("event with nil ID in calendar %s", calendarID),
-				)
-
-				// TODO(ashmrtn): Handle fail-fast.
-				continue
-			}
-
-			ids = append(ids, *item.GetId())
-		}
-
-		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil || len(*nextLink) == 0 {
-			break
-		}
-
-		builder = msuser.NewItemCalendarsItemEventsRequestBuilder(*nextLink, gs.Adapter())
-	}
-
-	// Events don't have a delta endpoint so just return an empty string.
-	return ids, nil, deltaUpdate{}, errs.ErrorOrNil()
-}
-
-// ---------------------------------------------------------------------------
-// contacts
-// ---------------------------------------------------------------------------
-
-// FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
-// of the targeted directory
-func FetchContactIDsFromDirectory(
-	ctx context.Context,
-	gs graph.Servicer,
-	user, directoryID, oldDelta string,
-) ([]string, []string, deltaUpdate, error) {
-	var (
-		errs       *multierror.Error
-		ids        []string
-		removedIDs []string
-		deltaURL   string
-		resetDelta bool
-	)
-
-	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
-	if err != nil {
-		return nil, nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
-	}
-
-	getIDs := func(builder *msuser.ItemContactFoldersItemContactsDeltaRequestBuilder) error {
-		for {
-			resp, err := builder.Get(ctx, options)
-			if err != nil {
-				if err := graph.IsErrDeletedInFlight(err); err != nil {
-					return err
-				}
-
-				if err := graph.IsErrInvalidDelta(err); err != nil {
-					return err
-				}
-
-				return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-			}
-
-			for _, item := range resp.GetValue() {
-				if item.GetId() == nil {
-					errs = multierror.Append(
-						errs,
-						errors.Errorf("item with nil ID in folder %s", directoryID),
-					)
-
-					// TODO(ashmrtn): Handle fail-fast.
-					continue
-				}
-
-				if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-					ids = append(ids, *item.GetId())
-				} else {
-					removedIDs = append(removedIDs, *item.GetId())
-				}
-			}
-
-			delta := resp.GetOdataDeltaLink()
-			if delta != nil && len(*delta) > 0 {
-				deltaURL = *delta
-			}
-
-			nextLink := resp.GetOdataNextLink()
-			if nextLink == nil || len(*nextLink) == 0 {
-				break
-			}
-
-			builder = msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, gs.Adapter())
-		}
-
-		return nil
-	}
-
-	if len(oldDelta) > 0 {
-		err := getIDs(msuser.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, gs.Adapter()))
-		// happy path
-		if err == nil {
-			return ids, removedIDs, deltaUpdate{deltaURL, false}, errs.ErrorOrNil()
-		}
-		// only return on error if it is NOT a delta issue.
-		// otherwise we'll retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
-			return nil, nil, deltaUpdate{}, err
-		}
-
-		resetDelta = true
-		errs = nil
-	}
-
-	builder := gs.Client().
-		UsersById(user).
-		ContactFoldersById(directoryID).
-		Contacts().
-		Delta()
-
-	if err := getIDs(builder); err != nil {
-		return nil, nil, deltaUpdate{}, err
-	}
-
-	return ids, removedIDs, deltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
-}
-
-// ---------------------------------------------------------------------------
-// messages
-// ---------------------------------------------------------------------------
-
-// FetchMessageIDsFromDirectory function that returns a list of  all the m365IDs of the exchange.Mail
-// of the targeted directory
-func FetchMessageIDsFromDirectory(
-	ctx context.Context,
-	gs graph.Servicer,
-	user, directoryID, oldDelta string,
-) ([]string, []string, deltaUpdate, error) {
-	var (
-		errs       *multierror.Error
-		ids        []string
-		removedIDs []string
-		deltaURL   string
-		resetDelta bool
-	)
-
-	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
-	if err != nil {
-		return nil, nil, deltaUpdate{}, errors.Wrap(err, "getting query options")
-	}
-
-	getIDs := func(builder *msuser.ItemMailFoldersItemMessagesDeltaRequestBuilder) error {
-		for {
-			resp, err := builder.Get(ctx, options)
-			if err != nil {
-				if err := graph.IsErrDeletedInFlight(err); err != nil {
-					return err
-				}
-
-				if err := graph.IsErrInvalidDelta(err); err != nil {
-					return err
-				}
-
-				return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-			}
-
-			for _, item := range resp.GetValue() {
-				if item.GetId() == nil {
-					errs = multierror.Append(
-						errs,
-						errors.Errorf("item with nil ID in folder %s", directoryID),
-					)
-
-					// TODO(ashmrtn): Handle fail-fast.
-					continue
-				}
-
-				if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-					ids = append(ids, *item.GetId())
-				} else {
-					removedIDs = append(removedIDs, *item.GetId())
-				}
-			}
-
-			delta := resp.GetOdataDeltaLink()
-			if delta != nil && len(*delta) > 0 {
-				deltaURL = *delta
-			}
-
-			nextLink := resp.GetOdataNextLink()
-			if nextLink == nil || len(*nextLink) == 0 {
-				break
-			}
-
-			builder = msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(*nextLink, gs.Adapter())
-		}
-
-		return nil
-	}
-
-	if len(oldDelta) > 0 {
-		err := getIDs(msuser.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, gs.Adapter()))
-		// happy path
-		if err == nil {
-			return ids, removedIDs, deltaUpdate{deltaURL, false}, errs.ErrorOrNil()
-		}
-		// only return on error if it is NOT a delta issue.
-		// otherwise we'll retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
-			return nil, nil, deltaUpdate{}, err
-		}
-
-		resetDelta = true
-		errs = nil
-	}
-
-	builder := gs.Client().
-		UsersById(user).
-		MailFoldersById(directoryID).
-		Messages().
-		Delta()
-
-	if err := getIDs(builder); err != nil {
-		return nil, nil, deltaUpdate{}, err
-	}
-
-	return ids, removedIDs, deltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
 }

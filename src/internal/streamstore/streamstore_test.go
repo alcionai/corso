@@ -18,12 +18,7 @@ type StreamStoreIntegrationSuite struct {
 }
 
 func TestStreamStoreIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-	); err != nil {
-		t.Skip(err)
-	}
-
+	tester.RunOnAny(t, tester.CorsoCITests)
 	suite.Run(t, new(StreamStoreIntegrationSuite))
 }
 

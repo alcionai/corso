@@ -98,7 +98,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				sw,
 				acct,
 				"foo",
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
 			require.NoError(t, err)
@@ -133,12 +133,10 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoOperationTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoOperationTests)
 
 	suite.Run(t, new(RestoreOpIntegrationSuite))
 }
@@ -147,8 +145,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	t := suite.T()
 
@@ -181,6 +178,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	users := []string{m365UserID}
 
 	bsel := selectors.NewExchangeBackup(users)
+	bsel.DiscreteOwner = m365UserID
 	bsel.Include(
 		bsel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
 		bsel.ContactFolders(users, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
@@ -253,7 +251,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.sw,
 				test.acct,
 				"backup-id",
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
 			test.errCheck(t, err)

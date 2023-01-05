@@ -28,12 +28,10 @@ type ConnectorDataCollectionIntegrationSuite struct {
 }
 
 func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(t,
 		tester.CorsoCITests,
 		tester.CorsoConnectorDataCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+	)
 
 	suite.Run(t, new(ConnectorDataCollectionIntegrationSuite))
 }
@@ -42,11 +40,12 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvVars(suite.T(), tester.M365AcctCredEnvs...)
+
 	suite.connector = loadConnector(ctx, suite.T(), AllResources)
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
+
 	tester.LogTimeOfTest(suite.T())
 }
 
@@ -72,7 +71,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.MailFolders(selUsers, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-
+				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
 		},
@@ -80,11 +79,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			name: suite.user + " Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.ContactFolders(
-					selUsers,
-					[]string{exchange.DefaultContactFolder},
-					selectors.PrefixMatch()))
-
+				sel.Include(sel.ContactFolders(selUsers, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
 		},
@@ -92,12 +88,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		// 	name: suite.user + " Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
 		// 		sel := selectors.NewExchangeBackup(selUsers)
-		// 		sel.Include(sel.EventCalendars(
-		// 			selUsers,
-		// 			[]string{exchange.DefaultCalendar},
-		// 			selectors.PrefixMatch(),
-		// 		))
-
+		// 		sel.Include(sel.EventCalendars(selUsers, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		// 		sel.DiscreteOwner = suite.user
 		// 		return sel.Selector
 		// 	},
 		// },
@@ -109,7 +101,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				ctx,
 				test.getSelector(t),
 				nil,
-				[]string{suite.user},
 				connector.credentials,
 				connector.UpdateStatus,
 				control.Options{})
@@ -140,12 +131,11 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 }
 
 // TestInvalidUserForDataCollections ensures verification process for users
-func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataCollections() {
+func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invalidResourceOwner() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	invalidUser := "foo@example.com"
-	selUsers := []string{invalidUser}
+	owners := []string{"snuffleupagus"}
 
 	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
@@ -155,16 +145,51 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 		{
 			name: "invalid exchange backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.MailFolders(selUsers, selectors.Any()))
+				sel := selectors.NewExchangeBackup(owners)
+				sel.Include(sel.MailFolders(owners, selectors.Any()))
 				return sel.Selector
 			},
 		},
 		{
 			name: "Invalid onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup(selUsers)
-				sel.Include(sel.Folders(selUsers, selectors.Any()))
+				sel := selectors.NewOneDriveBackup(owners)
+				sel.Include(sel.Folders(owners, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "Invalid sharepoint backup site",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup(owners)
+				sel.Include(sel.Libraries(owners, selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing exchange backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup(owners)
+				sel.Include(sel.MailFolders(owners, selectors.Any()))
+				sel.DiscreteOwner = ""
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing onedrive backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup(owners)
+				sel.Include(sel.Folders(owners, selectors.Any()))
+				sel.DiscreteOwner = ""
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing sharepoint backup site",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup(owners)
+				sel.Include(sel.Libraries(owners, selectors.Any()))
+				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
 		},
@@ -199,6 +224,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Libraries(selSites, selectors.Any()))
+				sel.DiscreteOwner = suite.site
 
 				return sel.Selector
 			},
@@ -209,6 +235,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Lists(selSites, selectors.Any()))
+				sel.DiscreteOwner = suite.site
 
 				return sel.Selector
 			},
@@ -220,7 +247,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collections, err := sharepoint.DataCollections(
 				ctx,
 				test.getSelector(),
-				selSites,
 				connector.credentials.AzureTenantID,
 				connector.Service,
 				connector,
@@ -261,12 +287,10 @@ type ConnectorCreateSharePointCollectionIntegrationSuite struct {
 }
 
 func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoConnectorCreateSharePointCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoConnectorCreateSharePointCollectionTests)
 
 	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
 }
@@ -275,10 +299,11 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
+
 	suite.connector = loadConnector(ctx, suite.T(), Sites)
 	suite.user = tester.M365UserID(suite.T())
+
 	tester.LogTimeOfTest(suite.T())
 }
 

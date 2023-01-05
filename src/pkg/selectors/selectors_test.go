@@ -35,7 +35,7 @@ func (suite *SelectorSuite) TestBadCastErr() {
 func (suite *SelectorSuite) TestPrintable() {
 	t := suite.T()
 
-	sel := stubSelector()
+	sel := stubSelector(Any())
 	p := sel.Printable()
 
 	assert.Equal(t, sel.Service.String(), p.Service)
@@ -45,41 +45,58 @@ func (suite *SelectorSuite) TestPrintable() {
 }
 
 func (suite *SelectorSuite) TestPrintable_IncludedResources() {
-	t := suite.T()
-
-	sel := stubSelector()
-	p := sel.Printable()
-	res := p.Resources()
-
-	assert.Equal(t, "All", res, "stub starts out as an all-pass")
-
-	stubWithResource := func(resource string) scope {
-		ss := stubScope("")
-		ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
-
-		return scope(ss)
+	table := []struct {
+		name           string
+		resourceOwners []string
+		expect         func(string) bool
+		reason         string
+	}{
+		{
+			name:           "distinct",
+			resourceOwners: []string{"foo", "smarf", "fnords"},
+			expect: func(s string) bool {
+				return strings.HasSuffix(s, "(2 more)")
+			},
+			reason: "should end with (2 more)",
+		},
+		{
+			name:           "distinct",
+			resourceOwners: nil,
+			expect: func(s string) bool {
+				return strings.HasSuffix(s, "None")
+			},
+			reason: "no resource owners should produce None",
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			sel := stubSelector(test.resourceOwners)
+			p := sel.Printable()
+			res := p.Resources()
 
-	sel.Includes = []scope{
-		stubWithResource("foo"),
-		stubWithResource("smarf"),
-		stubWithResource("fnords"),
+			assert.Equal(t, "All", res, "stub starts out as an all-pass")
+
+			stubWithResource := func(resource string) scope {
+				ss := stubScope("")
+				ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
+
+				return scope(ss)
+			}
+
+			sel.Includes = []scope{}
+			sel.Filters = []scope{}
+
+			for _, ro := range test.resourceOwners {
+				sel.Includes = append(sel.Includes, stubWithResource(ro))
+				sel.Filters = append(sel.Filters, stubWithResource(ro))
+			}
+
+			p = sel.Printable()
+			res = p.Resources()
+
+			assert.True(t, test.expect(res), test.reason)
+		})
 	}
-
-	p = sel.Printable()
-	res = p.Resources()
-
-	assert.True(t, strings.HasSuffix(res, "(2 more)"), "resource '"+res+"' should have (2 more) suffix")
-
-	p.Includes = nil
-	res = p.Resources()
-
-	assert.Equal(t, "All", res, "filters is also an all-pass")
-
-	p.Filters = nil
-	res = p.Resources()
-
-	assert.Equal(t, "None", res, "resource with no Includes or Filters should state None")
 }
 
 func (suite *SelectorSuite) TestToResourceTypeMap() {
@@ -253,4 +270,104 @@ func (suite *SelectorSuite) TestContains() {
 
 	assert.True(t, matches(does, key, target), "does contain")
 	assert.False(t, matches(doesNot, key, target), "does not contain")
+}
+
+func (suite *SelectorSuite) TestIsAnyResourceOwner() {
+	t := suite.T()
+	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{})))
+	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{AnyTgt})))
+	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, Any())))
+}
+
+func (suite *SelectorSuite) TestIsNoneResourceOwner() {
+	t := suite.T()
+	assert.False(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{})))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{NoneTgt})))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, None())))
+}
+
+func (suite *SelectorSuite) TestSplitByResourceOnwer() {
+	allOwners := []string{"foo", "bar", "baz", "qux"}
+
+	table := []struct {
+		name           string
+		input          []string
+		expectLen      int
+		expectDiscrete []string
+	}{
+		{
+			name: "nil",
+		},
+		{
+			name:  "empty",
+			input: []string{},
+		},
+		{
+			name:  "noneTgt",
+			input: []string{NoneTgt},
+		},
+		{
+			name:  "none",
+			input: None(),
+		},
+		{
+			name:           "AnyTgt",
+			input:          []string{AnyTgt},
+			expectLen:      len(allOwners),
+			expectDiscrete: allOwners,
+		},
+		{
+			name:           "Any",
+			input:          Any(),
+			expectLen:      len(allOwners),
+			expectDiscrete: allOwners,
+		},
+		{
+			name:           "one owner",
+			input:          []string{"fnord"},
+			expectLen:      1,
+			expectDiscrete: []string{"fnord"},
+		},
+		{
+			name:           "two owners",
+			input:          []string{"fnord", "smarf"},
+			expectLen:      2,
+			expectDiscrete: []string{"fnord", "smarf"},
+		},
+		{
+			name:  "two owners and NoneTgt",
+			input: []string{"fnord", "smarf", NoneTgt},
+		},
+		{
+			name:           "two owners and AnyTgt",
+			input:          []string{"fnord", "smarf", AnyTgt},
+			expectLen:      len(allOwners),
+			expectDiscrete: allOwners,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			s := newSelector(ServiceUnknown, test.input)
+			result := splitByResourceOwner[mockScope](s, allOwners, rootCatStub)
+
+			assert.Len(t, result, test.expectLen)
+
+			for _, expect := range test.expectDiscrete {
+				var found bool
+
+				for _, sel := range result {
+					if sel.DiscreteOwner == expect {
+						found = true
+						break
+					}
+				}
+
+				assert.Truef(t, found, "%s in list of discrete owners", expect)
+			}
+		})
+	}
 }

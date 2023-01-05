@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/trace"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -14,8 +16,22 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+//----------------------------------------------------------------------------
+// SharePoint Restore WorkFlow:
+// - RestoreCollections called by GC component
+// -- Collections are iterated within, Control Flow Switch
+// -- Switch:
+// ---- Libraries restored via the same workflow as oneDrive
+// ---- Lists call RestoreCollection()
+// ----> for each data.Stream within  Collection.Items()
+// ----> restoreListItems() is called
+// Restored List can be found in the Site's `Site content` page
+// Restored Libraries can be found within the Site's `Pages` page
+//------------------------------------------
 
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
@@ -51,6 +67,15 @@ func RestoreCollections(
 				dest.ContainerName,
 				deets,
 				errUpdater)
+		case path.ListsCategory:
+			metrics, canceled = RestoreCollection(
+				ctx,
+				service,
+				dc,
+				dest.ContainerName,
+				deets,
+				errUpdater,
+			)
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
@@ -92,7 +117,7 @@ func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID st
 // restoreListItem utility function restores a List to the siteID.
 // The name is changed to to Corso_Restore_{timeStame}_name
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
-// Restored List can be verified within the Site contents
+// Restored List can be verified within the Site contents.
 func restoreListItem(
 	ctx context.Context,
 	service graph.Servicer,
@@ -103,9 +128,8 @@ func restoreListItem(
 	defer end()
 
 	var (
-		dii         = details.ItemInfo{}
-		itemName    = itemData.UUID()
-		displayName = itemName
+		dii      = details.ItemInfo{}
+		listName = itemData.UUID()
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
@@ -113,35 +137,130 @@ func restoreListItem(
 		return dii, errors.Wrap(err, "sharepoint restoreItem failed to retrieve bytes from data.Stream")
 	}
 	// Create Item
-	newItem, err := support.CreateListFromBytes(byteArray)
+	oldList, err := support.CreateListFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "failed to construct list item %s", itemName)
+		return dii, errors.Wrapf(err, "failed to build list item %s", listName)
 	}
 
-	// If field "name" is set, this will trigger the following error:
-	// invalidRequest Cannot define a 'name' for a list as it is assigned by the server. Instead, provide 'displayName'
-	if newItem.GetName() != nil {
-		adtlData := newItem.GetAdditionalData()
-		adtlData["list_name"] = *newItem.GetName()
-		newItem.SetName(nil)
+	if oldList.GetDisplayName() != nil {
+		listName = *oldList.GetDisplayName()
 	}
 
-	if newItem.GetDisplayName() != nil {
-		displayName = *newItem.GetDisplayName()
+	newName := fmt.Sprintf("%s_%s", destName, listName)
+	newList := support.ToListable(oldList, newName)
+
+	contents := make([]models.ListItemable, 0)
+
+	for _, itm := range oldList.GetItems() {
+		temp := support.CloneListItem(itm)
+		contents = append(contents, temp)
 	}
 
-	newName := fmt.Sprintf("%s_%s", destName, displayName)
-	newItem.SetDisplayName(&newName)
+	newList.SetItems(contents)
 
-	// Restore to M365 store
-	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newItem, nil)
+	// Restore to List base to M365 back store
+	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
-		return dii, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		errorMsg := fmt.Sprintf(
+			"failure to create list foundation ID: %s API Error Details: %s",
+			itemData.UUID(),
+			support.ConnectorStackErrorTrace(err),
+		)
+
+		return dii, errors.Wrap(err, errorMsg)
 	}
 
-	written := int64(len(byteArray))
+	// Uploading of ListItems is conducted after the List is restored
+	// Reference: https://learn.microsoft.com/en-us/graph/api/listitem-create?view=graph-rest-1.0&tabs=http
+	if len(contents) > 0 {
+		for _, lItem := range contents {
+			_, err := service.Client().
+				SitesById(siteID).
+				ListsById(*restoredList.GetId()).
+				Items().
+				Post(ctx, lItem, nil)
+			if err != nil {
+				errorMsg := fmt.Sprintf(
+					"listItem  failed for listID %s. Details: %s. Content: %v",
+					*restoredList.GetId(),
+					support.ConnectorStackErrorTrace(err),
+					lItem.GetAdditionalData(),
+				)
 
-	dii.SharePoint = sharePointListInfo(restoredList, written)
+				return dii, errors.Wrap(err, errorMsg)
+			}
+		}
+	}
+
+	dii.SharePoint = sharePointListInfo(restoredList, int64(len(byteArray)))
 
 	return dii, nil
+}
+
+func RestoreCollection(
+	ctx context.Context,
+	service graph.Servicer,
+	dc data.Collection,
+	restoreContainerName string,
+	deets *details.Builder,
+	errUpdater func(string, error),
+) (support.CollectionMetrics, bool) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restoreCollection", D.Label("path", dc.FullPath()))
+	defer end()
+
+	var (
+		metrics   = support.CollectionMetrics{}
+		directory = dc.FullPath()
+	)
+
+	trace.Log(ctx, "gc:sharepoint:restoreCollection", directory.String())
+	siteID := directory.ResourceOwner()
+
+	// Restore items from the collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return metrics, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return metrics, false
+			}
+			metrics.Objects++
+
+			itemInfo, err := restoreListItem(
+				ctx,
+				service,
+				itemData,
+				siteID,
+				restoreContainerName,
+			)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			metrics.TotalBytes += itemInfo.SharePoint.Size
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				true,
+				itemInfo)
+
+			metrics.Successes++
+		}
+	}
 }

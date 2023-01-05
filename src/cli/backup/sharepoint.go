@@ -210,35 +210,30 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, scope := range sel.DiscreteScopes(gc.GetSiteIDs()) {
-		for _, selSite := range scope.Get(selectors.SharePointSite) {
-			opSel := selectors.NewSharePointBackup([]string{selSite})
-			opSel.Include([]selectors.SharePointScope{scope.DiscreteCopy(selSite)})
+	for _, discSel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
+		bo, err := r.NewBackup(ctx, discSel.Selector)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to initialize SharePoint backup for site %s",
+				discSel.DiscreteOwner,
+			))
 
-			bo, err := r.NewBackup(ctx, opSel.Selector)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to initialize SharePoint backup for site %s",
-					scope.Get(selectors.SharePointSite),
-				))
-
-				continue
-			}
-
-			err = bo.Run(ctx)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to run SharePoint backup for site %s",
-					scope.Get(selectors.SharePointSite),
-				))
-
-				continue
-			}
-
-			bIDs = append(bIDs, bo.Results.BackupID)
+			continue
 		}
+
+		err = bo.Run(ctx)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to run SharePoint backup for site %s",
+				discSel.DiscreteOwner,
+			))
+
+			continue
+		}
+
+		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
 	bups, err := r.Backups(ctx, bIDs)
@@ -484,8 +479,7 @@ func runDetailsSharePointCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewSharePointRestore(nil) // TODO: generate selector in IncludeSharePointRestoreDataSelectors
-	utils.IncludeSharePointRestoreDataSelectors(sel, opts)
+	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.

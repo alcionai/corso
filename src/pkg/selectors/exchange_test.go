@@ -781,7 +781,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	var (
 		pth   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
 		short = "thisisahashofsomekind"
-		es    = NewExchangeRestore(Any()) // TODO: move into test so that test user set is embedded in the selector
+		es    = NewExchangeRestore(Any())
 	)
 
 	table := []struct {
@@ -791,9 +791,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		expect   assert.BoolAssertionFunc
 	}{
 		{"all user's items", es.Users(Any()), "", assert.True},
-		{"no user's items", es.Users(None()), "", assert.False},
+		{"no user's items", es.Users(None()), "", assert.True},
 		{"matching user", es.Users([]string{usr}), "", assert.True},
-		{"non-matching user", es.Users([]string{"smarf"}), "", assert.False},
+		{"non-matching user", es.Users([]string{"smarf"}), "", assert.True},
 		{"one of multiple users", es.Users([]string{"smarf", usr}), "", assert.True},
 		{"all folders", es.MailFolders(Any(), Any()), "", assert.True},
 		{"no folders", es.MailFolders(Any(), None()), "", assert.False},
@@ -1194,14 +1194,14 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 	}{
 		{"empty", nil, nil, nil, assert.False},
 		{"in Any", nil, nil, anyUser, assert.True},
-		{"in None", nil, nil, noUser, assert.False},
+		{"in None", nil, nil, noUser, assert.True},
 		{"in Mail", nil, nil, mail, assert.True},
 		{"in Other", nil, nil, otherMail, assert.False},
 		{"in no Mail", nil, nil, noMail, assert.False},
 		{"ex Any", anyUser, nil, anyUser, assert.False},
 		{"ex Any filter", anyUser, anyUser, nil, assert.False},
-		{"ex None", noUser, nil, anyUser, assert.True},
-		{"ex None filter mail", noUser, mail, nil, assert.True},
+		{"ex None", noUser, nil, anyUser, assert.False},
+		{"ex None filter mail", noUser, mail, nil, assert.False},
 		{"ex None filter any user", noUser, anyUser, nil, assert.False},
 		{"ex Mail", mail, nil, anyUser, assert.False},
 		{"ex Other", otherMail, nil, anyUser, assert.True},

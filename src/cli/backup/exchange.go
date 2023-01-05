@@ -272,7 +272,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(user, exchangeData)
 
-	users, err := m365.UserIDs(ctx, acct)
+	users, err := m365.UserPNs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -282,35 +282,30 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, scope := range sel.DiscreteScopes(users) {
-		for _, selUser := range scope.Get(selectors.ExchangeUser) {
-			opSel := selectors.NewExchangeBackup([]string{selUser})
-			opSel.Include([]selectors.ExchangeScope{scope.DiscreteCopy(selUser)})
+	for _, discSel := range sel.SplitByResourceOwner(users) {
+		bo, err := r.NewBackup(ctx, discSel.Selector)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to initialize Exchange backup for user %s",
+				discSel.DiscreteOwner,
+			))
 
-			bo, err := r.NewBackup(ctx, opSel.Selector)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to initialize Exchange backup for user %s",
-					scope.Get(selectors.ExchangeUser),
-				))
-
-				continue
-			}
-
-			err = bo.Run(ctx)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to run Exchange backup for user %s",
-					scope.Get(selectors.ExchangeUser),
-				))
-
-				continue
-			}
-
-			bIDs = append(bIDs, bo.Results.BackupID)
+			continue
 		}
+
+		err = bo.Run(ctx)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to run Exchange backup for user %s",
+				discSel.DiscreteOwner,
+			))
+
+			continue
+		}
+
+		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
 	bups, err := r.Backups(ctx, bIDs)
@@ -510,8 +505,7 @@ func runDetailsExchangeCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewExchangeRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
-	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
+	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
 	// if no selector flags were specified, get all data in the service.

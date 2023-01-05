@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -777,14 +778,16 @@ func makeExchangeBackupSel(
 	dests []destAndCats,
 ) selectors.Selector {
 	toInclude := [][]selectors.ExchangeScope{}
-	resourceOwners := []string{}
+	resourceOwners := map[string]struct{}{}
 
 	for _, d := range dests {
 		for c := range d.cats {
+			resourceOwners[d.resourceOwner] = struct{}{}
+
+			// nil owners here, but we'll need to stitch this together
+			// below after the loops are complete.
 			sel := selectors.NewExchangeBackup(nil)
 			builder := sel.MailFolders
-
-			resourceOwners = append(resourceOwners, d.resourceOwner)
 
 			switch c {
 			case path.ContactsCategory:
@@ -802,7 +805,7 @@ func makeExchangeBackupSel(
 		}
 	}
 
-	sel := selectors.NewExchangeBackup(resourceOwners)
+	sel := selectors.NewExchangeBackup(maps.Keys(resourceOwners))
 	sel.Include(toInclude...)
 
 	return sel.Selector
@@ -813,12 +816,15 @@ func makeOneDriveBackupSel(
 	dests []destAndCats,
 ) selectors.Selector {
 	toInclude := [][]selectors.OneDriveScope{}
-	resourceOwners := []string{}
+	resourceOwners := map[string]struct{}{}
 
 	for _, d := range dests {
+		resourceOwners[d.resourceOwner] = struct{}{}
+
+		// nil owners here, we'll need to stitch this together
+		// below after the loops are complete.
 		sel := selectors.NewOneDriveBackup(nil)
 
-		resourceOwners = append(resourceOwners, d.resourceOwner)
 		toInclude = append(toInclude, sel.Folders(
 			[]string{d.resourceOwner},
 			[]string{d.dest},
@@ -826,7 +832,7 @@ func makeOneDriveBackupSel(
 		))
 	}
 
-	sel := selectors.NewOneDriveBackup(resourceOwners)
+	sel := selectors.NewOneDriveBackup(maps.Keys(resourceOwners))
 	sel.Include(toInclude...)
 
 	return sel.Selector
@@ -938,20 +944,37 @@ func collectionsForInfo(
 }
 
 //nolint:deadcode
-func getSelectorWith(service path.ServiceType) selectors.Selector {
-	s := selectors.ServiceUnknown
-
+func getSelectorWith(
+	t *testing.T,
+	service path.ServiceType,
+	resourceOwners []string,
+	forRestore bool,
+) selectors.Selector {
 	switch service {
 	case path.ExchangeService:
-		s = selectors.ServiceExchange
-	case path.OneDriveService:
-		s = selectors.ServiceOneDrive
-	case path.SharePointService:
-		s = selectors.ServiceSharePoint
-	}
+		if forRestore {
+			return selectors.NewExchangeRestore(resourceOwners).Selector
+		}
 
-	return selectors.Selector{
-		Service: s,
+		return selectors.NewExchangeBackup(resourceOwners).Selector
+
+	case path.OneDriveService:
+		if forRestore {
+			return selectors.NewOneDriveRestore(resourceOwners).Selector
+		}
+
+		return selectors.NewOneDriveBackup(resourceOwners).Selector
+
+	case path.SharePointService:
+		if forRestore {
+			return selectors.NewSharePointRestore(resourceOwners).Selector
+		}
+
+		return selectors.NewSharePointBackup(resourceOwners).Selector
+
+	default:
+		require.FailNow(t, "unknown path service")
+		return selectors.Selector{}
 	}
 }
 

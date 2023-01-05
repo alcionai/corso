@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -32,7 +36,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-const incrementalsDestFolderPrefix = "incrementals_ci_"
+const incrementalsDestContainerPrefix = "incrementals_ci_"
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -290,6 +294,7 @@ func generateContainerOfItems(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	service path.ServiceType,
+	acct account.Account,
 	cat path.CategoryType,
 	sel selectors.Selector,
 	tenantID, userID, destFldr string,
@@ -302,17 +307,11 @@ func generateContainerOfItems(
 	items := make([]incrementalItem, 0, howManyItems)
 
 	for i := 0; i < howManyItems; i++ {
-		var (
-			now       = common.Now()
-			nowLegacy = common.FormatLegacyTime(time.Now())
-			id        = uuid.NewString()
-			subject   = "incr_test " + now[:16] + " - " + id[:8]
-			body      = "incr_test " + cat.String() + " generation for " + userID + " at " + now + " - " + id
-		)
+		id, d := generateItemData(t, cat, userID, dbf)
 
 		items = append(items, incrementalItem{
 			name: id,
-			data: dbf(id, nowLegacy, subject, body),
+			data: d,
 		})
 	}
 
@@ -332,10 +331,27 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
-	deets, err := gc.RestoreDataCollections(ctx, sel, dest, dataColls)
+	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, dataColls)
 	require.NoError(t, err)
 
 	return deets
+}
+
+func generateItemData(
+	t *testing.T,
+	category path.CategoryType,
+	resourceOwner string,
+	dbf dataBuilderFunc,
+) (string, []byte) {
+	var (
+		now       = common.Now()
+		nowLegacy = common.FormatLegacyTime(time.Now())
+		id        = uuid.NewString()
+		subject   = "incr_test " + now[:16] + " - " + id[:8]
+		body      = "incr_test " + category.String() + " generation for " + resourceOwner + " at " + now + " - " + id
+	)
+
+	return id, dbf(id, nowLegacy, subject, body)
 }
 
 type incrementalItem struct {
@@ -423,22 +439,17 @@ type BackupOpIntegrationSuite struct {
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoOperationTests,
-		tester.CorsoOperationBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoOperationBackupTests)
 
 	suite.Run(t, new(BackupOpIntegrationSuite))
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
@@ -473,7 +484,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.kw,
 				test.sw,
 				test.acct,
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				evmock.NewBus())
 			test.errCheck(t, err)
 		})
@@ -505,6 +516,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
+
 				return sel
 			},
 			resourceOwner:  suite.user,
@@ -520,6 +533,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 					users,
 					[]string{exchange.DefaultContactFolder},
 					selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
 
 				return sel
 			},
@@ -533,6 +547,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
 				sel.Include(sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
+
 				return sel
 			},
 			resourceOwner: suite.user,
@@ -629,8 +645,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
 		}
-		folder1 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 1, now)
-		folder2 = fmt.Sprintf("%s%d_%s", incrementalsDestFolderPrefix, 2, now)
+		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
+		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
+		container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
+		containerRename = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 4, now)
 	)
 
 	m365, err := acct.M365Config()
@@ -639,67 +657,106 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	require.NoError(t, err)
 
-	// generate 2 new folders with two items each.
+	ac, err := api.NewClient(m365)
+	require.NoError(t, err)
+
+	// generate 3 new folders with two items each.
+	// Only the first two folders will be part of the initial backup and
+	// incrementals.  The third folder will be introduced partway through
+	// the changes.
 	// This should be enough to cover most delta actions, since moving one
-	// folder into another generates a delta for both addition and deletion.
-	// TODO: get the folder IDs somehow, so that we can call mutations on
-	// the folders by ID.
+	// container into another generates a delta for both addition and deletion.
+	type contDeets struct {
+		containerID string
+		deets       *details.Details
+	}
+
+	mailDBF := func(id, timeStamp, subject, body string) []byte {
+		return mockconnector.GetMockMessageWith(
+			suite.user, suite.user, suite.user,
+			subject, body, body,
+			now, now, now, now)
+	}
+
+	contactDBF := func(id, timeStamp, subject, body string) []byte {
+		given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
+
+		return mockconnector.GetMockContactBytesWith(
+			given+" "+sur,
+			sur+", "+given,
+			given, mid, sur,
+			"123-456-7890",
+		)
+	}
+
 	dataset := map[path.CategoryType]struct {
 		dbf   dataBuilderFunc
-		dests map[string]*details.Details
+		dests map[string]contDeets
 	}{
 		path.EmailCategory: {
-			dbf: func(id, timeStamp, subject, body string) []byte {
-				user := suite.user
-
-				return mockconnector.GetMockMessageWith(
-					user, user, user,
-					subject, body, body,
-					now, now, now, now)
-			},
-			dests: map[string]*details.Details{
-				folder1: nil,
-				folder2: nil,
+			dbf: mailDBF,
+			dests: map[string]contDeets{
+				container1: {},
+				container2: {},
 			},
 		},
 		path.ContactsCategory: {
-			dbf: func(id, timeStamp, subject, body string) []byte {
-				given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
-
-				return mockconnector.GetMockContactBytesWith(
-					given+" "+sur,
-					sur+", "+given,
-					given, mid, sur,
-					"123-456-7890",
-				)
-			},
-			dests: map[string]*details.Details{
-				folder1: nil,
-				folder2: nil,
+			dbf: contactDBF,
+			dests: map[string]contDeets{
+				container1: {},
+				container2: {},
 			},
 		},
 	}
 
 	for category, gen := range dataset {
-		for dest := range gen.dests {
-			dataset[category].dests[dest] = generateContainerOfItems(
+		for destName := range gen.dests {
+			deets := generateContainerOfItems(
 				t,
 				ctx,
 				gc,
 				path.ExchangeService,
+				acct,
 				category,
 				selectors.NewExchangeRestore(users).Selector,
-				m365.AzureTenantID, suite.user, dest,
+				m365.AzureTenantID, suite.user, destName,
 				2,
 				gen.dbf)
+
+			dataset[category].dests[destName] = contDeets{"", deets}
 		}
 	}
 
-	// use the new folders here
+	for category, gen := range dataset {
+		qp := graph.QueryParams{
+			Category:      category,
+			ResourceOwner: suite.user,
+			Credentials:   m365,
+		}
+		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+		require.NoError(t, err, "populating %s container resolver", category)
+
+		for destName, dest := range gen.dests {
+			p, err := path.FromDataLayerPath(dest.deets.Entries[0].RepoRef, true)
+			require.NoError(t, err)
+
+			id, ok := cr.PathInCache(p.Folder())
+			require.True(t, ok, "dir %s found in %s cache", p.Folder(), category)
+
+			d := dataset[category].dests[destName]
+			d.containerID = id
+			dataset[category].dests[destName] = d
+		}
+	}
+
+	// container3 and containerRename don't exist yet.  Those will get created
+	// later on during the tests.  Putting their identifiers into the selector
+	// at this point is harmless.
+	containers := []string{container1, container2, container3, containerRename}
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(
-		sel.MailFolders(users, []string{folder1, folder2}, selectors.PrefixMatch()),
-		sel.ContactFolders(users, []string{folder1, folder2}, selectors.PrefixMatch()),
+		sel.MailFolders(users, containers, selectors.PrefixMatch()),
+		sel.ContactFolders(users, containers, selectors.PrefixMatch()),
 	)
 
 	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
@@ -708,14 +765,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb)
 
-	// incrementals changes to make (all changes apply to both email and contacts)
-	// [ ] add a new item to an existing folder
-	// [ ] remove an item from an existing folder
-	// [ ] add a new folder
-	// [ ] rename a folder
-	// [ ] relocate one folder into another
-	// [ ] remove a folder
-
+	// Although established as a table, these tests are no isolated from each other.
+	// Assume that every test's side effects cascade to all following test cases.
+	// The changes are split across the table so that we can monitor the deltas
+	// in isolation, rather than debugging one change from the rest of a series.
 	table := []struct {
 		name string
 		// performs the incremental update required for the test.
@@ -728,6 +781,186 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {},
 			itemsRead:      0,
 			itemsWritten:   0,
+		},
+		{
+			name: "move an email folder to a subfolder",
+			updateUserData: func(t *testing.T) {
+				// contacts cannot be sufoldered; this is an email-only change
+				toContainer := dataset[path.EmailCategory].dests[container1].containerID
+				fromContainer := dataset[path.EmailCategory].dests[container2].containerID
+
+				body := msuser.NewItemMailFoldersItemMovePostRequestBody()
+				body.SetDestinationId(&toContainer)
+
+				_, err := gc.Service.
+					Client().
+					UsersById(suite.user).
+					MailFoldersById(fromContainer).
+					Move().
+					Post(ctx, body, nil)
+				require.NoError(t, err)
+			},
+			itemsRead:    0, // zero because we don't count container reads
+			itemsWritten: 2,
+		},
+		{
+			name: "delete a folder",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					containerID := d.dests[container2].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						require.NoError(
+							t,
+							cli.MailFoldersById(containerID).Delete(ctx, nil),
+							"deleting an email folder")
+					case path.ContactsCategory:
+						require.NoError(
+							t,
+							cli.ContactFoldersById(containerID).Delete(ctx, nil),
+							"deleting a contacts folder")
+					}
+				}
+			},
+			itemsRead:    0,
+			itemsWritten: 0, // deletions are not counted as "writes"
+		},
+		{
+			name: "add a new folder",
+			updateUserData: func(t *testing.T) {
+				for category, gen := range dataset {
+					deets := generateContainerOfItems(
+						t,
+						ctx,
+						gc,
+						path.ExchangeService,
+						acct,
+						category,
+						selectors.NewExchangeRestore(users).Selector,
+						m365.AzureTenantID, suite.user, container3,
+						2,
+						gen.dbf)
+
+					qp := graph.QueryParams{
+						Category:      category,
+						ResourceOwner: suite.user,
+						Credentials:   m365,
+					}
+					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+					require.NoError(t, err, "populating %s container resolver", category)
+
+					p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)
+					require.NoError(t, err)
+
+					id, ok := cr.PathInCache(p.Folder())
+					require.True(t, ok, "dir %s found in %s cache", p.Folder(), category)
+
+					dataset[category].dests[container3] = contDeets{id, deets}
+				}
+			},
+			itemsRead:    4,
+			itemsWritten: 4,
+		},
+		{
+			name: "rename a folder",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					containerID := d.dests[container3].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					// copy the container info, since both names should
+					// reference the same container by id.  Though the
+					// details refs won't line up, so those get deleted.
+					d.dests[containerRename] = contDeets{
+						containerID: d.dests[container3].containerID,
+						deets:       nil,
+					}
+
+					switch category {
+					case path.EmailCategory:
+						cmf := cli.MailFoldersById(containerID)
+
+						body, err := cmf.Get(ctx, nil)
+						require.NoError(t, err, "getting mail folder")
+
+						body.SetDisplayName(&containerRename)
+						_, err = cmf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating mail folder name")
+
+					case path.ContactsCategory:
+						ccf := cli.ContactFoldersById(containerID)
+
+						body, err := ccf.Get(ctx, nil)
+						require.NoError(t, err, "getting contact folder")
+
+						body.SetDisplayName(&containerRename)
+						_, err = ccf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating contact folder name")
+					}
+				}
+			},
+			itemsRead:    0,
+			itemsWritten: 4,
+		},
+		{
+			name: "add a new item",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					containerID := d.dests[container1].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						_, itemData := generateItemData(t, category, suite.user, mailDBF)
+						body, err := support.CreateMessageFromBytes(itemData)
+						require.NoError(t, err, "transforming mail bytes to messageable")
+
+						_, err = cli.MailFoldersById(containerID).Messages().Post(ctx, body, nil)
+						require.NoError(t, err, "posting email item")
+
+					case path.ContactsCategory:
+						_, itemData := generateItemData(t, category, suite.user, contactDBF)
+						body, err := support.CreateContactFromBytes(itemData)
+						require.NoError(t, err, "transforming contact bytes to contactable")
+
+						_, err = cli.ContactFoldersById(containerID).Contacts().Post(ctx, body, nil)
+						require.NoError(t, err, "posting contact item")
+					}
+				}
+			},
+			itemsRead:    2,
+			itemsWritten: 2,
+		},
+		{
+			name: "delete an existing item",
+			updateUserData: func(t *testing.T) {
+				for category, d := range dataset {
+					containerID := d.dests[container1].containerID
+					cli := gc.Service.Client().UsersById(suite.user)
+
+					switch category {
+					case path.EmailCategory:
+						ids, _, _, err := ac.FetchMessageIDsFromDirectory(ctx, suite.user, containerID, "")
+						require.NoError(t, err, "getting message ids")
+						require.NotEmpty(t, ids, "message ids in folder")
+
+						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
+						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
+
+					case path.ContactsCategory:
+						ids, _, _, err := ac.FetchContactIDsFromDirectory(ctx, suite.user, containerID, "")
+						require.NoError(t, err, "getting contact ids")
+						require.NotEmpty(t, ids, "contact ids in folder")
+
+						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
+						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
+					}
+				}
+			},
+			itemsRead:    2,
+			itemsWritten: 0, // deletes are not counted as "writes"
 		},
 	}
 	for _, test := range table {
@@ -753,7 +986,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
-			// +4 on read/writes to account for metadata
+			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
 			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
 			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")

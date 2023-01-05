@@ -5,12 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] (alpha)
 
-## [v0.0.4] (alpha)
+### Changed
+
+- The selectors Reduce() process will only include details that match the DiscreteOwner, if one is specified.
+- New selector constructors will automatically set the DiscreteOwner if given a single-item slice.
+
+### Fixed
+
+- Fixed issue where repository connect progress bar was clobbering backup/restore operation output.
+- Fixed issue where a `backup create exchange` produced one backup record per data type.
+
+### Known Issues
+
+- `backup list` will not display a resource owner for backups created prior to this release.
+
+## [v0.0.4] (alpha) - 2022-12-23
 
 ### Added
 
+- Folder entries in backup details now indicate whether an item in the hierarchy was updated
 - Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`   
   with the `backup create` command. This functionality will be enabled by default in an upcoming release.
 - Folder entries in backup details now include size and modified time for the hierarchy ([#1896](https://github.com/alcionai/corso/issues/1896))

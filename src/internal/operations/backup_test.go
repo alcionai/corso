@@ -358,13 +358,16 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+			sel := selectors.Selector{}
+			sel.DiscreteOwner = "bombadil"
+
 			op, err := NewBackupOperation(
 				ctx,
 				control.Options{},
 				kw,
 				sw,
 				acct,
-				selectors.Selector{},
+				sel,
 				evmock.NewBus())
 			require.NoError(t, err)
 			test.expectErr(t, op.persistResults(now, &test.stats))

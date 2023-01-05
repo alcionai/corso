@@ -168,18 +168,20 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
-	t := suite.T()
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	gc := GraphConnector{wg: &sync.WaitGroup{}}
-	sel := selectors.Selector{
-		Service: selectors.ServiceUnknown,
-	}
-	dest := tester.DefaultTestRestoreDestination()
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		dest = tester.DefaultTestRestoreDestination()
+		gc   = GraphConnector{wg: &sync.WaitGroup{}}
+		sel  = selectors.Selector{
+			Service: selectors.ServiceUnknown,
+		}
+	)
 
-	deets, err := gc.RestoreDataCollections(ctx, sel, dest, nil)
+	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, nil)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 
@@ -225,19 +227,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup([]string{"bobkelso@someHospital.org", "janitor@someHospital.org"})
 				sel.Include(sel.MailFolders([]string{"bobkelso@someHospital.org", "janitor@someHospital.org"}, selectors.Any()))
-				return sel.Selector
-			},
-		},
-		{
-			name:       "Multiple Valid Users",
-			checkError: assert.NoError,
-			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup(
-					[]string{"elliotReid@someHospital.org", "johnDorian@someHospital.org", "christurk@somehospital.org"},
-				)
-				sel.Include(
-					sel.Users([]string{"elliotReid@someHospital.org", "johnDorian@someHospital.org", "christurk@somehospital.org"}))
-
+				sel.DiscreteOwner = "janitor@someHospital.org"
 				return sel.Selector
 			},
 		},
@@ -266,18 +256,21 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 			name:       "Valid User",
 			checkError: assert.NoError,
 			excludes: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org"})
+				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
 				sel.Exclude(sel.Folders([]string{"elliotReid@someHospital.org"}, selectors.Any()))
+				sel.DiscreteOwner = "elliotReid@someHospital.org"
 				return sel.Selector
 			},
 			filters: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org"})
+				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
 				sel.Filter(sel.Folders([]string{"elliotReid@someHospital.org"}, selectors.Any()))
+				sel.DiscreteOwner = "elliotReid@someHospital.org"
 				return sel.Selector
 			},
 			includes: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org"})
+				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
 				sel.Include(sel.Folders([]string{"elliotReid@someHospital.org"}, selectors.Any()))
+				sel.DiscreteOwner = "elliotReid@someHospital.org"
 				return sel.Selector
 			},
 		},
@@ -306,16 +299,19 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
 				sel.Exclude(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
+				sel.DiscreteOwner = "abc.site.foo"
 				return sel.Selector
 			},
 			filters: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
 				sel.Filter(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
+				sel.DiscreteOwner = "abc.site.foo"
 				return sel.Selector
 			},
 			includes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
 				sel.Include(sel.Sites([]string{"abc.site.foo", "bar.site.baz"}))
+				sel.DiscreteOwner = "abc.site.foo"
 				return sel.Selector
 			},
 		},
@@ -325,16 +321,19 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
 				sel.Exclude(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
+				sel.DiscreteOwner = "fnords.smarfs.brawnhilda"
 				return sel.Selector
 			},
 			filters: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
 				sel.Filter(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
+				sel.DiscreteOwner = "fnords.smarfs.brawnhilda"
 				return sel.Selector
 			},
 			includes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
 				sel.Include(sel.Sites([]string{"fnords.smarfs.brawnhilda"}))
+				sel.DiscreteOwner = "fnords.smarfs.brawnhilda"
 				return sel.Selector
 			},
 		},

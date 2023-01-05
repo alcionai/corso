@@ -301,8 +301,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewExchangeRestore(nil)
-			utils.IncludeExchangeRestoreDataSelectors(sel, test.opts)
+			sel := utils.IncludeExchangeRestoreDataSelectors(test.opts)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}

@@ -295,6 +295,12 @@ func reduce[T scopeT, C categoryT](
 		return nil
 	}
 
+	// if a DiscreteOwner is specified, only match details for that owner.
+	matchesResourceOwner := s.ResourceOwners
+	if len(s.DiscreteOwner) > 0 {
+		matchesResourceOwner = filterize(scopeConfig{}, s.DiscreteOwner)
+	}
+
 	// aggregate each scope type by category for easier isolation in future processing.
 	excls := scopesByCategory[T](s.Excludes, dataCategories, false)
 	filts := scopesByCategory[T](s.Filters, dataCategories, true)
@@ -307,6 +313,11 @@ func reduce[T scopeT, C categoryT](
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
 			logger.Ctx(ctx).Debugw("transforming repoRef to path", "err", err)
+			continue
+		}
+
+		// first check, every entry needs to match the selector's resource owners.
+		if !matchesResourceOwner.Compare(repoPath.ResourceOwner()) {
 			continue
 		}
 
@@ -439,6 +450,11 @@ func matchesPathValues[T scopeT, C categoryT](
 	shortRef string,
 ) bool {
 	for _, c := range cat.pathKeys() {
+		// resourceOwners are now checked at the beginning of the reduction.
+		if c == c.rootCat() {
+			continue
+		}
+
 		// the pathValues must have an entry for the given categorizer
 		pathVal, ok := pathValues[c]
 		if !ok {
