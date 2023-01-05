@@ -84,9 +84,12 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			ac, err := api.NewClient(suite.credentials)
 			require.NoError(t, err)
 
+			acm := ac.Mail()
+
 			mfc := mailFolderCache{
 				userID: userID,
-				ac:     ac,
+				enumer: acm,
+				getter: acm,
 			}
 
 			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))

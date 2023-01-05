@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -18,7 +17,8 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
 	*containerResolver
-	ac     api.Client
+	enumer containersEnumerator
+	getter containerGetter
 	userID string
 }
 
@@ -33,7 +33,7 @@ func (mc *mailFolderCache) populateMailRoot(
 	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
 		var directory string
 
-		f, err := mc.ac.GetMailFolderByID(ctx, mc.userID, fldr, "displayName", "parentFolderId")
+		f, err := mc.getter.GetContainerByID(ctx, mc.userID, fldr)
 		if err != nil {
 			return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 		}
@@ -65,7 +65,7 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
-	err := mc.ac.EnumerateMailFolders(ctx, mc.userID, mc.addFolder)
+	err := mc.enumer.EnumerateContainers(ctx, mc.userID, "", mc.addFolder)
 	if err != nil {
 		return err
 	}

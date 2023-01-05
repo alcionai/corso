@@ -142,11 +142,11 @@ func (col *Collection) Items() <-chan data.Stream {
 func GetQueryAndSerializeFunc(ac api.Client, category path.CategoryType) (api.GraphRetrievalFunc, GraphSerializeFunc) {
 	switch category {
 	case path.ContactsCategory:
-		return ac.RetrieveContactDataForUser, serializeAndStreamContact
+		return ac.Contacts().RetrieveContactDataForUser, serializeAndStreamContact
 	case path.EventsCategory:
-		return ac.RetrieveEventDataForUser, serializeAndStreamEvent
+		return ac.Events().RetrieveEventDataForUser, serializeAndStreamEvent
 	case path.EmailCategory:
-		return ac.RetrieveMessageDataForUser, serializeAndStreamMessage
+		return ac.Mail().RetrieveMessageDataForUser, serializeAndStreamMessage
 	// Unsupported options returns nil, nil
 	default:
 		return nil, nil

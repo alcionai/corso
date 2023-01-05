@@ -50,14 +50,15 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
-			ac:     ac,
+			enumer: ac.Events(),
 		}
 	}
 
 	contactFunc := func(t *testing.T) graph.ContainerResolver {
 		return &contactFolderCache{
 			userID: tester.M365UserID(t),
-			ac:     ac,
+			enumer: ac.Contacts(),
+			getter: ac.Contacts(),
 		}
 	}
 

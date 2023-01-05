@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -205,12 +206,25 @@ func DataCollections(
 	return collections, errs
 }
 
+func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
+	switch category {
+	case path.EmailCategory:
+		return ac.Mail(), nil
+	case path.EventsCategory:
+		return ac.Events(), nil
+	case path.ContactsCategory:
+		return ac.Contacts(), nil
+	default:
+		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
+	}
+}
+
 // createCollections - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are retrieved.
 func createCollections(
 	ctx context.Context,
-	acct account.M365Config,
+	creds account.M365Config,
 	user string,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
@@ -220,15 +234,22 @@ func createCollections(
 	var (
 		errs           *multierror.Error
 		allCollections = make([]data.Collection, 0)
+		ac             = api.Client{Credentials: creds}
+		category       = scope.Category().PathType()
 	)
+
+	getter, err := getterByType(ac, category)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create collection of ExchangeDataCollection
 	collections := make(map[string]data.Collection)
 
 	qp := graph.QueryParams{
-		Category:      scope.Category().PathType(),
+		Category:      category,
 		ResourceOwner: user,
-		Credentials:   acct,
+		Credentials:   creds,
 	}
 
 	foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
@@ -243,6 +264,7 @@ func createCollections(
 	err = filterContainersAndFillCollections(
 		ctx,
 		qp,
+		getter,
 		collections,
 		su,
 		resolver,
