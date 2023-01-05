@@ -194,7 +194,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	sel := oneDriveBackupCreateSelectors(user)
 
-	users, err := m365.UserIDs(ctx, acct)
+	users, err := m365.UserPNs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}

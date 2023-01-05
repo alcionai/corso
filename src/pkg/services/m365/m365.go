@@ -58,6 +58,22 @@ func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error)
 	return ret, nil
 }
 
+// UserPNs retrieves all user principleNames in the tenant.  Principle Names
+// can be used analogous userIDs in graph API queries.
+func UserPNs(ctx context.Context, m365Account account.Account) ([]string, error) {
+	users, err := Users(ctx, m365Account)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]string, 0, len(users))
+	for _, u := range users {
+		ret = append(ret, u.PrincipalName)
+	}
+
+	return ret, nil
+}
+
 // SiteURLs returns a list of SharePoint site WebURLs in the specified M365 tenant
 func SiteURLs(ctx context.Context, m365Account account.Account) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, m365Account, connector.Sites)
