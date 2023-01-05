@@ -597,9 +597,10 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				test.pathFunc1(t),
 				folderName,
 				directoryCaches)
-
 			require.NoError(t, err)
+
 			resolver := directoryCaches[test.category]
+
 			_, err = resolver.IDToPath(ctx, folderID)
 			assert.NoError(t, err)
 
@@ -609,10 +610,11 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				test.pathFunc2(t),
 				folderName,
 				directoryCaches)
-
 			require.NoError(t, err)
+
 			_, err = resolver.IDToPath(ctx, secondID)
 			require.NoError(t, err)
+
 			_, ok := resolver.PathInCache(folderName)
 			require.True(t, ok)
 		})

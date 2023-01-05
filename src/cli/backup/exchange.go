@@ -272,7 +272,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(user, exchangeData)
 
-	users, err := m365.UserIDs(ctx, acct)
+	users, err := m365.UserPNs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
