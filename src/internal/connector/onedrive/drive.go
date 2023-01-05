@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/pkg/logger"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -15,6 +12,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 var (
@@ -259,12 +260,15 @@ func createItem(
 	for _, p := range permAdded {
 		pbody := msdrive.NewItemsItemInvitePostRequestBody()
 		pbody.SetRoles(p.Roles)
+
 		if p.Expiration != nil {
 			expiry := p.Expiration.String()
 			pbody.SetExpirationDateTime(&expiry)
 		}
+
 		si := false
 		pbody.SetSendInvitation(&si)
+
 		rs := true
 		pbody.SetRequireSignIn(&rs)
 

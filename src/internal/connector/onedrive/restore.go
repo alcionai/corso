@@ -8,6 +8,8 @@ import (
 	"runtime/trace"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -17,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -56,18 +57,21 @@ func RestoreCollections(
 	}
 
 	directory := dcs[0].FullPath() // drive will be same for all the paths
+
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
 		errUpdater(directory.String(), err)
 	}
 
 	driveID := drivePath.DriveID
+
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err,
 			"failed to get drive root. details: %s",
 			support.ConnectorStackErrorTrace(err),
 		))
+
 		return nil, errors.New("unable to connect to drive")
 	}
 
@@ -80,7 +84,8 @@ func RestoreCollections(
 	pids := map[string]dirEntry{}
 
 	// Create initial root container to hold the restore
-	containerId, err := CreateRestoreFolder(ctx, service, driveID, dest.ContainerName, []UserPermission{}, []UserPermission{}, *driveRoot.GetId())
+	containerID, err := CreateRestoreFolder(ctx, service, driveID, dest.ContainerName,
+		[]UserPermission{}, []UserPermission{}, *driveRoot.GetId())
 	if err != nil {
 		return nil, errors.New("unable to create restore container")
 	}
@@ -88,13 +93,13 @@ func RestoreCollections(
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
 		elms := dc.FullPath().Elements()
-		path := strings.Join(elms, "/")
+		fpath := strings.Join(elms, "/")
 		parentPath := strings.Join(elms[:len(elms)-1], "/")
 
 		parent, ok := pids[parentPath]
 		if !ok {
 			if len(dc.FullPath().Elements()) == 8 { // base folders
-				parent = dirEntry{ID: containerId, meta: ItemMeta{}}
+				parent = dirEntry{ID: containerID, meta: ItemMeta{}}
 			} else {
 				errUpdater(dc.FullPath().String(), errors.New("unable to find parent path"))
 				continue
@@ -107,10 +112,12 @@ func RestoreCollections(
 			errUpdater,
 			parent)
 		restoreMetrics.Combine(metrics)
+
 		if cancelled {
 			break
 		}
-		pids[path] = dirEntry{ID: id, meta: pmeta}
+
+		pids[fpath] = dirEntry{ID: id, meta: pmeta}
 	}
 
 	return support.CreateStatus(
@@ -152,6 +159,7 @@ func RestoreCollection(
 
 	elms := directory.Elements()
 	folder := elms[len(elms)-1]
+
 	meta, err := getItemMeta(dc.Meta())
 	if err != nil {
 		errUpdater(folder, errors.Wrapf(err, "failed to parse metadata %v", folder))
@@ -159,6 +167,7 @@ func RestoreCollection(
 	}
 
 	permAdded, permRemoved := getChildPermissions(meta.Permissions, parent.meta.Permissions)
+
 	parentFolderID, err := CreateRestoreFolder(ctx, service, drivePath.DriveID, folder, permAdded, permRemoved, parent.ID)
 	if err != nil {
 		errUpdater(folder, errors.Wrapf(err, "failed to create folder %v", folder))
@@ -193,6 +202,7 @@ func RestoreCollection(
 				errUpdater(itemData.UUID(), err)
 				continue
 			}
+
 			permAdded, permRemoved := getChildPermissions(cmeta.Permissions, meta.Permissions)
 
 			itemInfo, err := RestoreItem(ctx,
@@ -213,6 +223,7 @@ func RestoreCollection(
 			if err != nil {
 				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
 				errUpdater(itemData.UUID(), err)
+
 				continue
 			}
 
@@ -243,6 +254,7 @@ func getItemMeta(metar io.ReadCloser) (ItemMeta, error) {
 		if metaraw[0] != '{' {
 			start = 4
 		}
+
 		err = json.Unmarshal(metaraw[start:], &meta)
 		if err != nil {
 			return ItemMeta{}, err
@@ -264,12 +276,14 @@ func getChildPermissions(childPermissions, parentPermissions []UserPermission) (
 
 	for _, cp := range childPermissions {
 		found := false
+
 		for _, pp := range parentPermissions {
 			if cp.ID == pp.ID {
 				found = true
 				break
 			}
 		}
+
 		if !found {
 			addedPermissions = append(addedPermissions, cp)
 		}
@@ -277,12 +291,14 @@ func getChildPermissions(childPermissions, parentPermissions []UserPermission) (
 
 	for _, pp := range parentPermissions {
 		found := false
+
 		for _, cp := range childPermissions {
 			if pp.ID == cp.ID {
 				found = true
 				break
 			}
 		}
+
 		if !found {
 			removedPermissions = append(removedPermissions, pp)
 		}
@@ -291,7 +307,12 @@ func getChildPermissions(childPermissions, parentPermissions []UserPermission) (
 	return addedPermissions, removedPermissions
 }
 
-func CreateRestoreFolder(ctx context.Context, service graph.Servicer, driveID, folder string, permAdded, permRemoved []UserPermission, parentFolderID string) (string, error) {
+func CreateRestoreFolder(ctx context.Context,
+	service graph.Servicer,
+	driveID, folder string,
+	permAdded, permRemoved []UserPermission,
+	parentFolderID string,
+) (string, error) {
 	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true), permAdded, permRemoved)
 	if err != nil {
 		return "", errors.Wrapf(
@@ -340,7 +361,9 @@ func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID s
 		// This function is currently only used by sharepoint for
 		// which we do not store permissions
 		emptyPermissions := []UserPermission{}
-		folderItem, err = createItem(ctx, service, driveID, parentFolderID, newItem(folder, true), emptyPermissions, emptyPermissions)
+		folderItem, err = createItem(ctx, service, driveID, parentFolderID,
+			newItem(folder, true), emptyPermissions, emptyPermissions)
+
 		if err != nil {
 			return "", errors.Wrapf(
 				err,
@@ -379,7 +402,8 @@ func RestoreItem(
 	}
 
 	// Create Item
-	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false), permAdded, permRemoved)
+	newItem, err := createItem(ctx, service, driveID, parentFolderID,
+		newItem(itemData.UUID(), false), permAdded, permRemoved)
 	if err != nil {
 		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
 	}

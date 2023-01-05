@@ -5,12 +5,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
@@ -19,6 +13,13 @@ import (
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -395,6 +396,7 @@ func (w Wrapper) RestoreDetails(
 	}
 
 	dc.streams = append(dc.streams, ds)
+
 	return dc, nil
 }
 
@@ -440,12 +442,14 @@ func (w Wrapper) RestoreMultipleItems(
 		// Create all folder collections including parents
 		errored := false
 		icols := []*kopiaDataCollection{}
+
 		for {
 			if len(ip.Elements()) <= 7 {
 				break
 			}
 
 			key := ip.ShortRef()
+
 			_, ok := visited[key]
 			if !ok {
 				mr, err := getMetaReader(ctx, snapshotRoot, ip)
@@ -465,8 +469,8 @@ func (w Wrapper) RestoreMultipleItems(
 				break
 			}
 		}
+
 		if errored {
-			errored = false
 			break
 		}
 

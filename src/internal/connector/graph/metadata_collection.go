@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -204,6 +205,6 @@ func (mi MetadataItem) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(mi.data))
 }
 
-func (kds MetadataItem) ToMetaReader() (io.ReadCloser, error) {
+func (mi MetadataItem) ToMetaReader() (io.ReadCloser, error) {
 	return nil, nil
 }

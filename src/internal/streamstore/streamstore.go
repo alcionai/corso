@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/pkg/errors"
 )
 
 type streamStore struct {
@@ -208,7 +209,7 @@ func (di *streamItem) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(di.data))
 }
 
-func (od *streamItem) ToMetaReader() (io.ReadCloser, error) {
+func (di *streamItem) ToMetaReader() (io.ReadCloser, error) {
 	return nil, nil
 }
 

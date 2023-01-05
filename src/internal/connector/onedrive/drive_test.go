@@ -4,14 +4,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
 type OneDriveSuite struct {
@@ -47,6 +48,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	// TODO: Verify the intended drive
 	driveID := *drives[0].GetId()
+
 	driveRoot, err := gs.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
 		t.Fatal("unable to get drive root")
@@ -61,7 +63,9 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 		}
 	}()
 
-	folderID, err := CreateRestoreFolder(ctx, gs, driveID, folderName1, []UserPermission{}, []UserPermission{}, *driveRoot.GetId())
+	folderID, err := CreateRestoreFolder(ctx, gs, driveID, folderName1,
+		[]UserPermission{}, []UserPermission{},
+		*driveRoot.GetId())
 	require.NoError(t, err)
 
 	folderIDs = append(folderIDs, folderID)

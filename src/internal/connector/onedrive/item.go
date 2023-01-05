@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"io"
 
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -115,25 +116,32 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 }
 
 // oneDriveItemMetaInfo will fetch the meta information for a drive item
-func oneDriveItemMetaInfo(ctx context.Context, driveID string, di models.DriveItemable, service graph.Servicer) (ItemMeta, error) {
+func oneDriveItemMetaInfo(ctx context.Context, driveID string,
+	di models.DriveItemable, service graph.Servicer,
+) (ItemMeta, error) {
 	itemID := di.GetId()
+
 	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
 	if err != nil {
 		return ItemMeta{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
 	}
 
 	up := []UserPermission{}
+
 	for _, p := range perm.GetValue() {
 		roles := []string{}
+
 		for _, r := range p.GetRoles() {
 			// Skip if the only role available in owner
 			if r != "owner" {
 				roles = append(roles, r)
 			}
 		}
+
 		if len(roles) == 0 {
 			continue
 		}
+
 		up = append(up, UserPermission{
 			ID:         *p.GetId(),
 			Roles:      roles,
@@ -141,6 +149,7 @@ func oneDriveItemMetaInfo(ctx context.Context, driveID string, di models.DriveIt
 			Expiration: p.GetExpirationDateTime(),
 		})
 	}
+
 	return ItemMeta{Permissions: up}, nil
 }
 

@@ -118,7 +118,7 @@ func (sd *Item) ToReader() io.ReadCloser {
 }
 
 // TODO(meain): Implement this
-func (od *Item) ToMetaReader() (io.ReadCloser, error) {
+func (sd *Item) ToMetaReader() (io.ReadCloser, error) {
 	return nil, nil
 }
 
