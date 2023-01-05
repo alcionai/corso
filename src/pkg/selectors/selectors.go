@@ -98,7 +98,18 @@ type Selector struct {
 	// A record of the resource owners matched by this selector.
 	ResourceOwners filters.Filter `json:"resourceOwners,omitempty"`
 
-	// The single resource owner used by the selector after splitting.
+	// The single resource owner being observed by the selector.
+	// Selectors are constructed by passing in a list of ResourceOwners,
+	// and those owners represent the "total" data that should be operated
+	// across all corso operations.  But any single operation (backup,restore,
+	// etc) will only observe a single user at a time, and that user is
+	// represented by this value.
+	//
+	// If the constructor is passed a len=1 list of owners, this value is
+	// automatically matched to that entry.  For lists with more than one
+	// owner, the user is expected to call SplitByResourceOwner(), and
+	// iterate over the results, where each one will populate this field
+	// with a different owner.
 	DiscreteOwner string `json:"discreteOwner,omitempty"`
 
 	// A slice of exclusion scopes.  Exclusions apply globally to all
@@ -114,7 +125,7 @@ type Selector struct {
 // helper for specific selector instance constructors.
 func newSelector(s service, resourceOwners []string) Selector {
 	var owner string
-	if len(resourceOwners) == 1 {
+	if len(resourceOwners) == 1 && resourceOwners[0] != AnyTgt {
 		owner = resourceOwners[0]
 	}
 

@@ -217,7 +217,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 			checkError: assert.NoError,
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup([]string{"bobKelso@someHospital.org"})
-				sel.DiscreteOwner = "bobKelso@someHospital.org"
 				sel.Include(sel.MailFolders(selectors.Any()))
 				return sel.Selector
 			},
@@ -236,8 +235,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 			name:       "Invalid discrete owner",
 			checkError: assert.Error,
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "janitor@someHospital.org"})
-				sel.DiscreteOwner = "janitor@someHospital.org"
+				sel := selectors.NewOneDriveBackup([]string{"janitor@someHospital.org"})
 				sel.Include(sel.AllData())
 				return sel.Selector
 			},
