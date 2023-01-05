@@ -21,7 +21,7 @@ type containerGetter interface {
 	) (graph.Container, error)
 }
 
-type enumerateContainerser interface {
+type containersEnumerator interface {
 	EnumerateContainers(
 		ctx context.Context,
 		userID, baseDirID string,

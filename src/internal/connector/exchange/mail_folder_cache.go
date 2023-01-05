@@ -17,7 +17,7 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
 	*containerResolver
-	enumer enumerateContainerser
+	enumer containersEnumerator
 	getter containerGetter
 	userID string
 }

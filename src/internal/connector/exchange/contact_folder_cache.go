@@ -14,7 +14,7 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	enumer enumerateContainerser
+	enumer containersEnumerator
 	getter containerGetter
 	userID string
 }

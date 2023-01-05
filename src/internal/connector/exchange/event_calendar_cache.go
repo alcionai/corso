@@ -13,7 +13,7 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	enumer enumerateContainerser
+	enumer containersEnumerator
 	userID string
 }
 
