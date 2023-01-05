@@ -24,6 +24,10 @@ type MockListCollection struct {
 	Names    []string
 }
 
+func (mlc *MockListCollection) SetPath(p path.Path) {
+	mlc.fullPath = p
+}
+
 func (mlc *MockListCollection) State() data.CollectionState {
 	return data.NewState
 }

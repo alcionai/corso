@@ -207,12 +207,24 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 	}
 
 	for _, cd := range orig.GetColumns() {
-		tag := *cd.GetDisplayName()
-		_, isLegacy := leg[tag]
+		var (
+			displayName string
+			readOnly    bool
+		)
+
+		if cd.GetDisplayName() != nil {
+			displayName = *cd.GetDisplayName()
+		}
+
+		if cd.GetReadOnly() != nil {
+			readOnly = *cd.GetReadOnly()
+		}
+
+		_, isLegacy := leg[displayName]
 
 		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
 		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
-		if *cd.GetReadOnly() || tag == "Title" || isLegacy {
+		if readOnly || displayName == "Title" || isLegacy {
 			continue
 		}
 
