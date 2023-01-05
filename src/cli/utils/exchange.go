@@ -53,7 +53,7 @@ type ExchangeOpts struct {
 // to act as a wildcard.
 func AddExchangeInclude(
 	sel *selectors.ExchangeRestore,
-	resource, folders, items []string,
+	folders, items []string,
 	eisc selectors.ExchangeItemScopeConstructor,
 ) {
 	lf, li := len(folders), len(items)
@@ -64,10 +64,6 @@ func AddExchangeInclude(
 		return
 	}
 
-	if len(resource) == 0 {
-		resource = selectors.Any()
-	}
-
 	if li == 0 {
 		items = selectors.Any()
 	}
@@ -75,11 +71,11 @@ func AddExchangeInclude(
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(folders)
 
 	if len(containsFolders) > 0 {
-		sel.Include(eisc(resource, containsFolders, items))
+		sel.Include(eisc(containsFolders, items))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(eisc(resource, prefixFolders, items, selectors.PrefixMatch()))
+		sel.Include(eisc(prefixFolders, items, selectors.PrefixMatch()))
 	}
 }
 
@@ -141,7 +137,7 @@ func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeR
 	lev, lec := len(opts.Event), len(opts.EventCalendar)
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
-		sel.Include(sel.Users(users))
+		sel.Include(sel.AllData())
 
 		return sel
 	}
@@ -149,9 +145,9 @@ func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeR
 	opts.EmailFolder = trimFolderSlash(opts.EmailFolder)
 
 	// or add selectors for each type of data
-	AddExchangeInclude(sel, users, opts.ContactFolder, opts.Contact, sel.Contacts)
-	AddExchangeInclude(sel, users, opts.EmailFolder, opts.Email, sel.Mails)
-	AddExchangeInclude(sel, users, opts.EventCalendar, opts.Event, sel.Events)
+	AddExchangeInclude(sel, opts.ContactFolder, opts.Contact, sel.Contacts)
+	AddExchangeInclude(sel, opts.EmailFolder, opts.Email, sel.Mails)
+	AddExchangeInclude(sel, opts.EventCalendar, opts.Event, sel.Events)
 
 	return sel
 }

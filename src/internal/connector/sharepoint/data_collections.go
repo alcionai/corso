@@ -58,7 +58,6 @@ func DataCollections(
 				serv,
 				tenantID,
 				site,
-				scope,
 				su,
 				ctrlOpts)
 			if err != nil {
@@ -90,41 +89,36 @@ func collectLists(
 	ctx context.Context,
 	serv graph.Servicer,
 	tenantID, siteID string,
-	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
 
-	if scope.Matches(selectors.SharePointSite, siteID) {
-		spcs := make([]data.Collection, 0)
+	spcs := make([]data.Collection, 0)
 
-		tuples, err := preFetchLists(ctx, serv, siteID)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, tuple := range tuples {
-			dir, err := path.Builder{}.Append(tuple.name).
-				ToDataLayerSharePointPath(
-					tenantID,
-					siteID,
-					path.ListsCategory,
-					false)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
-			}
-
-			collection := NewCollection(dir, serv, updater.UpdateStatus)
-			collection.AddJob(tuple.id)
-
-			spcs = append(spcs, collection)
-		}
-
-		return spcs, nil
+	tuples, err := preFetchLists(ctx, serv, siteID)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, nil
+	for _, tuple := range tuples {
+		dir, err := path.Builder{}.Append(tuple.name).
+			ToDataLayerSharePointPath(
+				tenantID,
+				siteID,
+				path.ListsCategory,
+				false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+		}
+
+		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection.AddJob(tuple.id)
+
+		spcs = append(spcs, collection)
+	}
+
+	return spcs, nil
 }
 
 // collectLibraries constructs a onedrive Collections struct and Get()s

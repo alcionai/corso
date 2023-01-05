@@ -66,19 +66,19 @@ func Example_includeFoldersAndItems() {
 	// structures and individual items below.  Higher level scopes will automatically
 	// involve all descendant data in the hierarchy.
 
-	// Users will select all Exchange data owned by the specified user.
-	seb.Users([]string{"foo-user-id"})
+	// AllData will select all Exchange data owned by the users specified
+	// in the selector.
+	seb.AllData()
 
 	// Lower level Scopes are described on a per-data-type basis.  This scope will
 	// select all email in the Inbox folder, for all users in the tenant.
-	seb.MailFolders(selectors.Any(), []string{"Inbox"})
+	seb.MailFolders([]string{"Inbox"})
 
 	// Folder-level scopes will, by default, include every folder whose name matches
 	// the provided value, regardless of its position in the hierarchy.  If you want
 	// to restrict the scope to a specific path, you can use the PrefixMatch option.
 	// This scope selects all data in /foolder, but will skip /other/foolder.
 	seb.MailFolders(
-		selectors.Any(),
 		[]string{"foolder"},
 		selectors.PrefixMatch())
 
@@ -86,7 +86,6 @@ func Example_includeFoldersAndItems() {
 	// selection for users and folders when specifying an item, but these ids are
 	// usually unique, and have a low chance of collision.
 	seb.Mails(
-		selectors.Any(),
 		selectors.Any(),
 		[]string{"item-id-1", "item-id-2"},
 	)
@@ -114,11 +113,6 @@ func Example_filters() {
 		// But you can still make a compound filter by adding each scope individually.
 		ser.MailSubject("the answer to life, the universe, and everything"),
 	)
-
-	// Selectors can specify both Filter and Inclusion scopes.  Now, not only will the
-	// data only include emails matching the filters above, it will only include emails
-	// owned by this one user.
-	ser.Include(ser.Users([]string{"foo-user-id"}))
 }
 
 var (
@@ -155,7 +149,7 @@ func Example_reduceDetails() {
 	// We haven't added any scopes to our selector yet, so none of the data is retained.
 	fmt.Println("Before adding scopes:", len(filteredDetails.Entries))
 
-	ser.Include(ser.Mails([]string{"your-user-id"}, []string{"example"}, []string{"xyz"}))
+	ser.Include(ser.Mails([]string{"example"}, []string{"xyz"}))
 	ser.Filter(ser.MailSubject("the answer to life"))
 
 	// Now that we've selected our data, we should find a result.
@@ -174,11 +168,7 @@ func Example_scopeMatching() {
 		NewExchangeBackup(
 			[]string{"your-user-id", "foo-user-id", "bar-user-id"},
 		).
-		Mails(
-			[]string{"id-1"},
-			[]string{"Inbox"},
-			selectors.Any(),
-		)[0]
+		Mails([]string{"Inbox"}, selectors.Any())[0]
 
 	// To compare data against a scope, you need to specify the category of data,
 	// and input the value to check.
@@ -186,8 +176,8 @@ func Example_scopeMatching() {
 	fmt.Println("Matches the mail folder 'inbox':", result)
 
 	// Non-matching values will return false.
-	result = scope.Matches(selectors.ExchangeUser, "id-42")
-	fmt.Println("Matches the user by id 'id-42':", result)
+	result = scope.Matches(selectors.ExchangeMailFolder, "Archive")
+	fmt.Println("Matches the mail folder by display name 'Archive':", result)
 
 	// If you specify a category that doesn't belong to the expected
 	// data type, the result is always false, even if the underlying
@@ -201,7 +191,7 @@ func Example_scopeMatching() {
 	fmt.Println("Scope Category:", cat)
 
 	// Output: Matches the mail folder 'inbox': true
-	// Matches the user by id 'id-42': false
+	// Matches the mail folder by display name 'Archive': false
 	// Matches the contact by id 'id-1': false
 	// Scope Category: ExchangeMail
 }

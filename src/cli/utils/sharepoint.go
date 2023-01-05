@@ -68,7 +68,7 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 	sel := selectors.NewSharePointRestore(sites)
 
 	if lp+li+lwu+slp+sli == 0 {
-		sel.Include(sel.Sites(sites))
+		sel.Include(sel.AllData())
 		return sel
 	}
 
@@ -81,11 +81,11 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
 
 		if len(containsFolders) > 0 {
-			sel.Include(sel.LibraryItems(sites, containsFolders, opts.LibraryItems))
+			sel.Include(sel.LibraryItems(containsFolders, opts.LibraryItems))
 		}
 
 		if len(prefixFolders) > 0 {
-			sel.Include(sel.LibraryItems(sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+			sel.Include(sel.LibraryItems(prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
 		}
 	}
 
@@ -98,11 +98,11 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListPaths)
 
 		if len(containsFolders) > 0 {
-			sel.Include(sel.ListItems(opts.Sites, containsFolders, opts.ListItems))
+			sel.Include(sel.ListItems(containsFolders, opts.ListItems))
 		}
 
 		if len(prefixFolders) > 0 {
-			sel.Include(sel.ListItems(opts.Sites, prefixFolders, opts.ListItems, selectors.PrefixMatch()))
+			sel.Include(sel.ListItems(prefixFolders, opts.ListItems, selectors.PrefixMatch()))
 		}
 	}
 

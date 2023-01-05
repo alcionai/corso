@@ -98,7 +98,18 @@ type Selector struct {
 	// A record of the resource owners matched by this selector.
 	ResourceOwners filters.Filter `json:"resourceOwners,omitempty"`
 
-	// The single resource owner used by the selector after splitting.
+	// The single resource owner being observed by the selector.
+	// Selectors are constructed by passing in a list of ResourceOwners,
+	// and those owners represent the "total" data that should be operated
+	// across all corso operations.  But any single operation (backup,restore,
+	// etc) will only observe a single user at a time, and that user is
+	// represented by this value.
+	//
+	// If the constructor is passed a len=1 list of owners, this value is
+	// automatically matched to that entry.  For lists with more than one
+	// owner, the user is expected to call SplitByResourceOwner(), and
+	// iterate over the results, where each one will populate this field
+	// with a different owner.
 	DiscreteOwner string `json:"discreteOwner,omitempty"`
 
 	// A slice of exclusion scopes.  Exclusions apply globally to all
@@ -114,7 +125,7 @@ type Selector struct {
 // helper for specific selector instance constructors.
 func newSelector(s service, resourceOwners []string) Selector {
 	var owner string
-	if len(resourceOwners) == 1 {
+	if len(resourceOwners) == 1 && resourceOwners[0] != AnyTgt {
 		owner = resourceOwners[0]
 	}
 
@@ -312,10 +323,11 @@ func selectorAsIface[T any](s Selector) (T, error) {
 // ---------------------------------------------------------------------------
 
 type Printable struct {
-	Service  string              `json:"service"`
-	Excludes map[string][]string `json:"excludes,omitempty"`
-	Filters  map[string][]string `json:"filters,omitempty"`
-	Includes map[string][]string `json:"includes,omitempty"`
+	ResourceOwners []string            `json:"resourceOwners"`
+	Service        string              `json:"service"`
+	Excludes       map[string][]string `json:"excludes,omitempty"`
+	Filters        map[string][]string `json:"filters,omitempty"`
+	Includes       map[string][]string `json:"includes,omitempty"`
 }
 
 type printabler interface {
@@ -335,10 +347,11 @@ func (s Selector) ToPrintable() Printable {
 // toPrintable creates the minimized display of a selector, formatted for human readability.
 func toPrintable[T scopeT](s Selector) Printable {
 	return Printable{
-		Service:  s.Service.String(),
-		Excludes: toResourceTypeMap[T](s.Excludes),
-		Filters:  toResourceTypeMap[T](s.Filters),
-		Includes: toResourceTypeMap[T](s.Includes),
+		ResourceOwners: s.DiscreteResourceOwners(),
+		Service:        s.Service.String(),
+		Excludes:       toResourceTypeMap[T](s.Excludes),
+		Filters:        toResourceTypeMap[T](s.Filters),
+		Includes:       toResourceTypeMap[T](s.Includes),
 	}
 }
 
@@ -349,13 +362,14 @@ func toPrintable[T scopeT](s Selector) Printable {
 // Resource refers to the top-level entity in the service. User for Exchange,
 // Site for sharepoint, etc.
 func (p Printable) Resources() string {
-	s := resourcesShortFormat(p.Includes)
-	if len(s) == 0 {
-		s = resourcesShortFormat(p.Filters)
-	}
+	s := resourcesShortFormat(p.ResourceOwners)
 
 	if len(s) == 0 {
 		s = "None"
+	}
+
+	if s == AnyTgt {
+		s = "All"
 	}
 
 	return s
@@ -363,19 +377,15 @@ func (p Printable) Resources() string {
 
 // returns a string with the resources in the map.  Shortened to the first resource key,
 // plus, if more exist, " (len-1 more)"
-func resourcesShortFormat(m map[string][]string) string {
-	var s string
-
-	for k := range m {
-		s = k
-		break
+func resourcesShortFormat(ros []string) string {
+	switch len(ros) {
+	case 0:
+		return ""
+	case 1:
+		return ros[0]
+	default:
+		return fmt.Sprintf("%s (%d more)", ros[0], len(ros)-1)
 	}
-
-	if len(s) > 0 && len(m) > 1 {
-		s = fmt.Sprintf("%s (%d more)", s, len(m)-1)
-	}
-
-	return s
 }
 
 // Transforms the slice to a single map.

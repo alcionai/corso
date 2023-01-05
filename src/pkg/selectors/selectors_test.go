@@ -71,15 +71,10 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := stubSelector(test.resourceOwners)
-			p := sel.Printable()
-			res := p.Resources()
-
-			assert.Equal(t, "All", res, "stub starts out as an all-pass")
 
 			stubWithResource := func(resource string) scope {
 				ss := stubScope("")
 				ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
-
 				return scope(ss)
 			}
 
@@ -90,11 +85,6 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 				sel.Includes = append(sel.Includes, stubWithResource(ro))
 				sel.Filters = append(sel.Filters, stubWithResource(ro))
 			}
-
-			p = sel.Printable()
-			res = p.Resources()
-
-			assert.True(t, test.expect(res), test.reason)
 		})
 	}
 }

@@ -370,7 +370,7 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore(nil)
 			// no return, mutates sel as a side effect
-			utils.AddExchangeInclude(sel, test.resources, test.folders, test.items, eisc)
+			utils.AddExchangeInclude(sel, test.folders, test.items, eisc)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}

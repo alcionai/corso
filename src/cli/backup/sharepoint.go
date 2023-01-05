@@ -263,6 +263,7 @@ func validateSharePointBackupCreateFlags(sites, weburls []string) error {
 	return nil
 }
 
+// TODO: users might specify a data type, this only supports AllData().
 func sharePointBackupCreateSelectors(
 	ctx context.Context,
 	sites, weburls []string,
@@ -275,7 +276,7 @@ func sharePointBackupCreateSelectors(
 	for _, site := range sites {
 		if site == utils.Wildcard {
 			sel := selectors.NewSharePointBackup(selectors.Any())
-			sel.Include(sel.Sites(selectors.Any()))
+			sel.Include(sel.AllData())
 
 			return sel, nil
 		}
@@ -284,7 +285,7 @@ func sharePointBackupCreateSelectors(
 	for _, wURL := range weburls {
 		if wURL == utils.Wildcard {
 			sel := selectors.NewSharePointBackup(selectors.Any())
-			sel.Include(sel.Sites(selectors.Any()))
+			sel.Include(sel.AllData())
 
 			return sel, nil
 		}
@@ -296,7 +297,7 @@ func sharePointBackupCreateSelectors(
 	}
 
 	sel := selectors.NewSharePointBackup(union)
-	sel.Include(sel.Sites(union))
+	sel.Include(sel.AllData())
 
 	return sel, nil
 }
@@ -484,7 +485,7 @@ func runDetailsSharePointCmd(
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Sites(selectors.Any()))
+		sel.Include(sel.AllData())
 	}
 
 	return sel.Reduce(ctx, d), nil

@@ -144,7 +144,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			service := loadTestService(t)
 			scope := selectors.
 				NewOneDriveBackup([]string{test.user}).
-				Users([]string{test.user})[0]
+				AllData()[0]
 			odcs, err := NewCollections(
 				creds.AzureTenantID,
 				test.user,

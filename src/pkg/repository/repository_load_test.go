@@ -396,9 +396,9 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
-	bsel.Include(bsel.MailFolders(suite.usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.ContactFolders(suite.usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.EventCalendars(suite.usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.MailFolders(selectors.Any()))
+	bsel.Include(bsel.ContactFolders(selectors.Any()))
+	bsel.Include(bsel.EventCalendars(selectors.Any()))
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -444,9 +444,9 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
-	bsel.Include(bsel.MailFolders(suite.usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.ContactFolders(suite.usersUnderTest, selectors.Any()))
-	bsel.Include(bsel.EventCalendars(suite.usersUnderTest, selectors.Any()))
+	bsel.Include(bsel.MailFolders(selectors.Any()))
+	bsel.Include(bsel.ContactFolders(selectors.Any()))
+	bsel.Include(bsel.EventCalendars(selectors.Any()))
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -494,7 +494,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
-	bsel.Include(bsel.Users(suite.usersUnderTest))
+	bsel.Include(bsel.AllData())
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -538,7 +538,7 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
-	bsel.Include(bsel.Users(suite.usersUnderTest))
+	bsel.Include(bsel.AllData())
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -586,7 +586,7 @@ func (suite *RepositoryLoadTestSharePointSuite) TestSharePoint() {
 	defer flush()
 
 	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
-	bsel.Include(bsel.Sites(suite.sitesUnderTest))
+	bsel.Include(bsel.AllData())
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -630,7 +630,7 @@ func (suite *RepositoryIndividualLoadTestSharePointSuite) TestSharePoint() {
 	defer flush()
 
 	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
-	bsel.Include(bsel.Sites(suite.sitesUnderTest))
+	bsel.Include(bsel.AllData())
 	sel := bsel.Selector
 
 	runLoadTest(

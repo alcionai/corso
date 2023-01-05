@@ -326,19 +326,19 @@ func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBa
 	sel := selectors.NewExchangeBackup(userIDs)
 
 	if len(data) == 0 {
-		sel.Include(sel.ContactFolders(userIDs, selectors.Any()))
-		sel.Include(sel.MailFolders(userIDs, selectors.Any()))
-		sel.Include(sel.EventCalendars(userIDs, selectors.Any()))
+		sel.Include(sel.ContactFolders(selectors.Any()))
+		sel.Include(sel.MailFolders(selectors.Any()))
+		sel.Include(sel.EventCalendars(selectors.Any()))
 	}
 
 	for _, d := range data {
 		switch d {
 		case dataContacts:
-			sel.Include(sel.ContactFolders(userIDs, selectors.Any()))
+			sel.Include(sel.ContactFolders(selectors.Any()))
 		case dataEmail:
-			sel.Include(sel.MailFolders(userIDs, selectors.Any()))
+			sel.Include(sel.MailFolders(selectors.Any()))
 		case dataEvents:
-			sel.Include(sel.EventCalendars(userIDs, selectors.Any()))
+			sel.Include(sel.EventCalendars(selectors.Any()))
 		}
 	}
 
@@ -510,7 +510,7 @@ func runDetailsExchangeCmd(
 
 	// if no selector flags were specified, get all data in the service.
 	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Users(selectors.Any()))
+		sel.Include(sel.AllData())
 	}
 
 	return sel.Reduce(ctx, d), nil
