@@ -104,19 +104,37 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 		{"Filter Scopes", sel.Filters},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			require.Len(t, test.scopesToCheck, 2)
-			for _, scope := range test.scopesToCheck {
-				scopeMustHave(
-					t,
-					SharePointScope(scope),
-					map[categorizer]string{
-						SharePointLibraryItem: AnyTgt,
-						SharePointLibrary:     AnyTgt,
-					},
-				)
-			}
-		})
+		require.Len(t, test.scopesToCheck, 2)
+
+		for _, scope := range test.scopesToCheck {
+			var (
+				spsc = SharePointScope(scope)
+				cat  = spsc.Category()
+			)
+
+			suite.T().Run(test.name+"-"+cat.String(), func(t *testing.T) {
+				switch cat {
+				case SharePointLibraryItem:
+					scopeMustHave(
+						t,
+						spsc,
+						map[categorizer]string{
+							SharePointLibraryItem: AnyTgt,
+							SharePointLibrary:     AnyTgt,
+						},
+					)
+				case SharePointListItem:
+					scopeMustHave(
+						t,
+						spsc,
+						map[categorizer]string{
+							SharePointListItem: AnyTgt,
+							SharePointList:     AnyTgt,
+						},
+					)
+				}
+			})
+		}
 	}
 }
 
@@ -195,56 +213,6 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 			t,
 			SharePointScope(sc),
 			map[categorizer]string{SharePointWebURL: join(s1, s2)},
-		)
-	}
-}
-
-func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_AllData() {
-	t := suite.T()
-
-	const (
-		s1 = "s1"
-		s2 = "s2"
-	)
-
-	sel := NewSharePointBackup([]string{s1, s2})
-	sel.Include(sel.AllData())
-	scopes := sel.Includes
-	require.Len(t, scopes, 2)
-
-	for _, sc := range scopes {
-		scopeMustHave(
-			t,
-			SharePointScope(sc),
-			map[categorizer]string{
-				SharePointLibraryItem: AnyTgt,
-				SharePointLibrary:     AnyTgt,
-			},
-		)
-	}
-}
-
-func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_AllData() {
-	t := suite.T()
-
-	const (
-		s1 = "s1"
-		s2 = "s2"
-	)
-
-	sel := NewSharePointBackup([]string{s1, s2})
-	sel.Exclude(sel.AllData())
-	scopes := sel.Excludes
-	require.Len(t, scopes, 2)
-
-	for _, sc := range scopes {
-		scopeMustHave(
-			t,
-			SharePointScope(sc),
-			map[categorizer]string{
-				SharePointLibraryItem: AnyTgt,
-				SharePointLibrary:     AnyTgt,
-			},
 		)
 	}
 }

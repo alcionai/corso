@@ -72,12 +72,10 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := stubSelector(test.resourceOwners)
 			p := sel.Printable()
-			res := p.Resources()
 
 			stubWithResource := func(resource string) scope {
 				ss := stubScope("")
 				ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
-
 				return scope(ss)
 			}
 
@@ -90,7 +88,7 @@ func (suite *SelectorSuite) TestPrintable_IncludedResources() {
 			}
 
 			p = sel.Printable()
-			res = p.Resources()
+			res := p.Resources()
 
 			assert.True(t, test.expect(res), test.reason)
 		})
