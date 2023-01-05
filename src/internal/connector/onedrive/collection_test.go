@@ -62,7 +62,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 	table := []struct {
 		name       string
-		source     driveSource
+		source     DriveSource
 		itemReader itemReaderFunc
 		infoFrom   func(*testing.T, details.ItemInfo) (string, string)
 	}{
@@ -156,7 +156,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	table := []struct {
 		name   string
-		source driveSource
+		source DriveSource
 	}{
 		{
 			name:   "oneDrive",

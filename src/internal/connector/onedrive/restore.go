@@ -24,7 +24,7 @@ const (
 	// copyBufferSize is used for chunked upload
 	// Microsoft recommends 5-10MB buffers
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-	copyBufferSize = 5 * 1024 * 1024
+	CopyBufferSize = 5 * 1024 * 1024
 )
 
 // dirEntry is used to keep track of the data that we will need
@@ -131,7 +131,7 @@ func RestoreCollection(
 	ctx context.Context,
 	service graph.Servicer,
 	dc data.Collection,
-	source driveSource,
+	source DriveSource,
 	deets *details.Builder,
 	errUpdater func(string, error),
 	parent dirEntry,
@@ -141,7 +141,7 @@ func RestoreCollection(
 
 	var (
 		metrics    = support.CollectionMetrics{}
-		copyBuffer = make([]byte, copyBufferSize)
+		copyBuffer = make([]byte, CopyBufferSize)
 		directory  = dc.FullPath()
 	)
 
@@ -195,7 +195,7 @@ func RestoreCollection(
 			}
 			permAdded, permRemoved := getChildPermissions(cmeta.Permissions, meta.Permissions)
 
-			itemInfo, err := restoreItem(ctx,
+			itemInfo, err := RestoreItem(ctx,
 				service,
 				itemData,
 				permAdded,
@@ -306,15 +306,65 @@ func CreateRestoreFolder(ctx context.Context, service graph.Servicer, driveID, f
 	return *folderItem.GetId(), nil
 }
 
-// restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
-func restoreItem(
+// CreateRestoreFolders creates the restore folder hieararchy in the
+// specified drive and returns the folder ID of the last folder entry
+// in the hierarchy. This is currently not used by OneDrive. It is
+// however used by SharePoint..
+func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
+) (string, error) {
+	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
+	if err != nil {
+		return "", errors.Wrapf(
+			err,
+			"failed to get drive root. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	logger.Ctx(ctx).Debugf("Found Root for Drive %s with ID %s", driveID, *driveRoot.GetId())
+
+	parentFolderID := *driveRoot.GetId()
+	for _, folder := range restoreFolders {
+		folderItem, err := getFolder(ctx, service, driveID, parentFolderID, folder)
+		if err == nil {
+			parentFolderID = *folderItem.GetId()
+			logger.Ctx(ctx).Debugf("Found %s with ID %s", folder, parentFolderID)
+
+			continue
+		}
+
+		if !errors.Is(err, errFolderNotFound) {
+			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
+		}
+
+		// This function is currently only used by sharepoint for
+		// which we do not store permissions
+		emptyPermissions := []UserPermission{}
+		folderItem, err = createItem(ctx, service, driveID, parentFolderID, newItem(folder, true), emptyPermissions, emptyPermissions)
+		if err != nil {
+			return "", errors.Wrapf(
+				err,
+				"failed to create folder %s/%s. details: %s", parentFolderID, folder,
+				support.ConnectorStackErrorTrace(err),
+			)
+		}
+
+		logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
+		parentFolderID = *folderItem.GetId()
+	}
+
+	return parentFolderID, nil
+}
+
+// RestoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
+func RestoreItem(
 	ctx context.Context,
 	service graph.Servicer,
 	itemData data.Stream,
 	permAdded, permRemoved []UserPermission,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-	source driveSource,
+	source DriveSource,
 ) (details.ItemInfo, error) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
 	defer end()

@@ -53,7 +53,7 @@ type Collection struct {
 	driveItems []models.DriveItemable
 	// M365 ID of the drive this collection was created from
 	driveID       string
-	source        driveSource
+	source        DriveSource
 	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
@@ -75,7 +75,7 @@ func NewCollection(
 	driveID string,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
-	source driveSource,
+	source DriveSource,
 	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{

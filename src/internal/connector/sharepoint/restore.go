@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/trace"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/pkg/errors"
 )
 
@@ -27,38 +31,37 @@ func RestoreCollections(
 		restoreErrors  error
 	)
 
-	// TODO(meain): re-enable sharepoint
-	// errUpdater := func(id string, err error) {
-	// 	restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
-	// }
+	errUpdater := func(id string, err error) {
+		restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
+	}
 
 	// Iterate through the data collections and restore the contents of each
-	// for _, dc := range dcs {
-	// 	var (
-	// 		metrics  support.CollectionMetrics
-	// 		canceled bool
-	// 	)
+	for _, dc := range dcs {
+		var (
+			metrics  support.CollectionMetrics
+			canceled bool
+		)
 
-	// 	switch dc.FullPath().Category() {
-	// 	case path.LibrariesCategory:
-	// 		metrics, canceled = onedrive.RestoreCollection(
-	// 			ctx,
-	// 			service,
-	// 			dc,
-	// 			onedrive.OneDriveSource,
-	// 			dest.ContainerName,
-	// 			deets,
-	// 			errUpdater)
-	// 	default:
-	// 		return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
-	// 	}
+		switch dc.FullPath().Category() {
+		case path.LibrariesCategory:
+			metrics, canceled = RestoreCollection(
+				ctx,
+				service,
+				dc,
+				onedrive.OneDriveSource,
+				dest.ContainerName,
+				deets,
+				errUpdater)
+		default:
+			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
+		}
 
-	// 	restoreMetrics.Combine(metrics)
+		restoreMetrics.Combine(metrics)
 
-	// 	if canceled {
-	// 		break
-	// 	}
-	// }
+		if canceled {
+			break
+		}
+	}
 
 	return support.CreateStatus(
 			ctx,
@@ -70,22 +73,118 @@ func RestoreCollections(
 		nil
 }
 
-// createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
-// of the last folder entry given in the hiearchy
-// func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID string, restoreFolders []string,
-// ) (string, error) {
-// 	// Get Main Drive for Site, Documents
-// 	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
-// 	if err != nil {
-// 		return "", errors.Wrapf(
-// 			err,
-// 			"failed to get site drive root. details: %s",
-// 			support.ConnectorStackErrorTrace(err),
-// 		)
-// 	}
+// RestoreCollection handles restoration of an individual collection.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation state (true if the context is cancelled)
+func RestoreCollection(
+	ctx context.Context,
+	service graph.Servicer,
+	dc data.Collection,
+	source onedrive.DriveSource,
+	restoreContainerName string,
+	deets *details.Builder,
+	errUpdater func(string, error),
+) (support.CollectionMetrics, bool) {
+	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
+	defer end()
 
-// 	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
-// }
+	var (
+		metrics    = support.CollectionMetrics{}
+		copyBuffer = make([]byte, onedrive.CopyBufferSize)
+		directory  = dc.FullPath()
+	)
+
+	drivePath, err := path.ToOneDrivePath(directory)
+	if err != nil {
+		errUpdater(directory.String(), err)
+		return metrics, false
+	}
+
+	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
+	// from the backup under this the restore folder instead of root)
+	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
+
+	restoreFolderElements := []string{restoreContainerName}
+	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
+
+	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
+	logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
+
+	// Create restore folders and get the folder ID of the folder the data stream will be restored in
+	restoreFolderID, err := onedrive.CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
+	if err != nil {
+		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
+		return metrics, false
+	}
+
+	// Restore items from the collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return metrics, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return metrics, false
+			}
+			metrics.Objects++
+
+			metrics.TotalBytes += int64(len(copyBuffer))
+
+			itemInfo, err := onedrive.RestoreItem(ctx,
+				service,
+				itemData,
+				[]onedrive.UserPermission{},
+				[]onedrive.UserPermission{},
+				drivePath.DriveID,
+				restoreFolderID,
+				copyBuffer,
+				source)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				true,
+				itemInfo)
+
+			metrics.Successes++
+		}
+	}
+}
+
+// createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
+// of the last folder entry given in the hierarchy
+func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID string, restoreFolders []string,
+) (string, error) {
+	// Get Main Drive for Site, Documents
+	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
+	if err != nil {
+		return "", errors.Wrapf(
+			err,
+			"failed to get site drive root. details: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
+}
 
 // restoreListItem utility function restores a List to the siteID.
 // The name is changed to to Corso_Restore_{timeStame}_name

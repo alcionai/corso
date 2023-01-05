@@ -9,7 +9,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -71,7 +70,7 @@ func drives(
 	ctx context.Context,
 	service graph.Servicer,
 	resourceOwner string,
-	source driveSource,
+	source DriveSource,
 ) ([]models.Driveable, error) {
 	switch source {
 	case OneDriveSource:
@@ -258,7 +257,7 @@ func createItem(
 	}
 
 	for _, p := range permAdded {
-		pbody := drive.NewItemsItemInvitePostRequestBody()
+		pbody := msdrive.NewItemsItemInvitePostRequestBody()
 		pbody.SetRoles(p.Roles)
 		if p.Expiration != nil {
 			expiry := p.Expiration.String()
