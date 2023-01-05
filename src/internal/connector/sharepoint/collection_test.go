@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	kw "github.com/microsoft/kiota-serialization-json-go"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,7 +48,7 @@ func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
 func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
 
-	ow := kw.NewJsonSerializationWriter()
+	ow := kioser.NewJsonSerializationWriter()
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
@@ -152,7 +152,6 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	if isFound {
 		err := DeleteList(ctx, service, siteID, deleteID)
 		assert.NoError(t, err)
-		t.Logf("Skipping deletion of %s", deleteID)
 	}
 }
 
