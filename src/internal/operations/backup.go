@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -250,6 +251,46 @@ type backuper interface {
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
+}
+
+func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
+	var (
+		errs    *multierror.Error
+		reasons = map[string]manifest.ID{}
+	)
+
+	for _, man := range mans {
+		// Incomplete snapshots are used only for kopia-assisted incrementals. The
+		// fact that we need this check here makes it seem like this should live in
+		// the kopia code. However, keeping it here allows for better debugging as
+		// the kopia code only has access to a path builder which means it cannot
+		// remove the resource owner from the error/log output. That is also below
+		// the point where we decide if we should do a full backup or an
+		// incremental.
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		for _, reason := range man.Reasons {
+			reasonKey := reason.ResourceOwner + reason.Service.String() + reason.Category.String()
+
+			if b, ok := reasons[reasonKey]; ok {
+				errs = multierror.Append(errs, errors.Errorf(
+					"%s %s is sourced from snapshots with IDs %s, %s",
+					reason.Service.String(),
+					reason.Category.String(),
+					b,
+					man.ID,
+				))
+
+				continue
+			}
+
+			reasons[reasonKey] = man.ID
+		}
+	}
+
+	return errs.ErrorOrNil()
 }
 
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
