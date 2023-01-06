@@ -83,7 +83,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
-		fs.StringArrayVar(&user,
+		fs.StringSliceVar(&user,
 			utils.UserFN, nil,
 			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
 		options.AddOperationFlags(c)
