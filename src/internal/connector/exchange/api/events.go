@@ -133,6 +133,8 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
+var _ itemPager = &eventPager{}
+
 type eventPager struct {
 	gs      graph.Servicer
 	builder *users.ItemCalendarsItemEventsRequestBuilder
@@ -157,7 +159,7 @@ func (p *eventPager) setNext(nextLink string) {
 }
 
 func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
-	return toValues(pl)
+	return toValues[models.Entityable](pl)
 }
 
 func (c Events) GetAddedAndRemovedItemIDs(

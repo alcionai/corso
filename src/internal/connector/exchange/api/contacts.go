@@ -156,6 +156,8 @@ func (c Contacts) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
+var _ itemPager = &contactPager{}
+
 type contactPager struct {
 	gs      graph.Servicer
 	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
@@ -171,7 +173,7 @@ func (p *contactPager) setNext(nextLink string) {
 }
 
 func (p *contactPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
-	return toValues(pl)
+	return toValues[models.Contactable](pl)
 }
 
 func (c Contacts) GetAddedAndRemovedItemIDs(

@@ -154,6 +154,8 @@ func (c Mail) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
+var _ itemPager = &mailPager{}
+
 type mailPager struct {
 	gs      graph.Servicer
 	builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
@@ -169,7 +171,7 @@ func (p *mailPager) setNext(nextLink string) {
 }
 
 func (p *mailPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
-	return toValues(pl)
+	return toValues[models.Messageable](pl)
 }
 
 func (c Mail) GetAddedAndRemovedItemIDs(

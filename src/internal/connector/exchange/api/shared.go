@@ -34,13 +34,28 @@ type getIDAndAddtler interface {
 // Generics used here to handle the variation of msoft interfaces
 // that all _almost_ comply with GetValue, but all return a different
 // interface.
-func toValues(a any) ([]getIDAndAddtler, error) {
-	gv, ok := a.(interface{ GetValue() []getIDAndAddtler })
+func toValues[T any](a any) ([]getIDAndAddtler, error) {
+	gv, ok := a.(interface{ GetValue() []T })
 	if !ok {
-		return nil, errors.New("response does not comply with getIDAndAddtler interface")
+		return nil, errors.Errorf("response of type [%T] does not comply with the GetValue() interface", a)
 	}
 
-	return gv.GetValue(), nil
+	items := gv.GetValue()
+	r := make([]getIDAndAddtler, 0, len(items))
+
+	for _, item := range items {
+		var a any
+		a = item
+
+		ri, ok := a.(getIDAndAddtler)
+		if !ok {
+			return nil, errors.Errorf("item of type [%T] does not comply with the getIDAndAddtler interface", item)
+		}
+
+		r = append(r, ri)
+	}
+
+	return r, nil
 }
 
 // generic controller for retrieving all item ids in a container.
@@ -79,13 +94,6 @@ func getItemsAddedAndRemovedFromContainer(
 
 		// iterate through the items in the page
 		for _, item := range items {
-			if item.GetId() == nil {
-				errUpdater(errors.Errorf("item with nil ID"))
-
-				// TODO: Handle fail-fast.
-				continue
-			}
-
 			// if the additional data conains a `@removed` key, the value will either
 			// be 'changed' or 'deleted'.  We don't really care about the cause: both
 			// cases are handled the same way in storage.
