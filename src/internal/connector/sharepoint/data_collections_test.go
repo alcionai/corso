@@ -3,6 +3,8 @@ package sharepoint
 import (
 	"testing"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -39,6 +41,18 @@ func (fm testFolderMatcher) Matches(path string) bool {
 
 type SharePointLibrariesSuite struct {
 	suite.Suite
+}
+
+func (suite *SharePointLibrariesSuite) Client() *msgraphsdk.GraphServiceClient {
+	return nil
+}
+
+func (suite *SharePointLibrariesSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
+	return nil
+}
+
+func (suite *SharePointLibrariesSuite) Serialize(object absser.Parsable) ([]byte, error) {
+	return nil, nil
 }
 
 func TestSharePointLibrariesSuite(t *testing.T) {
@@ -92,7 +106,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				site,
 				onedrive.SharePointSource,
 				testFolderMatcher{test.scope},
-				&MockGraphService{},
+				suite,
 				nil,
 				control.Options{})
 			err := c.UpdateCollections(ctx, "driveID", test.items)

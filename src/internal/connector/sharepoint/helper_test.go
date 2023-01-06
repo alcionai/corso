@@ -3,7 +3,6 @@ package sharepoint
 import (
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
@@ -11,23 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 )
-
-// ---------------------------------------------------------------------------
-// SharePoint Test Services
-// ---------------------------------------------------------------------------
-type MockGraphService struct{}
-
-//------------------------------------------------------------
-// Interface Functions: @See graph.Service
-//------------------------------------------------------------
-
-func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
-	return nil
-}
-
-func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return nil
-}
 
 // ---------------------------------------------------------------------------
 // Helper Functions
