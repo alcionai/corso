@@ -7,6 +7,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -47,7 +48,12 @@ func (s Service) Client() *msgraphsdk.GraphServiceClient {
 
 func (s Service) Serialize(object absser.Parsable) ([]byte, error) {
 	writer, err := s.adapter.GetSerializationWriterFactory().GetSerializationWriter("application/json")
-	defer writer.Close()
+	defer func() {
+		writerErr := writer.Close()
+		if writerErr != nil {
+			err = support.WrapAndAppend("failure during writer closer", writerErr, err)
+		}
+	}()
 
 	if err != nil || writer == nil {
 		return nil, errors.Wrap(err, "creating json serialization writer")
