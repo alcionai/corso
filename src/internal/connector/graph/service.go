@@ -49,6 +49,8 @@ func (s Service) Client() *msgraphsdk.GraphServiceClient {
 // application/json writer within the adapter.
 func (s Service) Serialize(object absser.Parsable) ([]byte, error) {
 	writer, err := s.adapter.GetSerializationWriterFactory().GetSerializationWriter("application/json")
+	defer writer.Close()
+
 	if err != nil || writer == nil {
 		return nil, errors.Wrap(err, "creating json serialization writer")
 	}
