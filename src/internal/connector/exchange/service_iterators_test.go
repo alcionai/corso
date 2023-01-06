@@ -54,23 +54,15 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	return results.added, results.removed, results.newDelta, results.err
 }
 
-var (
-	_ graph.ContainerResolver = &mockResolver{}
-	_ graph.CachedContainer   = &mockResolvedContainer{}
-)
+var _ graph.ContainerResolver = &mockResolver{}
 
 type (
 	mockResolver struct {
 		items []graph.CachedContainer
 	}
-	mockResolvedContainer struct {
-		id          string
-		displayName string
-		p           *path.Builder
-	}
 )
 
-func newMockResolver(items ...mockResolvedContainer) mockResolver {
+func newMockResolver(items ...mockContainer) mockResolver {
 	is := make([]graph.CachedContainer, 0, len(items))
 
 	for _, i := range items {
@@ -88,15 +80,6 @@ func (m mockResolver) AddToCache(context.Context, graph.Container) error       {
 func (m mockResolver) IDToPath(context.Context, string) (*path.Builder, error) { return nil, nil }
 func (m mockResolver) PathInCache(string) (string, bool)                       { return "", false }
 func (m mockResolver) Populate(context.Context, string, ...string) error       { return nil }
-
-//nolint:revive
-func (m mockResolvedContainer) GetId() *string { return &m.id }
-
-//nolint:revive
-func (m mockResolvedContainer) GetParentFolderId() *string { return nil }
-func (m mockResolvedContainer) GetDisplayName() *string    { return &m.displayName }
-func (m mockResolvedContainer) Path() *path.Builder        { return m.p }
-func (m mockResolvedContainer) SetPath(p *path.Builder)    {}
 
 // ---------------------------------------------------------------------------
 // tests
@@ -146,14 +129,14 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			newDelta: api.DeltaUpdate{URL: "delta_url"},
 			err:      graph.ErrDeletedInFlight{Err: *common.EncapsulateError(assert.AnError)},
 		}
-		container1 = mockResolvedContainer{
-			id:          "1",
-			displayName: "display_name_1",
+		container1 = mockContainer{
+			id:          strPtr("1"),
+			displayName: strPtr("display_name_1"),
 			p:           path.Builder{}.Append("display_name_1"),
 		}
-		container2 = mockResolvedContainer{
-			id:          "2",
-			displayName: "display_name_2",
+		container2 = mockContainer{
+			id:          strPtr("2"),
+			displayName: strPtr("display_name_2"),
 			p:           path.Builder{}.Append("display_name_2"),
 		}
 	)
@@ -408,9 +391,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			getter: map[string]mockGetterResults{
 				"1": commonResults,
 			},
-			resolver: newMockResolver(mockResolvedContainer{
-				id:          "1",
-				displayName: "new",
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("1"),
+				displayName: strPtr("new"),
 				p:           path.Builder{}.Append("1", "new"),
 			}),
 			dps: DeltaPaths{},
@@ -423,9 +406,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			getter: map[string]mockGetterResults{
 				"1": commonResults,
 			},
-			resolver: newMockResolver(mockResolvedContainer{
-				id:          "1",
-				displayName: "not_moved",
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("1"),
+				displayName: strPtr("not_moved"),
 				p:           path.Builder{}.Append("1", "not_moved"),
 			}),
 			dps: DeltaPaths{
@@ -443,9 +426,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			getter: map[string]mockGetterResults{
 				"1": commonResults,
 			},
-			resolver: newMockResolver(mockResolvedContainer{
-				id:          "1",
-				displayName: "moved",
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("1"),
+				displayName: strPtr("moved"),
 				p:           path.Builder{}.Append("1", "moved"),
 			}),
 			dps: DeltaPaths{
@@ -477,9 +460,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			getter: map[string]mockGetterResults{
 				"2": commonResults,
 			},
-			resolver: newMockResolver(mockResolvedContainer{
-				id:          "2",
-				displayName: "new",
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("2"),
+				displayName: strPtr("new"),
 				p:           path.Builder{}.Append("2", "new"),
 			}),
 			dps: DeltaPaths{
@@ -494,13 +477,63 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			},
 		},
 		{
+			name: "one deleted, one new, same path",
+			getter: map[string]mockGetterResults{
+				"2": commonResults,
+			},
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("2"),
+				displayName: strPtr("same"),
+				p:           path.Builder{}.Append("2", "same"),
+			}),
+			dps: DeltaPaths{
+				"1": DeltaPath{
+					delta: "old_delta_url",
+					path:  prevPath(suite.T(), "1", "same").String(),
+				},
+			},
+			expect: map[string]endState{
+				"1": {data.DeletedState, false},
+				"2": {data.NewState, false},
+			},
+		},
+		{
+			name: "one moved, one new, same path",
+			getter: map[string]mockGetterResults{
+				"1": commonResults,
+				"2": commonResults,
+			},
+			resolver: newMockResolver(
+				mockContainer{
+					id:          strPtr("1"),
+					displayName: strPtr("moved"),
+					p:           path.Builder{}.Append("1", "moved"),
+				},
+				mockContainer{
+					id:          strPtr("2"),
+					displayName: strPtr("prev"),
+					p:           path.Builder{}.Append("2", "prev"),
+				},
+			),
+			dps: DeltaPaths{
+				"1": DeltaPath{
+					delta: "old_delta_url",
+					path:  prevPath(suite.T(), "1", "prev").String(),
+				},
+			},
+			expect: map[string]endState{
+				"1": {data.MovedState, false},
+				"2": {data.NewState, false},
+			},
+		},
+		{
 			name: "bad previous path strings",
 			getter: map[string]mockGetterResults{
 				"1": commonResults,
 			},
-			resolver: newMockResolver(mockResolvedContainer{
-				id:          "1",
-				displayName: "not_moved",
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("1"),
+				displayName: strPtr("not_moved"),
 				p:           path.Builder{}.Append("1", "not_moved"),
 			}),
 			dps: DeltaPaths{
@@ -522,9 +555,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			getter: map[string]mockGetterResults{
 				"1": expiredResults,
 			},
-			resolver: newMockResolver(mockResolvedContainer{
-				id:          "1",
-				displayName: "same",
+			resolver: newMockResolver(mockContainer{
+				id:          strPtr("1"),
+				displayName: strPtr("same"),
 				p:           path.Builder{}.Append("1", "same"),
 			}),
 			dps: DeltaPaths{
@@ -547,24 +580,24 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				// "5" gets deleted
 			},
 			resolver: newMockResolver(
-				mockResolvedContainer{
-					id:          "1",
-					displayName: "new",
+				mockContainer{
+					id:          strPtr("1"),
+					displayName: strPtr("new"),
 					p:           path.Builder{}.Append("1", "new"),
 				},
-				mockResolvedContainer{
-					id:          "2",
-					displayName: "not_moved",
+				mockContainer{
+					id:          strPtr("2"),
+					displayName: strPtr("not_moved"),
 					p:           path.Builder{}.Append("2", "not_moved"),
 				},
-				mockResolvedContainer{
-					id:          "3",
-					displayName: "moved",
+				mockContainer{
+					id:          strPtr("3"),
+					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("3", "moved"),
 				},
-				mockResolvedContainer{
-					id:          "4",
-					displayName: "moved",
+				mockContainer{
+					id:          strPtr("4"),
+					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("4", "moved"),
 				},
 			),
