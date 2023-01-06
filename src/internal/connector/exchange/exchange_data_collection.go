@@ -13,8 +13,6 @@ import (
 	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -281,10 +279,11 @@ func (col *Collection) streamItems(ctx context.Context) {
 				return
 			}
 
+			service := col.service.(graph.Service)
+
 			byteCount, err := serializeFunc(
 				ctx,
-				col.service.Client(),
-				kioser.NewJsonSerializationWriter(),
+				&service,
 				col.data,
 				response,
 				user)
@@ -342,8 +341,7 @@ func getModTime(mt modTimer) time.Time {
 // responses into data.Stream items contained within the Collection
 type GraphSerializeFunc func(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kioser.JsonSerializationWriter,
+	service *graph.Service, // TODO: Keepers: Not sure how to have the interface use Serialize without updating all the files.
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -353,15 +351,12 @@ type GraphSerializeFunc func(
 // data.Stream objects. Returns an error the process finishes unsuccessfully.
 func serializeAndStreamEvent(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kioser.JsonSerializationWriter,
+	service *graph.Service,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
 ) (int, error) {
 	var err error
-
-	defer objectWriter.Close()
 
 	event, ok := parsable.(models.Eventable)
 	if !ok {
@@ -372,7 +367,8 @@ func serializeAndStreamEvent(
 		var retriesErr error
 
 		for count := 0; count < numberOfRetries; count++ {
-			attached, err := client.
+			attached, err := service.
+				Client().
 				UsersById(user).
 				EventsById(*event.GetId()).
 				Attachments().
@@ -395,12 +391,7 @@ func serializeAndStreamEvent(
 		}
 	}
 
-	err = objectWriter.WriteObjectValue("", event)
-	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrap(err, *event.GetId()))
-	}
-
-	byteArray, err := objectWriter.GetSerializedContent()
+	byteArray, err := service.Serialize(event)
 	if err != nil {
 		return 0, support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
 	}
@@ -420,25 +411,17 @@ func serializeAndStreamEvent(
 // serializeAndStreamContact is a GraphSerializeFunc for models.Contactable
 func serializeAndStreamContact(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kioser.JsonSerializationWriter,
+	service *graph.Service,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
 ) (int, error) {
-	defer objectWriter.Close()
-
 	contact, ok := parsable.(models.Contactable)
 	if !ok {
 		return 0, fmt.Errorf("expected Contactable, got %T", parsable)
 	}
 
-	err := objectWriter.WriteObjectValue("", contact)
-	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
-	}
-
-	bs, err := objectWriter.GetSerializedContent()
+	bs, err := service.Serialize(contact)
 	if err != nil {
 		return 0, support.WrapAndAppend(*contact.GetId(), err, nil)
 	}
@@ -458,15 +441,12 @@ func serializeAndStreamContact(
 // serializeAndStreamMessage is the GraphSerializeFunc for models.Messageable
 func serializeAndStreamMessage(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kioser.JsonSerializationWriter,
+	service *graph.Service,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
 ) (int, error) {
 	var err error
-
-	defer objectWriter.Close()
 
 	msg, ok := parsable.(models.Messageable)
 	if !ok {
@@ -478,7 +458,8 @@ func serializeAndStreamMessage(
 		var retriesErr error
 
 		for count := 0; count < numberOfRetries; count++ {
-			attached, err := client.
+			attached, err := service.
+				Client().
 				UsersById(user).
 				MessagesById(*msg.GetId()).
 				Attachments().
@@ -497,12 +478,7 @@ func serializeAndStreamMessage(
 		}
 	}
 
-	err = objectWriter.WriteObjectValue("", msg)
-	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrapf(err, "%s", *msg.GetId()))
-	}
-
-	bs, err := objectWriter.GetSerializedContent()
+	bs, err := service.Serialize(msg)
 	if err != nil {
 		err = support.WrapAndAppend(*msg.GetId(), errors.Wrap(err, "serializing mail content"), nil)
 		return 0, support.SetNonRecoverableError(err)
