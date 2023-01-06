@@ -283,6 +283,29 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
+		bID := man.Tags[kopia.TagBackupID]
+		if len(bID) == 0 {
+			return nil, nil, errors.New("missing backup id in prior manifest")
+		}
+
+		dID, _, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(bID))
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "retrieving prior backup data")
+		}
+
+		// if no detailsID exists for any of the complete manifests, we want
+		// to fall back to a complete backup.  This is a temporary prevention
+		// mechanism to keep backups from falling into a perpetually bad state.
+		// This makes an assumption that the ID points to a populated set of
+		// details; we aren't doing the work to look them up.
+		if len(dID) == 0 {
+			logger.Ctx(ctx).Infow(
+				"backup missing details ID, falling back to full backup",
+				"backup_id", bID)
+
+			return ms, nil, nil
+		}
+
 		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
