@@ -283,7 +283,9 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		bID := man.Tags[kopia.TagBackupID]
+		tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
+
+		bID := man.Tags[tk]
 		if len(bID) == 0 {
 			return nil, nil, errors.New("missing backup id in prior manifest")
 		}
