@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+### Added
+
+- Incremental backup support for exchange is now enabled by default.
+
 ### Changed
 
 - The selectors Reduce() process will only include details that match the DiscreteOwner, if one is specified.
