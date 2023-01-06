@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -252,6 +253,46 @@ type backuper interface {
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
 }
 
+func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
+	var (
+		errs    *multierror.Error
+		reasons = map[string]manifest.ID{}
+	)
+
+	for _, man := range mans {
+		// Incomplete snapshots are used only for kopia-assisted incrementals. The
+		// fact that we need this check here makes it seem like this should live in
+		// the kopia code. However, keeping it here allows for better debugging as
+		// the kopia code only has access to a path builder which means it cannot
+		// remove the resource owner from the error/log output. That is also below
+		// the point where we decide if we should do a full backup or an
+		// incremental.
+		if len(man.IncompleteReason) > 0 {
+			continue
+		}
+
+		for _, reason := range man.Reasons {
+			reasonKey := reason.ResourceOwner + reason.Service.String() + reason.Category.String()
+
+			if b, ok := reasons[reasonKey]; ok {
+				errs = multierror.Append(errs, errors.Errorf(
+					"multiple base snapshots source data for %s %s. IDs: %s, %s",
+					reason.Service.String(),
+					reason.Category.String(),
+					b,
+					man.ID,
+				))
+
+				continue
+			}
+
+			reasons[reasonKey] = man.ID
+		}
+	}
+
+	return errs.ErrorOrNil()
+}
+
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
 func produceManifestsAndMetadata(
 	ctx context.Context,
@@ -278,9 +319,50 @@ func produceManifestsAndMetadata(
 		return ms, nil, nil
 	}
 
+	// We only need to check that we have 1:1 reason:base if we're doing an
+	// incremental with associated metadata. This ensures that we're only sourcing
+	// data from a single Point-In-Time (base) for each incremental backup.
+	//
+	// TODO(ashmrtn): This may need updating if we start sourcing item backup
+	// details from previous snapshots when using kopia-assisted incrementals.
+	if err := verifyDistinctBases(ms); err != nil {
+		logger.Ctx(ctx).Warnw(
+			"base snapshot collision, falling back to full backup",
+			"error",
+			err,
+		)
+
+		return ms, nil, nil
+	}
+
 	for _, man := range ms {
 		if len(man.IncompleteReason) > 0 {
 			continue
+		}
+
+		tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
+
+		bID := man.Tags[tk]
+		if len(bID) == 0 {
+			return nil, nil, errors.New("missing backup id in prior manifest")
+		}
+
+		dID, _, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(bID))
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "retrieving prior backup data")
+		}
+
+		// if no detailsID exists for any of the complete manifests, we want
+		// to fall back to a complete backup.  This is a temporary prevention
+		// mechanism to keep backups from falling into a perpetually bad state.
+		// This makes an assumption that the ID points to a populated set of
+		// details; we aren't doing the work to look them up.
+		if len(dID) == 0 {
+			logger.Ctx(ctx).Infow(
+				"backup missing details ID, falling back to full backup",
+				"backup_id", bID)
+
+			return ms, nil, nil
 		}
 
 		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
