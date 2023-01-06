@@ -276,7 +276,7 @@ func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
 
 			if b, ok := reasons[reasonKey]; ok {
 				errs = multierror.Append(errs, errors.Errorf(
-					"%s %s is sourced from snapshots with IDs %s, %s",
+					"multiple base snapshots source data for %s %s. IDs: %s, %s",
 					reason.Service.String(),
 					reason.Category.String(),
 					b,
