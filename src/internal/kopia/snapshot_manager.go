@@ -322,11 +322,9 @@ func fetchPrevSnapshotManifests(
 				// If the manifest already exists and it's incomplete then we should
 				// merge the reasons for consistency. This will become easier to handle
 				// once we update how checkpoint manifests are tagged.
-				if len(found.IncompleteReason) == 0 {
-					continue
+				if len(found.IncompleteReason) > 0 {
+					found.Reasons = append(found.Reasons, m.Reasons...)
 				}
-
-				found.Reasons = append(found.Reasons, m.Reasons...)
 			}
 		}
 	}
