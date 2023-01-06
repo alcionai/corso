@@ -115,20 +115,21 @@ func runDisplayM365JSON(
 
 	channel := make(chan data.Stream, 1)
 
-	sw := kw.NewJsonSerializationWriter()
-
 	response, err := get(ctx, user, m365ID)
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
 	// First return is the number of bytes that were serialized. Ignored
-	_, err = serializeFunc(ctx, gs.Client(), sw, channel, response, user)
+	service := gs.(graph.Service)
+	_, err = serializeFunc(ctx, &service, channel, response, user)
 	close(channel)
 
 	if err != nil {
 		return err
 	}
+
+	sw := kw.NewJsonSerializationWriter()
 
 	for item := range channel {
 		buf := &bytes.Buffer{}
