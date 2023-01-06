@@ -319,6 +319,22 @@ func produceManifestsAndMetadata(
 		return ms, nil, nil
 	}
 
+	// We only need to check that we have 1:1 reason:base if we're doing an
+	// incremental with associated metadata. This ensures that we're only sourcing
+	// data from a single Point-In-Time (base) for each incremental backup.
+	//
+	// TODO(ashmrtn): This may need updating if we start sourcing item backup
+	// details from previous snapshots when using kopia-assisted incrementals.
+	if err := verifyDistinctBases(ms); err != nil {
+		logger.Ctx(ctx).Warnw(
+			"base snapshot collision, falling back to full backup",
+			"error",
+			err,
+		)
+
+		return ms, nil, nil
+	}
+
 	for _, man := range ms {
 		if len(man.IncompleteReason) > 0 {
 			continue
