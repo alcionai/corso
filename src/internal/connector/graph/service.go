@@ -45,8 +45,6 @@ func (s Service) Client() *msgraphsdk.GraphServiceClient {
 	return s.client
 }
 
-// Seraialize writes an M365 parsable object into a byte array using the built-in
-// application/json writer within the adapter.
 func (s Service) Serialize(object absser.Parsable) ([]byte, error) {
 	writer, err := s.adapter.GetSerializationWriterFactory().GetSerializationWriter("application/json")
 	defer writer.Close()
@@ -70,6 +68,10 @@ type Servicer interface {
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
 	Adapter() *msgraphsdk.GraphRequestAdapter
+
+	// Seraialize writes an M365 parsable object into a byte array using the built-in
+	// application/json writer within the adapter.
+	Serialize(object absser.Parsable) ([]byte, error)
 }
 
 // Idable represents objects that implement msgraph-sdk-go/models.entityable
