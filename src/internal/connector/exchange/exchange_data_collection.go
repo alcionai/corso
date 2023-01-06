@@ -341,7 +341,8 @@ func getModTime(mt modTimer) time.Time {
 // responses into data.Stream items contained within the Collection
 type GraphSerializeFunc func(
 	ctx context.Context,
-	service *graph.Service, // TODO: Keepers: Not sure how to have the interface use Serialize without updating all the files.
+	// TODO: Keepers: Not sure how to have the interface use Serialize without updating all the files.
+	service *graph.Service,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
