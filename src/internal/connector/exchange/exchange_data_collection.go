@@ -279,11 +279,11 @@ func (col *Collection) streamItems(ctx context.Context) {
 				return
 			}
 
-			service := col.service.(graph.Service)
+			service := col.service.(*graph.Service)
 
 			byteCount, err := serializeFunc(
 				ctx,
-				&service,
+				service,
 				col.data,
 				response,
 				user)
