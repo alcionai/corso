@@ -279,11 +279,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 				return
 			}
 
-			service := col.service.(*graph.Service)
-
 			byteCount, err := serializeFunc(
 				ctx,
-				service,
+				col.service,
 				col.data,
 				response,
 				user)
@@ -341,8 +339,7 @@ func getModTime(mt modTimer) time.Time {
 // responses into data.Stream items contained within the Collection
 type GraphSerializeFunc func(
 	ctx context.Context,
-	// TODO: Keepers: Not sure how to have the interface use Serialize without updating all the files.
-	service *graph.Service,
+	service graph.Servicer,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -352,7 +349,7 @@ type GraphSerializeFunc func(
 // data.Stream objects. Returns an error the process finishes unsuccessfully.
 func serializeAndStreamEvent(
 	ctx context.Context,
-	service *graph.Service,
+	service graph.Servicer,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -412,7 +409,7 @@ func serializeAndStreamEvent(
 // serializeAndStreamContact is a GraphSerializeFunc for models.Contactable
 func serializeAndStreamContact(
 	ctx context.Context,
-	service *graph.Service,
+	service graph.Servicer,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
@@ -442,7 +439,7 @@ func serializeAndStreamContact(
 // serializeAndStreamMessage is the GraphSerializeFunc for models.Messageable
 func serializeAndStreamMessage(
 	ctx context.Context,
-	service *graph.Service,
+	service graph.Servicer,
 	dataChannel chan<- data.Stream,
 	parsable absser.Parsable,
 	user string,
