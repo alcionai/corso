@@ -1,7 +1,9 @@
 package graph
 
 import (
+	"context"
 	"net/url"
+	"os"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
@@ -120,6 +122,10 @@ func hasErrorCode(err error, codes ...string) bool {
 // timeouts as other errors are handled within a middleware in the
 // client.
 func isTimeoutErr(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+		return true
+	}
+
 	switch err := err.(type) {
 	case *url.Error:
 		return err.Timeout()
