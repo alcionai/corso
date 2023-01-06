@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
@@ -100,7 +101,11 @@ func siteDrives(ctx context.Context, service graph.Servicer, site string) ([]mod
 }
 
 func userDrives(ctx context.Context, service graph.Servicer, user string) ([]models.Driveable, error) {
-	var hasDrive bool
+	var (
+		hasDrive        bool
+		numberOfRetries = 3
+		r               models.DriveCollectionResponseable
+	)
 
 	hasDrive, err := hasDriveLicense(ctx, service, user)
 	if err != nil {
@@ -112,15 +117,30 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 		return make([]models.Driveable, 0), nil // no license
 	}
 
-	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
-	if err != nil {
-		if strings.Contains(support.ConnectorStackErrorTrace(err), userDoesNotHaveDrive) {
-			logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
-			return make([]models.Driveable, 0), nil // no license
+	// Retry Loop for Drive retrieval. Request can timeout
+	for i := 0; i <= numberOfRetries; i++ {
+		r, err = service.Client().UsersById(user).Drives().Get(ctx, nil)
+		if err != nil {
+			detailedError := support.ConnectorStackErrorTrace(err)
+			if strings.Contains(detailedError, userDoesNotHaveDrive) {
+				logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
+				return make([]models.Driveable, 0), nil // no license
+			}
+
+			if strings.Contains(detailedError, "context deadline exceeded") && i < numberOfRetries {
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+				continue
+			}
+
+			return nil, errors.Wrapf(
+				err,
+				"failed to retrieve user drives. user: %s, details: %s",
+				user,
+				detailedError,
+			)
 		}
 
-		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
-			user, support.ConnectorStackErrorTrace(err))
+		break
 	}
 
 	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(r.GetValue()), user)
