@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
@@ -127,6 +128,7 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 			}
 
 			if strings.Contains(detailedError, "context deadline exceeded") && i < numberOfRetries {
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
 				continue
 			}
 
