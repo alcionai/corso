@@ -110,7 +110,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
-		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any(), selectors.Any())[0]
+		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		dps           = DeltaPaths{} // incrementals are tested separately
 		commonResult  = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
@@ -194,7 +194,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				"2": commonResult,
 			},
 			resolver:            newMockResolver(container1, container2),
-			scope:               selectors.NewExchangeBackup(nil).MailFolders(selectors.Any(), selectors.None())[0],
+			scope:               selectors.NewExchangeBackup(nil).MailFolders(selectors.None())[0],
 			expectErr:           assert.NoError,
 			expectNewColls:      0,
 			expectMetadataColls: 1,
@@ -351,7 +351,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
-		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any(), selectors.Any())[0]
+		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		commonResults = mockGetterResults{
 			added:    []string{"added"},
 			newDelta: api.DeltaUpdate{URL: "new_delta_url"},
