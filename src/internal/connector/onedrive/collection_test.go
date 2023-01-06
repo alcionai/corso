@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +35,10 @@ func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
 
 func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
+}
+
+func (suite *CollectionUnitTestSuite) Serialize(object absser.Parsable) ([]byte, error) {
+	return nil, nil
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {
