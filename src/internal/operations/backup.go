@@ -180,8 +180,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		ctx,
 		op.kopia,
 		tenantID,
-		op.Selectors,
-		oc,
+		reasons,
 		mans,
 		cs,
 		op.Results.BackupID,
@@ -253,8 +252,6 @@ type backuper interface {
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
-		service path.ServiceType,
-		oc *kopia.OwnersCats,
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
@@ -486,8 +483,7 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	bu backuper,
 	tenantID string,
-	sel selectors.Selector,
-	oc *kopia.OwnersCats,
+	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
@@ -503,6 +499,15 @@ func consumeBackupDataCollections(
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),
 		kopia.TagBackupCategory: "",
+	}
+
+	for _, reason := range reasons {
+		tags[reason.ResourceOwner] = ""
+
+		// TODO(ashmrtn): Create a separate helper function to go from service/cat
+		// to a tag.
+		serviceCat, _ := kopia.MakeServiceCat(reason.Service, reason.Category)
+		tags[serviceCat] = ""
 	}
 
 	bases := make([]kopia.IncrementalBase, 0, len(mans))
@@ -525,7 +530,7 @@ func consumeBackupDataCollections(
 		})
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags, isIncremental)
+	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
