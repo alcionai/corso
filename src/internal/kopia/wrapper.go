@@ -442,12 +442,12 @@ func (w Wrapper) DeleteSnapshot(
 // normalized inside the func using MakeTagKV.
 func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
-	oc *OwnersCats,
+	reasons []Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
 	if w.c == nil {
 		return nil, errors.WithStack(errNotConnected)
 	}
 
-	return fetchPrevSnapshotManifests(ctx, w.c, oc, tags), nil
+	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
 }

@@ -115,7 +115,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
 		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
-		oc            = selectorToOwnersCats(op.Selectors)
+		reasons       = selectorToReasons(op.Selectors)
 		uib           = useIncrementalBackup(op.Selectors, op.Options)
 	)
 
@@ -151,7 +151,14 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, uib)
+	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(
+		ctx,
+		op.kopia,
+		op.store,
+		reasons,
+		tenantID,
+		uib,
+	)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -298,7 +305,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	oc *kopia.OwnersCats,
+	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
 ) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
@@ -309,7 +316,7 @@ func produceManifestsAndMetadata(
 
 	ms, err := kw.FetchPrevSnapshotManifests(
 		ctx,
-		oc,
+		reasons,
 		map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
 		return nil, nil, false, err
@@ -427,28 +434,28 @@ func collectMetadata(
 	return dcs, nil
 }
 
-func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
+func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 	service := sel.PathService()
-	oc := &kopia.OwnersCats{
-		ResourceOwners: map[string]struct{}{},
-		ServiceCats:    map[string]kopia.ServiceCat{},
-	}
-
-	oc.ResourceOwners[sel.DiscreteOwner] = struct{}{}
+	reasons := []kopia.Reason{}
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
-		return &kopia.OwnersCats{}
+		// This is technically safe, it's just that the resulting backup won't be
+		// usable as a base for future incremental backups.
+		return nil
 	}
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
-			k, v := kopia.MakeServiceCat(service, cat)
-			oc.ServiceCats[k] = v
+			reasons = append(reasons, kopia.Reason{
+				ResourceOwner: sel.DiscreteOwner,
+				Service:       service,
+				Category:      cat,
+			})
 		}
 	}
 
-	return oc
+	return reasons
 }
 
 func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
