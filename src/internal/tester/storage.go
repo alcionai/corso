@@ -9,6 +9,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+const testRepoRootPrefix = "integration_test/"
+
 var AWSStorageCredEnvs = []string{
 	credentials.AWSAccessKeyID,
 	credentials.AWSSecretAccessKey,
@@ -31,7 +33,7 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 		storage.ProviderS3,
 		storage.S3Config{
 			Bucket: cfg[TestCfgBucket],
-			Prefix: t.Name() + "-" + now,
+			Prefix: testRepoRootPrefix + t.Name() + "-" + now,
 		},
 		storage.CommonConfig{
 			Corso:       credentials.GetCorso(),
