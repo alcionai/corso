@@ -15,6 +15,8 @@ type detailsReader interface {
 	ReadBackupDetails(ctx context.Context, detailsID string) (*details.Details, error)
 }
 
+var errNoDetailsID = errors.New("no details id in backup")
+
 func getBackupAndDetailsFromID(
 	ctx context.Context,
 	backupID model.StableID,
@@ -24,6 +26,10 @@ func getBackupAndDetailsFromID(
 	dID, bup, err := ms.GetDetailsIDFromBackupID(ctx, backupID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "getting backup details ID")
+	}
+
+	if len(dID) == 0 {
+		return nil, nil, errNoDetailsID
 	}
 
 	deets, err := detailsStore.ReadBackupDetails(ctx, dID)

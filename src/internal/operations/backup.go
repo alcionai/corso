@@ -556,6 +556,12 @@ func mergeDetails(
 			detailsStore,
 		)
 		if err != nil {
+			// if the backup has no prior details recorded, then there's nothing to merge.
+			if errors.Is(err, errNoDetailsID) {
+				logger.Ctx(ctx).Infof("backup %s contains no details ID, skipping merger", bID)
+				continue
+			}
+
 			return errors.Wrapf(err, "backup fetching base details for backup %s", bID)
 		}
 
