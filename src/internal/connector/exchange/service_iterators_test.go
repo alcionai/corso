@@ -644,11 +644,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				test.resolver,
 				allScope,
 				test.dps,
-				control.Options{
-					EnabledFeatures: control.FeatureFlags{
-						ExchangeIncrementals: true,
-					},
-				},
+				control.Options{},
 			)
 			assert.NoError(t, err)
 
