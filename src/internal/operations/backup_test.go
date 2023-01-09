@@ -386,6 +386,137 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	}
 }
 
+func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
+	const user = "a-user"
+
+	table := []struct {
+		name     string
+		input    []*kopia.ManifestEntry
+		errCheck assert.ErrorAssertionFunc
+	}{
+		{
+			name: "SingleManifestMultipleReasons",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EventsCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			name: "MultipleManifestsDistinctReason",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id2",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EventsCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			name: "MultipleManifestsSameReason",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id2",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.Error,
+		},
+		{
+			name: "MultipleManifestsSameReasonOneIncomplete",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+				{
+					Manifest: &snapshot.Manifest{
+						ID:               "id2",
+						IncompleteReason: "checkpoint",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			test.errCheck(t, verifyDistinctBases(test.input))
+		})
+	}
+}
+
 func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
 	var (
 		tenant        = "a-tenant"
