@@ -27,6 +27,10 @@ import (
 
 const maxInflateTraversalDepth = 500
 
+// ":" is not a valid char for file/folder names and so will not be
+// present in the source
+const MetaFileSuffix = ":meta"
+
 var versionSize = int(unsafe.Sizeof(serializationVersion))
 
 func newBackupStreamReader(version uint32, reader io.ReadCloser) *backupStreamReader {
@@ -302,16 +306,41 @@ func collectionEntries(
 				modTime = smt.ModTime()
 			}
 
-			entry := virtualfs.StreamingFileWithModTimeFromReader(
-				encodedName,
-				modTime,
-				newBackupStreamReader(serializationVersion, e.ToReader()),
-			)
-			if err := cb(ctx, entry); err != nil {
-				// Kopia's uploader swallows errors in most cases, so if we see
-				// something here it's probably a big issue and we should return.
-				errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
+			em, err := e.ToMetaReader()
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(err, "failed fetching metadata for %q", itemPath))
 				return seen, errs
+			}
+
+			if e.ToReader() != nil {
+				// It is possible for only the metadata to be
+				// available, and not data. For example in case of
+				// folders/packages in onedrive, we don't have a
+				// separate object for them in kopia but will be
+				// storing metadata information.
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
+					encodedName,
+					modTime,
+					newBackupStreamReader(serializationVersion, e.ToReader()),
+				)
+				if err := cb(ctx, entry); err != nil {
+					// Kopia's uploader swallows errors in most cases, so if we see
+					// something here it's probably a big issue and we should return.
+					errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
+					return seen, errs
+				}
+			}
+
+			if em != nil {
+				entry := virtualfs.StreamingFileWithModTimeFromReader(
+					encodeAsPath(e.UUID()+MetaFileSuffix),
+					modTime,
+					newBackupStreamReader(serializationVersion, em),
+				)
+				if err := cb(ctx, entry); err != nil {
+					errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on metadata for %q", itemPath))
+					return seen, errs
+				}
 			}
 		}
 	}

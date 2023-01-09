@@ -78,6 +78,10 @@ func (mld *MockListData) ToReader() io.ReadCloser {
 	return mld.Reader
 }
 
+func (mld *MockListData) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
+}
+
 // GetMockList returns a Listable object with two columns.
 // @param: Name of the displayable list
 // @param: Column Name: Defines the 2nd Column Name of the created list the values from the map.

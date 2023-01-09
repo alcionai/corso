@@ -112,6 +112,10 @@ func (sd *Item) ToReader() io.ReadCloser {
 	return sd.data
 }
 
+func (sd *Item) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (sd Item) Deleted() bool {
 	return sd.deleted
 }

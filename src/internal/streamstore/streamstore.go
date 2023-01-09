@@ -212,6 +212,10 @@ func (di *streamItem) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(di.data))
 }
 
+func (di *streamItem) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (di *streamItem) Deleted() bool {
 	return false
 }

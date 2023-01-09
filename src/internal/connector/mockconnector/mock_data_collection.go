@@ -157,6 +157,10 @@ func (med *MockExchangeData) ToReader() io.ReadCloser {
 	return med.Reader
 }
 
+func (med *MockExchangeData) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (med *MockExchangeData) Info() details.ItemInfo {
 	return details.ItemInfo{
 		Exchange: &details.ExchangeInfo{

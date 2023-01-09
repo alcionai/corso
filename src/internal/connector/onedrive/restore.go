@@ -71,7 +71,7 @@ func RestoreCollection(
 	ctx context.Context,
 	service graph.Servicer,
 	dc data.Collection,
-	source driveSource,
+	source DriveSource,
 	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
@@ -209,7 +209,7 @@ func restoreItem(
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-	source driveSource,
+	source DriveSource,
 ) (details.ItemInfo, error) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
 	defer end()

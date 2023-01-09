@@ -542,6 +542,10 @@ func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
 }
 
+func (od *Stream) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (od Stream) Deleted() bool {
 	return od.deleted
 }

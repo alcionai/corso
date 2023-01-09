@@ -72,7 +72,7 @@ func drives(
 	ctx context.Context,
 	service graph.Servicer,
 	resourceOwner string,
-	source driveSource,
+	source DriveSource,
 ) ([]models.Driveable, error) {
 	switch source {
 	case OneDriveSource:

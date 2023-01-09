@@ -63,6 +63,9 @@ type Collection interface {
 type Stream interface {
 	// ToReader returns an io.Reader for the DataStream
 	ToReader() io.ReadCloser
+	// ToMetaReader returns and io.ReadCloser of the metadata
+	// marshalled into json
+	ToMetaReader() (io.ReadCloser, error)
 	// UUID provides a unique identifier for this data
 	UUID() string
 	// Deleted returns true if the item represented by this Stream has been

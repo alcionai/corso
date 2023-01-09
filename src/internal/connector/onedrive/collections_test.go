@@ -44,7 +44,7 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 
 	table := []struct {
 		name      string
-		source    driveSource
+		source    DriveSource
 		dir       []string
 		expect    string
 		expectErr assert.ErrorAssertionFunc

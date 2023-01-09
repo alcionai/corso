@@ -48,13 +48,18 @@ func (kdc kopiaDataCollection) DoNotMergeItems() bool {
 }
 
 type kopiaDataStream struct {
-	reader io.ReadCloser
-	uuid   string
-	size   int64
+	reader     io.ReadCloser
+	metaReader io.ReadCloser
+	uuid       string
+	size       int64
 }
 
 func (kds kopiaDataStream) ToReader() io.ReadCloser {
 	return kds.reader
+}
+
+func (kds kopiaDataStream) ToMetaReader() (io.ReadCloser, error) {
+	return kds.metaReader, nil
 }
 
 func (kds kopiaDataStream) UUID() string {

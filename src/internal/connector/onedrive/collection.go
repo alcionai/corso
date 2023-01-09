@@ -2,7 +2,9 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -52,7 +54,7 @@ type Collection struct {
 	driveItems []models.DriveItemable
 	// M365 ID of the drive this collection was created from
 	driveID       string
-	source        driveSource
+	source        DriveSource
 	service       graph.Servicer
 	statusUpdater support.StatusUpdater
 	itemReader    itemReaderFunc
@@ -74,7 +76,7 @@ func NewCollection(
 	driveID string,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
-	source driveSource,
+	source DriveSource,
 	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
@@ -130,11 +132,27 @@ func (oc Collection) DoNotMergeItems() bool {
 	return oc.doNotMergeItems
 }
 
+// FilePermission is used to store permissions of a specific user to a
+// OneDrive item.
+type UserPermission struct {
+	ID         string     `json:"id,omitempty"`
+	Roles      []string   `json:"role,omitempty"`
+	Email      string     `json:"email,omitempty"`
+	Expiration *time.Time `json:"expiration,omitempty"`
+}
+
+// ItemMeta contains metadata about the Item. It gets stored in a
+// separate file in kopia
+type ItemMeta struct {
+	Permissions []UserPermission `json:"permissions,omitempty"`
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
 	data io.ReadCloser
 	info details.ItemInfo
+	meta ItemMeta
 
 	// true if the item was marked by graph as deleted.
 	deleted bool
@@ -146,6 +164,15 @@ func (od *Item) UUID() string {
 
 func (od *Item) ToReader() io.ReadCloser {
 	return od.data
+}
+
+func (od *Item) ToMetaReader() (io.ReadCloser, error) {
+	c, err := json.Marshal(od.meta)
+	if err != nil {
+		return nil, err
+	}
+
+	return io.NopCloser(bytes.NewReader(c)), nil
 }
 
 // TODO(ashmrtn): Fill in once delta tokens return deleted items.
@@ -215,11 +242,23 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			var (
 				itemInfo details.ItemInfo
 				itemData io.ReadCloser
+				itemMeta ItemMeta
 				err      error
 			)
 
+			isFile := item.GetFile() != nil
 			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, item)
+				if isFile {
+					itemInfo, itemData, err = oc.itemReader(ctx, item)
+				} else {
+					itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
+					itemData = nil
+					err = nil
+				}
+
+				if err == nil {
+					itemMeta, err = oneDriveItemMetaInfo(ctx, oc.driveID, item, oc.service)
+				}
 
 				// retry on Timeout type errors, break otherwise.
 				if err == nil || graph.IsErrTimeout(err) == nil {
@@ -264,6 +303,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				id:   itemName,
 				data: progReader,
 				info: itemInfo,
+				meta: itemMeta,
 			}
 			folderProgress <- struct{}{}
 		}(item)

@@ -200,3 +200,7 @@ func (mi MetadataItem) Deleted() bool {
 func (mi MetadataItem) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(mi.data))
 }
+
+func (mi MetadataItem) ToMetaReader() (io.ReadCloser, error) {
+	return nil, nil
+}

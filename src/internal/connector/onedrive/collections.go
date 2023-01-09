@@ -17,10 +17,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type driveSource int
+type DriveSource int
 
 const (
-	unknownDriveSource driveSource = iota
+	unknownDriveSource DriveSource = iota
 	OneDriveSource
 	SharePointSource
 )
@@ -35,7 +35,7 @@ type folderMatcher interface {
 type Collections struct {
 	tenant        string
 	resourceOwner string
-	source        driveSource
+	source        DriveSource
 	matcher       folderMatcher
 	service       graph.Servicer
 	statusUpdater support.StatusUpdater
@@ -55,7 +55,7 @@ type Collections struct {
 func NewCollections(
 	tenant string,
 	resourceOwner string,
-	source driveSource,
+	source DriveSource,
 	matcher folderMatcher,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
@@ -130,12 +130,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		}
 
 		switch {
-		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// Leave this here so we don't fall into the default case.
-			// TODO: This is where we might create a "special file" to represent these in the backup repository
-			// e.g. a ".folderMetadataFile"
-
-		case item.GetFile() != nil:
+		case item.GetFolder() != nil, item.GetPackage() != nil, item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
 				col = NewCollection(
@@ -166,7 +161,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 }
 
 // GetCanonicalPath constructs the standard path for the given source.
-func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path.Path, error) {
+func GetCanonicalPath(p, tenant, resourceOwner string, source DriveSource) (path.Path, error) {
 	var (
 		pathBuilder = path.Builder{}.Append(strings.Split(p, "/")...)
 		result      path.Path

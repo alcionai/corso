@@ -115,6 +115,46 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 	}
 }
 
+// oneDriveItemMetaInfo will fetch the meta information for a drive
+// item. As of now, it only adds the permissions applicable for a
+// onedrive item.
+func oneDriveItemMetaInfo(ctx context.Context, driveID string,
+	di models.DriveItemable, service graph.Servicer,
+) (ItemMeta, error) {
+	itemID := di.GetId()
+
+	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
+	if err != nil {
+		return ItemMeta{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
+	}
+
+	up := []UserPermission{}
+
+	for _, p := range perm.GetValue() {
+		roles := []string{}
+
+		for _, r := range p.GetRoles() {
+			// Skip if the only role available in owner
+			if r != "owner" {
+				roles = append(roles, r)
+			}
+		}
+
+		if len(roles) == 0 {
+			continue
+		}
+
+		up = append(up, UserPermission{
+			ID:         *p.GetId(),
+			Roles:      roles,
+			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
+			Expiration: p.GetExpirationDateTime(),
+		})
+	}
+
+	return ItemMeta{Permissions: up}, nil
+}
+
 // sharePointItemInfo will populate a details.SharePointInfo struct
 // with properties from the drive item.  ItemSize is specified
 // separately for restore processes because the local itemable
