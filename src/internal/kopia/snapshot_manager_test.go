@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -43,7 +44,7 @@ var (
 	testUser2 = "user2"
 	testUser3 = "user3"
 
-	testAllUsersAllCats = []Reason{
+	testAllUsersAllCats = []messaging.Reason{
 		{
 			ResourceOwner: testUser1,
 			Service:       path.ExchangeService,
@@ -75,7 +76,7 @@ var (
 			Category:      path.EventsCategory,
 		},
 	}
-	testAllUsersMail = []Reason{
+	testAllUsersMail = []messaging.Reason{
 		{
 			ResourceOwner: testUser1,
 			Service:       path.ExchangeService,
@@ -204,7 +205,7 @@ func TestSnapshotFetchUnitSuite(t *testing.T) {
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 	table := []struct {
 		name  string
-		input []Reason
+		input []messaging.Reason
 		data  []manifestInfo
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and
@@ -212,7 +213,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 		expectedIdxs []int
 		// Use this to denote the Reasons a manifest is selected. The int maps to
 		// the index of the manifest in data.
-		expectedReasons map[int][]Reason
+		expectedReasons map[int][]messaging.Reason
 		// Expected number of times a manifest should try to be loaded from kopia.
 		// Used to check that caching is functioning properly.
 		expectedLoadCounts map[manifest.ID]int
@@ -233,34 +234,34 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
@@ -295,7 +296,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
 					{
 						ResourceOwner: testUser1,
@@ -314,17 +315,17 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 					},
 				},
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
@@ -360,36 +361,36 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
 				},
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -425,19 +426,19 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -464,19 +465,19 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -511,19 +512,19 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -559,19 +560,19 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -605,21 +606,21 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
 				},
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -654,36 +655,36 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EventsCategory,
 					},
 				},
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -717,26 +718,26 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 				),
 			},
 			expectedIdxs: []int{0, 1},
-			expectedReasons: map[int][]Reason{
+			expectedReasons: map[int][]messaging.Reason{
 				0: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser1,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser2,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
 					},
 				},
 				1: {
-					Reason{
+					messaging.Reason{
 						ResourceOwner: testUser3,
 						Service:       path.ExchangeService,
 						Category:      path.EmailCategory,
@@ -790,7 +791,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 			assert.ElementsMatch(t, expected, got)
 
 			// Check the resons for selecting each manifest are correct.
-			expectedReasons := make(map[manifest.ID][]Reason, len(test.expectedReasons))
+			expectedReasons := make(map[manifest.ID][]messaging.Reason, len(test.expectedReasons))
 			for idx, reason := range test.expectedReasons {
 				expectedReasons[test.data[idx].man.ID] = reason
 			}
@@ -841,7 +842,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_customTags() {
 
 	table := []struct {
 		name  string
-		input []Reason
+		input []messaging.Reason
 		tags  map[string]string
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and

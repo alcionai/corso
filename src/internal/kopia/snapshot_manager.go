@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -26,12 +27,6 @@ const (
 	userTagPrefix = "tag:"
 )
 
-type Reason struct {
-	ResourceOwner string
-	Service       path.ServiceType
-	Category      path.CategoryType
-}
-
 type ManifestEntry struct {
 	*snapshot.Manifest
 	// Reason contains the ResourceOwners and Service/Categories that caused this
@@ -41,7 +36,7 @@ type ManifestEntry struct {
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)
 	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
-	Reasons []Reason
+	Reasons []messaging.Reason
 }
 
 type snapshotManager interface {
@@ -192,7 +187,7 @@ func fetchPrevManifests(
 	ctx context.Context,
 	sm snapshotManager,
 	foundMans map[manifest.ID]*ManifestEntry,
-	reason Reason,
+	reason messaging.Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
 	tags = normalizeTagKVs(tags)
@@ -245,7 +240,7 @@ func fetchPrevManifests(
 	for _, m := range found {
 		res = append(res, &ManifestEntry{
 			Manifest: m,
-			Reasons:  []Reason{reason},
+			Reasons:  []messaging.Reason{reason},
 		})
 	}
 
@@ -272,7 +267,7 @@ func fetchPrevManifests(
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
-	reasons []Reason,
+	reasons []messaging.Reason,
 	tags map[string]string,
 ) []*ManifestEntry {
 	mans := map[manifest.ID]*ManifestEntry{}

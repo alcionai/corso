@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -176,7 +177,7 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				reasons = []kopia.Reason{
+				reasons = []messaging.Reason{
 					{
 						ResourceOwner: resourceOwner,
 						Service:       sel.PathService(),
