@@ -9,7 +9,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-const testRepoRootPrefix = "integration_test/"
+const testRepoRootPrefix = "corso_integration_test/"
 
 var AWSStorageCredEnvs = []string{
 	credentials.AWSAccessKeyID,
