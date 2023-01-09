@@ -151,7 +151,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	mans, mdColls, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, uib)
+	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, uib)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -178,7 +178,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		mans,
 		cs,
 		op.Results.BackupID,
-		uib)
+		uib && canUseMetaData)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "backing up service data")
 		return opStats.writeErr
@@ -301,7 +301,7 @@ func produceManifestsAndMetadata(
 	oc *kopia.OwnersCats,
 	tenantID string,
 	getMetadata bool,
-) ([]*kopia.ManifestEntry, []data.Collection, error) {
+) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
 	var (
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.Collection
@@ -312,11 +312,11 @@ func produceManifestsAndMetadata(
 		oc,
 		map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	if !getMetadata {
-		return ms, nil, nil
+		return ms, nil, false, nil
 	}
 
 	// We only need to check that we have 1:1 reason:base if we're doing an
@@ -332,7 +332,7 @@ func produceManifestsAndMetadata(
 			err,
 		)
 
-		return ms, nil, nil
+		return ms, nil, false, nil
 	}
 
 	for _, man := range ms {
@@ -344,12 +344,22 @@ func produceManifestsAndMetadata(
 
 		bID := man.Tags[tk]
 		if len(bID) == 0 {
-			return nil, nil, errors.New("missing backup id in prior manifest")
+			return nil, nil, false, errors.New("snapshot manifest missing backup ID")
 		}
 
 		dID, _, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(bID))
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "retrieving prior backup data")
+			// if no backup exists for any of the complete manifests, we want
+			// to fall back to a complete backup.
+			if errors.Is(err, kopia.ErrNotFound) {
+				logger.Ctx(ctx).Infow(
+					"backup missing, falling back to full backup",
+					"backup_id", bID)
+
+				return ms, nil, false, nil
+			}
+
+			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
 		}
 
 		// if no detailsID exists for any of the complete manifests, we want
@@ -362,7 +372,7 @@ func produceManifestsAndMetadata(
 				"backup missing details ID, falling back to full backup",
 				"backup_id", bID)
 
-			return ms, nil, nil
+			return ms, nil, false, nil
 		}
 
 		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
@@ -370,13 +380,13 @@ func produceManifestsAndMetadata(
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.
-			return nil, nil, err
+			return nil, nil, false, err
 		}
 
 		collections = append(collections, colls...)
 	}
 
-	return ms, collections, err
+	return ms, collections, true, err
 }
 
 func collectMetadata(
