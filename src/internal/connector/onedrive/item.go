@@ -118,8 +118,9 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 // oneDriveItemMetaInfo will fetch the meta information for a drive
 // item. As of now, it only adds the permissions applicable for a
 // onedrive item.
-func oneDriveItemMetaInfo(ctx context.Context, driveID string,
-	di models.DriveItemable, service graph.Servicer,
+func oneDriveItemMetaInfo(
+	ctx context.Context, service graph.Servicer,
+	driveID string, di models.DriveItemable,
 ) (ItemMeta, error) {
 	itemID := di.GetId()
 

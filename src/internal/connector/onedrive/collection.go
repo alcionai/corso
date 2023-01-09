@@ -262,8 +262,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					err = nil
 				}
 
-				if err == nil {
-					itemMeta, err = oneDriveItemMetaInfo(ctx, oc.driveID, item, oc.service)
+				if err == nil && oc.source == OneDriveSource {
+					// Metadata information is only available for
+					// OneDrive and not Sharepoint
+					itemMeta, err = oneDriveItemMetaInfo(ctx, oc.service, oc.driveID, item)
 				}
 
 				// retry on Timeout type errors, break otherwise.
