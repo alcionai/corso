@@ -230,6 +230,12 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			break
 		}
 
+		// Don't process folders for non-onedrive(sharepoint).
+		isFile := item.GetFile() != nil
+		if !isFile && oc.source != OneDriveSource {
+			continue
+		}
+
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
