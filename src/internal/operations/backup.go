@@ -344,7 +344,7 @@ func produceManifestsAndMetadata(
 
 		bID := man.Tags[tk]
 		if len(bID) == 0 {
-			return nil, nil, false, errors.New("manifest missing backup ID")
+			return nil, nil, false, errors.New("snapshot manifest missing backup ID")
 		}
 
 		dID, _, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(bID))
