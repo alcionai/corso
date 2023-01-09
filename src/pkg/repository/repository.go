@@ -154,7 +154,7 @@ func Connect(
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
 
-	complete, closer := observe.MessageWithCompletion("Connecting to repository:")
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer closer()
 	defer close(complete)
 

@@ -271,7 +271,6 @@ func collectionEntries(
 				continue
 			}
 
-			log.Debugw("reading item", "path", itemPath.String())
 			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
 
 			if e.Deleted() {

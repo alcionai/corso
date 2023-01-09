@@ -195,7 +195,11 @@ func (col *Collection) streamItems(ctx context.Context) {
 
 	if len(col.added)+len(col.removed) > 0 {
 		var closer func()
-		colProgress, closer = observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
+		colProgress, closer = observe.CollectionProgress(
+			ctx,
+			user,
+			col.fullPath.Category().String(),
+			col.fullPath.Folder())
 
 		go closer()
 
@@ -320,7 +324,7 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 		},
 		errs,
 		col.fullPath.Folder())
-	logger.Ctx(ctx).Debug(status.String())
+	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	col.statusUpdater(status)
 }
 

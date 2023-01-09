@@ -227,7 +227,7 @@ func produceBackupDataCollections(
 	metadata []data.Collection,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -486,7 +486,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
-	complete, closer := observe.MessageWithCompletion("Backing up data:")
+	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)

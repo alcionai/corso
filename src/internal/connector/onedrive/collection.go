@@ -182,10 +182,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	}
 
 	folderProgress, colCloser := observe.ProgressWithCount(
+		ctx,
 		observe.ItemQueueMsg,
 		"/"+parentPathString,
-		int64(len(oc.driveItems)),
-	)
+		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
 
@@ -252,7 +252,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemSize = itemInfo.OneDrive.Size
 			}
 
-			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemName, itemSize)
+			progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName, itemSize)
 			go closer()
 
 			// Item read successfully, add to collection
@@ -287,6 +287,6 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byte
 		errs,
 		oc.folderPath.Folder(), // Additional details
 	)
-	logger.Ctx(ctx).Debug(status.String())
+	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	oc.statusUpdater(status)
 }
