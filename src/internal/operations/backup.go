@@ -345,10 +345,8 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-
-		bID := man.Tags[tk]
-		if len(bID) == 0 {
+		bID, ok := man.GetTag(kopia.TagBackupID)
+		if !ok {
 			return nil, nil, false, errors.New("snapshot manifest missing backup ID")
 		}
 
@@ -503,12 +501,9 @@ func consumeBackupDataCollections(
 	}
 
 	for _, reason := range reasons {
-		tags[reason.ResourceOwner] = ""
-
-		// TODO(ashmrtn): Create a separate helper function to go from service/cat
-		// to a tag.
-		serviceCat, _ := kopia.MakeServiceCat(reason.Service, reason.Category)
-		tags[serviceCat] = ""
+		for _, k := range reason.TagKeys() {
+			tags[k] = ""
+		}
 	}
 
 	bases := make([]kopia.IncrementalBase, 0, len(mans))
@@ -569,8 +564,10 @@ func mergeDetails(
 			continue
 		}
 
-		k, _ := kopia.MakeTagKV(kopia.TagBackupID)
-		bID := man.Tags[k]
+		bID, ok := man.GetTag(kopia.TagBackupID)
+		if !ok {
+			return errors.Errorf("no backup ID in snapshot manifest with ID %s", man.ID)
+		}
 
 		_, baseDeets, err := getBackupAndDetailsFromID(
 			ctx,

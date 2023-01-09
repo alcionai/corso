@@ -39,6 +39,13 @@ type ManifestEntry struct {
 	Reasons []messaging.Reason
 }
 
+func (me ManifestEntry) GetTag(key string) (string, bool) {
+	k, _ := makeTagKV(key)
+	v, ok := me.Tags[k]
+
+	return v, ok
+}
+
 type snapshotManager interface {
 	FindManifests(
 		ctx context.Context,
@@ -63,6 +70,10 @@ func MakeServiceCat(s path.ServiceType, c path.CategoryType) (string, ServiceCat
 	return serviceCatString(s, c), ServiceCat{s, c}
 }
 
+// TODO(ashmrtn): Remove in a future PR.
+//
+//nolint:unused
+//lint:ignore U1000 will be removed in future PR.
 func serviceCatTag(p path.Path) string {
 	return serviceCatString(p.Service(), p.Category())
 }
@@ -77,7 +88,7 @@ func serviceCatString(s path.ServiceType, c path.CategoryType) string {
 // Returns the normalized Key plus a default value.  If you're embedding a
 // key-only tag, the returned default value msut be used instead of an
 // empty string.
-func MakeTagKV(k string) (string, string) {
+func makeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
 }
 
@@ -96,12 +107,12 @@ func tagsFromStrings(oc *OwnersCats) map[string]string {
 	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
 
 	for k := range oc.ServiceCats {
-		tk, tv := MakeTagKV(k)
+		tk, tv := makeTagKV(k)
 		res[tk] = tv
 	}
 
 	for k := range oc.ResourceOwners {
-		tk, tv := MakeTagKV(k)
+		tk, tv := makeTagKV(k)
 		res[tk] = tv
 	}
 
@@ -190,14 +201,14 @@ func fetchPrevManifests(
 	reason messaging.Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
-	tags = normalizeTagKVs(tags)
-	serviceCatKey, _ := MakeServiceCat(reason.Service, reason.Category)
-	allTags := normalizeTagKVs(map[string]string{
-		serviceCatKey:        "",
-		reason.ResourceOwner: "",
-	})
+	allTags := map[string]string{}
+
+	for _, k := range reason.TagKeys() {
+		allTags[k] = ""
+	}
 
 	maps.Copy(allTags, tags)
+	allTags = normalizeTagKVs(allTags)
 
 	metas, err := sm.FindManifests(ctx, allTags)
 	if err != nil {
@@ -330,7 +341,7 @@ func normalizeTagKVs(tags map[string]string) map[string]string {
 	t2 := make(map[string]string, len(tags))
 
 	for k, v := range tags {
-		mk, mv := MakeTagKV(k)
+		mk, mv := makeTagKV(k)
 
 		if len(v) == 0 {
 			v = mv

@@ -231,7 +231,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			man.Tags = map[string]string{}
 
 			for k, v := range addlTags {
-				mk, mv := MakeTagKV(k)
+				mk, mv := makeTagKV(k)
 
 				if len(v) == 0 {
 					v = mv

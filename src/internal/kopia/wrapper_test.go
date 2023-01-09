@@ -213,11 +213,25 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	tags := map[string]string{
 		"fnords":    "smarf",
 		"brunhilda": "",
+	}
 
-		suite.testPath1.ResourceOwner(): "",
-		suite.testPath2.ResourceOwner(): "",
-		serviceCatTag(suite.testPath1):  "",
-		serviceCatTag(suite.testPath2):  "",
+	reasons := []messaging.Reason{
+		{
+			ResourceOwner: suite.testPath1.ResourceOwner(),
+			Service:       suite.testPath1.Service(),
+			Category:      suite.testPath1.Category(),
+		},
+		{
+			ResourceOwner: suite.testPath2.ResourceOwner(),
+			Service:       suite.testPath2.Service(),
+			Category:      suite.testPath2.Category(),
+		},
+	}
+
+	for _, r := range reasons {
+		for _, k := range r.TagKeys() {
+			tags[k] = ""
+		}
 	}
 
 	expectedTags := map[string]string{}
@@ -306,9 +320,15 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
-	tags := map[string]string{
-		testUser: "",
-		serviceCatString(path.ExchangeService, path.EmailCategory): "",
+	tags := map[string]string{}
+	reason := messaging.Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	dc1 := mockconnector.NewMockExchangeCollection(suite.testPath1, 1)
@@ -354,9 +374,15 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
-	tags := map[string]string{
-		testUser: "",
-		serviceCatString(path.ExchangeService, path.EmailCategory): "",
+	tags := map[string]string{}
+	reason := messaging.Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	collections := []data.Collection{
@@ -587,9 +613,15 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
-	tags := map[string]string{
-		testUser: "",
-		serviceCatString(path.ExchangeService, path.EmailCategory): "",
+	tags := map[string]string{}
+	reason := messaging.Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	stats, deets, _, err := suite.w.BackupCollections(
