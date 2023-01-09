@@ -44,6 +44,7 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	r := make([]getIDAndAddtler, 0, len(items))
 
 	for _, item := range items {
+		//nolint:gosimple
 		var a any
 		a = item
 
@@ -62,7 +63,6 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
 	pager itemPager,
-	errUpdater func(error),
 ) ([]string, []string, string, error) {
 	var (
 		addedIDs   = []string{}

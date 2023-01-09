@@ -190,10 +190,6 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		resetDelta bool
 	)
 
-	errUpdater := func(err error) {
-		errs = multierror.Append(errs, errors.Wrap(err, "folder "+directoryID))
-	}
-
 	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
@@ -203,7 +199,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		builder := users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
 		pgr := &contactPager{service, builder, options}
 
-		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
 			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
@@ -221,7 +217,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
 	pgr := &contactPager{service, builder, options}
 
-	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}

@@ -173,10 +173,6 @@ func (c Events) GetAddedAndRemovedItemIDs(
 
 	var errs *multierror.Error
 
-	errUpdater := func(err error) {
-		errs = multierror.Append(errs, errors.Wrap(err, "calendar "+calendarID))
-	}
-
 	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
@@ -185,7 +181,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
 	pgr := &eventPager{service, builder, options}
 
-	added, _, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr, errUpdater)
+	added, _, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
