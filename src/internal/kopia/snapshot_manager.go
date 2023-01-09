@@ -305,8 +305,8 @@ func fetchPrevSnapshotManifests(
 
 		// If we found more recent snapshots then add them.
 		for _, m := range found {
-			found := mans[m.ID]
-			if found == nil {
+			man := mans[m.ID]
+			if man == nil {
 				mans[m.ID] = m
 				continue
 			}
@@ -314,11 +314,11 @@ func fetchPrevSnapshotManifests(
 			// If the manifest already exists and it's incomplete then we should
 			// merge the reasons for consistency. This will become easier to handle
 			// once we update how checkpoint manifests are tagged.
-			if len(found.IncompleteReason) == 0 {
+			if len(man.IncompleteReason) == 0 {
 				continue
 			}
 
-			found.Reasons = append(found.Reasons, m.Reasons...)
+			man.Reasons = append(man.Reasons, m.Reasons...)
 		}
 	}
 
