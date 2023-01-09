@@ -35,7 +35,6 @@ type (
 
 var (
 	_ Reducer        = &SharePointRestore{}
-	_ printabler     = &SharePointRestore{}
 	_ pathCategorier = &SharePointRestore{}
 )
 
@@ -105,11 +104,6 @@ func (s SharePointRestore) SplitByResourceOwner(users []string) []SharePointRest
 	}
 
 	return ss
-}
-
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s sharePoint) Printable() Printable {
-	return toPrintable[SharePointScope](s.Selector)
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.

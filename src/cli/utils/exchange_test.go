@@ -325,42 +325,36 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 	}{
 		{
 			name:             "no inputs",
-			resources:        empty,
 			folders:          empty,
 			items:            empty,
 			expectIncludeLen: 0,
 		},
 		{
 			name:             "single inputs",
-			resources:        single,
 			folders:          single,
 			items:            single,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "multi inputs",
-			resources:        multi,
 			folders:          multi,
 			items:            multi,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "folder contains",
-			resources:        empty,
 			folders:          containsOnly,
 			items:            empty,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "folder prefixes",
-			resources:        empty,
 			folders:          prefixOnly,
 			items:            empty,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "folder prefixes and contains",
-			resources:        empty,
 			folders:          containsAndPrefix,
 			items:            empty,
 			expectIncludeLen: 2,

@@ -38,7 +38,6 @@ type (
 
 var (
 	_ Reducer        = &ExchangeRestore{}
-	_ printabler     = &ExchangeRestore{}
 	_ pathCategorier = &ExchangeRestore{}
 )
 
@@ -108,11 +107,6 @@ func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore
 	}
 
 	return ss
-}
-
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s exchange) Printable() Printable {
-	return toPrintable[ExchangeScope](s.Selector)
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.

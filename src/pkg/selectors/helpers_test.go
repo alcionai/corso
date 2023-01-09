@@ -160,10 +160,6 @@ func stubSelector(resourceOwners []string) mockSel {
 	}
 }
 
-func (s mockSel) Printable() Printable {
-	return toPrintable[mockScope](s.Selector)
-}
-
 // ---------------------------------------------------------------------------
 // helper funcs
 // ---------------------------------------------------------------------------
