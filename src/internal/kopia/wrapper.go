@@ -119,8 +119,6 @@ func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.Collection,
-	service path.ServiceType,
-	oc *OwnersCats,
 	tags map[string]string,
 	buildTreeWithBase bool,
 ) (*BackupStats, *details.Builder, map[string]path.Path, error) {
@@ -158,7 +156,6 @@ func (w Wrapper) BackupCollections(
 		ctx,
 		previousSnapshots,
 		dirTree,
-		oc,
 		tags,
 		progress,
 	)
@@ -173,7 +170,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
 	prevSnapEntries []IncrementalBase,
 	root fs.Directory,
-	oc *OwnersCats,
 	addlTags map[string]string,
 	progress *corsoProgress,
 ) (*BackupStats, error) {
@@ -231,7 +227,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 				return err
 			}
 
-			man.Tags = tagsFromStrings(oc)
+			man.Tags = map[string]string{}
+
 			for k, v := range addlTags {
 				mk, mv := MakeTagKV(k)
 
@@ -442,12 +439,12 @@ func (w Wrapper) DeleteSnapshot(
 // normalized inside the func using MakeTagKV.
 func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
-	oc *OwnersCats,
+	reasons []Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
 	if w.c == nil {
 		return nil, errors.WithStack(errNotConnected)
 	}
 
-	return fetchPrevSnapshotManifests(ctx, w.c, oc, tags), nil
+	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
 }

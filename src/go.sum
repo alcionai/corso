@@ -58,8 +58,8 @@ github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRF
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
 github.com/andybalholm/brotli v1.0.4 h1:V7DdXeJtZscaqfNuAdSRuRFzuiKlHSC/Zh3zl9qY3JY=
 github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
-github.com/aws/aws-sdk-go v1.44.175 h1:c0NzHHnPXV5kJoTUFQxFN5cUPpX1SxO635XnwL5/oIY=
-github.com/aws/aws-sdk-go v1.44.175/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.176 h1:mxcfI3IWHemX+5fEKt5uqIS/hdbaR7qzGfJYo5UyjJE=
+github.com/aws/aws-sdk-go v1.44.176/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-xray-sdk-go v1.8.0 h1:0xncHZ588wB/geLjbM/esoW3FOEThWy2TJyb4VXfLFY=
 github.com/aws/aws-xray-sdk-go v1.8.0/go.mod h1:7LKe47H+j3evfvS1+q0wzpoaGXGrF3mUsfM+thqVO+A=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
@@ -257,8 +257,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.2 h1:hAHbPm5IJGijwng3PWk09
 github.com/matttproud/golang_protobuf_extensions v1.0.2/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d h1:5PJl274Y63IEHC+7izoQE9x6ikvDFZS2mDVS3drnohI=
 github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
-github.com/microsoft/kiota-abstractions-go v0.15.1 h1:RgN8h9Z3AoFav1K4ODVSkmA8Es933hTlAWNesll1G5U=
-github.com/microsoft/kiota-abstractions-go v0.15.1/go.mod h1:YqOu8G6bZTG0eCIWrmEny8PaF750uaw7tLFac4psf+4=
+github.com/microsoft/kiota-abstractions-go v0.15.2 h1:Pp78BbqPvkF2mAMH0Ph37ymwfSH7uF9iYfY1fZ8g630=
+github.com/microsoft/kiota-abstractions-go v0.15.2/go.mod h1:RT/s9sCzg49i4iO7e2qhyWmX+DlJDgC0P+Wp8fKQQfo=
 github.com/microsoft/kiota-authentication-azure-go v0.5.0 h1:RVA/tTgMnDIN3u4qPZtvYvVRsQDOFkd3yvi6KXjZJko=
 github.com/microsoft/kiota-authentication-azure-go v0.5.0/go.mod h1:1Io6h+88FlDRmrajdjSnXPz8oyObUVjNuQZLhrF9kQk=
 github.com/microsoft/kiota-http-go v0.11.0 h1:0K0y/wZcTvEEX2Xdj5tngJqknqYQpArLdtjB/fo88Dc=

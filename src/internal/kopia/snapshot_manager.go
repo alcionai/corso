@@ -89,6 +89,10 @@ func MakeTagKV(k string) (string, string) {
 // tagsFromStrings returns a map[string]string with tags for all ownersCats
 // passed in. Currently uses placeholder values for each tag because there can
 // be multiple instances of resource owners and categories in a single snapshot.
+// TODO(ashmrtn): Remove in future PR.
+//
+//nolint:unused
+//lint:ignore U1000 will be removed in future PR.
 func tagsFromStrings(oc *OwnersCats) map[string]string {
 	if oc == nil {
 		return map[string]string{}
@@ -188,24 +192,17 @@ func fetchPrevManifests(
 	ctx context.Context,
 	sm snapshotManager,
 	foundMans map[manifest.ID]*ManifestEntry,
-	serviceCat ServiceCat,
-	resourceOwner string,
+	reason Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
 	tags = normalizeTagKVs(tags)
-	serviceCatKey, _ := MakeServiceCat(serviceCat.Service, serviceCat.Category)
+	serviceCatKey, _ := MakeServiceCat(reason.Service, reason.Category)
 	allTags := normalizeTagKVs(map[string]string{
-		serviceCatKey: "",
-		resourceOwner: "",
+		serviceCatKey:        "",
+		reason.ResourceOwner: "",
 	})
 
 	maps.Copy(allTags, tags)
-
-	reason := Reason{
-		ResourceOwner: resourceOwner,
-		Service:       serviceCat.Service,
-		Category:      serviceCat.Category,
-	}
 
 	metas, err := sm.FindManifests(ctx, allTags)
 	if err != nil {
@@ -275,57 +272,54 @@ func fetchPrevManifests(
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
-	oc *OwnersCats,
+	reasons []Reason,
 	tags map[string]string,
 ) []*ManifestEntry {
-	if oc == nil {
-		return nil
-	}
-
 	mans := map[manifest.ID]*ManifestEntry{}
 
 	// For each serviceCat/resource owner pair that we will be backing up, see if
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
-	for _, serviceCat := range oc.ServiceCats {
-		for resourceOwner := range oc.ResourceOwners {
-			found, err := fetchPrevManifests(
-				ctx,
-				sm,
-				mans,
-				serviceCat,
-				resourceOwner,
-				tags,
+	for _, reason := range reasons {
+		found, err := fetchPrevManifests(
+			ctx,
+			sm,
+			mans,
+			reason,
+			tags,
+		)
+		if err != nil {
+			logger.Ctx(ctx).Warnw(
+				"fetching previous snapshot manifests for service/category/resource owner",
+				"error",
+				err,
+				"service",
+				reason.Service.String(),
+				"category",
+				reason.Category.String(),
 			)
-			if err != nil {
-				logger.Ctx(ctx).Warnw(
-					"fetching previous snapshot manifests for service/category/resource owner",
-					"error",
-					err,
-					"service/category",
-					serviceCat,
-				)
 
-				// Snapshot can still complete fine, just not as efficient.
+			// Snapshot can still complete fine, just not as efficient.
+			continue
+		}
+
+		// If we found more recent snapshots then add them.
+		for _, m := range found {
+			man := mans[m.ID]
+			if man == nil {
+				mans[m.ID] = m
 				continue
 			}
 
-			// If we found more recent snapshots then add them.
-			for _, m := range found {
-				found := mans[m.ID]
-				if found == nil {
-					mans[m.ID] = m
-					continue
-				}
-
-				// If the manifest already exists and it's incomplete then we should
-				// merge the reasons for consistency. This will become easier to handle
-				// once we update how checkpoint manifests are tagged.
-				if len(found.IncompleteReason) > 0 {
-					found.Reasons = append(found.Reasons, m.Reasons...)
-				}
+			// If the manifest already exists and it's incomplete then we should
+			// merge the reasons for consistency. This will become easier to handle
+			// once we update how checkpoint manifests are tagged.
+			if len(man.IncompleteReason) == 0 {
+				continue
 			}
+
+			man.Reasons = append(man.Reasons, m.Reasons...)
 		}
 	}
 
