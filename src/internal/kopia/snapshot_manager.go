@@ -92,6 +92,7 @@ func MakeTagKV(k string) (string, string) {
 // TODO(ashmrtn): Remove in future PR.
 //
 //nolint:unused
+//lint:ignore U1000 will be removed in future PR.
 func tagsFromStrings(oc *OwnersCats) map[string]string {
 	if oc == nil {
 		return map[string]string{}
