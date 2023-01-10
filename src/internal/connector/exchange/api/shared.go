@@ -44,9 +44,7 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	r := make([]getIDAndAddtler, 0, len(items))
 
 	for _, item := range items {
-		//nolint:gosimple
-		var a any
-		a = item
+		var a any = item
 
 		ri, ok := a.(getIDAndAddtler)
 		if !ok {
