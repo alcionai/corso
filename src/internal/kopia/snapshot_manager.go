@@ -32,6 +32,13 @@ type Reason struct {
 	Category      path.CategoryType
 }
 
+func (r Reason) TagKeys() []string {
+	return []string{
+		r.ResourceOwner,
+		serviceCatString(r.Service, r.Category),
+	}
+}
+
 type ManifestEntry struct {
 	*snapshot.Manifest
 	// Reason contains the ResourceOwners and Service/Categories that caused this
