@@ -35,3 +35,4 @@ cyberattack
 Atlassian
 SLAs
 runbooks
+stdout
