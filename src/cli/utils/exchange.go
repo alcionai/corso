@@ -138,7 +138,6 @@ func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeR
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
 		sel.Include(sel.AllData())
-
 		return sel
 	}
 
