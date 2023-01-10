@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -404,7 +403,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{
 						ID: "id1",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -427,7 +426,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{
 						ID: "id1",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -439,7 +438,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{
 						ID: "id2",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -457,7 +456,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{
 						ID: "id1",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -469,7 +468,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{
 						ID: "id2",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -487,7 +486,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{
 						ID: "id1",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -500,7 +499,7 @@ func (suite *BackupOpSuite) TestBackupOperation_VerifyDistinctBases() {
 						ID:               "id2",
 						IncompleteReason: "checkpoint",
 					},
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						{
 							ResourceOwner: user,
 							Service:       path.ExchangeService,
@@ -573,7 +572,7 @@ func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
 			name: "SingleReasonSingleFile",
 			inputMan: &kopia.ManifestEntry{
 				Manifest: &snapshot.Manifest{},
-				Reasons: []messaging.Reason{
+				Reasons: []kopia.Reason{
 					{
 						ResourceOwner: resourceOwner,
 						Service:       path.ExchangeService,
@@ -588,7 +587,7 @@ func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
 			name: "SingleReasonMultipleFiles",
 			inputMan: &kopia.ManifestEntry{
 				Manifest: &snapshot.Manifest{},
-				Reasons: []messaging.Reason{
+				Reasons: []kopia.Reason{
 					{
 						ResourceOwner: resourceOwner,
 						Service:       path.ExchangeService,
@@ -603,7 +602,7 @@ func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
 			name: "MultipleReasonsMultipleFiles",
 			inputMan: &kopia.ManifestEntry{
 				Manifest: &snapshot.Manifest{},
-				Reasons: []messaging.Reason{
+				Reasons: []kopia.Reason{
 					{
 						ResourceOwner: resourceOwner,
 						Service:       path.ExchangeService,
@@ -659,12 +658,12 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			path.ContactsCategory.String(),
 		)
 
-		emailReason = messaging.Reason{
+		emailReason = kopia.Reason{
 			ResourceOwner: resourceOwner,
 			Service:       path.ExchangeService,
 			Category:      path.EmailCategory,
 		}
-		contactsReason = messaging.Reason{
+		contactsReason = kopia.Reason{
 			ResourceOwner: resourceOwner,
 			Service:       path.ExchangeService,
 			Category:      path.ContactsCategory,
@@ -688,7 +687,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			inputMan: []*kopia.ManifestEntry{
 				{
 					Manifest: manifest1,
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						emailReason,
 					},
 				},
@@ -707,7 +706,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			inputMan: []*kopia.ManifestEntry{
 				{
 					Manifest: manifest1,
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						emailReason,
 						contactsReason,
 					},
@@ -728,14 +727,14 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			inputMan: []*kopia.ManifestEntry{
 				{
 					Manifest: manifest1,
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						emailReason,
 						contactsReason,
 					},
 				},
 				{
 					Manifest: manifest2,
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						emailReason,
 						contactsReason,
 					},
@@ -853,12 +852,12 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			DetailsID: "did2",
 		}
 
-		pathReason1 = messaging.Reason{
+		pathReason1 = kopia.Reason{
 			ResourceOwner: itemPath1.ResourceOwner(),
 			Service:       itemPath1.Service(),
 			Category:      itemPath1.Category(),
 		}
-		pathReason3 = messaging.Reason{
+		pathReason3 = kopia.Reason{
 			ResourceOwner: itemPath3.ResourceOwner(),
 			Service:       itemPath3.Service(),
 			Category:      itemPath3.Category(),
@@ -899,7 +898,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), "foo", ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -914,7 +913,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -938,7 +937,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -965,13 +964,13 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -998,7 +997,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -1055,7 +1054,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -1082,7 +1081,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -1112,7 +1111,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -1143,7 +1142,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -1174,13 +1173,13 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
 				{
 					Manifest: makeManifest(suite.T(), backup2.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason3,
 					},
 				},
@@ -1222,13 +1221,13 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
 				{
 					Manifest: makeManifest(suite.T(), backup2.ID, "checkpoint"),
-					Reasons: []messaging.Reason{
+					Reasons: []kopia.Reason{
 						pathReason1,
 					},
 				},
@@ -1319,7 +1318,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 			DetailsID: "did1",
 		}
 
-		pathReason1 = messaging.Reason{
+		pathReason1 = kopia.Reason{
 			ResourceOwner: itemPath1.ResourceOwner(),
 			Service:       itemPath1.Service(),
 			Category:      itemPath1.Category(),
@@ -1332,7 +1331,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		inputMans = []*kopia.ManifestEntry{
 			{
 				Manifest: makeManifest(t, backup1.ID, ""),
-				Reasons: []messaging.Reason{
+				Reasons: []kopia.Reason{
 					pathReason1,
 				},
 			},

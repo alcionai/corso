@@ -18,7 +18,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -215,7 +214,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		"brunhilda": "",
 	}
 
-	reasons := []messaging.Reason{
+	reasons := []Reason{
 		{
 			ResourceOwner: suite.testPath1.ResourceOwner(),
 			Service:       suite.testPath1.Service(),
@@ -321,7 +320,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	w := &Wrapper{k}
 
 	tags := map[string]string{}
-	reason := messaging.Reason{
+	reason := Reason{
 		ResourceOwner: testUser,
 		Service:       path.ExchangeService,
 		Category:      path.EmailCategory,
@@ -375,7 +374,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
 	tags := map[string]string{}
-	reason := messaging.Reason{
+	reason := Reason{
 		ResourceOwner: testUser,
 		Service:       path.ExchangeService,
 		Category:      path.EmailCategory,
@@ -614,7 +613,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	}
 
 	tags := map[string]string{}
-	reason := messaging.Reason{
+	reason := Reason{
 		ResourceOwner: testUser,
 		Service:       path.ExchangeService,
 		Category:      path.EmailCategory,

@@ -15,7 +15,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -440,7 +439,7 @@ func (w Wrapper) DeleteSnapshot(
 // normalized inside the func using MakeTagKV.
 func (w Wrapper) FetchPrevSnapshotManifests(
 	ctx context.Context,
-	reasons []messaging.Reason,
+	reasons []Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
 	if w.c == nil {

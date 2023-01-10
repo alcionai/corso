@@ -17,7 +17,6 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/messaging"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -303,7 +302,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	reasons []messaging.Reason,
+	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
 ) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
@@ -430,9 +429,9 @@ func collectMetadata(
 	return dcs, nil
 }
 
-func selectorToReasons(sel selectors.Selector) []messaging.Reason {
+func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 	service := sel.PathService()
-	reasons := []messaging.Reason{}
+	reasons := []kopia.Reason{}
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
@@ -443,7 +442,7 @@ func selectorToReasons(sel selectors.Selector) []messaging.Reason {
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
-			reasons = append(reasons, messaging.Reason{
+			reasons = append(reasons, kopia.Reason{
 				ResourceOwner: sel.DiscreteOwner,
 				Service:       service,
 				Category:      cat,
@@ -454,7 +453,7 @@ func selectorToReasons(sel selectors.Selector) []messaging.Reason {
 	return reasons
 }
 
-func builderFromReason(tenant string, r messaging.Reason) (*path.Builder, error) {
+func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
 	// This is hacky, but we want the path package to format the path the right
 	// way (e.x. proper order for service, category, etc), but we don't care about
 	// the folders after the prefix.
@@ -482,7 +481,7 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	bu backuper,
 	tenantID string,
-	reasons []messaging.Reason,
+	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
@@ -529,7 +528,7 @@ func consumeBackupDataCollections(
 	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
 }
 
-func matchesReason(reasons []messaging.Reason, p path.Path) bool {
+func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 	for _, reason := range reasons {
 		if p.ResourceOwner() == reason.ResourceOwner &&
 			p.Service() == reason.Service &&
