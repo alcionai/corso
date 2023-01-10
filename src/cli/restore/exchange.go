@@ -10,6 +10,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 )
@@ -215,23 +216,22 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
+	dest := control.DefaultRestoreDestination(common.SimpleDateTime)
+
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	// if no selector flags were specified, get all data in the service.
-	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.AllData())
-	}
-
-	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTime)
-
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
+		if errors.Is(err, kopia.ErrNotFound) {
+			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", backupID))
+		}
+
 		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 
