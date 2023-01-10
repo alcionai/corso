@@ -478,6 +478,7 @@ func (i ExchangeInfo) Values() []string {
 type SharePointInfo struct {
 	Created    time.Time `json:"created,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
+	DriveName  string    `json:"driveName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `josn:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
@@ -489,7 +490,7 @@ type SharePointInfo struct {
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
-	return []string{"ItemName", "ParentPath", "Size", "WebURL", "Created", "Modified"}
+	return []string{"ItemName", "Drive", "ParentPath", "Size", "WebURL", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
@@ -497,6 +498,7 @@ func (i SharePointInfo) Headers() []string {
 func (i SharePointInfo) Values() []string {
 	return []string{
 		i.ItemName,
+		i.DriveName,
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.WebURL,
@@ -519,8 +521,8 @@ func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
-	ItemName   string    `json:"itemName"`
-	DriveName  string    `json:"driveName"`
+	ItemName   string    `json:"itemName,omitempty"`
+	DriveName  string    `json:"driveName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
