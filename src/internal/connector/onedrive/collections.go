@@ -125,18 +125,8 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		}
 
 		// Skip items that don't match the folder selectors we were given.
-		if !includePath(ctx, c.matcher, collectionPath) {
+		if shouldSkipDrive(ctx, c.service, collectionPath, c.matcher) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
-			continue
-		}
-
-		isRestricted, err := restrictedPath(ctx, c.service, collectionPath)
-		if err != nil {
-			return err
-		}
-
-		if isRestricted {
-			logger.Ctx(ctx).Infof("Restricted Path skipped %s", collectionPath.String())
 			continue
 		}
 
@@ -176,10 +166,20 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 	return nil
 }
 
-func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.Path) (bool, error) {
+func shouldSkipDrive(ctx context.Context, service graph.Servicer, drivePath path.Path, m folderMatcher) bool {
+	shouldSkip := !includePath(ctx, m, drivePath)
+	if shouldSkip {
+		return true
+	}
+
+	return restrictedPath(ctx, service, drivePath)
+
+}
+
+func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.Path) bool {
 	folders := drivePath.Folders()
 	if len(folders) < 2 {
-		return false, nil
+		return false
 	}
 
 	driveObj, err := service.
@@ -189,14 +189,15 @@ func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.
 			optionsSingleDrive([]string{"id", "name"}),
 		)
 	if err != nil {
-		return false, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		logger.Ctx(ctx).Error(err, support.ConnectorStackErrorTrace(err))
+		return false
 	}
 
 	if *driveObj.GetName() == restrictedDirectory {
-		return true, nil
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 // GetCanonicalPath constructs the standard path for the given source.
