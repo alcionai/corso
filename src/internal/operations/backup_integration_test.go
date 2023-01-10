@@ -176,16 +176,18 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
-				oc       = &kopia.OwnersCats{
-					ResourceOwners: map[string]struct{}{resourceOwner: {}},
-					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+				reasons = []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       sel.PathService(),
+						Category:      category,
+					},
 				}
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
 			require.NoError(t, err)
 
 			for _, man := range mans {
