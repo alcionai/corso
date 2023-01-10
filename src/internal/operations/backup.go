@@ -208,7 +208,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
-	opStats.resourceCount++
+	opStats.resourceCount = 1
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
@@ -678,7 +678,7 @@ func (op *BackupOperation) persistResults(
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
-	op.Results.ResourceOwners = opStats.resourceCount
+	op.Results.ResourceOwners = 1
 
 	return nil
 }
