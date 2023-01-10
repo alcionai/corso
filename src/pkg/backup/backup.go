@@ -28,8 +28,8 @@ type Backup struct {
 	// Status of the operation
 	Status string `json:"status"`
 
-	// Selectors used in this operation
-	Selectors selectors.Selector `json:"selectors"`
+	// Selector used in this operation
+	Selector selectors.Selector `json:"selectors"`
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.Errs
@@ -58,7 +58,7 @@ func New(
 		SnapshotID:      snapshotID,
 		DetailsID:       detailsID,
 		Status:          status,
-		Selectors:       selector,
+		Selector:        selector,
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 	}
@@ -89,14 +89,13 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID            model.StableID      `json:"id"`
-	ErrorCount    int                 `json:"errorCount"`
-	StartedAt     time.Time           `json:"started at"`
-	Status        string              `json:"status"`
-	Version       string              `json:"version"`
-	Selectors     selectors.Printable `json:"selectors"`
-	BytesRead     int64               `json:"bytesRead"`
-	BytesUploaded int64               `json:"bytesUploaded"`
+	ID            model.StableID `json:"id"`
+	ErrorCount    int            `json:"errorCount"`
+	StartedAt     time.Time      `json:"started at"`
+	Status        string         `json:"status"`
+	Version       string         `json:"version"`
+	BytesRead     int64          `json:"bytesRead"`
+	BytesUploaded int64          `json:"bytesUploaded"`
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
@@ -107,7 +106,6 @@ func (b Backup) MinimumPrintable() any {
 		StartedAt:     b.StartedAt,
 		Status:        b.Status,
 		Version:       "0",
-		Selectors:     b.Selectors.ToPrintable(),
 		BytesRead:     b.BytesRead,
 		BytesUploaded: b.BytesUploaded,
 	}
@@ -120,7 +118,7 @@ func (b Backup) Headers() []string {
 		"Started At",
 		"ID",
 		"Status",
-		"Selectors",
+		"Resource Owner",
 	}
 }
 
@@ -134,6 +132,6 @@ func (b Backup) Values() []string {
 		common.FormatTabularDisplayTime(b.StartedAt),
 		string(b.ID),
 		status,
-		b.Selectors.ToPrintable().Resources(),
+		b.Selector.DiscreteOwner,
 	}
 }

@@ -95,18 +95,18 @@ func filterContainersAndFillCollections(
 
 		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
+			// note == nil check; only catches non-inFlight error cases.
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-			} else {
-				// race conditions happen, containers might get deleted while
-				// this process is in flight.  If that happens, force the collection
-				// to reset which will prevent any old items from being retained in
-				// storage.  If the container (or its children) are sill missing
-				// on the next backup, they'll get tombstoned.
-				newDelta = api.DeltaUpdate{Reset: true}
+				continue
 			}
 
-			continue
+			// race conditions happen, containers might get deleted while
+			// this process is in flight.  If that happens, force the collection
+			// to reset. This prevents any old items from being retained in
+			// storage.  If the container (or its children) are sill missing
+			// on the next backup, they'll get tombstoned.
+			newDelta = api.DeltaUpdate{Reset: true}
 		}
 
 		if len(newDelta.URL) > 0 {

@@ -77,8 +77,6 @@ func (ss *streamStore) WriteBackupDetails(
 		ctx,
 		nil,
 		[]data.Collection{dc},
-		ss.service,
-		nil,
 		nil,
 		false,
 	)

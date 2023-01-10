@@ -229,8 +229,7 @@ func (d *Details) addFolder(folder folderEntry) {
 
 // DetailsEntry describes a single item stored in a Backup
 type DetailsEntry struct {
-	// TODO: `RepoRef` is currently the full path to the item in Kopia
-	// This can be optimized.
+	// RepoRef is the full storage path of the item in Kopia
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
 	ParentRef string `json:"parentRef,omitempty"`
@@ -520,6 +519,7 @@ func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
 	ItemName   string    `json:"itemName"`
+	DriveName  string    `json:"driveName"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`

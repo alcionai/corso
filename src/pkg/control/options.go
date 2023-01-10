@@ -6,17 +6,17 @@ import (
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision       CollisionPolicy `json:"-"`
-	DisableMetrics  bool            `json:"disableMetrics"`
-	FailFast        bool            `json:"failFast"`
-	EnabledFeatures FeatureFlags    `json:"enabledFeatures"`
+	Collision      CollisionPolicy `json:"-"`
+	DisableMetrics bool            `json:"disableMetrics"`
+	FailFast       bool            `json:"failFast"`
+	ToggleFeatures Toggles         `json:"ToggleFeatures"`
 }
 
 // Defaults provides an Options with the default values set.
 func Defaults() Options {
 	return Options{
-		FailFast:        true,
-		EnabledFeatures: FeatureFlags{},
+		FailFast:       true,
+		ToggleFeatures: Toggles{},
 	}
 }
 
@@ -63,11 +63,15 @@ func DefaultRestoreDestination(timeFormat common.TimeFormat) RestoreDestination 
 }
 
 // ---------------------------------------------------------------------------
-// Feature Flags
+// Feature Flags and Toggles
 // ---------------------------------------------------------------------------
 
-type FeatureFlags struct {
-	// ExchangeIncrementals allow for re-use of delta links when backing up
-	// exchange data, reducing the amount of data pulled from graph.
-	ExchangeIncrementals bool `json:"incrementals,omitempty"`
+// Toggles allows callers to force corso to behave in ways that deviate from
+// the default expectations by turning on or shutting off certain features.
+// The default state for every toggle is false; toggles are only turned on
+// if specified by the caller.
+type Toggles struct {
+	// DisableIncrementals prevents backups from using incremental lookups,
+	// forcing a new, complete backup of all data regardless of prior state.
+	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
 }

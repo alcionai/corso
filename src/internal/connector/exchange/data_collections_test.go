@@ -525,14 +525,16 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			expected: DefaultCalendar,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{DefaultCalendar},
-				selectors.PrefixMatch())[0],
+				selectors.PrefixMatch(),
+			)[0],
 		},
 		{
 			name:     "Birthday Calendar",
 			expected: "Birthdays",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{"Birthdays"},
-				selectors.PrefixMatch())[0],
+				selectors.PrefixMatch(),
+			)[0],
 		},
 	}
 

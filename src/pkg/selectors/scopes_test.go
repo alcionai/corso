@@ -393,33 +393,6 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestAddToSet() {
-	t := suite.T()
-	set := []string{}
-
-	set = addToSet(set, []string{})
-	assert.Len(t, set, 0)
-
-	set = addToSet(set, []string{"a"})
-	assert.Len(t, set, 1)
-	assert.Equal(t, set[0], "a")
-
-	set = addToSet(set, []string{"a"})
-	assert.Len(t, set, 1)
-
-	set = addToSet(set, []string{"a", "b"})
-	assert.Len(t, set, 2)
-	assert.Equal(t, set[0], "a")
-	assert.Equal(t, set[1], "b")
-
-	set = addToSet(set, []string{"c", "d"})
-	assert.Len(t, set, 4)
-	assert.Equal(t, set[0], "a")
-	assert.Equal(t, set[1], "b")
-	assert.Equal(t, set[2], "c")
-	assert.Equal(t, set[3], "d")
-}
-
 func (suite *SelectorScopesSuite) TestClean() {
 	table := []struct {
 		name   string

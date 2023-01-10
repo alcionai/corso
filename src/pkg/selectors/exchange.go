@@ -38,7 +38,6 @@ type (
 
 var (
 	_ Reducer        = &ExchangeRestore{}
-	_ printabler     = &ExchangeRestore{}
 	_ pathCategorier = &ExchangeRestore{}
 )
 
@@ -108,11 +107,6 @@ func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore
 	}
 
 	return ss
-}
-
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s exchange) Printable() Printable {
-	return toPrintable[ExchangeScope](s.Selector)
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.
@@ -192,21 +186,6 @@ func (s *exchange) Include(scopes ...[]ExchangeScope) {
 // Scopes retrieves the list of exchangeScopes in the selector.
 func (s *exchange) Scopes() []ExchangeScope {
 	return scopes[ExchangeScope](s.Selector)
-}
-
-// DiscreteScopes retrieves the list of exchangeScopes in the selector.
-// If any Include scope's User category is set to Any, replaces that
-// scope's value with the list of userPNs instead.
-func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
-	scopes := discreteScopes[ExchangeScope](s.Includes, ExchangeUser, userPNs)
-
-	ss := make([]ExchangeScope, 0, len(scopes))
-
-	for _, scope := range scopes {
-		ss = append(ss, ExchangeScope(scope))
-	}
-
-	return ss
 }
 
 type ExchangeItemScopeConstructor func([]string, []string, ...option) []ExchangeScope

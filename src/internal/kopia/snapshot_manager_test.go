@@ -29,39 +29,60 @@ var (
 	testID2 = manifest.ID("snap2")
 	testID3 = manifest.ID("snap3")
 
-	testMail           = path.ExchangeService.String() + path.EmailCategory.String()
-	testMailServiceCat = ServiceCat{
-		Service:  path.ExchangeService,
-		Category: path.EmailCategory,
-	}
-	testEvents           = path.ExchangeService.String() + path.EventsCategory.String()
-	testEventsServiceCat = ServiceCat{
-		Service:  path.ExchangeService,
-		Category: path.EventsCategory,
-	}
+	testMail   = path.ExchangeService.String() + path.EmailCategory.String()
+	testEvents = path.ExchangeService.String() + path.EventsCategory.String()
+
 	testUser1 = "user1"
 	testUser2 = "user2"
 	testUser3 = "user3"
 
-	testAllUsersAllCats = &OwnersCats{
-		ResourceOwners: map[string]struct{}{
-			testUser1: {},
-			testUser2: {},
-			testUser3: {},
+	testAllUsersAllCats = []Reason{
+		{
+			ResourceOwner: testUser1,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
 		},
-		ServiceCats: map[string]ServiceCat{
-			testMail:   testMailServiceCat,
-			testEvents: testEventsServiceCat,
+		{
+			ResourceOwner: testUser1,
+			Service:       path.ExchangeService,
+			Category:      path.EventsCategory,
+		},
+		{
+			ResourceOwner: testUser2,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
+		},
+		{
+			ResourceOwner: testUser2,
+			Service:       path.ExchangeService,
+			Category:      path.EventsCategory,
+		},
+		{
+			ResourceOwner: testUser3,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
+		},
+		{
+			ResourceOwner: testUser3,
+			Service:       path.ExchangeService,
+			Category:      path.EventsCategory,
 		},
 	}
-	testAllUsersMail = &OwnersCats{
-		ResourceOwners: map[string]struct{}{
-			testUser1: {},
-			testUser2: {},
-			testUser3: {},
+	testAllUsersMail = []Reason{
+		{
+			ResourceOwner: testUser1,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
 		},
-		ServiceCats: map[string]ServiceCat{
-			testMail: testMailServiceCat,
+		{
+			ResourceOwner: testUser2,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
+		},
+		{
+			ResourceOwner: testUser3,
+			Service:       path.ExchangeService,
+			Category:      path.EmailCategory,
 		},
 	}
 )
@@ -87,7 +108,7 @@ func newManifestInfo(
 	structTags := make(map[string]struct{}, len(tags))
 
 	for _, t := range tags {
-		tk, _ := MakeTagKV(t)
+		tk, _ := makeTagKV(t)
 		structTags[tk] = struct{}{}
 	}
 
@@ -176,7 +197,7 @@ func TestSnapshotFetchUnitSuite(t *testing.T) {
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 	table := []struct {
 		name  string
-		input *OwnersCats
+		input []Reason
 		data  []manifestInfo
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and
@@ -813,7 +834,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_customTags() {
 
 	table := []struct {
 		name  string
-		input *OwnersCats
+		input []Reason
 		tags  map[string]string
 		// Use this to denote which manifests in data should be expected. Allows
 		// defining data in a table while not repeating things between data and

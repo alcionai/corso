@@ -35,7 +35,6 @@ type (
 
 var (
 	_ Reducer        = &SharePointRestore{}
-	_ printabler     = &SharePointRestore{}
 	_ pathCategorier = &SharePointRestore{}
 )
 
@@ -105,11 +104,6 @@ func (s SharePointRestore) SplitByResourceOwner(users []string) []SharePointRest
 	}
 
 	return ss
-}
-
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s sharePoint) Printable() Printable {
-	return toPrintable[SharePointScope](s.Selector)
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.
@@ -183,21 +177,6 @@ func (s *sharePoint) Filter(scopes ...[]SharePointScope) {
 // Scopes retrieves the list of sharePointScopes in the selector.
 func (s *sharePoint) Scopes() []SharePointScope {
 	return scopes[SharePointScope](s.Selector)
-}
-
-// DiscreteScopes retrieves the list of sharePointScopes in the selector.
-// If any Include scope's Site category is set to Any, replaces that
-// scope's value with the list of siteIDs instead.
-func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
-	scopes := discreteScopes[SharePointScope](s.Includes, SharePointSite, siteIDs)
-
-	ss := make([]SharePointScope, 0, len(scopes))
-
-	for _, scope := range scopes {
-		ss = append(ss, SharePointScope(scope))
-	}
-
-	return ss
 }
 
 // -------------------

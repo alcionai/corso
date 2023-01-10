@@ -167,30 +167,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking()
 	}
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestRestoreFailsBadService() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(t)
-		dest = tester.DefaultTestRestoreDestination()
-		gc   = GraphConnector{wg: &sync.WaitGroup{}}
-		sel  = selectors.Selector{
-			Service: selectors.ServiceUnknown,
-		}
-	)
-
-	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, nil)
-	assert.Error(t, err)
-	assert.NotNil(t, deets)
-
-	status := gc.AwaitStatus()
-	assert.Equal(t, 0, status.ObjectCount)
-	assert.Equal(t, 0, status.FolderCount)
-	assert.Equal(t, 0, status.Successful)
-}
-
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 	users := []string{
 		"elliotReid@someHospital.org",

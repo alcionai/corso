@@ -13,6 +13,7 @@ build:
 
 lint: check-lint-version
 	golangci-lint run
+	staticcheck ./...
 
 check-lint-version: check-lint
 	@if [ "$(LINT_VERSION)" != "$(WANTED_LINT_VERSION)" ]; then \

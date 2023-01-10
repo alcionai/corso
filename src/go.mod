@@ -4,12 +4,12 @@ go 1.19
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
-	github.com/aws/aws-sdk-go v1.44.174
+	github.com/aws/aws-sdk-go v1.44.176
 	github.com/aws/aws-xray-sdk-go v1.8.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.0
-	github.com/microsoft/kiota-abstractions-go v0.15.1
+	github.com/microsoft/kiota-abstractions-go v0.15.2
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoft/kiota-http-go v0.11.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
