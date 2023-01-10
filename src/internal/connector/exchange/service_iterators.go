@@ -2,10 +2,7 @@ package exchange
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -18,6 +15,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+type addedAndRemovedItemIDsGetter interface {
+	GetAddedAndRemovedItemIDs(
+		ctx context.Context,
+		user, containerID, oldDeltaToken string,
+	) ([]string, []string, api.DeltaUpdate, error)
+}
+
 // filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
 // into a Collection. Messages outside of those directories are omitted.
@@ -26,6 +30,7 @@ import (
 func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
+	getter addedAndRemovedItemIDsGetter,
 	collections map[string]data.Collection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
@@ -43,15 +48,12 @@ func filterContainersAndFillCollections(
 		tombstones = makeTombstones(dps)
 	)
 
-	// TODO(rkeepers): pass in the api client instead of generating it here.
+	// TODO(rkeepers): this should be passed in from the caller, probably
+	// as an interface that satisfies the NewCollection requirements.
+	// But this will work for the short term.
 	ac, err := api.NewClient(qp.Credentials)
 	if err != nil {
 		return err
-	}
-
-	getJobs, err := getFetchIDFunc(ac, qp.Category)
-	if err != nil {
-		return support.WrapAndAppend(qp.ResourceOwner, err, errs)
 	}
 
 	for _, c := range resolver.Items() {
@@ -91,20 +93,20 @@ func filterContainersAndFillCollections(
 			}
 		}
 
-		added, removed, newDelta, err := getJobs(ctx, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
+			// note == nil check; only catches non-inFlight error cases.
 			if graph.IsErrDeletedInFlight(err) == nil {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-			} else {
-				// race conditions happen, containers might get deleted while
-				// this process is in flight.  If that happens, force the collection
-				// to reset which will prevent any old items from being retained in
-				// storage.  If the container (or its children) are sill missing
-				// on the next backup, they'll get tombstoned.
-				newDelta = api.DeltaUpdate{Reset: true}
+				continue
 			}
 
-			continue
+			// race conditions happen, containers might get deleted while
+			// this process is in flight.  If that happens, force the collection
+			// to reset. This prevents any old items from being retained in
+			// storage.  If the container (or its children) are sill missing
+			// on the next backup, they'll get tombstoned.
+			newDelta = api.DeltaUpdate{Reset: true}
 		}
 
 		if len(newDelta.URL) > 0 {
@@ -218,73 +220,4 @@ func pathFromPrevString(ps string) (path.Path, error) {
 	}
 
 	return p, nil
-}
-
-func IterativeCollectContactContainers(
-	containers map[string]graph.Container,
-	nameContains string,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		folder, ok := entry.(models.ContactFolderable)
-		if !ok {
-			errUpdater("iterateCollectContactContainers",
-				errors.New("casting item to models.ContactFolderable"))
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			strings.Contains(*folder.GetDisplayName(), nameContains)
-
-		if include {
-			containers[*folder.GetDisplayName()] = folder
-		}
-
-		return true
-	}
-}
-
-func IterativeCollectCalendarContainers(
-	containers map[string]graph.Container,
-	nameContains string,
-	errUpdater func(string, error),
-) func(any) bool {
-	return func(entry any) bool {
-		cal, ok := entry.(models.Calendarable)
-		if !ok {
-			errUpdater("iterativeCollectCalendarContainers",
-				errors.New("casting item to models.Calendarable"))
-			return false
-		}
-
-		include := len(nameContains) == 0 ||
-			strings.Contains(*cal.GetName(), nameContains)
-		if include {
-			temp := CreateCalendarDisplayable(cal)
-			containers[*temp.GetDisplayName()] = temp
-		}
-
-		return true
-	}
-}
-
-// FetchIDFunc collection of helper functions which return a list of all item
-// IDs in the given container and a delta token for future requests if the
-// container supports fetching delta records.
-type FetchIDFunc func(
-	ctx context.Context,
-	user, containerID, oldDeltaToken string,
-) ([]string, []string, api.DeltaUpdate, error)
-
-func getFetchIDFunc(ac api.Client, category path.CategoryType) (FetchIDFunc, error) {
-	switch category {
-	case path.EmailCategory:
-		return ac.FetchMessageIDsFromDirectory, nil
-	case path.EventsCategory:
-		return ac.FetchEventIDsFromCalendar, nil
-	case path.ContactsCategory:
-		return ac.FetchContactIDsFromDirectory, nil
-	default:
-		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
-	}
 }

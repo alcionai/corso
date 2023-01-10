@@ -3,11 +3,8 @@ package exchange
 import (
 	"context"
 
-	multierror "github.com/hashicorp/go-multierror"
-	msfolderdelta "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -20,7 +17,8 @@ var _ graph.ContainerResolver = &mailFolderCache{}
 // nameLookup map: Key: DisplayName Value: ID
 type mailFolderCache struct {
 	*containerResolver
-	ac     api.Client
+	enumer containersEnumerator
+	getter containerGetter
 	userID string
 }
 
@@ -35,7 +33,7 @@ func (mc *mailFolderCache) populateMailRoot(
 	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
 		var directory string
 
-		f, err := mc.ac.GetMailFolderByID(ctx, mc.userID, fldr, "displayName", "parentFolderId")
+		f, err := mc.getter.GetContainerByID(ctx, mc.userID, fldr)
 		if err != nil {
 			return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
 		}
@@ -67,44 +65,16 @@ func (mc *mailFolderCache) Populate(
 		return err
 	}
 
-	query, servicer, err := mc.ac.GetAllMailFoldersBuilder(ctx, mc.userID)
+	err := mc.enumer.EnumerateContainers(ctx, mc.userID, "", mc.addFolder)
 	if err != nil {
 		return err
 	}
 
-	var errs *multierror.Error
-
-	for {
-		resp, err := query.Get(ctx, nil)
-		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, f := range resp.GetValue() {
-			temp := graph.NewCacheFolder(f, nil)
-
-			// Use addFolder instead of AddToCache to be conservative about path
-			// population. The fetch order of the folders could cause failures while
-			// trying to resolve paths, so put it off until we've gotten all folders.
-			if err := mc.addFolder(temp); err != nil {
-				errs = multierror.Append(errs, errors.Wrap(err, "delta fetch"))
-				continue
-			}
-		}
-
-		link := resp.GetOdataNextLink()
-		if link == nil {
-			break
-		}
-
-		query = msfolderdelta.NewItemMailFoldersDeltaRequestBuilder(*link, servicer.Adapter())
-	}
-
 	if err := mc.populatePaths(ctx); err != nil {
-		errs = multierror.Append(errs, errors.Wrap(err, "mail resolver"))
+		return errors.Wrap(err, "mail resolver")
 	}
 
-	return errs.ErrorOrNil()
+	return nil
 }
 
 // init ensures that the structure's fields are initialized.

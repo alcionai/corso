@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -163,7 +164,6 @@ func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
 	metadata []data.Collection,
-	userPNs []string,
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
@@ -174,7 +174,8 @@ func DataCollections(
 	}
 
 	var (
-		scopes      = eb.DiscreteScopes(userPNs)
+		user        = selector.DiscreteOwner
+		scopes      = eb.DiscreteScopes([]string{user})
 		collections = []data.Collection{}
 		errs        error
 	)
@@ -190,13 +191,13 @@ func DataCollections(
 		dcs, err := createCollections(
 			ctx,
 			acct,
+			user,
 			scope,
 			dps,
 			ctrlOpts,
 			su)
 		if err != nil {
-			user := scope.Get(selectors.ExchangeUser)
-			return nil, support.WrapAndAppend(user[0], err, errs)
+			return nil, support.WrapAndAppend(user, err, errs)
 		}
 
 		collections = append(collections, dcs...)
@@ -205,12 +206,26 @@ func DataCollections(
 	return collections, errs
 }
 
+func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
+	switch category {
+	case path.EmailCategory:
+		return ac.Mail(), nil
+	case path.EventsCategory:
+		return ac.Events(), nil
+	case path.ContactsCategory:
+		return ac.Contacts(), nil
+	default:
+		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
+	}
+}
+
 // createCollections - utility function that retrieves M365
 // IDs through Microsoft Graph API. The selectors.ExchangeScope
 // determines the type of collections that are retrieved.
 func createCollections(
 	ctx context.Context,
-	acct account.M365Config,
+	creds account.M365Config,
+	user string,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
@@ -218,48 +233,53 @@ func createCollections(
 ) ([]data.Collection, error) {
 	var (
 		errs           *multierror.Error
-		users          = scope.Get(selectors.ExchangeUser)
 		allCollections = make([]data.Collection, 0)
+		ac             = api.Client{Credentials: creds}
+		category       = scope.Category().PathType()
 	)
 
+	getter, err := getterByType(ac, category)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create collection of ExchangeDataCollection
-	for _, user := range users {
-		collections := make(map[string]data.Collection)
+	collections := make(map[string]data.Collection)
 
-		qp := graph.QueryParams{
-			Category:      scope.Category().PathType(),
-			ResourceOwner: user,
-			Credentials:   acct,
-		}
+	qp := graph.QueryParams{
+		Category:      category,
+		ResourceOwner: user,
+		Credentials:   creds,
+	}
 
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
-		defer closer()
-		defer close(foldersComplete)
+	foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
+	defer closer()
+	defer close(foldersComplete)
 
-		resolver, err := PopulateExchangeContainerResolver(ctx, qp)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting folder cache")
-		}
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting folder cache")
+	}
 
-		err = filterContainersAndFillCollections(
-			ctx,
-			qp,
-			collections,
-			su,
-			resolver,
-			scope,
-			dps,
-			ctrlOpts)
+	err = filterContainersAndFillCollections(
+		ctx,
+		qp,
+		getter,
+		collections,
+		su,
+		resolver,
+		scope,
+		dps,
+		ctrlOpts)
 
-		if err != nil {
-			return nil, errors.Wrap(err, "filling collections")
-		}
+	if err != nil {
+		return nil, errors.Wrap(err, "filling collections")
+	}
 
-		foldersComplete <- struct{}{}
+	foldersComplete <- struct{}{}
 
-		for _, coll := range collections {
-			allCollections = append(allCollections, coll)
-		}
+	for _, coll := range collections {
+		allCollections = append(allCollections, coll)
 	}
 
 	return allCollections, errs.ErrorOrNil()

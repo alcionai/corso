@@ -46,7 +46,7 @@ func TestSharePointLibrariesSuite(t *testing.T) {
 }
 
 func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
-	anyFolder := (&selectors.SharePointBackup{}).Libraries(selectors.Any(), selectors.Any())[0]
+	anyFolder := (&selectors.SharePointBackup{}).Libraries(selectors.Any())[0]
 
 	const (
 		tenant = "tenant"

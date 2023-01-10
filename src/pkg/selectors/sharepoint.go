@@ -35,7 +35,6 @@ type (
 
 var (
 	_ Reducer        = &SharePointRestore{}
-	_ printabler     = &SharePointRestore{}
 	_ pathCategorier = &SharePointRestore{}
 )
 
@@ -105,11 +104,6 @@ func (s SharePointRestore) SplitByResourceOwner(users []string) []SharePointRest
 	}
 
 	return ss
-}
-
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s sharePoint) Printable() Printable {
-	return toPrintable[SharePointScope](s.Selector)
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.
@@ -233,13 +227,13 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *sharePoint) Sites(sites []string) []SharePointScope {
+func (s *sharePoint) AllData() []SharePointScope {
 	scopes := []SharePointScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibrary, sites, Any()),
-		makeScope[SharePointScope](SharePointList, sites, Any()),
+		makeScope[SharePointScope](SharePointLibrary, Any()),
+		makeScope[SharePointScope](SharePointList, Any()),
 	)
 
 	return scopes
@@ -249,13 +243,13 @@ func (s *sharePoint) Sites(sites []string) []SharePointScope {
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // Any empty slice defaults to [selectors.None]
-func (s *sharePoint) Lists(sites, lists []string, opts ...option) []SharePointScope {
+func (s *sharePoint) Lists(lists []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
 		os     = append([]option{pathComparator()}, opts...)
 	)
 
-	scopes = append(scopes, makeScope[SharePointScope](SharePointList, sites, lists, os...))
+	scopes = append(scopes, makeScope[SharePointScope](SharePointList, lists, os...))
 
 	return scopes
 }
@@ -265,12 +259,12 @@ func (s *sharePoint) Lists(sites, lists []string, opts ...option) []SharePointSc
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the list scopes.
-func (s *sharePoint) ListItems(sites, lists, items []string, opts ...option) []SharePointScope {
+func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePointScope {
 	scopes := []SharePointScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointListItem, sites, items).
+		makeScope[SharePointScope](SharePointListItem, items).
 			set(SharePointList, lists, opts...),
 	)
 
@@ -281,7 +275,7 @@ func (s *sharePoint) ListItems(sites, lists, items []string, opts ...option) []S
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *sharePoint) Libraries(sites, libraries []string, opts ...option) []SharePointScope {
+func (s *sharePoint) Libraries(libraries []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
 		os     = append([]option{pathComparator()}, opts...)
@@ -289,7 +283,7 @@ func (s *sharePoint) Libraries(sites, libraries []string, opts ...option) []Shar
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibrary, sites, libraries, os...),
+		makeScope[SharePointScope](SharePointLibrary, libraries, os...),
 	)
 
 	return scopes
@@ -300,12 +294,12 @@ func (s *sharePoint) Libraries(sites, libraries []string, opts ...option) []Shar
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the library scopes.
-func (s *sharePoint) LibraryItems(sites, libraries, items []string, opts ...option) []SharePointScope {
+func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []SharePointScope {
 	scopes := []SharePointScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryItem, sites, items).
+		makeScope[SharePointScope](SharePointLibraryItem, items).
 			set(SharePointLibrary, libraries, opts...),
 	)
 
@@ -343,7 +337,7 @@ const (
 // sharePointLeafProperties describes common metadata of the leaf categories
 var sharePointLeafProperties = map[categorizer]leafProperty{
 	SharePointLibraryItem: {
-		pathKeys: []categorizer{SharePointSite, SharePointLibrary, SharePointLibraryItem},
+		pathKeys: []categorizer{SharePointLibrary, SharePointLibraryItem},
 		pathType: path.LibrariesCategory,
 	},
 	SharePointSite: { // the root category must be represented, even though it isn't a leaf
@@ -413,9 +407,8 @@ func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
 	}
 
 	return map[categorizer]string{
-		SharePointSite: p.ResourceOwner(),
-		folderCat:      p.Folder(),
-		itemCat:        p.Item(),
+		folderCat: p.Folder(),
+		itemCat:   p.Item(),
 	}
 }
 

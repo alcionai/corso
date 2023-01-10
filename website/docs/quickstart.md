@@ -156,7 +156,7 @@ Your first backup may take some time if your mailbox is large.
 There will be progress indicators as the backup and, on completion, you should see output similar to:
 
 ```text
-  Started At            ID                                    Status                Selectors
+  Started At            ID                                    Status                Resource Owner
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
 ```
 
@@ -195,7 +195,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 </Tabs>
 
 ```text
-  Started At            ID                                    Status                Selectors
+  Started At            ID                                    Status                Resource Owner
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
   2022-10-20T18:40:45Z  391ceeb3-b44d-4365-9a8e-8a8e1315b565  Completed (0 errors)  alice@contoso.com
   ...

@@ -5,7 +5,8 @@ import (
 	"io"
 	"testing"
 
-	kw "github.com/microsoft/kiota-serialization-json-go"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -23,6 +25,12 @@ type SharePointCollectionSuite struct {
 }
 
 func TestSharePointCollectionSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorSharePointTests)
+
 	suite.Run(t, new(SharePointCollectionSuite))
 }
 
@@ -46,8 +54,8 @@ func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
 func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	t := suite.T()
 
-	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
+	ow := kioser.NewJsonSerializationWriter()
+	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 
@@ -87,30 +95,24 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestRestoreList() {
+// TestRestoreListCollection verifies Graph Restore API for the List Collection
+func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	t := suite.T()
+	siteID := tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
 	service, err := createTestService(account)
 	require.NoError(t, err)
-	siteID := tester.M365SiteID(t)
 
-	ow := kw.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockList("Mock List")
+	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
-
-	err = ow.WriteObjectValue("", listing)
-	require.NoError(t, err)
-
-	byteArray, err := ow.GetSerializedContent()
-	require.NoError(t, err)
-
+	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err)
 
 	listData := &Item{
@@ -124,6 +126,39 @@ func (suite *SharePointCollectionSuite) TestRestoreList() {
 	deets, err := restoreListItem(ctx, service, listData, siteID, destName)
 	assert.NoError(t, err)
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
+
+	// Clean-Up
+	var (
+		builder  = service.Client().SitesById(siteID).Lists()
+		isFound  bool
+		deleteID string
+	)
+
+	for {
+		resp, err := builder.Get(ctx, nil)
+		assert.NoError(t, err, "experienced query error during clean up. Details:  "+support.ConnectorStackErrorTrace(err))
+
+		for _, temp := range resp.GetValue() {
+			if *temp.GetDisplayName() == deets.SharePoint.ItemName {
+				isFound = true
+				deleteID = *temp.GetId()
+
+				break
+			}
+		}
+		// Get Next Link
+		link := resp.GetOdataNextLink()
+		if link == nil {
+			break
+		}
+
+		builder = sites.NewItemListsRequestBuilder(*link, service.Adapter())
+	}
+
+	if isFound {
+		err := DeleteList(ctx, service, siteID, deleteID)
+		assert.NoError(t, err)
+	}
 }
 
 // TestRestoreLocation temporary test for greater restore operation

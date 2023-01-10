@@ -69,14 +69,14 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 		folderName = "TestRestoreContact: " + common.FormatSimpleDateTime(now)
 	)
 
-	aFolder, err := suite.ac.CreateContactFolder(ctx, userID, folderName)
+	aFolder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
 	require.NoError(t, err)
 
 	folderID := *aFolder.GetId()
 
 	defer func() {
 		// Remove the folder containing contact prior to exiting test
-		err = suite.ac.DeleteContactFolder(ctx, userID, folderID)
+		err = suite.ac.Contacts().DeleteContactFolder(ctx, userID, folderID)
 		assert.NoError(t, err)
 	}()
 
@@ -103,14 +103,14 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	)
 
-	calendar, err := suite.ac.CreateCalendar(ctx, userID, name)
+	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, name)
 	require.NoError(t, err)
 
 	calendarID := *calendar.GetId()
 
 	defer func() {
 		// Removes calendar containing events created during the test
-		err = suite.ac.DeleteCalendar(ctx, userID, calendarID)
+		err = suite.ac.Events().DeleteCalendar(ctx, userID, calendarID)
 		assert.NoError(t, err)
 	}()
 
@@ -146,10 +146,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Mail",
 			bytes:       mockconnector.GetMockMessageBytes("Restore Exchange Object"),
 			category:    path.EmailCategory,
-			cleanupFunc: suite.ac.DeleteMailFolder,
+			cleanupFunc: suite.ac.Mail().DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -159,10 +159,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Mail: One Direct Attachment",
 			bytes:       mockconnector.GetMockMessageWithDirectAttachment("Restore 1 Attachment"),
 			category:    path.EmailCategory,
-			cleanupFunc: suite.ac.DeleteMailFolder,
+			cleanupFunc: suite.ac.Mail().DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -172,10 +172,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Mail: One Large Attachment",
 			bytes:       mockconnector.GetMockMessageWithLargeAttachment("Restore Large Attachment"),
 			category:    path.EmailCategory,
-			cleanupFunc: suite.ac.DeleteMailFolder,
+			cleanupFunc: suite.ac.Mail().DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -185,10 +185,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Mail: Two Attachments",
 			bytes:       mockconnector.GetMockMessageWithTwoAttachments("Restore 2 Attachments"),
 			category:    path.EmailCategory,
-			cleanupFunc: suite.ac.DeleteMailFolder,
+			cleanupFunc: suite.ac.Mail().DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -198,10 +198,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Mail: Reference(OneDrive) Attachment",
 			bytes:       mockconnector.GetMessageWithOneDriveAttachment("Restore Reference(OneDrive) Attachment"),
 			category:    path.EmailCategory,
-			cleanupFunc: suite.ac.DeleteMailFolder,
+			cleanupFunc: suite.ac.Mail().DeleteMailFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateMailFolder(ctx, userID, folderName)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -212,10 +212,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Contact",
 			bytes:       mockconnector.GetMockContactBytes("Test_Omega"),
 			category:    path.ContactsCategory,
-			cleanupFunc: suite.ac.DeleteContactFolder,
+			cleanupFunc: suite.ac.Contacts().DeleteContactFolder,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
-				folder, err := suite.ac.CreateContactFolder(ctx, userID, folderName)
+				folder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
 				return *folder.GetId()
@@ -225,10 +225,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Events",
 			bytes:       mockconnector.GetDefaultMockEventBytes("Restored Event Object"),
 			category:    path.EventsCategory,
-			cleanupFunc: suite.ac.DeleteCalendar,
+			cleanupFunc: suite.ac.Events().DeleteCalendar,
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
-				calendar, err := suite.ac.CreateCalendar(ctx, userID, calendarName)
+				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
 				require.NoError(t, err)
 
 				return *calendar.GetId()
@@ -238,10 +238,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			name:        "Test Event with Attachment",
 			bytes:       mockconnector.GetMockEventWithAttachment("Restored Event Attachment"),
 			category:    path.EventsCategory,
-			cleanupFunc: suite.ac.DeleteCalendar,
+			cleanupFunc: suite.ac.Events().DeleteCalendar,
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject_" + common.FormatSimpleDateTime(now)
-				calendar, err := suite.ac.CreateCalendar(ctx, userID, calendarName)
+				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
 				require.NoError(t, err)
 
 				return *calendar.GetId()

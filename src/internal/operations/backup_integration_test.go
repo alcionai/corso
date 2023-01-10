@@ -52,7 +52,7 @@ func prepNewTestBackupOp(
 	ctx context.Context,
 	bus events.Eventer,
 	sel selectors.Selector,
-	featureFlags control.FeatureFlags,
+	featureToggles control.Toggles,
 ) (BackupOperation, account.Account, *kopia.Wrapper, *kopia.ModelStore, func()) {
 	//revive:enable:context-as-argument
 	acct := tester.NewM365Account(t)
@@ -90,7 +90,7 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
-	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
+	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, closer
 }
@@ -109,7 +109,7 @@ func newTestBackupOp(
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
-	featureFlags control.FeatureFlags,
+	featureToggles control.Toggles,
 	closer func(),
 ) BackupOperation {
 	//revive:enable:context-as-argument
@@ -118,7 +118,7 @@ func newTestBackupOp(
 		opts = control.Options{}
 	)
 
-	opts.EnabledFeatures = featureFlags
+	opts.ToggleFeatures = featureToggles
 
 	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, bus)
 	if !assert.NoError(t, err) {
@@ -176,21 +176,27 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
-				oc       = &kopia.OwnersCats{
-					ResourceOwners: map[string]struct{}{resourceOwner: {}},
-					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+				reasons = []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       sel.PathService(),
+						Category:      category,
+					},
 				}
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
 			require.NoError(t, err)
 
 			for _, man := range mans {
-				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-				if man.Tags[tk] == string(bo.Results.BackupID) {
+				bID, ok := man.GetTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+					continue
+				}
+
+				if bID == string(bo.Results.BackupID) {
 					found = true
 					break
 				}
@@ -484,7 +490,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.kw,
 				test.sw,
 				test.acct,
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				evmock.NewBus())
 			test.errCheck(t, err)
 		})
@@ -515,7 +521,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
-				sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
+
 				return sel
 			},
 			resourceOwner:  suite.user,
@@ -527,11 +535,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
-				sel.Include(sel.ContactFolders(
-					users,
-					[]string{exchange.DefaultContactFolder},
-					selectors.PrefixMatch()))
-
+				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
 				return sel
 			},
 			resourceOwner:  suite.user,
@@ -543,7 +547,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
 				sel := selectors.NewExchangeBackup(users)
-				sel.Include(sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+				sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
 			resourceOwner: suite.user,
@@ -556,7 +560,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			var (
 				mb  = evmock.NewBus()
 				sel = test.selector().Selector
-				ffs = control.FeatureFlags{ExchangeIncrementals: test.runIncremental}
+				ffs = control.Toggles{}
 			)
 
 			bo, acct, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
@@ -632,7 +636,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	var (
 		t          = suite.T()
 		acct       = tester.NewM365Account(t)
-		ffs        = control.FeatureFlags{ExchangeIncrementals: true}
+		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
 		now        = common.Now()
 		users      = []string{suite.user}
@@ -750,8 +754,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	containers := []string{container1, container2, container3, containerRename}
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(
-		sel.MailFolders(users, containers, selectors.PrefixMatch()),
-		sel.ContactFolders(users, containers, selectors.PrefixMatch()),
+		sel.MailFolders(containers, selectors.PrefixMatch()),
+		sel.ContactFolders(containers, selectors.PrefixMatch()),
 	)
 
 	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
@@ -876,16 +880,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					switch category {
 					case path.EmailCategory:
 						cmf := cli.MailFoldersById(containerID)
+
 						body, err := cmf.Get(ctx, nil)
 						require.NoError(t, err, "getting mail folder")
+
 						body.SetDisplayName(&containerRename)
 						_, err = cmf.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating mail folder name")
 
 					case path.ContactsCategory:
 						ccf := cli.ContactFoldersById(containerID)
+
 						body, err := ccf.Get(ctx, nil)
 						require.NoError(t, err, "getting contact folder")
+
 						body.SetDisplayName(&containerRename)
 						_, err = ccf.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating contact folder name")
@@ -933,7 +941,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := ac.FetchMessageIDsFromDirectory(ctx, suite.user, containerID, "")
+						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting message ids")
 						require.NotEmpty(t, ids, "message ids in folder")
 
@@ -941,7 +949,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
 
 					case path.ContactsCategory:
-						ids, _, _, err := ac.FetchContactIDsFromDirectory(ctx, suite.user, containerID, "")
+						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting contact ids")
 						require.NotEmpty(t, ids, "contact ids in folder")
 
@@ -1006,9 +1014,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 		sel        = selectors.NewOneDriveBackup([]string{m365UserID})
 	)
 
-	sel.Include(sel.Users([]string{m365UserID}))
+	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
@@ -1028,9 +1036,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
-	sel.Include(sel.Sites([]string{suite.site}))
+	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)

@@ -369,7 +369,7 @@ jobs:
         run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
 
       - name: Run staticcheck
-        uses: dominikh/staticcheck-action@v1.2.0
+        uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false
           working-directory: src

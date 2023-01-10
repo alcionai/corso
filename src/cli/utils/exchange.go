@@ -53,7 +53,7 @@ type ExchangeOpts struct {
 // to act as a wildcard.
 func AddExchangeInclude(
 	sel *selectors.ExchangeRestore,
-	resource, folders, items []string,
+	folders, items []string,
 	eisc selectors.ExchangeItemScopeConstructor,
 ) {
 	lf, li := len(folders), len(items)
@@ -64,10 +64,6 @@ func AddExchangeInclude(
 		return
 	}
 
-	if len(resource) == 0 {
-		resource = selectors.Any()
-	}
-
 	if li == 0 {
 		items = selectors.Any()
 	}
@@ -75,11 +71,11 @@ func AddExchangeInclude(
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(folders)
 
 	if len(containsFolders) > 0 {
-		sel.Include(eisc(resource, containsFolders, items))
+		sel.Include(eisc(containsFolders, items))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(eisc(resource, prefixFolders, items, selectors.PrefixMatch()))
+		sel.Include(eisc(prefixFolders, items, selectors.PrefixMatch()))
 	}
 }
 
@@ -128,30 +124,31 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 
 // IncludeExchangeRestoreDataSelectors builds the common data-selector
 // inclusions for exchange commands.
-func IncludeExchangeRestoreDataSelectors(
-	sel *selectors.ExchangeRestore,
-	opts ExchangeOpts,
-) {
+func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeRestore {
+	users := opts.Users
+	if len(users) == 0 {
+		users = selectors.Any()
+	}
+
+	sel := selectors.NewExchangeRestore(users)
+
 	lc, lcf := len(opts.Contact), len(opts.ContactFolder)
 	le, lef := len(opts.Email), len(opts.EmailFolder)
 	lev, lec := len(opts.Event), len(opts.EventCalendar)
 	// either scope the request to a set of users
 	if lc+lcf+le+lef+lev+lec == 0 {
-		if len(opts.Users) == 0 {
-			opts.Users = selectors.Any()
-		}
-
-		sel.Include(sel.Users(opts.Users))
-
-		return
+		sel.Include(sel.AllData())
+		return sel
 	}
 
 	opts.EmailFolder = trimFolderSlash(opts.EmailFolder)
 
 	// or add selectors for each type of data
-	AddExchangeInclude(sel, opts.Users, opts.ContactFolder, opts.Contact, sel.Contacts)
-	AddExchangeInclude(sel, opts.Users, opts.EmailFolder, opts.Email, sel.Mails)
-	AddExchangeInclude(sel, opts.Users, opts.EventCalendar, opts.Event, sel.Events)
+	AddExchangeInclude(sel, opts.ContactFolder, opts.Contact, sel.Contacts)
+	AddExchangeInclude(sel, opts.EmailFolder, opts.Email, sel.Mails)
+	AddExchangeInclude(sel, opts.EventCalendar, opts.Event, sel.Events)
+
+	return sel
 }
 
 // FilterExchangeRestoreInfoSelectors builds the common info-selector filters.

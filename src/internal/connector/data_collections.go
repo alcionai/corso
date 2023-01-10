@@ -47,7 +47,6 @@ func (gc *GraphConnector) DataCollections(
 			ctx,
 			sels,
 			metadata,
-			gc.GetUsers(),
 			gc.credentials,
 			// gc.Service,
 			gc.UpdateStatus,
@@ -99,8 +98,6 @@ func (gc *GraphConnector) DataCollections(
 func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
 	var ids []string
 
-	resourceOwners := sels.DiscreteResourceOwners()
-
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
 		ids = userPNs
@@ -109,17 +106,19 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 		ids = siteIDs
 	}
 
-	// verify resourceOwners
-	normROs := map[string]struct{}{}
+	resourceOwner := strings.ToLower(sels.DiscreteOwner)
+
+	var found bool
 
 	for _, id := range ids {
-		normROs[strings.ToLower(id)] = struct{}{}
+		if strings.ToLower(id) == resourceOwner {
+			found = true
+			break
+		}
 	}
 
-	for _, ro := range resourceOwners {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("included resource owner %s not found within tenant", ro)
-		}
+	if !found {
+		return fmt.Errorf("resource owner [%s] not found within tenant", sels.DiscreteOwner)
 	}
 
 	return nil
@@ -154,31 +153,29 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	var (
-		scopes      = odb.DiscreteScopes([]string{selector.DiscreteOwner})
+		user        = selector.DiscreteOwner
 		collections = []data.Collection{}
 		errs        error
 	)
 
 	// for each scope that includes oneDrive items, get all
-	for _, scope := range scopes {
-		for _, user := range scope.Get(selectors.OneDriveUser) {
-			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
+	for _, scope := range odb.Scopes() {
+		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
-			odcs, err := onedrive.NewCollections(
-				gc.credentials.AzureTenantID,
-				user,
-				onedrive.OneDriveSource,
-				odFolderMatcher{scope},
-				gc.Service,
-				gc.UpdateStatus,
-				ctrlOpts,
-			).Get(ctx)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, errs)
-			}
-
-			collections = append(collections, odcs...)
+		odcs, err := onedrive.NewCollections(
+			gc.credentials.AzureTenantID,
+			user,
+			onedrive.OneDriveSource,
+			odFolderMatcher{scope},
+			gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts,
+		).Get(ctx)
+		if err != nil {
+			return nil, support.WrapAndAppend(user, err, errs)
 		}
+
+		collections = append(collections, odcs...)
 	}
 
 	for range collections {

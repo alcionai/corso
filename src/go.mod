@@ -4,16 +4,16 @@ go 1.19
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
-	github.com/aws/aws-sdk-go v1.44.172
+	github.com/aws/aws-sdk-go v1.44.176
 	github.com/aws/aws-xray-sdk-go v1.8.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.0
-	github.com/microsoft/kiota-abstractions-go v0.15.1
+	github.com/microsoft/kiota-abstractions-go v0.15.2
 	github.com/microsoft/kiota-authentication-azure-go v0.5.0
 	github.com/microsoft/kiota-http-go v0.11.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
-	github.com/microsoftgraph/msgraph-sdk-go v0.49.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.50.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.31.1
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
@@ -26,7 +26,7 @@ require (
 	github.com/vbauerster/mpb/v8 v8.1.4
 	go.uber.org/zap v1.24.0
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15
-	golang.org/x/tools v0.4.0
+	golang.org/x/tools v0.5.0
 	gopkg.in/resty.v1 v1.12.0
 )
 
@@ -37,6 +37,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
+	github.com/microsoft/kiota-serialization-form-go v0.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
@@ -57,7 +58,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.36 // indirect
+	github.com/cjlapao/common-go v0.0.37 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
@@ -110,10 +111,10 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/mod v0.7.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect

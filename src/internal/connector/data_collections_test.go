@@ -70,8 +70,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			name: suite.user + " Email",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.MailFolders(selUsers, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
-
+				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
 		},
@@ -79,11 +79,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			name: suite.user + " Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.ContactFolders(
-					selUsers,
-					[]string{exchange.DefaultContactFolder},
-					selectors.PrefixMatch()))
-
+				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
+				sel.DiscreteOwner = suite.user
 				return sel.Selector
 			},
 		},
@@ -91,12 +88,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		// 	name: suite.user + " Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
 		// 		sel := selectors.NewExchangeBackup(selUsers)
-		// 		sel.Include(sel.EventCalendars(
-		// 			selUsers,
-		// 			[]string{exchange.DefaultCalendar},
-		// 			selectors.PrefixMatch(),
-		// 		))
-
+		// 		sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
+		// 		sel.DiscreteOwner = suite.user
 		// 		return sel.Selector
 		// 	},
 		// },
@@ -108,7 +101,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				ctx,
 				test.getSelector(t),
 				nil,
-				[]string{suite.user},
 				connector.credentials,
 				connector.UpdateStatus,
 				control.Options{})
@@ -139,12 +131,11 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 }
 
 // TestInvalidUserForDataCollections ensures verification process for users
-func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataCollections() {
+func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invalidResourceOwner() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	invalidUser := "foo@example.com"
-	selUsers := []string{invalidUser}
+	owners := []string{"snuffleupagus"}
 
 	connector := loadConnector(ctx, suite.T(), Users)
 	tests := []struct {
@@ -154,16 +145,51 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestInvalidUserForDataColl
 		{
 			name: "invalid exchange backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup(selUsers)
-				sel.Include(sel.MailFolders(selUsers, selectors.Any()))
+				sel := selectors.NewExchangeBackup(owners)
+				sel.Include(sel.MailFolders(selectors.Any()))
 				return sel.Selector
 			},
 		},
 		{
 			name: "Invalid onedrive backup user",
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup(selUsers)
-				sel.Include(sel.Folders(selUsers, selectors.Any()))
+				sel := selectors.NewOneDriveBackup(owners)
+				sel.Include(sel.Folders(selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "Invalid sharepoint backup site",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup(owners)
+				sel.Include(sel.Libraries(selectors.Any()))
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing exchange backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup(owners)
+				sel.Include(sel.MailFolders(selectors.Any()))
+				sel.DiscreteOwner = ""
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing onedrive backup user",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup(owners)
+				sel.Include(sel.Folders(selectors.Any()))
+				sel.DiscreteOwner = ""
+				return sel.Selector
+			},
+		},
+		{
+			name: "missing sharepoint backup site",
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup(owners)
+				sel.Include(sel.Libraries(selectors.Any()))
+				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
 		},
@@ -197,8 +223,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name: "Libraries",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(sel.Libraries(selSites, selectors.Any()))
-				sel.DiscreteOwner = suite.site
+				sel.Include(sel.Libraries(selectors.Any()))
 				return sel.Selector
 			},
 		},
@@ -207,8 +232,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			expected: 0,
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(sel.Lists(selSites, selectors.Any()))
-				sel.DiscreteOwner = suite.site
+				sel.Include(sel.Lists(selectors.Any()))
 				return sel.Selector
 			},
 		},
@@ -302,12 +326,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			comparator: assert.Equal,
 			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(siteIDs)
-				sel.Include(sel.Libraries(
-					siteIDs,
-					[]string{"foo"},
-					selectors.PrefixMatch(),
-				))
-
+				sel.Include(sel.Libraries([]string{"foo"}, selectors.PrefixMatch()))
 				return sel.Selector
 			},
 		},
@@ -316,11 +335,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			comparator: assert.Less,
 			sel: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(siteIDs)
-				sel.Include(sel.Lists(
-					siteIDs,
-					selectors.Any(),
-					selectors.PrefixMatch(), // without this option a SEG Fault occurs
-				))
+				sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
 
 				return sel.Selector
 			},

@@ -17,12 +17,6 @@ import (
 // ---------------------------------------------------------------------------
 type MockGraphService struct{}
 
-type testService struct {
-	client      msgraphsdk.GraphServiceClient
-	adapter     msgraphsdk.GraphRequestAdapter
-	credentials account.M365Config
-}
-
 //------------------------------------------------------------
 // Interface Functions: @See graph.Service
 //------------------------------------------------------------
@@ -35,37 +29,21 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (ts *testService) Client() *msgraphsdk.GraphServiceClient {
-	return &ts.client
-}
-
-func (ts *testService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &ts.adapter
-}
-
 // ---------------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------------
 
-func createTestService(credentials account.M365Config) (*testService, error) {
-	{
-		adapter, err := graph.CreateAdapter(
-			credentials.AzureTenantID,
-			credentials.AzureClientID,
-			credentials.AzureClientSecret,
-		)
-		if err != nil {
-			return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
-		}
-
-		service := testService{
-			adapter:     *adapter,
-			client:      *msgraphsdk.NewGraphServiceClient(adapter),
-			credentials: credentials,
-		}
-
-		return &service, nil
+func createTestService(credentials account.M365Config) (*graph.Service, error) {
+	adapter, err := graph.CreateAdapter(
+		credentials.AzureTenantID,
+		credentials.AzureClientID,
+		credentials.AzureClientSecret,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
 	}
+
+	return graph.NewService(adapter), nil
 }
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {

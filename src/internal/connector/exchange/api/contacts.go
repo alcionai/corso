@@ -13,9 +13,26 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
+// ---------------------------------------------------------------------------
+// controller
+// ---------------------------------------------------------------------------
+
+func (c Client) Contacts() Contacts {
+	return Contacts{c}
+}
+
+// Contacts is an interface-compliant provider of the client.
+type Contacts struct {
+	Client
+}
+
+// ---------------------------------------------------------------------------
+// methods
+// ---------------------------------------------------------------------------
+
 // CreateContactFolder makes a contact folder with the displayName of folderName.
 // If successful, returns the created folder object.
-func (c Client) CreateContactFolder(
+func (c Contacts) CreateContactFolder(
 	ctx context.Context,
 	user, folderName string,
 ) (models.ContactFolderable, error) {
@@ -28,7 +45,7 @@ func (c Client) CreateContactFolder(
 
 // DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
 // Errors returned if the function call was not successful.
-func (c Client) DeleteContactFolder(
+func (c Contacts) DeleteContactFolder(
 	ctx context.Context,
 	user, folderID string,
 ) error {
@@ -36,7 +53,7 @@ func (c Client) DeleteContactFolder(
 }
 
 // RetrieveContactDataForUser is a GraphRetrievalFun that returns all associated fields.
-func (c Client) RetrieveContactDataForUser(
+func (c Contacts) RetrieveContactDataForUser(
 	ctx context.Context,
 	user, m365ID string,
 ) (serialization.Parsable, error) {
@@ -46,7 +63,7 @@ func (c Client) RetrieveContactDataForUser(
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting
 // ContactFolderId and display names for contacts. All other information is omitted.
 // Does not return the default Contact Folder
-func (c Client) GetAllContactFolderNamesForUser(
+func (c Contacts) GetAllContactFolderNamesForUser(
 	ctx context.Context,
 	user string,
 ) (serialization.Parsable, error) {
@@ -58,16 +75,13 @@ func (c Client) GetAllContactFolderNamesForUser(
 	return c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
 }
 
-func (c Client) GetContactFolderByID(
+func (c Contacts) GetContainerByID(
 	ctx context.Context,
 	userID, dirID string,
-	optionalFields ...string,
-) (models.ContactFolderable, error) {
-	fields := append([]string{"displayName", "parentFolderId"}, optionalFields...)
-
-	ofcf, err := optionsForContactFolderByID(fields)
+) (graph.Container, error) {
+	ofcf, err := optionsForContactFolderByID([]string{"displayName", "parentFolderId"})
 	if err != nil {
-		return nil, errors.Wrapf(err, "options for contact folder: %v", fields)
+		return nil, errors.Wrap(err, "options for contact folder")
 	}
 
 	return c.stable.Client().
@@ -76,28 +90,30 @@ func (c Client) GetContactFolderByID(
 		Get(ctx, ofcf)
 }
 
-// TODO: we want this to be the full handler, not only the builder.
-// but this halfway point minimizes changes for now.
-func (c Client) GetContactChildFoldersBuilder(
+// EnumerateContainers iterates through all of the users current
+// contacts folders, converting each to a graph.CacheFolder, and calling
+// fn(cf) on each one.  If fn(cf) errors, the error is aggregated
+// into a multierror that gets returned to the caller.
+// Folder hierarchy is represented in its current state, and does
+// not contain historical data.
+func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
-	optionalFields ...string,
-) (
-	*users.ItemContactFoldersItemChildFoldersRequestBuilder,
-	*users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration,
-	*graph.Service,
-	error,
-) {
+	fn func(graph.CacheFolder) error,
+) error {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	fields := append([]string{"displayName", "parentFolderId"}, optionalFields...)
+	var (
+		errs   *multierror.Error
+		fields = []string{"displayName", "parentFolderId"}
+	)
 
 	ofcf, err := optionsForContactChildFolders(fields)
 	if err != nil {
-		return nil, nil, nil, errors.Wrapf(err, "options for contact child folders: %v", fields)
+		return errors.Wrapf(err, "options for contact child folders: %v", fields)
 	}
 
 	builder := service.Client().
@@ -105,12 +121,62 @@ func (c Client) GetContactChildFoldersBuilder(
 		ContactFoldersById(baseDirID).
 		ChildFolders()
 
-	return builder, ofcf, service, nil
+	for {
+		resp, err := builder.Get(ctx, ofcf)
+		if err != nil {
+			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		}
+
+		for _, fold := range resp.GetValue() {
+			if err := checkIDAndName(fold); err != nil {
+				errs = multierror.Append(err, errs)
+				continue
+			}
+
+			temp := graph.NewCacheFolder(fold, nil)
+
+			err = fn(temp)
+			if err != nil {
+				errs = multierror.Append(err, errs)
+				continue
+			}
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), service.Adapter())
+	}
+
+	return errs.ErrorOrNil()
 }
 
-// FetchContactIDsFromDirectory function that returns a list of  all the m365IDs of the contacts
-// of the targeted directory
-func (c Client) FetchContactIDsFromDirectory(
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
+
+var _ itemPager = &contactPager{}
+
+type contactPager struct {
+	gs      graph.Servicer
+	builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
+	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func (p *contactPager) getPage(ctx context.Context) (pageLinker, error) {
+	return p.builder.Get(ctx, p.options)
+}
+
+func (p *contactPager) setNext(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *contactPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Contactable](pl)
+}
+
+func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
 ) ([]string, []string, DeltaUpdate, error) {
@@ -121,9 +187,6 @@ func (c Client) FetchContactIDsFromDirectory(
 
 	var (
 		errs       *multierror.Error
-		ids        []string
-		removedIDs []string
-		deltaURL   string
 		resetDelta bool
 	)
 
@@ -132,63 +195,17 @@ func (c Client) FetchContactIDsFromDirectory(
 		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
 	}
 
-	getIDs := func(builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder) error {
-		for {
-			resp, err := builder.Get(ctx, options)
-			if err != nil {
-				if err := graph.IsErrDeletedInFlight(err); err != nil {
-					return err
-				}
-
-				if err := graph.IsErrInvalidDelta(err); err != nil {
-					return err
-				}
-
-				return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-			}
-
-			for _, item := range resp.GetValue() {
-				if item.GetId() == nil {
-					errs = multierror.Append(
-						errs,
-						errors.Errorf("item with nil ID in folder %s", directoryID),
-					)
-
-					// TODO(ashmrtn): Handle fail-fast.
-					continue
-				}
-
-				if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-					ids = append(ids, *item.GetId())
-				} else {
-					removedIDs = append(removedIDs, *item.GetId())
-				}
-			}
-
-			delta := resp.GetOdataDeltaLink()
-			if delta != nil && len(*delta) > 0 {
-				deltaURL = *delta
-			}
-
-			nextLink := resp.GetOdataNextLink()
-			if nextLink == nil || len(*nextLink) == 0 {
-				break
-			}
-
-			builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(*nextLink, service.Adapter())
-		}
-
-		return nil
-	}
-
 	if len(oldDelta) > 0 {
-		err := getIDs(users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter()))
+		builder := users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
+		pgr := &contactPager{service, builder, options}
+
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
-			return ids, removedIDs, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
 		}
 		// only return on error if it is NOT a delta issue.
-		// otherwise we'll retry the call with the regular builder
+		// on bad deltas we retry the call with the regular builder
 		if graph.IsErrInvalidDelta(err) == nil {
 			return nil, nil, DeltaUpdate{}, err
 		}
@@ -197,15 +214,13 @@ func (c Client) FetchContactIDsFromDirectory(
 		errs = nil
 	}
 
-	builder := service.Client().
-		UsersById(user).
-		ContactFoldersById(directoryID).
-		Contacts().
-		Delta()
+	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
+	pgr := &contactPager{service, builder, options}
 
-	if err := getIDs(builder); err != nil {
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	return ids, removedIDs, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
 }

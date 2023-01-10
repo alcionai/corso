@@ -455,9 +455,11 @@ func CreateContainerDestinaion(
 	switch category {
 	case path.EmailCategory:
 		if directoryCache == nil {
+			acm := ac.Mail()
 			mfc := &mailFolderCache{
 				userID: user,
-				ac:     ac,
+				enumer: acm,
+				getter: acm,
 			}
 
 			caches[category] = mfc
@@ -475,9 +477,11 @@ func CreateContainerDestinaion(
 
 	case path.ContactsCategory:
 		if directoryCache == nil {
+			acc := ac.Contacts()
 			cfc := &contactFolderCache{
 				userID: user,
-				ac:     ac,
+				enumer: acc,
+				getter: acc,
 			}
 			caches[category] = cfc
 			newCache = true
@@ -496,7 +500,7 @@ func CreateContainerDestinaion(
 		if directoryCache == nil {
 			ecc := &eventCalendarCache{
 				userID: user,
-				ac:     ac,
+				enumer: ac.Events(),
 			}
 			caches[category] = ecc
 			newCache = true
@@ -543,7 +547,7 @@ func establishMailRestoreLocation(
 			continue
 		}
 
-		temp, err := ac.CreateMailFolderWithParent(ctx, user, folder, folderID)
+		temp, err := ac.Mail().CreateMailFolderWithParent(ctx, user, folder, folderID)
 		if err != nil {
 			// Should only error if cache malfunctions or incorrect parameters
 			return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -590,7 +594,7 @@ func establishContactsRestoreLocation(
 		return cached, nil
 	}
 
-	temp, err := ac.CreateContactFolder(ctx, user, folders[0])
+	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -623,7 +627,7 @@ func establishEventsRestoreLocation(
 		return cached, nil
 	}
 
-	temp, err := ac.CreateCalendar(ctx, user, folders[0])
+	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -635,8 +639,8 @@ func establishEventsRestoreLocation(
 			return "", errors.Wrap(err, "populating event cache")
 		}
 
-		transform := CreateCalendarDisplayable(temp)
-		if err = ecc.AddToCache(ctx, transform); err != nil {
+		displayable := api.CalendarDisplayable{Calendarable: temp}
+		if err = ecc.AddToCache(ctx, displayable); err != nil {
 			return "", errors.Wrap(err, "adding new calendar to cache")
 		}
 	}

@@ -19,24 +19,26 @@ import (
 // mocks and helpers
 // ---------------------------------------------------------------------------
 
+var _ graph.CachedContainer = &mockContainer{}
+
 type mockContainer struct {
-	id       *string
-	name     *string
-	parentID *string
+	id          *string
+	displayName *string
+	parentID    *string
+	p           *path.Builder
 }
 
 //nolint:revive
-func (m mockContainer) GetId() *string {
-	return m.id
-}
-
-func (m mockContainer) GetDisplayName() *string {
-	return m.name
-}
+func (m mockContainer) GetId() *string { return m.id }
 
 //nolint:revive
-func (m mockContainer) GetParentFolderId() *string {
-	return m.parentID
+func (m mockContainer) GetParentFolderId() *string { return m.parentID }
+func (m mockContainer) GetDisplayName() *string    { return m.displayName }
+func (m mockContainer) Path() *path.Builder        { return m.p }
+func (m mockContainer) SetPath(p *path.Builder)    {}
+
+func strPtr(s string) *string {
+	return &s
 }
 
 // ---------------------------------------------------------------------------
@@ -67,45 +69,45 @@ var (
 		{
 			name: "NilID",
 			c: mockContainer{
-				id:       nil,
-				name:     &testName,
-				parentID: &testParentID,
+				id:          nil,
+				displayName: &testName,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "NilDisplayName",
 			c: mockContainer{
-				id:       &testID,
-				name:     nil,
-				parentID: &testParentID,
+				id:          &testID,
+				displayName: nil,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "EmptyID",
 			c: mockContainer{
-				id:       &emptyString,
-				name:     &testName,
-				parentID: &testParentID,
+				id:          &emptyString,
+				displayName: &testName,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "EmptyDisplayName",
 			c: mockContainer{
-				id:       &testID,
-				name:     &emptyString,
-				parentID: &testParentID,
+				id:          &testID,
+				displayName: &emptyString,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "AllValues",
 			c: mockContainer{
-				id:       &testID,
-				name:     &testName,
-				parentID: &testParentID,
+				id:          &testID,
+				displayName: &testName,
+				parentID:    &testParentID,
 			},
 			check: assert.NoError,
 		},
@@ -125,18 +127,18 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 		{
 			name: "NilParentFolderID",
 			c: mockContainer{
-				id:       &testID,
-				name:     &testName,
-				parentID: nil,
+				id:          &testID,
+				displayName: &testName,
+				parentID:    nil,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "EmptyParentFolderID",
 			c: mockContainer{
-				id:       &testID,
-				name:     &testName,
-				parentID: &emptyString,
+				id:          &testID,
+				displayName: &testName,
+				parentID:    &emptyString,
 			},
 			check: assert.Error,
 		},
@@ -161,9 +163,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoParentNoPath",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     &testName,
-					parentID: nil,
+					id:          &testID,
+					displayName: &testName,
+					parentID:    nil,
 				},
 				nil,
 			),
@@ -173,9 +175,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoParentPath",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     &testName,
-					parentID: nil,
+					id:          &testID,
+					displayName: &testName,
+					parentID:    nil,
 				},
 				path.Builder{}.Append("foo"),
 			),
@@ -185,9 +187,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoName",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     nil,
-					parentID: &testParentID,
+					id:          &testID,
+					displayName: nil,
+					parentID:    &testParentID,
 				},
 				path.Builder{}.Append("foo"),
 			),
@@ -197,9 +199,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoID",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       nil,
-					name:     &testName,
-					parentID: &testParentID,
+					id:          nil,
+					displayName: &testName,
+					parentID:    &testParentID,
 				},
 				path.Builder{}.Append("foo"),
 			),
@@ -209,9 +211,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoPath",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     &testName,
-					parentID: &testParentID,
+					id:          &testID,
+					displayName: &testName,
+					parentID:    &testParentID,
 				},
 				nil,
 			),
@@ -597,9 +599,10 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				test.pathFunc1(t),
 				folderName,
 				directoryCaches)
-
 			require.NoError(t, err)
+
 			resolver := directoryCaches[test.category]
+
 			_, err = resolver.IDToPath(ctx, folderID)
 			assert.NoError(t, err)
 
@@ -609,10 +612,11 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				test.pathFunc2(t),
 				folderName,
 				directoryCaches)
-
 			require.NoError(t, err)
+
 			_, err = resolver.IDToPath(ctx, secondID)
 			require.NoError(t, err)
+
 			_, ok := resolver.PathInCache(folderName)
 			require.True(t, ok)
 		})

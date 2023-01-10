@@ -69,41 +69,34 @@ func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			eb := NewOneDriveBackup(test.include)
-			eb.Include(eb.Users(test.include))
+			// todo: remove discreteScopes
+			// eb := NewOneDriveBackup(test.include)
+			// eb.Include(eb.AllData())
 
-			scopes := eb.DiscreteScopes(test.discrete)
-			for _, sc := range scopes {
-				users := sc.Get(OneDriveUser)
-				assert.Equal(t, test.expect, users)
-			}
+			// scopes := eb.DiscreteScopes(test.discrete)
+			// for _, sc := range scopes {
+			// 	users := sc.Get(OneDriveUser)
+			// 	assert.Equal(t, test.expect, users)
+			// }
 		})
 	}
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 	t := suite.T()
 
-	const (
-		u1 = "u1"
-		u2 = "u2"
-	)
-
 	var (
-		users      = []string{u1, u2}
-		sel        = NewOneDriveBackup(users)
-		userScopes = sel.Users(users)
+		users     = []string{"u1", "u2"}
+		sel       = NewOneDriveBackup(users)
+		allScopes = sel.AllData()
 	)
 
-	for _, scope := range userScopes {
-		// Scope value is either u1 or u2
-		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
-	}
+	assert.ElementsMatch(t, users, sel.DiscreteResourceOwners())
 
 	// Initialize the selector Include, Exclude, Filter
-	sel.Exclude(userScopes)
-	sel.Include(userScopes)
-	sel.Filter(userScopes)
+	sel.Exclude(allScopes)
+	sel.Include(allScopes)
+	sel.Filter(allScopes)
 
 	table := []struct {
 		name          string
@@ -117,14 +110,20 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			require.Len(t, test.scopesToCheck, 1)
 			for _, scope := range test.scopesToCheck {
-				// Scope value is u1,u2
-				assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
+				scopeMustHave(
+					t,
+					OneDriveScope(scope),
+					map[categorizer]string{
+						OneDriveItem:   AnyTgt,
+						OneDriveFolder: AnyTgt,
+					},
+				)
 			}
 		})
 	}
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_AllData() {
 	t := suite.T()
 
 	const (
@@ -133,12 +132,12 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 	)
 
 	var (
-		users      = []string{u1, u2}
-		sel        = NewOneDriveBackup(users)
-		userScopes = sel.Users(users)
+		users     = []string{u1, u2}
+		sel       = NewOneDriveBackup(users)
+		allScopes = sel.AllData()
 	)
 
-	sel.Include(userScopes)
+	sel.Include(allScopes)
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
@@ -146,12 +145,15 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{OneDriveUser: join(u1, u2)},
+			map[categorizer]string{
+				OneDriveItem:   AnyTgt,
+				OneDriveFolder: AnyTgt,
+			},
 		)
 	}
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_AllData() {
 	t := suite.T()
 
 	const (
@@ -160,12 +162,12 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 	)
 
 	var (
-		users      = []string{u1, u2}
-		sel        = NewOneDriveBackup(users)
-		userScopes = sel.Users(users)
+		users     = []string{u1, u2}
+		sel       = NewOneDriveBackup(users)
+		allScopes = sel.AllData()
 	)
 
-	sel.Exclude(userScopes)
+	sel.Exclude(allScopes)
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
@@ -173,7 +175,10 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{OneDriveUser: join(u1, u2)},
+			map[categorizer]string{
+				OneDriveItem:   AnyTgt,
+				OneDriveFolder: AnyTgt,
+			},
 		)
 	}
 }
@@ -248,7 +253,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			deets,
 			func() *OneDriveRestore {
 				odr := NewOneDriveRestore(Any())
-				odr.Include(odr.Users(Any()))
+				odr.Include(odr.AllData())
 				return odr
 			},
 			arr(file, file2, file3),
@@ -258,7 +263,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			deets,
 			func() *OneDriveRestore {
 				odr := NewOneDriveRestore(Any())
-				odr.Include(odr.Items(Any(), Any(), []string{"file2"}))
+				odr.Include(odr.Items(Any(), []string{"file2"}))
 				return odr
 			},
 			arr(file2),
@@ -268,7 +273,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			deets,
 			func() *OneDriveRestore {
 				odr := NewOneDriveRestore([]string{"uid"})
-				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
+				odr.Include(odr.Folders([]string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
 			arr(file, file2),
@@ -295,7 +300,6 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	require.NoError(t, err)
 
 	expected := map[categorizer]string{
-		OneDriveUser:   "user",
 		OneDriveFolder: "dir1/dir2",
 		OneDriveItem:   "file",
 	}
