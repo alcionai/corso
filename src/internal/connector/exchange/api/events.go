@@ -133,20 +133,20 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager = &eventPager{}
-
-type eventPager struct {
-	gs      graph.Servicer
-	builder *users.ItemCalendarsItemEventsRequestBuilder
-	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
-}
-
 type eventWrapper struct {
 	models.EventCollectionResponseable
 }
 
 func (ew eventWrapper) GetOdataDeltaLink() *string {
 	return nil
+}
+
+var _ itemPager = &eventPager{}
+
+type eventPager struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsItemEventsRequestBuilder
+	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
 }
 
 func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
@@ -159,7 +159,7 @@ func (p *eventPager) setNext(nextLink string) {
 }
 
 func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Entityable](pl)
+	return toValues[models.Eventable](pl)
 }
 
 func (c Events) GetAddedAndRemovedItemIDs(
