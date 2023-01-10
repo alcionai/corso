@@ -1,14 +1,14 @@
 package sharepoint
 
 import (
-	kioser "github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 // SitePageable adjusted from msgraph-beta-sdk-go for temporary testing
 type SitePageable interface {
 	models.BaseItemable
-	kioser.Parsable
+	serialization.Parsable
 	GetContentType() models.ContentTypeInfoable
 	GetPublishingState() models.PublicationFacetable
 	GetShowComments() *bool
