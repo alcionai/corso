@@ -24,7 +24,7 @@ func TestGraphUnitSuite(t *testing.T) {
 
 func (suite *GraphUnitSuite) SetupSuite() {
 	t := suite.T()
-	a := tester.NewM365Account(t)
+	a := tester.NewMockM365Account(t)
 	m365, err := a.M365Config()
 	require.NoError(t, err)
 
