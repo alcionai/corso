@@ -212,6 +212,29 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	}
 }
 
+func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		dest = tester.DefaultTestRestoreDestination()
+		sel  = selectors.Selector{
+			Service: selectors.ServiceUnknown,
+		}
+	)
+
+	deets, err := suite.connector.RestoreDataCollections(ctx, acct, sel, dest, nil)
+	assert.Error(t, err)
+	assert.NotNil(t, deets)
+
+	status := suite.connector.AwaitStatus()
+	assert.Equal(t, 0, status.ObjectCount)
+	assert.Equal(t, 0, status.FolderCount)
+	assert.Equal(t, 0, status.Successful)
+}
+
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := tester.DefaultTestRestoreDestination()
 	table := []struct {
