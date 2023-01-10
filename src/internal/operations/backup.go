@@ -678,7 +678,7 @@ func (op *BackupOperation) persistResults(
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
-	op.Results.ResourceOwners = 1
+	op.Results.ResourceOwners = opStats.resourceCount
 
 	return nil
 }
