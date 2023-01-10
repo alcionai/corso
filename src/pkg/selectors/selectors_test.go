@@ -1,7 +1,6 @@
 package selectors
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,120 +29,6 @@ func (suite *SelectorSuite) TestNewSelector() {
 func (suite *SelectorSuite) TestBadCastErr() {
 	err := badCastErr(ServiceUnknown, ServiceExchange)
 	assert.Error(suite.T(), err)
-}
-
-func (suite *SelectorSuite) TestPrintable() {
-	t := suite.T()
-
-	sel := stubSelector()
-	p := sel.Printable()
-
-	assert.Equal(t, sel.Service.String(), p.Service)
-	assert.Equal(t, 1, len(p.Excludes))
-	assert.Equal(t, 1, len(p.Filters))
-	assert.Equal(t, 1, len(p.Includes))
-}
-
-func (suite *SelectorSuite) TestPrintable_IncludedResources() {
-	t := suite.T()
-
-	sel := stubSelector()
-	p := sel.Printable()
-	res := p.Resources()
-
-	assert.Equal(t, "All", res, "stub starts out as an all-pass")
-
-	stubWithResource := func(resource string) scope {
-		ss := stubScope("")
-		ss[rootCatStub.String()] = filterize(scopeConfig{}, resource)
-
-		return scope(ss)
-	}
-
-	sel.Includes = []scope{
-		stubWithResource("foo"),
-		stubWithResource("smarf"),
-		stubWithResource("fnords"),
-	}
-
-	p = sel.Printable()
-	res = p.Resources()
-
-	assert.True(t, strings.HasSuffix(res, "(2 more)"), "resource '"+res+"' should have (2 more) suffix")
-
-	p.Includes = nil
-	res = p.Resources()
-
-	assert.Equal(t, "All", res, "filters is also an all-pass")
-
-	p.Filters = nil
-	res = p.Resources()
-
-	assert.Equal(t, "None", res, "resource with no Includes or Filters should state None")
-}
-
-func (suite *SelectorSuite) TestToResourceTypeMap() {
-	table := []struct {
-		name   string
-		input  []scope
-		expect map[string][]string
-	}{
-		{
-			name:  "single scope",
-			input: []scope{scope(stubScope(""))},
-			expect: map[string][]string{
-				"All": {rootCatStub.String()},
-			},
-		},
-		{
-			name: "disjoint resources",
-			input: []scope{
-				scope(stubScope("")),
-				{
-					rootCatStub.String(): filterize(scopeConfig{}, "smarf"),
-					scopeKeyDataType:     filterize(scopeConfig{}, unknownCatStub.String()),
-				},
-			},
-			expect: map[string][]string{
-				"All":   {rootCatStub.String()},
-				"smarf": {unknownCatStub.String()},
-			},
-		},
-		{
-			name: "multiple resources",
-			input: []scope{
-				scope(stubScope("")),
-				{
-					rootCatStub.String(): filterize(scopeConfig{}, join("smarf", "fnords")),
-					scopeKeyDataType:     filterize(scopeConfig{}, unknownCatStub.String()),
-				},
-			},
-			expect: map[string][]string{
-				"All":    {rootCatStub.String()},
-				"smarf":  {unknownCatStub.String()},
-				"fnords": {unknownCatStub.String()},
-			},
-		},
-		{
-			name: "disjoint types",
-			input: []scope{
-				scope(stubScope("")),
-				{
-					rootCatStub.String(): filterize(scopeConfig{}, AnyTgt),
-					scopeKeyDataType:     filterize(scopeConfig{}, "other"),
-				},
-			},
-			expect: map[string][]string{
-				"All": {rootCatStub.String(), "other"},
-			},
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			rtm := toResourceTypeMap[mockScope](test.input)
-			assert.Equal(t, test.expect, rtm)
-		})
-	}
 }
 
 func (suite *SelectorSuite) TestResourceOwnersIn() {
@@ -253,4 +138,104 @@ func (suite *SelectorSuite) TestContains() {
 
 	assert.True(t, matches(does, key, target), "does contain")
 	assert.False(t, matches(doesNot, key, target), "does not contain")
+}
+
+func (suite *SelectorSuite) TestIsAnyResourceOwner() {
+	t := suite.T()
+	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{})))
+	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{AnyTgt})))
+	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, Any())))
+}
+
+func (suite *SelectorSuite) TestIsNoneResourceOwner() {
+	t := suite.T()
+	assert.False(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{})))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{NoneTgt})))
+	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, None())))
+}
+
+func (suite *SelectorSuite) TestSplitByResourceOnwer() {
+	allOwners := []string{"foo", "bar", "baz", "qux"}
+
+	table := []struct {
+		name           string
+		input          []string
+		expectLen      int
+		expectDiscrete []string
+	}{
+		{
+			name: "nil",
+		},
+		{
+			name:  "empty",
+			input: []string{},
+		},
+		{
+			name:  "noneTgt",
+			input: []string{NoneTgt},
+		},
+		{
+			name:  "none",
+			input: None(),
+		},
+		{
+			name:           "AnyTgt",
+			input:          []string{AnyTgt},
+			expectLen:      len(allOwners),
+			expectDiscrete: allOwners,
+		},
+		{
+			name:           "Any",
+			input:          Any(),
+			expectLen:      len(allOwners),
+			expectDiscrete: allOwners,
+		},
+		{
+			name:           "one owner",
+			input:          []string{"fnord"},
+			expectLen:      1,
+			expectDiscrete: []string{"fnord"},
+		},
+		{
+			name:           "two owners",
+			input:          []string{"fnord", "smarf"},
+			expectLen:      2,
+			expectDiscrete: []string{"fnord", "smarf"},
+		},
+		{
+			name:  "two owners and NoneTgt",
+			input: []string{"fnord", "smarf", NoneTgt},
+		},
+		{
+			name:           "two owners and AnyTgt",
+			input:          []string{"fnord", "smarf", AnyTgt},
+			expectLen:      len(allOwners),
+			expectDiscrete: allOwners,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			s := newSelector(ServiceUnknown, test.input)
+			result := splitByResourceOwner[mockScope](s, allOwners, rootCatStub)
+
+			assert.Len(t, result, test.expectLen)
+
+			for _, expect := range test.expectDiscrete {
+				var found bool
+
+				for _, sel := range result {
+					if sel.DiscreteOwner == expect {
+						found = true
+						break
+					}
+				}
+
+				assert.Truef(t, found, "%s in list of discrete owners", expect)
+			}
+		})
+	}
 }

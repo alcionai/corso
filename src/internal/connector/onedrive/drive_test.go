@@ -21,12 +21,10 @@ type OneDriveSuite struct {
 }
 
 func TestOneDriveDriveSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoOneDriveTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoOneDriveTests)
 
 	suite.Run(t, new(OneDriveSuite))
 }
@@ -146,7 +144,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			service := loadTestService(t)
 			scope := selectors.
 				NewOneDriveBackup([]string{test.user}).
-				Users([]string{test.user})[0]
+				AllData()[0]
 			odcs, err := NewCollections(
 				creds.AzureTenantID,
 				test.user,

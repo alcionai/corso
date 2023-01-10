@@ -50,13 +50,11 @@ type NoBackupExchangeIntegrationSuite struct {
 }
 
 func TestNoBackupExchangeIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(NoBackupExchangeIntegrationSuite))
 }
@@ -67,10 +65,7 @@ func (suite *NoBackupExchangeIntegrationSuite) SetupSuite() {
 
 	defer flush()
 
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -138,13 +133,11 @@ type BackupExchangeIntegrationSuite struct {
 }
 
 func TestBackupExchangeIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(BackupExchangeIntegrationSuite))
 }
@@ -155,10 +148,7 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 
 	defer flush()
 
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -234,23 +224,18 @@ type PreparedBackupExchangeIntegrationSuite struct {
 }
 
 func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(PreparedBackupExchangeIntegrationSuite))
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -290,16 +275,13 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
+			scopes = sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders(
-				users,
-				[]string{exchange.DefaultContactFolder},
-				selectors.PrefixMatch())
+			scopes = sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
+			scopes = sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)
@@ -471,23 +453,18 @@ type BackupDeleteExchangeIntegrationSuite struct {
 }
 
 func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(BackupDeleteExchangeIntegrationSuite))
 }
 
 func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -517,7 +494,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewExchangeBackup(users)
-	sel.Include(sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
+	sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

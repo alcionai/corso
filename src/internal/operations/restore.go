@@ -188,7 +188,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	defer closer()
 	defer close(restoreComplete)
 
-	restoreDetails, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
+	restoreDetails, err = gc.RestoreDataCollections(
+		ctx,
+		op.account,
+		op.Selectors,
+		op.Destination,
+		dcs)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err

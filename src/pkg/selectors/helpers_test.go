@@ -148,19 +148,16 @@ type mockSel struct {
 	Selector
 }
 
-func stubSelector() mockSel {
+func stubSelector(resourceOwners []string) mockSel {
 	return mockSel{
 		Selector: Selector{
-			Service:  ServiceExchange,
-			Excludes: []scope{scope(stubScope(""))},
-			Filters:  []scope{scope(stubScope(""))},
-			Includes: []scope{scope(stubScope(""))},
+			ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+			Service:        ServiceExchange,
+			Excludes:       []scope{scope(stubScope(""))},
+			Filters:        []scope{scope(stubScope(""))},
+			Includes:       []scope{scope(stubScope(""))},
 		},
 	}
-}
-
-func (s mockSel) Printable() Printable {
-	return toPrintable[mockScope](s.Selector)
 }
 
 // ---------------------------------------------------------------------------

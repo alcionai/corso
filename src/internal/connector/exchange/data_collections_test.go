@@ -209,19 +209,16 @@ type DataCollectionsIntegrationSuite struct {
 }
 
 func TestDataCollectionsIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoConnectorCreateExchangeCollectionTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoConnectorCreateExchangeCollectionTests)
 
 	suite.Run(t, new(DataCollectionsIntegrationSuite))
 }
 
 func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
@@ -249,7 +246,6 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		{
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				users,
 				[]string{DefaultMailFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -259,13 +255,12 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		},
 	}
 
-	// gc := loadConnector(ctx, t, Users)
-
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			collections, err := createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -307,7 +302,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		{
 			name: "Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
-				[]string{userID},
 				[]string{DefaultMailFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -315,7 +309,6 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		{
 			name: "Contacts",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{userID},
 				[]string{DefaultContactFolder},
 				selectors.PrefixMatch(),
 			)[0],
@@ -327,6 +320,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err := createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -354,6 +348,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			collections, err = createCollections(
 				ctx,
 				acct,
+				userID,
 				test.scope,
 				dps,
 				control.Options{},
@@ -393,11 +388,12 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	require.NoError(t, err)
 
 	sel := selectors.NewExchangeBackup(users)
-	sel.Include(sel.MailFolders(users, []string{DefaultMailFolder}, selectors.PrefixMatch()))
+	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
 
 	collections, err := createCollections(
 		ctx,
 		acct,
+		suite.user,
 		sel.Scopes()[0],
 		DeltaPaths{},
 		control.Options{},
@@ -452,7 +448,6 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 		{
 			name: "Default Contact Folder",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				users,
 				[]string{DefaultContactFolder},
 				selectors.PrefixMatch())[0],
 		},
@@ -465,6 +460,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 			edcs, err := createCollections(
 				ctx,
 				acct,
+				suite.user,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
@@ -528,17 +524,17 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			name:     "Default Event Calendar",
 			expected: DefaultCalendar,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				users,
 				[]string{DefaultCalendar},
-				selectors.PrefixMatch())[0],
+				selectors.PrefixMatch(),
+			)[0],
 		},
 		{
 			name:     "Birthday Calendar",
 			expected: "Birthdays",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				users,
 				[]string{"Birthdays"},
-				selectors.PrefixMatch())[0],
+				selectors.PrefixMatch(),
+			)[0],
 		},
 	}
 
@@ -549,6 +545,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 			collections, err := createCollections(
 				ctx,
 				acct,
+				suite.user,
 				test.scope,
 				DeltaPaths{},
 				control.Options{},

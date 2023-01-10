@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type SharePointUtilsSuite struct {
@@ -54,6 +53,18 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			expectIncludeLen: 3,
 		},
 		{
+			name: "single extended",
+			opts: utils.SharePointOpts{
+				LibraryItems: single,
+				LibraryPaths: single,
+				ListItems:    single,
+				ListPaths:    single,
+				Sites:        single,
+				WebURLs:      single,
+			},
+			expectIncludeLen: 4,
+		},
+		{
 			name: "multi inputs",
 			opts: utils.SharePointOpts{
 				LibraryItems: multi,
@@ -94,6 +105,32 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			expectIncludeLen: 2,
 		},
 		{
+			name: "list contains",
+			opts: utils.SharePointOpts{
+				LibraryItems: empty,
+				LibraryPaths: empty,
+				ListItems:    empty,
+				ListPaths:    containsOnly,
+				Sites:        empty,
+				WebURLs:      empty,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "list prefixes",
+			opts: utils.SharePointOpts{
+				ListPaths: prefixOnly,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "list prefixes and contains",
+			opts: utils.SharePointOpts{
+				ListPaths: containsAndPrefix,
+			},
+			expectIncludeLen: 2,
+		},
+		{
 			name: "weburl contains",
 			opts: utils.SharePointOpts{
 				LibraryItems: empty,
@@ -126,11 +163,8 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewSharePointRestore(nil)
-			// no return, mutates sel as a side effect
-			t.Logf("Options sent: %v\n", test.opts)
-			utils.IncludeSharePointRestoreDataSelectors(sel, test.opts)
-			assert.Len(t, sel.Includes, test.expectIncludeLen, sel)
+			sel := utils.IncludeSharePointRestoreDataSelectors(test.opts)
+			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -58,10 +59,11 @@ type Collection struct {
 
 	// service - client/adapter pair used to access M365 back store
 	service graph.Servicer
+	ac      api.Client
 
-	collectionType optionIdentifier
-	statusUpdater  support.StatusUpdater
-	ctrl           control.Options
+	category      path.CategoryType
+	statusUpdater support.StatusUpdater
+	ctrl          control.Options
 
 	// FullPath is the current hierarchical path used by this collection.
 	fullPath path.Path
@@ -86,14 +88,16 @@ type Collection struct {
 func NewCollection(
 	user string,
 	curr, prev path.Path,
-	collectionType optionIdentifier,
+	category path.CategoryType,
+	ac api.Client,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		collectionType:  collectionType,
+		ac:              ac,
+		category:        category,
 		ctrl:            ctrlOpts,
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
@@ -135,14 +139,14 @@ func (col *Collection) Items() <-chan data.Stream {
 
 // GetQueryAndSerializeFunc helper function that returns the two functions functions
 // required to convert M365 identifier into a byte array filled with the serialized data
-func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
-	switch optID {
-	case contacts:
-		return RetrieveContactDataForUser, serializeAndStreamContact
-	case events:
-		return RetrieveEventDataForUser, serializeAndStreamEvent
-	case messages:
-		return RetrieveMessageDataForUser, serializeAndStreamMessage
+func GetQueryAndSerializeFunc(ac api.Client, category path.CategoryType) (api.GraphRetrievalFunc, GraphSerializeFunc) {
+	switch category {
+	case path.ContactsCategory:
+		return ac.Contacts().RetrieveContactDataForUser, serializeAndStreamContact
+	case path.EventsCategory:
+		return ac.Events().RetrieveEventDataForUser, serializeAndStreamEvent
+	case path.EmailCategory:
+		return ac.Mail().RetrieveMessageDataForUser, serializeAndStreamMessage
 	// Unsupported options returns nil, nil
 	default:
 		return nil, nil
@@ -176,28 +180,36 @@ func (col Collection) DoNotMergeItems() bool {
 // all the M365IDs defined in the added field. data channel is closed by this function
 func (col *Collection) streamItems(ctx context.Context) {
 	var (
-		errs       error
-		success    int64
-		totalBytes int64
-		wg         sync.WaitGroup
+		errs        error
+		success     int64
+		totalBytes  int64
+		wg          sync.WaitGroup
+		colProgress chan<- struct{}
 
 		user = col.user
 	)
 
-	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
-	go closer()
-
 	defer func() {
-		close(colProgress)
 		col.finishPopulation(ctx, int(success), totalBytes, errs)
 	}()
+
+	if len(col.added)+len(col.removed) > 0 {
+		var closer func()
+		colProgress, closer = observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
+
+		go closer()
+
+		defer func() {
+			close(colProgress)
+		}()
+	}
 
 	// get QueryBasedonIdentifier
 	// verify that it is the correct type in called function
 	// serializationFunction
-	query, serializeFunc := GetQueryAndSerializeFunc(col.collectionType)
+	query, serializeFunc := GetQueryAndSerializeFunc(col.ac, col.category)
 	if query == nil {
-		errs = fmt.Errorf("unrecognized collection type: %s", col.collectionType.String())
+		errs = fmt.Errorf("unrecognized collection type: %s", col.category)
 		return
 	}
 
@@ -228,7 +240,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, 0)
 
-			colProgress <- struct{}{}
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
 		}(id)
 	}
 
@@ -252,7 +266,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 			)
 
 			for i := 1; i <= numberOfRetries; i++ {
-				response, err = query(ctx, col.service, user, id)
+				response, err = query(ctx, user, id)
 				if err == nil {
 					break
 				}
@@ -282,7 +296,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, int64(byteCount))
 
-			colProgress <- struct{}{}
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
 		}(id)
 	}
 

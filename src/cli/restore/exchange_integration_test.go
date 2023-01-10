@@ -42,13 +42,11 @@ type RestoreExchangeIntegrationSuite struct {
 }
 
 func TestRestoreExchangeIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIRestoreTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIRestoreTests)
 
 	suite.Run(t, new(RestoreExchangeIntegrationSuite))
 }
@@ -59,11 +57,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs,
-	)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// aggregate required details
 	suite.acct = tester.NewM365Account(t)
@@ -96,16 +90,13 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders(users, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
+			scopes = sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders(
-				users,
-				[]string{exchange.DefaultContactFolder},
-				selectors.PrefixMatch())
+			scopes = sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars(users, []string{exchange.DefaultCalendar}, selectors.PrefixMatch())
+			scopes = sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)

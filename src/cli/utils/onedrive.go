@@ -70,27 +70,21 @@ func AddOneDriveFilter(
 
 // IncludeOneDriveRestoreDataSelectors builds the common data-selector
 // inclusions for OneDrive commands.
-func IncludeOneDriveRestoreDataSelectors(
-	sel *selectors.OneDriveRestore,
-	opts OneDriveOpts,
-) {
+func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveRestore {
+	users := opts.Users
+	if len(users) == 0 {
+		users = selectors.Any()
+	}
+
+	sel := selectors.NewOneDriveRestore(users)
+
 	lp, ln := len(opts.Paths), len(opts.Names)
 
 	// only use the inclusion if either a path or item name
 	// is specified
 	if lp+ln == 0 {
-		return
-	}
-
-	if len(opts.Users) == 0 {
-		opts.Users = selectors.Any()
-	}
-
-	// either scope the request to a set of users
-	if lp+ln == 0 {
-		sel.Include(sel.Users(opts.Users))
-
-		return
+		sel.Include(sel.AllData())
+		return sel
 	}
 
 	opts.Paths = trimFolderSlash(opts.Paths)
@@ -102,12 +96,14 @@ func IncludeOneDriveRestoreDataSelectors(
 	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.Paths)
 
 	if len(containsFolders) > 0 {
-		sel.Include(sel.Items(opts.Users, containsFolders, opts.Names))
+		sel.Include(sel.Items(containsFolders, opts.Names))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(sel.Items(opts.Users, prefixFolders, opts.Names, selectors.PrefixMatch()))
+		sel.Include(sel.Items(prefixFolders, opts.Names, selectors.PrefixMatch()))
 	}
+
+	return sel
 }
 
 // FilterOneDriveRestoreInfoSelectors builds the common info-selector filters.

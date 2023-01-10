@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -264,13 +265,8 @@ func fetchColumns(
 // for the following:
 // - ColumnLinks
 // - Columns
-// The following two are not included:
-// - ColumnPositions
-// - BaseTypes
-// These relationships are not included as they following error from the API:
-// itemNotFound Item not found: error status code received from the API
-// Current as of github.com/microsoftgraph/msgraph-sdk-go v0.40.0
-// TODO: Verify functionality after version upgrade or remove (dadams39) Check Stubs
+// Expand queries not used to retrieve the above. Possibly more than 20.
+// Known Limitations: https://learn.microsoft.com/en-us/graph/known-issues#query-parameters
 func fetchContentTypes(
 	ctx context.Context,
 	gs graph.Servicer,
@@ -298,7 +294,6 @@ func fetchContentTypes(
 			}
 
 			cont.SetColumnLinks(links)
-			// TODO: stub for columPositions
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
@@ -306,7 +301,6 @@ func fetchContentTypes(
 			}
 
 			cont.SetColumns(cs)
-			// TODO: stub for BaseTypes
 
 			cTypes = append(cTypes, cont)
 		}
@@ -355,4 +349,20 @@ func fetchColumnLinks(
 	}
 
 	return links, nil
+}
+
+// DeleteList removes a list object from a site.
+func DeleteList(
+	ctx context.Context,
+	gs graph.Servicer,
+	siteID, listID string,
+) error {
+	err := gs.Client().SitesById(siteID).ListsById(listID).Delete(ctx, nil)
+	errorMsg := fmt.Sprintf("failure deleting listID %s from site %s. Details: %s",
+		listID,
+		siteID,
+		support.ConnectorStackErrorTrace(err),
+	)
+
+	return errors.Wrap(err, errorMsg)
 }

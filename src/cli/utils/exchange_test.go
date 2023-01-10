@@ -301,8 +301,7 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			sel := selectors.NewExchangeRestore(nil)
-			utils.IncludeExchangeRestoreDataSelectors(sel, test.opts)
+			sel := utils.IncludeExchangeRestoreDataSelectors(test.opts)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}
@@ -326,42 +325,36 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 	}{
 		{
 			name:             "no inputs",
-			resources:        empty,
 			folders:          empty,
 			items:            empty,
 			expectIncludeLen: 0,
 		},
 		{
 			name:             "single inputs",
-			resources:        single,
 			folders:          single,
 			items:            single,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "multi inputs",
-			resources:        multi,
 			folders:          multi,
 			items:            multi,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "folder contains",
-			resources:        empty,
 			folders:          containsOnly,
 			items:            empty,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "folder prefixes",
-			resources:        empty,
 			folders:          prefixOnly,
 			items:            empty,
 			expectIncludeLen: 1,
 		},
 		{
 			name:             "folder prefixes and contains",
-			resources:        empty,
 			folders:          containsAndPrefix,
 			items:            empty,
 			expectIncludeLen: 2,
@@ -371,7 +364,7 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			sel := selectors.NewExchangeRestore(nil)
 			// no return, mutates sel as a side effect
-			utils.AddExchangeInclude(sel, test.resources, test.folders, test.items, eisc)
+			utils.AddExchangeInclude(sel, test.folders, test.items, eisc)
 			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}

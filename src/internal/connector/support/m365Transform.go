@@ -119,3 +119,162 @@ func insertStringToBody(body getContenter, newContent string) string {
 
 	return newContent + content
 }
+
+// CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
+// M365 data into it set fields.
+// - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
+func CloneListItem(orig models.ListItemable) models.ListItemable {
+	newItem := models.NewListItem()
+	newFieldData := retrieveFieldData(orig.GetFields())
+
+	newItem.SetAdditionalData(orig.GetAdditionalData())
+	newItem.SetAnalytics(orig.GetAnalytics())
+	newItem.SetContentType(orig.GetContentType())
+	newItem.SetCreatedBy(orig.GetCreatedBy())
+	newItem.SetCreatedByUser(orig.GetCreatedByUser())
+	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newItem.SetDescription(orig.GetDescription())
+	// ETag cannot be carried forward
+	newItem.SetFields(newFieldData)
+	newItem.SetLastModifiedBy(orig.GetLastModifiedBy())
+	newItem.SetLastModifiedByUser(orig.GetLastModifiedByUser())
+	newItem.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
+	newItem.SetOdataType(orig.GetOdataType())
+	// parentReference and SharePointIDs cause error on upload.
+	// POST Command will link items to the created list.
+	newItem.SetVersions(orig.GetVersions())
+
+	return newItem
+}
+
+// retrieveFieldData utility function to clone raw listItem data from the embedded
+// additionalData map
+// Further details on FieldValueSets:
+// - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
+func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
+	fields := models.NewFieldValueSet()
+	additionalData := make(map[string]any)
+	fieldData := orig.GetAdditionalData()
+
+	// M365 Book keeping values removed during new Item Creation
+	// Removed Values:
+	// -- Prefixes -> @odata.context : absolute path to previous list
+	// .           -> @odata.etag : Embedded link to Prior M365 ID
+	// -- String Match: Read-Only Fields
+	// -> id : previous un
+	for key, value := range fieldData {
+		if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
+			key == "Edit" || key == "Created" || key == "Modified" ||
+			strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
+			continue
+		}
+
+		additionalData[key] = value
+	}
+
+	fields.SetAdditionalData(additionalData)
+
+	return fields
+}
+
+// ToListable utility function to encapsulate stored data for restoration.
+// New Listable omits trackable fields such as `id` or `ETag` and other read-only
+// objects that are prevented upon upload. Additionally, read-Only columns are
+// not attached in this method.
+// ListItems are not included in creation of new list, and have to be restored
+// in separate call.
+func ToListable(orig models.Listable, displayName string) models.Listable {
+	newList := models.NewList()
+
+	newList.SetContentTypes(orig.GetContentTypes())
+	newList.SetCreatedBy(orig.GetCreatedBy())
+	newList.SetCreatedByUser(orig.GetCreatedByUser())
+	newList.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newList.SetDescription(orig.GetDescription())
+	newList.SetDisplayName(&displayName)
+	newList.SetLastModifiedBy(orig.GetLastModifiedBy())
+	newList.SetLastModifiedByUser(orig.GetLastModifiedByUser())
+	newList.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
+	newList.SetList(orig.GetList())
+	newList.SetOdataType(orig.GetOdataType())
+	newList.SetParentReference(orig.GetParentReference())
+
+	columns := make([]models.ColumnDefinitionable, 0)
+	leg := map[string]struct{}{
+		"Attachments":  {},
+		"Edit":         {},
+		"Content Type": {},
+	}
+
+	for _, cd := range orig.GetColumns() {
+		var (
+			displayName string
+			readOnly    bool
+		)
+
+		if cd.GetDisplayName() != nil {
+			displayName = *cd.GetDisplayName()
+		}
+
+		if cd.GetReadOnly() != nil {
+			readOnly = *cd.GetReadOnly()
+		}
+
+		_, isLegacy := leg[displayName]
+
+		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
+		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
+		if readOnly || displayName == "Title" || isLegacy {
+			continue
+		}
+
+		columns = append(columns, cloneColumnDefinitionable(cd))
+	}
+
+	newList.SetColumns(columns)
+
+	return newList
+}
+
+// cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
+// into new object for upload.
+func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
+	newColumn := models.NewColumnDefinition()
+
+	newColumn.SetAdditionalData(orig.GetAdditionalData())
+	newColumn.SetBoolean(orig.GetBoolean())
+	newColumn.SetCalculated(orig.GetCalculated())
+	newColumn.SetChoice(orig.GetChoice())
+	newColumn.SetColumnGroup(orig.GetColumnGroup())
+	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
+	newColumn.SetCurrency(orig.GetCurrency())
+	newColumn.SetDateTime(orig.GetDateTime())
+	newColumn.SetDefaultValue(orig.GetDefaultValue())
+	newColumn.SetDescription(orig.GetDescription())
+	newColumn.SetDisplayName(orig.GetDisplayName())
+	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+	newColumn.SetGeolocation(orig.GetGeolocation())
+	newColumn.SetHidden(orig.GetHidden())
+	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
+	newColumn.SetIndexed(orig.GetIndexed())
+	newColumn.SetIsDeletable(orig.GetIsDeletable())
+	newColumn.SetIsReorderable(orig.GetIsReorderable())
+	newColumn.SetIsSealed(orig.GetIsSealed())
+	newColumn.SetLookup(orig.GetLookup())
+	newColumn.SetName(orig.GetName())
+	newColumn.SetNumber(orig.GetNumber())
+	newColumn.SetOdataType(orig.GetOdataType())
+	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	newColumn.SetReadOnly(orig.GetReadOnly())
+	newColumn.SetRequired(orig.GetRequired())
+	newColumn.SetSourceColumn(orig.GetSourceColumn())
+	newColumn.SetSourceContentType(orig.GetSourceContentType())
+	newColumn.SetTerm(orig.GetTerm())
+	newColumn.SetText(orig.GetText())
+	newColumn.SetThumbnail(orig.GetThumbnail())
+	newColumn.SetType(orig.GetType())
+	newColumn.SetValidation(orig.GetValidation())
+
+	return newColumn
+}

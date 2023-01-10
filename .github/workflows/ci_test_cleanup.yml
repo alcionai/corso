@@ -11,7 +11,7 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        folder: [Corso_Restore_, TestRestore, testfolder, '']
+        folder: [Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_, '']
         user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID]
 
     steps:

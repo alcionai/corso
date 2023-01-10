@@ -37,7 +37,6 @@ type (
 
 var (
 	_ Reducer        = &OneDriveRestore{}
-	_ printabler     = &OneDriveRestore{}
 	_ pathCategorier = &OneDriveRestore{}
 )
 
@@ -64,6 +63,17 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 	return &src, nil
 }
 
+func (s OneDriveBackup) SplitByResourceOwner(users []string) []OneDriveBackup {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, OneDriveUser)
+
+	ss := make([]OneDriveBackup, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, OneDriveBackup{oneDrive{sel}})
+	}
+
+	return ss
+}
+
 // NewOneDriveRestore produces a new Selector with the service set to ServiceOneDrive.
 func NewOneDriveRestore(users []string) *OneDriveRestore {
 	src := OneDriveRestore{
@@ -87,9 +97,15 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 	return &src, nil
 }
 
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s oneDrive) Printable() Printable {
-	return toPrintable[OneDriveScope](s.Selector)
+func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+
+	ss := make([]OneDriveRestore, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, OneDriveRestore{oneDrive{sel}})
+	}
+
+	return ss
 }
 
 // PathCategories produces the aggregation of discrete users described by each type of scope.
@@ -169,21 +185,29 @@ func (s *oneDrive) Scopes() []OneDriveScope {
 // If any Include scope's User category is set to Any, replaces that
 // scope's value with the list of userPNs instead.
 func (s *oneDrive) DiscreteScopes(userPNs []string) []OneDriveScope {
-	return discreteScopes[OneDriveScope](s.Selector, OneDriveUser, userPNs)
+	scopes := discreteScopes[OneDriveScope](s.Includes, OneDriveUser, userPNs)
+
+	ss := make([]OneDriveScope, 0, len(scopes))
+
+	for _, scope := range scopes {
+		ss = append(ss, OneDriveScope(scope))
+	}
+
+	return ss
 }
 
 // -------------------
 // Scope Factories
 
-// Produces one or more OneDrive user scopes.
+// Retrieves all OneDrive data.
 // One scope is created per user entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *oneDrive) Users(users []string) []OneDriveScope {
+func (s *oneDrive) AllData() []OneDriveScope {
 	scopes := []OneDriveScope{}
 
-	scopes = append(scopes, makeScope[OneDriveScope](OneDriveFolder, users, Any()))
+	scopes = append(scopes, makeScope[OneDriveScope](OneDriveFolder, Any()))
 
 	return scopes
 }
@@ -193,7 +217,7 @@ func (s *oneDrive) Users(users []string) []OneDriveScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveScope {
+func (s *oneDrive) Folders(folders []string, opts ...option) []OneDriveScope {
 	var (
 		scopes = []OneDriveScope{}
 		os     = append([]option{pathComparator()}, opts...)
@@ -201,7 +225,7 @@ func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveSc
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveFolder, users, folders, os...),
+		makeScope[OneDriveScope](OneDriveFolder, folders, os...),
 	)
 
 	return scopes
@@ -212,12 +236,12 @@ func (s *oneDrive) Folders(users, folders []string, opts ...option) []OneDriveSc
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *oneDrive) Items(users, folders, items []string, opts ...option) []OneDriveScope {
+func (s *oneDrive) Items(folders, items []string, opts ...option) []OneDriveScope {
 	scopes := []OneDriveScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveItem, users, items).
+		makeScope[OneDriveScope](OneDriveItem, items).
 			set(OneDriveFolder, folders, opts...),
 	)
 
@@ -311,7 +335,7 @@ const (
 // oneDriveLeafProperties describes common metadata of the leaf categories
 var oneDriveLeafProperties = map[categorizer]leafProperty{
 	OneDriveItem: {
-		pathKeys: []categorizer{OneDriveUser, OneDriveFolder, OneDriveItem},
+		pathKeys: []categorizer{OneDriveFolder, OneDriveItem},
 		pathType: path.FilesCategory,
 	},
 	OneDriveUser: { // the root category must be represented, even though it isn't a leaf
@@ -371,7 +395,6 @@ func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
 	folder := path.Builder{}.Append(p.Folders()...).PopFront().PopFront().PopFront().String()
 
 	return map[categorizer]string{
-		OneDriveUser:   p.ResourceOwner(),
 		OneDriveFolder: folder,
 		OneDriveItem:   p.Item(),
 	}

@@ -9,12 +9,16 @@ import (
 const (
 	LibraryItemFN = "library-item"
 	LibraryFN     = "library"
+	ListItemFN    = "list-item"
+	ListFN        = "list"
 	WebURLFN      = "web-url"
 )
 
 type SharePointOpts struct {
 	LibraryItems []string
 	LibraryPaths []string
+	ListItems    []string
+	ListPaths    []string
 	Sites        []string
 	WebURLs      []string
 
@@ -50,21 +54,22 @@ func AddSharePointFilter(
 
 // IncludeSharePointRestoreDataSelectors builds the common data-selector
 // inclusions for SharePoint commands.
-func IncludeSharePointRestoreDataSelectors(
-	sel *selectors.SharePointRestore,
-	opts SharePointOpts,
-) {
+func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.SharePointRestore {
+	sites := opts.Sites
+
 	lp, li := len(opts.LibraryPaths), len(opts.LibraryItems)
 	ls, lwu := len(opts.Sites), len(opts.WebURLs)
+	slp, sli := len(opts.ListPaths), len(opts.ListItems)
 
 	if ls == 0 {
-		opts.Sites = selectors.Any()
+		sites = selectors.Any()
 	}
 
-	if lp+li+lwu == 0 {
-		sel.Include(sel.Sites(opts.Sites))
+	sel := selectors.NewSharePointRestore(sites)
 
-		return
+	if lp+li+lwu+slp+sli == 0 {
+		sel.Include(sel.AllData())
+		return sel
 	}
 
 	if lp+li > 0 {
@@ -76,11 +81,28 @@ func IncludeSharePointRestoreDataSelectors(
 		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
 
 		if len(containsFolders) > 0 {
-			sel.Include(sel.LibraryItems(opts.Sites, containsFolders, opts.LibraryItems))
+			sel.Include(sel.LibraryItems(containsFolders, opts.LibraryItems))
 		}
 
 		if len(prefixFolders) > 0 {
-			sel.Include(sel.LibraryItems(opts.Sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+			sel.Include(sel.LibraryItems(prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+		}
+	}
+
+	if slp+sli > 0 {
+		if sli == 0 {
+			opts.ListItems = selectors.Any()
+		}
+
+		opts.ListPaths = trimFolderSlash(opts.ListPaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListPaths)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.ListItems(containsFolders, opts.ListItems))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.ListItems(prefixFolders, opts.ListItems, selectors.PrefixMatch()))
 		}
 	}
 
@@ -96,6 +118,8 @@ func IncludeSharePointRestoreDataSelectors(
 			sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
 		}
 	}
+
+	return sel
 }
 
 // FilterSharePointRestoreInfoSelectors builds the common info-selector filters.

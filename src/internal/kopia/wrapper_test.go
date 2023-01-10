@@ -148,19 +148,16 @@ type KopiaIntegrationSuite struct {
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoKopiaWrapperTests)
 
 	suite.Run(t, new(KopiaIntegrationSuite))
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 
 	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
 		testTenant,
@@ -210,39 +207,35 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		),
 	}
 
-	k, v := MakeServiceCat(path.ExchangeService, path.EmailCategory)
-	oc := &OwnersCats{
-		ResourceOwners: map[string]struct{}{
-			testUser: {},
-		},
-		ServiceCats: map[string]ServiceCat{
-			k: v,
-		},
-	}
-
-	// tags that are expected to populate as a side effect
-	// of the backup process.
-	baseTagKeys := []string{
-		serviceCatTag(suite.testPath1),
-		suite.testPath1.ResourceOwner(),
-		serviceCatTag(suite.testPath2),
-		suite.testPath2.ResourceOwner(),
-	}
-
-	// tags that are supplied by the caller.
-	customTags := map[string]string{
+	// tags that are supplied by the caller. This includes basic tags to support
+	// lookups and extra tags the caller may want to apply.
+	tags := map[string]string{
 		"fnords":    "smarf",
 		"brunhilda": "",
 	}
 
-	expectedTags := map[string]string{}
-
-	for _, k := range baseTagKeys {
-		tk, tv := MakeTagKV(k)
-		expectedTags[tk] = tv
+	reasons := []Reason{
+		{
+			ResourceOwner: suite.testPath1.ResourceOwner(),
+			Service:       suite.testPath1.Service(),
+			Category:      suite.testPath1.Category(),
+		},
+		{
+			ResourceOwner: suite.testPath2.ResourceOwner(),
+			Service:       suite.testPath2.Service(),
+			Category:      suite.testPath2.Category(),
+		},
 	}
 
-	maps.Copy(expectedTags, normalizeTagKVs(customTags))
+	for _, r := range reasons {
+		for _, k := range r.TagKeys() {
+			tags[k] = ""
+		}
+	}
+
+	expectedTags := map[string]string{}
+
+	maps.Copy(expectedTags, normalizeTagKVs(tags))
 
 	table := []struct {
 		name                  string
@@ -269,9 +262,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				suite.ctx,
 				prevSnaps,
 				collections,
-				path.ExchangeService,
-				oc,
-				customTags,
+				tags,
 				true,
 			)
 			assert.NoError(t, err)
@@ -328,14 +319,15 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
-	mapK, mapV := MakeServiceCat(path.ExchangeService, path.EmailCategory)
-	oc := &OwnersCats{
-		ResourceOwners: map[string]struct{}{
-			testUser: {},
-		},
-		ServiceCats: map[string]ServiceCat{
-			mapK: mapV,
-		},
+	tags := map[string]string{}
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	dc1 := mockconnector.NewMockExchangeCollection(suite.testPath1, 1)
@@ -351,9 +343,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		ctx,
 		nil,
 		[]data.Collection{dc1, dc2},
-		path.ExchangeService,
-		oc,
-		nil,
+		tags,
 		true,
 	)
 	require.NoError(t, err)
@@ -383,14 +373,15 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
-	k, v := MakeServiceCat(path.ExchangeService, path.EmailCategory)
-	oc := &OwnersCats{
-		ResourceOwners: map[string]struct{}{
-			testUser: {},
-		},
-		ServiceCats: map[string]ServiceCat{
-			k: v,
-		},
+	tags := map[string]string{}
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	collections := []data.Collection{
@@ -434,9 +425,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		suite.ctx,
 		nil,
 		collections,
-		path.ExchangeService,
-		oc,
-		nil,
+		tags,
 		true,
 	)
 	require.NoError(t, err)
@@ -480,8 +469,6 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				ctx,
 				nil,
 				test.collections,
-				path.UnknownService,
-				&OwnersCats{},
 				nil,
 				true,
 			)
@@ -509,19 +496,16 @@ type KopiaSimpleRepoIntegrationSuite struct {
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoKopiaWrapperTests)
 
 	suite.Run(t, new(KopiaSimpleRepoIntegrationSuite))
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 
 	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
 		testTenant,
@@ -628,23 +612,22 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
-	k, v := MakeServiceCat(path.ExchangeService, path.EmailCategory)
-	oc := &OwnersCats{
-		ResourceOwners: map[string]struct{}{
-			testUser: {},
-		},
-		ServiceCats: map[string]ServiceCat{
-			k: v,
-		},
+	tags := map[string]string{}
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	stats, deets, _, err := suite.w.BackupCollections(
 		suite.ctx,
 		nil,
 		collections,
-		path.ExchangeService,
-		oc,
-		nil,
+		tags,
 		false,
 	)
 	require.NoError(t, err)

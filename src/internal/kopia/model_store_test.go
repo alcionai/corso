@@ -63,19 +63,16 @@ type ModelStoreIntegrationSuite struct {
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoModelStoreTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoModelStoreTests)
 
 	suite.Run(t, new(ModelStoreIntegrationSuite))
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
@@ -712,19 +709,16 @@ type ModelStoreRegressionSuite struct {
 }
 
 func TestModelStoreRegressionSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoModelStoreTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoModelStoreTests)
 
 	suite.Run(t, new(ModelStoreRegressionSuite))
 }
 
 func (suite *ModelStoreRegressionSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvVars(tester.AWSStorageCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
 }
 
 // TODO(ashmrtn): Make a mock of whatever controls the handle to kopia so we can

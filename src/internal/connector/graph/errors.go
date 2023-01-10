@@ -1,11 +1,11 @@
 package graph
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -18,6 +18,7 @@ const (
 	errCodeItemNotFound        = "ErrorItemNotFound"
 	errCodeEmailFolderNotFound = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired      = "ResyncRequired"
+	errCodeSyncFolderNotFound  = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound   = "SyncStateNotFound"
 )
 
@@ -32,7 +33,7 @@ func IsErrDeletedInFlight(err error) error {
 		return err
 	}
 
-	if hasErrorCode(err, errCodeItemNotFound) {
+	if hasErrorCode(err, errCodeItemNotFound, errCodeSyncFolderNotFound) {
 		return ErrDeletedInFlight{*common.EncapsulateError(err)}
 	}
 
@@ -56,8 +57,7 @@ func IsErrInvalidDelta(err error) error {
 		return err
 	}
 
-	if hasErrorCode(err, errCodeSyncStateNotFound) ||
-		hasErrorCode(err, errCodeResyncRequired) {
+	if hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) {
 		return ErrInvalidDelta{*common.EncapsulateError(err)}
 	}
 
@@ -98,9 +98,8 @@ func asTimeout(err error) bool {
 // error parsers
 // ---------------------------------------------------------------------------
 
-func hasErrorCode(err error, code string) bool {
+func hasErrorCode(err error, codes ...string) bool {
 	if err == nil {
-		fmt.Println("nil")
 		return false
 	}
 
@@ -109,8 +108,11 @@ func hasErrorCode(err error, code string) bool {
 		return false
 	}
 
-	return oDataError.GetError().GetCode() != nil &&
-		*oDataError.GetError().GetCode() == code
+	if oDataError.GetError().GetCode() == nil {
+		return false
+	}
+
+	return slices.Contains(codes, *oDataError.GetError().GetCode())
 }
 
 // isTimeoutErr is used to determine if the Graph error returned is

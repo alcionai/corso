@@ -200,14 +200,9 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 }
 
 func s3Overrides() map[string]string {
-	var (
-		prvM365 = account.ProviderM365.String()
-		prvS3   = storage.ProviderS3.String()
-	)
-
 	return map[string]string{
-		config.AccountProviderTypeKey: prvM365,
-		config.StorageProviderTypeKey: prvS3,
+		config.AccountProviderTypeKey: account.ProviderM365.String(),
+		config.StorageProviderTypeKey: storage.ProviderS3.String(),
 		storage.Bucket:                bucket,
 		storage.Endpoint:              endpoint,
 		storage.Prefix:                prefix,

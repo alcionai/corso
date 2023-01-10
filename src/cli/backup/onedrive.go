@@ -83,7 +83,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
-		fs.StringArrayVar(&user,
+		fs.StringSliceVar(&user,
 			utils.UserFN, nil,
 			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
 		options.AddOperationFlags(c)
@@ -194,7 +194,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	sel := oneDriveBackupCreateSelectors(user)
 
-	users, err := m365.UserIDs(ctx, acct)
+	users, err := m365.UserPNs(ctx, acct)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -204,35 +204,30 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		bIDs []model.StableID
 	)
 
-	for _, scope := range sel.DiscreteScopes(users) {
-		for _, selUser := range scope.Get(selectors.OneDriveUser) {
-			opSel := selectors.NewOneDriveBackup([]string{selUser})
-			opSel.Include([]selectors.OneDriveScope{scope.DiscreteCopy(selUser)})
+	for _, discSel := range sel.SplitByResourceOwner(users) {
+		bo, err := r.NewBackup(ctx, discSel.Selector)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to initialize OneDrive backup for user %s",
+				discSel.DiscreteOwner,
+			))
 
-			bo, err := r.NewBackup(ctx, opSel.Selector)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to initialize OneDrive backup for user %s",
-					scope.Get(selectors.OneDriveUser),
-				))
-
-				continue
-			}
-
-			err = bo.Run(ctx)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(
-					err,
-					"Failed to run OneDrive backup for user %s",
-					scope.Get(selectors.OneDriveUser),
-				))
-
-				continue
-			}
-
-			bIDs = append(bIDs, bo.Results.BackupID)
+			continue
 		}
+
+		err = bo.Run(ctx)
+		if err != nil {
+			errs = multierror.Append(errs, errors.Wrapf(
+				err,
+				"Failed to run OneDrive backup for user %s",
+				discSel.DiscreteOwner,
+			))
+
+			continue
+		}
+
+		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
 	bups, err := r.Backups(ctx, bIDs)
@@ -259,7 +254,7 @@ func validateOneDriveBackupCreateFlags(users []string) error {
 
 func oneDriveBackupCreateSelectors(users []string) *selectors.OneDriveBackup {
 	sel := selectors.NewOneDriveBackup(users)
-	sel.Include(sel.Users(users))
+	sel.Include(sel.AllData())
 
 	return sel
 }
@@ -401,14 +396,8 @@ func runDetailsOneDriveCmd(
 		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
 	}
 
-	sel := selectors.NewOneDriveRestore(nil) // TODO: generate selector in IncludeExchangeRestoreDataSelectors
-	utils.IncludeOneDriveRestoreDataSelectors(sel, opts)
+	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
-
-	// if no selector flags were specified, get all data in the service.
-	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Users(selectors.Any()))
-	}
 
 	return sel.Reduce(ctx, d), nil
 }

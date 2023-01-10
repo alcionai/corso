@@ -11,28 +11,39 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ---------------------------------------------------------------------------
+// mocks and helpers
+// ---------------------------------------------------------------------------
+
+var _ graph.CachedContainer = &mockContainer{}
+
 type mockContainer struct {
-	id       *string
-	name     *string
-	parentID *string
+	id          *string
+	displayName *string
+	parentID    *string
+	p           *path.Builder
 }
 
 //nolint:revive
-func (m mockContainer) GetId() *string {
-	return m.id
-}
-
-func (m mockContainer) GetDisplayName() *string {
-	return m.name
-}
+func (m mockContainer) GetId() *string { return m.id }
 
 //nolint:revive
-func (m mockContainer) GetParentFolderId() *string {
-	return m.parentID
+func (m mockContainer) GetParentFolderId() *string { return m.parentID }
+func (m mockContainer) GetDisplayName() *string    { return m.displayName }
+func (m mockContainer) Path() *path.Builder        { return m.p }
+func (m mockContainer) SetPath(p *path.Builder)    {}
+
+func strPtr(s string) *string {
+	return &s
 }
+
+// ---------------------------------------------------------------------------
+// unit suite
+// ---------------------------------------------------------------------------
 
 type FolderCacheUnitSuite struct {
 	suite.Suite
@@ -58,45 +69,45 @@ var (
 		{
 			name: "NilID",
 			c: mockContainer{
-				id:       nil,
-				name:     &testName,
-				parentID: &testParentID,
+				id:          nil,
+				displayName: &testName,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "NilDisplayName",
 			c: mockContainer{
-				id:       &testID,
-				name:     nil,
-				parentID: &testParentID,
+				id:          &testID,
+				displayName: nil,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "EmptyID",
 			c: mockContainer{
-				id:       &emptyString,
-				name:     &testName,
-				parentID: &testParentID,
+				id:          &emptyString,
+				displayName: &testName,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "EmptyDisplayName",
 			c: mockContainer{
-				id:       &testID,
-				name:     &emptyString,
-				parentID: &testParentID,
+				id:          &testID,
+				displayName: &emptyString,
+				parentID:    &testParentID,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "AllValues",
 			c: mockContainer{
-				id:       &testID,
-				name:     &testName,
-				parentID: &testParentID,
+				id:          &testID,
+				displayName: &testName,
+				parentID:    &testParentID,
 			},
 			check: assert.NoError,
 		},
@@ -116,18 +127,18 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 		{
 			name: "NilParentFolderID",
 			c: mockContainer{
-				id:       &testID,
-				name:     &testName,
-				parentID: nil,
+				id:          &testID,
+				displayName: &testName,
+				parentID:    nil,
 			},
 			check: assert.Error,
 		},
 		{
 			name: "EmptyParentFolderID",
 			c: mockContainer{
-				id:       &testID,
-				name:     &testName,
-				parentID: &emptyString,
+				id:          &testID,
+				displayName: &testName,
+				parentID:    &emptyString,
 			},
 			check: assert.Error,
 		},
@@ -152,9 +163,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoParentNoPath",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     &testName,
-					parentID: nil,
+					id:          &testID,
+					displayName: &testName,
+					parentID:    nil,
 				},
 				nil,
 			),
@@ -164,9 +175,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoParentPath",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     &testName,
-					parentID: nil,
+					id:          &testID,
+					displayName: &testName,
+					parentID:    nil,
 				},
 				path.Builder{}.Append("foo"),
 			),
@@ -176,9 +187,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoName",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     nil,
-					parentID: &testParentID,
+					id:          &testID,
+					displayName: nil,
+					parentID:    &testParentID,
 				},
 				path.Builder{}.Append("foo"),
 			),
@@ -188,9 +199,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoID",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       nil,
-					name:     &testName,
-					parentID: &testParentID,
+					id:          nil,
+					displayName: &testName,
+					parentID:    &testParentID,
 				},
 				path.Builder{}.Append("foo"),
 			),
@@ -200,9 +211,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 			name: "NoPath",
 			cf: graph.NewCacheFolder(
 				&mockContainer{
-					id:       &testID,
-					name:     &testName,
-					parentID: &testParentID,
+					id:          &testID,
+					displayName: &testName,
+					parentID:    &testParentID,
 				},
 				nil,
 			),
@@ -283,6 +294,10 @@ func resolverWithContainers(numContainers int) (*containerResolver, []*mockCache
 
 	return resolver, containers
 }
+
+// ---------------------------------------------------------------------------
+// configured unit suite
+// ---------------------------------------------------------------------------
 
 // TestConfiguredFolderCacheUnitSuite cannot run its tests in parallel.
 type ConfiguredFolderCacheUnitSuite struct {
@@ -430,4 +445,180 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	p, err := suite.fc.IDToPath(ctx, m.id)
 	require.NoError(t, err)
 	assert.Equal(t, m.expectedPath, p.String())
+}
+
+// ---------------------------------------------------------------------------
+// integration suite
+// ---------------------------------------------------------------------------
+
+type FolderCacheIntegrationSuite struct {
+	suite.Suite
+	credentials account.M365Config
+	gs          graph.Servicer
+}
+
+func TestFolderCacheIntegrationSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoConnectorExchangeFolderCacheTests)
+
+	suite.Run(t, new(FolderCacheIntegrationSuite))
+}
+
+func (suite *FolderCacheIntegrationSuite) SetupSuite() {
+	t := suite.T()
+	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
+
+	a := tester.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err)
+
+	suite.credentials = m365
+
+	adpt, err := graph.CreateAdapter(
+		m365.AzureTenantID,
+		m365.AzureClientID,
+		m365.AzureClientSecret)
+	require.NoError(t, err)
+
+	suite.gs = graph.NewService(adpt)
+
+	require.NoError(suite.T(), err)
+}
+
+// Testing to ensure that cache system works for in multiple different environments
+func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	a := tester.NewM365Account(suite.T())
+	m365, err := a.M365Config()
+	require.NoError(suite.T(), err)
+
+	var (
+		user            = tester.M365UserID(suite.T())
+		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
+		folderName      = tester.DefaultTestRestoreDestination().ContainerName
+		tests           = []struct {
+			name      string
+			pathFunc1 func(t *testing.T) path.Path
+			pathFunc2 func(t *testing.T) path.Path
+			category  path.CategoryType
+		}{
+			{
+				name:     "Mail Cache Test",
+				category: path.EmailCategory,
+				pathFunc1: func(t *testing.T) path.Path {
+					pth, err := path.Builder{}.Append("Griffindor").
+						Append("Croix").ToDataLayerExchangePathForCategory(
+						suite.credentials.AzureTenantID,
+						user,
+						path.EmailCategory,
+						false,
+					)
+
+					require.NoError(t, err)
+					return pth
+				},
+				pathFunc2: func(t *testing.T) path.Path {
+					pth, err := path.Builder{}.Append("Griffindor").
+						Append("Felicius").ToDataLayerExchangePathForCategory(
+						suite.credentials.AzureTenantID,
+						user,
+						path.EmailCategory,
+						false,
+					)
+
+					require.NoError(t, err)
+					return pth
+				},
+			},
+			{
+				name:     "Contact Cache Test",
+				category: path.ContactsCategory,
+				pathFunc1: func(t *testing.T) path.Path {
+					aPath, err := path.Builder{}.Append("HufflePuff").
+						ToDataLayerExchangePathForCategory(
+							suite.credentials.AzureTenantID,
+							user,
+							path.ContactsCategory,
+							false,
+						)
+
+					require.NoError(t, err)
+					return aPath
+				},
+				pathFunc2: func(t *testing.T) path.Path {
+					aPath, err := path.Builder{}.Append("Ravenclaw").
+						ToDataLayerExchangePathForCategory(
+							suite.credentials.AzureTenantID,
+							user,
+							path.ContactsCategory,
+							false,
+						)
+
+					require.NoError(t, err)
+					return aPath
+				},
+			},
+			{
+				name:     "Event Cache Test",
+				category: path.EventsCategory,
+				pathFunc1: func(t *testing.T) path.Path {
+					aPath, err := path.Builder{}.Append("Durmstrang").
+						ToDataLayerExchangePathForCategory(
+							suite.credentials.AzureTenantID,
+							user,
+							path.EventsCategory,
+							false,
+						)
+					require.NoError(t, err)
+					return aPath
+				},
+				pathFunc2: func(t *testing.T) path.Path {
+					aPath, err := path.Builder{}.Append("Beauxbatons").
+						ToDataLayerExchangePathForCategory(
+							suite.credentials.AzureTenantID,
+							user,
+							path.EventsCategory,
+							false,
+						)
+					require.NoError(t, err)
+					return aPath
+				},
+			},
+		}
+	)
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			folderID, err := CreateContainerDestinaion(
+				ctx,
+				m365,
+				test.pathFunc1(t),
+				folderName,
+				directoryCaches)
+			require.NoError(t, err)
+
+			resolver := directoryCaches[test.category]
+
+			_, err = resolver.IDToPath(ctx, folderID)
+			assert.NoError(t, err)
+
+			secondID, err := CreateContainerDestinaion(
+				ctx,
+				m365,
+				test.pathFunc2(t),
+				folderName,
+				directoryCaches)
+			require.NoError(t, err)
+
+			_, err = resolver.IDToPath(ctx, secondID)
+			require.NoError(t, err)
+
+			_, ok := resolver.PathInCache(folderName)
+			require.True(t, ok)
+		})
+	}
 }

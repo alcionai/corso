@@ -150,6 +150,10 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
+	// Close/Reset the progress bar. This ensures callers don't have to worry about
+	// their output getting clobbered (#1720)
+	defer observe.Complete()
+
 	complete, closer := observe.MessageWithCompletion("Connecting to repository:")
 	defer closer()
 	defer close(complete)
@@ -302,7 +306,7 @@ func (r repository) BackupDetails(ctx context.Context, backupID string) (*detail
 	deets, err := streamstore.New(
 		r.dataLayer,
 		r.Account.ID(),
-		b.Selectors.PathService()).ReadBackupDetails(ctx, dID)
+		b.Selector.PathService()).ReadBackupDetails(ctx, dID)
 	if err != nil {
 		return nil, nil, err
 	}

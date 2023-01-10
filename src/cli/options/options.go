@@ -19,8 +19,8 @@ func Control() control.Options {
 		opt.DisableMetrics = true
 	}
 
-	if exchangeIncrementals {
-		opt.EnabledFeatures.ExchangeIncrementals = true
+	if disableIncrementals {
+		opt.ToggleFeatures.DisableIncrementals = true
 	}
 
 	return opt
@@ -53,28 +53,28 @@ func AddGlobalOperationFlags(cmd *cobra.Command) {
 // Feature Flags
 // ---------------------------------------------------------------------------
 
-var exchangeIncrementals bool
+var disableIncrementals bool
 
 type exposeFeatureFlag func(*pflag.FlagSet)
 
-// AddFeatureFlags adds CLI flags for each exposed feature flags to the
+// AddFeatureToggle adds CLI flags for each exposed feature toggle to the
 // persistent flag set within the command.
-func AddFeatureFlags(cmd *cobra.Command, effs ...exposeFeatureFlag) {
+func AddFeatureToggle(cmd *cobra.Command, effs ...exposeFeatureFlag) {
 	fs := cmd.PersistentFlags()
 	for _, fflag := range effs {
 		fflag(fs)
 	}
 }
 
-// Adds the '--exchange-incrementals' cli flag which, when set, enables
-// incrementals data retrieval for exchange backups.
-func ExchangeIncrementals() func(*pflag.FlagSet) {
+// Adds the hidden '--no-incrementals' cli flag which, when set, disables
+// incremental backups.
+func DisableIncrementals() func(*pflag.FlagSet) {
 	return func(fs *pflag.FlagSet) {
 		fs.BoolVar(
-			&exchangeIncrementals,
-			"exchange-incrementals",
+			&disableIncrementals,
+			"disable-incrementals",
 			false,
-			"Enable incremental data retrieval in Exchange backups.")
-		cobra.CheckErr(fs.MarkHidden("exchange-incrementals"))
+			"Disable incremental data retrieval in backups.")
+		cobra.CheckErr(fs.MarkHidden("disable-incrementals"))
 	}
 }
