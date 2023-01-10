@@ -121,8 +121,7 @@ func runDisplayM365JSON(
 	}
 
 	// First return is the number of bytes that were serialized. Ignored
-	service := gs.(graph.Service)
-	_, err = serializeFunc(ctx, &service, channel, response, user)
+	_, err = serializeFunc(ctx, gs, channel, response, user)
 	close(channel)
 
 	if err != nil {
