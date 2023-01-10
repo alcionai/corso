@@ -520,6 +520,7 @@ func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
 	ItemName   string    `json:"itemName"`
+	DriveName  string    `json:"driveName"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
