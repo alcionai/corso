@@ -24,6 +24,7 @@ const (
 	OneDriveSource
 	SharePointSource
 )
+const restrictedDirectory = "Site Pages"
 
 type folderMatcher interface {
 	IsAny() bool
@@ -129,6 +130,16 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 			continue
 		}
 
+		isRestricted, err := restrictedPath(ctx, c.service, collectionPath)
+		if err != nil {
+			return err
+		}
+
+		if isRestricted {
+			logger.Ctx(ctx).Infof("Restricted Path skipped %s", collectionPath.String())
+			continue
+		}
+
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
 			// Leave this here so we don't fall into the default case.
@@ -163,6 +174,29 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 	}
 
 	return nil
+}
+
+func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.Path) (bool, error) {
+	folders := drivePath.Folders()
+	if len(folders) < 2 {
+		return false, nil
+	}
+
+	driveObj, err := service.
+		Client().
+		DrivesById(folders[1]).
+		Get(ctx,
+			optionsSingleDrive([]string{"id", "name"}),
+		)
+	if err != nil {
+		return false, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+	}
+
+	if *driveObj.GetName() == restrictedDirectory {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // GetCanonicalPath constructs the standard path for the given source.
