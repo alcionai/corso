@@ -173,7 +173,6 @@ func shouldSkipDrive(ctx context.Context, service graph.Servicer, drivePath path
 	}
 
 	return restrictedPath(ctx, service, drivePath)
-
 }
 
 func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.Path) bool {
