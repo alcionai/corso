@@ -129,7 +129,7 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 // separately for restore processes because the local itemable
 // doesn't have its size value updated as a side effect of creation,
 // and kiota drops any SetSize update.
-// TODO: UPDATE
+// TODO: Update drive name during Issue #2071
 func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
 	var (
 		id, parent, url string
