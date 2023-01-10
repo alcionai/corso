@@ -526,6 +526,20 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			expectNilMans: true,
 		},
 		{
+			name: "backup missing details id",
+			mr: mockManifestRestorer{
+				mockRestorer: mockRestorer{colls: []data.Collection{}},
+				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "bid")},
+			},
+			gdi:           mockGetDetailsIDer{},
+			reasons:       []kopia.Reason{},
+			getMeta:       true,
+			assertErr:     assert.Error,
+			assertB:       assert.False,
+			expectDCS:     []data.Collection{},
+			expectNilMans: true,
+		},
+		{
 			name: "one complete man, one incomplete",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{colls: []data.Collection{}},
