@@ -483,10 +483,5 @@ func runDetailsSharePointCmd(
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	// if no selector flags were specified, get all data in the service.
-	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.AllData())
-	}
-
 	return sel.Reduce(ctx, d), nil
 }

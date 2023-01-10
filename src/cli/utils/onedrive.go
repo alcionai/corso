@@ -84,7 +84,6 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 	// is specified
 	if lp+ln == 0 {
 		sel.Include(sel.AllData())
-
 		return sel
 	}
 
