@@ -430,3 +430,13 @@ func hasDriveLicense(
 
 	return hasDrive, nil
 }
+
+func optionsSingleDrive(opts []string) *msdrives.DriveItemRequestBuilderGetRequestConfiguration {
+	config := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
+			Select: opts,
+		},
+	}
+
+	return config
+}
