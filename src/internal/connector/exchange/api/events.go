@@ -18,6 +18,11 @@ import (
 // controller
 // ---------------------------------------------------------------------------
 
+func (c Client) Events() Events {
+	return Events{c}
+}
+
+// Events is an interface-compliant provider of the client.
 type Events struct {
 	Client
 }
@@ -124,6 +129,39 @@ func (c Events) EnumerateContainers(
 	return errs.ErrorOrNil()
 }
 
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
+
+type eventWrapper struct {
+	models.EventCollectionResponseable
+}
+
+func (ew eventWrapper) GetOdataDeltaLink() *string {
+	return nil
+}
+
+var _ itemPager = &eventPager{}
+
+type eventPager struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsItemEventsRequestBuilder
+	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
+}
+
+func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return eventWrapper{resp}, err
+}
+
+func (p *eventPager) setNext(nextLink string) {
+	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Eventable](pl)
+}
+
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
@@ -133,10 +171,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var (
-		errs *multierror.Error
-		ids  []string
-	)
+	var errs *multierror.Error
 
 	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
@@ -144,41 +179,15 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	}
 
 	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
+	pgr := &eventPager{service, builder, options}
 
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, nil, DeltaUpdate{}, err
-			}
-
-			return nil, nil, DeltaUpdate{}, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, item := range resp.GetValue() {
-			if item.GetId() == nil {
-				errs = multierror.Append(
-					errs,
-					errors.Errorf("event with nil ID in calendar %s", calendarID),
-				)
-
-				// TODO(ashmrtn): Handle fail-fast.
-				continue
-			}
-
-			ids = append(ids, *item.GetId())
-		}
-
-		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil || len(*nextLink) == 0 {
-			break
-		}
-
-		builder = users.NewItemCalendarsItemEventsRequestBuilder(*nextLink, service.Adapter())
+	added, _, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
-	return ids, nil, DeltaUpdate{}, errs.ErrorOrNil()
+	return added, nil, DeltaUpdate{}, errs.ErrorOrNil()
 }
 
 // ---------------------------------------------------------------------------

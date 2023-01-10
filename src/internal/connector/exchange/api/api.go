@@ -87,18 +87,6 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 	return graph.NewService(adapter), nil
 }
 
-func (c Client) Contacts() Contacts {
-	return Contacts{c}
-}
-
-func (c Client) Events() Events {
-	return Events{c}
-}
-
-func (c Client) Mail() Mail {
-	return Mail{c}
-}
-
 // ---------------------------------------------------------------------------
 // helper funcs
 // ---------------------------------------------------------------------------
