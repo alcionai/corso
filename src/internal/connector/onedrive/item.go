@@ -105,9 +105,11 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		}
 	}
 
-	if di.GetParentReference().GetName() != nil {
-		// EndPoint is not always populated from external apps
-		parent = *di.GetParentReference().GetName()
+	if di.GetParentReference() != nil {
+		if di.GetParentReference().GetName() != nil {
+			// EndPoint is not always populated from external apps
+			parent = *di.GetParentReference().GetName()
+		}
 	}
 
 	return &details.OneDriveInfo{
