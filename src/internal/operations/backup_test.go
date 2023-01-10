@@ -35,10 +35,28 @@ import (
 // ----- restore producer
 
 type mockRestorer struct {
-	gotPaths []path.Path
+	gotPaths  []path.Path
+	colls     []data.Collection
+	err       error
+	onRestore restoreFunc
 }
 
-func (mr *mockRestorer) RestoreMultipleItems(
+type restoreFunc func(id string, ps []path.Path) ([]data.Collection, error)
+
+func (mr *mockRestorer) buildRestoreFunc(
+	t *testing.T,
+	oid string,
+	ops []path.Path,
+) {
+	mr.onRestore = func(id string, ps []path.Path) ([]data.Collection, error) {
+		assert.Equal(t, oid, id, "manifest id")
+		checkPaths(t, ops, ps)
+
+		return mr.colls, mr.err
+	}
+}
+
+func (mr mockRestorer) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
@@ -46,13 +64,15 @@ func (mr *mockRestorer) RestoreMultipleItems(
 ) ([]data.Collection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
-	return nil, nil
+	if mr.onRestore != nil {
+		return mr.onRestore(snapshotID, paths)
+	}
+
+	return mr.colls, mr.err
 }
 
-func (mr mockRestorer) checkPaths(t *testing.T, expected []path.Path) {
-	t.Helper()
-
-	assert.ElementsMatch(t, expected, mr.gotPaths)
+func checkPaths(t *testing.T, expected, got []path.Path) {
+	assert.ElementsMatch(t, expected, got)
 }
 
 // ----- backup producer
@@ -168,6 +188,27 @@ func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) e
 // helper funcs
 // ---------------------------------------------------------------------------
 
+// expects you to Append your own file
+func makeMetadataBasePath(
+	t *testing.T,
+	tenant string,
+	service path.ServiceType,
+	resourceOwner string,
+	category path.CategoryType,
+) path.Path {
+	t.Helper()
+
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenant,
+		resourceOwner,
+		service,
+		category,
+		false)
+	require.NoError(t, err)
+
+	return p
+}
+
 func makeMetadataPath(
 	t *testing.T,
 	tenant string,
@@ -183,8 +224,7 @@ func makeMetadataPath(
 		resourceOwner,
 		service,
 		category,
-		true,
-	)
+		true)
 	require.NoError(t, err)
 
 	return p
@@ -635,7 +675,7 @@ func (suite *BackupOpSuite) TestBackupOperation_CollectMetadata() {
 			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant)
 			assert.NoError(t, err)
 
-			mr.checkPaths(t, test.expected)
+			checkPaths(t, test.expected, mr.gotPaths)
 		})
 	}
 }
