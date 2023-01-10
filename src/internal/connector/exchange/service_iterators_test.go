@@ -95,7 +95,7 @@ func TestServiceIteratorsSuite(t *testing.T) {
 }
 
 func (suite *ServiceIteratorsSuite) SetupSuite() {
-	a := tester.NewM365Account(suite.T())
+	a := tester.NewMockM365Account(suite.T())
 	m365, err := a.M365Config()
 	require.NoError(suite.T(), err)
 	suite.creds = m365
@@ -343,7 +343,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
 	var (
 		userID   = "user_id"
-		tenantID = tester.M365TenantID(suite.T())
+		tenantID = suite.creds.AzureTenantID
 		cat      = path.EmailCategory // doesn't matter which one we use,
 		qp       = graph.QueryParams{
 			Category:      cat,

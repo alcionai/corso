@@ -276,14 +276,20 @@ func makeDetailsEntry(
 	return res
 }
 
+// TODO(ashmrtn): This should belong to some code that lives in the kopia
+// package that is only compiled when running tests.
+func makeKopiaTagKey(k string) string {
+	return "tag:" + k
+}
+
 func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string) *snapshot.Manifest {
 	t.Helper()
 
-	backupIDTagKey, _ := kopia.MakeTagKV(kopia.TagBackupID)
+	tagKey := makeKopiaTagKey(kopia.TagBackupID)
 
 	return &snapshot.Manifest{
 		Tags: map[string]string{
-			backupIDTagKey: string(backupID),
+			tagKey: string(backupID),
 		},
 		IncompleteReason: incompleteReason,
 	}
