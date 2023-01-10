@@ -41,17 +41,20 @@ func (fm testFolderMatcher) Matches(path string) bool {
 
 type SharePointLibrariesSuite struct {
 	suite.Suite
+	mockService mockServicer
 }
 
-func (suite *SharePointLibrariesSuite) Client() *msgraphsdk.GraphServiceClient {
+type mockServicer struct{}
+
+func (mock mockServicer) Client() *msgraphsdk.GraphServiceClient {
 	return nil
 }
 
-func (suite *SharePointLibrariesSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (mock mockServicer) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (suite *SharePointLibrariesSuite) Serialize(object absser.Parsable) ([]byte, error) {
+func (mock mockServicer) Serialize(object absser.Parsable) ([]byte, error) {
 	return nil, nil
 }
 
@@ -106,7 +109,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				site,
 				onedrive.SharePointSource,
 				testFolderMatcher{test.scope},
-				suite,
+				suite.mockService,
 				nil,
 				control.Options{})
 			err := c.UpdateCollections(ctx, "driveID", test.items)
