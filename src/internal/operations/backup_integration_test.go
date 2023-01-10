@@ -191,8 +191,12 @@ func checkBackupIsInManifests(
 			require.NoError(t, err)
 
 			for _, man := range mans {
-				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-				if man.Tags[tk] == string(bo.Results.BackupID) {
+				bID, ok := man.GetTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+					continue
+				}
+
+				if bID == string(bo.Results.BackupID) {
 					found = true
 					break
 				}
