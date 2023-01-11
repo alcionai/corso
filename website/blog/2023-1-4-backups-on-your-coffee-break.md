@@ -11,7 +11,7 @@ image: ./images/coffee_break.jpg
 ![By Kenny Louie from Vancouver, Canada -Coffee break, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=24336256](./images/coffee_break.jpg)
 
 It’s 10:00 in the morning, and you need coffee and a snack.
-You know you’re supposed to back up the company’s M365 instance before you leave, but it takes so long! Surely a quick
+You know you’re supposed to back up the company’s Microsoft 365 instance, but it takes so long! Surely a quick
 break won’t matter.
 
 Wrong! While you were in the break room,
