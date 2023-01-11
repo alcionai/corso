@@ -126,3 +126,17 @@ directory within the container.
 
 </TabItem>
 </Tabs>
+
+## Log Files
+
+The location of log files varies by operating system:
+
+* On Linux - `~/.cache/corso/logs/<timestamp>.log`
+* On macOS - `~/Library/Logs/corso/logs/<timestamp>.log`
+* On Windows - `%LocalAppData%\corso/logs/<timestamp>.log`
+
+Log file location can be overridden by setting the `--log-file` flag.
+
+:::info
+You can use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
+:::
