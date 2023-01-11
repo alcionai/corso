@@ -402,6 +402,10 @@ func collectMetadata(
 
 	for _, fn := range fileNames {
 		for _, reason := range man.Reasons {
+			logger.Ctx(ctx).Debugf("Owner: %v\t Service: %s\tCategory: %s\n",
+				reason.ResourceOwner,
+				reason.Service.String(), reason.Category)
+
 			p, err := path.Builder{}.
 				Append(fn).
 				ToServiceCategoryMetadataPath(
