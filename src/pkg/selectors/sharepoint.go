@@ -315,6 +315,8 @@ const (
 	SharePointListItem    sharePointCategory = "SharePointListItem"
 	SharePointLibrary     sharePointCategory = "SharePointLibrary"
 	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
+	SharePointPage        sharePointCategory = "SharePointPage"
+	SharePointPageItem    sharePointCategory = "SharePointPageItem"
 
 	// filterable topics identified by SharePoint
 )
@@ -325,13 +327,17 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 		pathKeys: []categorizer{SharePointLibrary, SharePointLibraryItem},
 		pathType: path.LibrariesCategory,
 	},
-	SharePointSite: { // the root category must be represented, even though it isn't a leaf
-		pathKeys: []categorizer{SharePointSite},
-		pathType: path.UnknownCategory,
-	},
 	SharePointListItem: {
 		pathKeys: []categorizer{SharePointSite, SharePointList, SharePointListItem},
 		pathType: path.ListsCategory,
+	},
+	SharePointPageItem: {
+		pathKeys: []categorizer{SharePointPage, SharePointPageItem},
+		pathType: path.PagesCategory,
+	},
+	SharePointSite: { // the root category must be represented, even though it isn't a leaf
+		pathKeys: []categorizer{SharePointSite},
+		pathType: path.UnknownCategory,
 	},
 }
 
@@ -350,6 +356,8 @@ func (c sharePointCategory) leafCat() categorizer {
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
+	case SharePointPage, SharePointPageItem:
+		return SharePointPage
 	}
 
 	return c
@@ -389,6 +397,10 @@ func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
 		folderCat, itemCat = SharePointLibrary, SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+	case SharePointPage, SharePointPageItem:
+		folderCat, itemCat = SharePointPage, SharePointPageItem
+	default:
+		return map[categorizer]string{}
 	}
 
 	return map[categorizer]string{
@@ -429,6 +441,12 @@ func (s SharePointScope) categorizer() categorizer {
 	return s.Category()
 }
 
+// Matches returns true if the category is included in the scope's
+// data type, and the target string matches that category's comparator.
+func (s SharePointScope) Matches(cat sharePointCategory, target string) bool {
+	return matches(s, cat, target)
+}
+
 // FilterCategory returns the category enum of the scope filter.
 // If the scope is not a filter type, returns SharePointUnknownCategory.
 func (s SharePointScope) FilterCategory() sharePointCategory {
@@ -441,12 +459,6 @@ func (s SharePointScope) FilterCategory() sharePointCategory {
 // s.IncludesCategory(selector.SharePointFile)
 func (s SharePointScope) IncludesCategory(cat sharePointCategory) bool {
 	return categoryMatches(s.Category(), cat)
-}
-
-// Matches returns true if the category is included in the scope's
-// data type, and the target string matches that category's comparator.
-func (s SharePointScope) Matches(cat sharePointCategory, target string) bool {
-	return matches(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,
@@ -467,7 +479,7 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
-	case SharePointLibrary, SharePointList:
+	case SharePointLibrary, SharePointList, SharePointPage:
 		os = append(os, pathComparator())
 	}
 
@@ -482,10 +494,14 @@ func (s SharePointScope) setDefaults() {
 		s[SharePointLibraryItem.String()] = passAny
 		s[SharePointList.String()] = passAny
 		s[SharePointListItem.String()] = passAny
+		s[SharePointPage.String()] = passAny
+		s[SharePointPageItem.String()] = passAny
 	case SharePointLibrary:
 		s[SharePointLibraryItem.String()] = passAny
 	case SharePointList:
 		s[SharePointListItem.String()] = passAny
+	case SharePointPage:
+		s[SharePointPageItem.String()] = passAny
 	}
 }
 
@@ -509,6 +525,7 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 		map[path.CategoryType]sharePointCategory{
 			path.LibrariesCategory: SharePointLibraryItem,
 			path.ListsCategory:     SharePointListItem,
+			path.PagesCategory:     SharePointPageItem,
 		},
 	)
 }
