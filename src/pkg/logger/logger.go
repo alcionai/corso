@@ -171,7 +171,7 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 
 	// fall back to the core config if the default creation fails
 	if err != nil {
-		lgr = zap.New(*logCore)
+		lgr = zap.New(core)
 	}
 
 	return &core, lgr.Sugar()
