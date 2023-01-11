@@ -48,7 +48,7 @@ is growling -it may be pushed to the bottom of the priority list.
 
 Considering these challenges, it’s clear to see why an IT security staffer might put backups on the back burner.
 
-A Faster, Easier Way to Back up Your Data
+## A Faster, Easier Way to Back up Your Data
 
 Fortunately, [Corso](https://corsobackup.io/), a free and open-source tool, is enabling IT administrators to backup all
 their M365 data during their morning coffee break -or while their lunch is in the microwave. Here’s how:
