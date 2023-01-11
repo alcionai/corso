@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws/credentials"
+
 	"github.com/alcionai/corso/src/internal/common"
 )
 
@@ -35,6 +37,7 @@ const (
 type Storage struct {
 	Provider storageProvider
 	Config   map[string]string
+	Creds    *credentials.Credentials
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
@@ -44,6 +47,21 @@ func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, er
 	return Storage{
 		Provider: p,
 		Config:   cs,
+	}, err
+}
+
+// NewStorageWithCredentials supports specifying a credential container
+func NewStorageWithCredentials(
+	p storageProvider,
+	creds *credentials.Credentials,
+	cfgs ...common.StringConfigurer,
+) (Storage, error) {
+	cs, err := common.UnionStringConfigs(cfgs...)
+
+	return Storage{
+		Provider: p,
+		Config:   cs,
+		Creds:    creds,
 	}, err
 }
 
