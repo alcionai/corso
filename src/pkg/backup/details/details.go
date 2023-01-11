@@ -229,8 +229,7 @@ func (d *Details) addFolder(folder folderEntry) {
 
 // DetailsEntry describes a single item stored in a Backup
 type DetailsEntry struct {
-	// TODO: `RepoRef` is currently the full path to the item in Kopia
-	// This can be optimized.
+	// RepoRef is the full storage path of the item in Kopia
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
 	ParentRef string `json:"parentRef,omitempty"`

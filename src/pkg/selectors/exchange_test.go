@@ -479,49 +479,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeBackup_Scopes() {
 	}
 }
 
-func (suite *ExchangeSelectorSuite) TestExchangeBackup_DiscreteScopes() {
-	usrs := []string{"u1", "u2"}
-	table := []struct {
-		name     string
-		include  []string
-		discrete []string
-		expect   []string
-	}{
-		{
-			name:     "any user",
-			include:  Any(),
-			discrete: usrs,
-			expect:   usrs,
-		},
-		{
-			name:     "discrete user",
-			include:  []string{"u3"},
-			discrete: usrs,
-			expect:   []string{"u3"},
-		},
-		{
-			name:     "nil discrete slice",
-			include:  Any(),
-			discrete: nil,
-			expect:   Any(),
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			// todo: remove discreteScopes
-			// eb := NewExchangeBackup(test.include)
-			// eb.Include(eb.AllData())
-
-			// scopes := eb.DiscreteScopes(test.discrete)
-			// for _, sc := range scopes {
-			// 	users := sc.Get(ExchangeUser)
-			// 	assert.Equal(t, test.expect, users)
-			// }
-		})
-	}
-}
-
 func (suite *ExchangeSelectorSuite) TestExchangeScope_Category() {
 	table := []struct {
 		is     exchangeCategory
@@ -1144,7 +1101,7 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 	)
 
 	var (
-		es        = NewExchangeRestore(Any()) // TODO: move into test and compose with each test value
+		es        = NewExchangeRestore(Any())
 		otherMail = setScopesToDefault(es.Mails(Any(), []string{"smarf"}))
 		mail      = setScopesToDefault(es.Mails(Any(), []string{mid}))
 		noMail    = setScopesToDefault(es.Mails(Any(), None()))
@@ -1186,7 +1143,7 @@ func (suite *ExchangeSelectorSuite) TestContains() {
 	target := "fnords"
 
 	var (
-		es                  = NewExchangeRestore(Any()) // TODO: move into test and compose with each test value
+		es                  = NewExchangeRestore(Any())
 		noMail              = setScopesToDefault(es.Mails(None(), None()))
 		does                = setScopesToDefault(es.Mails(Any(), []string{target}))
 		doesNot             = setScopesToDefault(es.Mails(Any(), []string{"smarf"}))
@@ -1221,7 +1178,7 @@ func (suite *ExchangeSelectorSuite) TestContains() {
 
 func (suite *ExchangeSelectorSuite) TestIsAny() {
 	var (
-		es           = NewExchangeRestore(Any()) // TODO: move into test and compose with each test value
+		es           = NewExchangeRestore(Any())
 		specificMail = setScopesToDefault(es.Mails(Any(), []string{"email"}))
 		anyMail      = setScopesToDefault(es.Mails(Any(), Any()))
 	)
