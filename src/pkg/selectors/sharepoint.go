@@ -202,6 +202,11 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 			SharePointWebURL,
 			urlSuffixes,
 			pathFilterFactory(opts...)),
+		makeFilterScope[SharePointScope](
+			SharePointPageItem,
+			SharePointWebURL,
+			urlSuffixes,
+			pathFilterFactory(opts...)),
 	)
 
 	return scopes
