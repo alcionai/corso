@@ -188,21 +188,6 @@ func (s *exchange) Scopes() []ExchangeScope {
 	return scopes[ExchangeScope](s.Selector)
 }
 
-// DiscreteScopes retrieves the list of exchangeScopes in the selector.
-// If any Include scope's User category is set to Any, replaces that
-// scope's value with the list of userPNs instead.
-func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
-	scopes := discreteScopes[ExchangeScope](s.Includes, ExchangeUser, userPNs)
-
-	ss := make([]ExchangeScope, 0, len(scopes))
-
-	for _, scope := range scopes {
-		ss = append(ss, ExchangeScope(scope))
-	}
-
-	return ss
-}
-
 type ExchangeItemScopeConstructor func([]string, []string, ...option) []ExchangeScope
 
 // -------------------

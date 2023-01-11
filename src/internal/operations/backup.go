@@ -207,8 +207,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.writeErr
 	}
 
-	// TODO: should always be 1, since backups are 1:1 with resourceOwners now.
-	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
+	// should always be 1, since backups are 1:1 with resourceOwners.
+	opStats.resourceCount = 1
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 

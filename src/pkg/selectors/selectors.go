@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -182,11 +181,6 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 	for _, ro := range targets {
 		c := s
 		c.DiscreteOwner = ro
-
-		// TODO: when the rootCat gets removed from the scopes, we can remove this
-		c.Includes = discreteScopes[T](s.Includes, rootCat, []string{ro})
-		c.Filters = discreteScopes[T](s.Filters, rootCat, []string{ro})
-
 		ss = append(ss, c)
 	}
 
@@ -221,7 +215,6 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 }
 
 // scopes retrieves the list of scopes in the selector.
-// future TODO: if Inclues is nil, return filters.
 func scopes[T scopeT](s Selector) []T {
 	scopes := []T{}
 
@@ -230,38 +223,6 @@ func scopes[T scopeT](s Selector) []T {
 	}
 
 	return scopes
-}
-
-// discreteScopes retrieves the list of scopes in the selector.
-// for any scope in the `Includes` set, if scope.IsAny(rootCat),
-// then that category's value is replaced with the provided set of
-// discrete identifiers.
-// If discreteIDs is an empty slice, returns the normal scopes(s).
-// future TODO: if Includes is nil, return filters.
-func discreteScopes[T scopeT, C categoryT](
-	scopes []scope,
-	rootCat C,
-	discreteIDs []string,
-) []scope {
-	sl := []scope{}
-
-	if len(discreteIDs) == 0 {
-		return scopes
-	}
-
-	for _, v := range scopes {
-		t := T(v)
-
-		if isAnyTarget(t, rootCat) {
-			w := maps.Clone(t)
-			set(w, rootCat, discreteIDs)
-			t = w
-		}
-
-		sl = append(sl, scope(t))
-	}
-
-	return sl
 }
 
 // Returns the path.ServiceType matching the selector service.
