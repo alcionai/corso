@@ -76,6 +76,8 @@ func RestoreCollections(
 				deets,
 				errUpdater,
 			)
+		case path.PagesCategory:
+			logger.Ctx(ctx).Infof("backup of pages not supported", dc.FullPath().Category())
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
