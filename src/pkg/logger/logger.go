@@ -112,7 +112,8 @@ func PreloadLoggingFlags() (string, string) {
 
 	if logfile != "stdout" && logfile != "stderr" {
 		logdir := filepath.Dir(logfile)
-		err := os.MkdirAll(logdir, 0755)
+
+		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
 			return "info", "stderr"
 		}
