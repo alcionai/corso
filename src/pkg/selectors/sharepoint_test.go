@@ -37,49 +37,6 @@ func (suite *SharePointSelectorSuite) TestToSharePointBackup() {
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *SharePointSelectorSuite) TestSharePointBackup_DiscreteScopes() {
-	sites := []string{"s1", "s2"}
-	table := []struct {
-		name     string
-		include  []string
-		discrete []string
-		expect   []string
-	}{
-		{
-			name:     "any site",
-			include:  Any(),
-			discrete: sites,
-			expect:   sites,
-		},
-		{
-			name:     "discrete sitet",
-			include:  []string{"s3"},
-			discrete: sites,
-			expect:   []string{"s3"},
-		},
-		{
-			name:     "nil discrete slice",
-			include:  Any(),
-			discrete: nil,
-			expect:   Any(),
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			// todo: remove discreteScopes
-			// eb := NewSharePointBackup(test.include)
-			// eb.Include(eb.AllData())
-
-			// scopes := eb.DiscreteScopes(test.discrete)
-			// for _, sc := range scopes {
-			// 	sites := sc.Get(SharePointSite)
-			// 	assert.Equal(t, test.expect, sites)
-			// }
-		})
-	}
-}
-
 func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 	t := suite.T()
 
@@ -368,7 +325,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	var (
-		ods  = NewSharePointRestore(nil) // TODO: move into test
+		ods  = NewSharePointRestore(nil)
 		host = "www.website.com"
 		pth  = "/foo"
 		url  = host + pth

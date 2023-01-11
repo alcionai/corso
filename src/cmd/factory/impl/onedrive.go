@@ -1,4 +1,4 @@
-package main
+package impl
 
 import (
 	"github.com/spf13/cobra"
@@ -13,7 +13,7 @@ var filesCmd = &cobra.Command{
 	RunE:  handleOneDriveFileFactory,
 }
 
-func addOneDriveCommands(cmd *cobra.Command) {
+func AddOneDriveCommands(cmd *cobra.Command) {
 	cmd.AddCommand(filesCmd)
 }
 

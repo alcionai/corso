@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+### Added
+
+- Incremental backup support for exchange is now enabled by default.
+
 ### Changed
 
 - The selectors Reduce() process will only include details that match the DiscreteOwner, if one is specified.
@@ -17,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue where repository connect progress bar was clobbering backup/restore operation output.
 - Issue where a `backup create exchange` produced one backup record per data type.
 - Specifying multiple users in a onedrive backup (ex: `--user a,b,c`) now properly delimits the input along the commas.
+- Updated the list of M365 SKUs used to check if a user has a OneDrive license.
 
 ### Known Issues
 

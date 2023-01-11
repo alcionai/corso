@@ -105,7 +105,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
-		options.AddFeatureFlags(cmd, options.ExchangeIncrementals())
+		options.AddFeatureToggle(cmd, options.DisableIncrementals())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
@@ -507,11 +507,6 @@ func runDetailsExchangeCmd(
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
-
-	// if no selector flags were specified, get all data in the service.
-	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.AllData())
-	}
 
 	return sel.Reduce(ctx, d), nil
 }

@@ -52,7 +52,7 @@ func prepNewTestBackupOp(
 	ctx context.Context,
 	bus events.Eventer,
 	sel selectors.Selector,
-	featureFlags control.FeatureFlags,
+	featureToggles control.Toggles,
 ) (BackupOperation, account.Account, *kopia.Wrapper, *kopia.ModelStore, func()) {
 	//revive:enable:context-as-argument
 	acct := tester.NewM365Account(t)
@@ -90,7 +90,7 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
-	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureFlags, closer)
+	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, closer
 }
@@ -109,7 +109,7 @@ func newTestBackupOp(
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
-	featureFlags control.FeatureFlags,
+	featureToggles control.Toggles,
 	closer func(),
 ) BackupOperation {
 	//revive:enable:context-as-argument
@@ -118,7 +118,7 @@ func newTestBackupOp(
 		opts = control.Options{}
 	)
 
-	opts.EnabledFeatures = featureFlags
+	opts.ToggleFeatures = featureToggles
 
 	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, bus)
 	if !assert.NoError(t, err) {
@@ -176,21 +176,27 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
-				oc       = &kopia.OwnersCats{
-					ResourceOwners: map[string]struct{}{resourceOwner: {}},
-					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+				reasons = []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       sel.PathService(),
+						Category:      category,
+					},
 				}
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
 			require.NoError(t, err)
 
 			for _, man := range mans {
-				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-				if man.Tags[tk] == string(bo.Results.BackupID) {
+				bID, ok := man.GetTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+					continue
+				}
+
+				if bID == string(bo.Results.BackupID) {
 					found = true
 					break
 				}
@@ -554,7 +560,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			var (
 				mb  = evmock.NewBus()
 				sel = test.selector().Selector
-				ffs = control.FeatureFlags{ExchangeIncrementals: test.runIncremental}
+				ffs = control.Toggles{}
 			)
 
 			bo, acct, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
@@ -630,7 +636,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	var (
 		t          = suite.T()
 		acct       = tester.NewM365Account(t)
-		ffs        = control.FeatureFlags{ExchangeIncrementals: true}
+		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
 		now        = common.Now()
 		users      = []string{suite.user}
@@ -1010,7 +1016,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
@@ -1032,7 +1038,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.FeatureFlags{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
