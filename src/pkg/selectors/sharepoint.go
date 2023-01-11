@@ -219,6 +219,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 		scopes,
 		makeScope[SharePointScope](SharePointLibrary, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
+		makeScope[SharePointScope](SharePointPage, Any()),
 	)
 
 	return scopes
@@ -286,6 +287,38 @@ func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []S
 		scopes,
 		makeScope[SharePointScope](SharePointLibraryItem, items).
 			set(SharePointLibrary, libraries, opts...),
+	)
+
+	return scopes
+}
+
+// Pages produces one or more SharePoint page scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *sharePoint) Pages(pages []string, opts ...option) []SharePointScope {
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(scopes, makeScope[SharePointScope](SharePointPage, pages, os...))
+
+	return scopes
+}
+
+// PageItems produces one or more SharePoint page item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the page scopes.
+func (s *sharePoint) PageItems(sites, pages []string, opts ...option) []SharePointScope {
+	scopes := []SharePointScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[SharePointScope](SharePointPageItem, pages).
+			set(SharePointPage, sites, opts...),
 	)
 
 	return scopes
