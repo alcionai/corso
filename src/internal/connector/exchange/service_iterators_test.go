@@ -30,8 +30,7 @@ var _ addedAndRemovedItemIDsGetter = &mockGetter{}
 type (
 	mockGetter        map[string]mockGetterResults
 	mockGetterResults struct {
-		added    []string
-		removed  []string
+		items    []api.DeltaResult
 		newDelta api.DeltaUpdate
 		err      error
 	}
@@ -41,17 +40,16 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
 ) (
-	[]string,
-	[]string,
+	[]api.DeltaResult,
 	api.DeltaUpdate,
 	error,
 ) {
 	results, ok := mg[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, errors.New("mock not found for " + cID)
+		return nil, api.DeltaUpdate{}, errors.New("mock not found for " + cID)
 	}
 
-	return results.added, results.removed, results.newDelta, results.err
+	return results.items, results.newDelta, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
@@ -112,20 +110,25 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		dps           = DeltaPaths{} // incrementals are tested separately
-		commonResult  = mockGetterResults{
-			added:    []string{"a1", "a2", "a3"},
-			removed:  []string{"r1", "r2", "r3"},
+		getterItems   = []api.DeltaResult{
+			{ID: "a1"},
+			{ID: "a2"},
+			{ID: "a3"},
+			{ID: "r1", Deleted: true},
+			{ID: "r2", Deleted: true},
+			{ID: "r3", Deleted: true},
+		}
+		commonResult = mockGetterResults{
+			items:    getterItems,
 			newDelta: api.DeltaUpdate{URL: "delta_url"},
 		}
 		errorResult = mockGetterResults{
-			added:    []string{"a1", "a2", "a3"},
-			removed:  []string{"r1", "r2", "r3"},
+			items:    getterItems,
 			newDelta: api.DeltaUpdate{URL: "delta_url"},
 			err:      assert.AnError,
 		}
 		deletedInFlightResult = mockGetterResults{
-			added:    []string{"a1", "a2", "a3"},
-			removed:  []string{"r1", "r2", "r3"},
+			items:    getterItems,
 			newDelta: api.DeltaUpdate{URL: "delta_url"},
 			err:      graph.ErrDeletedInFlight{Err: *common.EncapsulateError(assert.AnError)},
 		}
@@ -333,8 +336,19 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				exColl, ok := coll.(*Collection)
 				require.True(t, ok, "collection is an *exchange.Collection")
 
-				assert.ElementsMatch(t, expect.added, exColl.added, "added items")
-				assert.ElementsMatch(t, expect.removed, exColl.removed, "removed items")
+				expectAdded := map[string]struct{}{}
+				expectRemoved := map[string]struct{}{}
+
+				for _, i := range expect.items {
+					if i.Deleted {
+						expectRemoved[i.ID] = struct{}{}
+					} else {
+						expectAdded[i.ID] = struct{}{}
+					}
+				}
+
+				assert.Equal(t, expectAdded, exColl.added, "added items")
+				assert.Equal(t, expectRemoved, exColl.removed, "removed items")
 			}
 		})
 	}
@@ -353,11 +367,11 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		commonResults = mockGetterResults{
-			added:    []string{"added"},
+			items:    []api.DeltaResult{{ID: "added"}},
 			newDelta: api.DeltaUpdate{URL: "new_delta_url"},
 		}
 		expiredResults = mockGetterResults{
-			added: []string{"added"},
+			items: []api.DeltaResult{{ID: "added"}},
 			newDelta: api.DeltaUpdate{
 				URL:   "new_delta_url",
 				Reset: true,
