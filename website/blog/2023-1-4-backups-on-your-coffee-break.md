@@ -31,7 +31,7 @@ experienced an outage over the past 12 months.
 Data can also be lost or corrupted during poorly executed migrations or the cancellation of a software license
 or by human error. And once it’s gone, it’s gone, unless you’ve backed it up.
 
-The question really is: why wouldn’t you back up your M365 data?
+The question really is: why wouldn’t you back up your Microsoft 365 data?
 
 IDC estimates that [six out of every 10 organizations](https://www.dsm.net/idc-why-backup-for-office-365-is-essential)
 don’t have a data protection plan for their Microsoft 365 data.
