@@ -370,7 +370,7 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 		pathType: path.ListsCategory,
 	},
 	SharePointPageItem: {
-		pathKeys: []categorizer{SharePointPage, SharePointPageItem},
+		pathKeys: []categorizer{SharePointSite, SharePointPage, SharePointPageItem},
 		pathType: path.PagesCategory,
 	},
 	SharePointSite: { // the root category must be represented, even though it isn't a leaf
