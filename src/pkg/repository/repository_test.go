@@ -3,6 +3,7 @@ package repository_test
 import (
 	"testing"
 
+	awscreds "github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -10,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -138,6 +140,23 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			test.errCheck(t, err)
 		})
 	}
+}
+
+func (suite *RepositoryIntegrationSuite) TestInitializeCustomCredentials() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	st := tester.NewPrefixedS3Storage(suite.T())
+
+	ak := credentials.GetAWS(map[string]string{})
+	st.Creds = awscreds.NewStaticCredentials(ak.AccessKey, ak.SecretKey, ak.SessionToken)
+
+	r, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	require.NoError(suite.T(), err)
+
+	defer func() {
+		r.Close(ctx)
+	}()
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect() {
