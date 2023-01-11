@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -11,7 +12,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var defaultLogLocation = "corso-" + time.Now().UTC().Format("2006-01-02T15-04-05Z") + ".log"
+// Default location for writing logs, initialized in platform specific files
+var userLogsDir string
 
 var (
 	logCore   *zapcore.Core
@@ -21,7 +23,7 @@ var (
 	llFlag = "info"
 
 	// logging file flags
-	lfFlag = defaultLogLocation
+	lfFlag = ""
 
 	DebugAPI       bool
 	readableOutput bool
@@ -44,6 +46,11 @@ const (
 	readableLogsFN = "readable-logs"
 )
 
+// Returns the default location for writing logs
+func defaultLogLocation() string {
+	return filepath.Join(userLogsDir, "corso", "logs", time.Now().UTC().Format("2006-01-02T15-04-05Z")+".log")
+}
+
 // adds the persistent flag --log-level and --log-file to the provided command.
 // defaults to "info" and the default log location.
 // This is a hack for help displays.  Due to seeding the context, we also
@@ -52,8 +59,7 @@ func AddLoggingFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	fs.StringVar(&llFlag, logLevelFN, "info", "set the log level to debug|info|warn|error")
 
-	// The default provided here is only for help info, the actual
-	// default value used is the value of `defaultLogLocation` variable
+	// The default provided here is only for help info
 	fs.StringVar(&lfFlag, logFileFN, "corso-<timestamp>.log", "location for writing logs, use '-' for stdout")
 
 	fs.Bool(debugAPIFN, false, "add non-2xx request/response errors to logging")
@@ -71,10 +77,11 @@ func AddLoggingFlags(cmd *cobra.Command) {
 // AddLogLevelFlag() and AddLogFileFlag() ensures the flags are
 // displayed as part of the help/usage output.
 func PreloadLoggingFlags() (string, string) {
+	dlf := defaultLogLocation()
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.String(logLevelFN, "info", "set the log level to debug|info|warn|error")
-	fs.String(logFileFN, defaultLogLocation, "location for writing logs")
+	fs.String(logFileFN, dlf, "location for writing logs")
 	fs.BoolVar(&DebugAPI, debugAPIFN, false, "add non-2xx request/response errors to logging")
 	fs.BoolVar(&readableOutput, readableLogsFN, false, "minimizes log output: removes the file and date, colors the level")
 	// prevents overriding the corso/cobra help processor
@@ -82,25 +89,33 @@ func PreloadLoggingFlags() (string, string) {
 
 	// parse the os args list to find the log level flag
 	if err := fs.Parse(os.Args[1:]); err != nil {
-		return "info", defaultLogLocation
+		return "info", dlf
 	}
 
 	// retrieve the user's preferred log level
 	// automatically defaults to "info"
 	levelString, err := fs.GetString(logLevelFN)
 	if err != nil {
-		return "info", defaultLogLocation
+		return "info", dlf
 	}
 
 	// retrieve the user's preferred log file location
 	// automatically defaults to default log location
 	logfile, err := fs.GetString(logFileFN)
 	if err != nil {
-		return "info", defaultLogLocation
+		return "info", dlf
 	}
 
 	if logfile == "-" {
 		logfile = "stdout"
+	}
+
+	if logfile != "stdout" && logfile != "stderr" {
+		logdir := filepath.Dir(logfile)
+		err := os.MkdirAll(logdir, 0755)
+		if err != nil {
+			return "info", "stderr"
+		}
 	}
 
 	return levelString, logfile
@@ -220,7 +235,7 @@ func Seed(ctx context.Context, lvl, logfile string) (context.Context, *zap.Sugar
 func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		zsl := singleton(level, lfFlag)
+		zsl := singleton(level, defaultLogLocation())
 		return Set(ctx, zsl), zsl
 	}
 
@@ -240,7 +255,7 @@ func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
 func Ctx(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		return singleton(levelOf(llFlag), lfFlag)
+		return singleton(levelOf(llFlag), defaultLogLocation())
 	}
 
 	return l.(*zap.SugaredLogger)
