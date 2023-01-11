@@ -4,7 +4,7 @@ title: "How to Back Up Your Microsoft 365 Data During Your Coffee Break"
 description: "A quick guide to using Corso for data backups"
 authors: nica
 tags: [corso, microsoft 365, backups]
-date: 2023-1-4
+date: 2023-1-12
 image: ./images/coffee_break.jpg
 ---
 
