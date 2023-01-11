@@ -42,7 +42,7 @@ type dataBuilderFunc func(id, now, subject, body string) []byte
 func generateAndRestoreItems(
 	ctx context.Context,
 	gc *connector.GraphConnector,
-  acct account.Account,
+	acct account.Account,
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
