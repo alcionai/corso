@@ -11,6 +11,8 @@ const (
 	LibraryFN     = "library"
 	ListItemFN    = "list-item"
 	ListFN        = "list"
+	PageFN        = "page"
+	PageItemFN    = "page-item"
 	WebURLFN      = "web-url"
 )
 
@@ -19,6 +21,8 @@ type SharePointOpts struct {
 	LibraryPaths []string
 	ListItems    []string
 	ListPaths    []string
+	PageItems    []string
+	PagePaths    []string
 	Sites        []string
 	WebURLs      []string
 
@@ -60,6 +64,7 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 	lp, li := len(opts.LibraryPaths), len(opts.LibraryItems)
 	ls, lwu := len(opts.Sites), len(opts.WebURLs)
 	slp, sli := len(opts.ListPaths), len(opts.ListItems)
+	pp, pi := len(opts.PagePaths), len(opts.PageItems)
 
 	if ls == 0 {
 		sites = selectors.Any()
@@ -67,7 +72,7 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lp+li+lwu+slp+sli == 0 {
+	if lp+li+lwu+slp+sli+pp+pi == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
@@ -103,6 +108,23 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 
 		if len(prefixFolders) > 0 {
 			sel.Include(sel.ListItems(prefixFolders, opts.ListItems, selectors.PrefixMatch()))
+		}
+	}
+
+	if pp+pi > 0 {
+		if pi == 0 {
+			opts.PageItems = selectors.Any()
+		}
+
+		opts.PagePaths = trimFolderSlash(opts.PagePaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PagePaths)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.PageItems(containsFolders, opts.PageItems))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.PageItems(prefixFolders, opts.PageItems, selectors.PrefixMatch()))
 		}
 	}
 
