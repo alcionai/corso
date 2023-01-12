@@ -222,6 +222,7 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 	if sel.Service != selectors.ServiceExchange {
 		return false
 	}
+
 	return !opts.ToggleFeatures.DisableIncrementals
 }
 
