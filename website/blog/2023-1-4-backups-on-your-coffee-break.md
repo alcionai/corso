@@ -35,7 +35,7 @@ The question really is: why wouldn’t you back up your Microsoft 365 data?
 
 IDC estimates that [six out of every 10 organizations](https://www.dsm.net/idc-why-backup-for-office-365-is-essential)
 don’t have a data protection plan for their Microsoft 365 data.
-Why? Because, historically, M365 backups have been slow,
+Why? Because, historically, Microsoft 365 backups have been slow,
 tedious and expensive, requiring complex workflows and scripts, and constant supervision:
 
 - Companies often face physical limitations of their storage devices, such as servers, external hard drives, or other media.
@@ -58,6 +58,7 @@ their M365 data during their morning coffee break -or while their lunch is in th
 with any S3-compatible object storage system, including AWS, Google Cloud, Backblaze and Azure Blob.
 - It’s fast! Corso doesn’t use unreliable scripts or workarounds. Instead,
 its automated, high-throughput, high-tolerance backups feature end-to-end encryption, deduplication and compression.
+Corso is written in Go, a modern programming language that came out of Google that has been purpose-built for systems programming.
 A typical Corso backup takes just a few minutes- and you can drink your coffee while it’s running!
 
 How do you backup your data with Corso? It takes just a few minutes to get started. Check out the [Quick Start](https://corsobackup.io/docs/quickstart/)
@@ -74,7 +75,7 @@ guide for a step-by-step walk through:
 And here’s my [video](https://youtu.be/mlwfEbPqD94) showing how the steps take less than 4 minutes.
 
 Yep, that’s it. With these few steps, Corso protects your team’s data from accidental loss, deletion, server downtime,
-security threats and ransomware. Don’t leave M365 data protection to chance
+security threats and ransomware. Don’t leave Microsoft 365 data protection to chance
 -and use your coffee break to relax instead of
 worry!
 
