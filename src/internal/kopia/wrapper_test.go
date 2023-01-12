@@ -241,16 +241,20 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		name                  string
 		expectedUploadedFiles int
 		expectedCachedFiles   int
+		// Whether entries in the resulting details should be marked as updated.
+		deetsUpdated bool
 	}{
 		{
 			name:                  "Uncached",
 			expectedUploadedFiles: 47,
 			expectedCachedFiles:   0,
+			deetsUpdated:          true,
 		},
 		{
 			name:                  "Cached",
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
+			deetsUpdated:          false,
 		},
 	}
 
@@ -274,12 +278,18 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, 0, stats.IgnoredErrorCount)
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
+
 			// 47 file and 6 folder entries.
+			details := deets.Details().Entries
 			assert.Len(
 				t,
-				deets.Details().Entries,
+				details,
 				test.expectedUploadedFiles+test.expectedCachedFiles+6,
 			)
+
+			for _, entry := range details {
+				assert.Equal(t, test.deetsUpdated, entry.Updated)
+			}
 
 			checkSnapshotTags(
 				t,
