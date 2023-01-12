@@ -121,6 +121,7 @@ type itemDetails struct {
 	info     *details.ItemInfo
 	repoPath path.Path
 	prevPath path.Path
+	cached   bool
 }
 
 type corsoProgress struct {
@@ -179,7 +180,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
-		true,
+		!d.cached,
 		*d.info,
 	)
 
@@ -187,7 +188,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
-		true, // itemUpdated = true
+		!d.cached,
 	)
 }
 
@@ -197,6 +198,20 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	defer cp.UploadProgress.FinishedHashingFile(fname, bs)
 
 	atomic.AddInt64(&cp.totalBytes, bs)
+}
+
+// Kopia interface function used as a callback when kopia detects a previously
+// uploaded file that matches the current file and skips uploading the new
+// (duplicate) version.
+func (cp *corsoProgress) CachedFile(fname string, size int64) {
+	defer cp.UploadProgress.CachedFile(fname, size)
+
+	d := cp.get(fname)
+	if d == nil {
+		return
+	}
+
+	d.cached = true
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {

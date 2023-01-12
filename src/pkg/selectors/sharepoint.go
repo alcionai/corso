@@ -179,21 +179,6 @@ func (s *sharePoint) Scopes() []SharePointScope {
 	return scopes[SharePointScope](s.Selector)
 }
 
-// DiscreteScopes retrieves the list of sharePointScopes in the selector.
-// If any Include scope's Site category is set to Any, replaces that
-// scope's value with the list of siteIDs instead.
-func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
-	scopes := discreteScopes[SharePointScope](s.Includes, SharePointSite, siteIDs)
-
-	ss := make([]SharePointScope, 0, len(scopes))
-
-	for _, scope := range scopes {
-		ss = append(ss, SharePointScope(scope))
-	}
-
-	return ss
-}
-
 // -------------------
 // Scope Factories
 

@@ -181,21 +181,6 @@ func (s *oneDrive) Scopes() []OneDriveScope {
 	return scopes[OneDriveScope](s.Selector)
 }
 
-// DiscreteScopes retrieves the list of oneDriveScopes in the selector.
-// If any Include scope's User category is set to Any, replaces that
-// scope's value with the list of userPNs instead.
-func (s *oneDrive) DiscreteScopes(userPNs []string) []OneDriveScope {
-	scopes := discreteScopes[OneDriveScope](s.Includes, OneDriveUser, userPNs)
-
-	ss := make([]OneDriveScope, 0, len(scopes))
-
-	for _, scope := range scopes {
-		ss = append(ss, OneDriveScope(scope))
-	}
-
-	return ss
-}
-
 // -------------------
 // Scope Factories
 
