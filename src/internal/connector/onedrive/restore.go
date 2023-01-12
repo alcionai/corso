@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"runtime/trace"
 
@@ -236,6 +237,7 @@ func restoreItem(
 	}
 
 	iReader := itemData.ToReader()
+	fmt.Println("File size is ", ss.Size())
 	progReader, closer := observe.ItemProgress(iReader, observe.ItemRestoreMsg, itemName, ss.Size())
 
 	go closer()
