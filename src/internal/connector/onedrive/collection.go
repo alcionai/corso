@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -34,11 +35,10 @@ const (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Item{}
-	_ data.StreamInfo = &Item{}
-	// TODO(ashmrtn): Uncomment when #1702 is resolved.
-	//_ data.StreamModTime = &Item{}
+	_ data.Collection    = &Collection{}
+	_ data.Stream        = &Item{}
+	_ data.StreamInfo    = &Item{}
+	_ data.StreamModTime = &Item{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -158,10 +158,9 @@ func (od *Item) Info() details.ItemInfo {
 	return od.info
 }
 
-// TODO(ashmrtn): Uncomment when #1702 is resolved.
-//func (od *Item) ModTime() time.Time {
-//	return od.info.Modified
-//}
+func (od *Item) ModTime() time.Time {
+	return od.info.Modified()
+}
 
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
@@ -253,8 +252,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemSize = itemInfo.OneDrive.Size
 			}
 
-			progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemName, itemSize)
-			go closer()
+			itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+				progReader, closer := observe.ItemProgress(itemData, observe.ItemBackupMsg, itemName, itemSize)
+				go closer()
+				return progReader, nil
+			})
 
 			// Item read successfully, add to collection
 			atomic.AddInt64(&itemsRead, 1)
@@ -263,7 +265,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			oc.data <- &Item{
 				id:   itemName,
-				data: progReader,
+				data: itemReader,
 				info: itemInfo,
 			}
 			folderProgress <- struct{}{}
