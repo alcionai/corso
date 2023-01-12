@@ -54,6 +54,18 @@ var (
 		"afcafa6a-d966-4462-918c-ec0b4e0fe642",
 		// Microsoft 365 E5 Developer
 		"c42b9cae-ea4f-4ab7-9717-81576235ccac",
+		// Microsoft 365 E5
+		"06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+		// Office 365 E4
+		"1392051d-0cb9-4b7a-88d5-621fee5e8711",
+		// Microsoft 365 E3
+		"05e9a617-0261-4cee-bb44-138d3ef5d965",
+		// Microsoft 365 Business Premium
+		"cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46",
+		// Microsoft 365 Business Standard
+		"f245ecc8-75af-4f8e-b61f-27d8114de5f3",
+		// Microsoft 365 Business Basic
+		"3b555118-da6a-4418-894f-7df1e2096870",
 	}
 )
 
