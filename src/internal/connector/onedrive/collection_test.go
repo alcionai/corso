@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 	"testing"
+	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -58,6 +59,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		testItemID   = "fakeItemID"
 		testItemName = "itemName"
 		testItemData = []byte("testdata")
+		now          = time.Now()
 	)
 
 	table := []struct {
@@ -72,7 +74,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       OneDriveSource,
 			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
 			},
@@ -86,7 +88,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
 			},
@@ -100,7 +102,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       SharePointSource,
 			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
 			},
@@ -114,7 +116,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       SharePointSource,
 			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
 			},
@@ -176,6 +178,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItemInfo := readItem.(data.StreamInfo)
 
 			assert.Equal(t, testItemName, readItem.UUID())
+
+			require.Implements(t, (*data.StreamModTime)(nil), readItem)
+			mt := readItem.(data.StreamModTime)
+			assert.Equal(t, now, mt.ModTime())
+
 			readData, err := io.ReadAll(readItem.ToReader())
 			require.NoError(t, err)
 
