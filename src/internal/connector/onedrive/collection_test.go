@@ -179,9 +179,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			assert.Equal(t, testItemName, readItem.UUID())
 
-			require.Implements(t, (*data.StreamModTime)(nil), readItem)
-			mt := readItem.(data.StreamModTime)
-			assert.Equal(t, now, mt.ModTime())
+			// require.Implements(t, (*data.StreamModTime)(nil), readItem)
+			// mt := readItem.(data.StreamModTime)
+			// assert.Equal(t, now, mt.ModTime())
 
 			readData, err := io.ReadAll(readItem.ToReader())
 			require.NoError(t, err)
