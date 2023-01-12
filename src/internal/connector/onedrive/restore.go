@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"runtime/trace"
 
