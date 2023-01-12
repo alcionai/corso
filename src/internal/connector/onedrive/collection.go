@@ -49,7 +49,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItems []models.DriveItemable
+	driveItems map[string]models.DriveItemable
 	// M365 ID of the drive this collection was created from
 	driveID       string
 	source        driveSource
@@ -79,6 +79,7 @@ func NewCollection(
 ) *Collection {
 	c := &Collection{
 		folderPath:    folderPath,
+		driveItems:    map[string]models.DriveItemable{},
 		driveID:       driveID,
 		source:        source,
 		service:       service,
@@ -101,7 +102,7 @@ func NewCollection(
 // Adds an itemID to the collection
 // This will make it eligible to be populated
 func (oc *Collection) Add(item models.DriveItemable) {
-	oc.driveItems = append(oc.driveItems, item)
+	oc.driveItems[*item.GetId()] = item
 }
 
 // Items() returns the channel containing M365 Exchange objects
