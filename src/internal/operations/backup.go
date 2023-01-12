@@ -218,6 +218,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
+	// Delta-based incrementals currently only supported for Exchange
+	if sel.Service != selectors.ServiceExchange {
+		return false
+	}
+
 	return !opts.ToggleFeatures.DisableIncrementals
 }
 
