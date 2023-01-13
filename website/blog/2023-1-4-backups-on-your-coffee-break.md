@@ -30,11 +30,11 @@ And it’s not just malware that threatens to corrupt data; downtime can have eq
 experienced an outage over the past 12 months.
 Data can also be lost or corrupted during poorly executed migrations or the cancellation of a software license
 or by human error. And once it’s gone, it’s gone, unless you’ve backed it up.
-Think you can just move stuff back out of the recycling bin? Think again. Ransomware will also clear your recyclin bin,
+Think you can just move stuff back out of the recycling bin? Think again. Ransomware will also clear your recycling bin,
 even Microsoft recommends [emptying it out regularly](https://learn.microsoft.com/en-us/office365/servicedescriptions/sharepoint-online-service-description/sharepoint-online-limits).
 Use of other tools like 'holds' [also have their limits](https://learn.microsoft.com/en-us/office365/servicedescriptions/sharepoint-online-service-description/sharepoint-online-limits#hold-limits)
 (and really they're intended for e-discovery),
-and are no subsitutes for true backups.
+and are no substitutes for true backups.
 
 The question really is: why wouldn’t you back up your Microsoft 365 data?
 
