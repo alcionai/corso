@@ -129,14 +129,29 @@ directory within the container.
 
 ## Log Files
 
-The location of log files varies by operating system:
+The default location of Corso's log file is shown below but the location can be overridden by using the `--log-file` flag.
+You can also use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
 
-* On Linux - `~/.cache/corso/logs/<timestamp>.log`
-* On macOS - `~/Library/Logs/corso/logs/<timestamp>.log`
-* On Windows - `%LocalAppData%\corso/logs/<timestamp>.log`
+<Tabs groupId="os">
+<TabItem value="win" label="Windows">
 
-Log file location can be overridden by setting the `--log-file` flag.
+  ```powershell
+  %LocalAppData%\corso\logs\<timestamp>.log
+  ```
 
-:::info
-You can use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
-:::
+</TabItem>
+<TabItem value="unix" label="Linux">
+
+  ```bash
+  $HOME/.cache/corso/logs/<timestamp>.log
+  ```
+
+</TabItem>
+<TabItem value="macos" label="macOS">
+
+  ```bash
+  $HOME/Library/Logs/corso/logs/<timestamp>.log
+  ```
+
+</TabItem>
+</Tabs>
