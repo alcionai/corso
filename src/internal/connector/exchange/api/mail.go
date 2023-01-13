@@ -177,10 +177,10 @@ func (p *mailPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, directoryID, oldDelta string,
-) ([]DeltaResult, DeltaUpdate, error) {
+) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, DeltaUpdate{}, err
+		return nil, nil, DeltaUpdate{}, err
 	}
 
 	var (
@@ -191,22 +191,22 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {
-		return nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
+		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
 	}
 
 	if len(oldDelta) > 0 {
 		builder := users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter())
 		pgr := &mailPager{service, builder, options}
 
-		items, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
-			return items, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
 		if graph.IsErrInvalidDelta(err) == nil {
-			return nil, DeltaUpdate{}, err
+			return nil, nil, DeltaUpdate{}, err
 		}
 
 		resetDelta = true
@@ -216,10 +216,10 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	builder := service.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
 	pgr := &mailPager{service, builder, options}
 
-	items, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
-		return nil, DeltaUpdate{}, err
+		return nil, nil, DeltaUpdate{}, err
 	}
 
-	return items, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
 }

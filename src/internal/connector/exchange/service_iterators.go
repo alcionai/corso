@@ -19,7 +19,7 @@ type addedAndRemovedItemIDsGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
-	) ([]api.DeltaResult, api.DeltaUpdate, error)
+	) ([]string, []string, api.DeltaUpdate, error)
 }
 
 // filterContainersAndFillCollections is a utility function
@@ -93,7 +93,7 @@ func filterContainersAndFillCollections(
 			}
 		}
 
-		items, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			// note == nil check; only catches non-inFlight error cases.
 			if graph.IsErrDeletedInFlight(err) == nil {
@@ -126,20 +126,16 @@ func filterContainersAndFillCollections(
 
 		collections[cID] = &edc
 
-		// This results in "last one wins" if there's duplicate entries for an ID
-		// and some are deleted while some are added.
-		for _, i := range items {
-			m := edc.added
-			del := edc.removed
+		for _, add := range added {
+			edc.added[add] = struct{}{}
+		}
 
-			if i.Deleted {
-				m = edc.removed
-				del = edc.added
-			}
-
-			m[i.ID] = struct{}{}
-
-			delete(del, i.ID)
+		// Remove any deleted IDs from the set of added IDs because items that are
+		// deleted and then restored will have a different ID than they did
+		// originally.
+		for _, remove := range removed {
+			delete(edc.added, remove)
+			edc.removed[remove] = struct{}{}
 		}
 
 		// add the current path for the container ID to be used in the next backup
