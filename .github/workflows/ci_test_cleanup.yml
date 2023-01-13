@@ -1,8 +1,6 @@
 name: CI Test Cleanup
 on:
-  schedule:
-    # every half hour
-    - cron: "*/30 * * * *"
+  push:
 
 jobs:
   Test-User-Data-Cleanup:
@@ -12,7 +10,7 @@ jobs:
     strategy:
       matrix:
         folder: [Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_, '']
-        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID]
+        user: ["JohannaL@8qzvrj.onmicrosoft.com"]
 
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +21,7 @@ jobs:
       # The additional 10 minutes is just to be good citizens.
       - name: Set purge boundary
         run: |
-          echo "HALF_HOUR_AGO=$(date -d '30 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+          echo "HALF_HOUR_AGO=$(date -d '2 minutes ago' -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
       - name: Purge CI-Produced Folders
         uses: ./.github/actions/purge-m365-user-data
