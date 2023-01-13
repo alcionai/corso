@@ -1282,7 +1282,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		[]string{testTenant, service, testUser, category, testInboxDir},
 		false,
 	)
-	inboxFileName1 := testFileName4
+	inboxFileName1 := testFileName
 	inboxFileData1 := testFileData4
 	inboxFileName2 := testFileName5
 	inboxFileData2 := testFileData5
@@ -1292,7 +1292,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		append(inboxPath.Elements(), personalDir),
 		false,
 	)
-	personalFileName1 := testFileName
+	personalFileName1 := inboxFileName1
 	personalFileName2 := testFileName2
 
 	workPath := makePath(
@@ -1313,7 +1313,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//     - user1
 	//       - email
 	//         - Inbox
-	//           - file4
+	//           - file1
 	//           - personal
 	//             - file1
 	//             - file2
@@ -1370,8 +1370,51 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	table := []struct {
 		name             string
 		inputCollections func(t *testing.T) []data.Collection
+		inputExcludes    map[string]struct{}
 		expected         *expectedNode
 	}{
+		{
+			name: "GlobalExcludeSet",
+			inputCollections: func(t *testing.T) []data.Collection {
+				return nil
+			},
+			inputExcludes: map[string]struct{}{
+				inboxFileName1: {},
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName1,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
 		{
 			name: "MovesSubtree",
 			inputCollections: func(t *testing.T) []data.Collection {
@@ -1920,7 +1963,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
-				nil,
+				test.inputExcludes,
 				progress,
 			)
 			require.NoError(t, err)
