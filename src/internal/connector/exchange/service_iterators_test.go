@@ -391,7 +391,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			},
 		},
 		{
-			name: "remove wins",
+			name: "remove for same item wins",
 			getter: map[string]mockGetterResults{
 				"1": {
 					added:    []string{"i1", "a2", "a3"},
