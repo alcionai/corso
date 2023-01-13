@@ -212,11 +212,25 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	tags := map[string]string{
 		"fnords":    "smarf",
 		"brunhilda": "",
+	}
 
-		suite.testPath1.ResourceOwner(): "",
-		suite.testPath2.ResourceOwner(): "",
-		serviceCatTag(suite.testPath1):  "",
-		serviceCatTag(suite.testPath2):  "",
+	reasons := []Reason{
+		{
+			ResourceOwner: suite.testPath1.ResourceOwner(),
+			Service:       suite.testPath1.Service(),
+			Category:      suite.testPath1.Category(),
+		},
+		{
+			ResourceOwner: suite.testPath2.ResourceOwner(),
+			Service:       suite.testPath2.Service(),
+			Category:      suite.testPath2.Category(),
+		},
+	}
+
+	for _, r := range reasons {
+		for _, k := range r.TagKeys() {
+			tags[k] = ""
+		}
 	}
 
 	expectedTags := map[string]string{}
@@ -227,16 +241,20 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		name                  string
 		expectedUploadedFiles int
 		expectedCachedFiles   int
+		// Whether entries in the resulting details should be marked as updated.
+		deetsUpdated bool
 	}{
 		{
 			name:                  "Uncached",
 			expectedUploadedFiles: 47,
 			expectedCachedFiles:   0,
+			deetsUpdated:          true,
 		},
 		{
 			name:                  "Cached",
 			expectedUploadedFiles: 0,
 			expectedCachedFiles:   47,
+			deetsUpdated:          false,
 		},
 	}
 
@@ -260,12 +278,18 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, 0, stats.IgnoredErrorCount)
 			assert.Equal(t, 0, stats.ErrorCount)
 			assert.False(t, stats.Incomplete)
+
 			// 47 file and 6 folder entries.
+			details := deets.Details().Entries
 			assert.Len(
 				t,
-				deets.Details().Entries,
+				details,
 				test.expectedUploadedFiles+test.expectedCachedFiles+6,
 			)
+
+			for _, entry := range details {
+				assert.Equal(t, test.deetsUpdated, entry.Updated)
+			}
 
 			checkSnapshotTags(
 				t,
@@ -305,9 +329,15 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
-	tags := map[string]string{
-		testUser: "",
-		serviceCatString(path.ExchangeService, path.EmailCategory): "",
+	tags := map[string]string{}
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	dc1 := mockconnector.NewMockExchangeCollection(suite.testPath1, 1)
@@ -353,9 +383,15 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
-	tags := map[string]string{
-		testUser: "",
-		serviceCatString(path.ExchangeService, path.EmailCategory): "",
+	tags := map[string]string{}
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	collections := []data.Collection{
@@ -586,9 +622,15 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collections = append(collections, collection)
 	}
 
-	tags := map[string]string{
-		testUser: "",
-		serviceCatString(path.ExchangeService, path.EmailCategory): "",
+	tags := map[string]string{}
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
 	}
 
 	stats, deets, _, err := suite.w.BackupCollections(

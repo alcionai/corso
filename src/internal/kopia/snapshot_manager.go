@@ -32,6 +32,13 @@ type Reason struct {
 	Category      path.CategoryType
 }
 
+func (r Reason) TagKeys() []string {
+	return []string{
+		r.ResourceOwner,
+		serviceCatString(r.Service, r.Category),
+	}
+}
+
 type ManifestEntry struct {
 	*snapshot.Manifest
 	// Reason contains the ResourceOwners and Service/Categories that caused this
@@ -44,32 +51,19 @@ type ManifestEntry struct {
 	Reasons []Reason
 }
 
+func (me ManifestEntry) GetTag(key string) (string, bool) {
+	k, _ := makeTagKV(key)
+	v, ok := me.Tags[k]
+
+	return v, ok
+}
+
 type snapshotManager interface {
 	FindManifests(
 		ctx context.Context,
 		tags map[string]string,
 	) ([]*manifest.EntryMetadata, error)
 	LoadSnapshots(ctx context.Context, ids []manifest.ID) ([]*snapshot.Manifest, error)
-}
-
-type OwnersCats struct {
-	ResourceOwners map[string]struct{}
-	ServiceCats    map[string]ServiceCat
-}
-
-type ServiceCat struct {
-	Service  path.ServiceType
-	Category path.CategoryType
-}
-
-// MakeServiceCat produces the expected OwnersCats.ServiceCats key from a
-// path service and path category, as well as the ServiceCat value.
-func MakeServiceCat(s path.ServiceType, c path.CategoryType) (string, ServiceCat) {
-	return serviceCatString(s, c), ServiceCat{s, c}
-}
-
-func serviceCatTag(p path.Path) string {
-	return serviceCatString(p.Service(), p.Category())
 }
 
 func serviceCatString(s path.ServiceType, c path.CategoryType) string {
@@ -82,35 +76,8 @@ func serviceCatString(s path.ServiceType, c path.CategoryType) string {
 // Returns the normalized Key plus a default value.  If you're embedding a
 // key-only tag, the returned default value msut be used instead of an
 // empty string.
-func MakeTagKV(k string) (string, string) {
+func makeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
-}
-
-// tagsFromStrings returns a map[string]string with tags for all ownersCats
-// passed in. Currently uses placeholder values for each tag because there can
-// be multiple instances of resource owners and categories in a single snapshot.
-// TODO(ashmrtn): Remove in future PR.
-//
-//nolint:unused
-//lint:ignore U1000 will be removed in future PR.
-func tagsFromStrings(oc *OwnersCats) map[string]string {
-	if oc == nil {
-		return map[string]string{}
-	}
-
-	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
-
-	for k := range oc.ServiceCats {
-		tk, tv := MakeTagKV(k)
-		res[tk] = tv
-	}
-
-	for k := range oc.ResourceOwners {
-		tk, tv := MakeTagKV(k)
-		res[tk] = tv
-	}
-
-	return res
 }
 
 // getLastIdx searches for manifests contained in both foundMans and metas
@@ -195,14 +162,14 @@ func fetchPrevManifests(
 	reason Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
-	tags = normalizeTagKVs(tags)
-	serviceCatKey, _ := MakeServiceCat(reason.Service, reason.Category)
-	allTags := normalizeTagKVs(map[string]string{
-		serviceCatKey:        "",
-		reason.ResourceOwner: "",
-	})
+	allTags := map[string]string{}
+
+	for _, k := range reason.TagKeys() {
+		allTags[k] = ""
+	}
 
 	maps.Copy(allTags, tags)
+	allTags = normalizeTagKVs(allTags)
 
 	metas, err := sm.FindManifests(ctx, allTags)
 	if err != nil {
@@ -335,7 +302,7 @@ func normalizeTagKVs(tags map[string]string) map[string]string {
 	t2 := make(map[string]string, len(tags))
 
 	for k, v := range tags {
-		mk, mv := MakeTagKV(k)
+		mk, mv := makeTagKV(k)
 
 		if len(v) == 0 {
 			v = mv

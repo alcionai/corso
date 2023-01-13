@@ -29,16 +29,9 @@ var (
 	testID2 = manifest.ID("snap2")
 	testID3 = manifest.ID("snap3")
 
-	testMail           = path.ExchangeService.String() + path.EmailCategory.String()
-	testMailServiceCat = ServiceCat{
-		Service:  path.ExchangeService,
-		Category: path.EmailCategory,
-	}
-	testEvents           = path.ExchangeService.String() + path.EventsCategory.String()
-	testEventsServiceCat = ServiceCat{
-		Service:  path.ExchangeService,
-		Category: path.EventsCategory,
-	}
+	testMail   = path.ExchangeService.String() + path.EmailCategory.String()
+	testEvents = path.ExchangeService.String() + path.EventsCategory.String()
+
 	testUser1 = "user1"
 	testUser2 = "user2"
 	testUser3 = "user3"
@@ -115,7 +108,7 @@ func newManifestInfo(
 	structTags := make(map[string]struct{}, len(tags))
 
 	for _, t := range tags {
-		tk, _ := MakeTagKV(t)
+		tk, _ := makeTagKV(t)
 		structTags[tk] = struct{}{}
 	}
 

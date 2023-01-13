@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Folder entries in backup details now indicate whether an item in the hierarchy was updated
 - Incremental backup support for exchange is now enabled by default.
 
 ### Changed
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue where repository connect progress bar was clobbering backup/restore operation output.
 - Issue where a `backup create exchange` produced one backup record per data type.
 - Specifying multiple users in a onedrive backup (ex: `--user a,b,c`) now properly delimits the input along the commas.
+- Updated the list of M365 SKUs used to check if a user has a OneDrive license.
 
 ### Known Issues
 
@@ -31,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Folder entries in backup details now indicate whether an item in the hierarchy was updated
 - Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`   
   with the `backup create` command. This functionality will be enabled by default in an upcoming release.
 - Folder entries in backup details now include size and modified time for the hierarchy ([#1896](https://github.com/alcionai/corso/issues/1896))
