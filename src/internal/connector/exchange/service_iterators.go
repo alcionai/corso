@@ -125,8 +125,18 @@ func filterContainersAndFillCollections(
 			newDelta.Reset)
 
 		collections[cID] = &edc
-		edc.added = append(edc.added, added...)
-		edc.removed = append(edc.removed, removed...)
+
+		for _, add := range added {
+			edc.added[add] = struct{}{}
+		}
+
+		// Remove any deleted IDs from the set of added IDs because items that are
+		// deleted and then restored will have a different ID than they did
+		// originally.
+		for _, remove := range removed {
+			delete(edc.added, remove)
+			edc.removed[remove] = struct{}{}
+		}
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
