@@ -83,7 +83,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 
 	// Update the collection map with items from each drive
 	for _, d := range drives {
-		err = collectItems(ctx, c.service, *d.GetId(), c.UpdateCollections)
+		_, _, err := collectItems(ctx, c.service, *d.GetId(), c.UpdateCollections)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +101,12 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package)
-func (c *Collections) UpdateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
+func (c *Collections) UpdateCollections(
+	ctx context.Context,
+	driveID string,
+	items []models.DriveItemable,
+	paths map[string]string,
+) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
 			// Skip the root item
@@ -131,9 +136,19 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// Leave this here so we don't fall into the default case.
-			// TODO: This is where we might create a "special file" to represent these in the backup repository
-			// e.g. a ".folderMetadataFile"
+			// Eventually, deletions of folders will be handled here so we may as well
+			// start off by saving the path.Path of the item instead of just the
+			// OneDrive parentRef or such.
+			folderPath, err := collectionPath.Append(*item.GetName(), false)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
+				return err
+			}
+
+			// TODO(ashmrtn): Handle deletions by removing this entry from the map.
+			// TODO(ashmrtn): Handle moves by setting the collection state if the
+			// collection doesn't already exist/have that state.
+			paths[*item.GetId()] = folderPath.String()
 
 		case item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
