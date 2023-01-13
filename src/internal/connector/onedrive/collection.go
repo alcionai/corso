@@ -4,6 +4,7 @@ package onedrive
 import (
 	"context"
 	"io"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,8 +33,8 @@ const (
 	// Seems to timeout at times because of multiple requests
 	maxRetries = 4 // 1 + 3 retries
 
-	MetaFileSuffix = ":meta" // TODO(meain): should we make them :d and :m
-	DataFileSuffix = ":data"
+	MetaFileSuffix = ".meta" // TODO(meain): should we make them :d and :m
+	DataFileSuffix = ".data"
 )
 
 var (
@@ -237,10 +238,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				err          error
 			)
 
-			itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
+			isFile := item.GetFile() != nil
 
-			// Fetch data for file, nil for folders
-			if item.GetFile() != nil {
+			// Fetch data for files
+			if isFile {
 				for i := 1; i <= maxRetries; i++ {
 					itemInfo, itemData, err = oc.itemReader(ctx, item)
 
@@ -258,6 +259,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					errUpdater(*item.GetId(), err)
 					return
 				}
+			} else {
+				itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
 			}
 
 			// Fetch metadata for OneDrive items
@@ -292,12 +295,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemName = itemInfo.SharePoint.ItemName
 				itemSize = itemInfo.SharePoint.Size
 			default:
-				itemInfo.OneDrive.ParentPath = parentPathString
-				itemName = itemInfo.OneDrive.ItemName
+				if isFile {
+					itemInfo.OneDrive.ParentPath = parentPathString
+					itemName = itemInfo.OneDrive.ItemName
+				} else {
+					// File for folders are stored inside the folder with no name prefixes
+					itemInfo.OneDrive.ParentPath = filepath.Join(parentPathString, *item.GetName())
+					itemName = ""
+				}
 				itemSize = itemInfo.OneDrive.Size
 			}
 
-			if itemData != nil {
+			if isFile {
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 					progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName+DataFileSuffix, itemSize)
 					go closer()
@@ -329,6 +338,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 			}
 
+			// TODO(meain): Should these conunts gets updated now that
+			// we have a metadata file?
 			// Item read successfully, add to collection
 			atomic.AddInt64(&itemsRead, 1)
 			// byteCount iteration

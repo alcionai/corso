@@ -4,6 +4,12 @@ import (
 	"context"
 	"strings"
 
+	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
@@ -12,13 +18,6 @@ import (
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -365,6 +364,13 @@ func (w Wrapper) RestoreMultipleItems(
 		// Maps short ID of parent path to data collection for that folder.
 		cols = map[string]*kopiaDataCollection{}
 	)
+
+	// TODO(meain): We have to update the details that is getting
+	// stored to only contain the filenames, as of now it contains
+	// every file that gets saved. Once we do this, we will have to
+	// have the component augment the list of the files here while
+	// restoring to make sure we add back in all the data and metadata
+	// files that we need to form the collections.
 
 	for _, itemPath := range paths {
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
