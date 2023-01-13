@@ -61,10 +61,9 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
 	pager itemPager,
-) ([]string, []string, string, error) {
+) ([]DeltaResult, string, error) {
 	var (
-		addedIDs   = []string{}
-		removedIDs = []string{}
+		foundItems = []DeltaResult{}
 		deltaURL   string
 	)
 
@@ -73,33 +72,37 @@ func getItemsAddedAndRemovedFromContainer(
 		resp, err := pager.getPage(ctx)
 		if err != nil {
 			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, nil, deltaURL, err
+				return nil, deltaURL, err
 			}
 
 			if err := graph.IsErrInvalidDelta(err); err != nil {
-				return nil, nil, deltaURL, err
+				return nil, deltaURL, err
 			}
 
-			return nil, nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
 		items, err := pager.valuesIn(resp)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, "", err
 		}
 
 		// iterate through the items in the page
 		for _, item := range items {
+			newItem := DeltaResult{
+				ID: *item.GetId(),
+			}
+
 			// if the additional data conains a `@removed` key, the value will either
 			// be 'changed' or 'deleted'.  We don't really care about the cause: both
 			// cases are handled the same way in storage.
-			if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-				addedIDs = append(addedIDs, *item.GetId())
-			} else {
-				removedIDs = append(removedIDs, *item.GetId())
+			if item.GetAdditionalData()[graph.AddtlDataRemoved] != nil {
+				newItem.Deleted = true
 			}
+
+			foundItems = append(foundItems, newItem)
 		}
 
 		// the deltaLink is kind of like a cursor for overall data state.
@@ -122,5 +125,5 @@ func getItemsAddedAndRemovedFromContainer(
 		pager.setNext(*nextLink)
 	}
 
-	return addedIDs, removedIDs, deltaURL, nil
+	return foundItems, deltaURL, nil
 }
