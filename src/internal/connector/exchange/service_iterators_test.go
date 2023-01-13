@@ -333,131 +333,105 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				exColl, ok := coll.(*Collection)
 				require.True(t, ok, "collection is an *exchange.Collection")
 
-				assert.ElementsMatch(t, expect.added, exColl.added, "added items")
-				assert.ElementsMatch(t, expect.removed, exColl.removed, "removed items")
+				ids := [][]string{
+					make([]string, 0, len(exColl.added)),
+					make([]string, 0, len(exColl.removed)),
+				}
+
+				for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
+					for id := range cIDs {
+						ids[i] = append(ids[i], id)
+					}
+				}
+
+				assert.ElementsMatch(t, expect.added, ids[0], "added items")
+				assert.ElementsMatch(t, expect.removed, ids[1], "removed items")
 			}
 		})
 	}
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repeatedItems() {
-	var (
-		userID = "user_id"
-		qp     = graph.QueryParams{
-			Category:      path.EmailCategory, // doesn't matter which one we use.
-			ResourceOwner: userID,
-			Credentials:   suite.creds,
-		}
-		statusUpdater = func(*support.ConnectorOperationStatus) {}
-		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
-		dps           = DeltaPaths{} // incrementals are tested separately
-		delta         = api.DeltaUpdate{URL: "delta_url"}
-		container1    = mockContainer{
-			id:          strPtr("1"),
-			displayName: strPtr("display_name_1"),
-			p:           path.Builder{}.Append("display_name_1"),
-		}
-	)
+	newDelta := api.DeltaUpdate{URL: "delta_url"}
 
 	table := []struct {
-		name                string
-		getter              mockGetter
-		resolver            graph.ContainerResolver
-		scope               selectors.ExchangeScope
-		failFast            bool
-		expectErr           assert.ErrorAssertionFunc
-		expectNewColls      int
-		expectMetadataColls int
-		expectAdded         map[string]struct{}
-		expectRemoved       map[string]struct{}
+		name          string
+		getter        mockGetter
+		expectAdded   map[string]struct{}
+		expectRemoved map[string]struct{}
 	}{
 		{
-			name: "repeated add",
+			name: "repeated adds",
 			getter: map[string]mockGetterResults{
 				"1": {
-					items: []api.DeltaResult{
-						{ID: "a1"},
-						{ID: "a1"},
-					},
-					newDelta: delta,
+					added:    []string{"a1", "a2", "a3", "a1"},
+					newDelta: newDelta,
 				},
 			},
-			resolver:            newMockResolver(container1),
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      1,
-			expectMetadataColls: 1,
-			expectAdded:         map[string]struct{}{"a1": {}},
-			// Avoid failures for nil map.
+			expectAdded: map[string]struct{}{
+				"a1": {},
+				"a2": {},
+				"a3": {},
+			},
 			expectRemoved: map[string]struct{}{},
 		},
 		{
-			name: "repeated remove",
+			name: "repeated removes",
 			getter: map[string]mockGetterResults{
 				"1": {
-					items: []api.DeltaResult{
-						{ID: "a1", Deleted: true},
-						{ID: "a1", Deleted: true},
-					},
-					newDelta: delta,
+					removed:  []string{"r1", "r2", "r3", "r1"},
+					newDelta: newDelta,
 				},
 			},
-			resolver:            newMockResolver(container1),
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      1,
-			expectMetadataColls: 1,
-			expectAdded:         map[string]struct{}{},
-			expectRemoved:       map[string]struct{}{"a1": {}},
+			expectAdded: map[string]struct{}{},
+			expectRemoved: map[string]struct{}{
+				"r1": {},
+				"r2": {},
+				"r3": {},
+			},
 		},
 		{
-			name: "interleaved, final remove",
+			name: "remove wins",
 			getter: map[string]mockGetterResults{
 				"1": {
-					items: []api.DeltaResult{
-						{ID: "a1"},
-						{ID: "a1", Deleted: true},
-						{ID: "a1"},
-						{ID: "a1", Deleted: true},
-					},
-					newDelta: delta,
+					added:    []string{"i1", "a2", "a3"},
+					removed:  []string{"i1", "r2", "r3"},
+					newDelta: newDelta,
 				},
 			},
-			resolver:            newMockResolver(container1),
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      1,
-			expectMetadataColls: 1,
-			expectAdded:         map[string]struct{}{},
-			expectRemoved:       map[string]struct{}{"a1": {}},
-		},
-		{
-			name: "interleaved, final add",
-			getter: map[string]mockGetterResults{
-				"1": {
-					items: []api.DeltaResult{
-						{ID: "a1"},
-						{ID: "a1", Deleted: true},
-						{ID: "a1"},
-						{ID: "a1", Deleted: true},
-						{ID: "a1"},
-					},
-					newDelta: delta,
-				},
+			expectAdded: map[string]struct{}{
+				"a2": {},
+				"a3": {},
 			},
-			resolver:            newMockResolver(container1),
-			scope:               allScope,
-			expectErr:           assert.NoError,
-			expectNewColls:      1,
-			expectMetadataColls: 1,
-			expectAdded:         map[string]struct{}{"a1": {}},
-			expectRemoved:       map[string]struct{}{},
+			expectRemoved: map[string]struct{}{
+				"i1": {},
+				"r2": {},
+				"r3": {},
+			},
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ctx, flush := tester.NewContext()
 			defer flush()
+
+			var (
+				userID = "user_id"
+				qp     = graph.QueryParams{
+					Category:      path.EmailCategory, // doesn't matter which one we use.
+					ResourceOwner: userID,
+					Credentials:   suite.creds,
+				}
+				statusUpdater = func(*support.ConnectorOperationStatus) {}
+				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
+				dps           = DeltaPaths{} // incrementals are tested separately
+				container1    = mockContainer{
+					id:          strPtr("1"),
+					displayName: strPtr("display_name_1"),
+					p:           path.Builder{}.Append("display_name_1"),
+				}
+				resolver = newMockResolver(container1)
+			)
 
 			collections := map[string]data.Collection{}
 
@@ -467,12 +441,12 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				test.getter,
 				collections,
 				statusUpdater,
-				test.resolver,
-				test.scope,
+				resolver,
+				allScope,
 				dps,
-				control.Options{FailFast: test.failFast},
+				control.Options{FailFast: true},
 			)
-			test.expectErr(t, err)
+			require.NoError(t, err)
 
 			// collection assertions
 
@@ -494,17 +468,26 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				if c.DoNotMergeItems() {
 					doNotMerges++
 				}
-
-				exColl, ok := c.(*Collection)
-				require.True(t, ok, "collection is an *exchange.Collection")
-
-				assert.Equal(t, test.expectAdded, exColl.added)
-				assert.Equal(t, test.expectRemoved, exColl.removed)
 			}
 
 			assert.Zero(t, deleteds, "deleted collections")
-			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
-			assert.Equal(t, test.expectNewColls, news, "new collections")
+			assert.Equal(t, 1, news, "new collections")
+			assert.Equal(t, 1, metadatas, "metadata collections")
+			assert.Zero(t, doNotMerges, "doNotMerge collections")
+
+			// items in collections assertions
+			for k := range test.getter {
+				coll := collections[k]
+				if !assert.NotNilf(t, coll, "missing collection for path %s", k) {
+					continue
+				}
+
+				exColl, ok := coll.(*Collection)
+				require.True(t, ok, "collection is an *exchange.Collection")
+
+				assert.Equal(t, test.expectAdded, exColl.added, "added items")
+				assert.Equal(t, test.expectRemoved, exColl.removed, "removed items")
+			}
 		})
 	}
 }
