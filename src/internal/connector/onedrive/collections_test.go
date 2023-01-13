@@ -256,6 +256,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			paths := map[string]string{}
 			c := NewCollections(
 				tenant,
 				user,
@@ -265,7 +266,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				nil,
 				control.Options{})
 
-			err := c.UpdateCollections(ctx, "driveID", tt.items)
+			err := c.UpdateCollections(ctx, "driveID", tt.items, paths)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
