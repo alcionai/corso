@@ -705,7 +705,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, nil, nil, collections, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
 	require.NoError(t, err)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -793,7 +793,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
 			require.NoError(t, err)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -889,7 +889,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil)
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -992,7 +992,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 				cols = append(cols, mc)
 			}
 
-			_, err := inflateDirTree(ctx, nil, nil, cols, progress)
+			_, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
 			require.Error(t, err)
 		})
 	}
@@ -1261,6 +1261,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
+				nil,
 				progress,
 			)
 			require.NoError(t, err)
@@ -1919,6 +1920,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
+				nil,
 				progress,
 			)
 			require.NoError(t, err)
@@ -2079,6 +2081,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
+		nil,
 		progress,
 	)
 	require.NoError(t, err)
@@ -2325,6 +2328,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 			mockIncrementalBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
+		nil,
 		progress,
 	)
 	require.NoError(t, err)
