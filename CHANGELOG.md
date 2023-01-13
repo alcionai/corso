@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The selectors Reduce() process will only include details that match the DiscreteOwner, if one is specified.
 - New selector constructors will automatically set the DiscreteOwner if given a single-item slice.
+- Write logs to disk by default ([#2082](https://github.com/alcionai/corso/pull/2082))
 
 ### Fixed
 
