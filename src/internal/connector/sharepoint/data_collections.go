@@ -2,7 +2,6 @@ package sharepoint
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -43,8 +42,8 @@ func DataCollections(
 	)
 
 	for _, scope := range b.Scopes() {
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf(
-			"∙ %s - %s:",
+		foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
+			"%s - %s",
 			scope.Category().PathType(), site))
 		defer closer()
 		defer close(foldersComplete)
