@@ -26,7 +26,7 @@ jobs:
       - name: Purge CI-Produced Folders
         uses: ./.github/actions/purge-m365-user-data
         with:
-          user: ${{ secrets[matrix.user] }}
+          user: ${{ matrix.user }}
           folder-prefix: ${{ matrix.folder }}
           older-than: ${{ env.HALF_HOUR_AGO }}
           azure-client-id: ${{ secrets.CLIENT_ID }}
