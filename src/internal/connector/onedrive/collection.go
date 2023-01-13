@@ -35,10 +35,10 @@ const (
 )
 
 var (
-	_ data.Collection = &Collection{}
-	_ data.Stream     = &Item{}
-	_ data.StreamInfo = &Item{}
-	// _ data.StreamModTime = &Item{}
+	_ data.Collection    = &Collection{}
+	_ data.Stream        = &Item{}
+	_ data.StreamInfo    = &Item{}
+	_ data.StreamModTime = &Item{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -158,9 +158,9 @@ func (od *Item) Info() details.ItemInfo {
 	return od.info
 }
 
-// func (od *Item) ModTime() time.Time {
-// 	return od.info.Modified()
-// }
+func (od *Item) ModTime() time.Time {
+	return od.info.Modified()
+}
 
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
