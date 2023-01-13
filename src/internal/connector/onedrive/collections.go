@@ -25,6 +25,17 @@ const (
 	SharePointSource
 )
 
+func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
+	switch ds {
+	case OneDriveSource:
+		return path.OneDriveService, path.FilesCategory
+	case SharePointSource:
+		return path.SharePointService, path.LibrariesCategory
+	default:
+		return path.UnknownService, path.UnknownCategory
+	}
+}
+
 type folderMatcher interface {
 	IsAny() bool
 	Matches(string) bool
@@ -81,22 +92,66 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		return nil, err
 	}
 
+	var (
+		// Drive ID -> delta URL for drive
+		deltaURLs = map[string]string{}
+		// Drive ID -> folder ID -> folder path
+		folderPaths = map[string]map[string]string{}
+	)
+
 	// Update the collection map with items from each drive
 	for _, d := range drives {
-		_, _, err := collectItems(ctx, c.service, *d.GetId(), c.UpdateCollections)
+		driveID := *d.GetId()
+
+		delta, paths, err := collectItems(ctx, c.service, driveID, c.UpdateCollections)
 		if err != nil {
 			return nil, err
+		}
+
+		if len(delta) > 0 {
+			deltaURLs[driveID] = delta
+		}
+
+		if len(paths) > 0 {
+			folderPaths[driveID] = map[string]string{}
+
+			for id, p := range paths {
+				folderPaths[driveID][id] = p
+			}
 		}
 	}
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
-	collections := make([]data.Collection, 0, len(c.CollectionMap))
+	// Add an extra for the metadata collection.
+	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)
 	for _, coll := range c.CollectionMap {
 		collections = append(collections, coll)
 	}
 
-	return collections, nil
+	service, category := c.source.toPathServiceCat()
+	metadata, err := graph.MakeMetadataCollection(
+		c.tenant,
+		c.resourceOwner,
+		service,
+		category,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(graph.PreviousPathFileName, folderPaths),
+			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+		},
+		c.statusUpdater,
+	)
+
+	if err != nil {
+		// Technically it's safe to continue here because the logic for starting an
+		// incremental backup should eventually find that the metadata files are
+		// empty/missing and default to a full backup.
+		err = errors.Wrap(err, "making metadata collection")
+	} else {
+		collections = append(collections, metadata)
+	}
+
+	return collections, err
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
