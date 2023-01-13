@@ -31,3 +31,19 @@ func NewM365Account(t *testing.T) account.Account {
 
 	return acc
 }
+
+func NewMockM365Account(t *testing.T) account.Account {
+	acc, err := account.NewAccount(
+		account.ProviderM365,
+		account.M365Config{
+			M365: credentials.M365{
+				AzureClientID:     "12345",
+				AzureClientSecret: "abcde",
+			},
+			AzureTenantID: "09876",
+		},
+	)
+	require.NoError(t, err, "initializing mock account")
+
+	return acc
+}

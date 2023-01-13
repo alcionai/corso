@@ -61,8 +61,6 @@ type mockBackuper struct {
 	checkFunc func(
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
-		service path.ServiceType,
-		oc *kopia.OwnersCats,
 		tags map[string]string,
 		buildTreeWithBase bool,
 	)
@@ -72,13 +70,11 @@ func (mbu mockBackuper) BackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.Collection,
-	service path.ServiceType,
-	oc *kopia.OwnersCats,
 	tags map[string]string,
 	buildTreeWithBase bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	if mbu.checkFunc != nil {
-		mbu.checkFunc(bases, cs, service, oc, tags, buildTreeWithBase)
+		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
 	}
 
 	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
@@ -280,14 +276,20 @@ func makeDetailsEntry(
 	return res
 }
 
+// TODO(ashmrtn): This should belong to some code that lives in the kopia
+// package that is only compiled when running tests.
+func makeKopiaTagKey(k string) string {
+	return "tag:" + k
+}
+
 func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string) *snapshot.Manifest {
 	t.Helper()
 
-	backupIDTagKey, _ := kopia.MakeTagKV(kopia.TagBackupID)
+	tagKey := makeKopiaTagKey(kopia.TagBackupID)
 
 	return &snapshot.Manifest{
 		Tags: map[string]string{
-			backupIDTagKey: string(backupID),
+			tagKey: string(backupID),
 		},
 		IncompleteReason: incompleteReason,
 	}
@@ -673,8 +675,6 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 		manifest2 = &snapshot.Manifest{
 			ID: "id2",
 		}
-
-		sel = selectors.NewExchangeBackup([]string{resourceOwner}).Selector
 	)
 
 	table := []struct {
@@ -768,8 +768,6 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
 					cs []data.Collection,
-					service path.ServiceType,
-					oc *kopia.OwnersCats,
 					tags map[string]string,
 					buildTreeWithBase bool,
 				) {
@@ -782,7 +780,6 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				ctx,
 				mbu,
 				tenant,
-				sel,
 				nil,
 				test.inputMan,
 				nil,

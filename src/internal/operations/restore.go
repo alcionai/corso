@@ -150,7 +150,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			events.BackupID:         op.BackupID,
 			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
-			// TODO: restore options,
 		},
 	)
 

@@ -32,6 +32,13 @@ type Reason struct {
 	Category      path.CategoryType
 }
 
+func (r Reason) TagKeys() []string {
+	return []string{
+		r.ResourceOwner,
+		serviceCatString(r.Service, r.Category),
+	}
+}
+
 type ManifestEntry struct {
 	*snapshot.Manifest
 	// Reason contains the ResourceOwners and Service/Categories that caused this
@@ -44,32 +51,19 @@ type ManifestEntry struct {
 	Reasons []Reason
 }
 
+func (me ManifestEntry) GetTag(key string) (string, bool) {
+	k, _ := makeTagKV(key)
+	v, ok := me.Tags[k]
+
+	return v, ok
+}
+
 type snapshotManager interface {
 	FindManifests(
 		ctx context.Context,
 		tags map[string]string,
 	) ([]*manifest.EntryMetadata, error)
 	LoadSnapshots(ctx context.Context, ids []manifest.ID) ([]*snapshot.Manifest, error)
-}
-
-type OwnersCats struct {
-	ResourceOwners map[string]struct{}
-	ServiceCats    map[string]ServiceCat
-}
-
-type ServiceCat struct {
-	Service  path.ServiceType
-	Category path.CategoryType
-}
-
-// MakeServiceCat produces the expected OwnersCats.ServiceCats key from a
-// path service and path category, as well as the ServiceCat value.
-func MakeServiceCat(s path.ServiceType, c path.CategoryType) (string, ServiceCat) {
-	return serviceCatString(s, c), ServiceCat{s, c}
-}
-
-func serviceCatTag(p path.Path) string {
-	return serviceCatString(p.Service(), p.Category())
 }
 
 func serviceCatString(s path.ServiceType, c path.CategoryType) string {
@@ -82,31 +76,8 @@ func serviceCatString(s path.ServiceType, c path.CategoryType) string {
 // Returns the normalized Key plus a default value.  If you're embedding a
 // key-only tag, the returned default value msut be used instead of an
 // empty string.
-func MakeTagKV(k string) (string, string) {
+func makeTagKV(k string) (string, string) {
 	return userTagPrefix + k, defaultTagValue
-}
-
-// tagsFromStrings returns a map[string]string with tags for all ownersCats
-// passed in. Currently uses placeholder values for each tag because there can
-// be multiple instances of resource owners and categories in a single snapshot.
-func tagsFromStrings(oc *OwnersCats) map[string]string {
-	if oc == nil {
-		return map[string]string{}
-	}
-
-	res := make(map[string]string, len(oc.ServiceCats)+len(oc.ResourceOwners))
-
-	for k := range oc.ServiceCats {
-		tk, tv := MakeTagKV(k)
-		res[tk] = tv
-	}
-
-	for k := range oc.ResourceOwners {
-		tk, tv := MakeTagKV(k)
-		res[tk] = tv
-	}
-
-	return res
 }
 
 // getLastIdx searches for manifests contained in both foundMans and metas
@@ -188,24 +159,17 @@ func fetchPrevManifests(
 	ctx context.Context,
 	sm snapshotManager,
 	foundMans map[manifest.ID]*ManifestEntry,
-	serviceCat ServiceCat,
-	resourceOwner string,
+	reason Reason,
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
-	tags = normalizeTagKVs(tags)
-	serviceCatKey, _ := MakeServiceCat(serviceCat.Service, serviceCat.Category)
-	allTags := normalizeTagKVs(map[string]string{
-		serviceCatKey: "",
-		resourceOwner: "",
-	})
+	allTags := map[string]string{}
+
+	for _, k := range reason.TagKeys() {
+		allTags[k] = ""
+	}
 
 	maps.Copy(allTags, tags)
-
-	reason := Reason{
-		ResourceOwner: resourceOwner,
-		Service:       serviceCat.Service,
-		Category:      serviceCat.Category,
-	}
+	allTags = normalizeTagKVs(allTags)
 
 	metas, err := sm.FindManifests(ctx, allTags)
 	if err != nil {
@@ -275,57 +239,54 @@ func fetchPrevManifests(
 func fetchPrevSnapshotManifests(
 	ctx context.Context,
 	sm snapshotManager,
-	oc *OwnersCats,
+	reasons []Reason,
 	tags map[string]string,
 ) []*ManifestEntry {
-	if oc == nil {
-		return nil
-	}
-
 	mans := map[manifest.ID]*ManifestEntry{}
 
 	// For each serviceCat/resource owner pair that we will be backing up, see if
 	// there's a previous incomplete snapshot and/or a previous complete snapshot
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
-	for _, serviceCat := range oc.ServiceCats {
-		for resourceOwner := range oc.ResourceOwners {
-			found, err := fetchPrevManifests(
-				ctx,
-				sm,
-				mans,
-				serviceCat,
-				resourceOwner,
-				tags,
+	for _, reason := range reasons {
+		found, err := fetchPrevManifests(
+			ctx,
+			sm,
+			mans,
+			reason,
+			tags,
+		)
+		if err != nil {
+			logger.Ctx(ctx).Warnw(
+				"fetching previous snapshot manifests for service/category/resource owner",
+				"error",
+				err,
+				"service",
+				reason.Service.String(),
+				"category",
+				reason.Category.String(),
 			)
-			if err != nil {
-				logger.Ctx(ctx).Warnw(
-					"fetching previous snapshot manifests for service/category/resource owner",
-					"error",
-					err,
-					"service/category",
-					serviceCat,
-				)
 
-				// Snapshot can still complete fine, just not as efficient.
+			// Snapshot can still complete fine, just not as efficient.
+			continue
+		}
+
+		// If we found more recent snapshots then add them.
+		for _, m := range found {
+			man := mans[m.ID]
+			if man == nil {
+				mans[m.ID] = m
 				continue
 			}
 
-			// If we found more recent snapshots then add them.
-			for _, m := range found {
-				found := mans[m.ID]
-				if found == nil {
-					mans[m.ID] = m
-					continue
-				}
-
-				// If the manifest already exists and it's incomplete then we should
-				// merge the reasons for consistency. This will become easier to handle
-				// once we update how checkpoint manifests are tagged.
-				if len(found.IncompleteReason) > 0 {
-					found.Reasons = append(found.Reasons, m.Reasons...)
-				}
+			// If the manifest already exists and it's incomplete then we should
+			// merge the reasons for consistency. This will become easier to handle
+			// once we update how checkpoint manifests are tagged.
+			if len(man.IncompleteReason) == 0 {
+				continue
 			}
+
+			man.Reasons = append(man.Reasons, m.Reasons...)
 		}
 	}
 
@@ -341,7 +302,7 @@ func normalizeTagKVs(tags map[string]string) map[string]string {
 	t2 := make(map[string]string, len(tags))
 
 	for k, v := range tags {
-		mk, mv := MakeTagKV(k)
+		mk, mv := makeTagKV(k)
 
 		if len(v) == 0 {
 			v = mv

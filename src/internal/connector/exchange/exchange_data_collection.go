@@ -53,9 +53,9 @@ type Collection struct {
 	data chan data.Stream
 
 	// added is a list of existing item IDs that were added to a container
-	added []string
+	added map[string]struct{}
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
-	removed []string
+	removed map[string]struct{}
 
 	// service - client/adapter pair used to access M365 back store
 	service graph.Servicer
@@ -102,8 +102,8 @@ func NewCollection(
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
 		fullPath:        curr,
-		added:           make([]string, 0),
-		removed:         make([]string, 0),
+		added:           make(map[string]struct{}, 0),
+		removed:         make(map[string]struct{}, 0),
 		prevPath:        prev,
 		service:         service,
 		state:           stateOf(prev, curr),
@@ -226,7 +226,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 	}
 
 	// delete all removed items
-	for _, id := range col.removed {
+	for id := range col.removed {
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
@@ -251,7 +251,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 	}
 
 	// add any new items
-	for _, id := range col.added {
+	for id := range col.added {
 		if col.ctrl.FailFast && errs != nil {
 			break
 		}

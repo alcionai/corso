@@ -24,6 +24,15 @@ type DeltaUpdate struct {
 	Reset bool
 }
 
+// DeltaResult contains the ID and whether the item referenced by the ID was
+// deleted. This allows functions that fetch items for a folder to return a
+// single consolidated stream which is easier to dedupe as the order between
+// add/update and delete operations is known.
+type DeltaResult struct {
+	ID      string
+	Deleted bool
+}
+
 // GraphQuery represents functions which perform exchange-specific queries
 // into M365 backstore. Responses -> returned items will only contain the information
 // that is included in the options
@@ -85,18 +94,6 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 	}
 
 	return graph.NewService(adapter), nil
-}
-
-func (c Client) Contacts() Contacts {
-	return Contacts{c}
-}
-
-func (c Client) Events() Events {
-	return Events{c}
-}
-
-func (c Client) Mail() Mail {
-	return Mail{c}
 }
 
 // ---------------------------------------------------------------------------

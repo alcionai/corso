@@ -3,11 +3,9 @@ package selectors
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -183,11 +181,6 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 	for _, ro := range targets {
 		c := s
 		c.DiscreteOwner = ro
-
-		// TODO: when the rootCat gets removed from the scopes, we can remove this
-		c.Includes = discreteScopes[T](s.Includes, rootCat, []string{ro})
-		c.Filters = discreteScopes[T](s.Filters, rootCat, []string{ro})
-
 		ss = append(ss, c)
 	}
 
@@ -222,7 +215,6 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 }
 
 // scopes retrieves the list of scopes in the selector.
-// future TODO: if Inclues is nil, return filters.
 func scopes[T scopeT](s Selector) []T {
 	scopes := []T{}
 
@@ -231,38 +223,6 @@ func scopes[T scopeT](s Selector) []T {
 	}
 
 	return scopes
-}
-
-// discreteScopes retrieves the list of scopes in the selector.
-// for any scope in the `Includes` set, if scope.IsAny(rootCat),
-// then that category's value is replaced with the provided set of
-// discrete identifiers.
-// If discreteIDs is an empty slice, returns the normal scopes(s).
-// future TODO: if Includes is nil, return filters.
-func discreteScopes[T scopeT, C categoryT](
-	scopes []scope,
-	rootCat C,
-	discreteIDs []string,
-) []scope {
-	sl := []scope{}
-
-	if len(discreteIDs) == 0 {
-		return scopes
-	}
-
-	for _, v := range scopes {
-		t := T(v)
-
-		if isAnyTarget(t, rootCat) {
-			w := maps.Clone(t)
-			set(w, rootCat, discreteIDs)
-			t = w
-		}
-
-		sl = append(sl, scope(t))
-	}
-
-	return sl
 }
 
 // Returns the path.ServiceType matching the selector service.
@@ -316,128 +276,6 @@ func selectorAsIface[T any](s Selector) (T, error) {
 	}
 
 	return t, err
-}
-
-// ---------------------------------------------------------------------------
-// Printing Selectors for Human Reading
-// ---------------------------------------------------------------------------
-
-type Printable struct {
-	ResourceOwners []string            `json:"resourceOwners"`
-	Service        string              `json:"service"`
-	Excludes       map[string][]string `json:"excludes,omitempty"`
-	Filters        map[string][]string `json:"filters,omitempty"`
-	Includes       map[string][]string `json:"includes,omitempty"`
-}
-
-type printabler interface {
-	Printable() Printable
-}
-
-// ToPrintable creates the minimized display of a selector, formatted for human readability.
-func (s Selector) ToPrintable() Printable {
-	p, err := selectorAsIface[printabler](s)
-	if err != nil {
-		return Printable{}
-	}
-
-	return p.Printable()
-}
-
-// toPrintable creates the minimized display of a selector, formatted for human readability.
-func toPrintable[T scopeT](s Selector) Printable {
-	return Printable{
-		ResourceOwners: s.DiscreteResourceOwners(),
-		Service:        s.Service.String(),
-		Excludes:       toResourceTypeMap[T](s.Excludes),
-		Filters:        toResourceTypeMap[T](s.Filters),
-		Includes:       toResourceTypeMap[T](s.Includes),
-	}
-}
-
-// Resources generates a tabular-readable output of the resources in Printable.
-// Only the first (arbitrarily picked) resource is displayed.  All others are
-// simply counted.  If no inclusions exist, uses Filters.  If no filters exist,
-// defaults to "None".
-// Resource refers to the top-level entity in the service. User for Exchange,
-// Site for sharepoint, etc.
-func (p Printable) Resources() string {
-	s := resourcesShortFormat(p.ResourceOwners)
-
-	if len(s) == 0 {
-		s = "None"
-	}
-
-	if s == AnyTgt {
-		s = "All"
-	}
-
-	return s
-}
-
-// returns a string with the resources in the map.  Shortened to the first resource key,
-// plus, if more exist, " (len-1 more)"
-func resourcesShortFormat(ros []string) string {
-	switch len(ros) {
-	case 0:
-		return ""
-	case 1:
-		return ros[0]
-	default:
-		return fmt.Sprintf("%s (%d more)", ros[0], len(ros)-1)
-	}
-}
-
-// Transforms the slice to a single map.
-// Keys are each service's rootCat value.
-// Values are the set of all scopeKeyDataTypes for the resource.
-func toResourceTypeMap[T scopeT](s []scope) map[string][]string {
-	if len(s) == 0 {
-		return nil
-	}
-
-	r := make(map[string][]string)
-
-	for _, sc := range s {
-		t := T(sc)
-		res := sc[t.categorizer().rootCat().String()]
-		k := res.Target
-
-		if res.Target == AnyTgt {
-			k = All
-		}
-
-		for _, sk := range split(k) {
-			r[sk] = addToSet(r[sk], split(sc[scopeKeyDataType].Target))
-		}
-	}
-
-	return r
-}
-
-// returns v if set is empty,
-// unions v with set, otherwise.
-func addToSet(set []string, v []string) []string {
-	if len(set) == 0 {
-		return v
-	}
-
-	for _, vv := range v {
-		var matched bool
-
-		for _, s := range set {
-			if vv == s {
-				matched = true
-				break
-			}
-		}
-
-		if !matched {
-			set = append(set, vv)
-		}
-	}
-
-	return set
 }
 
 // ---------------------------------------------------------------------------

@@ -115,7 +115,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		tenantID      = op.account.ID()
 		startTime     = time.Now()
 		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
-		oc            = selectorToOwnersCats(op.Selectors)
+		reasons       = selectorToReasons(op.Selectors)
 		uib           = useIncrementalBackup(op.Selectors, op.Options)
 	)
 
@@ -151,7 +151,14 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(ctx, op.kopia, op.store, oc, tenantID, uib)
+	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(
+		ctx,
+		op.kopia,
+		op.store,
+		reasons,
+		tenantID,
+		uib,
+	)
 	if err != nil {
 		opStats.readErr = errors.Wrap(err, "connecting to M365")
 		return opStats.readErr
@@ -173,8 +180,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		ctx,
 		op.kopia,
 		tenantID,
-		op.Selectors,
-		oc,
+		reasons,
 		mans,
 		cs,
 		op.Results.BackupID,
@@ -201,8 +207,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.writeErr
 	}
 
-	// TODO: should always be 1, since backups are 1:1 with resourceOwners now.
-	opStats.resourceCount = len(data.ResourceOwnerSet(cs))
+	// should always be 1, since backups are 1:1 with resourceOwners.
+	opStats.resourceCount = 1
 	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
@@ -212,6 +218,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
+	// Delta-based incrementals currently only supported for Exchange
+	if sel.Service != selectors.ServiceExchange {
+		return false
+	}
+
 	return !opts.ToggleFeatures.DisableIncrementals
 }
 
@@ -246,8 +257,6 @@ type backuper interface {
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
-		service path.ServiceType,
-		oc *kopia.OwnersCats,
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
@@ -298,7 +307,7 @@ func produceManifestsAndMetadata(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	oc *kopia.OwnersCats,
+	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
 ) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
@@ -309,7 +318,7 @@ func produceManifestsAndMetadata(
 
 	ms, err := kw.FetchPrevSnapshotManifests(
 		ctx,
-		oc,
+		reasons,
 		map[string]string{kopia.TagBackupCategory: ""})
 	if err != nil {
 		return nil, nil, false, err
@@ -340,10 +349,8 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
-		tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-
-		bID := man.Tags[tk]
-		if len(bID) == 0 {
+		bID, ok := man.GetTag(kopia.TagBackupID)
+		if !ok {
 			return nil, nil, false, errors.New("snapshot manifest missing backup ID")
 		}
 
@@ -427,28 +434,28 @@ func collectMetadata(
 	return dcs, nil
 }
 
-func selectorToOwnersCats(sel selectors.Selector) *kopia.OwnersCats {
+func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 	service := sel.PathService()
-	oc := &kopia.OwnersCats{
-		ResourceOwners: map[string]struct{}{},
-		ServiceCats:    map[string]kopia.ServiceCat{},
-	}
-
-	oc.ResourceOwners[sel.DiscreteOwner] = struct{}{}
+	reasons := []kopia.Reason{}
 
 	pcs, err := sel.PathCategories()
 	if err != nil {
-		return &kopia.OwnersCats{}
+		// This is technically safe, it's just that the resulting backup won't be
+		// usable as a base for future incremental backups.
+		return nil
 	}
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
-			k, v := kopia.MakeServiceCat(service, cat)
-			oc.ServiceCats[k] = v
+			reasons = append(reasons, kopia.Reason{
+				ResourceOwner: sel.DiscreteOwner,
+				Service:       service,
+				Category:      cat,
+			})
 		}
 	}
 
-	return oc
+	return reasons
 }
 
 func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
@@ -479,8 +486,7 @@ func consumeBackupDataCollections(
 	ctx context.Context,
 	bu backuper,
 	tenantID string,
-	sel selectors.Selector,
-	oc *kopia.OwnersCats,
+	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.Collection,
 	backupID model.StableID,
@@ -496,6 +502,12 @@ func consumeBackupDataCollections(
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),
 		kopia.TagBackupCategory: "",
+	}
+
+	for _, reason := range reasons {
+		for _, k := range reason.TagKeys() {
+			tags[k] = ""
+		}
 	}
 
 	bases := make([]kopia.IncrementalBase, 0, len(mans))
@@ -518,7 +530,7 @@ func consumeBackupDataCollections(
 		})
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, sel.PathService(), oc, tags, isIncremental)
+	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
@@ -556,8 +568,10 @@ func mergeDetails(
 			continue
 		}
 
-		k, _ := kopia.MakeTagKV(kopia.TagBackupID)
-		bID := man.Tags[k]
+		bID, ok := man.GetTag(kopia.TagBackupID)
+		if !ok {
+			return errors.Errorf("no backup ID in snapshot manifest with ID %s", man.ID)
+		}
 
 		_, baseDeets, err := getBackupAndDetailsFromID(
 			ctx,

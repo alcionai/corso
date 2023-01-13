@@ -65,6 +65,7 @@ const (
 	FilesCategory                  // files
 	ListsCategory                  // lists
 	LibrariesCategory              // libraries
+	PagesCategory                  // pages
 	DetailsCategory                // details
 )
 
@@ -82,6 +83,8 @@ func ToCategoryType(category string) CategoryType {
 		return LibrariesCategory
 	case ListsCategory.String():
 		return ListsCategory
+	case PagesCategory.String():
+		return PagesCategory
 	case DetailsCategory.String():
 		return DetailsCategory
 	default:
@@ -103,6 +106,7 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 	SharePointService: {
 		LibrariesCategory: {},
 		ListsCategory:     {},
+		PagesCategory:     {},
 	},
 }
 

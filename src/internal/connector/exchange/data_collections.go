@@ -175,7 +175,6 @@ func DataCollections(
 
 	var (
 		user        = selector.DiscreteOwner
-		scopes      = eb.DiscreteScopes([]string{user})
 		collections = []data.Collection{}
 		errs        error
 	)
@@ -185,7 +184,7 @@ func DataCollections(
 		return nil, err
 	}
 
-	for _, scope := range scopes {
+	for _, scope := range eb.Scopes() {
 		dps := cdps[scope.Category().PathType()]
 
 		dcs, err := createCollections(

@@ -433,29 +433,58 @@ var finishedFileTable = []struct {
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
-	for _, test := range finishedFileTable {
-		suite.T().Run(test.name, func(t *testing.T) {
-			bd := &details.Builder{}
-			cp := corsoProgress{
-				UploadProgress: &snapshotfs.NullUploadProgress{},
-				deets:          bd,
-				pending:        map[string]*itemDetails{},
+	table := []struct {
+		name   string
+		cached bool
+	}{
+		{
+			name:   "all updated",
+			cached: false,
+		},
+		{
+			name:   "all cached",
+			cached: true,
+		},
+	}
+
+	for _, cachedTest := range table {
+		suite.T().Run(cachedTest.name, func(outerT *testing.T) {
+			for _, test := range finishedFileTable {
+				outerT.Run(test.name, func(t *testing.T) {
+					bd := &details.Builder{}
+					cp := corsoProgress{
+						UploadProgress: &snapshotfs.NullUploadProgress{},
+						deets:          bd,
+						pending:        map[string]*itemDetails{},
+					}
+
+					ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
+
+					for k, v := range ci {
+						cp.put(k, v.info)
+					}
+
+					require.Len(t, cp.pending, len(ci))
+
+					for k, v := range ci {
+						if cachedTest.cached {
+							cp.CachedFile(k, 42)
+						}
+
+						cp.FinishedFile(k, v.err)
+					}
+
+					assert.Empty(t, cp.pending)
+
+					entries := bd.Details().Entries
+
+					assert.Len(t, entries, test.expectedNumEntries)
+
+					for _, entry := range entries {
+						assert.Equal(t, !cachedTest.cached, entry.Updated)
+					}
+				})
 			}
-
-			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
-
-			for k, v := range ci {
-				cp.put(k, v.info)
-			}
-
-			require.Len(t, cp.pending, len(ci))
-
-			for k, v := range ci {
-				cp.FinishedFile(k, v.err)
-			}
-
-			assert.Empty(t, cp.pending)
-			assert.Len(t, bd.Details().Entries, test.expectedNumEntries)
 		})
 	}
 }

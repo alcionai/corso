@@ -25,6 +25,12 @@ type SharePointCollectionSuite struct {
 }
 
 func TestSharePointCollectionSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorSharePointTests)
+
 	suite.Run(t, new(SharePointCollectionSuite))
 }
 

@@ -116,6 +116,13 @@ var (
 				return pb.ToDataLayerSharePointPath(tenant, site, path.ListsCategory, isItem)
 			},
 		},
+		{
+			service:  path.SharePointService,
+			category: path.PagesCategory,
+			pathFunc: func(pb *path.Builder, tenant, site string, isItem bool) (path.Path, error) {
+				return pb.ToDataLayerSharePointPath(tenant, site, path.PagesCategory, isItem)
+			},
+		},
 	}
 )
 
@@ -297,6 +304,13 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			name:            "Passes",
 			service:         path.SharePointService,
 			category:        path.ListsCategory,
+			expectedService: path.SharePointMetadataService,
+			check:           assert.NoError,
+		},
+		{
+			name:            "Passes",
+			service:         path.SharePointService,
+			category:        path.PagesCategory,
 			expectedService: path.SharePointMetadataService,
 			check:           assert.NoError,
 		},

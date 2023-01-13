@@ -176,21 +176,27 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				sck, scv = kopia.MakeServiceCat(sel.PathService(), category)
-				oc       = &kopia.OwnersCats{
-					ResourceOwners: map[string]struct{}{resourceOwner: {}},
-					ServiceCats:    map[string]kopia.ServiceCat{sck: scv},
+				reasons = []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       sel.PathService(),
+						Category:      category,
+					},
 				}
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)
 
-			mans, err := kw.FetchPrevSnapshotManifests(ctx, oc, tags)
+			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
 			require.NoError(t, err)
 
 			for _, man := range mans {
-				tk, _ := kopia.MakeTagKV(kopia.TagBackupID)
-				if man.Tags[tk] == string(bo.Results.BackupID) {
+				bID, ok := man.GetTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+					continue
+				}
+
+				if bID == string(bo.Results.BackupID) {
 					found = true
 					break
 				}
@@ -935,19 +941,35 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
+						ids, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting message ids")
 						require.NotEmpty(t, ids, "message ids in folder")
 
-						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
+						var idx int
+
+						for _, item := range ids {
+							if item.Deleted {
+								idx++
+							}
+						}
+
+						err = cli.MessagesById(ids[idx].ID).Delete(ctx, nil)
 						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
 
 					case path.ContactsCategory:
-						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
+						ids, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting contact ids")
 						require.NotEmpty(t, ids, "contact ids in folder")
 
-						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
+						var idx int
+
+						for _, item := range ids {
+							if item.Deleted {
+								idx++
+							}
+						}
+
+						err = cli.ContactsById(ids[idx].ID).Delete(ctx, nil)
 						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
 					}
 				}
