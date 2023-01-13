@@ -61,9 +61,10 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 func getItemsAddedAndRemovedFromContainer(
 	ctx context.Context,
 	pager itemPager,
-) ([]DeltaResult, string, error) {
+) ([]string, []string, string, error) {
 	var (
-		foundItems = []DeltaResult{}
+		addedIDs   = []string{}
+		removedIDs = []string{}
 		deltaURL   string
 	)
 
@@ -72,37 +73,33 @@ func getItemsAddedAndRemovedFromContainer(
 		resp, err := pager.getPage(ctx)
 		if err != nil {
 			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, deltaURL, err
+				return nil, nil, deltaURL, err
 			}
 
 			if err := graph.IsErrInvalidDelta(err); err != nil {
-				return nil, deltaURL, err
+				return nil, nil, deltaURL, err
 			}
 
-			return nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
 		items, err := pager.valuesIn(resp)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, "", err
 		}
 
 		// iterate through the items in the page
 		for _, item := range items {
-			newItem := DeltaResult{
-				ID: *item.GetId(),
-			}
-
 			// if the additional data conains a `@removed` key, the value will either
 			// be 'changed' or 'deleted'.  We don't really care about the cause: both
 			// cases are handled the same way in storage.
-			if item.GetAdditionalData()[graph.AddtlDataRemoved] != nil {
-				newItem.Deleted = true
+			if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
+				addedIDs = append(addedIDs, *item.GetId())
+			} else {
+				removedIDs = append(removedIDs, *item.GetId())
 			}
-
-			foundItems = append(foundItems, newItem)
 		}
 
 		// the deltaLink is kind of like a cursor for overall data state.
@@ -125,5 +122,5 @@ func getItemsAddedAndRemovedFromContainer(
 		pager.setNext(*nextLink)
 	}
 
-	return foundItems, deltaURL, nil
+	return addedIDs, removedIDs, deltaURL, nil
 }

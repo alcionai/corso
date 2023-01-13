@@ -19,7 +19,7 @@ type addedAndRemovedItemIDsGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
-	) ([]api.DeltaResult, api.DeltaUpdate, error)
+	) ([]string, []string, api.DeltaUpdate, error)
 }
 
 // filterContainersAndFillCollections is a utility function
@@ -93,7 +93,7 @@ func filterContainersAndFillCollections(
 			}
 		}
 
-		items, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
+		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			// note == nil check; only catches non-inFlight error cases.
 			if graph.IsErrDeletedInFlight(err) == nil {
@@ -125,22 +125,8 @@ func filterContainersAndFillCollections(
 			newDelta.Reset)
 
 		collections[cID] = &edc
-
-		// This results in "last one wins" if there's duplicate entries for an ID
-		// and some are deleted while some are added.
-		for _, i := range items {
-			m := edc.added
-			del := edc.removed
-
-			if i.Deleted {
-				m = edc.removed
-				del = edc.added
-			}
-
-			m[i.ID] = struct{}{}
-
-			delete(del, i.ID)
-		}
+		edc.added = append(edc.added, added...)
+		edc.removed = append(edc.removed, removed...)
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
