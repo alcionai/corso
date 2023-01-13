@@ -1,20 +1,21 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
-
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -122,6 +123,52 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		Size:      itemSize,
 		Owner:     email,
 	}
+}
+
+// oneDriveItemMetaInfo will fetch the meta information for a drive
+// item. As of now, it only adds the permissions applicable for a
+// onedrive item.
+func oneDriveItemMetaInfo(
+	ctx context.Context, service graph.Servicer,
+	driveID string, di models.DriveItemable,
+) (io.ReadCloser, int64, error) {
+	itemID := di.GetId()
+
+	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
+	if err != nil {
+		return nil, 0, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
+	}
+
+	up := []UserPermission{}
+
+	for _, p := range perm.GetValue() {
+		roles := []string{}
+
+		for _, r := range p.GetRoles() {
+			// Skip if the only role available in owner
+			if r != "owner" {
+				roles = append(roles, r)
+			}
+		}
+
+		if len(roles) == 0 {
+			continue
+		}
+
+		up = append(up, UserPermission{
+			ID:         *p.GetId(),
+			Roles:      roles,
+			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
+			Expiration: p.GetExpirationDateTime(),
+		})
+	}
+
+	c, err := json.Marshal(Metadata{Permissions: up})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return io.NopCloser(bytes.NewReader(c)), int64(len(c)), nil
 }
 
 // sharePointItemInfo will populate a details.SharePointInfo struct

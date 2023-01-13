@@ -8,9 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/spatialcurrent/go-lazy/pkg/lazy"
-
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -19,6 +16,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 )
 
 const (
@@ -32,6 +31,9 @@ const (
 	// Max number of retries to get doc from M365
 	// Seems to timeout at times because of multiple requests
 	maxRetries = 4 // 1 + 3 retries
+
+	MetaFileSuffix = ":meta" // TODO(meain): should we make them :d and :m
+	DataFileSuffix = ":data"
 )
 
 var (
@@ -131,6 +133,21 @@ func (oc Collection) DoNotMergeItems() bool {
 	return oc.doNotMergeItems
 }
 
+// FilePermission is used to store permissions of a specific user to a
+// OneDrive item.
+type UserPermission struct {
+	ID         string     `json:"id,omitempty"`
+	Roles      []string   `json:"role,omitempty"`
+	Email      string     `json:"email,omitempty"`
+	Expiration *time.Time `json:"expiration,omitempty"`
+}
+
+// ItemMeta contains metadata about the Item. It gets stored in a
+// separate file in kopia
+type Metadata struct {
+	Permissions []UserPermission `json:"permissions,omitempty"`
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
@@ -213,27 +230,55 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Read the item
 			var (
-				itemInfo details.ItemInfo
-				itemData io.ReadCloser
-				err      error
+				itemInfo     details.ItemInfo
+				itemData     io.ReadCloser
+				itemMeta     io.ReadCloser
+				itemMetaSize int64
+				err          error
 			)
 
-			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, item)
+			itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
 
-				// retry on Timeout type errors, break otherwise.
-				if err == nil || graph.IsErrTimeout(err) == nil {
-					break
+			// Fetch data for file, nil for folders
+			if item.GetFile() != nil {
+				for i := 1; i <= maxRetries; i++ {
+					itemInfo, itemData, err = oc.itemReader(ctx, item)
+
+					// retry on Timeout type errors, break otherwise.
+					if err == nil || graph.IsErrTimeout(err) == nil {
+						break
+					}
+
+					if i < maxRetries {
+						time.Sleep(1 * time.Second)
+					}
 				}
 
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
+				if err != nil {
+					errUpdater(*item.GetId(), err)
+					return
 				}
 			}
 
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
+			// Fetch metadata for OneDrive items
+			if oc.source == OneDriveSource {
+				for i := 1; i <= maxRetries; i++ {
+					itemMeta, itemMetaSize, err = oneDriveItemMetaInfo(ctx, oc.service, oc.driveID, item)
+
+					// retry on Timeout type errors, break otherwise.
+					if err == nil || graph.IsErrTimeout(err) == nil {
+						break
+					}
+
+					if i < maxRetries {
+						time.Sleep(1 * time.Second)
+					}
+				}
+
+				if err != nil {
+					errUpdater(*item.GetId(), err)
+					return
+				}
 			}
 
 			var (
@@ -252,22 +297,43 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemSize = itemInfo.OneDrive.Size
 			}
 
-			itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName, itemSize)
-				go closer()
-				return progReader, nil
-			})
+			if itemData != nil {
+				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+					progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName+DataFileSuffix, itemSize)
+					go closer()
+					return progReader, nil
+				})
+
+				oc.data <- &Item{
+					id:   itemName + DataFileSuffix,
+					data: itemReader,
+					info: itemInfo,
+				}
+			}
+
+			if itemMeta != nil {
+				// TODO(meain): This right now creates two
+				// progressbars for each file, one for :data and one
+				// for :meta. Should we have some way to show it a
+				// different manner?
+				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+					progReader, closer := observe.ItemProgress(ctx, itemMeta, observe.ItemBackupMsg, itemName+MetaFileSuffix, itemMetaSize)
+					go closer()
+					return progReader, nil
+				})
+
+				oc.data <- &Item{
+					id:   itemName + MetaFileSuffix,
+					data: metaReader,
+					info: itemInfo,
+				}
+			}
 
 			// Item read successfully, add to collection
 			atomic.AddInt64(&itemsRead, 1)
 			// byteCount iteration
 			atomic.AddInt64(&byteCount, itemSize)
 
-			oc.data <- &Item{
-				id:   itemName,
-				data: itemReader,
-				info: itemInfo,
-			}
 			folderProgress <- struct{}{}
 		}(item)
 	}
