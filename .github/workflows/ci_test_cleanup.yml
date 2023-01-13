@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         folder: [Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_, '']
-        user: [JohannaL@8qzvrj.onmicrosoft.com]
+        user: ['JohannaL@8qzvrj.onmicrosoft.com']
 
     steps:
       - uses: actions/checkout@v3
