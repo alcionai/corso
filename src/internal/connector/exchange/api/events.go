@@ -165,29 +165,29 @@ func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
-) ([]string, []string, DeltaUpdate, error) {
+) ([]DeltaResult, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+		return nil, DeltaUpdate{}, err
 	}
 
 	var errs *multierror.Error
 
 	options, err := optionsForEventsByCalendar([]string{"id"})
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+		return nil, DeltaUpdate{}, err
 	}
 
 	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
 	pgr := &eventPager{service, builder, options}
 
-	added, _, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	items, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+		return nil, DeltaUpdate{}, err
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
-	return added, nil, DeltaUpdate{}, errs.ErrorOrNil()
+	return items, DeltaUpdate{}, errs.ErrorOrNil()
 }
 
 // ---------------------------------------------------------------------------
