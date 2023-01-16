@@ -384,15 +384,10 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 			return Metadata{}, err
 		}
 
-		// TODO(meain): First 4 bytes are somehow 00 00 00 01 for
-		// folder metadata
-		start := 0
-		if metaraw[0] != '{' {
-			start = 4
-		}
 
-		err = json.Unmarshal(metaraw[start:], &meta)
+		err = json.Unmarshal(metaraw, &meta)
 		if err != nil {
+			panic(err)
 			return Metadata{}, err
 		}
 	}

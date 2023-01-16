@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"runtime/trace"
@@ -317,7 +316,6 @@ func collectionEntries(
 			}
 
 			contents, _ := io.ReadAll(e.ToReader())
-			fmt.Println(">>>>>> Metadata for", itemPath, string(contents[:20]))
 			data := io.NopCloser(bytes.NewReader(contents))
 
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
