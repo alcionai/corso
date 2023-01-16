@@ -53,9 +53,21 @@ func RestoreCollections(
 		return dcs[i].FullPath().String() < dcs[j].FullPath().String()
 	})
 
+	parentPermissions := map[string][]UserPermission{}
+
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		metrics, canceled := RestoreCollection(ctx, service, dc, OneDriveSource, dest.ContainerName, deets, errUpdater)
+		parentPerms, ok := parentPermissions[dc.FullPath().String()]
+		if !ok {
+			errUpdater(dc.FullPath().String(), fmt.Errorf("unable to find parent permissions"))
+		}
+
+		metrics, folderPerms, canceled := RestoreCollection(ctx, service, dc, parentPerms, OneDriveSource, dest.ContainerName, deets, errUpdater)
+
+		for k,v := range folderPerms{
+			parentPermissions[k] = v
+		}
+
 
 		restoreMetrics.Combine(metrics)
 
@@ -77,33 +89,34 @@ func RestoreCollections(
 // RestoreCollection handles restoration of an individual collection.
 // returns:
 // - the collection's item and byte count metrics
-// - the context cancellation state (true if the context is cancelled)
+// - the context cancellation state (true if the context is canceled)
 func RestoreCollection(
 	ctx context.Context,
 	service graph.Servicer,
 	dc data.Collection,
+	parentPerms []UserPermission,
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
-) (support.CollectionMetrics, bool) {
+) (support.CollectionMetrics, map[string][]UserPermission, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
-		metrics    = support.CollectionMetrics{}
-		copyBuffer = make([]byte, copyBufferSize)
-		directory  = dc.FullPath()
-
+		metrics     = support.CollectionMetrics{}
+		copyBuffer  = make([]byte, copyBufferSize)
+		directory   = dc.FullPath()
 		restoredIDs = map[string]string{}
 		itemInfo    details.ItemInfo
 		itemID      string
+		folderPerms = map[string][]UserPermission{}
 	)
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
 		errUpdater(directory.String(), err)
-		return metrics, false
+		return metrics, folderPerms, false
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -123,7 +136,7 @@ func RestoreCollection(
 	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
-		return metrics, false
+		return metrics, folderPerms, false
 	}
 
 	// Restore items from the collection
@@ -133,95 +146,79 @@ func RestoreCollection(
 		select {
 		case <-ctx.Done():
 			errUpdater("context canceled", ctx.Err())
-			return metrics, true
+			return metrics, folderPerms, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, false
+				return metrics, folderPerms, false
 			}
-			fmt.Println("Restoring", itemData.UUID())
 
-			// TODO(meain): refactor this if else into a separate func
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
 			if source == OneDriveSource {
-				name := itemData.UUID() // TODO(meain): Is this bound to change?
+				name := itemData.UUID()
 				if strings.HasSuffix(name, ".data") {
 					metrics.Objects++
 					metrics.TotalBytes += int64(len(copyBuffer))
 					trimmedName := name[:len(name)-5]
 
-					itemID, itemInfo, err = restoreItem(ctx,
-						service,
-						trimmedName,
-						itemData,
-						drivePath.DriveID,
-						restoreFolderID,
-						copyBuffer,
-						source)
+					itemID, itemInfo, err = restoreData(ctx, service, trimmedName, itemData, drivePath.DriveID, restoreFolderID, copyBuffer, source)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
 					}
 
-					// fmt.Println("Adding", trimmedName, "as", itemID)
 					restoredIDs[trimmedName] = itemID
 
-					itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
-					if err != nil {
-						logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
-						errUpdater(itemData.UUID(), err)
-
-						continue
-					}
-
-					deets.Add(
-						itemPath.String(),
-						itemPath.ShortRef(),
-						"",
-						true,
-						itemInfo)
-
+					deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
 				} else if strings.HasSuffix(name, ".meta") {
-					parentPerm := []UserPermission{} // TODO(meain): get it from calling func
-
 					meta, err := getMetadata(itemData.ToReader())
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
 					}
-					permAdded, permRemoved := getChildPermissions(meta.Permissions, parentPerm)
 
 					trimmedName := name[:len(name)-5]
 					restoreID, ok := restoredIDs[trimmedName]
-					// fmt.Println("Got id of", trimmedName, "as", restoreID, "with", ok)
 					if !ok {
 						errUpdater(itemData.UUID(), fmt.Errorf("item not available to restore permissions"))
 						continue
 					}
-					// fmt.Println("Restoring permissions for", trimmedName, permAdded)
-					restorePermissions(
-						ctx, service,
-						drivePath.DriveID, restoreID,
-						permAdded, permRemoved,
-					)
-					metrics.Successes++
-				} else if strings.HasSuffix(name, ".dirmeta") {
-					trimmedName := name[:len(name)-8]
-					parentPerm := []UserPermission{} // TODO(meain): get it from calling func
 
+					restorePermissions(ctx, service, drivePath.DriveID, restoreID, parentPerms, meta.Permissions)
+
+					// TODO(meain): Finalize on how we count success
+					metrics.Successes++ // Counted as success when we have also restored metadata
+				} else if strings.HasSuffix(name, ".dirmeta") {
 					meta, err := getMetadata(itemData.ToReader())
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
 					}
-					permAdded, permRemoved := getChildPermissions(meta.Permissions, parentPerm)
-					createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName, restoreFolderID, permAdded, permRemoved)
+
+					trimmedName := name[:len(name)-8]
+					createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName, restoreFolderID, parentPerms, meta.Permissions)
+
+					path := itemPath.String()
+					folderPerms[path[:len(path)-8]] = meta.Permissions
+				} else {
+					if !ok {
+						// TODO(meain): support older backups?
+						errUpdater(itemData.UUID(), fmt.Errorf("invalid backup format, you might be using an old backup"))
+						continue
+					}
 				}
 			} else {
 				metrics.Objects++
 				metrics.TotalBytes += int64(len(copyBuffer))
 
 				// No permissions stored at the moment for SharePoint
-				_, itemInfo, err = restoreItem(ctx,
+				_, itemInfo, err = restoreData(ctx,
 					service,
 					itemData.UUID(),
 					itemData,
@@ -234,20 +231,8 @@ func RestoreCollection(
 					continue
 				}
 
-				itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
-				if err != nil {
-					logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
-					errUpdater(itemData.UUID(), err)
-
-					continue
-				}
-
-				deets.Add(
-					itemPath.String(),
-					itemPath.ShortRef(),
-					"",
-					true,
-					itemInfo)
+				deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
+				metrics.Successes++ // Counted as success when we have also restored metadata
 			}
 
 		}
@@ -258,7 +243,7 @@ func RestoreCollection(
 func createRestoreFolder(ctx context.Context,
 	service graph.Servicer,
 	driveID, folder, parentFolderID string,
-	permAdded, permRemoved []UserPermission,
+	parentPerms, childPerms []UserPermission,
 ) (string, error) {
 	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
 	if err != nil {
@@ -271,7 +256,7 @@ func createRestoreFolder(ctx context.Context,
 
 	logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
 
-	err = restorePermissions(ctx, service, driveID, *folderItem.GetId(), permAdded, permRemoved)
+	err = restorePermissions(ctx, service, driveID, *folderItem.GetId(), parentPerms, childPerms)
 	if err != nil {
 		return "", errors.Wrapf(
 			err,
@@ -332,8 +317,8 @@ func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID s
 	return parentFolderID, nil
 }
 
-// restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
-func restoreItem(
+// restoreData will create a new item in the specified `parentFolderID` and upload the data.Stream
+func restoreData(
 	ctx context.Context,
 	service graph.Servicer,
 	name string,
@@ -466,9 +451,11 @@ func restorePermissions(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-	permAdded []UserPermission,
-	permRemoved []UserPermission,
+	parentPerms []UserPermission,
+	childPerms []UserPermission,
 ) error {
+	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
+
 	for _, p := range permAdded {
 		pbody := msdrive.NewItemsItemInvitePostRequestBody()
 		pbody.SetRoles(p.Roles)
@@ -511,7 +498,5 @@ func restorePermissions(
 		}
 	}
 
-	// TODO(meain): should it return effect permissions after
-	// accepting child and parent permissions?
 	return nil
 }
