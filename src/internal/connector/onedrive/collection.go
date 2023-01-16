@@ -4,7 +4,6 @@ package onedrive
 import (
 	"context"
 	"io"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,8 +32,9 @@ const (
 	// Seems to timeout at times because of multiple requests
 	maxRetries = 4 // 1 + 3 retries
 
-	MetaFileSuffix = ".meta" // TODO(meain): should we make them :d and :m
-	DataFileSuffix = ".data"
+	MetaFileSuffix    = ".meta"
+	DirMetaFileSuffix = ".dirmeta"
+	DataFileSuffix    = ".data"
 )
 
 var (
@@ -295,14 +295,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemName = itemInfo.SharePoint.ItemName
 				itemSize = itemInfo.SharePoint.Size
 			default:
-				if isFile {
-					itemInfo.OneDrive.ParentPath = parentPathString
-					itemName = itemInfo.OneDrive.ItemName
-				} else {
-					// File for folders are stored inside the folder with no name prefixes
-					itemInfo.OneDrive.ParentPath = filepath.Join(parentPathString, *item.GetName())
-					itemName = ""
-				}
+				itemInfo.OneDrive.ParentPath = parentPathString
+				itemName = itemInfo.OneDrive.ItemName
 				itemSize = itemInfo.OneDrive.Size
 			}
 
@@ -325,14 +319,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				// progressbars for each file, one for :data and one
 				// for :meta. Should we have some way to show it a
 				// different manner?
+				metaFileSuffix := MetaFileSuffix
+				if !isFile {
+					metaFileSuffix = DirMetaFileSuffix
+				}
 				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(ctx, itemMeta, observe.ItemBackupMsg, itemName+MetaFileSuffix, itemMetaSize)
+					progReader, closer := observe.ItemProgress(ctx, itemMeta, observe.ItemBackupMsg, itemName+metaFileSuffix, itemMetaSize)
 					go closer()
 					return progReader, nil
 				})
 
 				oc.data <- &Item{
-					id:   itemName + MetaFileSuffix,
+					id:   itemName + metaFileSuffix,
 					data: metaReader,
 					info: itemInfo,
 				}
