@@ -338,7 +338,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 			}
 
-			// TODO(meain): Should these conunts gets updated now that
+			// TODO(meain): Should these counts gets updated now that
 			// we have a metadata file?
 			// Item read successfully, add to collection
 			atomic.AddInt64(&itemsRead, 1)

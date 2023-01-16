@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"runtime/trace"
+	"sort"
 
 	"github.com/pkg/errors"
 
@@ -41,6 +42,12 @@ func RestoreCollections(
 	errUpdater := func(id string, err error) {
 		restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
 	}
+
+	// Reorder collections so that the parents directories are created
+	// before the child directories
+	sort.Slice(dcs, func(i, j int) bool{
+		return dcs[i].FullPath().String() < dcs[j].FullPath().String()
+	})
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
