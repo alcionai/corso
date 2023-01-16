@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -371,6 +372,29 @@ func (w Wrapper) RestoreMultipleItems(
 	// have the component augment the list of the files here while
 	// restoring to make sure we add back in all the data and metadata
 	// files that we need to form the collections.
+
+	// NB: We have to make sure to order the files that gets fetched
+	// by kopia to have it pull the metadata file for the folder
+	// first, and for the metadata files for the file to be pulled
+	// right after the file for it to be pulled.
+
+	// TODO(meain) If we end converting the reads to parallel reads,
+	// how would it affect files showing up at the other side or
+	// should be make kopia guarantee that it will send us the file in
+	// the order that we send the details list in.
+
+	// TODO(meain): details things can avoid storing info about
+	// .dirmeta and we can compute them from the list of files. The
+	// only issue is that we might not be able to restore empty folder
+	// as we will not be aware of them without some mention about
+	// them.
+
+	// This sort is done primarily to order .meta files after .data
+	// files
+	// TODO(meain): This code should be moved into the OneDrive component
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].String() < paths[j].String()
+	})
 
 	for _, itemPath := range paths {
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
