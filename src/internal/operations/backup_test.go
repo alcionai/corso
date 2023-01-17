@@ -37,6 +37,7 @@ import (
 type mockRestorer struct {
 	gotPaths  []path.Path
 	colls     []data.Collection
+	collsByID map[string][]data.Collection // snapshotID: []Collection
 	err       error
 	onRestore restoreFunc
 }
@@ -66,6 +67,10 @@ func (mr *mockRestorer) RestoreMultipleItems(
 
 	if mr.onRestore != nil {
 		return mr.onRestore(snapshotID, paths)
+	}
+
+	if len(mr.collsByID) > 0 {
+		return mr.collsByID[snapshotID], mr.err
 	}
 
 	return mr.colls, mr.err

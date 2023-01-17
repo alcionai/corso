@@ -47,6 +47,32 @@ func (mg mockGetDetailsIDer) GetDetailsIDFromBackupID(
 	return mg.detailsID, nil, mg.err
 }
 
+type mockColl struct {
+	id    string // for comparisons
+	p     path.Path
+	prevP path.Path
+}
+
+func (mc mockColl) Items() <-chan data.Stream {
+	return nil
+}
+
+func (mc mockColl) FullPath() path.Path {
+	return mc.p
+}
+
+func (mc mockColl) PreviousPath() path.Path {
+	return mc.prevP
+}
+
+func (mc mockColl) State() data.CollectionState {
+	return data.NewState
+}
+
+func (mc mockColl) DoNotMergeItems() bool {
+	return false
+}
+
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
@@ -387,11 +413,17 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		did = "detailsid"
 	)
 
-	makeMan := func(pct path.CategoryType, ir, bid string) *kopia.ManifestEntry {
+	makeMan := func(pct path.CategoryType, id, incmpl, bid string) *kopia.ManifestEntry {
+		tags := map[string]string{}
+		if len(bid) > 0 {
+			tags = map[string]string{"tag:" + kopia.TagBackupID: bid}
+		}
+
 		return &kopia.ManifestEntry{
 			Manifest: &snapshot.Manifest{
-				IncompleteReason: ir,
-				Tags:             map[string]string{"tag: " + kopia.TagBackupID: bid},
+				ID:               manifest.ID(id),
+				IncompleteReason: incmpl,
+				Tags:             tags,
 			},
 			Reasons: []kopia.Reason{
 				{
@@ -431,7 +463,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "don't get metadata",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "")},
+				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -444,7 +476,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "don't get metadata, incomplete manifest",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "ir", "")},
+				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -471,8 +503,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{},
 				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "", ""),
-					makeMan(path.EmailCategory, "", ""),
+					makeMan(path.EmailCategory, "", "", ""),
+					makeMan(path.EmailCategory, "", "", ""),
 				},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
@@ -500,8 +532,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{},
 				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "ir", ""),
-					makeMan(path.ContactsCategory, "ir", ""),
+					makeMan(path.EmailCategory, "", "ir", ""),
+					makeMan(path.ContactsCategory, "", "ir", ""),
 				},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
@@ -514,38 +546,40 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "man missing backup id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{colls: []data.Collection{}},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "")},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+					"id": {mockColl{id: "id_coll"}},
+				}},
+				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
 			gdi:           mockGetDetailsIDer{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
 			assertB:       assert.False,
-			expectDCS:     []data.Collection{},
 			expectNilMans: true,
 		},
 		{
 			name: "backup missing details id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{colls: []data.Collection{}},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "bid")},
+				mockRestorer: mockRestorer{},
+				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
-			gdi:           mockGetDetailsIDer{},
-			reasons:       []kopia.Reason{},
-			getMeta:       true,
-			assertErr:     assert.Error,
-			assertB:       assert.False,
-			expectDCS:     []data.Collection{},
-			expectNilMans: true,
+			gdi:       mockGetDetailsIDer{},
+			reasons:   []kopia.Reason{},
+			getMeta:   true,
+			assertErr: assert.NoError,
+			assertB:   assert.False,
 		},
 		{
-			name: "one complete man, one incomplete",
+			name: "one complete, one incomplete",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{colls: []data.Collection{}},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+					"id":        {mockColl{id: "id_coll"}},
+					"incmpl_id": {mockColl{id: "incmpl_id_coll"}},
+				}},
 				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "", "bid"),
-					makeMan(path.EmailCategory, "ir", ""),
+					makeMan(path.EmailCategory, "id", "", "bid"),
+					makeMan(path.EmailCategory, "incmpl_id", "ir", ""),
 				},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
@@ -553,26 +587,50 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{},
+			expectDCS: []data.Collection{mockColl{id: "id_coll"}},
 		},
 		{
-			name: "happy path",
+			name: "single valid man",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{colls: []data.Collection{}},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "bid")},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+					"id": {mockColl{id: "id_coll"}},
+				}},
+				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{},
+			expectDCS: []data.Collection{mockColl{id: "id_coll"}},
+		},
+		{
+			name: "multiple valid mans",
+			mr: mockManifestRestorer{
+				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+					"mail":    {mockColl{id: "mail_coll"}},
+					"contact": {mockColl{id: "contact_coll"}},
+				}},
+				mans: []*kopia.ManifestEntry{
+					makeMan(path.EmailCategory, "mail", "", "bid"),
+					makeMan(path.ContactsCategory, "contact", "", "bid"),
+				},
+			},
+			gdi:       mockGetDetailsIDer{detailsID: did},
+			reasons:   []kopia.Reason{},
+			getMeta:   true,
+			assertErr: assert.NoError,
+			assertB:   assert.True,
+			expectDCS: []data.Collection{
+				mockColl{id: "mail_coll"},
+				mockColl{id: "contact_coll"},
+			},
 		},
 		{
 			name: "error collecting metadata",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{err: assert.AnError},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "bid")},
+				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
 			gdi:           mockGetDetailsIDer{detailsID: did},
 			reasons:       []kopia.Reason{},
@@ -605,22 +663,23 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			}
 			assert.Equal(t, expectMans, mans)
 
-			assert.Len(t, dcs, len(test.expectDCS))
+			expect, got := []string{}, []string{}
+
 			for _, dc := range test.expectDCS {
-				var (
-					found bool
-					s     = dc.FullPath().String()
-				)
+				mc, ok := dc.(mockColl)
+				assert.True(t, ok)
 
-				for _, r := range dcs {
-					if r.FullPath().String() == s {
-						found = true
-						break
-					}
-				}
-
-				assert.True(t, found, "expected collection is present in results: "+s)
+				expect = append(expect, mc.id)
 			}
+
+			for _, dc := range dcs {
+				mc, ok := dc.(mockColl)
+				assert.True(t, ok)
+
+				got = append(got, mc.id)
+			}
+
+			assert.ElementsMatch(t, expect, got, "expected collections are present")
 		})
 	}
 }
