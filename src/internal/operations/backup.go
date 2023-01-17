@@ -340,6 +340,8 @@ func consumeBackupDataCollections(
 
 	for _, m := range mans {
 		paths := make([]*path.Builder, 0, len(m.Reasons))
+		services := map[string]struct{}{}
+		categories := map[string]struct{}{}
 
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(tenantID, reason)
@@ -348,12 +350,34 @@ func consumeBackupDataCollections(
 			}
 
 			paths = append(paths, pb)
+			services[reason.Service.String()] = struct{}{}
+			categories[reason.Category.String()] = struct{}{}
 		}
 
 		bases = append(bases, kopia.IncrementalBase{
 			Manifest:     m.Manifest,
 			SubtreePaths: paths,
 		})
+
+		svcs := make([]string, 0, len(services))
+		for k := range services {
+			svcs = append(svcs, k)
+		}
+
+		cats := make([]string, 0, len(categories))
+		for k := range categories {
+			cats = append(cats, k)
+		}
+
+		logger.Ctx(ctx).Infow(
+			"using base for backup",
+			"snapshot_id",
+			m.ID,
+			"services",
+			svcs,
+			"categories",
+			cats,
+		)
 	}
 
 	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
