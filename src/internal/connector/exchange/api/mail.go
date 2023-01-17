@@ -2,15 +2,20 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -92,12 +97,20 @@ func (c Mail) GetContainerByID(
 	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 }
 
-// RetrieveMessageDataForUser is a GraphRetrievalFunc that returns message data.
-func (c Mail) RetrieveMessageDataForUser(
+// GetItem retrieves a Messageable item.
+func (c Mail) GetItem(
 	ctx context.Context,
-	user, m365ID string,
-) (serialization.Parsable, error) {
-	return c.stable.Client().UsersById(user).MessagesById(m365ID).Get(ctx, nil)
+	user, itemID string,
+) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
+	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+
+	info := MailInfo(mail)
+	modTime := orNow(mail.GetLastModifiedDateTime())
+
+	return mail, info, modTime, nil
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -222,4 +235,107 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	}
 
 	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
+// Serialize retrieves attachment data identified by the mail item, and then
+// serializes it into a byte slice.
+func (c Mail) Serialize(
+	ctx context.Context,
+	item serialization.Parsable,
+	user, itemID string,
+) ([]byte, error) {
+	msg, ok := item.(models.Messageable)
+	if !ok {
+		return nil, fmt.Errorf("expected Messageable, got %T", item)
+	}
+
+	var (
+		err    error
+		writer = kioser.NewJsonSerializationWriter()
+	)
+
+	defer writer.Close()
+
+	if *msg.GetHasAttachments() {
+		// getting all the attachments might take a couple attempts due to filesize
+		var retriesErr error
+
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.stable.
+				Client().
+				UsersById(user).
+				MessagesById(itemID).
+				Attachments().
+				Get(ctx, nil)
+			retriesErr = err
+
+			if err == nil {
+				msg.SetAttachments(attached.GetValue())
+				break
+			}
+		}
+
+		if retriesErr != nil {
+			logger.Ctx(ctx).Debug("exceeded maximum retries")
+			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
+		}
+	}
+
+	if err = writer.WriteObjectValue("", msg); err != nil {
+		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+	}
+
+	bs, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, errors.Wrap(err, "serializing email")
+	}
+
+	return bs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func MailInfo(msg models.Messageable) *details.ExchangeInfo {
+	sender := ""
+	subject := ""
+	received := time.Time{}
+	created := time.Time{}
+	modified := time.Time{}
+
+	if msg.GetSender() != nil &&
+		msg.GetSender().GetEmailAddress() != nil &&
+		msg.GetSender().GetEmailAddress().GetAddress() != nil {
+		sender = *msg.GetSender().GetEmailAddress().GetAddress()
+	}
+
+	if msg.GetSubject() != nil {
+		subject = *msg.GetSubject()
+	}
+
+	if msg.GetReceivedDateTime() != nil {
+		received = *msg.GetReceivedDateTime()
+	}
+
+	if msg.GetCreatedDateTime() != nil {
+		created = *msg.GetCreatedDateTime()
+	}
+
+	if msg.GetLastModifiedDateTime() != nil {
+		modified = *msg.GetLastModifiedDateTime()
+	}
+
+	return &details.ExchangeInfo{
+		ItemType: details.ExchangeMail,
+		Sender:   sender,
+		Subject:  subject,
+		Received: received,
+		Created:  created,
+		Modified: modified,
+	}
 }

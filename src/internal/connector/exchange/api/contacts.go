@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 // ---------------------------------------------------------------------------
@@ -52,12 +55,20 @@ func (c Contacts) DeleteContactFolder(
 	return c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 }
 
-// RetrieveContactDataForUser is a GraphRetrievalFun that returns all associated fields.
-func (c Contacts) RetrieveContactDataForUser(
+// GetItem retrieves a Contactable item.
+func (c Contacts) GetItem(
 	ctx context.Context,
-	user, m365ID string,
-) (serialization.Parsable, error) {
-	return c.stable.Client().UsersById(user).ContactsById(m365ID).Get(ctx, nil)
+	user, itemID string,
+) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
+	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+
+	info := ContactInfo(cont)
+	modTime := orNow(cont.GetLastModifiedDateTime())
+
+	return cont, info, modTime, nil
 }
 
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting
@@ -223,4 +234,56 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	}
 
 	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
+// Serialize rserializes the item into a byte slice.
+func (c Contacts) Serialize(
+	ctx context.Context,
+	item serialization.Parsable,
+	user, itemID string,
+) ([]byte, error) {
+	contact, ok := item.(models.Contactable)
+	if !ok {
+		return nil, fmt.Errorf("expected Contactable, got %T", item)
+	}
+
+	bs, err := c.stable.Serialize(contact)
+	if err != nil {
+		return nil, support.WrapAndAppend(*contact.GetId(), err, nil)
+	}
+
+	return bs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
+	name := ""
+	created := time.Time{}
+	modified := time.Time{}
+
+	if contact.GetDisplayName() != nil {
+		name = *contact.GetDisplayName()
+	}
+
+	if contact.GetCreatedDateTime() != nil {
+		created = *contact.GetCreatedDateTime()
+	}
+
+	if contact.GetLastModifiedDateTime() != nil {
+		modified = *contact.GetLastModifiedDateTime()
+	}
+
+	return &details.ExchangeInfo{
+		ItemType:    details.ExchangeContact,
+		ContactName: name,
+		Created:     created,
+		Modified:    modified,
+	}
 }

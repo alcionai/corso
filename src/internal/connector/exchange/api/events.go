@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -9,8 +11,11 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -52,12 +57,20 @@ func (c Events) DeleteCalendar(
 	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
-// RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
-func (c Events) RetrieveEventDataForUser(
+// GetItem retrieves an Eventable item.
+func (c Events) GetItem(
 	ctx context.Context,
-	user, m365ID string,
-) (serialization.Parsable, error) {
-	return c.stable.Client().UsersById(user).EventsById(m365ID).Get(ctx, nil)
+	user, itemID string,
+) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
+	evt, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+
+	info := EventInfo(evt)
+	modTime := orNow(evt.GetLastModifiedDateTime())
+
+	return evt, info, modTime, nil
 }
 
 func (c Client) GetAllCalendarNamesForUser(
@@ -191,6 +204,58 @@ func (c Events) GetAddedAndRemovedItemIDs(
 }
 
 // ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
+// Serialize retrieves attachment data identified by the event item, and then
+// serializes it into a byte slice.
+func (c Events) Serialize(
+	ctx context.Context,
+	item serialization.Parsable,
+	user, itemID string,
+) ([]byte, error) {
+	event, ok := item.(models.Eventable)
+	if !ok {
+		return nil, fmt.Errorf("expected Eventable, got %T", item)
+	}
+
+	var err error
+
+	if *event.GetHasAttachments() {
+		// getting all the attachments might take a couple attempts due to filesize
+		var retriesErr error
+
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.stable.
+				Client().
+				UsersById(user).
+				EventsById(itemID).
+				Attachments().
+				Get(ctx, nil)
+			retriesErr = err
+
+			if err == nil {
+				event.SetAttachments(attached.GetValue())
+				break
+			}
+		}
+
+		if retriesErr != nil {
+			logger.Ctx(ctx).Debug("exceeded maximum retries")
+			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
+		}
+	}
+
+	bs, err := c.stable.Serialize(event)
+	if err != nil {
+		err = support.WrapAndAppend(itemID, errors.Wrap(err, "serializing event"), nil)
+		return nil, support.SetNonRecoverableError(err)
+	}
+
+	return bs, nil
+}
+
+// ---------------------------------------------------------------------------
 // helper funcs
 // ---------------------------------------------------------------------------
 
@@ -215,4 +280,74 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
 	return nil
+}
+
+func EventInfo(evt models.Eventable) *details.ExchangeInfo {
+	var (
+		organizer, subject string
+		recurs             bool
+		start              = time.Time{}
+		end                = time.Time{}
+		created            = time.Time{}
+		modified           = time.Time{}
+	)
+
+	if evt.GetOrganizer() != nil &&
+		evt.GetOrganizer().GetEmailAddress() != nil &&
+		evt.GetOrganizer().GetEmailAddress().GetAddress() != nil {
+		organizer = *evt.GetOrganizer().
+			GetEmailAddress().
+			GetAddress()
+	}
+
+	if evt.GetSubject() != nil {
+		subject = *evt.GetSubject()
+	}
+
+	if evt.GetRecurrence() != nil {
+		recurs = true
+	}
+
+	if evt.GetStart() != nil &&
+		evt.GetStart().GetDateTime() != nil {
+		// timeString has 'Z' literal added to ensure the stored
+		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		startTime := *evt.GetStart().GetDateTime() + "Z"
+
+		output, err := common.ParseTime(startTime)
+		if err == nil {
+			start = output
+		}
+	}
+
+	if evt.GetEnd() != nil &&
+		evt.GetEnd().GetDateTime() != nil {
+		// timeString has 'Z' literal added to ensure the stored
+		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		endTime := *evt.GetEnd().GetDateTime() + "Z"
+
+		output, err := common.ParseTime(endTime)
+		if err == nil {
+			end = output
+		}
+	}
+
+	if evt.GetCreatedDateTime() != nil {
+		created = *evt.GetCreatedDateTime()
+	}
+
+	if evt.GetLastModifiedDateTime() != nil {
+		modified = *evt.GetLastModifiedDateTime()
+	}
+
+	return &details.ExchangeInfo{
+		ItemType:    details.ExchangeEvent,
+		Organizer:   organizer,
+		Subject:     subject,
+		EventStart:  start,
+		EventEnd:    end,
+		EventRecurs: recurs,
+		Created:     created,
+		Modified:    modified,
+	}
 }
