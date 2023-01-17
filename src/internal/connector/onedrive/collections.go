@@ -146,7 +146,11 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		// Technically it's safe to continue here because the logic for starting an
 		// incremental backup should eventually find that the metadata files are
 		// empty/missing and default to a full backup.
-		err = errors.Wrap(err, "making metadata collection")
+		logger.Ctx(ctx).Warnw(
+			"making metadata collection for future incremental backups",
+			"error",
+			err,
+		)
 	} else {
 		collections = append(collections, metadata)
 	}
