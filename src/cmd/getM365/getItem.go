@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
@@ -142,7 +141,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
-	) (serialization.Parsable, *details.ExchangeInfo, time.Time, error)
+	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
 		item serialization.Parsable,
@@ -155,7 +154,7 @@ func getItem(
 	itm itemer,
 	user, itemID string,
 ) ([]byte, error) {
-	sp, _, _, err := itm.GetItem(ctx, user, itemID)
+	sp, _, err := itm.GetItem(ctx, user, itemID)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting item")
 	}

@@ -62,16 +62,13 @@ func (c Events) DeleteCalendar(
 func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
-) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
+) (serialization.Parsable, *details.ExchangeInfo, error) {
 	evt, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, time.Time{}, err
+		return nil, nil, err
 	}
 
-	info := EventInfo(evt)
-	modTime := orNow(evt.GetLastModifiedDateTime())
-
-	return evt, info, modTime, nil
+	return evt, EventInfo(evt), nil
 }
 
 func (c Client) GetAllCalendarNamesForUser(
@@ -298,7 +295,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		start              = time.Time{}
 		end                = time.Time{}
 		created            = time.Time{}
-		modified           = time.Time{}
 	)
 
 	if evt.GetOrganizer() != nil &&
@@ -345,10 +341,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		created = *evt.GetCreatedDateTime()
 	}
 
-	if evt.GetLastModifiedDateTime() != nil {
-		modified = *evt.GetLastModifiedDateTime()
-	}
-
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeEvent,
 		Organizer:   organizer,
@@ -357,6 +349,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		EventEnd:    end,
 		EventRecurs: recurs,
 		Created:     created,
-		Modified:    modified,
+		Modified:    orNow(evt.GetLastModifiedDateTime()),
 	}
 }

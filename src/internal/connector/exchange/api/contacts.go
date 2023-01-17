@@ -60,16 +60,13 @@ func (c Contacts) DeleteContactFolder(
 func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
-) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
+) (serialization.Parsable, *details.ExchangeInfo, error) {
 	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, time.Time{}, err
+		return nil, nil, err
 	}
 
-	info := ContactInfo(cont)
-	modTime := orNow(cont.GetLastModifiedDateTime())
-
-	return cont, info, modTime, nil
+	return cont, ContactInfo(cont), nil
 }
 
 // GetAllContactFolderNamesForUser is a GraphQuery function for getting
@@ -278,7 +275,6 @@ func (c Contacts) Serialize(
 func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 	name := ""
 	created := time.Time{}
-	modified := time.Time{}
 
 	if contact.GetDisplayName() != nil {
 		name = *contact.GetDisplayName()
@@ -288,14 +284,10 @@ func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
 		created = *contact.GetCreatedDateTime()
 	}
 
-	if contact.GetLastModifiedDateTime() != nil {
-		modified = *contact.GetLastModifiedDateTime()
-	}
-
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeContact,
 		ContactName: name,
 		Created:     created,
-		Modified:    modified,
+		Modified:    orNow(contact.GetLastModifiedDateTime()),
 	}
 }

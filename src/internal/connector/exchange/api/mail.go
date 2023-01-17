@@ -101,16 +101,13 @@ func (c Mail) GetContainerByID(
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
-) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
+) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, time.Time{}, err
+		return nil, nil, err
 	}
 
-	info := MailInfo(mail)
-	modTime := orNow(mail.GetLastModifiedDateTime())
-
-	return mail, info, modTime, nil
+	return mail, MailInfo(mail), nil
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -306,7 +303,6 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	subject := ""
 	received := time.Time{}
 	created := time.Time{}
-	modified := time.Time{}
 
 	if msg.GetSender() != nil &&
 		msg.GetSender().GetEmailAddress() != nil &&
@@ -326,16 +322,12 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 		created = *msg.GetCreatedDateTime()
 	}
 
-	if msg.GetLastModifiedDateTime() != nil {
-		modified = *msg.GetLastModifiedDateTime()
-	}
-
 	return &details.ExchangeInfo{
 		ItemType: details.ExchangeMail,
 		Sender:   sender,
 		Subject:  subject,
 		Received: received,
 		Created:  created,
-		Modified: modified,
+		Modified: orNow(msg.GetLastModifiedDateTime()),
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
@@ -22,8 +21,8 @@ type mockItemer struct{}
 func (mi mockItemer) GetItem(
 	context.Context,
 	string, string,
-) (serialization.Parsable, *details.ExchangeInfo, time.Time, error) {
-	return nil, nil, time.Time{}, nil
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	return nil, nil, nil
 }
 
 func (mi mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {

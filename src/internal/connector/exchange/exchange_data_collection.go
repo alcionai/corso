@@ -42,7 +42,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
-	) (serialization.Parsable, *details.ExchangeInfo, time.Time, error)
+	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
 		item serialization.Parsable,
@@ -243,12 +243,11 @@ func (col *Collection) streamItems(ctx context.Context) {
 			var (
 				item serialization.Parsable
 				info *details.ExchangeInfo
-				mod  time.Time
 				err  error
 			)
 
 			for i := 1; i <= numberOfRetries; i++ {
-				item, info, mod, err = col.items.GetItem(ctx, user, id)
+				item, info, err = col.items.GetItem(ctx, user, id)
 				if err == nil {
 					break
 				}
@@ -275,7 +274,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 				id:      id,
 				message: data,
 				info:    info,
-				modTime: mod,
+				modTime: info.Modified,
 			}
 
 			atomic.AddInt64(&success, 1)
