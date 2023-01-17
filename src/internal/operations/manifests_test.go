@@ -212,7 +212,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				Reasons:  test.reasons,
 			}
 
-			_, err := collectMetadata(ctx, mr, man, test.fileNames, tid)
+			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid)
 			assert.ErrorIs(t, err, test.expectErr)
 		})
 	}

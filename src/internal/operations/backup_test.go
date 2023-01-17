@@ -56,7 +56,7 @@ func (mr *mockRestorer) buildRestoreFunc(
 	}
 }
 
-func (mr mockRestorer) RestoreMultipleItems(
+func (mr *mockRestorer) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
