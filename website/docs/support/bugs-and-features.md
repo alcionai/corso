@@ -4,4 +4,5 @@ You can learn more about the Corso roadmap and how to interpret it [here](https:
 
 If you run into a bug or have feature requests, please file a [GitHub issue](https://github.com/alcionai/corso/issues/)
 and attach the `bug` or `enhancement` label to the issue. When filing bugs, please run Corso with `--log-level debug`
-and add the logs to the bug report.
+and add the logs to the bug report. You can find more information about where logs are stored in the
+[log files](../../setup/configuration/#log-files) section in setup docs.

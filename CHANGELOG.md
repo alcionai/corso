@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+
+## [v0.1.0] (alpha) - 2023-01-13
+
 ### Added
 
 - Folder entries in backup details now indicate whether an item in the hierarchy was updated
@@ -16,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The selectors Reduce() process will only include details that match the DiscreteOwner, if one is specified.
 - New selector constructors will automatically set the DiscreteOwner if given a single-item slice.
+- Write logs to disk by default ([#2082](https://github.com/alcionai/corso/pull/2082))
 
 ### Fixed
 
@@ -115,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.1.0...HEAD
+[v0.1.0]: https://github.com/alcionai/corso/compare/v0.0.4...v0.1.0
 [v0.0.4]: https://github.com/alcionai/corso/compare/v0.0.3...v0.0.4
 [v0.0.3]: https://github.com/alcionai/corso/compare/v0.0.2...v0.0.3
 [v0.0.2]: https://github.com/alcionai/corso/compare/v0.0.1...v0.0.2

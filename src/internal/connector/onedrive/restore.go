@@ -99,7 +99,10 @@ func RestoreCollection(
 	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
 
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
-	logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
+	logger.Ctx(ctx).Infow(
+		"restoring to destination",
+		"origin", dc.FullPath().Folder(),
+		"destination", restoreFolderElements)
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
@@ -195,7 +198,11 @@ func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID s
 			)
 		}
 
-		logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
+		logger.Ctx(ctx).Debugw("resolved restore destination",
+			"dest_name", folder,
+			"parent", parentFolderID,
+			"dest_id", *folderItem.GetId())
+
 		parentFolderID = *folderItem.GetId()
 	}
 
@@ -236,7 +243,7 @@ func restoreItem(
 	}
 
 	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(iReader, observe.ItemRestoreMsg, itemName, ss.Size())
+	progReader, closer := observe.ItemProgress(ctx, iReader, observe.ItemRestoreMsg, itemName, ss.Size())
 
 	go closer()
 

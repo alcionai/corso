@@ -941,35 +941,19 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						ids, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
+						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting message ids")
 						require.NotEmpty(t, ids, "message ids in folder")
 
-						var idx int
-
-						for _, item := range ids {
-							if item.Deleted {
-								idx++
-							}
-						}
-
-						err = cli.MessagesById(ids[idx].ID).Delete(ctx, nil)
+						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
 
 					case path.ContactsCategory:
-						ids, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
+						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
 						require.NoError(t, err, "getting contact ids")
 						require.NotEmpty(t, ids, "contact ids in folder")
 
-						var idx int
-
-						for _, item := range ids {
-							if item.Deleted {
-								idx++
-							}
-						}
-
-						err = cli.ContactsById(ids[idx].ID).Delete(ctx, nil)
+						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
 					}
 				}
