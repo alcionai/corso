@@ -26,15 +26,13 @@ func (cfc *contactFolderCache) populateContactRoot(
 ) error {
 	f, err := cfc.getter.GetContainerByID(ctx, cfc.userID, directoryID)
 	if err != nil {
-		return errors.Wrapf(
-			err,
-			"fetching root contact folder: "+support.ConnectorStackErrorTrace(err))
+		return support.ConnectorStackErrorTraceWrap(err, "fetching root folder")
 	}
 
 	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
 
 	if err := cfc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding cache root")
+		return errors.Wrap(err, "adding resolver dir")
 	}
 
 	return nil
@@ -50,16 +48,16 @@ func (cfc *contactFolderCache) Populate(
 	baseContainerPather ...string,
 ) error {
 	if err := cfc.init(ctx, baseID, baseContainerPather); err != nil {
-		return err
+		return errors.Wrap(err, "initializing")
 	}
 
 	err := cfc.enumer.EnumerateContainers(ctx, cfc.userID, baseID, cfc.addFolder)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "enumerating containers")
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {
-		return errors.Wrap(err, "contacts resolver")
+		return errors.Wrap(err, "populating paths")
 	}
 
 	return nil
