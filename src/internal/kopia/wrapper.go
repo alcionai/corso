@@ -178,10 +178,19 @@ func (w Wrapper) makeSnapshotWithRoot(
 		bc  = &stats.ByteCounter{}
 	)
 
+	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries))
 	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
+
 	for _, ent := range prevSnapEntries {
 		prevSnaps = append(prevSnaps, ent.Manifest)
+		snapIDs = append(snapIDs, ent.ID)
 	}
+
+	logger.Ctx(ctx).Infow(
+		"using snapshots for kopia-assisted incrementals",
+		"snapshot_ids",
+		snapIDs,
+	)
 
 	checkpointTagK, checkpointTagV := makeTagKV(checkpointTagKey)
 
