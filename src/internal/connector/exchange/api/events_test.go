@@ -1,4 +1,4 @@
-package exchange
+package api
 
 import (
 	"testing"
@@ -15,17 +15,17 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-type EventSuite struct {
+type EventsAPIUnitSuite struct {
 	suite.Suite
 }
 
-func TestEventSuite(t *testing.T) {
-	suite.Run(t, &EventSuite{})
+func TestEventsAPIUnitSuite(t *testing.T) {
+	suite.Run(t, new(EventsAPIUnitSuite))
 }
 
 // TestEventInfo verifies that searchable event metadata
 // can be properly retrieved from a models.Eventable object
-func (suite *EventSuite) TestEventInfo() {
+func (suite *EventsAPIUnitSuite) TestEventInfo() {
 	// Exchange stores start/end times in UTC and the below compares hours
 	// directly so we need to "normalize" the timezone here.
 	initial := time.Now().UTC()
@@ -136,7 +136,6 @@ func (suite *EventSuite) TestEventInfo() {
 					Organizer:  organizer,
 					EventStart: eventTime,
 					EventEnd:   eventEndTime,
-					Size:       10,
 				}
 			},
 		},
@@ -144,7 +143,7 @@ func (suite *EventSuite) TestEventInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			event, expected := test.evtAndRP()
-			result := EventInfo(event, 10)
+			result := EventInfo(event)
 
 			assert.Equal(t, expected.Subject, result.Subject, "subject")
 			assert.Equal(t, expected.Sender, result.Sender, "sender")
