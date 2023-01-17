@@ -192,6 +192,24 @@ func (w Wrapper) makeSnapshotWithRoot(
 		snapIDs,
 	)
 
+	checkpointTagK, checkpointTagV := makeTagKV(checkpointTagKey)
+
+	tags := map[string]string{}
+	checkpointTags := map[string]string{
+		checkpointTagK: checkpointTagV,
+	}
+
+	for k, v := range addlTags {
+		mk, mv := makeTagKV(k)
+
+		if len(v) == 0 {
+			v = mv
+		}
+
+		tags[mk] = v
+		checkpointTags[mk] = v
+	}
+
 	err := repo.WriteSession(
 		ctx,
 		w.c,
@@ -228,6 +246,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			u := snapshotfs.NewUploader(rw)
 			progress.UploadProgress = u.Progress
 			u.Progress = progress
+			u.CheckpointLabels = checkpointTags
 
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
@@ -236,17 +255,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 				return err
 			}
 
-			man.Tags = map[string]string{}
-
-			for k, v := range addlTags {
-				mk, mv := makeTagKV(k)
-
-				if len(v) == 0 {
-					v = mv
-				}
-
-				man.Tags[mk] = v
-			}
+			man.Tags = tags
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = errors.Wrap(err, "saving snapshot")
