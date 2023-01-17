@@ -25,6 +25,17 @@ const (
 	SharePointSource
 )
 
+func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
+	switch ds {
+	case OneDriveSource:
+		return path.OneDriveService, path.FilesCategory
+	case SharePointSource:
+		return path.SharePointService, path.LibrariesCategory
+	default:
+		return path.UnknownService, path.UnknownCategory
+	}
+}
+
 type folderMatcher interface {
 	IsAny() bool
 	Matches(string) bool
@@ -81,19 +92,67 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		return nil, err
 	}
 
+	var (
+		// Drive ID -> delta URL for drive
+		deltaURLs = map[string]string{}
+		// Drive ID -> folder ID -> folder path
+		folderPaths = map[string]map[string]string{}
+	)
+
 	// Update the collection map with items from each drive
 	for _, d := range drives {
-		err = collectItems(ctx, c.service, *d.GetId(), c.UpdateCollections)
+		driveID := *d.GetId()
+
+		delta, paths, err := collectItems(ctx, c.service, driveID, c.UpdateCollections)
 		if err != nil {
 			return nil, err
+		}
+
+		if len(delta) > 0 {
+			deltaURLs[driveID] = delta
+		}
+
+		if len(paths) > 0 {
+			folderPaths[driveID] = map[string]string{}
+
+			for id, p := range paths {
+				folderPaths[driveID][id] = p
+			}
 		}
 	}
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
-	collections := make([]data.Collection, 0, len(c.CollectionMap))
+	// Add an extra for the metadata collection.
+	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)
 	for _, coll := range c.CollectionMap {
 		collections = append(collections, coll)
+	}
+
+	service, category := c.source.toPathServiceCat()
+	metadata, err := graph.MakeMetadataCollection(
+		c.tenant,
+		c.resourceOwner,
+		service,
+		category,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(graph.PreviousPathFileName, folderPaths),
+			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+		},
+		c.statusUpdater,
+	)
+
+	if err != nil {
+		// Technically it's safe to continue here because the logic for starting an
+		// incremental backup should eventually find that the metadata files are
+		// empty/missing and default to a full backup.
+		logger.Ctx(ctx).Warnw(
+			"making metadata collection for future incremental backups",
+			"error",
+			err,
+		)
+	} else {
+		collections = append(collections, metadata)
 	}
 
 	return collections, nil
@@ -101,7 +160,12 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package)
-func (c *Collections) UpdateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
+func (c *Collections) UpdateCollections(
+	ctx context.Context,
+	driveID string,
+	items []models.DriveItemable,
+	paths map[string]string,
+) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
 			// Skip the root item
@@ -131,9 +195,19 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// Leave this here so we don't fall into the default case.
-			// TODO: This is where we might create a "special file" to represent these in the backup repository
-			// e.g. a ".folderMetadataFile"
+			// Eventually, deletions of folders will be handled here so we may as well
+			// start off by saving the path.Path of the item instead of just the
+			// OneDrive parentRef or such.
+			folderPath, err := collectionPath.Append(*item.GetName(), false)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
+				return err
+			}
+
+			// TODO(ashmrtn): Handle deletions by removing this entry from the map.
+			// TODO(ashmrtn): Handle moves by setting the collection state if the
+			// collection doesn't already exist/have that state.
+			paths[*item.GetId()] = folderPath.String()
 
 		case item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
