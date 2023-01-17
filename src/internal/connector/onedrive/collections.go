@@ -155,7 +155,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		collections = append(collections, metadata)
 	}
 
-	return collections, err
+	return collections, nil
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
