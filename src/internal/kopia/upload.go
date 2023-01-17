@@ -892,7 +892,7 @@ func inflateDirTree(
 
 	logger.Ctx(ctx).Infow(
 		"merging hierarchies from base snapshots",
-		"snapshot IDs",
+		"snapshot_ids",
 		baseIDs,
 	)
 

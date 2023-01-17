@@ -188,7 +188,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 	logger.Ctx(ctx).Infow(
 		"using snapshots for kopia-assisted incrementals",
-		"snapshot IDs",
+		"snapshot_ids",
 		snapIDs,
 	)
 

@@ -545,7 +545,7 @@ func consumeBackupDataCollections(
 
 		logger.Ctx(ctx).Infow(
 			"using base for backup",
-			"snapshot ID",
+			"snapshot_id",
 			m.ID,
 			"services",
 			svcs,
