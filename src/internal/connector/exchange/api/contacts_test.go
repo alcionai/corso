@@ -1,4 +1,4 @@
-package exchange
+package api
 
 import (
 	"testing"
@@ -11,15 +11,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-type ContactSuite struct {
+type ContactsAPIUnitSuite struct {
 	suite.Suite
 }
 
-func TestContactSuite(t *testing.T) {
-	suite.Run(t, &ContactSuite{})
+func TestContactsAPIUnitSuite(t *testing.T) {
+	suite.Run(t, new(ContactsAPIUnitSuite))
 }
 
-func (suite *ContactSuite) TestContactInfo() {
+func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 	initial := time.Now()
 
 	tests := []struct {
@@ -37,7 +37,6 @@ func (suite *ContactSuite) TestContactInfo() {
 					ItemType: details.ExchangeContact,
 					Created:  initial,
 					Modified: initial,
-					Size:     10,
 				}
 				return contact, i
 			},
@@ -54,7 +53,6 @@ func (suite *ContactSuite) TestContactInfo() {
 					ContactName: aPerson,
 					Created:     initial,
 					Modified:    initial,
-					Size:        10,
 				}
 				return contact, i
 			},
@@ -63,7 +61,7 @@ func (suite *ContactSuite) TestContactInfo() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			contact, expected := test.contactAndRP()
-			assert.Equal(t, expected, ContactInfo(contact, 10))
+			assert.Equal(t, expected, ContactInfo(contact))
 		})
 	}
 }
