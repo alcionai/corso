@@ -546,8 +546,10 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "man missing backup id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+					"id": {mockColl{id: "id_coll"}},
+				}},
+				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
 			gdi:           mockGetDetailsIDer{detailsID: did},
 			reasons:       []kopia.Reason{},
@@ -572,11 +574,12 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "one complete, one incomplete",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
-					"id": {mockColl{id: "id_coll"}},
+					"id":        {mockColl{id: "id_coll"}},
+					"incmpl_id": {mockColl{id: "incmpl_id_coll"}},
 				}},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "id", "", "bid"),
-					makeMan(path.EmailCategory, "", "ir", ""),
+					makeMan(path.EmailCategory, "incmpl_id", "ir", ""),
 				},
 			},
 			gdi:       mockGetDetailsIDer{detailsID: did},
@@ -660,25 +663,23 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			}
 			assert.Equal(t, expectMans, mans)
 
-			assert.Len(t, dcs, len(test.expectDCS))
+			expect, got := []string{}, []string{}
+
 			for _, dc := range test.expectDCS {
 				mc, ok := dc.(mockColl)
 				assert.True(t, ok)
 
-				var found bool
-
-				for _, r := range dcs {
-					rmc, ok := r.(mockColl)
-					assert.True(t, ok)
-
-					if rmc.id == mc.id {
-						found = true
-						break
-					}
-				}
-
-				assert.True(t, found, "expected collection is present in results: "+mc.id)
+				expect = append(expect, mc.id)
 			}
+
+			for _, dc := range dcs {
+				mc, ok := dc.(mockColl)
+				assert.True(t, ok)
+
+				got = append(got, mc.id)
+			}
+
+			assert.ElementsMatch(t, expect, got, "expected collections are present")
 		})
 	}
 }
