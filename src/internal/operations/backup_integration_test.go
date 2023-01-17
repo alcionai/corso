@@ -688,6 +688,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		)
 	}
 
+	eventDBF := func(id, timeStamp, subject, body string) []byte {
+		return mockconnector.GetMockEventWith(
+			suite.user, subject, body, body,
+			now, now, false)
+	}
+
 	dataset := map[path.CategoryType]struct {
 		dbf   dataBuilderFunc
 		dests map[string]contDeets
@@ -701,6 +707,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		},
 		path.ContactsCategory: {
 			dbf: contactDBF,
+			dests: map[string]contDeets{
+				container1: {},
+				container2: {},
+			},
+		},
+		path.EventsCategory: {
+			dbf: eventDBF,
 			dests: map[string]contDeets{
 				container1: {},
 				container2: {},
@@ -820,6 +833,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 							t,
 							cli.ContactFoldersById(containerID).Delete(ctx, nil),
 							"deleting a contacts folder")
+					case path.EventsCategory:
+						require.NoError(
+							t,
+							cli.CalendarsById(containerID).Delete(ctx, nil),
+							"deleting a calendar")
 					}
 				}
 			},
@@ -897,6 +915,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						body.SetDisplayName(&containerRename)
 						_, err = ccf.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating contact folder name")
+
+					case path.EventsCategory:
+						ccf := cli.CalendarsById(containerID)
+
+						body, err := ccf.Get(ctx, nil)
+						require.NoError(t, err, "getting calendar")
+
+						body.SetName(&containerRename)
+						_, err = ccf.Patch(ctx, body, nil)
+						require.NoError(t, err, "updating calendar name")
 					}
 				}
 			},
@@ -926,6 +954,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 						_, err = cli.ContactFoldersById(containerID).Contacts().Post(ctx, body, nil)
 						require.NoError(t, err, "posting contact item")
+
+					case path.EventsCategory:
+						_, itemData := generateItemData(t, category, suite.user, eventDBF)
+						body, err := support.CreateEventFromBytes(itemData)
+						require.NoError(t, err, "transforming event bytes to eventable")
+
+						_, err = cli.CalendarsById(containerID).Events().Post(ctx, body, nil)
+						require.NoError(t, err, "posting events item")
 					}
 				}
 			},
@@ -955,6 +991,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
+
+					case path.EventsCategory:
+						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
+						require.NoError(t, err, "getting event ids")
+						require.NotEmpty(t, ids, "event ids in folder")
+
+						err = cli.CalendarsById(ids[0]).Delete(ctx, nil)
+						require.NoError(t, err, "deleting calendar: %s", support.ConnectorStackErrorTrace(err))
 					}
 				}
 			},

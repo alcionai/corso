@@ -67,7 +67,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: suite.user + " Email",
+			name: "Email",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
@@ -76,7 +76,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			},
 		},
 		{
-			name: suite.user + " Contacts",
+			name: "Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
@@ -85,7 +85,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			},
 		},
 		// {
-		// 	name: suite.user + " Events",
+		// 	name: "Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
 		// 		sel := selectors.NewExchangeBackup(selUsers)
 		// 		sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
