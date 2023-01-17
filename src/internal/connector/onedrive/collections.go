@@ -129,7 +129,13 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		}
 
 		switch {
-		case item.GetFolder() != nil, item.GetPackage() != nil, item.GetFile() != nil:
+		case item.GetFolder() != nil, item.GetPackage() != nil:
+			if c.source != OneDriveSource{
+				continue
+			}
+			fallthrough
+
+		case item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
 				col = NewCollection(
