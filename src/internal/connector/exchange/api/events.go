@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
@@ -219,7 +220,12 @@ func (c Events) Serialize(
 		return nil, fmt.Errorf("expected Eventable, got %T", item)
 	}
 
-	var err error
+	var (
+		err    error
+		writer = kioser.NewJsonSerializationWriter()
+	)
+
+	defer writer.Close()
 
 	if *event.GetHasAttachments() {
 		// getting all the attachments might take a couple attempts due to filesize
@@ -246,10 +252,13 @@ func (c Events) Serialize(
 		}
 	}
 
-	bs, err := c.stable.Serialize(event)
+	if err = writer.WriteObjectValue("", event); err != nil {
+		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+	}
+
+	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		err = support.WrapAndAppend(itemID, errors.Wrap(err, "serializing event"), nil)
-		return nil, support.SetNonRecoverableError(err)
+		return nil, errors.Wrap(err, "serializing calendar event")
 	}
 
 	return bs, nil

@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
@@ -251,9 +252,20 @@ func (c Contacts) Serialize(
 		return nil, fmt.Errorf("expected Contactable, got %T", item)
 	}
 
-	bs, err := c.stable.Serialize(contact)
+	var (
+		err    error
+		writer = kioser.NewJsonSerializationWriter()
+	)
+
+	defer writer.Close()
+
+	if err = writer.WriteObjectValue("", contact); err != nil {
+		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+	}
+
+	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, support.WrapAndAppend(*contact.GetId(), err, nil)
+		return nil, errors.Wrap(err, "serializing contact")
 	}
 
 	return bs, nil
