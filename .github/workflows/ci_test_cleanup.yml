@@ -16,8 +16,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
 
-      # sets the maximimum time to now-30m.
+      # sets the maximum time to now-30m.
       # CI test have a 10 minute timeout.
       # At 20 minutes ago, we should be safe from conflicts.
       # The additional 10 minutes is just to be good citizens.
