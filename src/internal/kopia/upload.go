@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
@@ -121,6 +122,7 @@ type itemDetails struct {
 	info     *details.ItemInfo
 	repoPath path.Path
 	prevPath path.Path
+	cached   bool
 }
 
 type corsoProgress struct {
@@ -179,7 +181,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
-		true,
+		!d.cached,
 		*d.info,
 	)
 
@@ -187,7 +189,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
-		true, // itemUpdated = true
+		!d.cached,
 	)
 }
 
@@ -197,6 +199,20 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	defer cp.UploadProgress.FinishedHashingFile(fname, bs)
 
 	atomic.AddInt64(&cp.totalBytes, bs)
+}
+
+// Kopia interface function used as a callback when kopia detects a previously
+// uploaded file that matches the current file and skips uploading the new
+// (duplicate) version.
+func (cp *corsoProgress) CachedFile(fname string, size int64) {
+	defer cp.UploadProgress.CachedFile(fname, size)
+
+	d := cp.get(fname)
+	if d == nil {
+		return
+	}
+
+	d.cached = true
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {
@@ -271,7 +287,6 @@ func collectionEntries(
 				continue
 			}
 
-			log.Debugw("reading item", "path", itemPath.String())
 			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
 
 			if e.Deleted() {
@@ -869,6 +884,17 @@ func inflateDirTree(
 	if err != nil {
 		return nil, errors.Wrap(err, "inflating collection tree")
 	}
+
+	baseIDs := make([]manifest.ID, 0, len(baseSnaps))
+	for _, snap := range baseSnaps {
+		baseIDs = append(baseIDs, snap.ID)
+	}
+
+	logger.Ctx(ctx).Infow(
+		"merging hierarchies from base snapshots",
+		"snapshot_ids",
+		baseIDs,
+	)
 
 	for _, snap := range baseSnaps {
 		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {

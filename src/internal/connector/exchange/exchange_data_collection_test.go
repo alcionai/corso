@@ -2,17 +2,32 @@ package exchange
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+type mockItemer struct{}
+
+func (mi mockItemer) GetItem(
+	context.Context,
+	string, string,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	return nil, nil, nil
+}
+
+func (mi mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+	return nil, nil
+}
 
 type ExchangeDataCollectionSuite struct {
 	suite.Suite
@@ -137,7 +152,9 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 			c := NewCollection(
 				"u",
 				test.curr, test.prev,
-				0, api.Client{}, nil, nil, control.Options{},
+				0,
+				mockItemer{}, nil,
+				control.Options{},
 				false)
 			assert.Equal(t, test.expect, c.State())
 		})

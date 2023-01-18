@@ -5,11 +5,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
 
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -18,12 +18,11 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -77,12 +76,12 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, creds, err := getGC(ctx)
+	_, creds, err := getGC(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = runDisplayM365JSON(ctx, gc.Service, creds)
+	err = runDisplayM365JSON(ctx, creds, user, m365ID)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "unable to create mock from M365: %s", m365ID))
 	}
@@ -92,13 +91,14 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 
 func runDisplayM365JSON(
 	ctx context.Context,
-	gs graph.Servicer,
 	creds account.M365Config,
+	user, itemID string,
 ) error {
 	var (
-		get           api.GraphRetrievalFunc
-		serializeFunc exchange.GraphSerializeFunc
-		cat           = graph.StringToPathCategory(category)
+		bs  []byte
+		err error
+		cat = graph.StringToPathCategory(category)
+		sw  = kw.NewJsonSerializationWriter()
 	)
 
 	ac, err := api.NewClient(creds)
@@ -107,58 +107,60 @@ func runDisplayM365JSON(
 	}
 
 	switch cat {
-	case path.EmailCategory, path.EventsCategory, path.ContactsCategory:
-		get, serializeFunc = exchange.GetQueryAndSerializeFunc(ac, cat)
+	case path.EmailCategory:
+		bs, err = getItem(ctx, ac.Mail(), user, itemID)
+	case path.EventsCategory:
+		bs, err = getItem(ctx, ac.Events(), user, itemID)
+	case path.ContactsCategory:
+		bs, err = getItem(ctx, ac.Contacts(), user, itemID)
 	default:
 		return fmt.Errorf("unable to process category: %s", cat)
 	}
 
-	channel := make(chan data.Stream, 1)
-
-	response, err := get(ctx, user, m365ID)
 	if err != nil {
 		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
 
-	// First return is the number of bytes that were serialized. Ignored
-	_, err = serializeFunc(ctx, gs, channel, response, user)
-	close(channel)
+	str := string(bs)
 
+	err = sw.WriteStringValue("", &str)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "unable to %s to string value", itemID)
 	}
 
-	sw := kw.NewJsonSerializationWriter()
-
-	for item := range channel {
-		buf := &bytes.Buffer{}
-
-		_, err := buf.ReadFrom(item.ToReader())
-		if err != nil {
-			return errors.Wrapf(err, "unable to parse given data: %s", m365ID)
-		}
-
-		byteArray := buf.Bytes()
-		newValue := string(byteArray)
-
-		err = sw.WriteStringValue("", &newValue)
-		if err != nil {
-			return errors.Wrapf(err, "unable to %s to string value", m365ID)
-		}
-
-		array, err := sw.GetSerializedContent()
-		if err != nil {
-			return errors.Wrapf(err, "unable to serialize new value from M365:%s", m365ID)
-		}
-
-		fmt.Println(string(array))
-
-		//lint:ignore SA4004 only expecting one item
-		return nil
+	array, err := sw.GetSerializedContent()
+	if err != nil {
+		return errors.Wrapf(err, "unable to serialize new value from M365:%s", itemID)
 	}
 
-	// This should never happen
-	return errors.New("m365 object not serialized")
+	fmt.Println(string(array))
+
+	return nil
+}
+
+type itemer interface {
+	GetItem(
+		ctx context.Context,
+		user, itemID string,
+	) (serialization.Parsable, *details.ExchangeInfo, error)
+	Serialize(
+		ctx context.Context,
+		item serialization.Parsable,
+		user, itemID string,
+	) ([]byte, error)
+}
+
+func getItem(
+	ctx context.Context,
+	itm itemer,
+	user, itemID string,
+) ([]byte, error) {
+	sp, _, err := itm.GetItem(ctx, user, itemID)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting item")
+	}
+
+	return itm.Serialize(ctx, sp, user, itemID)
 }
 
 //-------------------------------------------------------------------------------

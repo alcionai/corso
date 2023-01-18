@@ -7,20 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+### Fixed
+
+- Check if the user specified for an exchange backup operation has a mailbox.
+
+
+## [v0.1.0] (alpha) - 2023-01-13
+
 ### Added
 
+- Folder entries in backup details now indicate whether an item in the hierarchy was updated
 - Incremental backup support for exchange is now enabled by default.
 
 ### Changed
 
 - The selectors Reduce() process will only include details that match the DiscreteOwner, if one is specified.
 - New selector constructors will automatically set the DiscreteOwner if given a single-item slice.
+- Write logs to disk by default ([#2082](https://github.com/alcionai/corso/pull/2082))
 
 ### Fixed
 
 - Issue where repository connect progress bar was clobbering backup/restore operation output.
 - Issue where a `backup create exchange` produced one backup record per data type.
 - Specifying multiple users in a onedrive backup (ex: `--user a,b,c`) now properly delimits the input along the commas.
+- Updated the list of M365 SKUs used to check if a user has a OneDrive license.
 
 ### Known Issues
 
@@ -30,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Folder entries in backup details now indicate whether an item in the hierarchy was updated
 - Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`   
   with the `backup create` command. This functionality will be enabled by default in an upcoming release.
 - Folder entries in backup details now include size and modified time for the hierarchy ([#1896](https://github.com/alcionai/corso/issues/1896))
@@ -114,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.1.0...HEAD
+[v0.1.0]: https://github.com/alcionai/corso/compare/v0.0.4...v0.1.0
 [v0.0.4]: https://github.com/alcionai/corso/compare/v0.0.3...v0.0.4
 [v0.0.3]: https://github.com/alcionai/corso/compare/v0.0.2...v0.0.3
 [v0.0.2]: https://github.com/alcionai/corso/compare/v0.0.1...v0.0.2

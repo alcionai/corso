@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 	"testing"
+	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -63,19 +64,22 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		testItemID   = "fakeItemID"
 		testItemName = "itemName"
 		testItemData = []byte("testdata")
+		now          = time.Now()
 	)
 
 	table := []struct {
-		name       string
-		source     driveSource
-		itemReader itemReaderFunc
-		infoFrom   func(*testing.T, details.ItemInfo) (string, string)
+		name         string
+		numInstances int
+		source       driveSource
+		itemReader   itemReaderFunc
+		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 	}{
 		{
-			name:   "oneDrive",
-			source: OneDriveSource,
+			name:         "oneDrive, no duplicates",
+			numInstances: 1,
+			source:       OneDriveSource,
 			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName}},
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
 			},
@@ -85,10 +89,39 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			},
 		},
 		{
-			name:   "sharePoint",
-			source: SharePointSource,
+			name:         "oneDrive, duplicates",
+			numInstances: 3,
+			source:       OneDriveSource,
 			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName}},
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+		},
+		{
+			name:         "sharePoint, no duplicates",
+			numInstances: 1,
+			source:       SharePointSource,
+			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.SharePoint)
+				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
+			},
+		},
+		{
+			name:         "sharePoint, duplicates",
+			numInstances: 3,
+			source:       SharePointSource,
+			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
 			},
@@ -124,7 +157,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			// Set a item reader, add an item and validate we get the item back
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
-			coll.Add(mockItem)
+
+			for i := 0; i < test.numInstances; i++ {
+				coll.Add(mockItem)
+			}
+
 			coll.itemReader = test.itemReader
 
 			// Read items from the collection
@@ -146,6 +183,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItemInfo := readItem.(data.StreamInfo)
 
 			assert.Equal(t, testItemName, readItem.UUID())
+
+			require.Implements(t, (*data.StreamModTime)(nil), readItem)
+			mt := readItem.(data.StreamModTime)
+			assert.Equal(t, now, mt.ModTime())
+
 			readData, err := io.ReadAll(readItem.ToReader())
 			require.NoError(t, err)
 
