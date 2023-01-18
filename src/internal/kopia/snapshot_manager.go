@@ -117,6 +117,7 @@ func getLastIdx(
 // adds it to the returned list. Otherwise no incomplete manifest is returned.
 // Returns nil if there are no complete or incomplete manifests in mans.
 func manifestsSinceLastComplete(
+	ctx context.Context,
 	mans []*snapshot.Manifest,
 ) ([]*snapshot.Manifest, bool) {
 	var (
@@ -134,9 +135,10 @@ func manifestsSinceLastComplete(
 
 		if len(m.IncompleteReason) > 0 {
 			if !foundIncomplete {
+				res = append(res, m)
 				foundIncomplete = true
 
-				res = append(res, m)
+				logger.Ctx(ctx).Infow("found incomplete snapshot", "snapshot_id", m.ID)
 			}
 
 			continue
@@ -146,6 +148,8 @@ func manifestsSinceLastComplete(
 		// found an incomplete one yet.
 		res = append(res, m)
 		foundComplete = true
+
+		logger.Ctx(ctx).Infow("found complete snapshot", "snapshot_id", m.ID)
 
 		break
 	}
@@ -215,6 +219,11 @@ func fetchPrevManifests(
 	// as the reason as well.
 	if !hasCompleted && man != nil {
 		found = append(found, man.Manifest)
+		logger.Ctx(ctx).Infow(
+			"reusing cached complete snapshot",
+			"snapshot_id",
+			man.ID,
+		)
 	}
 
 	return found, nil
@@ -243,6 +252,14 @@ func fetchPrevSnapshotManifests(
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
 	for _, reason := range reasons {
+		logger.Ctx(ctx).Infow(
+			"searching for previous manifests for reason",
+			"service",
+			reason.Service.String(),
+			"category",
+			reason.Category.String(),
+		)
+
 		found, err := fetchPrevManifests(
 			ctx,
 			sm,
