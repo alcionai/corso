@@ -366,11 +366,11 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 		pathType: path.LibrariesCategory,
 	},
 	SharePointListItem: {
-		pathKeys: []categorizer{SharePointSite, SharePointList, SharePointListItem},
+		pathKeys: []categorizer{SharePointList, SharePointListItem},
 		pathType: path.ListsCategory,
 	},
 	SharePointPageItem: {
-		pathKeys: []categorizer{SharePointSite, SharePointPage, SharePointPageItem},
+		pathKeys: []categorizer{SharePointPage, SharePointPageItem},
 		pathType: path.PagesCategory,
 	},
 	SharePointSite: { // the root category must be represented, even though it isn't a leaf
@@ -395,7 +395,7 @@ func (c sharePointCategory) leafCat() categorizer {
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
 	case SharePointPage, SharePointPageItem:
-		return SharePointPage
+		return SharePointPageItem
 	}
 
 	return c
