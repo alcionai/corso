@@ -21,18 +21,6 @@ var (
 		"owner":             {},
 	}
 
-	fieldsForEvents = map[string]struct{}{
-		"calendar":          {},
-		"end":               {},
-		"id":                {},
-		"isOnlineMeeting":   {},
-		"isReminderOn":      {},
-		"responseStatus":    {},
-		"responseRequested": {},
-		"showAs":            {},
-		"subject":           {},
-	}
-
 	fieldsForFolders = map[string]struct{}{
 		"childFolderCount": {},
 		"displayName":      {},
