@@ -643,8 +643,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
-			// TODO: not currently functioning; cannot retrieve generated calendars
-			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
+			path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -715,14 +714,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				container2: {},
 			},
 		},
-		// TODO: not currently functioning; cannot retrieve generated calendars
-		// path.EventsCategory: {
-		// 	dbf: eventDBF,
-		// 	dests: map[string]contDeets{
-		// 		container1: {},
-		// 		container2: {},
-		// 	},
-		// },
+		path.EventsCategory: {
+			dbf: eventDBF,
+			dests: map[string]contDeets{
+				container1: {},
+				container2: {},
+			},
+		},
 	}
 
 	// populate initial test data
@@ -775,6 +773,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
 		sel.ContactFolders(containers, selectors.PrefixMatch()),
+		sel.EventCalendars(containers, selectors.PrefixMatch()),
 	)
 
 	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
@@ -883,8 +882,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					dataset[category].dests[container3] = contDeets{id, deets}
 				}
 			},
-			itemsRead:    4,
-			itemsWritten: 4,
+			itemsRead:    6, // two items per category
+			itemsWritten: 6,
 		},
 		{
 			name: "rename a folder",
@@ -934,8 +933,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					}
 				}
 			},
-			itemsRead:    0,
-			itemsWritten: 4,
+			itemsRead:    2,
+			itemsWritten: 8, // two items per category
 		},
 		{
 			name: "add a new item",
@@ -971,8 +970,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					}
 				}
 			},
-			itemsRead:    2,
-			itemsWritten: 2,
+			itemsRead:    3, // one item per category
+			itemsWritten: 3,
 		},
 		{
 			name: "delete an existing item",
@@ -1003,12 +1002,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "getting event ids")
 						require.NotEmpty(t, ids, "event ids in folder")
 
-						err = cli.CalendarsById(ids[0]).Delete(ctx, nil)
+						err = cli.EventsById(ids[0]).Delete(ctx, nil)
 						require.NoError(t, err, "deleting calendar: %s", support.ConnectorStackErrorTrace(err))
 					}
 				}
 			},
-			itemsRead:    2,
+			itemsRead:    3, // one item per category
 			itemsWritten: 0, // deletes are not counted as "writes"
 		},
 	}
@@ -1035,9 +1034,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
-			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
-			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
-			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
+			// +6 on read/writes to account for metadata: 1 delta and 1 path for each type.
+			assert.Equal(t, test.itemsWritten+6, incBO.Results.ItemsWritten, "incremental items written")
+			assert.Equal(t, test.itemsRead+6, incBO.Results.ItemsRead, "incremental items read")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
 			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
