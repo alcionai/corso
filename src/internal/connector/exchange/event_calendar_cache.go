@@ -73,6 +73,10 @@ func (ecc *eventCalendarCache) Populate(
 		return errors.Wrap(err, "establishing calendar paths")
 	}
 
+	if err := ecc.populatePaths(ctx); err != nil {
+		return errors.Wrap(err, "establishing calendar paths")
+	}
+
 	return nil
 }
 
