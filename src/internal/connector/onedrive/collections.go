@@ -167,12 +167,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 }
 
 func shouldSkipDrive(ctx context.Context, service graph.Servicer, drivePath path.Path, m folderMatcher) bool {
-	shouldSkip := !includePath(ctx, m, drivePath)
-	if shouldSkip {
-		return true
-	}
-
-	return restrictedPath(ctx, service, drivePath)
+	return !includePath(ctx, m, drivePath) || restrictedPath(ctx, service, drivePath)
 }
 
 func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.Path) bool {
