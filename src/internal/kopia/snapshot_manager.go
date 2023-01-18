@@ -164,7 +164,7 @@ func fetchPrevManifests(
 	foundMans map[manifest.ID]*ManifestEntry,
 	reason Reason,
 	tags map[string]string,
-) ([]*ManifestEntry, error) {
+) ([]*snapshot.Manifest, error) {
 	allTags := map[string]string{}
 
 	for _, k := range reason.TagKeys() {
@@ -188,8 +188,7 @@ func fetchPrevManifests(
 	// We have a complete cached snapshot and it's the most recent. No need
 	// to do anything else.
 	if lastCompleteIdx == len(metas)-1 {
-		man.Reasons = append(man.Reasons, reason)
-		return nil, nil
+		return []*snapshot.Manifest{man.Manifest}, nil
 	}
 
 	// TODO(ashmrtn): Remainder of the function can be simplified if we can inject
@@ -209,24 +208,16 @@ func fetchPrevManifests(
 		return nil, errors.Wrap(err, "fetching previous manifests")
 	}
 
-	found, hasCompleted := manifestsSinceLastComplete(mans)
-	res := make([]*ManifestEntry, 0, len(found))
-
-	for _, m := range found {
-		res = append(res, &ManifestEntry{
-			Manifest: m,
-			Reasons:  []Reason{reason},
-		})
-	}
+	found, hasCompleted := manifestsSinceLastComplete(ctx, mans)
 
 	// If we didn't find another complete manifest then we need to mark the
 	// previous complete manifest as having this ResourceOwner, Service, Category
 	// as the reason as well.
 	if !hasCompleted && man != nil {
-		man.Reasons = append(man.Reasons, reason)
+		found = append(found, man.Manifest)
 	}
 
-	return res, nil
+	return found, nil
 }
 
 // fetchPrevSnapshotManifests returns a set of manifests for complete and maybe
@@ -278,18 +269,16 @@ func fetchPrevSnapshotManifests(
 		for _, m := range found {
 			man := mans[m.ID]
 			if man == nil {
-				mans[m.ID] = m
+				mans[m.ID] = &ManifestEntry{
+					Manifest: m,
+					Reasons:  []Reason{reason},
+				}
+
 				continue
 			}
 
-			// If the manifest already exists and it's incomplete then we should
-			// merge the reasons for consistency. This will become easier to handle
-			// once we update how checkpoint manifests are tagged.
-			if len(man.IncompleteReason) == 0 {
-				continue
-			}
-
-			man.Reasons = append(man.Reasons, m.Reasons...)
+			// This manifest has multiple reasons for being chosen. Merge them here.
+			man.Reasons = append(man.Reasons, reason)
 		}
 	}
 
