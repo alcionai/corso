@@ -6,12 +6,10 @@ import (
 
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -218,6 +216,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
+	// Delta-based incrementals currently only supported for Exchange
+	if sel.Service != selectors.ServiceExchange {
+		return false
+	}
+
 	return !opts.ToggleFeatures.DisableIncrementals
 }
 
@@ -233,7 +236,7 @@ func produceBackupDataCollections(
 	metadata []data.Collection,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion("Discovering items to backup:")
+	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -255,182 +258,6 @@ type backuper interface {
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
-}
-
-func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
-	var (
-		errs    *multierror.Error
-		reasons = map[string]manifest.ID{}
-	)
-
-	for _, man := range mans {
-		// Incomplete snapshots are used only for kopia-assisted incrementals. The
-		// fact that we need this check here makes it seem like this should live in
-		// the kopia code. However, keeping it here allows for better debugging as
-		// the kopia code only has access to a path builder which means it cannot
-		// remove the resource owner from the error/log output. That is also below
-		// the point where we decide if we should do a full backup or an
-		// incremental.
-		if len(man.IncompleteReason) > 0 {
-			continue
-		}
-
-		for _, reason := range man.Reasons {
-			reasonKey := reason.ResourceOwner + reason.Service.String() + reason.Category.String()
-
-			if b, ok := reasons[reasonKey]; ok {
-				errs = multierror.Append(errs, errors.Errorf(
-					"multiple base snapshots source data for %s %s. IDs: %s, %s",
-					reason.Service.String(),
-					reason.Category.String(),
-					b,
-					man.ID,
-				))
-
-				continue
-			}
-
-			reasons[reasonKey] = man.ID
-		}
-	}
-
-	return errs.ErrorOrNil()
-}
-
-// calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
-func produceManifestsAndMetadata(
-	ctx context.Context,
-	kw *kopia.Wrapper,
-	sw *store.Wrapper,
-	reasons []kopia.Reason,
-	tenantID string,
-	getMetadata bool,
-) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
-	var (
-		metadataFiles = graph.AllMetadataFileNames()
-		collections   []data.Collection
-	)
-
-	ms, err := kw.FetchPrevSnapshotManifests(
-		ctx,
-		reasons,
-		map[string]string{kopia.TagBackupCategory: ""})
-	if err != nil {
-		return nil, nil, false, err
-	}
-
-	if !getMetadata {
-		return ms, nil, false, nil
-	}
-
-	// We only need to check that we have 1:1 reason:base if we're doing an
-	// incremental with associated metadata. This ensures that we're only sourcing
-	// data from a single Point-In-Time (base) for each incremental backup.
-	//
-	// TODO(ashmrtn): This may need updating if we start sourcing item backup
-	// details from previous snapshots when using kopia-assisted incrementals.
-	if err := verifyDistinctBases(ms); err != nil {
-		logger.Ctx(ctx).Warnw(
-			"base snapshot collision, falling back to full backup",
-			"error",
-			err,
-		)
-
-		return ms, nil, false, nil
-	}
-
-	for _, man := range ms {
-		if len(man.IncompleteReason) > 0 {
-			continue
-		}
-
-		bID, ok := man.GetTag(kopia.TagBackupID)
-		if !ok {
-			return nil, nil, false, errors.New("snapshot manifest missing backup ID")
-		}
-
-		dID, _, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(bID))
-		if err != nil {
-			// if no backup exists for any of the complete manifests, we want
-			// to fall back to a complete backup.
-			if errors.Is(err, kopia.ErrNotFound) {
-				logger.Ctx(ctx).Infow(
-					"backup missing, falling back to full backup",
-					"backup_id", bID)
-
-				return ms, nil, false, nil
-			}
-
-			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
-		}
-
-		// if no detailsID exists for any of the complete manifests, we want
-		// to fall back to a complete backup.  This is a temporary prevention
-		// mechanism to keep backups from falling into a perpetually bad state.
-		// This makes an assumption that the ID points to a populated set of
-		// details; we aren't doing the work to look them up.
-		if len(dID) == 0 {
-			logger.Ctx(ctx).Infow(
-				"backup missing details ID, falling back to full backup",
-				"backup_id", bID)
-
-			return ms, nil, false, nil
-		}
-
-		colls, err := collectMetadata(ctx, kw, man, metadataFiles, tenantID)
-		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
-			// prior metadata isn't guaranteed to exist.
-			// if it doesn't, we'll just have to do a
-			// full backup for that data.
-			return nil, nil, false, err
-		}
-
-		collections = append(collections, colls...)
-	}
-
-	return ms, collections, true, err
-}
-
-func collectMetadata(
-	ctx context.Context,
-	r restorer,
-	man *kopia.ManifestEntry,
-	fileNames []string,
-	tenantID string,
-) ([]data.Collection, error) {
-	paths := []path.Path{}
-
-	for _, fn := range fileNames {
-		for _, reason := range man.Reasons {
-			logger.Ctx(ctx).Debugf("Owner: %v\t Service: %s\tCategory: %s\n",
-				reason.ResourceOwner,
-				reason.Service.String(), reason.Category)
-
-			p, err := path.Builder{}.
-				Append(fn).
-				ToServiceCategoryMetadataPath(
-					tenantID,
-					reason.ResourceOwner,
-					reason.Service,
-					reason.Category,
-					true)
-			if err != nil {
-				return nil, errors.Wrapf(err, "building metadata path")
-			}
-
-			paths = append(paths, p)
-		}
-	}
-
-	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
-	if err != nil {
-		// Restore is best-effort and we want to keep it that way since we want to
-		// return as much metadata as we can to reduce the work we'll need to do.
-		// Just wrap the error here for better reporting/debugging.
-		return dcs, errors.Wrap(err, "collecting prior metadata")
-	}
-
-	return dcs, nil
 }
 
 func selectorToReasons(sel selectors.Selector) []kopia.Reason {
@@ -491,7 +318,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
-	complete, closer := observe.MessageWithCompletion("Backing up data:")
+	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -513,6 +340,8 @@ func consumeBackupDataCollections(
 
 	for _, m := range mans {
 		paths := make([]*path.Builder, 0, len(m.Reasons))
+		services := map[string]struct{}{}
+		categories := map[string]struct{}{}
 
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(tenantID, reason)
@@ -521,12 +350,34 @@ func consumeBackupDataCollections(
 			}
 
 			paths = append(paths, pb)
+			services[reason.Service.String()] = struct{}{}
+			categories[reason.Category.String()] = struct{}{}
 		}
 
 		bases = append(bases, kopia.IncrementalBase{
 			Manifest:     m.Manifest,
 			SubtreePaths: paths,
 		})
+
+		svcs := make([]string, 0, len(services))
+		for k := range services {
+			svcs = append(svcs, k)
+		}
+
+		cats := make([]string, 0, len(categories))
+		for k := range categories {
+			cats = append(cats, k)
+		}
+
+		logger.Ctx(ctx).Infow(
+			"using base for backup",
+			"snapshot_id",
+			m.ID,
+			"services",
+			svcs,
+			"categories",
+			cats,
+		)
 	}
 
 	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
