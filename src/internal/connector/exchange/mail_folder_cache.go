@@ -35,7 +35,7 @@ func (mc *mailFolderCache) populateMailRoot(
 
 		f, err := mc.getter.GetContainerByID(ctx, mc.userID, fldr)
 		if err != nil {
-			return errors.Wrap(err, "fetching root folder"+support.ConnectorStackErrorTrace(err))
+			return support.ConnectorStackErrorTraceWrap(err, "fetching root folder")
 		}
 
 		if fldr == DefaultMailFolder {
@@ -44,7 +44,7 @@ func (mc *mailFolderCache) populateMailRoot(
 
 		temp := graph.NewCacheFolder(f, path.Builder{}.Append(directory))
 		if err := mc.addFolder(temp); err != nil {
-			return errors.Wrap(err, "initializing mail resolver")
+			return errors.Wrap(err, "adding resolver dir")
 		}
 	}
 
@@ -62,16 +62,16 @@ func (mc *mailFolderCache) Populate(
 	baseContainerPath ...string,
 ) error {
 	if err := mc.init(ctx); err != nil {
-		return err
+		return errors.Wrap(err, "initializing")
 	}
 
 	err := mc.enumer.EnumerateContainers(ctx, mc.userID, "", mc.addFolder)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "enumerating containers")
 	}
 
 	if err := mc.populatePaths(ctx); err != nil {
-		return errors.Wrap(err, "mail resolver")
+		return errors.Wrap(err, "populating paths")
 	}
 
 	return nil
