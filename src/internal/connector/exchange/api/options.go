@@ -112,6 +112,28 @@ func optionsForCalendars(moreOps []string) (
 	return options, nil
 }
 
+// optionsForCalendarsByID places allowed options for exchange.Calendar object
+// @param moreOps should reflect elements from fieldsForCalendars
+// @return is first call in Calendars().GetWithRequestConfigurationAndResponseHandler
+func optionsForCalendarsByID(moreOps []string) (
+	*users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration,
+	error,
+) {
+	selecting, err := buildOptions(moreOps, fieldsForCalendars)
+	if err != nil {
+		return nil, err
+	}
+	// should be a CalendarsRequestBuilderGetRequestConfiguration
+	requestParams := &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParams,
+	}
+
+	return options, nil
+}
+
 // optionsForContactFolders places allowed options for exchange.ContactFolder object
 // @return is first call in ContactFolders().GetWithRequestConfigurationAndResponseHandler
 func optionsForContactFolders(moreOps []string) (
@@ -207,26 +229,6 @@ func optionsForContactFoldersItemDelta(
 	}
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
-// optionsForEvents ensures a valid option inputs for `exchange.Events` when selected from within a Calendar
-func optionsForEventsByCalendarDelta(
-	moreOps []string,
-) (*users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForEvents)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-
-	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 

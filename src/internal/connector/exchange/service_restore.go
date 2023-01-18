@@ -507,9 +507,11 @@ func CreateContainerDestinaion(
 
 	case path.EventsCategory:
 		if directoryCache == nil {
+			ace := ac.Events()
 			ecc := &eventCalendarCache{
 				userID: user,
-				enumer: ac.Events(),
+				getter: ace,
+				enumer: ace,
 			}
 			caches[category] = ecc
 			newCache = true
