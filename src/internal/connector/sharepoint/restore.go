@@ -77,7 +77,11 @@ func RestoreCollections(
 				errUpdater,
 			)
 		case path.PagesCategory:
-			logger.Ctx(ctx).Infof("backup of pages not supported", dc.FullPath().Category())
+			errorMessage := fmt.Sprintf("backup of pages not supported %s", dc.FullPath().Category())
+			logger.Ctx(ctx).Error(errorMessage)
+
+			return nil, errors.New(errorMessage)
+
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
