@@ -184,9 +184,7 @@ func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.
 	driveObj, err := service.
 		Client().
 		DrivesById(folders[1]).
-		Get(ctx,
-			optionsSingleDrive([]string{"id", "name"}),
-		)
+		Get(ctx, optionsSingleDrive([]string{"id", "name"}))
 	if err != nil {
 		logger.Ctx(ctx).Error(err, support.ConnectorStackErrorTrace(err))
 		return false
