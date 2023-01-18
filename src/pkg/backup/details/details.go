@@ -173,7 +173,7 @@ func (b *Builder) AddFoldersForItem(folders []folderEntry, itemInfo ItemInfo, up
 		}
 
 		// Update the folder's size and modified time
-		itemModified := itemInfo.modified()
+		itemModified := itemInfo.Modified()
 
 		folder.Info.Folder.Size += itemInfo.size()
 
@@ -381,7 +381,7 @@ func (i ItemInfo) size() int64 {
 	return 0
 }
 
-func (i ItemInfo) modified() time.Time {
+func (i ItemInfo) Modified() time.Time {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.Modified

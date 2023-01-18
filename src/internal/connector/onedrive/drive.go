@@ -161,7 +161,12 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 }
 
 // itemCollector functions collect the items found in a drive
-type itemCollector func(ctx context.Context, driveID string, driveItems []models.DriveItemable) error
+type itemCollector func(
+	ctx context.Context,
+	driveID string,
+	driveItems []models.DriveItemable,
+	paths map[string]string,
+) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
@@ -170,7 +175,14 @@ func collectItems(
 	service graph.Servicer,
 	driveID string,
 	collector itemCollector,
-) error {
+) (string, map[string]string, error) {
+	var (
+		newDeltaURL = ""
+		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
+		// take in previous paths.
+		paths = map[string]string{}
+	)
+
 	// TODO: Specify a timestamp in the delta query
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
@@ -200,16 +212,20 @@ func collectItems(
 	for {
 		r, err := builder.Get(ctx, requestConfig)
 		if err != nil {
-			return errors.Wrapf(
+			return "", nil, errors.Wrapf(
 				err,
 				"failed to query drive items. details: %s",
 				support.ConnectorStackErrorTrace(err),
 			)
 		}
 
-		err = collector(ctx, driveID, r.GetValue())
+		err = collector(ctx, driveID, r.GetValue(), paths)
 		if err != nil {
-			return err
+			return "", nil, err
+		}
+
+		if r.GetOdataDeltaLink() != nil && len(*r.GetOdataDeltaLink()) > 0 {
+			newDeltaURL = *r.GetOdataDeltaLink()
 		}
 
 		// Check if there are more items
@@ -222,7 +238,7 @@ func collectItems(
 		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
-	return nil
+	return newDeltaURL, paths, nil
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
@@ -329,11 +345,16 @@ func GetAllFolders(
 	folders := map[string]*Displayable{}
 
 	for _, d := range drives {
-		err = collectItems(
+		_, _, err = collectItems(
 			ctx,
 			gs,
 			*d.GetId(),
-			func(innerCtx context.Context, driveID string, items []models.DriveItemable) error {
+			func(
+				innerCtx context.Context,
+				driveID string,
+				items []models.DriveItemable,
+				paths map[string]string,
+			) error {
 				for _, item := range items {
 					// Skip the root item.
 					if item.GetRoot() != nil {
