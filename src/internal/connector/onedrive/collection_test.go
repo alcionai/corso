@@ -151,7 +151,21 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			// Set a item reader, add an item and validate we get the item back
 			mockItem := models.NewDriveItem()
+
 			mockItem.SetId(&testItemID)
+			mockItem.SetName(&testItemName)
+
+			now := time.Now()
+			mockItem.SetCreatedDateTime(&now)
+			mockItem.SetLastModifiedDateTime(&now)
+
+			size := int64(10)
+			mockItem.SetSize(&size)
+
+			user := models.NewIdentitySet()
+			mockItem.SetCreatedBy(user)
+
+			mockItem.SetPermissions([]models.Permissionable{})
 
 			for i := 0; i < test.numInstances; i++ {
 				coll.Add(mockItem)

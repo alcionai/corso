@@ -12,16 +12,17 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/data"
+	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const maxInflateTraversalDepth = 500
@@ -315,13 +316,10 @@ func collectionEntries(
 				modTime = smt.ModTime()
 			}
 
-			contents, _ := io.ReadAll(e.ToReader())
-			data := io.NopCloser(bytes.NewReader(contents))
-
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
 				encodedName,
 				modTime,
-				newBackupStreamReader(serializationVersion, data),
+				newBackupStreamReader(serializationVersion, e.ToReader()),
 			)
 			if err := cb(ctx, entry); err != nil {
 				// Kopia's uploader swallows errors in most cases, so if we see

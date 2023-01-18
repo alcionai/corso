@@ -9,6 +9,10 @@ import (
 	"sort"
 	"strings"
 
+	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -18,9 +22,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -64,10 +65,9 @@ func RestoreCollections(
 
 		metrics, folderPerms, canceled := RestoreCollection(ctx, service, dc, parentPerms, OneDriveSource, dest.ContainerName, deets, errUpdater)
 
-		for k,v := range folderPerms{
+		for k, v := range folderPerms {
 			parentPermissions[k] = v
 		}
-
 
 		restoreMetrics.Combine(metrics)
 
@@ -162,10 +162,10 @@ func RestoreCollection(
 
 			if source == OneDriveSource {
 				name := itemData.UUID()
-				if strings.HasSuffix(name, ".data") {
+				if strings.HasSuffix(name, DataFileSuffix) {
 					metrics.Objects++
 					metrics.TotalBytes += int64(len(copyBuffer))
-					trimmedName := name[:len(name)-5]
+					trimmedName := strings.TrimSuffix(name, DataFileSuffix)
 
 					itemID, itemInfo, err = restoreData(ctx, service, trimmedName, itemData, drivePath.DriveID, restoreFolderID, copyBuffer, source)
 					if err != nil {
@@ -176,36 +176,47 @@ func RestoreCollection(
 					restoredIDs[trimmedName] = itemID
 
 					deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
-				} else if strings.HasSuffix(name, ".meta") {
+				} else if strings.HasSuffix(name, MetaFileSuffix) {
 					meta, err := getMetadata(itemData.ToReader())
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
 					}
 
-					trimmedName := name[:len(name)-5]
+					trimmedName := strings.TrimSuffix(name, MetaFileSuffix)
 					restoreID, ok := restoredIDs[trimmedName]
 					if !ok {
 						errUpdater(itemData.UUID(), fmt.Errorf("item not available to restore permissions"))
 						continue
 					}
 
-					restorePermissions(ctx, service, drivePath.DriveID, restoreID, parentPerms, meta.Permissions)
+					err = restorePermissions(ctx, service, drivePath.DriveID, restoreID, parentPerms, meta.Permissions)
+					if err != nil {
+						errUpdater(itemData.UUID(), err)
+						continue
+					}
 
-					// TODO(meain): Finalize on how we count success
-					metrics.Successes++ // Counted as success when we have also restored metadata
-				} else if strings.HasSuffix(name, ".dirmeta") {
+					// Objects count is incremented when we restore a
+					// data file and success count is incremented when
+					// we restore a meta file as every data file
+					// should have an associated meta file
+					metrics.Successes++
+				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
 					meta, err := getMetadata(itemData.ToReader())
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
 					}
 
-					trimmedName := name[:len(name)-8]
-					createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName, restoreFolderID, parentPerms, meta.Permissions)
+					trimmedName := strings.TrimSuffix(name, DirMetaFileSuffix)
+					_, err = createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName, restoreFolderID, parentPerms, meta.Permissions)
+					if err != nil {
+						errUpdater(itemData.UUID(), err)
+						continue
+					}
 
-					path := itemPath.String()
-					folderPerms[path[:len(path)-8]] = meta.Permissions
+					ipth := itemPath.String()
+					folderPerms[ipth[:len(ipth)-8]] = meta.Permissions
 				} else {
 					if !ok {
 						// TODO(meain): support older backups?
@@ -383,7 +394,6 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 		if err != nil {
 			return Metadata{}, err
 		}
-
 
 		err = json.Unmarshal(metaraw, &meta)
 		if err != nil {

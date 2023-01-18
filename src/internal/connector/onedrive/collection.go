@@ -8,6 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/spatialcurrent/go-lazy/pkg/lazy"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -16,8 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 )
 
 const (
@@ -315,10 +316,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if itemMeta != nil {
-				// TODO(meain): This right now creates two
-				// progressbars for each file, one for :data and one
-				// for :meta. Should we have some way to show it a
-				// different manner?
 				metaFileSuffix := MetaFileSuffix
 				if !isFile {
 					metaFileSuffix = DirMetaFileSuffix

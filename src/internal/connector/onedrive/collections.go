@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -12,8 +15,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 )
 
 type driveSource int
@@ -130,7 +131,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			if c.source != OneDriveSource{
+			if c.source != OneDriveSource {
 				continue
 			}
 			fallthrough
