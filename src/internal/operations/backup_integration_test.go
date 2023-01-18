@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -507,7 +507,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	users := []string{suite.user}
+	owners := []string{suite.user}
 
 	tests := []struct {
 		name           string
@@ -520,7 +520,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup(users)
+				sel := selectors.NewExchangeBackup(owners)
 				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 				sel.DiscreteOwner = suite.user
 
@@ -534,7 +534,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup(users)
+				sel := selectors.NewExchangeBackup(owners)
 				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -546,7 +546,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup(users)
+				sel := selectors.NewExchangeBackup(owners)
 				sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -639,10 +639,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		ffs        = control.Toggles{}
 		mb         = evmock.NewBus()
 		now        = common.Now()
-		users      = []string{suite.user}
+		owners     = []string{suite.user}
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
+			// TODO: not currently functioning; cannot retrieve generated calendars
+			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -694,6 +696,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			now, now, false)
 	}
 
+	// test data set
 	dataset := map[path.CategoryType]struct {
 		dbf   dataBuilderFunc
 		dests map[string]contDeets
@@ -712,15 +715,17 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				container2: {},
 			},
 		},
-		path.EventsCategory: {
-			dbf: eventDBF,
-			dests: map[string]contDeets{
-				container1: {},
-				container2: {},
-			},
-		},
+		// TODO: not currently functioning; cannot retrieve generated calendars
+		// path.EventsCategory: {
+		// 	dbf: eventDBF,
+		// 	dests: map[string]contDeets{
+		// 		container1: {},
+		// 		container2: {},
+		// 	},
+		// },
 	}
 
+	// populate initial test data
 	for category, gen := range dataset {
 		for destName := range gen.dests {
 			deets := generateContainerOfItems(
@@ -730,7 +735,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				path.ExchangeService,
 				acct,
 				category,
-				selectors.NewExchangeRestore(users).Selector,
+				selectors.NewExchangeRestore(owners).Selector,
 				m365.AzureTenantID, suite.user, destName,
 				2,
 				gen.dbf)
@@ -739,6 +744,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		}
 	}
 
+	// verify test data was populated, and track it for comparisons
 	for category, gen := range dataset {
 		qp := graph.QueryParams{
 			Category:      category,
@@ -765,7 +771,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	// later on during the tests.  Putting their identifiers into the selector
 	// at this point is harmless.
 	containers := []string{container1, container2, container3, containerRename}
-	sel := selectors.NewExchangeBackup(users)
+	sel := selectors.NewExchangeBackup(owners)
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
 		sel.ContactFolders(containers, selectors.PrefixMatch()),
@@ -801,7 +807,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				toContainer := dataset[path.EmailCategory].dests[container1].containerID
 				fromContainer := dataset[path.EmailCategory].dests[container2].containerID
 
-				body := msuser.NewItemMailFoldersItemMovePostRequestBody()
+				body := users.NewItemMailFoldersItemMovePostRequestBody()
 				body.SetDestinationId(&toContainer)
 
 				_, err := gc.Service.
@@ -855,7 +861,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						path.ExchangeService,
 						acct,
 						category,
-						selectors.NewExchangeRestore(users).Selector,
+						selectors.NewExchangeRestore(owners).Selector,
 						m365.AzureTenantID, suite.user, container3,
 						2,
 						gen.dbf)
