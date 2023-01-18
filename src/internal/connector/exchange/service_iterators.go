@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -56,17 +57,14 @@ func filterContainersAndFillCollections(
 		return err
 	}
 
+	ibt, err := itemerByType(ac, scope.Category().PathType())
+	if err != nil {
+		return err
+	}
+
 	for _, c := range resolver.Items() {
 		if ctrlOpts.FailFast && errs != nil {
 			return errs
-		}
-
-		// cannot be moved out of the loop,
-		// else we run into state issues.
-		service, err := createService(qp.Credentials)
-		if err != nil {
-			errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
-			continue
 		}
 
 		cID := *c.GetId()
@@ -118,15 +116,24 @@ func filterContainersAndFillCollections(
 			currPath,
 			prevPath,
 			scope.Category().PathType(),
-			ac,
-			service,
+			ibt,
 			statusUpdater,
 			ctrlOpts,
 			newDelta.Reset)
 
 		collections[cID] = &edc
-		edc.added = append(edc.added, added...)
-		edc.removed = append(edc.removed, removed...)
+
+		for _, add := range added {
+			edc.added[add] = struct{}{}
+		}
+
+		// Remove any deleted IDs from the set of added IDs because items that are
+		// deleted and then restored will have a different ID than they did
+		// originally.
+		for _, remove := range removed {
+			delete(edc.added, remove)
+			edc.removed[remove] = struct{}{}
+		}
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
@@ -138,12 +145,6 @@ func filterContainersAndFillCollections(
 	// in the `previousPath` set, but does not exist in the current container
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
-		service, err := createService(qp.Credentials)
-		if err != nil {
-			errs = support.WrapAndAppend(p, err, errs)
-			continue
-		}
-
 		if collections[id] != nil {
 			errs = support.WrapAndAppend(p, errors.New("conflict: tombstone exists for a live collection"), errs)
 			continue
@@ -168,8 +169,7 @@ func filterContainersAndFillCollections(
 			nil, // marks the collection as deleted
 			prevPath,
 			scope.Category().PathType(),
-			ac,
-			service,
+			ibt,
 			statusUpdater,
 			ctrlOpts,
 			false)
@@ -220,4 +220,17 @@ func pathFromPrevString(ps string) (path.Path, error) {
 	}
 
 	return p, nil
+}
+
+func itemerByType(ac api.Client, category path.CategoryType) (itemer, error) {
+	switch category {
+	case path.EmailCategory:
+		return ac.Mail(), nil
+	case path.EventsCategory:
+		return ac.Events(), nil
+	case path.ContactsCategory:
+		return ac.Contacts(), nil
+	default:
+		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
+	}
 }

@@ -95,7 +95,12 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	var driveItem models.DriveItemable
 	// This item collector tries to find "a" drive item that is a file to test the reader function
-	itemCollector := func(ctx context.Context, driveID, driveName string, items []models.DriveItemable) error {
+	itemCollector := func(
+		ctx context.Context,
+		driveID string,
+		items []models.DriveItemable,
+		paths map[string]string,
+	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
 				driveItem = item
@@ -105,7 +110,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
-	err := collectItems(ctx, suite, suite.userDriveID, "test", itemCollector)
+	_, _, err := collectItems(ctx, suite, suite.userDriveID, itemCollector)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file

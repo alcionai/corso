@@ -1,4 +1,4 @@
-package main
+package impl
 
 import (
 	"github.com/spf13/cobra"
@@ -30,7 +30,7 @@ var (
 	}
 )
 
-func addExchangeCommands(cmd *cobra.Command) {
+func AddExchangeCommands(cmd *cobra.Command) {
 	cmd.AddCommand(emailsCmd)
 	cmd.AddCommand(eventsCmd)
 	cmd.AddCommand(contactsCmd)
@@ -47,7 +47,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, user)
+	gc, acct, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -58,12 +58,12 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		acct,
 		service,
 		category,
-		selectors.NewExchangeRestore([]string{user}).Selector,
-		user, destination,
-		count,
+		selectors.NewExchangeRestore([]string{User}).Selector,
+		Tenant, User, Destination,
+		Count,
 		func(id, now, subject, body string) []byte {
 			return mockconnector.GetMockMessageWith(
-				user, user, user,
+				User, User, User,
 				subject, body, body,
 				now, now, now, now)
 		},
@@ -88,7 +88,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, user)
+	gc, acct, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -99,12 +99,12 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		acct,
 		service,
 		category,
-		selectors.NewExchangeRestore([]string{user}).Selector,
-		user, destination,
-		count,
+		selectors.NewExchangeRestore([]string{User}).Selector,
+		Tenant, User, Destination,
+		Count,
 		func(id, now, subject, body string) []byte {
 			return mockconnector.GetMockEventWith(
-				user, subject, body, body,
+				User, subject, body, body,
 				now, now, false)
 		},
 	)
@@ -128,7 +128,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, user)
+	gc, acct, err := getGCAndVerifyUser(ctx, User)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -139,9 +139,9 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		acct,
 		service,
 		category,
-		selectors.NewExchangeRestore([]string{user}).Selector,
-		user, destination,
-		count,
+		selectors.NewExchangeRestore([]string{User}).Selector,
+		Tenant, User, Destination,
+		Count,
 		func(id, now, subject, body string) []byte {
 			given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
 

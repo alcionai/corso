@@ -32,5 +32,5 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 		DoNotVerifyTLS: cfg.DoNotVerifyTLS,
 	}
 
-	return s3.New(ctx, &opts)
+	return s3.New(ctx, &opts, false)
 }
