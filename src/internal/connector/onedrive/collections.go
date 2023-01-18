@@ -84,7 +84,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 
 	// Update the collection map with items from each drive
 	for _, d := range drives {
-		err = collectItems(ctx, c.service, *d.GetId(), c.UpdateCollections)
+		err = collectItems(ctx, c.service, *d.GetId(), *d.GetName(), c.UpdateCollections)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package)
-func (c *Collections) UpdateCollections(ctx context.Context, driveID string, items []models.DriveItemable) error {
+func (c *Collections) UpdateCollections(ctx context.Context, driveID string, driveName string, items []models.DriveItemable) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
 			// Skip the root item
@@ -125,7 +125,7 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 		}
 
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, c.service, collectionPath, c.matcher) {
+		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
 		}
@@ -166,30 +166,8 @@ func (c *Collections) UpdateCollections(ctx context.Context, driveID string, ite
 	return nil
 }
 
-func shouldSkipDrive(ctx context.Context, service graph.Servicer, drivePath path.Path, m folderMatcher) bool {
-	return !includePath(ctx, m, drivePath) || restrictedPath(ctx, service, drivePath)
-}
-
-func restrictedPath(ctx context.Context, service graph.Servicer, drivePath path.Path) bool {
-	folders := drivePath.Folders()
-	if len(folders) < 2 {
-		return false
-	}
-
-	driveObj, err := service.
-		Client().
-		DrivesById(folders[1]).
-		Get(ctx, optionsSingleDrive([]string{"id", "name"}))
-	if err != nil {
-		logger.Ctx(ctx).Error(err, support.ConnectorStackErrorTrace(err))
-		return false
-	}
-
-	if *driveObj.GetName() == restrictedDirectory {
-		return true
-	}
-
-	return false
+func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
+	return !includePath(ctx, m, drivePath) || restrictedDirectory == driveName
 }
 
 // GetCanonicalPath constructs the standard path for the given source.
