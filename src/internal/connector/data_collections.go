@@ -25,24 +25,6 @@ import (
 // Data Collections
 // ---------------------------------------------------------------------------
 
-func checkServiceEnabled(ctx context.Context, gs graph.Servicer, service path.ServiceType, resource string) (bool, error) {
-	if service == path.SharePointService {
-		// No "enabled" check required for sharepoint
-		return true, nil
-	}
-
-	_, info, err := discovery.User(ctx, gs, resource)
-	if err != nil {
-		return false, err
-	}
-
-	if _, ok := info.DiscoveredServices[service]; !ok {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 // DataCollections utility function to launch backup operations for exchange and
 // onedrive. metadataCols contains any collections with metadata files that may
 // be useful for the current backup. Metadata can include things like delta
@@ -73,7 +55,6 @@ func (gc *GraphConnector) DataCollections(
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-
 		colls, err := exchange.DataCollections(
 			ctx,
 			sels,
@@ -153,6 +134,29 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 	}
 
 	return nil
+}
+
+func checkServiceEnabled(
+	ctx context.Context,
+	gs graph.Servicer,
+	service path.ServiceType,
+	resource string,
+) (bool, error) {
+	if service == path.SharePointService {
+		// No "enabled" check required for sharepoint
+		return true, nil
+	}
+
+	_, info, err := discovery.User(ctx, gs, resource)
+	if err != nil {
+		return false, err
+	}
+
+	if _, ok := info.DiscoveredServices[service]; !ok {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // ---------------------------------------------------------------------------

@@ -70,7 +70,6 @@ type UserInfo struct {
 }
 
 func User(ctx context.Context, gs graph.Servicer, userID string) (models.Userable, *UserInfo, error) {
-
 	user, err := gs.Client().UsersById(userID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(
@@ -100,6 +99,7 @@ func User(ctx context.Context, gs graph.Servicer, userID string) (models.Userabl
 				support.ConnectorStackErrorTrace(err),
 			)
 		}
+
 		delete(userInfo.DiscoveredServices, path.ExchangeService)
 	}
 

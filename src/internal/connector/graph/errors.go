@@ -72,10 +72,7 @@ func asInvalidDelta(err error) bool {
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
-	if hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI) {
-		return true
-	}
-	return false
+	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
 }
 
 // Timeout errors are identified for tracking the need to retry calls.
