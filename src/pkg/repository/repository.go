@@ -325,6 +325,10 @@ func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 		return err
 	}
 
+	if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
+		return err
+	}
+
 	sw := store.NewKopiaStore(r.modelStore)
 
 	return sw.DeleteBackup(ctx, id)
