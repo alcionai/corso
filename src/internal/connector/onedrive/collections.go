@@ -242,7 +242,8 @@ func (c *Collections) UpdateCollections(
 }
 
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
-	return !includePath(ctx, m, drivePath) || (drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
+	return !includePath(ctx, m, drivePath) ||
+		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }
 
 // GetCanonicalPath constructs the standard path for the given source.
