@@ -15,11 +15,13 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	errCodeItemNotFound        = "ErrorItemNotFound"
-	errCodeEmailFolderNotFound = "ErrorSyncFolderNotFound"
-	errCodeResyncRequired      = "ResyncRequired"
-	errCodeSyncFolderNotFound  = "ErrorSyncFolderNotFound"
-	errCodeSyncStateNotFound   = "SyncStateNotFound"
+	errCodeItemNotFound                = "ErrorItemNotFound"
+	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
+	errCodeResyncRequired              = "ResyncRequired"
+	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
+	errCodeSyncStateNotFound           = "SyncStateNotFound"
+	errCodeResourceNotFound            = "ResourceNotFound"
+	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
 // The folder or item was deleted between the time we identified
@@ -67,6 +69,10 @@ func IsErrInvalidDelta(err error) error {
 func asInvalidDelta(err error) bool {
 	e := ErrInvalidDelta{}
 	return errors.As(err, &e)
+}
+
+func IsErrExchangeMailFolderNotFound(err error) bool {
+	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
 }
 
 // Timeout errors are identified for tracking the need to retry calls.
