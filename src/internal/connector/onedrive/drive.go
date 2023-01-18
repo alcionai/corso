@@ -149,14 +149,14 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 }
 
 // itemCollector functions collect the items found in a drive
-type itemCollector func(ctx context.Context, driveID string, driveItems []models.DriveItemable) error
+type itemCollector func(ctx context.Context, driveID string, driveName string, driveItems []models.DriveItemable) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
+	driveID, driveName string,
 	collector itemCollector,
 ) error {
 	// TODO: Specify a timestamp in the delta query
@@ -195,7 +195,7 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, r.GetValue())
+		err = collector(ctx, driveID, driveName, r.GetValue())
 		if err != nil {
 			return err
 		}
@@ -321,7 +321,8 @@ func GetAllFolders(
 			ctx,
 			gs,
 			*d.GetId(),
-			func(innerCtx context.Context, driveID string, items []models.DriveItemable) error {
+			*d.GetName(),
+			func(innerCtx context.Context, driveID string, driveName string, items []models.DriveItemable) error {
 				for _, item := range items {
 					// Skip the root item.
 					if item.GetRoot() != nil {
