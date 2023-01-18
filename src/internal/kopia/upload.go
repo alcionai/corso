@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
+	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
@@ -883,6 +884,17 @@ func inflateDirTree(
 	if err != nil {
 		return nil, errors.Wrap(err, "inflating collection tree")
 	}
+
+	baseIDs := make([]manifest.ID, 0, len(baseSnaps))
+	for _, snap := range baseSnaps {
+		baseIDs = append(baseIDs, snap.ID)
+	}
+
+	logger.Ctx(ctx).Infow(
+		"merging hierarchies from base snapshots",
+		"snapshot_ids",
+		baseIDs,
+	)
 
 	for _, snap := range baseSnaps {
 		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {

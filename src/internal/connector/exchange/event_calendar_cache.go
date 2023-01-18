@@ -31,7 +31,7 @@ func (ecc *eventCalendarCache) Populate(
 
 	err := ecc.enumer.EnumerateContainers(ctx, ecc.userID, "", ecc.addFolder)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "enumerating containers")
 	}
 
 	return nil
@@ -41,20 +41,20 @@ func (ecc *eventCalendarCache) Populate(
 // @returns error iff the required values are not accessible.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkIDAndName(f); err != nil {
-		return errors.Wrap(err, "adding cache folder")
+		return errors.Wrap(err, "validating container")
 	}
 
 	temp := graph.NewCacheFolder(f, path.Builder{}.Append(*f.GetDisplayName()))
 
 	if err := ecc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding cache folder")
+		return errors.Wrap(err, "adding container")
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
 	_, err := ecc.IDToPath(ctx, *f.GetId())
 	if err != nil {
-		return errors.Wrap(err, "adding cache entry")
+		return errors.Wrap(err, "setting path to container id")
 	}
 
 	return nil
