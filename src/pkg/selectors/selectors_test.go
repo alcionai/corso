@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -236,6 +237,129 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 
 				assert.Truef(t, found, "%s in list of discrete owners", expect)
 			}
+		})
+	}
+}
+
+// TestPathCategoriesAll includes all the included selectors do not return `Unknown` Category
+func (suite *SelectorSuite) TestPathCategoriesAll() {
+	users := []string{tester.LoadTestM365UserID(suite.T())}
+
+	table := []struct {
+		name        string
+		getSelector func(t *testing.T) *Selector
+		isErr       assert.ErrorAssertionFunc
+	}{
+		{
+			name:  "empty",
+			isErr: assert.Error,
+			getSelector: func(t *testing.T) *Selector {
+				return &Selector{}
+			},
+		},
+		{
+			name:  "Mail_B",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewExchangeBackup(users)
+				sel.Include(sel.MailFolders([]string{"MailFolder"}, PrefixMatch()))
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "Mail_R",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewExchangeRestore(users)
+				sel.Include(sel.MailFolders([]string{"MailFolder"}, PrefixMatch()))
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "Contacts",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewExchangeBackup(users)
+				sel.Include(sel.ContactFolders([]string{"Contact Folder"}, PrefixMatch()))
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "Contacts_R",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewExchangeRestore(users)
+				sel.Include(sel.ContactFolders([]string{"Contact Folder"}, PrefixMatch()))
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "Events",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewExchangeBackup(users)
+				sel.Include(sel.EventCalendars([]string{"July"}, PrefixMatch()))
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "Events_R",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewExchangeRestore(users)
+				sel.Include(sel.EventCalendars([]string{"July"}, PrefixMatch()))
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "SharePoint Pages",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewSharePointBackup(users)
+				sel.Include(sel.Pages([]string{"Something"}, SuffixMatch()))
+
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "SharePoint Lists",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewSharePointBackup(users)
+				sel.Include(sel.Lists([]string{"Lists from website"}, SuffixMatch()))
+
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "SharePoint Libraries",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewSharePointBackup(users)
+				sel.Include(sel.Libraries([]string{"A directory"}, SuffixMatch()))
+
+				return &sel.Selector
+			},
+		},
+		{
+			name:  "OneDrive",
+			isErr: assert.NoError,
+			getSelector: func(t *testing.T) *Selector {
+				sel := NewOneDriveBackup(users)
+				sel.Include(sel.Folders([]string{"Single Folder"}, PrefixMatch()))
+
+				return &sel.Selector
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			obj := test.getSelector(t)
+			cats, err := obj.PathCategories()
+			for _, entry := range cats.Includes {
+				assert.NotEqual(t, entry, path.UnknownCategory)
+			}
+			test.isErr(t, err)
 		})
 	}
 }
