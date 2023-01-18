@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -62,6 +63,49 @@ func Users(ctx context.Context, gs graph.Servicer, tenantID string) ([]models.Us
 	}
 
 	return users, iterErrs
+}
+
+type UserInfo struct {
+	DiscoveredServices map[path.ServiceType]struct{}
+}
+
+func User(ctx context.Context, gs graph.Servicer, userID string) (models.Userable, *UserInfo, error) {
+	user, err := gs.Client().UsersById(userID).Get(ctx, nil)
+	if err != nil {
+		return nil, nil, errors.Wrapf(
+			err,
+			"retrieving resource for tenant: %s",
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	// Assume all services are enabled
+	userInfo := &UserInfo{
+		DiscoveredServices: map[path.ServiceType]struct{}{
+			path.ExchangeService: {},
+			path.OneDriveService: {},
+		},
+	}
+
+	// Discover which services the user has enabled
+
+	// Exchange: Query `MailFolders`
+	_, err = gs.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+	if err != nil {
+		if !graph.IsErrExchangeMailFolderNotFound(err) {
+			return nil, nil, errors.Wrapf(
+				err,
+				"retrieving mail folders for tenant: %s",
+				support.ConnectorStackErrorTrace(err),
+			)
+		}
+
+		delete(userInfo.DiscoveredServices, path.ExchangeService)
+	}
+
+	// TODO: OneDrive
+
+	return user, userInfo, nil
 }
 
 // parseUser extracts information from `models.Userable` we care about

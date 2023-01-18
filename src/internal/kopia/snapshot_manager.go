@@ -24,6 +24,9 @@ const (
 	// (permalinks)
 	// [1] https://github.com/kopia/kopia/blob/05e729a7858a6e86cb48ba29fb53cb6045efce2b/cli/command_snapshot_create.go#L169
 	userTagPrefix = "tag:"
+
+	// Tag key applied to checkpoints (but not completed snapshots) in kopia.
+	checkpointTagKey = "checkpoint"
 )
 
 type Reason struct {

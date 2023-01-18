@@ -1,7 +1,9 @@
 package graph
 
 import (
+	"context"
 	"net/url"
+	"os"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
@@ -15,11 +17,13 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	errCodeItemNotFound        = "ErrorItemNotFound"
-	errCodeEmailFolderNotFound = "ErrorSyncFolderNotFound"
-	errCodeResyncRequired      = "ResyncRequired"
-	errCodeSyncFolderNotFound  = "ErrorSyncFolderNotFound"
-	errCodeSyncStateNotFound   = "SyncStateNotFound"
+	errCodeItemNotFound                = "ErrorItemNotFound"
+	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
+	errCodeResyncRequired              = "ResyncRequired"
+	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
+	errCodeSyncStateNotFound           = "SyncStateNotFound"
+	errCodeResourceNotFound            = "ResourceNotFound"
+	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
 // The folder or item was deleted between the time we identified
@@ -67,6 +71,10 @@ func IsErrInvalidDelta(err error) error {
 func asInvalidDelta(err error) bool {
 	e := ErrInvalidDelta{}
 	return errors.As(err, &e)
+}
+
+func IsErrExchangeMailFolderNotFound(err error) bool {
+	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
 }
 
 // Timeout errors are identified for tracking the need to retry calls.
@@ -120,6 +128,10 @@ func hasErrorCode(err error, codes ...string) bool {
 // timeouts as other errors are handled within a middleware in the
 // client.
 func isTimeoutErr(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+		return true
+	}
+
 	switch err := err.(type) {
 	case *url.Error:
 		return err.Timeout()
