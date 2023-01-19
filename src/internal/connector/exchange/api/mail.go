@@ -278,7 +278,8 @@ func (c Mail) Serialize(
 
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
+			return nil, support.WrapAndAppend(itemID,
+				support.ConnectorStackErrorTraceWrap(retriesErr, "attachment Failed"), nil)
 		}
 	}
 
