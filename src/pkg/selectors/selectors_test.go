@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -241,9 +240,9 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 	}
 }
 
-// TestPathCategoriesAll includes all the included selectors do not return `Unknown` Category
-func (suite *SelectorSuite) TestPathCategoriesAll() {
-	users := []string{tester.LoadTestM365UserID(suite.T())}
+// TestPathCategories verifies that no scope produces a `path.UnknownCategory`
+func (suite *SelectorSuite) TestPathCategories_includes() {
+	users := []string{"someuser@onmicrosoft.com"}
 
 	table := []struct {
 		name        string
@@ -263,6 +262,7 @@ func (suite *SelectorSuite) TestPathCategoriesAll() {
 			getSelector: func(t *testing.T) *Selector {
 				sel := NewExchangeBackup(users)
 				sel.Include(sel.MailFolders([]string{"MailFolder"}, PrefixMatch()))
+				sel.Mails([]string{"MailFolder2"}, []string{"Mail"})
 				return &sel.Selector
 			},
 		},
@@ -272,6 +272,7 @@ func (suite *SelectorSuite) TestPathCategoriesAll() {
 			getSelector: func(t *testing.T) *Selector {
 				sel := NewExchangeRestore(users)
 				sel.Include(sel.MailFolders([]string{"MailFolder"}, PrefixMatch()))
+
 				return &sel.Selector
 			},
 		},
@@ -308,6 +309,7 @@ func (suite *SelectorSuite) TestPathCategoriesAll() {
 			getSelector: func(t *testing.T) *Selector {
 				sel := NewExchangeRestore(users)
 				sel.Include(sel.EventCalendars([]string{"July"}, PrefixMatch()))
+				sel.EventCalendars([]string{"Independence Day EventID"})
 				return &sel.Selector
 			},
 		},
@@ -317,6 +319,7 @@ func (suite *SelectorSuite) TestPathCategoriesAll() {
 			getSelector: func(t *testing.T) *Selector {
 				sel := NewSharePointBackup(users)
 				sel.Include(sel.Pages([]string{"Something"}, SuffixMatch()))
+				sel.PageItems([]string{"Home Directory"}, []string{"Event Page"})
 
 				return &sel.Selector
 			},
