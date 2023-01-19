@@ -17,6 +17,8 @@ func TestSharePointUtilsSuite(t *testing.T) {
 	suite.Run(t, new(SharePointUtilsSuite))
 }
 
+// Tests selector build for SharePoint properly
+// differentiates between the 3 categories: Pages, Libraries and Lists CLI
 func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 	var (
 		empty             = []string{}
@@ -33,14 +35,9 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		expectIncludeLen int
 	}{
 		{
-			name: "no inputs",
-			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: empty,
-				Sites:        empty,
-				WebURLs:      empty,
-			},
-			expectIncludeLen: 2,
+			name:             "no inputs",
+			opts:             utils.SharePointOpts{},
+			expectIncludeLen: 3,
 		},
 		{
 			name: "single inputs",
@@ -50,7 +47,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        single,
 				WebURLs:      single,
 			},
-			expectIncludeLen: 3,
+			expectIncludeLen: 4,
 		},
 		{
 			name: "single extended",
@@ -62,7 +59,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        single,
 				WebURLs:      single,
 			},
-			expectIncludeLen: 4,
+			expectIncludeLen: 5,
 		},
 		{
 			name: "multi inputs",
@@ -72,7 +69,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        multi,
 				WebURLs:      multi,
 			},
-			expectIncludeLen: 3,
+			expectIncludeLen: 4,
 		},
 		{
 			name: "library contains",
@@ -138,7 +135,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      containsOnly,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "library suffixes",
@@ -148,7 +145,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      prefixOnly, // prefix pattern matches suffix pattern
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "library suffixes and contains",
@@ -158,7 +155,29 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Sites:        empty,
 				WebURLs:      containsAndPrefix, // prefix pattern matches suffix pattern
 			},
-			expectIncludeLen: 4,
+			expectIncludeLen: 6,
+		},
+		{
+			name: "Page Folder",
+			opts: utils.SharePointOpts{
+				PageFolders: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "Site Page ",
+			opts: utils.SharePointOpts{
+				Pages: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "Page & Library",
+			opts: utils.SharePointOpts{
+				PageFolders:  single,
+				LibraryItems: multi,
+			},
+			expectIncludeLen: 2,
 		},
 	}
 	for _, test := range table {

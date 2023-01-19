@@ -76,7 +76,8 @@ const (
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode = "itemNotFound"
-	userDoesNotHaveDrive  = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteURLNotFound = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteNotFound    = "ResourceNotFound User's mysite not found"
 )
 
 // Enumerates the drives for the specified user
@@ -134,7 +135,8 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 		r, err = service.Client().UsersById(user).Drives().Get(ctx, nil)
 		if err != nil {
 			detailedError := support.ConnectorStackErrorTrace(err)
-			if strings.Contains(detailedError, userDoesNotHaveDrive) {
+			if strings.Contains(detailedError, userMysiteURLNotFound) ||
+				strings.Contains(detailedError, userMysiteNotFound) {
 				logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
 				return make([]models.Driveable, 0), nil // no license
 			}
@@ -163,7 +165,7 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 // itemCollector functions collect the items found in a drive
 type itemCollector func(
 	ctx context.Context,
-	driveID string,
+	driveID, driveName string,
 	driveItems []models.DriveItemable,
 	paths map[string]string,
 ) error
@@ -173,7 +175,7 @@ type itemCollector func(
 func collectItems(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
+	driveID, driveName string,
 	collector itemCollector,
 ) (string, map[string]string, error) {
 	var (
@@ -219,7 +221,7 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, r.GetValue(), paths)
+		err = collector(ctx, driveID, driveName, r.GetValue(), paths)
 		if err != nil {
 			return "", nil, err
 		}
@@ -349,9 +351,10 @@ func GetAllFolders(
 			ctx,
 			gs,
 			*d.GetId(),
+			*d.GetName(),
 			func(
 				innerCtx context.Context,
-				driveID string,
+				driveID, driveName string,
 				items []models.DriveItemable,
 				paths map[string]string,
 			) error {
