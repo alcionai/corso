@@ -163,7 +163,7 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 // itemCollector functions collect the items found in a drive
 type itemCollector func(
 	ctx context.Context,
-	driveID string,
+	driveID, driveName string,
 	driveItems []models.DriveItemable,
 	paths map[string]string,
 ) error
@@ -173,7 +173,7 @@ type itemCollector func(
 func collectItems(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
+	driveID, driveName string,
 	collector itemCollector,
 ) (string, map[string]string, error) {
 	var (
@@ -219,7 +219,7 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, r.GetValue(), paths)
+		err = collector(ctx, driveID, driveName, r.GetValue(), paths)
 		if err != nil {
 			return "", nil, err
 		}
@@ -349,9 +349,10 @@ func GetAllFolders(
 			ctx,
 			gs,
 			*d.GetId(),
+			*d.GetName(),
 			func(
 				innerCtx context.Context,
-				driveID string,
+				driveID, driveName string,
 				items []models.DriveItemable,
 				paths map[string]string,
 			) error {
