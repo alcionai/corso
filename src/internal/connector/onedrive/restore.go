@@ -9,10 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -22,6 +18,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -60,7 +59,13 @@ func RestoreCollections(
 	for _, dc := range dcs {
 		parentPerms, ok := parentPermissions[dc.FullPath().String()]
 		if !ok {
-			errUpdater(dc.FullPath().String(), fmt.Errorf("unable to find parent permissions"))
+			// TODO(meain): validate this change with actual backup and restore
+			if len(dc.FullPath().Elements()) == 7 {
+				// root directory will not have permissions
+				parentPerms = []UserPermission{}
+			} else {
+				errUpdater(dc.FullPath().String(), fmt.Errorf("unable to find parent permissions"))
+			}
 		}
 
 		metrics, folderPerms, canceled := RestoreCollection(ctx, service, dc, parentPerms, OneDriveSource, dest.ContainerName, deets, errUpdater)

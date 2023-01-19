@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 

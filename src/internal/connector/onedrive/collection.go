@@ -8,9 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/spatialcurrent/go-lazy/pkg/lazy"
-
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -19,6 +16,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 )
 
 const (
@@ -185,18 +184,21 @@ func (od *Item) ModTime() time.Time {
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
 	var (
-		errs      error
-		byteCount int64
-		itemsRead int64
-		wg        sync.WaitGroup
-		m         sync.Mutex
+		errs       error
+		byteCount  int64
+		itemsRead  int64
+		dirsRead   int64
+		itemsFound int64
+		dirsFound  int64
+		wg         sync.WaitGroup
+		m          sync.Mutex
 	)
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, err)
+		oc.reportAsCompleted(ctx, 0, 0, 0, err)
 		return
 	}
 
@@ -243,6 +245,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Fetch data for files
 			if isFile {
+				atomic.AddInt64(&itemsFound, 1)
 				for i := 1; i <= maxRetries; i++ {
 					itemInfo, itemData, err = oc.itemReader(ctx, item)
 
@@ -261,7 +264,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					return
 				}
 			} else {
+				atomic.AddInt64(&dirsFound, 1)
 				itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
+				// TODO(meain): Do we need itemInfo for folders?
+				// TODO(meain): Should folder sizes be used?
 			}
 
 			// Fetch metadata for OneDrive items
@@ -333,10 +339,13 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 			}
 
-			// TODO(meain): Should these counts gets updated now that
-			// we have a metadata file?
 			// Item read successfully, add to collection
-			atomic.AddInt64(&itemsRead, 1)
+			if isFile {
+				atomic.AddInt64(&itemsRead, 1)
+			} else {
+				atomic.AddInt64(&dirsRead, 1)
+			}
+
 			// byteCount iteration
 			atomic.AddInt64(&byteCount, itemSize)
 
@@ -346,18 +355,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, errs)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, errs error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
-		1, // num folders (always 1)
+		1, // num folders (always 1) // TODO(meain):  change this with dirsRead?
 		support.CollectionMetrics{
-			Objects:    len(oc.driveItems), // items to read,
-			Successes:  itemsRead,          // items read successfully,
-			TotalBytes: byteCount,          // Number of bytes read in the operation,
+			Objects:    itemsFound, // items to read,
+			Successes:  itemsRead,  // items read successfully,
+			TotalBytes: byteCount,  // Number of bytes read in the operation,
 		},
 		errs,
 		oc.folderPath.Folder(), // Additional details

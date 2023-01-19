@@ -6,14 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	"golang.org/x/exp/maps"
-
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -21,6 +16,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 )
 
 // ---------------------------------------------------------------------------
@@ -345,9 +345,10 @@ func runRestoreBackupTest(
 	resourceOwners []string,
 ) {
 	var (
-		collections  []data.Collection
-		expectedData = map[string]map[string][]byte{}
-		totalItems   = 0
+		collections      []data.Collection
+		expectedData     = map[string]map[string][]byte{}
+		totalItems       = 0
+		toatalKopiaItems = 0
 		// Get a dest per test so they're independent.
 		dest = tester.DefaultTestRestoreDestination()
 	)
@@ -356,7 +357,7 @@ func runRestoreBackupTest(
 	defer flush()
 
 	for _, owner := range resourceOwners {
-		numItems, ownerCollections, userExpectedData := collectionsForInfo(
+		numItems, kopiaItems, ownerCollections, userExpectedData := collectionsForInfo(
 			t,
 			test.service,
 			tenant,
@@ -367,6 +368,7 @@ func runRestoreBackupTest(
 
 		collections = append(collections, ownerCollections...)
 		totalItems += numItems
+		toatalKopiaItems += kopiaItems
 
 		maps.Copy(expectedData, userExpectedData)
 	}
@@ -430,7 +432,7 @@ func runRestoreBackupTest(
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	skipped := checkCollections(t, totalItems, expectedData, dcs)
+	skipped := checkCollections(t, toatalKopiaItems, expectedData, dcs)
 
 	status = backupGC.AwaitStatus()
 	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
@@ -682,9 +684,24 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					category: path.FilesCategory,
 					items: []itemInfo{
 						{
-							name:      "test-file.txt",
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
 							data:      []byte(strings.Repeat("a", 33)),
-							lookupKey: "test-file.txt",
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "folder-a" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
 				},
@@ -698,9 +715,19 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					category: path.FilesCategory,
 					items: []itemInfo{
 						{
-							name:      "test-file.txt",
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
 							data:      []byte(strings.Repeat("b", 65)),
-							lookupKey: "test-file.txt",
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
 				},
@@ -715,9 +742,19 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					category: path.FilesCategory,
 					items: []itemInfo{
 						{
-							name:      "test-file.txt",
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
 							data:      []byte(strings.Repeat("c", 129)),
-							lookupKey: "test-file.txt",
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "folder-a" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
 						},
 					},
 				},
@@ -733,9 +770,14 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					category: path.FilesCategory,
 					items: []itemInfo{
 						{
-							name:      "test-file.txt",
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
 							data:      []byte(strings.Repeat("d", 257)),
-							lookupKey: "test-file.txt",
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
 				},
@@ -749,9 +791,14 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					category: path.FilesCategory,
 					items: []itemInfo{
 						{
-							name:      "test-file.txt",
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
 							data:      []byte(strings.Repeat("e", 257)),
-							lookupKey: "test-file.txt",
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
 				},
@@ -848,7 +895,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				})
 
-				totalItems, collections, expectedData := collectionsForInfo(
+				totalItems, _, collections, expectedData := collectionsForInfo(
 					t,
 					test.service,
 					suite.connector.tenant,

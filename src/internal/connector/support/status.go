@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	bytesize "github.com/inhies/go-bytesize"
-
 	"github.com/alcionai/corso/src/pkg/logger"
+	bytesize "github.com/inhies/go-bytesize"
 )
 
 // ConnectorOperationStatus is a data type used to describe the state of
@@ -64,6 +63,7 @@ func CreateStatus(
 
 	hasErrors := err != nil
 	numErr := GetNumberOfErrors(err)
+
 	status := ConnectorOperationStatus{
 		lastOperation:     op,
 		ObjectCount:       cm.Objects,
