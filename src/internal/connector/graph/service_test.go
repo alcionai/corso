@@ -43,6 +43,21 @@ func (suite *GraphUnitSuite) TestCreateAdapter() {
 	assert.NotNil(t, adpt)
 }
 
+func (suite *GraphUnitSuite) TestBetaService() {
+	t := suite.T()
+	adpt, err := graph.CreateBetaAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+	)
+
+	assert.NoError(t, err)
+	require.NotNil(t, adpt)
+
+	serv := graph.NewBetaService(adpt)
+	assert.NotNil(t, serv)
+}
+
 func (suite *GraphUnitSuite) TestSerializationEndPoint() {
 	t := suite.T()
 	adpt, err := graph.CreateAdapter(
