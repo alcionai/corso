@@ -46,6 +46,7 @@ type Collection struct {
 	jobs []string
 	// M365 IDs of the items of this collection
 	service       graph.Servicer
+	bService      graph.BetaService
 	statusUpdater support.StatusUpdater
 }
 
