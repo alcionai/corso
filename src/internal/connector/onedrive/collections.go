@@ -24,6 +24,7 @@ const (
 	OneDriveSource
 	SharePointSource
 )
+const restrictedDirectory = "Site Pages"
 
 func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
 	switch ds {
@@ -102,8 +103,9 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	// Update the collection map with items from each drive
 	for _, d := range drives {
 		driveID := *d.GetId()
+		driveName := *d.GetName()
 
-		delta, paths, err := collectItems(ctx, c.service, driveID, c.UpdateCollections)
+		delta, paths, err := collectItems(ctx, c.service, driveID, driveName, c.UpdateCollections)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +164,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 // A new collection is created for every drive folder (or package)
 func (c *Collections) UpdateCollections(
 	ctx context.Context,
-	driveID string,
+	driveID, driveName string,
 	items []models.DriveItemable,
 	paths map[string]string,
 ) error {
@@ -188,7 +190,7 @@ func (c *Collections) UpdateCollections(
 		}
 
 		// Skip items that don't match the folder selectors we were given.
-		if !includePath(ctx, c.matcher, collectionPath) {
+		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
 		}
@@ -237,6 +239,11 @@ func (c *Collections) UpdateCollections(
 	}
 
 	return nil
+}
+
+func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
+	return !includePath(ctx, m, drivePath) ||
+		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }
 
 // GetCanonicalPath constructs the standard path for the given source.
