@@ -76,6 +76,12 @@ func RestoreCollections(
 				deets,
 				errUpdater,
 			)
+		case path.PagesCategory:
+			errorMessage := fmt.Sprintf("restore of %s not supported", dc.FullPath().Category())
+			logger.Ctx(ctx).Error(errorMessage)
+
+			return nil, errors.New(errorMessage)
+
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
