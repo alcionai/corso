@@ -215,8 +215,8 @@ func RestoreCollection(
 						continue
 					}
 
-					ipth := itemPath.String()
-					folderPerms[ipth[:len(ipth)-8]] = meta.Permissions
+					trimmedPath := strings.TrimSuffix(itemPath.String(), DirMetaFileSuffix)
+					folderPerms[trimmedPath] = meta.Permissions
 				} else {
 					if !ok {
 						// TODO(meain): support older backups?
