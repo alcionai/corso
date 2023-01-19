@@ -214,19 +214,19 @@ func optionsForContactFoldersItemDelta(
 }
 
 // optionsForEvents ensures a valid option inputs for `exchange.Events` when selected from within a Calendar
-func optionsForEventsByCalendar(
+func optionsForEventsByCalendarDelta(
 	moreOps []string,
-) (*users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration, error) {
+) (*users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration, error) {
 	selecting, err := buildOptions(moreOps, fieldsForEvents)
 	if err != nil {
 		return nil, err
 	}
 
-	requestParameters := &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
+	requestParameters := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
 
-	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
+	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 

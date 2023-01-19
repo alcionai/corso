@@ -61,7 +61,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 		{"Filter Scopes", sel.Filters},
 	}
 	for _, test := range table {
-		require.Len(t, test.scopesToCheck, 2)
+		require.Len(t, test.scopesToCheck, 3)
 
 		for _, scope := range test.scopesToCheck {
 			var (
@@ -106,7 +106,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 	sel := NewSharePointRestore([]string{s1, s2})
 	sel.Include(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Includes
-	require.Len(t, scopes, 2)
+	require.Len(t, scopes, 3)
 
 	for _, sc := range scopes {
 		scopeMustHave(
@@ -139,7 +139,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 			sel := NewSharePointRestore(Any())
 			sel.Include(sel.WebURL(test.in))
 			scopes := sel.Includes
-			require.Len(t, scopes, 2)
+			require.Len(t, scopes, 3)
 
 			for _, sc := range scopes {
 				scopeMustHave(
@@ -163,7 +163,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 	sel := NewSharePointRestore([]string{s1, s2})
 	sel.Exclude(sel.WebURL([]string{s1, s2}))
 	scopes := sel.Excludes
-	require.Len(t, scopes, 2)
+	require.Len(t, scopes, 3)
 
 	for _, sc := range scopes {
 		scopeMustHave(

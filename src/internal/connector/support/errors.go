@@ -89,8 +89,20 @@ func concatenateStringFromPointers(orig string, pointers []*string) string {
 	return orig
 }
 
-// ConnectorStackErrorTrace is a helper function that wraps the
-// stack trace for oDataError types from querying the M365 back store.
+// ConnectorStackErrorTraceWrap is a helper function that wraps the
+// stack trace for oDataErrors (if the error has one) onto the prefix.
+// If no stack trace is found, wraps the error with only the prefix.
+func ConnectorStackErrorTraceWrap(e error, prefix string) error {
+	cset := ConnectorStackErrorTrace(e)
+	if len(cset) > 0 {
+		return errors.Wrap(e, prefix+": "+cset)
+	}
+
+	return errors.Wrap(e, prefix)
+}
+
+// ConnectorStackErrorTracew is a helper function that extracts
+// the stack trace for oDataErrors, if the error has one.
 func ConnectorStackErrorTrace(e error) string {
 	eMessage := ""
 

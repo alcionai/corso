@@ -1,4 +1,4 @@
-package exchange
+package api
 
 import (
 	"testing"
@@ -10,15 +10,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
-type MessageSuite struct {
+type MailAPIUnitSuite struct {
 	suite.Suite
 }
 
-func TestMessageSuite(t *testing.T) {
-	suite.Run(t, &MessageSuite{})
+func TestMailAPIUnitSuite(t *testing.T) {
+	suite.Run(t, new(MailAPIUnitSuite))
 }
 
-func (suite *MessageSuite) TestMessageInfo() {
+func (suite *MailAPIUnitSuite) TestMailInfo() {
 	initial := time.Now()
 
 	tests := []struct {
@@ -36,7 +36,6 @@ func (suite *MessageSuite) TestMessageInfo() {
 					ItemType: details.ExchangeMail,
 					Created:  initial,
 					Modified: initial,
-					Size:     10,
 				}
 				return msg, i
 			},
@@ -58,7 +57,6 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Sender:   sender,
 					Created:  initial,
 					Modified: initial,
-					Size:     10,
 				}
 				return msg, i
 			},
@@ -76,7 +74,6 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Subject:  subject,
 					Created:  initial,
 					Modified: initial,
-					Size:     10,
 				}
 				return msg, i
 			},
@@ -94,7 +91,6 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Received: now,
 					Created:  initial,
 					Modified: initial,
-					Size:     10,
 				}
 				return msg, i
 			},
@@ -122,7 +118,6 @@ func (suite *MessageSuite) TestMessageInfo() {
 					Received: now,
 					Created:  initial,
 					Modified: initial,
-					Size:     10,
 				}
 				return msg, i
 			},
@@ -131,7 +126,7 @@ func (suite *MessageSuite) TestMessageInfo() {
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			msg, expected := tt.msgAndRP()
-			suite.Equal(expected, MessageInfo(msg, 10))
+			suite.Equal(expected, MailInfo(msg))
 		})
 	}
 }

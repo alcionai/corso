@@ -333,8 +333,160 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				exColl, ok := coll.(*Collection)
 				require.True(t, ok, "collection is an *exchange.Collection")
 
-				assert.ElementsMatch(t, expect.added, exColl.added, "added items")
-				assert.ElementsMatch(t, expect.removed, exColl.removed, "removed items")
+				ids := [][]string{
+					make([]string, 0, len(exColl.added)),
+					make([]string, 0, len(exColl.removed)),
+				}
+
+				for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
+					for id := range cIDs {
+						ids[i] = append(ids[i], id)
+					}
+				}
+
+				assert.ElementsMatch(t, expect.added, ids[0], "added items")
+				assert.ElementsMatch(t, expect.removed, ids[1], "removed items")
+			}
+		})
+	}
+}
+
+func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repeatedItems() {
+	newDelta := api.DeltaUpdate{URL: "delta_url"}
+
+	table := []struct {
+		name          string
+		getter        mockGetter
+		expectAdded   map[string]struct{}
+		expectRemoved map[string]struct{}
+	}{
+		{
+			name: "repeated adds",
+			getter: map[string]mockGetterResults{
+				"1": {
+					added:    []string{"a1", "a2", "a3", "a1"},
+					newDelta: newDelta,
+				},
+			},
+			expectAdded: map[string]struct{}{
+				"a1": {},
+				"a2": {},
+				"a3": {},
+			},
+			expectRemoved: map[string]struct{}{},
+		},
+		{
+			name: "repeated removes",
+			getter: map[string]mockGetterResults{
+				"1": {
+					removed:  []string{"r1", "r2", "r3", "r1"},
+					newDelta: newDelta,
+				},
+			},
+			expectAdded: map[string]struct{}{},
+			expectRemoved: map[string]struct{}{
+				"r1": {},
+				"r2": {},
+				"r3": {},
+			},
+		},
+		{
+			name: "remove for same item wins",
+			getter: map[string]mockGetterResults{
+				"1": {
+					added:    []string{"i1", "a2", "a3"},
+					removed:  []string{"i1", "r2", "r3"},
+					newDelta: newDelta,
+				},
+			},
+			expectAdded: map[string]struct{}{
+				"a2": {},
+				"a3": {},
+			},
+			expectRemoved: map[string]struct{}{
+				"i1": {},
+				"r2": {},
+				"r3": {},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			var (
+				userID = "user_id"
+				qp     = graph.QueryParams{
+					Category:      path.EmailCategory, // doesn't matter which one we use.
+					ResourceOwner: userID,
+					Credentials:   suite.creds,
+				}
+				statusUpdater = func(*support.ConnectorOperationStatus) {}
+				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
+				dps           = DeltaPaths{} // incrementals are tested separately
+				container1    = mockContainer{
+					id:          strPtr("1"),
+					displayName: strPtr("display_name_1"),
+					p:           path.Builder{}.Append("display_name_1"),
+				}
+				resolver = newMockResolver(container1)
+			)
+
+			collections := map[string]data.Collection{}
+
+			err := filterContainersAndFillCollections(
+				ctx,
+				qp,
+				test.getter,
+				collections,
+				statusUpdater,
+				resolver,
+				allScope,
+				dps,
+				control.Options{FailFast: true},
+			)
+			require.NoError(t, err)
+
+			// collection assertions
+
+			deleteds, news, metadatas, doNotMerges := 0, 0, 0, 0
+			for _, c := range collections {
+				if c.FullPath().Service() == path.ExchangeMetadataService {
+					metadatas++
+					continue
+				}
+
+				if c.State() == data.DeletedState {
+					deleteds++
+				}
+
+				if c.State() == data.NewState {
+					news++
+				}
+
+				if c.DoNotMergeItems() {
+					doNotMerges++
+				}
+			}
+
+			assert.Zero(t, deleteds, "deleted collections")
+			assert.Equal(t, 1, news, "new collections")
+			assert.Equal(t, 1, metadatas, "metadata collections")
+			assert.Zero(t, doNotMerges, "doNotMerge collections")
+
+			// items in collections assertions
+			for k := range test.getter {
+				coll := collections[k]
+				if !assert.NotNilf(t, coll, "missing collection for path %s", k) {
+					continue
+				}
+
+				exColl, ok := coll.(*Collection)
+				require.True(t, ok, "collection is an *exchange.Collection")
+
+				assert.Equal(t, test.expectAdded, exColl.added, "added items")
+				assert.Equal(t, test.expectRemoved, exColl.removed, "removed items")
 			}
 		})
 	}

@@ -154,7 +154,7 @@ func Connect(
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
 
-	complete, closer := observe.MessageWithCompletion("Connecting to repository:")
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer closer()
 	defer close(complete)
 
@@ -322,6 +322,10 @@ func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 	}
 
 	if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
+		return err
+	}
+
+	if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
 		return err
 	}
 

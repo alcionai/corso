@@ -419,11 +419,35 @@ jobs:
           RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
           CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
 
-      - name: Upload assets
+      - name: Upload darwin arm64
         uses: actions/upload-artifact@v3
         with:
-          name: corso
-          path: src/dist/*
+          name: corso_Darwin_arm64
+          path: src/dist/corso_darwin_arm64/corso
+
+      - name: Upload linux arm64
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso_Linux_arm64
+          path: src/dist/corso_linux_arm64/corso
+
+      - name: Upload darwin amd64
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso_Darwin_amd64
+          path: src/dist/corso_darwin_amd64_v1/corso
+
+      - name: Upload linux amd64
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso_Linux_amd64
+          path: src/dist/corso_linux_amd64_v1/corso
+
+      - name: Upload windows amd64
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso_Windows_amd64
+          path: src/dist/corso_windows_amd64_v1/corso.exe
 
   Publish-Image:
     needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
