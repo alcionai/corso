@@ -313,6 +313,13 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				selectors.PrefixMatch(),
 			)[0],
 		},
+		{
+			name: "Events",
+			scope: selectors.NewExchangeBackup(users).EventCalendars(
+				[]string{DefaultCalendar},
+				selectors.PrefixMatch(),
+			)[0],
+		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
