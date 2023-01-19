@@ -46,7 +46,7 @@ jobs:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
-          swap-size-gb: 18
+          swap-size-gb: 5
 
       # single setup and sum cache handling here.
       # the results will cascade onto both testing and linting.
