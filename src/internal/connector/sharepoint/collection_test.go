@@ -73,7 +73,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 			false)
 	require.NoError(t, err)
 
-	col := NewCollection(dir, nil, nil)
+	col := NewCollection(dir, nil, List, nil)
 	col.data <- &Item{
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
