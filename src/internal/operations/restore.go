@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -295,6 +296,17 @@ func formatDetailsForRestoration(
 
 		paths[i] = p
 	}
+
+	// TODO(meain): Move this to onedrive specific component, but as
+	// of now the paths can theoretically be from multiple services
+
+	// This sort is done primarily to order `.meta` files after `.data`
+	// files. This is only a necessity for OneDrive as we are storing
+	// metadata for files/folders in separate meta files and we the
+	// data to be restored before we can restore the metadata.
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].String() < paths[j].String()
+	})
 
 	return paths, nil
 }
