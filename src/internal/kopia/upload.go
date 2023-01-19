@@ -134,6 +134,7 @@ type corsoProgress struct {
 	toMerge    map[string]path.Path
 	mu         sync.RWMutex
 	totalBytes int64
+	errs       *multierror.Error
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -162,8 +163,13 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
 	if d.info == nil {
-		// TODO(ashmrtn): We should probably be returning an error here?
 		if d.prevPath == nil {
+			cp.errs = multierror.Append(cp.errs, errors.Errorf(
+				"item sourced from previous backup with no previous path. Service: %s, Category: %s",
+				d.repoPath.Service().String(),
+				d.repoPath.Category().String(),
+			))
+
 			return
 		}
 
