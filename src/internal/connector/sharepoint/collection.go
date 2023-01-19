@@ -6,6 +6,8 @@ import (
 	"io"
 	"time"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -26,6 +28,7 @@ const (
 	Unknown                     DataCategory = iota
 	List
 	Drive
+	Pages
 )
 
 var (
@@ -45,6 +48,7 @@ type Collection struct {
 	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
 	jobs []string
 	// M365 IDs of the items of this collection
+	category      DataCategory
 	service       graph.Servicer
 	bService      graph.BetaService
 	statusUpdater support.StatusUpdater
@@ -54,6 +58,7 @@ type Collection struct {
 func NewCollection(
 	folderPath path.Path,
 	service graph.Servicer,
+	category DataCategory,
 	statusUpdater support.StatusUpdater,
 ) *Collection {
 	c := &Collection{
@@ -62,6 +67,7 @@ func NewCollection(
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		service:       service,
 		statusUpdater: statusUpdater,
+		category: category,
 	}
 
 	return c
@@ -150,9 +156,10 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 // populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
-		objects, success        int
+		numItems, success        int
 		totalBytes, arrayLength int64
 		errs                    error
+		objects                 = make([]absser.Parsable, 0)
 		writer                  = kw.NewJsonSerializationWriter()
 	)
 
@@ -166,19 +173,21 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, objects, success, totalBytes, errs)
+		sc.finishPopulation(ctx, numItems, success, totalBytes, errs)
 	}()
 
 	// Retrieve list data from M365
+	case sc.category
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
 		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
 	}
 
-	objects += len(lists)
+	numItems += len(lists)
 	// Write Data and Send
 	for _, lst := range lists {
-		byteArray, err := serializeListContent(writer, lst)
+
+		byteArray, err := serializeContent(writer, lst)
 		if err != nil {
 			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
 			continue
@@ -213,6 +222,23 @@ func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listabl
 	err := writer.WriteObjectValue("", lst)
 	if err != nil {
 		return nil, err
+	}
+
+	byteArray, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	return byteArray, nil
+}
+
+func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", obj)
+	if err != nil {
+		return nil, err
+
 	}
 
 	byteArray, err := writer.GetSerializedContent()
