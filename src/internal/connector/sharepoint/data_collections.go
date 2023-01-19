@@ -112,7 +112,7 @@ func collectLists(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, List, updater.UpdateStatus)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
@@ -193,7 +193,7 @@ func collectPages(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
