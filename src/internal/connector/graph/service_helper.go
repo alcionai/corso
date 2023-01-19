@@ -59,6 +59,9 @@ func CreateBetaAdapter(tenant, client, secret string) (*beta.GraphRequestAdapter
 		cred,
 		[]string{"https://graph.microsoft.com/.default"},
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating beta auth token")
+	}
 
 	httpClient := CreateHTTPClient()
 
