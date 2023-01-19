@@ -21,18 +21,6 @@ var (
 		"owner":             {},
 	}
 
-	fieldsForEvents = map[string]struct{}{
-		"calendar":          {},
-		"end":               {},
-		"id":                {},
-		"isOnlineMeeting":   {},
-		"isReminderOn":      {},
-		"responseStatus":    {},
-		"responseRequested": {},
-		"showAs":            {},
-		"subject":           {},
-	}
-
 	fieldsForFolders = map[string]struct{}{
 		"childFolderCount": {},
 		"displayName":      {},
@@ -106,6 +94,28 @@ func optionsForCalendars(moreOps []string) (
 		Select: selecting,
 	}
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+		QueryParameters: requestParams,
+	}
+
+	return options, nil
+}
+
+// optionsForCalendarsByID places allowed options for exchange.Calendar object
+// @param moreOps should reflect elements from fieldsForCalendars
+// @return is first call in Calendars().GetWithRequestConfigurationAndResponseHandler
+func optionsForCalendarsByID(moreOps []string) (
+	*users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration,
+	error,
+) {
+	selecting, err := buildOptions(moreOps, fieldsForCalendars)
+	if err != nil {
+		return nil, err
+	}
+	// should be a CalendarsRequestBuilderGetRequestConfiguration
+	requestParams := &users.ItemCalendarsCalendarItemRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &users.ItemCalendarsCalendarItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParams,
 	}
 
@@ -207,26 +217,6 @@ func optionsForContactFoldersItemDelta(
 	}
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: requestParameters,
-	}
-
-	return options, nil
-}
-
-// optionsForEvents ensures a valid option inputs for `exchange.Events` when selected from within a Calendar
-func optionsForEventsByCalendarDelta(
-	moreOps []string,
-) (*users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration, error) {
-	selecting, err := buildOptions(moreOps, fieldsForEvents)
-	if err != nil {
-		return nil, err
-	}
-
-	requestParameters := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-
-	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
 	}
 
