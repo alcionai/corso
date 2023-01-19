@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -152,6 +153,53 @@ func collectLibraries(
 	}
 
 	return append(collections, odcs...), errs
+}
+
+// collectPages constructs a sharepoint Collections struct and Get()s the associated
+// M365 IDs for the associated Pages
+func collectPages(
+	ctx context.Context,
+	creds account.M365Config,
+	serv graph.Servicer,
+	tenantID, siteID string,
+	scope selectors.SharePointScope,
+	updater statusUpdater,
+	ctrlOpts control.Options,
+) ([]data.Collection, error) {
+	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Pages collections")
+
+	adpt, err := graph.CreateBetaAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return nil, support.ConnectorStackErrorTraceWrap(err, "fetching beta adapter")
+	}
+
+	service := graph.NewBetaService(adpt)
+
+	spcs := make([]data.Collection, 0)
+
+	tuples, err := fetchPages(ctx, *service, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tuple := range tuples {
+		dir, err := path.Builder{}.Append(tuple.name).
+			ToDataLayerSharePointPath(
+				tenantID,
+				siteID,
+				path.PagesCategory,
+				false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+		}
+
+		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection.AddJob(tuple.id)
+
+		spcs = append(spcs, collection)
+	}
+
+	return spcs, nil
 }
 
 type folderMatcher struct {
