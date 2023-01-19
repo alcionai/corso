@@ -3,6 +3,7 @@ package sharepoint
 import (
 	"testing"
 
+	bmodel "github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -11,20 +12,20 @@ import (
 func (suite *SharePointInfoSuite) TestSharePointInfo_Pages() {
 	tests := []struct {
 		name         string
-		pageAndDeets func() (SitePageable, *details.SharePointInfo)
+		pageAndDeets func() (bmodel.SitePageable, *details.SharePointInfo)
 	}{
 		{
 			name: "Empty Page",
-			pageAndDeets: func() (SitePageable, *details.SharePointInfo) {
+			pageAndDeets: func() (bmodel.SitePageable, *details.SharePointInfo) {
 				deets := &details.SharePointInfo{ItemType: details.SharePointItem}
-				return NewSitePage(), deets
+				return bmodel.NewSitePage(), deets
 			},
 		},
 		{
 			name: "Only Name",
-			pageAndDeets: func() (SitePageable, *details.SharePointInfo) {
+			pageAndDeets: func() (bmodel.SitePageable, *details.SharePointInfo) {
 				title := "Blank Page"
-				sPage := NewSitePage()
+				sPage := bmodel.NewSitePage()
 				sPage.SetTitle(&title)
 				deets := &details.SharePointInfo{
 					ItemType: details.SharePointItem,
