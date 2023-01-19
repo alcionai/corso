@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Check if the user specified for an exchange backup operation has a mailbox.
 
+### Changed
+
+- Beta Libraries are included in package. This can lead to long build times. 
+
 
 ## [v0.1.0] (alpha) - 2023-01-13
 
