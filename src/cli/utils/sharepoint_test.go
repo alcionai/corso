@@ -157,6 +157,28 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			},
 			expectIncludeLen: 6,
 		},
+		{
+			name: "Page Folder",
+			opts: utils.SharePointOpts{
+				PageFolders: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "Site Page ",
+			opts: utils.SharePointOpts{
+				Pages: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "Page & Library",
+			opts: utils.SharePointOpts{
+				PageFolders:  single,
+				LibraryItems: multi,
+			},
+			expectIncludeLen: 2,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
