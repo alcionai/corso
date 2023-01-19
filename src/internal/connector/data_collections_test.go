@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -67,7 +68,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 		getSelector func(t *testing.T) selectors.Selector
 	}{
 		{
-			name: suite.user + " Email",
+			name: "Email",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
@@ -76,7 +77,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			},
 		},
 		{
-			name: suite.user + " Contacts",
+			name: "Contacts",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
@@ -85,7 +86,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			},
 		},
 		// {
-		// 	name: suite.user + " Events",
+		// 	name: "Events",
 		// 	getSelector: func(t *testing.T) selectors.Selector {
 		// 		sel := selectors.NewExchangeBackup(selUsers)
 		// 		sel.Include(sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()))
@@ -303,9 +304,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
-// TestCreateSharePointCollection. Ensures the proper amount of collections are created based
-// on the selector.
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection() {
+func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection_Libraries() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -316,51 +315,46 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
-	tables := []struct {
-		name       string
-		sel        func() selectors.Selector
-		comparator assert.ComparisonAssertionFunc
-	}{
-		{
-			name:       "SharePoint.Libraries",
-			comparator: assert.Equal,
-			sel: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup(siteIDs)
-				sel.Include(sel.Libraries([]string{"foo"}, selectors.PrefixMatch()))
-				return sel.Selector
-			},
-		},
-		{
-			name:       "SharePoint.Lists",
-			comparator: assert.Less,
-			sel: func() selectors.Selector {
-				sel := selectors.NewSharePointBackup(siteIDs)
-				sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
+	sel := selectors.NewSharePointBackup(siteIDs)
+	sel.Include(sel.Libraries([]string{"foo"}, selectors.PrefixMatch()))
 
-				return sel.Selector
-			},
-		},
+	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	require.NoError(t, err)
+	assert.Len(t, cols, 1)
+
+	for _, collection := range cols {
+		t.Logf("Path: %s\n", collection.FullPath().String())
+		assert.Equal(t, path.SharePointMetadataService, collection.FullPath().Service())
 	}
+}
 
-	for _, test := range tables {
-		t.Run(test.name, func(t *testing.T) {
-			cols, err := gc.DataCollections(ctx, test.sel(), nil, control.Options{})
+func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection_Lists() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t       = suite.T()
+		siteID  = tester.M365SiteID(t)
+		gc      = loadConnector(ctx, t, Sites)
+		siteIDs = []string{siteID}
+	)
+
+	sel := selectors.NewSharePointBackup(siteIDs)
+	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
+
+	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	require.NoError(t, err)
+	assert.Less(t, 0, len(cols))
+
+	for _, collection := range cols {
+		t.Logf("Path: %s\n", collection.FullPath().String())
+
+		for item := range collection.Items() {
+			t.Log("File: " + item.UUID())
+
+			bs, err := io.ReadAll(item.ToReader())
 			require.NoError(t, err)
-			test.comparator(t, 0, len(cols))
-
-			if test.name == "SharePoint.Lists" {
-				for _, collection := range cols {
-					t.Logf("Path: %s\n", collection.FullPath().String())
-					for item := range collection.Items() {
-						t.Log("File: " + item.UUID())
-
-						bytes, err := io.ReadAll(item.ToReader())
-						require.NoError(t, err)
-						t.Log(string(bytes))
-
-					}
-				}
-			}
-		})
+			t.Log(string(bs))
+		}
 	}
 }

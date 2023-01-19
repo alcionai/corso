@@ -2,15 +2,21 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -18,6 +24,11 @@ import (
 // controller
 // ---------------------------------------------------------------------------
 
+func (c Client) Events() Events {
+	return Events{c}
+}
+
+// Events is an interface-compliant provider of the client.
 type Events struct {
 	Client
 }
@@ -47,12 +58,17 @@ func (c Events) DeleteCalendar(
 	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
-// RetrieveEventDataForUser is a GraphRetrievalFunc that returns event data.
-func (c Events) RetrieveEventDataForUser(
+// GetItem retrieves an Eventable item.
+func (c Events) GetItem(
 	ctx context.Context,
-	user, m365ID string,
-) (serialization.Parsable, error) {
-	return c.stable.Client().UsersById(user).EventsById(m365ID).Get(ctx, nil)
+	user, itemID string,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	evt, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return evt, EventInfo(evt), nil
 }
 
 func (c Client) GetAllCalendarNamesForUser(
@@ -124,6 +140,35 @@ func (c Events) EnumerateContainers(
 	return errs.ErrorOrNil()
 }
 
+// ---------------------------------------------------------------------------
+// item pager
+// ---------------------------------------------------------------------------
+
+var _ itemPager = &eventPager{}
+
+const (
+	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
+)
+
+type eventPager struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
+	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
+}
+
+func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, err
+}
+
+func (p *eventPager) setNext(nextLink string) {
+	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+	return toValues[models.Eventable](pl)
+}
+
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	user, calendarID, oldDelta string,
@@ -134,51 +179,113 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	}
 
 	var (
-		errs *multierror.Error
-		ids  []string
+		resetDelta bool
+		errs       *multierror.Error
 	)
 
-	options, err := optionsForEventsByCalendar([]string{"id"})
+	options, err := optionsForEventsByCalendarDelta([]string{"id"})
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
+	if len(oldDelta) > 0 {
+		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
+		pgr := &eventPager{service, builder, options}
 
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, nil, DeltaUpdate{}, err
-			}
-
-			return nil, nil, DeltaUpdate{}, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+		// note: happy path, not the error condition
+		if err == nil {
+			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+		}
+		// only return on error if it is NOT a delta issue.
+		// on bad deltas we retry the call with the regular builder
+		if graph.IsErrInvalidDelta(err) == nil {
+			return nil, nil, DeltaUpdate{}, err
 		}
 
-		for _, item := range resp.GetValue() {
-			if item.GetId() == nil {
-				errs = multierror.Append(
-					errs,
-					errors.Errorf("event with nil ID in calendar %s", calendarID),
-				)
+		resetDelta = true
+		errs = nil
+	}
 
-				// TODO(ashmrtn): Handle fail-fast.
-				continue
-			}
+	// Graph SDK only supports delta queries against events on the beta version, so we're
+	// manufacturing use of the beta version url to make the call instead.
+	// See: https://learn.microsoft.com/ko-kr/graph/api/event-delta?view=graph-rest-beta&tabs=http
+	// Note that the delta item body is skeletal compared to the actual event struct.  Lucky
+	// for us, we only need the item ID.  As a result, even though we hacked the version, the
+	// response body parses properly into the v1.0 structs and complies with our wanted interfaces.
+	// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
+	// works as intended (until, at least, we want to _not_ call the beta anymore).
+	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
+	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
+	pgr := &eventPager{service, builder, options}
 
-			ids = append(ids, *item.GetId())
-		}
-
-		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil || len(*nextLink) == 0 {
-			break
-		}
-
-		builder = users.NewItemCalendarsItemEventsRequestBuilder(*nextLink, service.Adapter())
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, err
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
-	return ids, nil, DeltaUpdate{}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+}
+
+// ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
+// Serialize retrieves attachment data identified by the event item, and then
+// serializes it into a byte slice.
+func (c Events) Serialize(
+	ctx context.Context,
+	item serialization.Parsable,
+	user, itemID string,
+) ([]byte, error) {
+	event, ok := item.(models.Eventable)
+	if !ok {
+		return nil, fmt.Errorf("expected Eventable, got %T", item)
+	}
+
+	var (
+		err    error
+		writer = kioser.NewJsonSerializationWriter()
+	)
+
+	defer writer.Close()
+
+	if *event.GetHasAttachments() {
+		// getting all the attachments might take a couple attempts due to filesize
+		var retriesErr error
+
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.stable.
+				Client().
+				UsersById(user).
+				EventsById(itemID).
+				Attachments().
+				Get(ctx, nil)
+			retriesErr = err
+
+			if err == nil {
+				event.SetAttachments(attached.GetValue())
+				break
+			}
+		}
+
+		if retriesErr != nil {
+			logger.Ctx(ctx).Debug("exceeded maximum retries")
+			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
+		}
+	}
+
+	if err = writer.WriteObjectValue("", event); err != nil {
+		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+	}
+
+	bs, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, errors.Wrap(err, "serializing calendar event")
+	}
+
+	return bs, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -206,4 +313,69 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
 	return nil
+}
+
+func EventInfo(evt models.Eventable) *details.ExchangeInfo {
+	var (
+		organizer, subject string
+		recurs             bool
+		start              = time.Time{}
+		end                = time.Time{}
+		created            = time.Time{}
+	)
+
+	if evt.GetOrganizer() != nil &&
+		evt.GetOrganizer().GetEmailAddress() != nil &&
+		evt.GetOrganizer().GetEmailAddress().GetAddress() != nil {
+		organizer = *evt.GetOrganizer().
+			GetEmailAddress().
+			GetAddress()
+	}
+
+	if evt.GetSubject() != nil {
+		subject = *evt.GetSubject()
+	}
+
+	if evt.GetRecurrence() != nil {
+		recurs = true
+	}
+
+	if evt.GetStart() != nil &&
+		evt.GetStart().GetDateTime() != nil {
+		// timeString has 'Z' literal added to ensure the stored
+		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		startTime := *evt.GetStart().GetDateTime() + "Z"
+
+		output, err := common.ParseTime(startTime)
+		if err == nil {
+			start = output
+		}
+	}
+
+	if evt.GetEnd() != nil &&
+		evt.GetEnd().GetDateTime() != nil {
+		// timeString has 'Z' literal added to ensure the stored
+		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		endTime := *evt.GetEnd().GetDateTime() + "Z"
+
+		output, err := common.ParseTime(endTime)
+		if err == nil {
+			end = output
+		}
+	}
+
+	if evt.GetCreatedDateTime() != nil {
+		created = *evt.GetCreatedDateTime()
+	}
+
+	return &details.ExchangeInfo{
+		ItemType:    details.ExchangeEvent,
+		Organizer:   organizer,
+		Subject:     subject,
+		EventStart:  start,
+		EventEnd:    end,
+		EventRecurs: recurs,
+		Created:     created,
+		Modified:    orNow(evt.GetLastModifiedDateTime()),
+	}
 }

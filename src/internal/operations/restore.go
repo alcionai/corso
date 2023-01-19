@@ -150,7 +150,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			events.BackupID:         op.BackupID,
 			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
-			// TODO: restore options,
 		},
 	)
 
@@ -160,9 +159,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	observe.Message(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
-	kopiaComplete, closer := observe.MessageWithCompletion("Enumerating items in repository:")
+	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer closer()
 	defer close(kopiaComplete)
 
@@ -184,7 +183,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, opStats.readErr
 	}
 
-	restoreComplete, closer := observe.MessageWithCompletion("Restoring data:")
+	restoreComplete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer closer()
 	defer close(restoreComplete)
 

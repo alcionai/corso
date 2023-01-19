@@ -178,9 +178,30 @@ func (w Wrapper) makeSnapshotWithRoot(
 		bc  = &stats.ByteCounter{}
 	)
 
+	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries))
 	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
+
 	for _, ent := range prevSnapEntries {
 		prevSnaps = append(prevSnaps, ent.Manifest)
+		snapIDs = append(snapIDs, ent.ID)
+	}
+
+	logger.Ctx(ctx).Infow(
+		"using snapshots for kopia-assisted incrementals",
+		"snapshot_ids",
+		snapIDs,
+	)
+
+	tags := map[string]string{}
+
+	for k, v := range addlTags {
+		mk, mv := makeTagKV(k)
+
+		if len(v) == 0 {
+			v = mv
+		}
+
+		tags[mk] = v
 	}
 
 	err := repo.WriteSession(
@@ -219,6 +240,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			u := snapshotfs.NewUploader(rw)
 			progress.UploadProgress = u.Progress
 			u.Progress = progress
+			u.CheckpointLabels = tags
 
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
@@ -227,17 +249,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 				return err
 			}
 
-			man.Tags = map[string]string{}
-
-			for k, v := range addlTags {
-				mk, mv := MakeTagKV(k)
-
-				if len(v) == 0 {
-					v = mv
-				}
-
-				man.Tags[mk] = v
-			}
+			man.Tags = tags
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = errors.Wrap(err, "saving snapshot")

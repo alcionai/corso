@@ -179,21 +179,6 @@ func (s *sharePoint) Scopes() []SharePointScope {
 	return scopes[SharePointScope](s.Selector)
 }
 
-// DiscreteScopes retrieves the list of sharePointScopes in the selector.
-// If any Include scope's Site category is set to Any, replaces that
-// scope's value with the list of siteIDs instead.
-func (s *sharePoint) DiscreteScopes(siteIDs []string) []SharePointScope {
-	scopes := discreteScopes[SharePointScope](s.Includes, SharePointSite, siteIDs)
-
-	ss := make([]SharePointScope, 0, len(scopes))
-
-	for _, scope := range scopes {
-		ss = append(ss, SharePointScope(scope))
-	}
-
-	return ss
-}
-
 // -------------------
 // Scope Factories
 
@@ -217,6 +202,11 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 			SharePointWebURL,
 			urlSuffixes,
 			pathFilterFactory(opts...)),
+		makeFilterScope[SharePointScope](
+			SharePointPage,
+			SharePointWebURL,
+			urlSuffixes,
+			pathFilterFactory(opts...)),
 	)
 
 	return scopes
@@ -234,6 +224,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 		scopes,
 		makeScope[SharePointScope](SharePointLibrary, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
+		makeScope[SharePointScope](SharePointPage, Any()),
 	)
 
 	return scopes
@@ -306,6 +297,38 @@ func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []S
 	return scopes
 }
 
+// Pages produces one or more SharePoint page scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *sharePoint) Pages(pages []string, opts ...option) []SharePointScope {
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(scopes, makeScope[SharePointScope](SharePointPageFolder, pages, os...))
+
+	return scopes
+}
+
+// PageItems produces one or more SharePoint page item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the page scopes.
+func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePointScope {
+	scopes := []SharePointScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[SharePointScope](SharePointPage, items).
+			set(SharePointPage, pages, opts...),
+	)
+
+	return scopes
+}
+
 // -------------------
 // Filter Factories
 
@@ -330,6 +353,8 @@ const (
 	SharePointListItem    sharePointCategory = "SharePointListItem"
 	SharePointLibrary     sharePointCategory = "SharePointLibrary"
 	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
+	SharePointPageFolder  sharePointCategory = "SharePointPageFolder"
+	SharePointPage        sharePointCategory = "SharePointPage"
 
 	// filterable topics identified by SharePoint
 )
@@ -340,13 +365,17 @@ var sharePointLeafProperties = map[categorizer]leafProperty{
 		pathKeys: []categorizer{SharePointLibrary, SharePointLibraryItem},
 		pathType: path.LibrariesCategory,
 	},
+	SharePointListItem: {
+		pathKeys: []categorizer{SharePointList, SharePointListItem},
+		pathType: path.ListsCategory,
+	},
+	SharePointPage: {
+		pathKeys: []categorizer{SharePointPageFolder, SharePointPage},
+		pathType: path.PagesCategory,
+	},
 	SharePointSite: { // the root category must be represented, even though it isn't a leaf
 		pathKeys: []categorizer{SharePointSite},
 		pathType: path.UnknownCategory,
-	},
-	SharePointListItem: {
-		pathKeys: []categorizer{SharePointSite, SharePointList, SharePointListItem},
-		pathType: path.ListsCategory,
 	},
 }
 
@@ -365,6 +394,8 @@ func (c sharePointCategory) leafCat() categorizer {
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
+	case SharePointPage, SharePointPageFolder:
+		return SharePointPage
 	}
 
 	return c
@@ -404,6 +435,10 @@ func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
 		folderCat, itemCat = SharePointLibrary, SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+	case SharePointPage, SharePointPageFolder:
+		folderCat, itemCat = SharePointPageFolder, SharePointPage
+	default:
+		return map[categorizer]string{}
 	}
 
 	return map[categorizer]string{
@@ -444,6 +479,12 @@ func (s SharePointScope) categorizer() categorizer {
 	return s.Category()
 }
 
+// Matches returns true if the category is included in the scope's
+// data type, and the target string matches that category's comparator.
+func (s SharePointScope) Matches(cat sharePointCategory, target string) bool {
+	return matches(s, cat, target)
+}
+
 // FilterCategory returns the category enum of the scope filter.
 // If the scope is not a filter type, returns SharePointUnknownCategory.
 func (s SharePointScope) FilterCategory() sharePointCategory {
@@ -456,12 +497,6 @@ func (s SharePointScope) FilterCategory() sharePointCategory {
 // s.IncludesCategory(selector.SharePointFile)
 func (s SharePointScope) IncludesCategory(cat sharePointCategory) bool {
 	return categoryMatches(s.Category(), cat)
-}
-
-// Matches returns true if the category is included in the scope's
-// data type, and the target string matches that category's comparator.
-func (s SharePointScope) Matches(cat sharePointCategory, target string) bool {
-	return matches(s, cat, target)
 }
 
 // returns true if the category is included in the scope's data type,
@@ -482,7 +517,7 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
-	case SharePointLibrary, SharePointList:
+	case SharePointLibrary, SharePointList, SharePointPage:
 		os = append(os, pathComparator())
 	}
 
@@ -497,10 +532,14 @@ func (s SharePointScope) setDefaults() {
 		s[SharePointLibraryItem.String()] = passAny
 		s[SharePointList.String()] = passAny
 		s[SharePointListItem.String()] = passAny
+		s[SharePointPageFolder.String()] = passAny
+		s[SharePointPage.String()] = passAny
 	case SharePointLibrary:
 		s[SharePointLibraryItem.String()] = passAny
 	case SharePointList:
 		s[SharePointListItem.String()] = passAny
+	case SharePointPageFolder:
+		s[SharePointPage.String()] = passAny
 	}
 }
 
@@ -524,6 +563,7 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 		map[path.CategoryType]sharePointCategory{
 			path.LibrariesCategory: SharePointLibraryItem,
 			path.ListsCategory:     SharePointListItem,
+			path.PagesCategory:     SharePointPage,
 		},
 	)
 }

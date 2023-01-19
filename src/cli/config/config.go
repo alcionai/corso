@@ -68,7 +68,7 @@ func AddConfigFlags(cmd *cobra.Command) {
 		&configFilePathFlag,
 		"config-file",
 		displayDefaultFP,
-		"config file location (default is $HOME/.corso.toml)")
+		"config file location")
 }
 
 // ---------------------------------------------------------------------------------------------------------
