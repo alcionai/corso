@@ -1,7 +1,7 @@
 package graph
 
 import (
-	nethttp "net/http"
+	"net/http"
 	"net/http/httputil"
 	"os"
 	"strings"
@@ -47,7 +47,7 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 }
 
 // CreateHTTPClient creates the httpClient with middlewares and timeout configured
-func CreateHTTPClient() *nethttp.Client {
+func CreateHTTPClient() *http.Client {
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
 	middlewares = append(middlewares, &LoggingMiddleware{})
@@ -67,8 +67,8 @@ type LoggingMiddleware struct{}
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
-	req *nethttp.Request,
-) (*nethttp.Response, error) {
+	req *http.Request,
+) (*http.Response, error) {
 	var (
 		ctx       = req.Context()
 		resp, err = pipeline.Next(req, middlewareIndex)
@@ -80,6 +80,11 @@ func (handler *LoggingMiddleware) Intercept(
 
 	if (resp.StatusCode / 100) == 2 {
 		return resp, err
+	}
+
+	// special case for supportability: log all throttling cases.
+	if resp.StatusCode == http.StatusTooManyRequests {
+		logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
 	}
 
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
