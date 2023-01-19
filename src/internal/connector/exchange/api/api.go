@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/pkg/errors"
@@ -11,8 +12,10 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// common types
+// common types and consts
 // ---------------------------------------------------------------------------
+
+const numberOfRetries = 3
 
 // DeltaUpdate holds the results of a current delta token.  It normally
 // gets produced when aggregating the addition and removal of items in
@@ -105,4 +108,12 @@ func checkIDAndName(c graph.Container) error {
 	}
 
 	return nil
+}
+
+func orNow(t *time.Time) time.Time {
+	if t == nil {
+		return time.Now().UTC()
+	}
+
+	return *t
 }

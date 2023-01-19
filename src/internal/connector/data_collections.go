@@ -7,7 +7,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -15,6 +17,7 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -39,6 +42,15 @@ func (gc *GraphConnector) DataCollections(
 	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
 	if err != nil {
 		return nil, err
+	}
+
+	serviceEnabled, err := checkServiceEnabled(ctx, gc.Service, path.ServiceType(sels.Service), sels.DiscreteOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	if !serviceEnabled {
+		return []data.Collection{}, nil
 	}
 
 	switch sels.Service {
@@ -122,6 +134,29 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 	}
 
 	return nil
+}
+
+func checkServiceEnabled(
+	ctx context.Context,
+	gs graph.Servicer,
+	service path.ServiceType,
+	resource string,
+) (bool, error) {
+	if service == path.SharePointService {
+		// No "enabled" check required for sharepoint
+		return true, nil
+	}
+
+	_, info, err := discovery.User(ctx, gs, resource)
+	if err != nil {
+		return false, err
+	}
+
+	if _, ok := info.DiscoveredServices[service]; !ok {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // ---------------------------------------------------------------------------
