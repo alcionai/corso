@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alcionai/corso/src/pkg/logger"
 	bytesize "github.com/inhies/go-bytesize"
+
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ConnectorOperationStatus is a data type used to describe the state of

@@ -9,6 +9,10 @@ import (
 	"sort"
 	"strings"
 
+	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -18,9 +22,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 )
 
 const (
