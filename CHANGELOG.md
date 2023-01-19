@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Check if the user specified for an exchange backup operation has a mailbox.
+- Handle case where user's drive has not been initialized
 
 
 ## [v0.1.0] (alpha) - 2023-01-13
