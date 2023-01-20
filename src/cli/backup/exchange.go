@@ -347,7 +347,7 @@ func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBa
 
 func validateExchangeBackupCreateFlags(userIDs, data []string) error {
 	if len(userIDs) == 0 {
-		return errors.New("--user requires one or more addresses or the wildcard *")
+		return errors.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
 	for _, d := range data {
