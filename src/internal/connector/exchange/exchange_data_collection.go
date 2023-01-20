@@ -198,14 +198,6 @@ func (col *Collection) streamItems(ctx context.Context) {
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
-	updaterMu := sync.Mutex{}
-	errUpdater := func(user string, err error) {
-		updaterMu.Lock()
-		defer updaterMu.Unlock()
-
-		errs = support.WrapAndAppend(user, err, errs)
-	}
-
 	// delete all removed items
 	for id := range col.removed {
 		semaphoreCh <- struct{}{}
@@ -229,6 +221,14 @@ func (col *Collection) streamItems(ctx context.Context) {
 				colProgress <- struct{}{}
 			}
 		}(id)
+	}
+
+	updaterMu := sync.Mutex{}
+	errUpdater := func(user string, err error) {
+		updaterMu.Lock()
+		defer updaterMu.Unlock()
+
+		errs = support.WrapAndAppend(user, err, errs)
 	}
 
 	// add any new items
@@ -273,7 +273,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 					return
 				}
 
-				errUpdater(user, err)
+				errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
 
 				return
 			}
