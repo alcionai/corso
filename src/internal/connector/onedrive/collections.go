@@ -161,12 +161,16 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
-// A new collection is created for every drive folder (or package)
+// A new collection is created for every drive folder (or package).
+// oldPaths is the unchanged data that was loaded from the metadata file.
+// newPaths starts as a copy of oldPaths and is updated as changes are found in
+// the returned results.
 func (c *Collections) UpdateCollections(
 	ctx context.Context,
 	driveID, driveName string,
 	items []models.DriveItemable,
-	paths map[string]string,
+	oldPaths map[string]string,
+	newPaths map[string]string,
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -201,7 +205,7 @@ func (c *Collections) UpdateCollections(
 				// Nested folders also return deleted delta results so we don't have to
 				// worry about doing a prefix search in the map to remove the subtree of
 				// the deleted folder/package.
-				delete(paths, *item.GetId())
+				delete(newPaths, *item.GetId())
 
 				// TODO(ashmrtn): Create a collection with state Deleted.
 
@@ -217,13 +221,20 @@ func (c *Collections) UpdateCollections(
 				return err
 			}
 
-			// TODO(ashmrtn): Handle moves by setting the collection state if the
-			// collection doesn't already exist/have that state.
-			paths[*item.GetId()] = folderPath.String()
+			// Moved folders don't cause delta results for any subfolders nested in
+			// them. We need to go through and update paths to handle that. We only
+			// update newPaths so we don't accidentally clobber previous deletes.
+			//
+			// TODO(ashmrtn): Since we're also getting notifications about folder
+			// moves we may need to handle updates to a path of a collection we've
+			// already created and partially populated.
+			updatePath(newPaths, *item.GetId(), folderPath.String())
 
 		case item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
+				// TODO(ashmrtn): Compare old and new path and set collection state
+				// accordingly.
 				col = NewCollection(
 					collectionPath,
 					driveID,
@@ -295,4 +306,24 @@ func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) boo
 	}
 
 	return m.Matches(folderPathString)
+}
+
+func updatePath(paths map[string]string, id, newPath string) {
+	oldPath := paths[id]
+	if len(oldPath) == 0 {
+		paths[id] = newPath
+		return
+	}
+
+	// We need to do a prefix search on the rest of the map to update the subtree.
+	// We don't need to make collections for all of these, as hierarchy merging in
+	// other components should take care of that. We do need to ensure that the
+	// resulting map contains all folders though so we know the next time around.
+	for folderID, p := range paths {
+		if !strings.HasPrefix(p, oldPath) {
+			continue
+		}
+
+		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+	}
 }
