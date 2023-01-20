@@ -335,12 +335,12 @@ func checkContact(
 	testEmptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
 
 	testEmptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
-
-	assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
-
-	testEmptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
-
-	assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
+	// Not present in msgraph-beta-sdk/models
+	// assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
+	// Not present in msgraph-beta-sdk/models
+	// testEmptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
+	// Not present in msgraph-beta-sdk/models
+	// assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
 	assert.Equal(t, expected.GetCategories(), got.GetCategories())
 
@@ -364,9 +364,10 @@ func checkContact(
 
 	testEmptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
 
-	assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
-
-	assert.Equal(t, expected.GetHomePhones(), got.GetHomePhones())
+	// Not present in msgraph-beta-sdk/models
+	// assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
+	// Not present in msgraph-beta-sdk/models
+	// assert.Equal(t, expected.GetHomePhones(), got.GetHomePhones())
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
@@ -382,13 +383,14 @@ func checkContact(
 
 	testEmptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
 
-	testEmptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
+	// Not present in msgraph-beta-sdk/models
+	// testEmptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
 
 	testEmptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
 
 	testEmptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
-
-	assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
+	// Not present in msgraph-beta-sdk/models
+	// assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
 
 	// Skip ParentFolderId as it's tied to this specific instance of the item.
 
