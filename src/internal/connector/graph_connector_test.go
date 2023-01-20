@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -174,10 +175,10 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	service, err := newConnector.createService()
+	owners, err := api.NewClient(suite.connector.credentials)
 	require.NoError(suite.T(), err)
 
-	newConnector.Service = service
+	newConnector.Owners = owners
 
 	suite.Empty(len(newConnector.Users))
 	err = newConnector.setTenantUsers(ctx)

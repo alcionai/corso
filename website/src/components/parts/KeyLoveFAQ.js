@@ -5,12 +5,12 @@ export default function KeyLoveFAQ() {
   const jarallaxRef = useRef(null);
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const WOW = require("wowjs");
+      const WOW = require("wow.js");
       const father = require("feather-icons");
       const jarallax = require("jarallax");
       require("tw-elements");
 
-      new WOW.WOW({
+      new WOW({
         live: false,
       }).init();
       father.replace();
