@@ -13,6 +13,7 @@ import (
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -262,7 +263,18 @@ func (col *Collection) streamItems(ctx context.Context) {
 			}
 
 			if err != nil {
+				// Don't report errors for deleted items as there's no way for us to
+				// back up data that is gone. Chalk them up as a "success" though since
+				// there's really nothing we can do and not reporting it will make the
+				// status code upset cause we won't have the same number of results as
+				// attempted items.
+				if e := graph.IsErrDeletedInFlight(err); e != nil {
+					atomic.AddInt64(&success, 1)
+					return
+				}
+
 				errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
+
 				return
 			}
 
