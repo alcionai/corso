@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      ## increases swap space for beta and v.1.0 
+      ## increases swap space for msgraph-beta-sdk-go 
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
