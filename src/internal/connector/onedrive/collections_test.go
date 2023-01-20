@@ -320,6 +320,46 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedMetadataPaths: map[string]string{},
 		},
 		{
+			testCase: "not moved folder tree",
+			items: []models.DriveItemable{
+				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder",
+				)[0],
+			},
+		},
+		{
 			testCase: "moved folder tree",
 			items: []models.DriveItemable{
 				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
