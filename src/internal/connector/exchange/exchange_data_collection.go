@@ -197,10 +197,6 @@ func (col *Collection) streamItems(ctx context.Context) {
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
-	errUpdater := func(user string, err error) {
-		errs = support.WrapAndAppend(user, err, errs)
-	}
-
 	// delete all removed items
 	for id := range col.removed {
 		semaphoreCh <- struct{}{}
@@ -224,6 +220,10 @@ func (col *Collection) streamItems(ctx context.Context) {
 				colProgress <- struct{}{}
 			}
 		}(id)
+	}
+
+	errUpdater := func(user string, err error) {
+		errs = support.WrapAndAppend(user, err, errs)
 	}
 
 	// add any new items
@@ -258,7 +258,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 			}
 
 			if err != nil {
-				errUpdater(user, err)
+				errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
 				return
 			}
 
