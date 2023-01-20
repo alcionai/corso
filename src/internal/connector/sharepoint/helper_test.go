@@ -3,7 +3,7 @@ package sharepoint
 import (
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 

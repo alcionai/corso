@@ -3,7 +3,7 @@ package sharepoint
 import (
 	"time"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
