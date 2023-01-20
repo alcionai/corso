@@ -468,7 +468,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 
 					for k, v := range ci {
 						if cachedTest.cached {
-							cp.CachedFile(k, 42)
+							cp.CachedFile(k, v.totalBytes)
 						}
 
 						cp.FinishedFile(k, v.err)
