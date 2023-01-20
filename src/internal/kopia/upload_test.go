@@ -489,6 +489,38 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	}
 }
 
+func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
+	t := suite.T()
+	bd := &details.Builder{}
+	cachedItems := map[string]testInfo{
+		suite.targetFileName: {
+			info:       &itemDetails{info: nil, repoPath: suite.targetFilePath},
+			err:        nil,
+			totalBytes: 100,
+		},
+	}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+	}
+
+	for k, v := range cachedItems {
+		cp.put(k, v.info)
+	}
+
+	require.Len(t, cp.pending, len(cachedItems))
+
+	for k, v := range cachedItems {
+		cp.CachedFile(k, v.totalBytes)
+		cp.FinishedFile(k, v.err)
+	}
+
+	assert.Empty(t, cp.pending)
+	assert.Empty(t, bd.Details().Entries)
+	assert.Error(t, cp.errs.ErrorOrNil())
+}
+
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 	t := suite.T()
 	// Order of folders in hierarchy from root to leaf (excluding the item).
