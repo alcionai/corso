@@ -222,7 +222,11 @@ func (col *Collection) streamItems(ctx context.Context) {
 		}(id)
 	}
 
+	updaterMu := sync.Mutex{}
 	errUpdater := func(user string, err error) {
+		updaterMu.Lock()
+		defer updaterMu.Unlock()
+
 		errs = support.WrapAndAppend(user, err, errs)
 	}
 
