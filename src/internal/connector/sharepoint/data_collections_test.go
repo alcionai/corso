@@ -88,6 +88,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 			defer flush()
 
 			paths := map[string]string{}
+			newPaths := map[string]string{}
 			c := onedrive.NewCollections(
 				tenant,
 				site,
@@ -96,7 +97,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths)
+			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
