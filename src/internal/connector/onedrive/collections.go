@@ -197,16 +197,26 @@ func (c *Collections) UpdateCollections(
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// Eventually, deletions of folders will be handled here so we may as well
-			// start off by saving the path.Path of the item instead of just the
-			// OneDrive parentRef or such.
+			if item.GetDeleted() != nil {
+				// Nested folders also return deleted delta results so we don't have to
+				// worry about doing a prefix search in the map to remove the subtree of
+				// the deleted folder/package.
+				delete(paths, *item.GetId())
+
+				// TODO(ashmrtn): Create a collection with state Deleted.
+
+				break
+			}
+
+			// Deletions of folders are handled in this case so we may as well start
+			// off by saving the path.Path of the item instead of just the OneDrive
+			// parentRef or such.
 			folderPath, err := collectionPath.Append(*item.GetName(), false)
 			if err != nil {
 				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
 				return err
 			}
 
-			// TODO(ashmrtn): Handle deletions by removing this entry from the map.
 			// TODO(ashmrtn): Handle moves by setting the collection state if the
 			// collection doesn't already exist/have that state.
 			paths[*item.GetId()] = folderPath.String()
