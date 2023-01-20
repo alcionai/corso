@@ -99,7 +99,8 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		ctx context.Context,
 		driveID, driveName string,
 		items []models.DriveItemable,
-		paths map[string]string,
+		oldPaths map[string]string,
+		newPaths map[string]string,
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
