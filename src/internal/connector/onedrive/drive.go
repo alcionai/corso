@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
+	msdrive "github.com/microsoftgraph/msgraph-beta-sdk-go/drive"
+	msdrives "github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models/odataerrors"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"

@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msdrives "github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
