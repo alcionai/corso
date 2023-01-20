@@ -197,7 +197,11 @@ func (col *Collection) streamItems(ctx context.Context) {
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
+	updaterMu := sync.Mutex{}
 	errUpdater := func(user string, err error) {
+		updaterMu.Lock()
+		defer updaterMu.Unlock()
+
 		errs = support.WrapAndAppend(user, err, errs)
 	}
 
