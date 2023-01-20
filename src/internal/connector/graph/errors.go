@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 

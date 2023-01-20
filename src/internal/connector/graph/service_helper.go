@@ -10,8 +10,7 @@ import (
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
-	beta "github.com/microsoftgraph/msgraph-beta-sdk-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
 
@@ -44,28 +43,6 @@ func CreateAdapter(tenant, client, secret string) (*msgraphsdk.GraphRequestAdapt
 	httpClient := CreateHTTPClient()
 
 	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth, nil, nil, httpClient)
-}
-
-// CreateBetaAdapter uses the provided credentials with the Kiota Azure Libraries.
-// Used to access msgraph-beta-sdk-go specific functionality
-func CreateBetaAdapter(tenant, client, secret string) (*beta.GraphRequestAdapter, error) {
-	cred, err := az.NewClientSecretCredential(tenant, client, secret, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating beta m365 client credentials")
-	}
-
-	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
-		cred,
-		[]string{"https://graph.microsoft.com/.default"},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating beta auth token")
-	}
-
-	httpClient := CreateHTTPClient()
-
-	return beta.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth, nil, nil, httpClient)
 }
 
