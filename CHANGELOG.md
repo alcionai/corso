@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Beta Libraries are included in package. This can lead to long build times. 
-
+- msgraph-beta-sdk-go replaces msgraph-sdk-go for new features. This can lead to long build times. 
+- Handle case where user's drive has not been initialized
+- Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))
 
 ## [v0.1.0] (alpha) - 2023-01-13
 
