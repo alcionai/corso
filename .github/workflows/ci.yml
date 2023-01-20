@@ -41,7 +41,6 @@ jobs:
         working-directory: src
     steps:
       - uses: actions/checkout@v3
-      
       # single setup and sum cache handling here.
       # the results will cascade onto both testing and linting.
       - name: Setup Golang with cache
