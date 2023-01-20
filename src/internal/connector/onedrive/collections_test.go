@@ -319,6 +319,34 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			// No child folders for subfolder so nothing here.
 			expectedMetadataPaths: map[string]string{},
 		},
+		{
+			testCase: "deleted folder and package",
+			items: []models.DriveItemable{
+				delItem("folder", testBaseDrivePath, false, true, false),
+				delItem("package", testBaseDrivePath, false, false, true),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"package": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/package",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths:   map[string]string{},
+		},
 	}
 
 	for _, tt := range tests {
@@ -356,6 +384,29 @@ func driveItem(id string, name string, path string, isFile, isFolder, isPackage 
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
+
+	parentReference := models.NewItemReference()
+	parentReference.SetPath(&path)
+	item.SetParentReference(parentReference)
+
+	switch {
+	case isFile:
+		item.SetFile(models.NewFile())
+	case isFolder:
+		item.SetFolder(models.NewFolder())
+	case isPackage:
+		item.SetPackage(models.NewPackage_escaped())
+	}
+
+	return item
+}
+
+// delItem creates a DriveItemable that is marked as deleted. path must be set
+// to the base drive path.
+func delItem(id string, path string, isFile, isFolder, isPackage bool) models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetId(&id)
+	item.SetDeleted(models.NewDeleted())
 
 	parentReference := models.NewItemReference()
 	parentReference.SetPath(&path)
