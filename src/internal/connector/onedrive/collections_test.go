@@ -265,7 +265,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
 				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("folder", "folder", testBaseDrivePath+folderSub, false, true, false),
+				driveItem("folder2", "folder", testBaseDrivePath+folderSub, false, true, false),
 				driveItem("package", "package", testBaseDrivePath, false, false, true),
 				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
 				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
@@ -285,7 +285,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
-				"folder": expectedPathAsSlice(
+				"folder2": expectedPathAsSlice(
 					suite.T(),
 					tenant,
 					user,
