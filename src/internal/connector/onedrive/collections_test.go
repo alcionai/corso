@@ -365,7 +365,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				nil,
 				control.Options{})
 
-			err := c.UpdateCollections(ctx, "driveID", "General", tt.items, outputFolderMap)
+			err := c.UpdateCollections(ctx, "driveID", "General", tt.items, tt.inputFolderMap, outputFolderMap)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
