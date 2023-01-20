@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
-	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+	msgraph_errors "github.com/microsoftgraph/msgraph-beta-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
