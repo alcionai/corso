@@ -42,12 +42,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      ## increases swap space for beta and v.1.0 
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 12
-
       # single setup and sum cache handling here.
       # the results will cascade onto both testing and linting.
       - name: Setup Golang with cache
