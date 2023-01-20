@@ -22,14 +22,25 @@ type mailFolderCache struct {
 	userID string
 }
 
+// init ensures that the structure's fields are initialized.
+// Fields Initialized when cache == nil:
+// [mc.cache]
+func (mc *mailFolderCache) init(
+	ctx context.Context,
+) error {
+	if mc.containerResolver == nil {
+		mc.containerResolver = newContainerResolver()
+	}
+
+	return mc.populateMailRoot(ctx)
+}
+
 // populateMailRoot manually fetches directories that are not returned during Graph for msgraph-sdk-go v. 40+
 // rootFolderAlias is the top-level directory for exchange.Mail.
 // DefaultMailFolder is the traditional "Inbox" for exchange.Mail
 // Action ensures that cache will stop at appropriate level.
 // @error iff the struct is not properly instantiated
-func (mc *mailFolderCache) populateMailRoot(
-	ctx context.Context,
-) error {
+func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
 		var directory string
 
@@ -75,17 +86,4 @@ func (mc *mailFolderCache) Populate(
 	}
 
 	return nil
-}
-
-// init ensures that the structure's fields are initialized.
-// Fields Initialized when cache == nil:
-// [mc.cache]
-func (mc *mailFolderCache) init(
-	ctx context.Context,
-) error {
-	if mc.containerResolver == nil {
-		mc.containerResolver = newContainerResolver()
-	}
-
-	return mc.populateMailRoot(ctx)
 }

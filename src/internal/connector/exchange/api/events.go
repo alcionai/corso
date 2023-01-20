@@ -58,6 +58,28 @@ func (c Events) DeleteCalendar(
 	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
+func (c Events) GetContainerByID(
+	ctx context.Context,
+	userID, containerID string,
+) (graph.Container, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, err
+	}
+
+	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
+	if err != nil {
+		return nil, errors.Wrap(err, "options for event calendar")
+	}
+
+	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	if err != nil {
+		return nil, err
+	}
+
+	return graph.CalendarDisplayable{Calendarable: cal}, nil
+}
+
 // GetItem retrieves an Eventable item.
 func (c Events) GetItem(
 	ctx context.Context,
@@ -183,14 +205,9 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		errs       *multierror.Error
 	)
 
-	options, err := optionsForEventsByCalendarDelta([]string{"id"})
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
-	}
-
 	if len(oldDelta) > 0 {
 		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
-		pgr := &eventPager{service, builder, options}
+		pgr := &eventPager{service, builder, nil}
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
@@ -217,7 +234,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
-	pgr := &eventPager{service, builder, options}
+	pgr := &eventPager{service, builder, nil}
 
 	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
@@ -251,7 +268,7 @@ func (c Events) Serialize(
 
 	defer writer.Close()
 
-	if *event.GetHasAttachments() {
+	if *event.GetHasAttachments() || support.HasAttachments(event.GetBody()) {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 
