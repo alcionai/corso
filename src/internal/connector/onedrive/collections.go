@@ -315,6 +315,10 @@ func updatePath(paths map[string]string, id, newPath string) {
 		return
 	}
 
+	if oldPath == newPath {
+		return
+	}
+
 	// We need to do a prefix search on the rest of the map to update the subtree.
 	// We don't need to make collections for all of these, as hierarchy merging in
 	// other components should take care of that. We do need to ensure that the
