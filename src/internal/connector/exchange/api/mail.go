@@ -257,7 +257,7 @@ func (c Mail) Serialize(
 
 	defer writer.Close()
 
-	if *msg.GetHasAttachments() {
+	if *msg.GetHasAttachments() || support.HasAttachments(msg.GetBody()) {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 

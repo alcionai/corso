@@ -268,7 +268,7 @@ func (c Events) Serialize(
 
 	defer writer.Close()
 
-	if *event.GetHasAttachments() {
+	if *event.GetHasAttachments() || support.HasAttachments(event.GetBody()) {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 
