@@ -160,10 +160,11 @@ func (w Wrapper) BackupCollections(
 		progress,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		combinedErrs := multierror.Append(nil, err, progress.errs)
+		return nil, nil, nil, combinedErrs.ErrorOrNil()
 	}
 
-	return s, progress.deets, progress.toMerge, nil
+	return s, progress.deets, progress.toMerge, progress.errs.ErrorOrNil()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
