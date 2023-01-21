@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -50,7 +51,7 @@ type Collection struct {
 	// M365 IDs of the items of this collection
 	category      DataCategory
 	service       graph.Servicer
-	bService      graph.BetaService
+	ctrl          control.Options
 	statusUpdater support.StatusUpdater
 }
 
@@ -67,7 +68,7 @@ func NewCollection(
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		service:       service,
 		statusUpdater: statusUpdater,
-		category: category,
+		category:      category,
 	}
 
 	return c
@@ -156,10 +157,9 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 // populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
-		numItems, success        int
+		numItems, success       int
 		totalBytes, arrayLength int64
 		errs                    error
-		objects                 = make([]absser.Parsable, 0)
 		writer                  = kw.NewJsonSerializationWriter()
 	)
 
@@ -176,8 +176,19 @@ func (sc *Collection) populate(ctx context.Context) {
 		sc.finishPopulation(ctx, numItems, success, totalBytes, errs)
 	}()
 
-	// Retrieve list data from M365
-	case sc.category
+	// Switch retrieval function based on category
+	switch sc.category {
+	case List:
+		// do the thing
+		// ctx, service, writer
+		errs = sc.retrieveListData(ctx, *writer, colProgress)
+	case Pages:
+		// do the other thing
+	}
+
+}
+
+func (sc *Collection) retrieveListData(ctx context.Context, wtr kw.JsonSerializationWriter, progress chan<- struct{}) error {
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
 		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
@@ -214,6 +225,7 @@ func (sc *Collection) populate(ctx context.Context) {
 			colProgress <- struct{}{}
 		}
 	}
+
 }
 
 func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listable) ([]byte, error) {
