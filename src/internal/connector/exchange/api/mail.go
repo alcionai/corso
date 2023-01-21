@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -257,7 +257,7 @@ func (c Mail) Serialize(
 
 	defer writer.Close()
 
-	if *msg.GetHasAttachments() {
+	if *msg.GetHasAttachments() || support.HasAttachments(msg.GetBody()) {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 
@@ -278,7 +278,8 @@ func (c Mail) Serialize(
 
 		if retriesErr != nil {
 			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
+			return nil, support.WrapAndAppend(itemID,
+				support.ConnectorStackErrorTraceWrap(retriesErr, "attachment Failed"), nil)
 		}
 	}
 

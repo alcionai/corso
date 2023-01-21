@@ -168,16 +168,9 @@ func collectPages(
 ) ([]data.Collection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Pages collections")
 
-	adpt, err := graph.CreateBetaAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
-	if err != nil {
-		return nil, support.ConnectorStackErrorTraceWrap(err, "fetching beta adapter")
-	}
-
-	service := graph.NewBetaService(adpt)
-
 	spcs := make([]data.Collection, 0)
 
-	tuples, err := fetchPages(ctx, *service, siteID)
+	tuples, err := fetchPages(ctx, serv, siteID)
 	if err != nil {
 		return nil, err
 	}

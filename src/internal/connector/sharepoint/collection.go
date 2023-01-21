@@ -9,7 +9,7 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -38,6 +38,12 @@ var (
 	_ data.StreamInfo    = &Item{}
 	_ data.StreamModTime = &Item{}
 )
+
+type numMetrics struct {
+	attempts   int
+	success    int
+	totalBytes int64
+}
 
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
 // by the oneDrive.Collection as the calls are identical for populating the Collection
@@ -157,10 +163,9 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 // populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
-		numItems, success       int
-		totalBytes, arrayLength int64
-		errs                    error
-		writer                  = kw.NewJsonSerializationWriter()
+		metrics numMetrics
+		errs    error
+		writer  = kw.NewJsonSerializationWriter()
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
@@ -173,7 +178,7 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, numItems, success, totalBytes, errs)
+		sc.finishPopulation(ctx, metrics.attempts, metrics.success, metrics.totalBytes, errs)
 	}()
 
 	// Switch retrieval function based on category
@@ -181,30 +186,39 @@ func (sc *Collection) populate(ctx context.Context) {
 	case List:
 		// do the thing
 		// ctx, service, writer
-		errs = sc.retrieveListData(ctx, *writer, colProgress)
+		metrics, errs = sc.retrieveLists(ctx, writer, colProgress)
 	case Pages:
 		// do the other thing
+		metrics, errs = sc.retrievePages(ctx, writer, colProgress)
 	}
 
 }
 
-func (sc *Collection) retrieveListData(ctx context.Context, wtr kw.JsonSerializationWriter, progress chan<- struct{}) error {
+func (sc *Collection) retrieveLists(ctx context.Context, wtr *kw.JsonSerializationWriter, progress chan<- struct{}) (numMetrics, error) {
+	var (
+		errs    error
+		metrics numMetrics
+	)
+
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
 		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
+		if sc.ctrl.FailFast {
+			return metrics, errs
+		}
 	}
 
-	numItems += len(lists)
+	metrics.attempts += len(lists)
 	// Write Data and Send
 	for _, lst := range lists {
 
-		byteArray, err := serializeContent(writer, lst)
+		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
 			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
 			continue
 		}
 
-		arrayLength = int64(len(byteArray))
+		arrayLength := int64(len(byteArray))
 
 		if arrayLength > 0 {
 			t := time.Now()
@@ -212,9 +226,9 @@ func (sc *Collection) retrieveListData(ctx context.Context, wtr kw.JsonSerializa
 				t = *t1
 			}
 
-			totalBytes += arrayLength
+			metrics.totalBytes += arrayLength
 
-			success++
+			metrics.success++
 			sc.data <- &Item{
 				id:      *lst.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
@@ -222,10 +236,15 @@ func (sc *Collection) retrieveListData(ctx context.Context, wtr kw.JsonSerializa
 				modTime: t,
 			}
 
-			colProgress <- struct{}{}
+			progress <- struct{}{}
 		}
 	}
 
+	return metrics, nil
+}
+
+func (sc *Collection) retrievePages(ctx context.Context, wtr *kw.JsonSerializationWriter, progress chan<- struct{}) (numMetrics, error) {
+	return numMetrics{}, nil
 }
 
 func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listable) ([]byte, error) {
