@@ -31,6 +31,8 @@ import (
 var (
 	libraryItems []string
 	libraryPaths []string
+	listPaths    []string
+	listItems    []string
 	pageFolders  []string
 	page         []string
 	site         []string
@@ -128,6 +130,18 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&libraryItems,
 			utils.LibraryItemFN, nil,
 			"Select backup details by library item name or ID.")
+
+		fs.StringSliceVar(
+			&listPaths,
+			utils.ListFN, nil,
+			"Select backup details by site name.",
+		)
+
+		fs.StringSliceVar(
+			&listItems,
+			utils.ListItemFN, nil,
+			"Select backup details by list name or ID.",
+		)
 
 		fs.StringArrayVar(&site,
 			utils.SiteFN, nil,
@@ -516,6 +530,7 @@ func runDetailsSharePointCmd(
 	}
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+	// Filters not available
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
 	return sel.Reduce(ctx, d), nil
