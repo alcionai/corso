@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -73,7 +74,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 			false)
 	require.NoError(t, err)
 
-	col := NewCollection(dir, nil, List, nil)
+	col := NewCollection(dir, nil, List, nil, control.Options{})
 	col.data <- &Item{
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
@@ -100,7 +101,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 	defer flush()
 
 	t := suite.T()
-	count := 1
+	count := 0
 	siteID := tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	account, err := a.M365Config()
@@ -122,7 +123,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 		)
 	require.NoError(t, err)
 
-	col := NewCollection(dir, service, Pages, nil)
+	col := NewCollection(dir, service, Pages, nil, control.Defaults())
 	col.jobs = []string{tuples[0].id}
 
 	streamChannel := col.Items()
