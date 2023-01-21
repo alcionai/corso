@@ -93,7 +93,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			utils.WebURLFN, nil,
 			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		// TODO: implement
 		fs.StringSliceVar(
 			&sharepointData,
 			utils.DataFN, nil,
@@ -146,7 +145,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&page,
 			utils.PageItemFN, nil,
-			"Select backup data by page name, e.g. home.aspx; accepts '"+utils.Wildcard+"' to select all pages within the site.",
+			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
 		)
 
 		// info flags
