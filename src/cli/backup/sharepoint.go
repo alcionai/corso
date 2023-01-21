@@ -146,7 +146,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&page,
 			utils.PageItemFN, nil,
-			"Select backup data by site page ID; accepts '"+utils.Wildcard+"' to select all pages within site.",
+			"Select backup data by page name, e.g. home.aspx; accepts '"+utils.Wildcard+"' to select all pages within the site.",
 		)
 
 		// info flags
@@ -278,7 +278,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, data []string) error {
 	for _, d := range data {
 		if d != dataLibraries && d != dataPages {
 			return errors.New(
-				d + "is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
+				d + " is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
 			)
 		}
 	}
