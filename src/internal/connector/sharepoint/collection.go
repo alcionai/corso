@@ -9,7 +9,7 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -50,7 +50,6 @@ type Collection struct {
 	// M365 IDs of the items of this collection
 	category      DataCategory
 	service       graph.Servicer
-	bService      graph.BetaService
 	statusUpdater support.StatusUpdater
 }
 

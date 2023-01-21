@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/data"

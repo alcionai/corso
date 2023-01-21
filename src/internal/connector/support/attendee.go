@@ -3,7 +3,7 @@ package support
 import (
 	"fmt"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 )
 
 type attendee struct {

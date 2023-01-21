@@ -3,7 +3,7 @@ package graph_test
 import (
 	"testing"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -41,21 +41,6 @@ func (suite *GraphUnitSuite) TestCreateAdapter() {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, adpt)
-}
-
-func (suite *GraphUnitSuite) TestBetaService() {
-	t := suite.T()
-	adpt, err := graph.CreateBetaAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
-	)
-
-	assert.NoError(t, err)
-	require.NotNil(t, adpt)
-
-	serv := graph.NewBetaService(adpt)
-	assert.NotNil(t, serv)
 }
 
 func (suite *GraphUnitSuite) TestSerializationEndPoint() {

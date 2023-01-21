@@ -66,9 +66,11 @@ func PopulateExchangeContainerResolver(
 		cacheRoot = DefaultContactFolder
 
 	case path.EventsCategory:
+		ecc := ac.Events()
 		res = &eventCalendarCache{
 			userID: qp.ResourceOwner,
-			enumer: ac.Events(),
+			getter: ecc,
+			enumer: ecc,
 		}
 		cacheRoot = DefaultCalendar
 

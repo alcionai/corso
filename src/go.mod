@@ -6,7 +6,7 @@ replace github.com/kopia/kopia => github.com/alcionai/kopia v0.10.8-0.2023011220
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
-	github.com/aws/aws-sdk-go v1.44.181
+	github.com/aws/aws-sdk-go v1.44.183
 	github.com/aws/aws-xray-sdk-go v1.8.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -16,7 +16,6 @@ require (
 	github.com/microsoft/kiota-http-go v0.13.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
 	github.com/microsoftgraph/msgraph-beta-sdk-go v0.53.0
-	github.com/microsoftgraph/msgraph-sdk-go v0.52.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible

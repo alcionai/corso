@@ -3,7 +3,7 @@ package sharepoint
 import (
 	"time"
 
-	bmodel "github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -11,7 +11,7 @@ import (
 // sharePointPageInfo propagates metadata from  the SharePoint Page data type
 // into searchable content.
 // Page Details: https://learn.microsoft.com/en-us/graph/api/resources/sitepage?view=graph-rest-beta
-func sharePointPageInfo(page bmodel.SitePageable, size int64) *details.SharePointInfo {
+func sharePointPageInfo(page models.SitePageable, size int64) *details.SharePointInfo {
 	var (
 		name, webURL      string
 		created, modified time.Time

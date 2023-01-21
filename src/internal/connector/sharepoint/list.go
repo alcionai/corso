@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	mssite "github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
