@@ -940,7 +940,7 @@ func collectionsForInfo(
 			if service != path.OneDriveService ||
 				(service == path.OneDriveService &&
 					strings.HasSuffix(info.items[i].name, onedrive.DataFileSuffix)) {
-				totalItems += 1
+				totalItems++
 			}
 		}
 

@@ -298,7 +298,7 @@ func formatDetailsForRestoration(
 	}
 
 	// TODO(meain): Move this to onedrive specific component, but as
-	// of now the paths can theoretically be from multiple services
+	// of now the paths can technically be from multiple services
 
 	// This sort is done primarily to order `.meta` files after `.data`
 	// files. This is only a necessity for OneDrive as we are storing

@@ -60,7 +60,6 @@ func RestoreCollections(
 	for _, dc := range dcs {
 		parentPerms, ok := parentPermissions[dc.FullPath().String()]
 		if !ok {
-			// TODO(meain): validate this change with actual backup and restore
 			if len(dc.FullPath().Elements()) == 7 {
 				// root directory will not have permissions
 				parentPerms = []UserPermission{}
@@ -69,7 +68,9 @@ func RestoreCollections(
 			}
 		}
 
-		metrics, folderPerms, canceled := RestoreCollection(ctx, service, dc, parentPerms, OneDriveSource, dest.ContainerName, deets, errUpdater)
+		metrics, folderPerms, canceled := RestoreCollection(ctx, service, dc,
+			parentPerms, OneDriveSource,
+			dest.ContainerName, deets, errUpdater)
 
 		for k, v := range folderPerms {
 			parentPermissions[k] = v
@@ -162,7 +163,9 @@ func RestoreCollection(
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
 				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+
 				errUpdater(itemData.UUID(), err)
+
 				continue
 			}
 
@@ -173,7 +176,8 @@ func RestoreCollection(
 					metrics.TotalBytes += int64(len(copyBuffer))
 					trimmedName := strings.TrimSuffix(name, DataFileSuffix)
 
-					itemID, itemInfo, err = restoreData(ctx, service, trimmedName, itemData, drivePath.DriveID, restoreFolderID, copyBuffer, source)
+					itemID, itemInfo, err = restoreData(ctx, service, trimmedName, itemData,
+						drivePath.DriveID, restoreFolderID, copyBuffer, source)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
@@ -215,7 +219,8 @@ func RestoreCollection(
 					}
 
 					trimmedName := strings.TrimSuffix(name, DirMetaFileSuffix)
-					_, err = createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName, restoreFolderID, parentPerms, meta.Permissions)
+					_, err = createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName,
+						restoreFolderID, parentPerms, meta.Permissions)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
@@ -225,7 +230,6 @@ func RestoreCollection(
 					folderPerms[trimmedPath] = meta.Permissions
 				} else {
 					if !ok {
-						// TODO(meain): support older backups?
 						errUpdater(itemData.UUID(), fmt.Errorf("invalid backup format, you might be using an old backup"))
 						continue
 					}
@@ -251,7 +255,6 @@ func RestoreCollection(
 				deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
 				metrics.Successes++ // Counted as success when we have also restored metadata
 			}
-
 		}
 	}
 }
@@ -403,7 +406,6 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 
 		err = json.Unmarshal(metaraw, &meta)
 		if err != nil {
-			panic(err)
 			return Metadata{}, err
 		}
 	}

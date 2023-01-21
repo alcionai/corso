@@ -216,6 +216,7 @@ func (c *Collections) UpdateCollections(
 
 		case item.GetFile() != nil:
 			col, found := c.CollectionMap[collectionPath.String()]
+
 			if !found {
 				col = NewCollection(
 					collectionPath,
@@ -233,6 +234,7 @@ func (c *Collections) UpdateCollections(
 
 			collection := col.(*Collection)
 			collection.Add(item)
+
 			c.NumFiles++
 			c.NumItems++
 

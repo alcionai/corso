@@ -247,6 +247,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			// Fetch data for files
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
+
 				for i := 1; i <= maxRetries; i++ {
 					itemInfo, itemData, err = oc.itemReader(ctx, item)
 
@@ -267,8 +268,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 				itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
-				// TODO(meain): Do we need itemInfo for folders?
-				// TODO(meain): Should folder sizes be used?
 			}
 
 			// Fetch metadata for OneDrive items
@@ -327,8 +326,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				if !isFile {
 					metaFileSuffix = DirMetaFileSuffix
 				}
+
 				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(ctx, itemMeta, observe.ItemBackupMsg, itemName+metaFileSuffix, itemMetaSize)
+					progReader, closer := observe.ItemProgress(
+						ctx, itemMeta, observe.ItemBackupMsg,
+						itemName+metaFileSuffix, itemMetaSize)
 					go closer()
 					return progReader, nil
 				})
@@ -363,7 +365,7 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRe
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
-		1, // num folders (always 1) // TODO(meain):  change this with dirsRead?
+		1, // num folders (always 1)
 		support.CollectionMetrics{
 			Objects:    itemsFound, // items to read,
 			Successes:  itemsRead,  // items read successfully,
