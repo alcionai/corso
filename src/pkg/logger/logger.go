@@ -106,6 +106,11 @@ func PreloadLoggingFlags() (string, string) {
 		return "info", dlf
 	}
 
+	// if not specified, attempt to fall back to env declaration.
+	if len(logfile) == 0 {
+		logfile = os.Getenv("CORSO_LOG_FILE")
+	}
+
 	if logfile == "-" {
 		logfile = "stdout"
 	}
