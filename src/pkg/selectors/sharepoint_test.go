@@ -193,8 +193,9 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 
 func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 	var (
+		pairA = "folderA/folderC"
 		item  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderB", "item")
-		item2 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderC", "item2")
+		item2 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", pairA, "item2")
 		item3 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderD/folderE", "item3")
 		item4 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", "folderG/folderH", "item4")
 		item5 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", "folderG/folderH", "item5")
@@ -282,7 +283,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
-				odr.Include(odr.Libraries([]string{"folderA/folderB", "folderA/folderC"}))
+				odr.Include(odr.Libraries([]string{"folderA/folderB", pairA}))
 				return odr
 			},
 			expect: arr(item, item2),
@@ -292,7 +293,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
-				odr.Include(odr.Pages([]string{"folderG/folderH", "folderA/folderC"}))
+				odr.Include(odr.Pages([]string{"folderG/folderH", pairA}))
 				return odr
 			},
 			expect: arr(item4, item5),
