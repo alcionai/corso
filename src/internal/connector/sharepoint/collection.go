@@ -7,9 +7,8 @@ import (
 	"time"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -207,10 +206,7 @@ func (sc *Collection) retrieveLists(
 
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
-		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
-		if sc.ctrl.FailFast {
-			return metrics, errs
-		}
+		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
 	}
 
 	metrics.attempts += len(lists)
@@ -220,6 +216,10 @@ func (sc *Collection) retrieveLists(
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
 			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+			if sc.ctrl.FailFast {
+				return metrics, errs
+			}
+
 			continue
 		}
 
@@ -253,23 +253,53 @@ func (sc *Collection) retrievePages(
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
 ) (numMetrics, error) {
+	var (
+		errs    error
+		metrics numMetrics
+	)
+
+	pages, err := GetSitePages(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
+	if err != nil {
+		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
+	}
+
+	metrics.attempts = len(pages)
+	// For each models.Pageable, object is serialize and the metrics are collected and returned.
+	// Pageable objects are not supported in v1.0 of msgraph at this time.
+	// TODO: Verify Parsable interface supported with modified-Pageable
+	for _, pg := range pages {
+		byteArray, err := serializeContent(wtr, pg)
+		if err != nil {
+			errs = support.WrapAndAppend(*pg.GetId(), err, errs)
+			if sc.ctrl.FailFast {
+				return metrics, errs
+			}
+
+			continue
+		}
+
+		arrayLength := int64(len(byteArray))
+
+		if arrayLength > 0 {
+			t := time.Now()
+			if t1 := pg.GetLastModifiedDateTime(); t1 != nil {
+				t = *t1
+			}
+
+			metrics.totalBytes += arrayLength
+			metrics.success++
+			sc.data <- &Item{
+				id:      *pg.GetId(),
+				data:    io.NopCloser(bytes.NewReader(byteArray)),
+				info:    sharePointPageInfo(pg, arrayLength),
+				modTime: t,
+			}
+
+			progress <- struct{}{}
+		}
+	}
+
 	return numMetrics{}, nil
-}
-
-func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listable) ([]byte, error) {
-	defer writer.Close()
-
-	err := writer.WriteObjectValue("", lst)
-	if err != nil {
-		return nil, err
-	}
-
-	byteArray, err := writer.GetSerializedContent()
-	if err != nil {
-		return nil, err
-	}
-
-	return byteArray, nil
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
@@ -278,7 +308,6 @@ func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) (
 	err := writer.WriteObjectValue("", obj)
 	if err != nil {
 		return nil, err
-
 	}
 
 	byteArray, err := writer.GetSerializedContent()
