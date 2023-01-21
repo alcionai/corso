@@ -66,6 +66,7 @@ func NewCollection(
 	service graph.Servicer,
 	category DataCategory,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
 		fullPath:      folderPath,
@@ -74,6 +75,7 @@ func NewCollection(
 		service:       service,
 		statusUpdater: statusUpdater,
 		category:      category,
+		ctrl:          ctrlOpts,
 	}
 
 	return c
