@@ -95,6 +95,51 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
+func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+	count := 1
+	siteID := tester.M365SiteID(t)
+	a := tester.NewM365Account(t)
+	account, err := a.M365Config()
+	require.NoError(t, err)
+
+	service, err := createTestService(account)
+	require.NoError(t, err)
+
+	tuples, err := fetchPages(ctx, service, siteID)
+	require.NoError(t, err)
+	require.NotEmpty(t, tuples)
+
+	dir, err := path.Builder{}.Append("directory").
+		ToDataLayerSharePointPath(
+			"tenant",
+			siteID,
+			path.PagesCategory,
+			false,
+		)
+	require.NoError(t, err)
+
+	col := NewCollection(dir, service, Pages, nil)
+	col.jobs = []string{tuples[0].id}
+
+	streamChannel := col.Items()
+
+	// Verify that each message can be restored
+	for stream := range streamChannel {
+		buf := &bytes.Buffer{}
+
+		read, err := buf.ReadFrom(stream.ToReader())
+		assert.NoError(t, err)
+		assert.NotZero(t, read)
+		count++
+	}
+
+	assert.Equal(t, count, 1)
+}
+
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
 func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	ctx, flush := tester.NewContext()
