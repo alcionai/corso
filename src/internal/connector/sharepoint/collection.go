@@ -191,10 +191,15 @@ func (sc *Collection) populate(ctx context.Context) {
 		// do the other thing
 		metrics, errs = sc.retrievePages(ctx, writer, colProgress)
 	}
-
 }
 
-func (sc *Collection) retrieveLists(ctx context.Context, wtr *kw.JsonSerializationWriter, progress chan<- struct{}) (numMetrics, error) {
+// retrieveLists utility function for collection that downloads and serializes
+// models.Listable objects based on M365 IDs from the jobs field.
+func (sc *Collection) retrieveLists(
+	ctx context.Context,
+	wtr *kw.JsonSerializationWriter,
+	progress chan<- struct{},
+) (numMetrics, error) {
 	var (
 		errs    error
 		metrics numMetrics
@@ -209,9 +214,9 @@ func (sc *Collection) retrieveLists(ctx context.Context, wtr *kw.JsonSerializati
 	}
 
 	metrics.attempts += len(lists)
-	// Write Data and Send
+	// For each models.Listable, object is serialized and the metrics are collected.
+	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
-
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
 			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
@@ -243,7 +248,11 @@ func (sc *Collection) retrieveLists(ctx context.Context, wtr *kw.JsonSerializati
 	return metrics, nil
 }
 
-func (sc *Collection) retrievePages(ctx context.Context, wtr *kw.JsonSerializationWriter, progress chan<- struct{}) (numMetrics, error) {
+func (sc *Collection) retrievePages(
+	ctx context.Context,
+	wtr *kw.JsonSerializationWriter,
+	progress chan<- struct{},
+) (numMetrics, error) {
 	return numMetrics{}, nil
 }
 
