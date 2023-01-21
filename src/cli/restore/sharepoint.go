@@ -20,6 +20,8 @@ var (
 	listPaths    []string
 	libraryItems []string
 	libraryPaths []string
+	pageFolders  []string
+	page         []string
 	site         []string
 	weburl       []string
 )
@@ -76,6 +78,17 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			utils.ListItemFN, nil,
 			"Restore list items by ID")
 
+		fs.StringSliceVar(
+			&pageFolders,
+			utils.PageFN, nil,
+			"Restore site pages by SharePoint site name or url")
+
+		fs.StringSliceVar(
+			&page,
+			utils.PageItemFN, nil,
+			"Restore site page by ID",
+		)
+
 		// sharepoint info flags
 
 		// fs.StringVar(
@@ -131,6 +144,8 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		ListPaths:    listPaths,
 		LibraryItems: libraryItems,
 		LibraryPaths: libraryPaths,
+		PageFolders:  pageFolders,
+		Pages:        page,
 		Sites:        site,
 		WebURLs:      weburl,
 		// FileCreatedAfter:   fileCreatedAfter,
