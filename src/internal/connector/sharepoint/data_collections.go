@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -66,6 +65,18 @@ func DataCollections(
 
 		case path.LibrariesCategory:
 			spcs, err = collectLibraries(
+				ctx,
+				serv,
+				tenantID,
+				site,
+				scope,
+				su,
+				ctrlOpts)
+			if err != nil {
+				return nil, support.WrapAndAppend(site, err, errs)
+			}
+		case path.PagesCategory:
+			spcs, err = collectPages(
 				ctx,
 				serv,
 				tenantID,
@@ -156,10 +167,10 @@ func collectLibraries(
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
-// M365 IDs for the associated Pages
+// M365 IDs for the associated Pages.
+// TODO: Credentials necessary to create separate HTTP client
 func collectPages(
 	ctx context.Context,
-	creds account.M365Config,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
