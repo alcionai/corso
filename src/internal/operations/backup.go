@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -119,6 +120,14 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", tenantID, // TODO: pii
+		"resource_owner", op.ResourceOwner, // TODO: pii
+		"backup_id", op.Results.BackupID,
+		"service", op.Selectors.Service,
+		"incremental", uib)
+
 	op.bus.Event(
 		ctx,
 		events.BackupStart,
@@ -173,6 +182,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
 		return opStats.readErr
 	}
+
+	ctx = clues.Add(ctx, "collections", len(cs))
 
 	opStats.k, backupDetails, toMerge, err = consumeBackupDataCollections(
 		ctx,

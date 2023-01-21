@@ -9,6 +9,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -129,6 +130,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"backup_id", op.BackupID,
+		"service", op.Selectors.Service)
+
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -141,6 +148,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+
+	ctx = clues.Add(ctx, "resource_owner", bup.Selector.DiscreteOwner)
 
 	op.bus.Event(
 		ctx,
@@ -159,6 +168,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
+	ctx = clues.Add(ctx, "details_paths", len(paths))
+
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
@@ -173,6 +184,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 	kopiaComplete <- struct{}{}
+
+	ctx = clues.Add(ctx, "collections", len(dcs))
 
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))

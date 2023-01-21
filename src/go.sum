@@ -52,6 +52,10 @@ github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1o
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
+github.com/alcionai/clues v0.0.0-20230120231953-1cf61dbafc40 h1:bvAwz0dcJeIyRjudVyzmmawOvc4SqlSerKd0B4dh0yw=
+github.com/alcionai/clues v0.0.0-20230120231953-1cf61dbafc40/go.mod h1:UlAs8jkWIpsOMakiC8NxPgQQVQRdvyf1hYMszlYYLb4=
+github.com/alcionai/kopia v0.10.8-0.20230112200734-ac706ef83a1c h1:uUcdEZ4sz7kRYVWB3K49MBHdICRyXCVAzd4ZiY3lvo0=
+github.com/alcionai/kopia v0.10.8-0.20230112200734-ac706ef83a1c/go.mod h1:yzJV11S6N6XMboXt7oCO6Jy2jJHPeSMtA+KOJ9Y1548=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
