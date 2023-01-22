@@ -363,10 +363,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-			expectedItemCount:       0,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
+			expectedItemCount:       1,
 			expectedFileCount:       0,
-			expectedContainerCount:  0,
+			expectedContainerCount:  1,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -403,10 +408,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-			expectedItemCount:       0,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
+			expectedItemCount:       1,
 			expectedFileCount:       0,
-			expectedContainerCount:  0,
+			expectedContainerCount:  1,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -444,10 +454,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-			expectedItemCount:       0,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
+			expectedItemCount:       2,
 			expectedFileCount:       0,
-			expectedContainerCount:  0,
+			expectedContainerCount:  1,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -485,10 +500,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-			expectedItemCount:       0,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
+			expectedItemCount:       2,
 			expectedFileCount:       0,
-			expectedContainerCount:  0,
+			expectedContainerCount:  1,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -554,10 +574,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
-			expectedItemCount:       0,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
+			expectedItemCount:       1,
 			expectedFileCount:       0,
-			expectedContainerCount:  0,
+			expectedContainerCount:  1,
 			expectedMetadataPaths: map[string]string{
 				"subfolder": expectedPathAsSlice(
 					suite.T(),
