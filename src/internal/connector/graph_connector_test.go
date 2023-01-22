@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -135,9 +136,10 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
-	connector *GraphConnector
-	user      string
-	acct      account.Account
+	connector     *GraphConnector
+	user          string
+	secondaryUser string
+	acct          account.Account
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
@@ -158,6 +160,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
+	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -440,6 +443,17 @@ func runRestoreBackupTest(
 	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
 }
 
+func getTestMetaJson(t *testing.T, id, user string, roles []string) []byte {
+	testMeta := onedrive.Metadata{Permissions: []onedrive.UserPermission{
+		{ID: id, Roles: roles, Email: user},
+	}}
+	testMetaJson, err := json.Marshal(testMeta)
+	if err != nil {
+		t.Fatal("unable to marshall test permissions", err)
+	}
+	return testMetaJson
+}
+
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	bodyText := "This email has some text. However, all the text is on the same line."
 	subjectText := "Test message for restore"
@@ -558,7 +572,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:     "MultipleContactsMutlipleFolders",
+			name:     "MultipleContactsMultipleFolders",
 			service:  path.ExchangeService,
 			resource: Users,
 			collections: []colInfo{
@@ -799,6 +813,59 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "OneDriveFoldersAndFilesWithMetadata",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJson(suite.T(), "testMeta2ID", suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      getTestMetaJson(suite.T(), "testMetaID", suite.secondaryUser, []string{"read"}),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJson(suite.T(), "testMetaID", suite.secondaryUser, []string{"read"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},

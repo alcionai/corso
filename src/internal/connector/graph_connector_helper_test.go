@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"reflect"
 	"strings"
@@ -645,20 +646,39 @@ func compareOneDriveItem(
 	expected map[string][]byte,
 	item data.Stream,
 ) {
+	name := item.UUID()
+
 	expectedData := expected[item.UUID()]
 	if !assert.NotNil(t, expectedData, "unexpected file with name %s", item.UUID) {
 		return
 	}
 
-	// OneDrive items are just byte buffers of the data. Nothing special to
-	// interpret. May need to do chunked comparisons in the future if we test
-	// large item equality.
 	buf, err := io.ReadAll(item.ToReader())
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.Equal(t, expectedData, buf)
+	if strings.HasSuffix(name, onedrive.MetaFileSuffix) || strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
+		var (
+			itemMeta     onedrive.Metadata
+			expectedMeta onedrive.Metadata
+		)
+		err := json.Unmarshal(buf, &itemMeta)
+		assert.Nil(t, err)
+
+		err = json.Unmarshal(expectedData, &expectedMeta)
+		assert.Nil(t, err)
+		for i, p := range expectedMeta.Permissions {
+			assert.Equal(t, p.Email, itemMeta.Permissions[i].Email)
+			assert.Equal(t, p.Roles, itemMeta.Permissions[i].Roles)
+			assert.Equal(t, p.Expiration, itemMeta.Permissions[i].Expiration)
+		}
+	} else {
+		// OneDrive data items are just byte buffers of the data. Nothing special to
+		// interpret. May need to do chunked comparisons in the future if we test
+		// large item equality.
+		assert.Equal(t, expectedData, buf)
+	}
 }
 
 func compareItem(

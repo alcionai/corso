@@ -253,7 +253,7 @@ func RestoreCollection(
 				}
 
 				deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
-				metrics.Successes++ // Counted as success when we have also restored metadata
+				metrics.Successes++
 			}
 		}
 	}
