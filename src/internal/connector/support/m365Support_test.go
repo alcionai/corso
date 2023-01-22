@@ -20,6 +20,11 @@ func TestDataSupportSuite(t *testing.T) {
 	suite.Run(t, new(DataSupportSuite))
 }
 
+var (
+	empty   = "Empty Bytes"
+	invalid = "Invalid Bytes"
+)
+
 // TestCreateMessageFromBytes verifies approved mockdata bytes can
 // be successfully transformed into M365 Message data.
 func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
@@ -61,13 +66,13 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Bytes",
+			name:       empty,
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
 		},
 		{
-			name:       "Invalid Bytes",
+			name:       invalid,
 			byteArray:  []byte("A random sentence doesn't make an object"),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -96,13 +101,13 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Byes",
+			name:       empty,
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
 		},
 		{
-			name:       "Invalid Bytes",
+			name:       invalid,
 			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -134,13 +139,13 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Bytes",
+			name:       empty,
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
 		},
 		{
-			name:       "Invalid Bytes",
+			name:       invalid,
 			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -170,7 +175,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 		getBytes   func(t *testing.T) []byte
 	}{
 		{
-			"Empty Bytes",
+			empty,
 			assert.Error,
 			assert.Nil,
 			func(t *testing.T) []byte {
@@ -178,7 +183,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 			},
 		},
 		{
-			"Invalid Bytes",
+			invalid,
 			assert.Error,
 			assert.Nil,
 			func(t *testing.T) []byte {
