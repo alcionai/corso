@@ -3,6 +3,7 @@ package onedrive
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -60,6 +62,14 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		testItemName = "itemName"
 		testItemData = []byte("testdata")
 		now          = time.Now()
+		testItemMeta = Metadata{Permissions: []UserPermission{
+			{
+				ID:         "testMetaID",
+				Roles:      []string{"read", "write"},
+				Email:      "email@provider.com",
+				Expiration: &now,
+			},
+		}}
 	)
 
 	table := []struct {
@@ -73,9 +83,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			source:       OneDriveSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
+					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -87,9 +98,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			source:       OneDriveSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
+					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -101,9 +113,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			source:       SharePointSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
+					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -115,9 +128,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			source:       SharePointSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
+					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -151,21 +165,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			// Set a item reader, add an item and validate we get the item back
 			mockItem := models.NewDriveItem()
-
 			mockItem.SetId(&testItemID)
-			mockItem.SetName(&testItemName)
-
-			now := time.Now()
-			mockItem.SetCreatedDateTime(&now)
-			mockItem.SetLastModifiedDateTime(&now)
-
-			size := int64(10)
-			mockItem.SetSize(&size)
-
-			user := models.NewIdentitySet()
-			mockItem.SetCreatedBy(user)
-
-			mockItem.SetPermissions([]models.Permissionable{})
+			mockItem.SetFile(models.NewFile())
 
 			for i := 0; i < test.numInstances; i++ {
 				coll.Add(mockItem)
@@ -183,7 +184,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			wg.Wait()
 
 			// Expect only 1 item
-			require.Len(t, readItems, 1)
+			require.Len(t, readItems, 2) // .data and .meta
 			require.Equal(t, 1, collStatus.ObjectCount)
 			require.Equal(t, 1, collStatus.Successful)
 
@@ -191,7 +192,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItem := readItems[0]
 			readItemInfo := readItem.(data.StreamInfo)
 
-			assert.Equal(t, testItemName, readItem.UUID())
+			assert.Equal(t, testItemName+DataFileSuffix, readItem.UUID())
+
+			readItemMeta := readItems[1]
+
+			assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)
@@ -205,6 +210,16 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, testItemData, readData)
 			assert.Equal(t, testItemName, name)
 			assert.Equal(t, driveFolderPath, parentPath)
+
+			readMetaData, err := io.ReadAll(readItemMeta.ToReader())
+			require.NoError(t, err)
+
+			tm, err := json.Marshal(testItemMeta)
+			if err != nil {
+				t.Fatal("unable to marshall test permissions", err)
+			}
+
+			assert.Equal(t, tm, readMetaData)
 		})
 	}
 }
@@ -247,12 +262,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
+			mockItem.SetFile(models.NewFile())
 			coll.Add(mockItem)
 
 			readError := errors.New("Test error")
 
-			coll.itemReader = func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, readError
+			coll.itemReader = func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+				return details.ItemInfo{}, nil, Metadata{}, readError
 			}
 
 			coll.Items()

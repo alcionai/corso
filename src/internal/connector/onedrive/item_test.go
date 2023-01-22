@@ -124,7 +124,8 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	// Read data for the file
 
-	itemInfo, itemData, err := oneDriveItemReader(ctx, driveItem)
+	// TODO(meain): add test for itemMeta here
+	itemInfo, itemData, _, err := oneDriveItemReader(ctx, suite, suite.userDriveID, driveItem)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)

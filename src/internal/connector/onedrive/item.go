@@ -1,9 +1,7 @@
 package onedrive
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -28,25 +26,28 @@ const (
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
+// TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
 	ctx context.Context,
+	_ graph.Servicer,
+	_ string,
 	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error) {
+) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
+		return details.ItemInfo{}, nil, Metadata{}, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
 
 	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
-		return details.ItemInfo{}, nil, err
+		return details.ItemInfo{}, nil, Metadata{}, err
 	}
 
 	dii := details.ItemInfo{
 		SharePoint: sharePointItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, nil
+	return dii, rc, Metadata{}, nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -54,23 +55,38 @@ func sharePointItemReader(
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
 	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
+) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+	var (
+		rc     io.ReadCloser
+		err    error
+		isFile = item.GetFile() != nil
+	)
 
-	rc, err := driveItemReader(ctx, *url)
-	if err != nil {
-		return details.ItemInfo{}, nil, err
+	if isFile {
+		url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+		if !ok {
+			return details.ItemInfo{}, nil, Metadata{}, fmt.Errorf("failed to get url for %s", *item.GetName())
+		}
+
+		rc, err = driveItemReader(ctx, *url)
+		if err != nil {
+			return details.ItemInfo{}, nil, Metadata{}, err
+		}
 	}
 
 	dii := details.ItemInfo{
 		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, nil
+	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
+	if err != nil {
+		return details.ItemInfo{}, nil, Metadata{}, err
+	}
+
+	return dii, rc, meta, nil
 }
 
 // driveItemReader will return a io.ReadCloser for the specified item
@@ -132,12 +148,12 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 func oneDriveItemMetaInfo(
 	ctx context.Context, service graph.Servicer,
 	driveID string, di models.DriveItemable,
-) (io.ReadCloser, int64, error) {
+) (Metadata, error) {
 	itemID := di.GetId()
 
 	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
+		return Metadata{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
 	}
 
 	up := []UserPermission{}
@@ -164,12 +180,7 @@ func oneDriveItemMetaInfo(
 		})
 	}
 
-	c, err := json.Marshal(Metadata{Permissions: up})
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return io.NopCloser(bytes.NewReader(c)), int64(len(c)), nil
+	return Metadata{Permissions: up}, nil
 }
 
 // sharePointItemInfo will populate a details.SharePointInfo struct

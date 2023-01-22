@@ -2,7 +2,9 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -69,8 +71,10 @@ type Collection struct {
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
 	item models.DriveItemable,
-) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
+) (itemInfo details.ItemInfo, itemData io.ReadCloser, meta Metadata, err error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -235,60 +239,40 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Read the item
 			var (
-				itemInfo     details.ItemInfo
-				itemData     io.ReadCloser
-				itemMeta     io.ReadCloser
-				itemMetaSize int64
-				err          error
+				itemInfo   details.ItemInfo
+				itemData   io.ReadCloser
+				itemMeta   Metadata
+				metaSuffix string
+				err        error
 			)
 
 			isFile := item.GetFile() != nil
 
-			// Fetch data for files
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
-
-				for i := 1; i <= maxRetries; i++ {
-					itemInfo, itemData, err = oc.itemReader(ctx, item)
-
-					// retry on Timeout type errors, break otherwise.
-					if err == nil || graph.IsErrTimeout(err) == nil {
-						break
-					}
-
-					if i < maxRetries {
-						time.Sleep(1 * time.Second)
-					}
-				}
-
-				if err != nil {
-					errUpdater(*item.GetId(), err)
-					return
-				}
+				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
-				itemInfo = details.ItemInfo{OneDrive: oneDriveItemInfo(item, *item.GetSize())}
+				metaSuffix = DirMetaFileSuffix
 			}
 
-			// Fetch metadata for OneDrive items
-			if oc.source == OneDriveSource {
-				for i := 1; i <= maxRetries; i++ {
-					itemMeta, itemMetaSize, err = oneDriveItemMetaInfo(ctx, oc.service, oc.driveID, item)
+			// Fetch data for files
+			for i := 1; i <= maxRetries; i++ {
+				itemInfo, itemData, itemMeta, err = oc.itemReader(ctx, oc.service, oc.driveID, item)
 
-					// retry on Timeout type errors, break otherwise.
-					if err == nil || graph.IsErrTimeout(err) == nil {
-						break
-					}
-
-					if i < maxRetries {
-						time.Sleep(1 * time.Second)
-					}
+				// retry on Timeout type errors, break otherwise.
+				if err == nil || graph.IsErrTimeout(err) == nil {
+					break
 				}
 
-				if err != nil {
-					errUpdater(*item.GetId(), err)
-					return
+				if i < maxRetries {
+					time.Sleep(1 * time.Second)
 				}
+			}
+
+			if err != nil {
+				errUpdater(*item.GetId(), err)
+				return
 			}
 
 			var (
@@ -307,6 +291,12 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemSize = itemInfo.OneDrive.Size
 			}
 
+			itemMetaJson, err := json.Marshal(itemMeta)
+			if err != nil {
+				errUpdater(*item.GetId(), err)
+				return
+			}
+
 			if isFile {
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 					progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName+DataFileSuffix, itemSize)
@@ -321,25 +311,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 			}
 
-			if itemMeta != nil {
-				metaFileSuffix := MetaFileSuffix
-				if !isFile {
-					metaFileSuffix = DirMetaFileSuffix
-				}
+			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+				progReader, closer := observe.ItemProgress(
+					ctx, io.NopCloser(bytes.NewReader(itemMetaJson)), observe.ItemBackupMsg,
+					itemName+metaSuffix, int64(len(itemMetaJson)))
+				go closer()
+				return progReader, nil
+			})
 
-				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(
-						ctx, itemMeta, observe.ItemBackupMsg,
-						itemName+metaFileSuffix, itemMetaSize)
-					go closer()
-					return progReader, nil
-				})
-
-				oc.data <- &Item{
-					id:   itemName + metaFileSuffix,
-					data: metaReader,
-					info: itemInfo,
-				}
+			oc.data <- &Item{
+				id:   itemName + metaSuffix,
+				data: metaReader,
+				info: itemInfo,
 			}
 
 			// Item read successfully, add to collection
