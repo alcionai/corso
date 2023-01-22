@@ -126,7 +126,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				user,
 				testBaseDrivePath,
 			),
-			expectedItemCount:      2,
+			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// Root folder is skipped since it's always present.
@@ -137,9 +137,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			items: []models.DriveItemable{
 				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
 			},
-			scope:                   anyFolder,
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
+			scope:  anyFolder,
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -148,15 +153,22 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder",
 				)[0],
 			},
+			expectedItemCount:      1,
+			expectedContainerCount: 1,
 		},
 		{
 			testCase: "Single Package",
 			items: []models.DriveItemable{
 				driveItem("package", "package", testBaseDrivePath, false, false, true),
 			},
-			scope:                   anyFolder,
-			expect:                  assert.NoError,
-			expectedCollectionPaths: []string{},
+			scope:  anyFolder,
+			expect: assert.NoError,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
 			expectedMetadataPaths: map[string]string{
 				"package": expectedPathAsSlice(
 					suite.T(),
@@ -165,6 +177,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/package",
 				)[0],
 			},
+			expectedItemCount:      1,
+			expectedContainerCount: 1,
 		},
 		{
 			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
@@ -185,7 +199,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				testBaseDrivePath+folder,
 				testBaseDrivePath+pkg,
 			),
-			expectedItemCount:      6,
+			expectedItemCount:      5,
 			expectedFileCount:      3,
 			expectedContainerCount: 3,
 			expectedMetadataPaths: map[string]string{
@@ -224,16 +238,24 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					user,
 					testBaseDrivePath+"/folder",
 				),
-				expectedPathAsSlice(
-					suite.T(),
-					tenant,
-					user,
-					testBaseDrivePath+folderSub+folder,
+				append(
+					expectedPathAsSlice(
+						suite.T(),
+						tenant,
+						user,
+						testBaseDrivePath+folderSub,
+					),
+					expectedPathAsSlice(
+						suite.T(),
+						tenant,
+						user,
+						testBaseDrivePath+folderSub+folder,
+					)...,
 				)...,
 			),
 			expectedItemCount:      4,
 			expectedFileCount:      2,
-			expectedContainerCount: 2,
+			expectedContainerCount: 3,
 			// just "folder" isn't added here because the include check is done on the
 			// parent path since we only check later if something is a folder or not.
 			expectedMetadataPaths: map[string]string{
@@ -270,11 +292,12 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				suite.T(),
 				tenant,
 				user,
+				testBaseDrivePath+folderSub,
 				testBaseDrivePath+folderSub+folder,
 			),
 			expectedItemCount:      2,
 			expectedFileCount:      1,
-			expectedContainerCount: 1,
+			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -303,7 +326,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				user,
 				testBaseDrivePath+folderSub,
 			),
-			expectedItemCount:      2,
+			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.

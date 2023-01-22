@@ -229,14 +229,17 @@ func (c *Collections) UpdateCollections(
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++
-				c.NumItems++
 			}
 
 			collection := col.(*Collection)
 			collection.Add(item)
 
-			c.NumFiles++
 			c.NumItems++
+			if item.GetFile() != nil {
+				// This is necessary as we have a fallthrough for
+				// folders and packages
+				c.NumFiles++
+			}
 
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
