@@ -58,6 +58,28 @@ func (c Events) DeleteCalendar(
 	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 }
 
+func (c Events) GetContainerByID(
+	ctx context.Context,
+	userID, containerID string,
+) (graph.Container, error) {
+	service, err := c.service()
+	if err != nil {
+		return nil, err
+	}
+
+	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
+	if err != nil {
+		return nil, errors.Wrap(err, "options for event calendar")
+	}
+
+	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	if err != nil {
+		return nil, err
+	}
+
+	return graph.CalendarDisplayable{Calendarable: cal}, nil
+}
+
 // GetItem retrieves an Eventable item.
 func (c Events) GetItem(
 	ctx context.Context,
@@ -144,29 +166,25 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-type eventWrapper struct {
-	models.EventCollectionResponseable
-}
-
-func (ew eventWrapper) GetOdataDeltaLink() *string {
-	return nil
-}
-
 var _ itemPager = &eventPager{}
+
+const (
+	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
+)
 
 type eventPager struct {
 	gs      graph.Servicer
-	builder *users.ItemCalendarsItemEventsRequestBuilder
-	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
+	builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
+	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
 func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return eventWrapper{resp}, err
+	return resp, err
 }
 
 func (p *eventPager) setNext(nextLink string) {
-	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
+	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
@@ -182,23 +200,49 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var errs *multierror.Error
+	var (
+		resetDelta bool
+		errs       *multierror.Error
+	)
 
-	options, err := optionsForEventsByCalendar([]string{"id"})
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+	if len(oldDelta) > 0 {
+		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
+		pgr := &eventPager{service, builder, nil}
+
+		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+		// note: happy path, not the error condition
+		if err == nil {
+			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+		}
+		// only return on error if it is NOT a delta issue.
+		// on bad deltas we retry the call with the regular builder
+		if graph.IsErrInvalidDelta(err) == nil {
+			return nil, nil, DeltaUpdate{}, err
+		}
+
+		resetDelta = true
+		errs = nil
 	}
 
-	builder := service.Client().UsersById(user).CalendarsById(calendarID).Events()
-	pgr := &eventPager{service, builder, options}
+	// Graph SDK only supports delta queries against events on the beta version, so we're
+	// manufacturing use of the beta version url to make the call instead.
+	// See: https://learn.microsoft.com/ko-kr/graph/api/event-delta?view=graph-rest-beta&tabs=http
+	// Note that the delta item body is skeletal compared to the actual event struct.  Lucky
+	// for us, we only need the item ID.  As a result, even though we hacked the version, the
+	// response body parses properly into the v1.0 structs and complies with our wanted interfaces.
+	// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
+	// works as intended (until, at least, we want to _not_ call the beta anymore).
+	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
+	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
+	pgr := &eventPager{service, builder, nil}
 
-	added, _, _, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
+	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, err
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
-	return added, nil, DeltaUpdate{}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +268,7 @@ func (c Events) Serialize(
 
 	defer writer.Close()
 
-	if *event.GetHasAttachments() {
+	if *event.GetHasAttachments() || support.HasAttachments(event.GetBody()) {
 		// getting all the attachments might take a couple attempts due to filesize
 		var retriesErr error
 

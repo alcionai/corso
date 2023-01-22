@@ -51,6 +51,7 @@ func (suite *CacheResolverSuite) TestPopulate() {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
 			enumer: ac.Events(),
+			getter: ac.Events(),
 		}
 	}
 

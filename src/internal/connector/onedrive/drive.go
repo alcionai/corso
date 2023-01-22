@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -76,7 +77,8 @@ const (
 	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode = "itemNotFound"
-	userDoesNotHaveDrive  = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteURLNotFound = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteNotFound    = "ResourceNotFound User's mysite not found"
 )
 
 // Enumerates the drives for the specified user
@@ -134,7 +136,8 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 		r, err = service.Client().UsersById(user).Drives().Get(ctx, nil)
 		if err != nil {
 			detailedError := support.ConnectorStackErrorTrace(err)
-			if strings.Contains(detailedError, userDoesNotHaveDrive) {
+			if strings.Contains(detailedError, userMysiteURLNotFound) ||
+				strings.Contains(detailedError, userMysiteNotFound) {
 				logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
 				return make([]models.Driveable, 0), nil // no license
 			}
@@ -163,9 +166,10 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 // itemCollector functions collect the items found in a drive
 type itemCollector func(
 	ctx context.Context,
-	driveID string,
+	driveID, driveName string,
 	driveItems []models.DriveItemable,
-	paths map[string]string,
+	oldPaths map[string]string,
+	newPaths map[string]string,
 ) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
@@ -173,15 +177,18 @@ type itemCollector func(
 func collectItems(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
+	driveID, driveName string,
 	collector itemCollector,
 ) (string, map[string]string, error) {
 	var (
 		newDeltaURL = ""
 		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
 		// take in previous paths.
-		paths = map[string]string{}
+		oldPaths = map[string]string{}
+		newPaths = map[string]string{}
 	)
+
+	maps.Copy(newPaths, oldPaths)
 
 	// TODO: Specify a timestamp in the delta query
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
@@ -219,7 +226,7 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, r.GetValue(), paths)
+		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths)
 		if err != nil {
 			return "", nil, err
 		}
@@ -238,7 +245,7 @@ func collectItems(
 		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
-	return newDeltaURL, paths, nil
+	return newDeltaURL, newPaths, nil
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
@@ -349,11 +356,13 @@ func GetAllFolders(
 			ctx,
 			gs,
 			*d.GetId(),
+			*d.GetName(),
 			func(
 				innerCtx context.Context,
-				driveID string,
+				driveID, driveName string,
 				items []models.DriveItemable,
-				paths map[string]string,
+				oldPaths map[string]string,
+				newPaths map[string]string,
 			) error {
 				for _, item := range items {
 					// Skip the root item.

@@ -160,10 +160,11 @@ func (w Wrapper) BackupCollections(
 		progress,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		combinedErrs := multierror.Append(nil, err, progress.errs)
+		return nil, nil, nil, combinedErrs.ErrorOrNil()
 	}
 
-	return s, progress.deets, progress.toMerge, nil
+	return s, progress.deets, progress.toMerge, progress.errs.ErrorOrNil()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -192,12 +193,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 		snapIDs,
 	)
 
-	checkpointTagK, checkpointTagV := makeTagKV(checkpointTagKey)
-
 	tags := map[string]string{}
-	checkpointTags := map[string]string{
-		checkpointTagK: checkpointTagV,
-	}
 
 	for k, v := range addlTags {
 		mk, mv := makeTagKV(k)
@@ -207,7 +203,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 		}
 
 		tags[mk] = v
-		checkpointTags[mk] = v
 	}
 
 	err := repo.WriteSession(
@@ -246,7 +241,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			u := snapshotfs.NewUploader(rw)
 			progress.UploadProgress = u.Progress
 			u.Progress = progress
-			u.CheckpointLabels = checkpointTags
+			u.CheckpointLabels = tags
 
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
