@@ -68,7 +68,7 @@ func RestoreCollections(
 				deets,
 				errUpdater)
 		case path.ListsCategory:
-			metrics, canceled = RestoreCollection(
+			metrics, canceled = RestoreListCollection(
 				ctx,
 				service,
 				dc,
@@ -203,7 +203,7 @@ func restoreListItem(
 	return dii, nil
 }
 
-func RestoreCollection(
+func RestoreListCollection(
 	ctx context.Context,
 	service graph.Servicer,
 	dc data.Collection,
@@ -211,7 +211,7 @@ func RestoreCollection(
 	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restoreCollection", D.Label("path", dc.FullPath()))
+	ctx, end := D.Span(ctx, "gc:sharepoint:restoreListCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -219,7 +219,7 @@ func RestoreCollection(
 		directory = dc.FullPath()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restoreCollection", directory.String())
+	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
 	siteID := directory.ResourceOwner()
 
 	// Restore items from the collection
@@ -269,6 +269,76 @@ func RestoreCollection(
 			metrics.Successes++
 		}
 	}
+}
+
+func RestorePageCollection(
+	ctx context.Context,
+	service graph.Servicer,
+	dc data.Collection,
+	restoreContainerName string,
+	deets *details.Builder,
+	errUpdater func(string, error),
+) (support.CollectionMetrics, bool) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restorePageCollection", D.Label("path", dc.FullPath()))
+	defer end()
+
+	var (
+		metrics   = support.CollectionMetrics{}
+		directory = dc.FullPath()
+	)
+
+	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
+	siteID := directory.ResourceOwner()
+
+	// Restore items from collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return metrics, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return metrics, false
+			}
+			metrics.Objects++
+
+			itemInfo, err := restoreSitePage(
+				ctx,
+				service,
+				itemData,
+				siteID,
+				restoreContainerName,
+			)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			metrics.TotalBytes += itemInfo.SharePoint.Size
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				true,
+				itemInfo,
+			)
+
+			metrics.Successes++
+		}
+	}
+
 }
 
 func restoreSitePage(
