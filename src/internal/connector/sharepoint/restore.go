@@ -59,7 +59,7 @@ func RestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, _, canceled = onedrive.RestoreCollection(
+			metrics, _, _, canceled = onedrive.RestoreCollection(
 				ctx,
 				service,
 				dc,
@@ -67,7 +67,7 @@ func RestoreCollections(
 				onedrive.OneDriveSource,
 				dest.ContainerName,
 				deets,
-				errUpdater)
+				errUpdater, map[string]string{})
 		case path.ListsCategory:
 			metrics, canceled = RestoreCollection(
 				ctx,

@@ -668,6 +668,7 @@ func compareOneDriveItem(
 
 		err = json.Unmarshal(expectedData, &expectedMeta)
 		assert.Nil(t, err)
+		assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
 		for i, p := range expectedMeta.Permissions {
 			assert.Equal(t, p.Email, itemMeta.Permissions[i].Email)
 			assert.Equal(t, p.Roles, itemMeta.Permissions[i].Roles)

@@ -42,6 +42,13 @@ func RestoreCollections(
 	var (
 		restoreMetrics support.CollectionMetrics
 		restoreErrors  error
+		metrics        support.CollectionMetrics
+		folderPerms    map[string][]UserPermission
+		canceled       bool
+
+		// permissionIDMappings is used to map between old and new id
+		// of permissions as we restore them
+		permissionIDMappings = map[string]string{}
 	)
 
 	errUpdater := func(id string, err error) {
@@ -68,9 +75,9 @@ func RestoreCollections(
 			}
 		}
 
-		metrics, folderPerms, canceled := RestoreCollection(ctx, service, dc,
+		metrics, folderPerms, permissionIDMappings, canceled = RestoreCollection(ctx, service, dc,
 			parentPerms, OneDriveSource,
-			dest.ContainerName, deets, errUpdater)
+			dest.ContainerName, deets, errUpdater, permissionIDMappings)
 
 		for k, v := range folderPerms {
 			parentPermissions[k] = v
@@ -106,7 +113,8 @@ func RestoreCollection(
 	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
-) (support.CollectionMetrics, map[string][]UserPermission, bool) {
+	permissionIDMappings map[string]string,
+) (support.CollectionMetrics, map[string][]UserPermission, map[string]string, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
@@ -123,7 +131,7 @@ func RestoreCollection(
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
 		errUpdater(directory.String(), err)
-		return metrics, folderPerms, false
+		return metrics, folderPerms, permissionIDMappings, false
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -143,7 +151,7 @@ func RestoreCollection(
 	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
-		return metrics, folderPerms, false
+		return metrics, folderPerms, permissionIDMappings, false
 	}
 
 	// Restore items from the collection
@@ -153,11 +161,11 @@ func RestoreCollection(
 		select {
 		case <-ctx.Done():
 			errUpdater("context canceled", ctx.Err())
-			return metrics, folderPerms, true
+			return metrics, folderPerms, permissionIDMappings, true
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, folderPerms, false
+				return metrics, folderPerms, permissionIDMappings, false
 			}
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
@@ -200,7 +208,7 @@ func RestoreCollection(
 						continue
 					}
 
-					err = restorePermissions(ctx, service, drivePath.DriveID, restoreID, parentPerms, meta.Permissions)
+					permissionIDMappings, err = restorePermissions(ctx, service, drivePath.DriveID, restoreID, parentPerms, meta.Permissions, permissionIDMappings)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
@@ -219,8 +227,8 @@ func RestoreCollection(
 					}
 
 					trimmedName := strings.TrimSuffix(name, DirMetaFileSuffix)
-					_, err = createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName,
-						restoreFolderID, parentPerms, meta.Permissions)
+					_, permissionIDMappings, err = createRestoreFolder(ctx, service, drivePath.DriveID, trimmedName,
+						restoreFolderID, parentPerms, meta.Permissions, permissionIDMappings)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
@@ -264,10 +272,11 @@ func createRestoreFolder(ctx context.Context,
 	service graph.Servicer,
 	driveID, folder, parentFolderID string,
 	parentPerms, childPerms []UserPermission,
-) (string, error) {
+	permissionIDMappings map[string]string,
+) (string, map[string]string, error) {
 	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
 	if err != nil {
-		return "", errors.Wrapf(
+		return "", permissionIDMappings, errors.Wrapf(
 			err,
 			"failed to create folder %s/%s. details: %s", parentFolderID, folder,
 			support.ConnectorStackErrorTrace(err),
@@ -276,16 +285,16 @@ func createRestoreFolder(ctx context.Context,
 
 	logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
 
-	err = restorePermissions(ctx, service, driveID, *folderItem.GetId(), parentPerms, childPerms)
+	permissionIDMappings, err = restorePermissions(ctx, service, driveID, *folderItem.GetId(), parentPerms, childPerms, permissionIDMappings)
 	if err != nil {
-		return "", errors.Wrapf(
+		return "", permissionIDMappings, errors.Wrapf(
 			err,
 			"failed to set folder permissions %s/%s. details: %s", parentFolderID, folder,
 			support.ConnectorStackErrorTrace(err),
 		)
 	}
 
-	return *folderItem.GetId(), nil
+	return *folderItem.GetId(), permissionIDMappings, nil
 }
 
 // createRestoreFolders creates the restore folder hierarchy in the specified drive and returns the folder ID
@@ -466,8 +475,21 @@ func restorePermissions(
 	itemID string,
 	parentPerms []UserPermission,
 	childPerms []UserPermission,
-) error {
+	permissionIDMappings map[string]string,
+) (map[string]string, error) {
 	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
+
+	for _, p := range permRemoved {
+		err := service.Client().DrivesById(driveID).ItemsById(itemID).PermissionsById(permissionIDMappings[p.ID]).Delete(ctx, nil)
+		if err != nil {
+			return permissionIDMappings, errors.Wrapf(
+				err,
+				"failed to set permissions for item %s. details: %s",
+				itemID,
+				support.ConnectorStackErrorTrace(err),
+			)
+		}
+	}
 
 	for _, p := range permAdded {
 		pbody := msdrive.NewItemsItemInvitePostRequestBody()
@@ -488,28 +510,18 @@ func restorePermissions(
 		rec.SetEmail(&p.Email)
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		_, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
+		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return errors.Wrapf(
+			return permissionIDMappings, errors.Wrapf(
 				err,
 				"failed to set permissions for item %s. details: %s",
 				itemID,
 				support.ConnectorStackErrorTrace(err),
 			)
 		}
+
+		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
 	}
 
-	for _, p := range permRemoved {
-		err := service.Client().DrivesById(driveID).ItemsById(itemID).PermissionsById(p.ID).Delete(ctx, nil)
-		if err != nil {
-			return errors.Wrapf(
-				err,
-				"failed to set permissions for item %s. details: %s",
-				itemID,
-				support.ConnectorStackErrorTrace(err),
-			)
-		}
-	}
-
-	return nil
+	return permissionIDMappings, nil
 }
