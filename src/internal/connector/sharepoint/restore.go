@@ -338,7 +338,6 @@ func RestorePageCollection(
 			metrics.Successes++
 		}
 	}
-
 }
 
 func restoreSitePage(
