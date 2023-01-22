@@ -77,11 +77,14 @@ func RestoreCollections(
 				errUpdater,
 			)
 		case path.PagesCategory:
-			errorMessage := fmt.Sprintf("restore of %s not supported", dc.FullPath().Category())
-			logger.Ctx(ctx).Error(errorMessage)
-
-			return nil, errors.New(errorMessage)
-
+			metrics, canceled = RestorePageCollection(
+				ctx,
+				service,
+				dc,
+				dest.ContainerName,
+				deets,
+				errUpdater,
+			)
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
@@ -271,6 +274,10 @@ func RestoreListCollection(
 	}
 }
 
+// RestorePageCollection handles restoration of an individual site page collection.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation station. True iff context is canceled.
 func RestorePageCollection(
 	ctx context.Context,
 	service graph.Servicer,
@@ -340,6 +347,8 @@ func RestorePageCollection(
 	}
 }
 
+// restoreSitePage handles the restoration of single site page to SharePoint.
+// The new M365ID is placed within the details.ItemInfo
 func restoreSitePage(
 	ctx context.Context,
 	service graph.Servicer,
