@@ -74,6 +74,18 @@ func CreateListFromBytes(bytes []byte) (models.Listable, error) {
 	return list, nil
 }
 
+// CreatePageFromBytes transforms given bytes in models.SitePageable object
+func CreatePageFromBytes(bytes []byte) (models.SitePageable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateSitePageFromDiscriminatorValue)
+	if err != nil {
+		return nil, errors.Wrap(err, "createing m365 sharepoint.Page object from provided bytes")
+	}
+
+	page := parsable.(models.SitePageable)
+
+	return page, nil
+}
+
 func HasAttachments(body models.ItemBodyable) bool {
 	if body.GetContent() == nil || body.GetContentType() == nil ||
 		*body.GetContentType() == models.TEXT_BODYTYPE || len(*body.GetContent()) == 0 {
