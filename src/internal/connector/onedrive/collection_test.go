@@ -69,35 +69,34 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		itemReader   itemReaderFunc
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 	}{
-		// TODO(meain): enable these tests
-		// {
-		// 	name:         "oneDrive, no duplicates",
-		// 	numInstances: 1,
-		// 	source:       OneDriveSource,
-		// 	itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-		// 		return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
-		// 			io.NopCloser(bytes.NewReader(testItemData)),
-		// 			nil
-		// 	},
-		// 	infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
-		// 		require.NotNil(t, dii.OneDrive)
-		// 		return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
-		// 	},
-		// },
-		// {
-		// 	name:         "oneDrive, duplicates",
-		// 	numInstances: 3,
-		// 	source:       OneDriveSource,
-		// 	itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-		// 		return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
-		// 			io.NopCloser(bytes.NewReader(testItemData)),
-		// 			nil
-		// 	},
-		// 	infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
-		// 		require.NotNil(t, dii.OneDrive)
-		// 		return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
-		// 	},
-		// },
+		{
+			name:         "oneDrive, no duplicates",
+			numInstances: 1,
+			source:       OneDriveSource,
+			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+		},
+		{
+			name:         "oneDrive, duplicates",
+			numInstances: 3,
+			source:       OneDriveSource,
+			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+		},
 		{
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
