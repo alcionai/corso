@@ -1069,6 +1069,60 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 		},
 
 		{
+			name:     "FileInsideFolderPermissionsResote",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+
+		{
 			name:     "FileAndFolderPermissionsResote",
 			service:  path.OneDriveService,
 			resource: Users,
