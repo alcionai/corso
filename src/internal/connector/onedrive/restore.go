@@ -208,7 +208,10 @@ func RestoreCollection(
 						continue
 					}
 
-					permissionIDMappings, err = restorePermissions(ctx, service, drivePath.DriveID, restoreID, parentPerms, meta.Permissions, permissionIDMappings)
+					permissionIDMappings, err = restorePermissions(ctx, service,
+						drivePath.DriveID, restoreID,
+						parentPerms, meta.Permissions,
+						permissionIDMappings)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
@@ -285,7 +288,8 @@ func createRestoreFolder(ctx context.Context,
 
 	logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
 
-	permissionIDMappings, err = restorePermissions(ctx, service, driveID, *folderItem.GetId(), parentPerms, childPerms, permissionIDMappings)
+	permissionIDMappings, err = restorePermissions(ctx, service, driveID, *folderItem.GetId(),
+		parentPerms, childPerms, permissionIDMappings)
 	if err != nil {
 		return "", permissionIDMappings, errors.Wrapf(
 			err,
@@ -480,7 +484,8 @@ func restorePermissions(
 	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
 
 	for _, p := range permRemoved {
-		err := service.Client().DrivesById(driveID).ItemsById(itemID).PermissionsById(permissionIDMappings[p.ID]).Delete(ctx, nil)
+		err := service.Client().DrivesById(driveID).ItemsById(itemID).
+			PermissionsById(permissionIDMappings[p.ID]).Delete(ctx, nil)
 		if err != nil {
 			return permissionIDMappings, errors.Wrapf(
 				err,

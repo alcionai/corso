@@ -445,16 +445,18 @@ func runRestoreBackupTest(
 	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
 }
 
-func getTestMetaJson(t *testing.T, user string, roles []string) []byte {
+func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
 	id := base64.StdEncoding.EncodeToString([]byte(user + strings.Join(roles, "+")))
 	testMeta := onedrive.Metadata{Permissions: []onedrive.UserPermission{
 		{ID: id, Roles: roles, Email: user},
 	}}
-	testMetaJson, err := json.Marshal(testMeta)
+
+	testMetaJSON, err := json.Marshal(testMeta)
 	if err != nil {
 		t.Fatal("unable to marshall test permissions", err)
 	}
-	return testMetaJson
+
+	return testMetaJSON
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
@@ -842,12 +844,12 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"write"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 						{
 							name:      "b" + onedrive.DirMetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"read"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
@@ -868,7 +870,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"read"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
@@ -1058,7 +1060,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 						},
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"write"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
@@ -1086,12 +1088,12 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 						},
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"write"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 						{
 							name:      "b" + onedrive.DirMetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"read"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
@@ -1112,7 +1114,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 						},
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"read"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
@@ -1135,7 +1137,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name:      "b" + onedrive.DirMetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"read"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
@@ -1156,7 +1158,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 						},
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"write"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
@@ -1179,7 +1181,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name:      "b" + onedrive.DirMetaFileSuffix,
-							data:      getTestMetaJson(suite.T(), suite.secondaryUser, []string{"read"}),
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},

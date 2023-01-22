@@ -83,7 +83,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			source:       OneDriveSource,
-			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+			itemReader: func(
+				context.Context, graph.Servicer,
+				string, models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					testItemMeta,
@@ -98,7 +101,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			source:       OneDriveSource,
-			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+			itemReader: func(
+				context.Context, graph.Servicer,
+				string, models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					testItemMeta,
@@ -113,7 +119,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			source:       SharePointSource,
-			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+			itemReader: func(
+				context.Context, graph.Servicer,
+				string, models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					testItemMeta,
@@ -128,7 +137,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			source:       SharePointSource,
-			itemReader: func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+			itemReader: func(
+				context.Context, graph.Servicer,
+				string, models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					testItemMeta,
@@ -267,7 +279,10 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			readError := errors.New("Test error")
 
-			coll.itemReader = func(context.Context, graph.Servicer, string, models.DriveItemable) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+			coll.itemReader = func(
+				context.Context, graph.Servicer,
+				string, models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{}, nil, Metadata{}, readError
 			}
 

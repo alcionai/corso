@@ -233,6 +233,7 @@ func (c *Collections) UpdateCollections(
 			if c.source != OneDriveSource {
 				continue
 			}
+
 			fallthrough
 
 		case item.GetFile() != nil:

@@ -250,9 +250,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
+
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
+
 				metaSuffix = DirMetaFileSuffix
 			}
 
@@ -291,7 +293,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemSize = itemInfo.OneDrive.Size
 			}
 
-			itemMetaJson, err := json.Marshal(itemMeta)
+			itemMetaJSON, err := json.Marshal(itemMeta)
 			if err != nil {
 				errUpdater(*item.GetId(), err)
 				return
@@ -313,8 +315,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 				progReader, closer := observe.ItemProgress(
-					ctx, io.NopCloser(bytes.NewReader(itemMetaJson)), observe.ItemBackupMsg,
-					itemName+metaSuffix, int64(len(itemMetaJson)))
+					ctx, io.NopCloser(bytes.NewReader(itemMetaJSON)), observe.ItemBackupMsg,
+					itemName+metaSuffix, int64(len(itemMetaJSON)))
 				go closer()
 				return progReader, nil
 			})
