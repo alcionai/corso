@@ -270,3 +270,43 @@ func RestoreCollection(
 		}
 	}
 }
+
+func restoreSitePage(
+	ctx context.Context,
+	service graph.Servicer,
+	itemData data.Stream,
+	siteID, destName string,
+) (details.ItemInfo, error) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restorePage", D.Label("item_uuid", itemData.UUID()))
+	defer end()
+
+	var (
+		dii      = details.ItemInfo{}
+		pageName = itemData.UUID()
+	)
+
+	byteArray, err := io.ReadAll(itemData.ToReader())
+	if err != nil {
+		return dii, errors.Wrap(err, "sharepoint restorePage failed to restore bytes from data.Stream")
+	}
+
+	// Hydrate Page
+	page, err := support.CreatePageFromBytes(byteArray)
+	if err != nil {
+		return dii, errors.Wrapf(err, "failed to create Page object %s", pageName)
+	}
+
+	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
+	if err != nil {
+		sendErr := support.ConnectorStackErrorTraceWrap(
+			err,
+			"failure to create page from ID: %s"+pageName+" API Error Details",
+		)
+
+		return dii, sendErr
+	}
+
+	dii.SharePoint = sharePointPageInfo(restoredPage, int64(len(byteArray)))
+
+	return dii, nil
+}
