@@ -3,6 +3,7 @@ package support
 import (
 	"testing"
 
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,7 +134,7 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Byes",
+			name:       "Empty Bytes",
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -155,6 +156,61 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result, err := CreateListFromBytes(test.byteArray)
+			test.checkError(t, err)
+			test.isNil(t, result)
+		})
+	}
+}
+
+func (suite *DataSupportSuite) TestCreatePageFromBytes() {
+	tests := []struct {
+		name       string
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+		getBytes   func(t *testing.T) []byte
+	}{
+		{
+			"Empty Bytes",
+			assert.Error,
+			assert.Nil,
+			func(t *testing.T) []byte {
+				return make([]byte, 0)
+			},
+		},
+		{
+			"Invalid Bytes",
+			assert.Error,
+			assert.Nil,
+			func(t *testing.T) []byte {
+				return []byte("snarf")
+			},
+		},
+		{
+			"Valid Page",
+			assert.NoError,
+			assert.NotNil,
+			func(t *testing.T) []byte {
+				pg := models.NewSitePage()
+				title := "Tested"
+				pg.SetTitle(&title)
+				pg.SetName(&title)
+				pg.SetWebUrl(&title)
+
+				writer := kioser.NewJsonSerializationWriter()
+				err := pg.Serialize(writer)
+				require.NoError(t, err)
+
+				byteArray, err := writer.GetSerializedContent()
+				require.NoError(t, err)
+
+				return byteArray
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result, err := CreatePageFromBytes(test.getBytes(t))
 			test.checkError(t, err)
 			test.isNil(t, result)
 		})
