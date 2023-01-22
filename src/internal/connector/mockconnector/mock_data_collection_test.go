@@ -202,6 +202,15 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 				return err
 			},
 		},
+		{
+			name: "SharePoint: Page",
+			transformation: func(t *testing.T) error {
+				bytes := mockconnector.GetMockPage(subject)
+				_, err := support.CreatePageFromBytes(bytes)
+
+				return err
+			},
+		},
 	}
 
 	for _, test := range tests {
