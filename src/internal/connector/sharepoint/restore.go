@@ -7,6 +7,7 @@ import (
 	"runtime/trace"
 
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -283,6 +284,7 @@ func restoreSitePage(
 	var (
 		dii      = details.ItemInfo{}
 		pageName = itemData.UUID()
+		pageURL  string
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
@@ -296,6 +298,8 @@ func restoreSitePage(
 		return dii, errors.Wrapf(err, "failed to create Page object %s", pageName)
 	}
 
+	// POST the Publish
+	// https://learn.microsoft.com/en-us/graph/api/sitepage-create?view=graph-rest-beta
 	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
 	if err != nil {
 		sendErr := support.ConnectorStackErrorTraceWrap(
@@ -304,6 +308,23 @@ func restoreSitePage(
 		)
 
 		return dii, sendErr
+	}
+
+	// Publish page to make visible
+	// See https://learn.microsoft.com/en-us/graph/api/sitepage-publish?view=graph-rest-beta
+	if restoredPage.GetWebUrl() == nil {
+		return dii, fmt.Errorf("created page %s did not return webURL from API", *restoredPage.GetId())
+	}
+
+	pageURL = *restoredPage.GetWebUrl()
+	publishRequest := sites.NewItemPagesItemPublishRequestBuilder(pageURL, service.Adapter())
+
+	err = publishRequest.Post(ctx, nil)
+	if err != nil {
+		return dii, support.ConnectorStackErrorTraceWrap(
+			err,
+			"unable to publish page ID: "+*restoredPage.GetId()+" API Error Details",
+		)
 	}
 
 	dii.SharePoint = sharePointPageInfo(restoredPage, int64(len(byteArray)))
