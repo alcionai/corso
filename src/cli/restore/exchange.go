@@ -63,7 +63,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(&user,
 			utils.UserFN, nil,
-			"Restore data by user ID; accepts '"+utils.Wildcard+"' to select all users.")
+			"Restore data by user's email address; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// email flags
 		fs.StringSliceVar(&email,
