@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -41,14 +40,8 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 
 	t := suite.T()
 	siteID := tester.M365SiteID(t)
-	adpt, err := graph.CreateBetaAdapter(
-		suite.creds.AzureTenantID,
-		suite.creds.AzureClientID,
-		suite.creds.AzureClientSecret,
-	)
+	service, err := createTestService(suite.creds)
 	require.NoError(t, err)
-
-	service := graph.NewBetaService(adpt)
 
 	pgs, err := fetchPages(ctx, *service, siteID)
 	assert.NoError(t, err)
@@ -66,20 +59,18 @@ func (suite *SharePointPageSuite) TestGetSitePage() {
 
 	t := suite.T()
 	siteID := tester.M365SiteID(t)
-	adpt, err := graph.CreateBetaAdapter(
-		suite.creds.AzureTenantID,
-		suite.creds.AzureClientID,
-		suite.creds.AzureClientSecret,
-	)
-	require.NoError(t, err)
 
-	service := graph.NewBetaService(adpt)
+	service, err := createTestService(suite.creds)
+	require.NoError(t, err)
 	tuples, err := fetchPages(ctx, *service, siteID)
 	require.NoError(t, err)
 	require.NotNil(t, tuples)
 
 	jobs := []string{tuples[0].id}
-	pages, err := GetSitePage(ctx, suite.creds, siteID, jobs)
+	pages, err := GetSitePage(ctx, service, siteID, jobs)
+	for _, page := range pages {
+		t.Logf("Page: \n%v\n", page)
+	}
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
 }
