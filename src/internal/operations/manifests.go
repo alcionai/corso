@@ -3,15 +3,16 @@ package operations
 import (
 	"context"
 
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -44,6 +45,7 @@ func produceManifestsAndMetadata(
 	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
+	errs fault.Adder,
 ) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
 	var (
 		metadataFiles = graph.AllMetadataFileNames()
@@ -68,12 +70,10 @@ func produceManifestsAndMetadata(
 	//
 	// TODO(ashmrtn): This may need updating if we start sourcing item backup
 	// details from previous snapshots when using kopia-assisted incrementals.
-	if err := verifyDistinctBases(ms); err != nil {
-		logger.Ctx(ctx).Warnw(
+	if err := verifyDistinctBases(ctx, ms, errs); err != nil {
+		logger.Ctx(ctx).With("error", err).Infow(
 			"base snapshot collision, falling back to full backup",
-			"error",
-			err,
-		)
+			clues.Slice(ctx)...)
 
 		return ms, nil, false, nil
 	}
@@ -83,25 +83,29 @@ func produceManifestsAndMetadata(
 			continue
 		}
 
+		mctx := clues.Add(ctx, "manifest_id", man.ID)
+
 		bID, ok := man.GetTag(kopia.TagBackupID)
 		if !ok {
-			return nil, nil, false, errors.New("snapshot manifest missing backup ID")
+			err = clues.New("snapshot manifest missing backup ID").WithMap(clues.Values(mctx))
+			return nil, nil, false, err
 		}
 
-		dID, _, err := gdi.GetDetailsIDFromBackupID(ctx, model.StableID(bID))
+		mctx = clues.Add(mctx, "manifest_backup_id", man.ID)
+
+		dID, _, err := gdi.GetDetailsIDFromBackupID(mctx, model.StableID(bID))
 		if err != nil {
 			// if no backup exists for any of the complete manifests, we want
 			// to fall back to a complete backup.
 			if errors.Is(err, kopia.ErrNotFound) {
-				logger.Ctx(ctx).Infow(
-					"backup missing, falling back to full backup",
-					"backup_id", bID)
-
+				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.Slice(mctx)...)
 				return ms, nil, false, nil
 			}
 
 			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
 		}
+
+		mctx = clues.Add(mctx, "manifest_details_id", dID)
 
 		// if no detailsID exists for any of the complete manifests, we want
 		// to fall back to a complete backup.  This is a temporary prevention
@@ -109,14 +113,11 @@ func produceManifestsAndMetadata(
 		// This makes an assumption that the ID points to a populated set of
 		// details; we aren't doing the work to look them up.
 		if len(dID) == 0 {
-			logger.Ctx(ctx).Infow(
-				"backup missing details ID, falling back to full backup",
-				"backup_id", bID)
-
+			logger.Ctx(ctx).Infow("backup missing details ID, falling back to full backup", clues.Slice(mctx)...)
 			return ms, nil, false, nil
 		}
 
-		colls, err := collectMetadata(ctx, mr, man, metadataFiles, tenantID)
+		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID)
 		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -134,9 +135,9 @@ func produceManifestsAndMetadata(
 // of manifests, that each manifest's Reason (owner, service, category) is only
 // included once.  If a reason is duplicated by any two manifests, an error is
 // returned.
-func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
+func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs fault.Adder) error {
 	var (
-		errs    *multierror.Error
+		failed  bool
 		reasons = map[string]manifest.ID{}
 	)
 
@@ -155,10 +156,10 @@ func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
 			reasonKey := reason.ResourceOwner + reason.Service.String() + reason.Category.String()
 
 			if b, ok := reasons[reasonKey]; ok {
-				errs = multierror.Append(errs, errors.Errorf(
-					"multiple base snapshots source data for %s %s. IDs: %s, %s",
-					reason.Service, reason.Category, b, man.ID,
-				))
+				failed = true
+				errs.Add(clues.New("manifests have overlapping reasons").
+					WithMap(clues.Values(ctx)).
+					With("other_manifest_id", b))
 
 				continue
 			}
@@ -167,7 +168,11 @@ func verifyDistinctBases(mans []*kopia.ManifestEntry) error {
 		}
 	}
 
-	return errs.ErrorOrNil()
+	if failed {
+		return clues.New("multiple base snapshots qualify").WithMap(clues.Values(ctx))
+	}
+
+	return nil
 }
 
 // collectMetadata retrieves all metadata files associated with the manifest.
@@ -191,7 +196,9 @@ func collectMetadata(
 					reason.Category,
 					true)
 			if err != nil {
-				return nil, errors.Wrapf(err, "building metadata path")
+				return nil, clues.
+					Wrap(err, "building metadata path").
+					WithAll("metadata_file", fn, "category", reason.Category)
 			}
 
 			paths = append(paths, p)

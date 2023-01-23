@@ -144,6 +144,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 		err = op.persistResults(startTime, &opStats)
 		if err != nil {
+			op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
 			return
 		}
 
@@ -153,7 +154,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			opStats.k.SnapshotID,
 			backupDetails.Details())
 		if err != nil {
-			opStats.writeErr = err
+			op.Errors.Fail(errors.Wrap(err, "persisting backup"))
+			opStats.writeErr = op.Errors.Err()
 		}
 	}()
 
@@ -164,21 +166,27 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		reasons,
 		tenantID,
 		uib,
-	)
+		op.Errors)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		op.Errors.Fail(errors.Wrap(err, "collecting manifest heuristics"))
+		opStats.readErr = op.Errors.Err()
+
 		return opStats.readErr
 	}
 
 	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		op.Errors.Fail(errors.Wrap(err, "connecting to m365"))
+		opStats.readErr = op.Errors.Err()
+
 		return opStats.readErr
 	}
 
 	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "retrieving data to backup")
+		op.Errors.Fail(errors.Wrap(err, "retrieving data to backup"))
+		opStats.readErr = op.Errors.Err()
+
 		return opStats.readErr
 	}
 
@@ -194,7 +202,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Results.BackupID,
 		uib && canUseMetaData)
 	if err != nil {
-		opStats.writeErr = errors.Wrap(err, "backing up service data")
+		op.Errors.Fail(errors.Wrap(err, "backing up service data"))
+		opStats.writeErr = op.Errors.Err()
+
 		return opStats.writeErr
 	}
 
@@ -211,12 +221,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		toMerge,
 		backupDetails,
 	); err != nil {
-		opStats.writeErr = errors.Wrap(err, "merging backup details")
+		op.Errors.Fail(errors.Wrap(err, "merging backup details"))
+		opStats.writeErr = op.Errors.Err()
+
 		return opStats.writeErr
 	}
 
 	opStats.gc = gc.AwaitStatus()
 
+	// TODO(keepers): remove when fault.Errors handles all iterable error aggregation.
 	if opStats.gc.ErrorCount > 0 {
 		merr := multierror.Append(opStats.readErr, errors.Wrap(opStats.gc.Err, "retrieving data"))
 		opStats.readErr = merr.ErrorOrNil()
@@ -307,7 +320,9 @@ func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 	return reasons
 }
 
-func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
+func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*path.Builder, error) {
+	ctx = clues.Add(ctx, "category", r.Category.String())
+
 	// This is hacky, but we want the path package to format the path the right
 	// way (e.x. proper order for service, category, etc), but we don't care about
 	// the folders after the prefix.
@@ -319,12 +334,7 @@ func builderFromReason(tenant string, r kopia.Reason) (*path.Builder, error) {
 		false,
 	)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"building path for service %s category %s",
-			r.Service.String(),
-			r.Category.String(),
-		)
+		return nil, clues.Wrap(err, "building path").WithMap(clues.Values(ctx))
 	}
 
 	return p.ToBuilder().Dir(), nil
@@ -367,7 +377,7 @@ func consumeBackupDataCollections(
 		categories := map[string]struct{}{}
 
 		for _, reason := range m.Reasons {
-			pb, err := builderFromReason(tenantID, reason)
+			pb, err := builderFromReason(ctx, tenantID, reason)
 			if err != nil {
 				return nil, nil, nil, errors.Wrap(err, "getting subtree paths for bases")
 			}
@@ -461,6 +471,8 @@ func mergeDetails(
 	var addedEntries int
 
 	for _, man := range mans {
+		mctx := clues.Add(ctx, "manifest_id", man.ID)
+
 		// For now skip snapshots that aren't complete. We will need to revisit this
 		// when we tackle restartability.
 		if len(man.IncompleteReason) > 0 {
@@ -469,8 +481,10 @@ func mergeDetails(
 
 		bID, ok := man.GetTag(kopia.TagBackupID)
 		if !ok {
-			return errors.Errorf("no backup ID in snapshot manifest with ID %s", man.ID)
+			return clues.New("no backup ID in snapshot manifest").WithMap(clues.Values(mctx))
 		}
+
+		mctx = clues.Add(mctx, "manifest_backup_id", bID)
 
 		_, baseDeets, err := getBackupAndDetailsFromID(
 			ctx,
@@ -479,18 +493,15 @@ func mergeDetails(
 			detailsStore,
 		)
 		if err != nil {
-			return errors.Wrapf(err, "backup fetching base details for backup %s", bID)
+			return clues.New("fetching base details for backup").WithMap(clues.Values(mctx))
 		}
 
 		for _, entry := range baseDeets.Items() {
 			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
 			if err != nil {
-				return errors.Wrapf(
-					err,
-					"parsing base item info path %s in backup %s",
-					entry.RepoRef,
-					bID,
-				)
+				return clues.New("parsing base item info path").
+					WithMap(clues.Values(mctx)).
+					With("repo_ref", entry.RepoRef) // todo: pii
 			}
 
 			// Although this base has an entry it may not be the most recent. Check
@@ -513,11 +524,7 @@ func mergeDetails(
 			// Fixup paths in the item.
 			item := entry.ItemInfo
 			if err := details.UpdateItem(&item, newPath); err != nil {
-				return errors.Wrapf(
-					err,
-					"updating item info for entry from backup %s",
-					bID,
-				)
+				return clues.New("updating item details").WithMap(clues.Values(mctx))
 			}
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
@@ -542,11 +549,9 @@ func mergeDetails(
 	}
 
 	if addedEntries != len(shortRefsFromPrevBackup) {
-		return errors.Errorf(
-			"incomplete migration of backup details: found %v of %v expected items",
-			addedEntries,
-			len(shortRefsFromPrevBackup),
-		)
+		return clues.New("incomplete migration of backup details").
+			WithMap(clues.Values(ctx)).
+			WithAll("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
 	}
 
 	return nil
@@ -568,6 +573,7 @@ func (op *BackupOperation) persistResults(
 	if opStats.readErr != nil || opStats.writeErr != nil {
 		op.Status = Failed
 
+		// TODO(keepers): replace with fault.Errors handling.
 		return multierror.Append(
 			errors.New("errors prevented the operation from processing"),
 			opStats.readErr,
@@ -594,15 +600,18 @@ func (op *BackupOperation) createBackupModels(
 	snapID string,
 	backupDetails *details.Details,
 ) error {
+	ctx = clues.Add(ctx, "snapshot_id", snapID)
+
 	if backupDetails == nil {
-		return errors.New("no backup details to record")
+		return clues.New("no backup details to record").WithMap(clues.Values(ctx))
 	}
 
 	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
-		return errors.Wrap(err, "creating backupdetails model")
+		return clues.Wrap(err, "creating backupDetails model").WithMap(clues.Values(ctx))
 	}
 
+	ctx = clues.Add(ctx, "details_id", detailsID)
 	b := backup.New(
 		snapID, detailsID, op.Status.String(),
 		op.Results.BackupID,
@@ -612,9 +621,8 @@ func (op *BackupOperation) createBackupModels(
 		op.Errors,
 	)
 
-	err = op.store.Put(ctx, model.BackupSchema, b)
-	if err != nil {
-		return errors.Wrap(err, "creating backup model")
+	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
+		return clues.Wrap(err, "creating backup model").WithMap(clues.Values(ctx))
 	}
 
 	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
