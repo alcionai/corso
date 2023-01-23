@@ -19,9 +19,10 @@ func GetSitePage(
 	pages []string,
 ) ([]models.SitePageable, error) {
 	col := make([]models.SitePageable, 0)
+	opts := retrieveSitePageOptions()
 
 	for _, entry := range pages {
-		page, err := serv.Client().SitesById(siteID).PagesById(entry).Get(ctx, nil)
+		page, err := serv.Client().SitesById(siteID).PagesById(entry).Get(ctx, opts)
 		if err != nil {
 			return nil, support.ConnectorStackErrorTraceWrap(err, "fetching page: "+entry)
 		}
@@ -74,6 +75,18 @@ func fetchPageOptions() *sites.ItemPagesRequestBuilderGetRequestConfiguration {
 	options := &sites.ItemPagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &sites.ItemPagesRequestBuilderGetQueryParameters{
 			Select: fields,
+		},
+	}
+
+	return options
+}
+
+// retrievePageOptions returns options to expand
+func retrieveSitePageOptions() *sites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration {
+	fields := []string{"canvasLayout"}
+	options := &sites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.ItemPagesSitePageItemRequestBuilderGetQueryParameters{
+			Expand: fields,
 		},
 	}
 
