@@ -6,8 +6,8 @@ import (
 	"io"
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 

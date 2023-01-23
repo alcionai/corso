@@ -4,8 +4,7 @@ import (
 	"context"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	beta "github.com/microsoftgraph/msgraph-beta-sdk-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/account"
@@ -44,28 +43,6 @@ func (s Service) Adapter() *msgraphsdk.GraphRequestAdapter {
 
 func (s Service) Client() *msgraphsdk.GraphServiceClient {
 	return s.client
-}
-
-// BetaService provides access to API Calls that are present solely in the Beta library.
-// Does not fulfill the interface as the base libraries vary.
-type BetaService struct {
-	adapter *beta.GraphRequestAdapter
-	client  *beta.GraphBaseServiceClient
-}
-
-func (bs BetaService) Adapter() *beta.GraphRequestAdapter {
-	return bs.adapter
-}
-
-func (bs BetaService) Client() *beta.GraphBaseServiceClient {
-	return bs.client
-}
-
-func NewBetaService(adapter *beta.GraphRequestAdapter) *BetaService {
-	return &BetaService{
-		adapter: adapter,
-		client:  beta.NewGraphBaseServiceClient(adapter),
-	}
 }
 
 // Seraialize writes an M365 parsable object into a byte array using the built-in

@@ -3,9 +3,9 @@ package discovery
 import (
 	"context"
 
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	msuser "github.com/microsoftgraph/msgraph-beta-sdk-go/users"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	msuser "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"

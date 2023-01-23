@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 

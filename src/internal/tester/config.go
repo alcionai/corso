@@ -111,8 +111,7 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
 		vpr.GetString(TestCfgUserID),
-		"lynner@8qzvrj.onmicrosoft.com",
-		//"lidiah@8qzvrj.onmicrosoft.com",
+		"conneri@8qzvrj.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
@@ -120,7 +119,6 @@ func readTestConfig() (map[string]string, error) {
 		os.Getenv(EnvCorsoSecondaryM365TestUserID),
 		vpr.GetString(TestCfgSecondaryUserID),
 		"lidiah@8qzvrj.onmicrosoft.com",
-		//"lynner@8qzvrj.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
@@ -134,7 +132,7 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgLoadTestOrgUsers,
 		os.Getenv(EnvCorsoM365LoadTestOrgUsers),
 		vpr.GetString(TestCfgLoadTestOrgUsers),
-		"lidiah@8qzvrj.onmicrosoft.com,lynner@8qzvrj.onmicrosoft.com",
+		"lidiah@8qzvrj.onmicrosoft.com,conneri@8qzvrj.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,

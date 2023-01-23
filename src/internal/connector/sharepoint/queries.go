@@ -4,7 +4,7 @@ import (
 	"context"
 
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
+	mssite "github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 )
