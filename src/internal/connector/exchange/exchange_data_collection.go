@@ -262,6 +262,16 @@ func (col *Collection) streamItems(ctx context.Context) {
 				// enough information to restore the item anyway.
 				if e := graph.IsErrDeletedInFlight(err); e != nil {
 					atomic.AddInt64(&success, 1)
+					logger.Ctx(ctx).Infow(
+						"Graph reported item not found",
+						"error",
+						e,
+						"service",
+						path.ExchangeService.String(),
+						"category",
+						col.category.String,
+					)
+
 					return
 				}
 
@@ -278,6 +288,16 @@ func (col *Collection) streamItems(ctx context.Context) {
 				// attempted items.
 				if e := graph.IsErrDeletedInFlight(err); e != nil {
 					atomic.AddInt64(&success, 1)
+					logger.Ctx(ctx).Infow(
+						"Graph reported item not found",
+						"error",
+						e,
+						"service",
+						path.ExchangeService.String(),
+						"category",
+						col.category.String,
+					)
+
 					return
 				}
 
