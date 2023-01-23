@@ -68,9 +68,6 @@ func (suite *SharePointPageSuite) TestGetSitePage() {
 
 	jobs := []string{tuples[0].id}
 	pages, err := GetSitePage(ctx, service, siteID, jobs)
-	for _, page := range pages {
-		t.Logf("Page: \n%v\n", page)
-	}
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
 }
