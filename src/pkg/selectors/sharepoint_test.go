@@ -193,12 +193,12 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 
 func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 	var (
-		pairA = "folderA/folderC"
-		item  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderB", "item")
-		item2 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", pairA, "item2")
-		item3 = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderD/folderE", "item3")
-		item4 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", "folderG/folderH", "item4")
-		item5 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", "folderG/folderH", "item5")
+		pairAC = "folderA/folderC"
+		item   = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderB", "item")
+		item2  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", pairAC, "item2")
+		item3  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderD/folderE", "item3")
+		item4  = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", "folderG/folderH", "item4")
+		item5  = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", "folderG/folderH", "item5")
 	)
 
 	deets := &details.Details{
@@ -283,7 +283,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
-				odr.Include(odr.Libraries([]string{"folderA/folderB", pairA}))
+				odr.Include(odr.Libraries([]string{"folderA/folderB", pairAC}))
 				return odr
 			},
 			expect: arr(item, item2),
@@ -293,7 +293,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
-				odr.Include(odr.Pages([]string{"folderG/folderH", pairA}))
+				odr.Include(odr.Pages([]string{"folderG/folderH", pairAC}))
 				return odr
 			},
 			expect: arr(item4, item5),
