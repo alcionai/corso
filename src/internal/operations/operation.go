@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -52,9 +53,11 @@ const (
 // Specific processes (eg: backups, restores, etc) are expected to wrap operation
 // with process specific details.
 type operation struct {
-	CreatedAt time.Time       `json:"createdAt"` // datetime of the operation's creation
-	Options   control.Options `json:"options"`
-	Status    opStatus        `json:"status"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	Errors  *fault.Errors   `json:"errors"`
+	Options control.Options `json:"options"`
+	Status  opStatus        `json:"status"`
 
 	bus   events.Eventer
 	kopia *kopia.Wrapper
@@ -69,11 +72,14 @@ func newOperation(
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
+		Errors:    fault.New(opts.FailFast),
 		Options:   opts,
-		bus:       bus,
-		kopia:     kw,
-		store:     sw,
-		Status:    InProgress,
+
+		bus:   bus,
+		kopia: kw,
+		store: sw,
+
+		Status: InProgress,
 	}
 }
 
