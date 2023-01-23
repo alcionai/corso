@@ -257,6 +257,14 @@ func (col *Collection) streamItems(ctx context.Context) {
 					break
 				}
 
+				// If the data is no longer available just return here and chalk it up
+				// as a success. There's no reason to retry and no way we can backup up
+				// enough information to restore the item anyway.
+				if e := graph.IsErrDeletedInFlight(err); e != nil {
+					atomic.AddInt64(&success, 1)
+					return
+				}
+
 				if i < numberOfRetries {
 					time.Sleep(time.Duration(3*(i+1)) * time.Second)
 				}
