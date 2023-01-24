@@ -351,10 +351,10 @@ func runRestoreBackupTest(
 	resourceOwners []string,
 ) {
 	var (
-		collections      []data.Collection
-		expectedData     = map[string]map[string][]byte{}
-		totalItems       = 0
-		toatalKopiaItems = 0
+		collections     []data.Collection
+		expectedData    = map[string]map[string][]byte{}
+		totalItems      = 0
+		totalKopiaItems = 0
 		// Get a dest per test so they're independent.
 		dest = tester.DefaultTestRestoreDestination()
 	)
@@ -374,7 +374,7 @@ func runRestoreBackupTest(
 
 		collections = append(collections, ownerCollections...)
 		totalItems += numItems
-		toatalKopiaItems += kopiaItems
+		totalKopiaItems += kopiaItems
 
 		maps.Copy(expectedData, userExpectedData)
 	}
@@ -438,7 +438,7 @@ func runRestoreBackupTest(
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	skipped := checkCollections(t, toatalKopiaItems, expectedData, dcs)
+	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs)
 
 	status = backupGC.AwaitStatus()
 	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
@@ -1069,7 +1069,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 		},
 
 		{
-			name:     "FileInsideFolderPermissionsResote",
+			name:     "FileInsideFolderPermissionsRestore",
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{

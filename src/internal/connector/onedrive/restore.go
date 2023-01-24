@@ -67,7 +67,12 @@ func RestoreCollections(
 	for _, dc := range dcs {
 		parentPerms, ok := parentPermissions[dc.FullPath().String()]
 		if !ok {
-			if len(dc.FullPath().Elements()) == 7 {
+			onedrivePath, err := path.ToOneDrivePath(dc.FullPath())
+			if err != nil {
+				errUpdater(dc.FullPath().String(), fmt.Errorf("invalid restore path"))
+			}
+
+			if len(onedrivePath.Folders) == 0 {
 				// root directory will not have permissions
 				parentPerms = []UserPermission{}
 			} else {
@@ -75,9 +80,17 @@ func RestoreCollections(
 			}
 		}
 
-		metrics, folderPerms, permissionIDMappings, canceled = RestoreCollection(ctx, service, dc,
-			parentPerms, OneDriveSource,
-			dest.ContainerName, deets, errUpdater, permissionIDMappings)
+		metrics, folderPerms, permissionIDMappings, canceled = RestoreCollection(
+			ctx,
+			service,
+			dc,
+			parentPerms,
+			OneDriveSource,
+			dest.ContainerName,
+			deets,
+			errUpdater,
+			permissionIDMappings,
+		)
 
 		for k, v := range folderPerms {
 			parentPermissions[k] = v
@@ -489,7 +502,7 @@ func restorePermissions(
 		if err != nil {
 			return permissionIDMappings, errors.Wrapf(
 				err,
-				"failed to set permissions for item %s. details: %s",
+				"failed to remove permission for item %s. details: %s",
 				itemID,
 				support.ConnectorStackErrorTrace(err),
 			)
@@ -519,7 +532,7 @@ func restorePermissions(
 		if err != nil {
 			return permissionIDMappings, errors.Wrapf(
 				err,
-				"failed to set permissions for item %s. details: %s",
+				"failed to set permission for item %s. details: %s",
 				itemID,
 				support.ConnectorStackErrorTrace(err),
 			)

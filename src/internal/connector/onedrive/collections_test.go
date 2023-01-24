@@ -239,27 +239,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			inputFolderMap: map[string]string{},
 			scope:          (&selectors.OneDriveBackup{}).Folders([]string{"folder"})[0],
 			expect:         assert.NoError,
-			expectedCollectionPaths: append(
-				expectedPathAsSlice(
-					suite.T(),
-					tenant,
-					user,
-					testBaseDrivePath+"/folder",
-				),
-				append(
-					expectedPathAsSlice(
-						suite.T(),
-						tenant,
-						user,
-						testBaseDrivePath+folderSub,
-					),
-					expectedPathAsSlice(
-						suite.T(),
-						tenant,
-						user,
-						testBaseDrivePath+folderSub+folder,
-					)...,
-				)...,
+			expectedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/folder",
+				testBaseDrivePath+folderSub,
+				testBaseDrivePath+folderSub+folder,
 			),
 			expectedItemCount:      4,
 			expectedFileCount:      2,

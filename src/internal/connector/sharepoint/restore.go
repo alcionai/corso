@@ -67,7 +67,9 @@ func RestoreCollections(
 				onedrive.OneDriveSource,
 				dest.ContainerName,
 				deets,
-				errUpdater, map[string]string{})
+				errUpdater,
+				map[string]string{},
+			)
 		case path.ListsCategory:
 			metrics, canceled = RestoreCollection(
 				ctx,
