@@ -89,7 +89,6 @@ type restoreStats struct {
 	gc                *support.ConnectorOperationStatus
 	bytesRead         *stats.ByteCounter
 	resourceCount     int
-	started           bool
 	readErr, writeErr error
 
 	// a transient value only used to pair up start-end events.
@@ -143,10 +142,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		detailsStore,
 	)
 	if err != nil {
-		err = errors.Wrap(err, "restore")
-		opStats.readErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "restore")
+		return nil, opStats.readErr
 	}
 
 	ctx = clues.Add(ctx, "resource_owner", bup.Selector.DiscreteOwner)
@@ -178,10 +175,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
-		err = errors.Wrap(err, "retrieving service data")
-		opStats.readErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "retrieving service data")
+		return nil, opStats.readErr
 	}
 	kopiaComplete <- struct{}{}
 
@@ -207,14 +202,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.Destination,
 		dcs)
 	if err != nil {
-		err = errors.Wrap(err, "restoring service data")
-		opStats.writeErr = err
-
-		return nil, err
+		opStats.writeErr = errors.Wrap(err, "restoring service data")
+		return nil, opStats.writeErr
 	}
 	restoreComplete <- struct{}{}
 
-	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
@@ -230,10 +222,12 @@ func (op *RestoreOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
+	op.Results.ReadErrors = opStats.readErr
+	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if !opStats.started {
+	if opStats.readErr != nil || opStats.writeErr != nil {
 		op.Status = Failed
 
 		return multierror.Append(
@@ -245,9 +239,6 @@ func (op *RestoreOperation) persistResults(
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
-
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Results.BytesRead = opStats.bytesRead.NumBytes
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
