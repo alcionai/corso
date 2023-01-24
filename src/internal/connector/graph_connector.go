@@ -261,6 +261,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	acct account.Account,
 	selector selectors.Selector,
 	dest control.RestoreDestination,
+	opts control.Options,
 	dcs []data.Collection,
 ) (*details.Details, error) {
 	ctx, end := D.Span(ctx, "connector:restore")
@@ -281,7 +282,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
+		status, err = onedrive.RestoreCollections(ctx, gc.Service, dest, opts, dcs, deets)
 	case selectors.ServiceSharePoint:
 		status, err = sharepoint.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
 	default:

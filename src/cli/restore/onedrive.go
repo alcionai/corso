@@ -63,6 +63,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 			utils.FileFN, nil,
 			"Restore items by file name or ID")
 
+		// permissions restore flag
+		options.AddRestorePermissionsFlag(c)
+
 		// onedrive info flags
 
 		fs.StringVar(
