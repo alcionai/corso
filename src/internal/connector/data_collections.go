@@ -35,7 +35,7 @@ func (gc *GraphConnector) DataCollections(
 	sels selectors.Selector,
 	metadata []data.Collection,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 

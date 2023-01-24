@@ -263,7 +263,11 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+	// TODO(ashmrtn): When we're ready to wire up the global exclude list return
+	// all values.
+	cols, _, errs := gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+
+	return cols, errs
 }
 
 // ---------------------------------------------------------------------------
