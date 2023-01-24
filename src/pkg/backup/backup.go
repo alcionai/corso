@@ -14,6 +14,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
+const currentBackupVersion = 1
+
 // Backup represents the result of a backup operation
 type Backup struct {
 	model.BaseModel
@@ -31,6 +33,9 @@ type Backup struct {
 
 	// Selector used in this operation
 	Selector selectors.Selector `json:"selectors"`
+
+	// Version represents the version of the backup format
+	Version int `json:"version"`
 
 	// Errors contains all errors aggregated during a backup operation.
 	Errors fault.ErrorsData `json:"errors"`
@@ -67,6 +72,7 @@ func New(
 		Errors:          errs.Data(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
+		Version:         currentBackupVersion,
 	}
 }
 

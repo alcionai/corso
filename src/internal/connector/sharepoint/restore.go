@@ -36,6 +36,7 @@ import (
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
+	backupVersion int,
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
@@ -61,6 +62,7 @@ func RestoreCollections(
 		case path.LibrariesCategory:
 			metrics, _, _, canceled = onedrive.RestoreCollection(
 				ctx,
+				backupVersion,
 				service,
 				dc,
 				[]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
