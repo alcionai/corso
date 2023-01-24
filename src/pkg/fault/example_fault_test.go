@@ -22,9 +22,18 @@ type mockController struct {
 	errors any
 }
 
-func connectClient() error      { return nil }
-func dependencyCall() error     { return nil }
-func getIthItem(i string) error { return nil }
+func connectClient() error              { return nil }
+func dependencyCall() error             { return nil }
+func getIthItem(i string) error         { return nil }
+func getData() ([]string, error)        { return nil, nil }
+func storeData([]string, *fault.Errors) {}
+
+type mockOper struct {
+	Errors *fault.Errors
+}
+
+func newOperation() mockOper          { return mockOper{fault.New(true)} }
+func (m mockOper) Run() *fault.Errors { return m.Errors }
 
 // ---------------------------------------------------------------------------
 // examples
@@ -35,7 +44,12 @@ func getIthItem(i string) error { return nil }
 func Example_new() {
 	// Errors should only be generated during the construction of
 	// another controller, such as a new Backup or Restore Operations.
-	// Configurations like failFast are handled during construction.
+	// Configurations like failFast are set during construction.
+	//
+	// Generating new fault.Errors structs outside of an operation
+	// controller is a smell, and should be avoided.  If you need
+	// to aggregate errors, you should accept an interface and pass
+	// an Errors instance into it.
 	ctrl = mockController{
 		errors: fault.New(false),
 	}
@@ -48,7 +62,14 @@ func Example_errors_Fail() {
 
 	// Fail() should be used to record any error that highlights a
 	// non-recoverable failure in a process.
+	//
+	// Fail() should only get called in the last step before returning
+	// a fault.Errors from a controller.  In all other cases, you
+	// should simply return an error and expect the upstream controller
+	// to call Fail() for you.
 	if err := connectClient(); err != nil {
+		// normally, you'd want to
+		// return errs.Fail(err)
 		errs.Fail(err)
 	}
 
@@ -79,6 +100,11 @@ func Example_errors_Add() {
 
 	// Add() should be used to record any error in a recoverable
 	// part of processing.
+	//
+	// Add() should only get called in the last step in handling an
+	// error within a loop or stream that does not otherwise return
+	// an error.  In all other cases, you should simply return an error
+	// and expect the upstream point of iteration to call Add() for you.
 	for _, i := range items {
 		if err := getIthItem(i); err != nil {
 			errs.Add(err)
@@ -139,6 +165,7 @@ func Example_errors_Err() {
 
 	// If Err() is nil, then you can assume the operation completed.
 	// A complete operation is not necessarily an error-free operation.
+	//
 	// Even if Err() is nil, Errs() can be non-empty.
 	// Make sure you check both.
 
@@ -169,12 +196,97 @@ func Example_errors_Errs() {
 		fmt.Println(err)
 	}
 
+	// Errs() only needs to be investigated by the end user at the
+	// conclusion of an operation.  Checking Errs() within lower-
+	// layer code is a smell.  Funcs should return an error if they
+	// need upstream handlers to recognize failure states.
+	//
 	// If Errs() is nil, then you can assume that no recoverable or
 	// iteration-based errors occurred.  But that does not necessarily
 	// mean the operation was able to complete.
+	//
 	// Even if Errs() contains zero items, Err() can be non-nil.
 	// Make sure you check both.
 
 	// Output: not catastrophic
 	// something unwanted
+}
+
+// ExampleErrorsE2e showcases a more complex integration.
+func Example_errors_e2e() {
+	oper := newOperation()
+
+	// imagine that we're a user, calling into corso SDK.
+	// (fake funcs used here to minimize example bloat)
+	//
+	// The operation is our controller, we expect it to
+	// generate a new fault.Errors when constructed, and
+	// to return that struct when we call Run()
+	errs := oper.Run()
+
+	// Let's investigate what went on inside.  Since we're at
+	// the top of our controller, and returning a fault.Errors,
+	// all the error handlers set the Fail() case.
+	/* Run() */
+	func() *fault.Errors {
+		if err := connectClient(); err != nil {
+			// Fail() here; we're top level in the controller
+			// and this is a non-recoverable issue
+			return oper.Errors.Fail(err)
+		}
+
+		data, err := getData()
+		if err != nil {
+			return oper.Errors.Fail(err)
+		}
+
+		// storeData will aggregate iterated errors into
+		// oper.Errors.
+		storeData(data, oper.Errors)
+
+		// return oper.Errors here, in part to ensure it's
+		// non-nil, and because we don't know if we've
+		// aggregated any iterated errors yet.
+		return oper.Errors
+	}()
+
+	// What about the lower level handling?  storeData didn't
+	// return an error, so what's happening there?
+	/* storeData */
+	func(data []any, errs *fault.Errors) {
+		// this is downstream in our code somewhere
+		storer := func(a any) error {
+			if err := dependencyCall(); err != nil {
+				// we're not passing in or calling fault.Errors here,
+				// because this isn't the iteration handler, it's just
+				// a regular error.
+				return errors.Wrap(err, "dependency")
+			}
+
+			return nil
+		}
+
+		for _, d := range data {
+			if errs.Err() != nil {
+				break
+			}
+
+			if err := storer(d); err != nil {
+				// Since we're at the top of the iteration, we need
+				// to add each error to the fault.Errors struct.
+				errs.Add(err)
+			}
+		}
+	}(nil, nil)
+
+	// then at the end of the oper.Run, we investigate the results.
+	if errs.Err() != nil {
+		// handle the primary error
+		fmt.Println("err occurred", errs.Err())
+	}
+
+	for _, err := range errs.Errs() {
+		// handle each recoverable error
+		fmt.Println("recoverable err occurred", err)
+	}
 }

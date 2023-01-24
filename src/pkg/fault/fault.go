@@ -6,7 +6,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type errors struct {
+type Errors struct {
 	mu *sync.Mutex
 
 	// err identifies non-recoverable errors.  This includes
@@ -38,8 +38,8 @@ type ErrorsData struct {
 }
 
 // New constructs a new error with default values in place.
-func New(failFast bool) *errors {
-	return &errors{
+func New(failFast bool) *Errors {
+	return &Errors{
 		mu:       &sync.Mutex{},
 		errs:     []error{},
 		failFast: failFast,
@@ -48,19 +48,19 @@ func New(failFast bool) *errors {
 
 // Err returns the primary error.  If not nil, this
 // indicates the operation exited prior to completion.
-func (e *errors) Err() error {
+func (e *Errors) Err() error {
 	return e.err
 }
 
 // Errs returns the slice of recoverable and
 // iterated errors.
-func (e *errors) Errs() []error {
+func (e *Errors) Errs() []error {
 	return e.errs
 }
 
 // Data returns the plain set of error data
 // without any sync properties.
-func (e *errors) Data() ErrorsData {
+func (e *Errors) Data() ErrorsData {
 	return ErrorsData{
 		Err:      e.err,
 		Errs:     slices.Clone(e.errs),
@@ -73,7 +73,7 @@ func (e *errors) Data() ErrorsData {
 // Fail sets the non-recoverable error (ie: errors.err)
 // in the errors struct.  If a non-recoverable error is
 // already present, the error gets added to the errs slice.
-func (e *errors) Fail(err error) *errors {
+func (e *Errors) Fail(err error) *Errors {
 	if err == nil {
 		return e
 	}
@@ -86,7 +86,7 @@ func (e *errors) Fail(err error) *errors {
 
 // setErr handles setting errors.err.  Sync locking gets
 // handled upstream of this call.
-func (e *errors) setErr(err error) *errors {
+func (e *Errors) setErr(err error) *Errors {
 	if e.err != nil {
 		return e.addErr(err)
 	}
@@ -103,7 +103,7 @@ func (e *errors) setErr(err error) *errors {
 // the first Added error will get copied to errors.err,
 // causing the errors struct to identify as non-recoverably
 // failed.
-func (e *errors) Add(err error) *errors {
+func (e *Errors) Add(err error) *Errors {
 	if err == nil {
 		return e
 	}
@@ -116,7 +116,7 @@ func (e *errors) Add(err error) *errors {
 
 // addErr handles adding errors to errors.errs.  Sync locking
 // gets handled upstream of this call.
-func (e *errors) addErr(err error) *errors {
+func (e *Errors) addErr(err error) *Errors {
 	if e.err == nil && e.failFast {
 		e.setErr(err)
 	}
