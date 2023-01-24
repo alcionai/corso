@@ -190,6 +190,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	restoreDetails, err = gc.RestoreDataCollections(
 		ctx,
+		bup.Version,
 		op.account,
 		op.Selectors,
 		op.Destination,
