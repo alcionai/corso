@@ -266,6 +266,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				suite.ctx,
 				prevSnaps,
 				collections,
+				nil,
 				tags,
 				true,
 			)
@@ -353,6 +354,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		ctx,
 		nil,
 		[]data.Collection{dc1, dc2},
+		nil,
 		tags,
 		true,
 	)
@@ -435,6 +437,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		suite.ctx,
 		nil,
 		collections,
+		nil,
 		tags,
 		true,
 	)
@@ -495,6 +498,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				ctx,
 				nil,
 				test.collections,
+				nil,
 				nil,
 				true,
 			)
@@ -653,6 +657,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		suite.ctx,
 		nil,
 		collections,
+		nil,
 		tags,
 		false,
 	)
