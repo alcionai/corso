@@ -686,6 +686,136 @@ func (c *i64counter) Count(i int64) {
 	c.i += i
 }
 
+func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
+	reason := Reason{
+		ResourceOwner: testUser,
+		Service:       path.ExchangeService,
+		Category:      path.EmailCategory,
+	}
+
+	subtreePathTmp, err := path.Builder{}.Append("tmp").ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(suite.T(), err)
+
+	subtreePath := subtreePathTmp.ToBuilder().Dir()
+
+	manifests, err := suite.w.FetchPrevSnapshotManifests(
+		suite.ctx,
+		[]Reason{reason},
+		nil,
+	)
+	require.NoError(suite.T(), err)
+	require.Len(suite.T(), manifests, 1)
+	require.Equal(suite.T(), suite.snapshotID, manifests[0].ID)
+
+	tags := map[string]string{}
+
+	for _, k := range reason.TagKeys() {
+		tags[k] = ""
+	}
+
+	table := []struct {
+		name                  string
+		excludeItem           bool
+		expectedCachedItems   int
+		expectedUncachedItems int
+		cols                  func() []data.Collection
+		backupIDCheck         require.ValueAssertionFunc
+		restoreCheck          assert.ErrorAssertionFunc
+	}{
+		{
+			name:                  "ExcludeItem",
+			excludeItem:           true,
+			expectedCachedItems:   len(suite.filesByPath) - 1,
+			expectedUncachedItems: 0,
+			cols: func() []data.Collection {
+				return nil
+			},
+			backupIDCheck: require.NotEmpty,
+			restoreCheck:  assert.Error,
+		},
+		{
+			name: "NoExcludeItemNoChanges",
+			// No snapshot should be made since there were no changes.
+			expectedCachedItems:   0,
+			expectedUncachedItems: 0,
+			cols: func() []data.Collection {
+				return nil
+			},
+			// Backup doesn't run.
+			backupIDCheck: require.Empty,
+		},
+		{
+			name:                  "NoExcludeItemWithChanges",
+			expectedCachedItems:   len(suite.filesByPath),
+			expectedUncachedItems: 1,
+			cols: func() []data.Collection {
+				c := mockconnector.NewMockExchangeCollection(
+					suite.testPath1,
+					1,
+				)
+				c.ColState = data.NotMovedState
+
+				return []data.Collection{c}
+			},
+			backupIDCheck: require.NotEmpty,
+			restoreCheck:  assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var excluded map[string]struct{}
+			if test.excludeItem {
+				excluded = map[string]struct{}{
+					suite.files[suite.testPath1.String()][0].itemPath.Item(): {},
+				}
+			}
+
+			stats, _, _, err := suite.w.BackupCollections(
+				suite.ctx,
+				[]IncrementalBase{
+					{
+						Manifest: manifests[0].Manifest,
+						SubtreePaths: []*path.Builder{
+							subtreePath,
+						},
+					},
+				},
+				test.cols(),
+				excluded,
+				tags,
+				true,
+			)
+			require.NoError(t, err)
+			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)
+			assert.Equal(t, test.expectedUncachedItems, stats.UncachedFileCount)
+
+			test.backupIDCheck(t, stats.SnapshotID)
+
+			if len(stats.SnapshotID) == 0 {
+				return
+			}
+
+			ic := i64counter{}
+
+			_, err = suite.w.RestoreMultipleItems(
+				suite.ctx,
+				string(stats.SnapshotID),
+				[]path.Path{
+					suite.files[suite.testPath1.String()][0].itemPath,
+				},
+				&ic,
+			)
+			test.restoreCheck(t, err)
+		})
+	}
+}
+
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
 		testTenant,
