@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -41,21 +42,21 @@ func (gc *GraphConnector) DataCollections(
 
 	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	serviceEnabled, err := checkServiceEnabled(ctx, gc.Owners.Users(), path.ServiceType(sels.Service), sels.DiscreteOwner)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if !serviceEnabled {
-		return []data.Collection{}, nil
+		return []data.Collection{}, nil, nil
 	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		colls, err := exchange.DataCollections(
+		colls, excludes, err := exchange.DataCollections(
 			ctx,
 			sels,
 			metadata,
@@ -64,7 +65,7 @@ func (gc *GraphConnector) DataCollections(
 			gc.UpdateStatus,
 			ctrlOpts)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, c := range colls {
@@ -79,13 +80,13 @@ func (gc *GraphConnector) DataCollections(
 			}
 		}
 
-		return colls, nil
+		return colls, excludes, nil
 
 	case selectors.ServiceOneDrive:
 		return gc.OneDriveDataCollections(ctx, sels, ctrlOpts)
 
 	case selectors.ServiceSharePoint:
-		colls, err := sharepoint.DataCollections(
+		colls, excludes, err := sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
@@ -94,17 +95,17 @@ func (gc *GraphConnector) DataCollections(
 			gc,
 			ctrlOpts)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for range colls {
 			gc.incrementAwaitingMessages()
 		}
 
-		return colls, nil
+		return colls, excludes, nil
 
 	default:
-		return nil, errors.Errorf("service %s not supported", sels.Service.String())
+		return nil, nil, errors.Errorf("service %s not supported", sels.Service.String())
 	}
 }
 
@@ -182,15 +183,16 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
 	}
 
 	var (
 		user        = selector.DiscreteOwner
 		collections = []data.Collection{}
+		allExcludes = map[string]struct{}{}
 		errs        error
 	)
 
@@ -198,7 +200,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	for _, scope := range odb.Scopes() {
 		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
-		odcs, err := onedrive.NewCollections(
+		odcs, excludes, err := onedrive.NewCollections(
 			gc.itemClient,
 			gc.credentials.AzureTenantID,
 			user,
@@ -209,15 +211,17 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			ctrlOpts,
 		).Get(ctx)
 		if err != nil {
-			return nil, support.WrapAndAppend(user, err, errs)
+			return nil, nil, support.WrapAndAppend(user, err, errs)
 		}
 
 		collections = append(collections, odcs...)
+
+		maps.Copy(allExcludes, excludes)
 	}
 
 	for range collections {
 		gc.incrementAwaitingMessages()
 	}
 
-	return collections, errs
+	return collections, allExcludes, errs
 }

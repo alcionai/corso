@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -31,15 +32,16 @@ func DataCollections(
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
 		site        = b.DiscreteOwner
 		collections = []data.Collection{}
+		allExcludes = map[string]struct{}{}
 		errs        error
 	)
 
@@ -51,7 +53,10 @@ func DataCollections(
 		defer closer()
 		defer close(foldersComplete)
 
-		var spcs []data.Collection
+		var (
+			spcs     []data.Collection
+			excludes map[string]struct{}
+		)
 
 		switch scope.Category().PathType() {
 		case path.ListsCategory:
@@ -63,11 +68,11 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 
 		case path.LibrariesCategory:
-			spcs, err = collectLibraries(
+			spcs, excludes, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -77,15 +82,17 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 		}
 
 		collections = append(collections, spcs...)
 		foldersComplete <- struct{}{}
+
+		maps.Copy(allExcludes, excludes)
 	}
 
-	return collections, errs
+	return collections, allExcludes, errs
 }
 
 func collectLists(
@@ -134,7 +141,7 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	var (
 		collections = []data.Collection{}
 		errs        error
@@ -152,12 +159,12 @@ func collectLibraries(
 		updater.UpdateStatus,
 		ctrlOpts)
 
-	odcs, err := colls.Get(ctx)
+	odcs, excludes, err := colls.Get(ctx)
 	if err != nil {
-		return nil, support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
 
-	return append(collections, odcs...), errs
+	return append(collections, odcs...), excludes, errs
 }
 
 type folderMatcher struct {
