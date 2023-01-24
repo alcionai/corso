@@ -424,8 +424,10 @@ func runRestoreBackupTest(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
+	dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
 	require.NoError(t, err)
+	// No excludes yet because this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
@@ -892,8 +894,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
+			dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
 			require.NoError(t, err)
+			// No excludes yet because this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			t.Log("Backup enumeration complete")
 
