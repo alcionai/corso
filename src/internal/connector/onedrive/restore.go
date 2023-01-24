@@ -214,6 +214,12 @@ func RestoreCollection(
 					restoredIDs[trimmedName] = itemID
 
 					deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
+
+					// Mark it as success without processing .meta
+					// file if we are not restoring permissions
+					if !enablePermissionsRestore {
+						metrics.Successes++
+					}
 				} else if strings.HasSuffix(name, MetaFileSuffix) {
 					if !enablePermissionsRestore {
 						continue
