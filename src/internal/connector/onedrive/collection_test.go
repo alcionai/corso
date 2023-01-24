@@ -84,8 +84,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       OneDriveSource,
 			itemReader: func(
-				context.Context, graph.Servicer,
-				string, models.DriveItemable,
+				context.Context,
+				graph.Servicer,
+				string,
+				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
