@@ -658,29 +658,30 @@ func compareOneDriveItem(
 		return
 	}
 
-	if strings.HasSuffix(name, onedrive.MetaFileSuffix) || strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
-		var (
-			itemMeta     onedrive.Metadata
-			expectedMeta onedrive.Metadata
-		)
-
-		err := json.Unmarshal(buf, &itemMeta)
-		assert.Nil(t, err)
-
-		err = json.Unmarshal(expectedData, &expectedMeta)
-		assert.Nil(t, err)
-		assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
-
-		for i, p := range expectedMeta.Permissions {
-			assert.Equal(t, p.Email, itemMeta.Permissions[i].Email)
-			assert.Equal(t, p.Roles, itemMeta.Permissions[i].Roles)
-			assert.Equal(t, p.Expiration, itemMeta.Permissions[i].Expiration)
-		}
-	} else {
+	if !strings.HasSuffix(name, onedrive.MetaFileSuffix) && !strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
 		// OneDrive data items are just byte buffers of the data. Nothing special to
 		// interpret. May need to do chunked comparisons in the future if we test
 		// large item equality.
 		assert.Equal(t, expectedData, buf)
+		return
+	}
+	
+	var (
+		itemMeta     onedrive.Metadata
+		expectedMeta onedrive.Metadata
+	)
+
+	err := json.Unmarshal(buf, &itemMeta)
+	assert.Nil(t, err)
+
+	err = json.Unmarshal(expectedData, &expectedMeta)
+	assert.Nil(t, err)
+	assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
+
+	for i, p := range expectedMeta.Permissions {
+		assert.Equal(t, p.Email, itemMeta.Permissions[i].Email)
+		assert.Equal(t, p.Roles, itemMeta.Permissions[i].Roles)
+		assert.Equal(t, p.Expiration, itemMeta.Permissions[i].Expiration)
 	}
 }
 
