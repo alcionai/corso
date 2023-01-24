@@ -633,6 +633,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	tester.LogTimeOfTest(suite.T())
+
 	var (
 		t          = suite.T()
 		acct       = tester.NewM365Account(t)
