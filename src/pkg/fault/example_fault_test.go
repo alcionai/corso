@@ -14,7 +14,6 @@ import (
 
 var (
 	ctrl  any
-	anErr error
 	items = []string{}
 )
 
