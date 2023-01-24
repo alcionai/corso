@@ -645,6 +645,7 @@ func compareOneDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
+	restorePermissions bool,
 ) {
 	name := item.UUID()
 
@@ -676,6 +677,12 @@ func compareOneDriveItem(
 
 	err = json.Unmarshal(expectedData, &expectedMeta)
 	assert.Nil(t, err)
+
+	if !restorePermissions {
+		assert.Equal(t, 0, len(itemMeta.Permissions))
+		return
+	}
+
 	assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
 
 	// FIXME(meain): The permissions before and after might not be in the same order.
@@ -692,6 +699,7 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
+	restorePermissions bool,
 ) {
 	if mt, ok := item.(data.StreamModTime); ok {
 		assert.NotZero(t, mt.ModTime())
@@ -711,7 +719,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		compareOneDriveItem(t, expected, item)
+		compareOneDriveItem(t, expected, item, restorePermissions)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
@@ -744,6 +752,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.Collection,
+	restorePermissions bool,
 ) int {
 	collectionsWithItems := []data.Collection{}
 
@@ -778,7 +787,7 @@ func checkCollections(
 				continue
 			}
 
-			compareItem(t, expectedColData, service, category, item)
+			compareItem(t, expectedColData, service, category, item, restorePermissions)
 		}
 
 		if gotItems != startingItems {
