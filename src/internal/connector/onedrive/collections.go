@@ -2,7 +2,9 @@ package onedrive
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -84,6 +86,134 @@ func NewCollections(
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
 	}
+}
+
+func deserializeMetadata(
+	ctx context.Context,
+	cols []data.Collection,
+) (map[string]string, map[string]map[string]string, error) {
+	logger.Ctx(ctx).Infow(
+		"deserialzing previous backup metadata",
+		"num_collections",
+		len(cols),
+	)
+
+	prevDeltas := map[string]string{}
+	prevFolders := map[string]map[string]string{}
+
+	for _, col := range cols {
+		items := col.Items()
+
+		for breakLoop := false; !breakLoop; {
+			select {
+			case <-ctx.Done():
+				return nil, nil, errors.Wrap(ctx.Err(), "deserialzing previous backup metadata")
+
+			case item, ok := <-items:
+				if !ok {
+					// End of collection items.
+					breakLoop = true
+					break
+				}
+
+				var err error
+
+				switch item.UUID() {
+				case graph.PreviousPathFileName:
+					err = deserializeMap(item.ToReader(), prevFolders)
+
+				case graph.DeltaURLsFileName:
+					err = deserializeMap(item.ToReader(), prevDeltas)
+
+				default:
+					logger.Ctx(ctx).Infow(
+						"skipping unknown metadata file",
+						"file_name",
+						item.UUID(),
+					)
+
+					continue
+				}
+
+				if err == nil {
+					// Successful decode.
+					continue
+				}
+
+				// This is conservative, but report an error if any of the items for
+				// any of the deserialized maps have duplicate drive IDs. This will
+				// cause the entire backup to fail, but it's not clear if higher
+				// layers would have caught this. Worst case if we don't handle this
+				// we end up in a situation where we're sourcing items from the wrong
+				// base in kopia wrapper.
+				if errors.Is(err, errExistingMapping) {
+					return nil, nil, errors.Wrapf(
+						err,
+						"deserializing metadata file %s",
+						item.UUID(),
+					)
+				}
+
+				logger.Ctx(ctx).Error(
+					"deserializing base backup metadata. Falling back to full backup for selected drives",
+					"error",
+					err,
+					"file_name",
+					item.UUID(),
+				)
+			}
+		}
+
+		// Go through and remove partial results (i.e. path mapping but no delta URL
+		// or vice-versa).
+		for k := range prevDeltas {
+			if _, ok := prevFolders[k]; !ok {
+				delete(prevDeltas, k)
+			}
+		}
+
+		for k := range prevFolders {
+			if _, ok := prevDeltas[k]; !ok {
+				delete(prevFolders, k)
+			}
+		}
+	}
+
+	return prevDeltas, prevFolders, nil
+}
+
+var errExistingMapping = errors.New("mapping already exists for same drive ID")
+
+// deserializeMap takes an reader and a map of already deserialized items and
+// adds the newly deserialized items to alreadyFound. Items are only added to
+// alreadyFound if none of the keys in the freshly deserialized map already
+// exist in alreadyFound. reader is closed at the end of this function.
+func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) error {
+	defer reader.Close()
+
+	tmp := map[string]T{}
+
+	err := json.NewDecoder(reader).Decode(&tmp)
+	if err != nil {
+		return errors.Wrap(err, "deserializing file contents")
+	}
+
+	var duplicate bool
+
+	for k := range tmp {
+		if _, ok := alreadyFound[k]; ok {
+			duplicate = true
+			break
+		}
+	}
+
+	if duplicate {
+		return errors.WithStack(errExistingMapping)
+	}
+
+	maps.Copy(alreadyFound, tmp)
+
+	return nil
 }
 
 // Retrieves drive data as set of `data.Collections`
