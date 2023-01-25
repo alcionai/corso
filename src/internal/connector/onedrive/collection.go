@@ -172,8 +172,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		errs      error
 		byteCount int64
 		itemsRead int64
-		wg        sync.WaitGroup
 		m         sync.Mutex
+		wg        sync.WaitGroup
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -210,6 +210,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 		wg.Add(1)
 
+		release := func() {
+			wg.Done()
+			<-semaphoreCh
+		}
+
 		go func(item models.DriveItemable) {
 			// Read the item
 			var (
@@ -232,9 +237,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if err != nil {
-				defer wg.Done()
-				defer func() { <-semaphoreCh }()
+				defer release()
 				errUpdater(*item.GetId(), err)
+
 				return
 			}
 
@@ -255,11 +260,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				defer wg.Done()
-				defer func() { <-semaphoreCh }()
+				defer release()
 
 				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName, itemSize)
 				go closer()
+
 				return progReader, nil
 			})
 
