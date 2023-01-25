@@ -224,7 +224,15 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 
 // Retrieves drive data as set of `data.Collections` and a set of item names to
 // be excluded from the upcoming backup.
-func (c *Collections) Get(ctx context.Context) ([]data.Collection, map[string]struct{}, error) {
+func (c *Collections) Get(
+	ctx context.Context,
+	prevMetadata []data.Collection,
+) ([]data.Collection, map[string]struct{}, error) {
+	_, _, err := deserializeMetadata(ctx, prevMetadata)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Enumerate drives for the specified resourceOwner
 	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {

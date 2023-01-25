@@ -152,7 +152,9 @@ func collectLibraries(
 		updater.UpdateStatus,
 		ctrlOpts)
 
-	odcs, excludes, err := colls.Get(ctx)
+	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
+	// token-based incrementals.
+	odcs, excludes, err := colls.Get(ctx, nil)
 	if err != nil {
 		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
