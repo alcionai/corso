@@ -25,7 +25,7 @@ func (m *BetaClient) Admin()(*ie003035fcfa8fa2ed6512191a3ea5bc68bda5b53921bb2c93
     return ie003035fcfa8fa2ed6512191a3ea5bc68bda5b53921bb2c93f27715bb8a253a5.NewAdminRequestBuilderInternal(m.pathParameters, m.requestAdapter);
 }
 // NewBetaClient instantiates a new BetaClient and sets the default values.
-func NewBetaClient(requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter, backingStore *IBackingStoreFactory)(*BetaClient) {
+func NewBetaClient(requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter)(*BetaClient) {
     m := &BetaClient{
     }
     m.pathParameters = make(map[string]string);
@@ -40,7 +40,6 @@ func NewBetaClient(requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa5290
     if m.requestAdapter.GetBaseUrl() == "" {
         m.requestAdapter.SetBaseUrl("https://graph.microsoft.com/beta")
     }
-    m.requestAdapter.EnableBackingStore(backingStore);
     return m
 }
 // Groups the groups property
