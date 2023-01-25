@@ -3,9 +3,9 @@ package sharepoint
 import (
 	"testing"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
