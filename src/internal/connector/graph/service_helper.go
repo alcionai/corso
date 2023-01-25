@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"strings"
 	"time"
 
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -15,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -103,27 +101,4 @@ func (handler *LoggingMiddleware) Intercept(
 	}
 
 	return resp, err
-}
-
-// ---------------------------------------------------------------------------
-// Other Helpers
-// ---------------------------------------------------------------------------
-
-func StringToPathCategory(input string) path.CategoryType {
-	param := strings.ToLower(input)
-
-	switch param {
-	case "email":
-		return path.EmailCategory
-	case "contacts":
-		return path.ContactsCategory
-	case "events":
-		return path.EventsCategory
-	case "files":
-		return path.FilesCategory
-	case "libraries":
-		return path.LibrariesCategory
-	default:
-		return path.UnknownCategory
-	}
 }

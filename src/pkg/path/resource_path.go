@@ -1,6 +1,8 @@
 package path
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -30,7 +32,9 @@ const (
 )
 
 func toServiceType(service string) ServiceType {
-	switch service {
+	s := strings.ToLower(service)
+
+	switch s {
 	case ExchangeService.String():
 		return ExchangeService
 	case OneDriveService.String():
@@ -70,7 +74,9 @@ const (
 )
 
 func ToCategoryType(category string) CategoryType {
-	switch category {
+	cat := strings.ToLower(category)
+
+	switch cat {
 	case EmailCategory.String():
 		return EmailCategory
 	case ContactsCategory.String():
