@@ -217,7 +217,15 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 }
 
 // Retrieves drive data as set of `data.Collections`
-func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
+func (c *Collections) Get(
+	ctx context.Context,
+	prevMetadata []data.Collection,
+) ([]data.Collection, error) {
+	_, _, err := deserializeMetadata(ctx, prevMetadata)
+	if err != nil {
+		return nil, err
+	}
+
 	// Enumerate drives for the specified resourceOwner
 	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
 	if err != nil {

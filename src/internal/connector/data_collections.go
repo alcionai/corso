@@ -82,7 +82,7 @@ func (gc *GraphConnector) DataCollections(
 		return colls, nil
 
 	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels, ctrlOpts)
+		return gc.OneDriveDataCollections(ctx, sels, metadata, ctrlOpts)
 
 	case selectors.ServiceSharePoint:
 		colls, err := sharepoint.DataCollections(
@@ -180,6 +180,7 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func (gc *GraphConnector) OneDriveDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
+	metadata []data.Collection,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
 	odb, err := selector.ToOneDriveBackup()
@@ -205,7 +206,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 			gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
-		).Get(ctx)
+		).Get(ctx, metadata)
 		if err != nil {
 			return nil, support.WrapAndAppend(user, err, errs)
 		}
