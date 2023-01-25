@@ -100,7 +100,7 @@ const (
 	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore file with ID 98765abcdef along with any permissions associated to it
+# Restore file with ID 98765abcdef along with its associated permissions
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
 
 # Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup

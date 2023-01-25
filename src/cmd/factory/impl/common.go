@@ -74,7 +74,7 @@ func generateAndRestoreItems(
 		items:        items,
 	}}
 
-	// TODO: fit the designation to the containers
+	// TODO: fit the destination to the containers
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 

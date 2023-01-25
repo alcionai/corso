@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - OneDrive file/folder permissions can now be backed up and restored
-- Add `--restore-permissions` flag to choose weather to restore OneDrive permissions
+- Add `--restore-permissions` flag to toggle restoration of OneDrive permissions
 
 ### Known Issues
 
