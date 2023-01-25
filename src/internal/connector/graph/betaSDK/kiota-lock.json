@@ -6,7 +6,7 @@
   "clientClassName": "BetaClient",
   "clientNamespaceName": "BetaSdk",
   "language": "Go",
-  "usesBackingStore": true,
+  "usesBackingStore": false,
   "includeAdditionalData": true,
   "serializers": [
     "Microsoft.Kiota.Serialization.Json.JsonSerializationWriterFactory",
