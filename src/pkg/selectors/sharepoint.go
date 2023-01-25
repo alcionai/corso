@@ -224,7 +224,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 		scopes,
 		makeScope[SharePointScope](SharePointLibrary, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
-		makeScope[SharePointScope](SharePointPage, Any()),
+		makeScope[SharePointScope](SharePointPageFolder, Any()),
 	)
 
 	return scopes
@@ -323,7 +323,7 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 	scopes = append(
 		scopes,
 		makeScope[SharePointScope](SharePointPage, items).
-			set(SharePointPage, pages, opts...),
+			set(SharePointPageFolder, pages, opts...),
 	)
 
 	return scopes
