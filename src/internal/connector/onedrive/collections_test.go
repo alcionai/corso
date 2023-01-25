@@ -559,6 +559,23 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
+		{
+			testCase: "delete file",
+			items: []models.DriveItemable{
+				delItem("item", testBaseDrivePath, true, false, false),
+			},
+			inputFolderMap:          map[string]string{},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       1,
+			expectedFileCount:       1,
+			expectedContainerCount:  0,
+			expectedMetadataPaths:   map[string]string{},
+			expectedExcludes: map[string]struct{}{
+				"item": {},
+			},
+		},
 	}
 
 	for _, tt := range tests {
