@@ -170,6 +170,7 @@ type itemCollector func(
 	driveItems []models.DriveItemable,
 	oldPaths map[string]string,
 	newPaths map[string]string,
+	excluded map[string]struct{},
 ) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
@@ -179,13 +180,14 @@ func collectItems(
 	service graph.Servicer,
 	driveID, driveName string,
 	collector itemCollector,
-) (string, map[string]string, error) {
+) (string, map[string]string, map[string]struct{}, error) {
 	var (
 		newDeltaURL = ""
 		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
 		// take in previous paths.
 		oldPaths = map[string]string{}
 		newPaths = map[string]string{}
+		excluded = map[string]struct{}{}
 	)
 
 	maps.Copy(newPaths, oldPaths)
@@ -219,16 +221,16 @@ func collectItems(
 	for {
 		r, err := builder.Get(ctx, requestConfig)
 		if err != nil {
-			return "", nil, errors.Wrapf(
+			return "", nil, nil, errors.Wrapf(
 				err,
 				"failed to query drive items. details: %s",
 				support.ConnectorStackErrorTrace(err),
 			)
 		}
 
-		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths)
+		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths, excluded)
 		if err != nil {
-			return "", nil, err
+			return "", nil, nil, err
 		}
 
 		if r.GetOdataDeltaLink() != nil && len(*r.GetOdataDeltaLink()) > 0 {
@@ -245,7 +247,7 @@ func collectItems(
 		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
-	return newDeltaURL, newPaths, nil
+	return newDeltaURL, newPaths, excluded, nil
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
@@ -352,7 +354,7 @@ func GetAllFolders(
 	folders := map[string]*Displayable{}
 
 	for _, d := range drives {
-		_, _, err = collectItems(
+		_, _, _, err = collectItems(
 			ctx,
 			gs,
 			*d.GetId(),
@@ -363,6 +365,7 @@ func GetAllFolders(
 				items []models.DriveItemable,
 				oldPaths map[string]string,
 				newPaths map[string]string,
+				excluded map[string]struct{},
 			) error {
 				for _, item := range items {
 					// Skip the root item.
