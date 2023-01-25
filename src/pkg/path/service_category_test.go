@@ -1,6 +1,7 @@
 package path
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,6 +73,14 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			service:  ExchangeService.String(),
 			category: "foo",
 			check:    assert.Error,
+		},
+		{
+			name:             "DifferentCases",
+			service:          strings.ToUpper(ExchangeService.String()),
+			category:         strings.ToUpper(EmailCategory.String()),
+			expectedService:  ExchangeService,
+			expectedCategory: EmailCategory,
+			check:            assert.NoError,
 		},
 		{
 			name:             "ExchangeEmail",

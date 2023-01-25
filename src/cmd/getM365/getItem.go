@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -96,7 +95,7 @@ func runDisplayM365JSON(
 	var (
 		bs  []byte
 		err error
-		cat = graph.StringToPathCategory(category)
+		cat = path.ToCategoryType(category)
 		sw  = kw.NewJsonSerializationWriter()
 	)
 
