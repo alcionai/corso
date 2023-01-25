@@ -7,6 +7,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -98,6 +99,10 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
+		// Items that should be excluded when sourcing data from the base backup.
+		// Note that it's not safe to enable passing this list to kopia until we
+		// have unique file names for each item (i.e. use M365 ID for file names).
+		excludedItems = map[string]struct{}{}
 	)
 
 	// Update the collection map with items from each drive
@@ -105,7 +110,13 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		driveID := *d.GetId()
 		driveName := *d.GetName()
 
-		delta, paths, err := collectItems(ctx, c.service, driveID, driveName, c.UpdateCollections)
+		delta, paths, excluded, err := collectItems(
+			ctx,
+			c.service,
+			driveID,
+			driveName,
+			c.UpdateCollections,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -121,6 +132,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 				folderPaths[driveID][id] = p
 			}
 		}
+
+		maps.Copy(excludedItems, excluded)
 	}
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
@@ -171,6 +184,7 @@ func (c *Collections) UpdateCollections(
 	items []models.DriveItemable,
 	oldPaths map[string]string,
 	newPaths map[string]string,
+	excluded map[string]struct{},
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -231,6 +245,19 @@ func (c *Collections) UpdateCollections(
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
 		case item.GetFile() != nil:
+			if item.GetDeleted() != nil {
+				excluded[*item.GetId()] = struct{}{}
+				// Exchange counts items streamed through it which includes deletions so
+				// add that here too.
+				c.NumFiles++
+				c.NumItems++
+
+				continue
+			}
+
+			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
+			// the exclude list.
+
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
