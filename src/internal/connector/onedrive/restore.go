@@ -31,7 +31,10 @@ const (
 	copyBufferSize = 5 * 1024 * 1024
 )
 
-func getParentPermissions(parentPath path.Path, parentPermissions map[string][]UserPermission) ([]UserPermission, error) {
+func getParentPermissions(
+	parentPath path.Path,
+	parentPermissions map[string][]UserPermission,
+) ([]UserPermission, error) {
 	parentPerms, ok := parentPermissions[parentPath.String()]
 	if !ok {
 		onedrivePath, err := path.ToOneDrivePath(parentPath)
@@ -39,13 +42,13 @@ func getParentPermissions(parentPath path.Path, parentPermissions map[string][]U
 			return nil, errors.Wrap(err, "invalid restore path")
 		}
 
-		if len(onedrivePath.Folders) == 0 {
-			// root directory will not have permissions
-			parentPerms = []UserPermission{}
-		} else {
+		if len(onedrivePath.Folders) != 0 {
 			return nil, errors.Wrap(err, "unable to find parent permissions")
 		}
+
+		parentPerms = []UserPermission{}
 	}
+
 	return parentPerms, nil
 }
 
@@ -88,6 +91,7 @@ func RestoreCollections(
 			parentPerms []UserPermission
 			err         error
 		)
+
 		if opts.RestorePermissions {
 			parentPerms, err = getParentPermissions(dc.FullPath(), parentPermissions)
 			if err != nil {
