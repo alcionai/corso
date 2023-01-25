@@ -463,7 +463,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service,
 				service.updateStatus,
 				control.Options{},
-			).Get(ctx)
+			).Get(ctx, nil)
 			assert.NoError(t, err)
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
