@@ -100,8 +100,10 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
 		// Items that should be excluded when sourcing data from the base backup.
-		// Note that it's not safe to enable passing this list to kopia until we
-		// have unique file names for each item (i.e. use M365 ID for file names).
+		// TODO(ashmrtn): This list contains the M365 IDs of deleted items so while
+		// it's technically safe to pass all the way through to kopia (files are
+		// unlikely to be named their M365 ID) we should wait to do that until we've
+		// switched to using those IDs for file names in kopia.
 		excludedItems = map[string]struct{}{}
 	)
 
