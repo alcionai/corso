@@ -11,8 +11,8 @@ const (
 	LibraryFN     = "library"
 	ListItemFN    = "list-item"
 	ListFN        = "list"
-	PageFN        = "page"
-	PageItemFN    = "page-item"
+	PageFolderFN  = "page-folders"
+	PagesFN       = "pages"
 	WebURLFN      = "web-url"
 )
 
