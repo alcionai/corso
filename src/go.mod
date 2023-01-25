@@ -9,11 +9,12 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
-	github.com/microsoft/kiota-abstractions-go v0.15.2
-	github.com/microsoft/kiota-authentication-azure-go v0.5.0
-	github.com/microsoft/kiota-http-go v0.11.0
+	github.com/microsoft/kiota-abstractions-go v0.16.0
+	github.com/microsoft/kiota-authentication-azure-go v0.6.0
+	github.com/microsoft/kiota-http-go v0.13.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
 	github.com/microsoftgraph/msgraph-beta-sdk-go v0.53.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
