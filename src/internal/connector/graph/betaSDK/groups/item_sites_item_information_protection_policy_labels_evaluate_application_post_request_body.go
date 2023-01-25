@@ -7,14 +7,17 @@ import (
 
 // ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody provides operations to call the evaluateApplication method.
 type ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The contentInfo property
+    contentInfo ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable
+    // The labelingOptions property
+    labelingOptions ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.LabelingOptionsable
 }
 // NewItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody instantiates a new ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody and sets the default values.
 func NewItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody()(*ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) {
     m := &ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,20 +27,11 @@ func CreateItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPost
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetContentInfo gets the contentInfo property value. The contentInfo property
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) GetContentInfo()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable) {
-    return m.GetBackingStore().Get("contentInfo");
+    return m.contentInfo
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -48,7 +42,7 @@ func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRe
             return err
         }
         if val != nil {
-            m.SetContentInfo(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfo))
+            m.SetContentInfo(val.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable))
         }
         return nil
     }
@@ -58,7 +52,7 @@ func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRe
             return err
         }
         if val != nil {
-            m.SetLabelingOptions(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.LabelingOptions))
+            m.SetLabelingOptions(val.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.LabelingOptionsable))
         }
         return nil
     }
@@ -66,7 +60,7 @@ func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRe
 }
 // GetLabelingOptions gets the labelingOptions property value. The labelingOptions property
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) GetLabelingOptions()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.LabelingOptionsable) {
-    return m.GetBackingStore().Get("labelingOptions");
+    return m.labelingOptions
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -82,21 +76,23 @@ func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRe
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetContentInfo sets the contentInfo property value. The contentInfo property
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) SetContentInfo(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable)() {
-    m.GetBackingStore().Set("contentInfo", value)
+    m.contentInfo = value
 }
 // SetLabelingOptions sets the labelingOptions property value. The labelingOptions property
 func (m *ItemSitesItemInformationProtectionPolicyLabelsEvaluateApplicationPostRequestBody) SetLabelingOptions(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.LabelingOptionsable)() {
-    m.GetBackingStore().Set("labelingOptions", value)
+    m.labelingOptions = value
 }

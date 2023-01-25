@@ -7,14 +7,15 @@ import (
 
 // ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody provides operations to call the onenotePatchContent method.
 type ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The commands property
+    commands []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommandable
 }
 // NewItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody instantiates a new ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody and sets the default values.
 func NewItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody()(*ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) {
     m := &ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,20 +25,11 @@ func CreateItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBodyFromDi
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetCommands gets the commands property value. The commands property
 func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) GetCommands()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommandable) {
-    return m.GetBackingStore().Get("commands");
+    return m.commands
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -48,9 +40,9 @@ func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) GetFie
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommand, len(val))
+            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommandable, len(val))
             for i, v := range val {
-                res[i] = *(v.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommand))
+                res[i] = v.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommandable)
             }
             m.SetCommands(res)
         }
@@ -63,10 +55,15 @@ func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) Serial
     if m.GetCommands() != nil {
         cast := make([]i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, len(m.GetCommands()))
         for i, v := range m.GetCommands() {
-            temp := v
-            cast[i] = i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable(&temp)
+            cast[i] = v.(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable)
         }
         err := writer.WriteCollectionOfObjectValues("commands", cast)
+        if err != nil {
+            return err
+        }
+    }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
         if err != nil {
             return err
         }
@@ -75,13 +72,9 @@ func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) Serial
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetCommands sets the commands property value. The commands property
 func (m *ItemSitesItemOnenotePagesItemOnenotePatchContentPostRequestBody) SetCommands(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.OnenotePatchContentCommandable)() {
-    m.GetBackingStore().Set("commands", value)
+    m.commands = value
 }

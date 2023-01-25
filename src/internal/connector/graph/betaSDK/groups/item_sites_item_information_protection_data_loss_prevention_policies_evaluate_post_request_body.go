@@ -7,14 +7,19 @@ import (
 
 // ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody provides operations to call the evaluate method.
 type ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The evaluationInput property
+    evaluationInput ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpEvaluationInputable
+    // The notificationInfo property
+    notificationInfo ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpNotificationable
+    // The target property
+    target *string
 }
 // NewItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody instantiates a new ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody and sets the default values.
 func NewItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody()(*ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) {
     m := &ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,20 +29,11 @@ func CreateItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluateP
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetEvaluationInput gets the evaluationInput property value. The evaluationInput property
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) GetEvaluationInput()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpEvaluationInputable) {
-    return m.GetBackingStore().Get("evaluationInput");
+    return m.evaluationInput
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -48,7 +44,7 @@ func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePos
             return err
         }
         if val != nil {
-            m.SetEvaluationInput(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpEvaluationInput))
+            m.SetEvaluationInput(val.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpEvaluationInputable))
         }
         return nil
     }
@@ -58,7 +54,7 @@ func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePos
             return err
         }
         if val != nil {
-            m.SetNotificationInfo(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpNotification))
+            m.SetNotificationInfo(val.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpNotificationable))
         }
         return nil
     }
@@ -76,11 +72,11 @@ func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePos
 }
 // GetNotificationInfo gets the notificationInfo property value. The notificationInfo property
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) GetNotificationInfo()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpNotificationable) {
-    return m.GetBackingStore().Get("notificationInfo");
+    return m.notificationInfo
 }
 // GetTarget gets the target property value. The target property
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) GetTarget()(*string) {
-    return m.GetBackingStore().Get("target");
+    return m.target
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -102,25 +98,27 @@ func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePos
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetEvaluationInput sets the evaluationInput property value. The evaluationInput property
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) SetEvaluationInput(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpEvaluationInputable)() {
-    m.GetBackingStore().Set("evaluationInput", value)
+    m.evaluationInput = value
 }
 // SetNotificationInfo sets the notificationInfo property value. The notificationInfo property
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) SetNotificationInfo(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DlpNotificationable)() {
-    m.GetBackingStore().Set("notificationInfo", value)
+    m.notificationInfo = value
 }
 // SetTarget sets the target property value. The target property
 func (m *ItemSitesItemInformationProtectionDataLossPreventionPoliciesEvaluatePostRequestBody) SetTarget(value *string)() {
-    m.GetBackingStore().Set("target", value)
+    m.target = value
 }

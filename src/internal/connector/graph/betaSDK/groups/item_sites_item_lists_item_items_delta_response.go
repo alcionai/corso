@@ -8,6 +8,8 @@ import (
 // ItemSitesItemListsItemItemsDeltaResponse provides operations to call the delta method.
 type ItemSitesItemListsItemItemsDeltaResponse struct {
     ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.BaseDeltaFunctionResponse
+    // The value property
+    value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItemable
 }
 // NewItemSitesItemListsItemItemsDeltaResponse instantiates a new ItemSitesItemListsItemItemsDeltaResponse and sets the default values.
 func NewItemSitesItemListsItemItemsDeltaResponse()(*ItemSitesItemListsItemItemsDeltaResponse) {
@@ -29,9 +31,9 @@ func (m *ItemSitesItemListsItemItemsDeltaResponse) GetFieldDeserializers()(map[s
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItem, len(val))
+            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItemable, len(val))
             for i, v := range val {
-                res[i] = *(v.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItem))
+                res[i] = v.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItemable)
             }
             m.SetValue(res)
         }
@@ -41,7 +43,7 @@ func (m *ItemSitesItemListsItemItemsDeltaResponse) GetFieldDeserializers()(map[s
 }
 // GetValue gets the value property value. The value property
 func (m *ItemSitesItemListsItemItemsDeltaResponse) GetValue()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItemable) {
-    return m.GetBackingStore().Get("value");
+    return m.value
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemListsItemItemsDeltaResponse) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -52,8 +54,7 @@ func (m *ItemSitesItemListsItemItemsDeltaResponse) Serialize(writer i878a80d2330
     if m.GetValue() != nil {
         cast := make([]i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, len(m.GetValue()))
         for i, v := range m.GetValue() {
-            temp := v
-            cast[i] = i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable(&temp)
+            cast[i] = v.(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable)
         }
         err = writer.WriteCollectionOfObjectValues("value", cast)
         if err != nil {
@@ -64,5 +65,5 @@ func (m *ItemSitesItemListsItemItemsDeltaResponse) Serialize(writer i878a80d2330
 }
 // SetValue sets the value property value. The value property
 func (m *ItemSitesItemListsItemItemsDeltaResponse) SetValue(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ListItemable)() {
-    m.GetBackingStore().Set("value", value)
+    m.value = value
 }

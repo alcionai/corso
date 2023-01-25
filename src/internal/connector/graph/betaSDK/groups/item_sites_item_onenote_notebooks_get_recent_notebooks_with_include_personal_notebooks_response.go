@@ -8,6 +8,8 @@ import (
 // ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse provides operations to call the getRecentNotebooks method.
 type ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse struct {
     ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.BaseCollectionPaginationCountResponse
+    // The value property
+    value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebookable
 }
 // NewItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse instantiates a new ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse and sets the default values.
 func NewItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse()(*ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse) {
@@ -29,9 +31,9 @@ func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNoteb
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebook, len(val))
+            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebookable, len(val))
             for i, v := range val {
-                res[i] = *(v.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebook))
+                res[i] = v.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebookable)
             }
             m.SetValue(res)
         }
@@ -41,7 +43,7 @@ func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNoteb
 }
 // GetValue gets the value property value. The value property
 func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse) GetValue()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebookable) {
-    return m.GetBackingStore().Get("value");
+    return m.value
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -52,8 +54,7 @@ func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNoteb
     if m.GetValue() != nil {
         cast := make([]i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, len(m.GetValue()))
         for i, v := range m.GetValue() {
-            temp := v
-            cast[i] = i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable(&temp)
+            cast[i] = v.(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable)
         }
         err = writer.WriteCollectionOfObjectValues("value", cast)
         if err != nil {
@@ -64,5 +65,5 @@ func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNoteb
 }
 // SetValue sets the value property value. The value property
 func (m *ItemSitesItemOnenoteNotebooksGetRecentNotebooksWithIncludePersonalNotebooksResponse) SetValue(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.RecentNotebookable)() {
-    m.GetBackingStore().Set("value", value)
+    m.value = value
 }

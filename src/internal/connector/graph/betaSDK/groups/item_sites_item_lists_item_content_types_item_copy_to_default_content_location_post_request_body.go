@@ -7,14 +7,17 @@ import (
 
 // ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody provides operations to call the copyToDefaultContentLocation method.
 type ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The destinationFileName property
+    destinationFileName *string
+    // The sourceFile property
+    sourceFile ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable
 }
 // NewItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody instantiates a new ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody and sets the default values.
 func NewItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody()(*ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) {
     m := &ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,20 +27,11 @@ func CreateItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPos
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetDestinationFileName gets the destinationFileName property value. The destinationFileName property
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetDestinationFileName()(*string) {
-    return m.GetBackingStore().Get("destinationFileName");
+    return m.destinationFileName
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -58,7 +52,7 @@ func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostR
             return err
         }
         if val != nil {
-            m.SetSourceFile(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReference))
+            m.SetSourceFile(val.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable))
         }
         return nil
     }
@@ -66,7 +60,7 @@ func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostR
 }
 // GetSourceFile gets the sourceFile property value. The sourceFile property
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetSourceFile()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable) {
-    return m.GetBackingStore().Get("sourceFile");
+    return m.sourceFile
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -82,21 +76,23 @@ func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostR
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetDestinationFileName sets the destinationFileName property value. The destinationFileName property
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) SetDestinationFileName(value *string)() {
-    m.GetBackingStore().Set("destinationFileName", value)
+    m.destinationFileName = value
 }
 // SetSourceFile sets the sourceFile property value. The sourceFile property
 func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) SetSourceFile(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable)() {
-    m.GetBackingStore().Set("sourceFile", value)
+    m.sourceFile = value
 }

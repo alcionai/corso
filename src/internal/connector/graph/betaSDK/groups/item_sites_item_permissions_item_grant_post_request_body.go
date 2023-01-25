@@ -7,14 +7,17 @@ import (
 
 // ItemSitesItemPermissionsItemGrantPostRequestBody provides operations to call the grant method.
 type ItemSitesItemPermissionsItemGrantPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The recipients property
+    recipients []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable
+    // The roles property
+    roles []string
 }
 // NewItemSitesItemPermissionsItemGrantPostRequestBody instantiates a new ItemSitesItemPermissionsItemGrantPostRequestBody and sets the default values.
 func NewItemSitesItemPermissionsItemGrantPostRequestBody()(*ItemSitesItemPermissionsItemGrantPostRequestBody) {
     m := &ItemSitesItemPermissionsItemGrantPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,16 +27,7 @@ func CreateItemSitesItemPermissionsItemGrantPostRequestBodyFromDiscriminatorValu
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -44,9 +38,9 @@ func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetFieldDeserializers
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipient, len(val))
+            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable, len(val))
             for i, v := range val {
-                res[i] = *(v.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipient))
+                res[i] = v.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable)
             }
             m.SetRecipients(res)
         }
@@ -70,19 +64,18 @@ func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetFieldDeserializers
 }
 // GetRecipients gets the recipients property value. The recipients property
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetRecipients()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable) {
-    return m.GetBackingStore().Get("recipients");
+    return m.recipients
 }
 // GetRoles gets the roles property value. The roles property
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) GetRoles()([]string) {
-    return m.GetBackingStore().Get("roles");
+    return m.roles
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
     if m.GetRecipients() != nil {
         cast := make([]i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, len(m.GetRecipients()))
         for i, v := range m.GetRecipients() {
-            temp := v
-            cast[i] = i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable(&temp)
+            cast[i] = v.(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable)
         }
         err := writer.WriteCollectionOfObjectValues("recipients", cast)
         if err != nil {
@@ -95,21 +88,23 @@ func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) Serialize(writer i878
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetRecipients sets the recipients property value. The recipients property
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) SetRecipients(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable)() {
-    m.GetBackingStore().Set("recipients", value)
+    m.recipients = value
 }
 // SetRoles sets the roles property value. The roles property
 func (m *ItemSitesItemPermissionsItemGrantPostRequestBody) SetRoles(value []string)() {
-    m.GetBackingStore().Set("roles", value)
+    m.roles = value
 }

@@ -6,14 +6,17 @@ import (
 
 // ItemSitesItemInformationProtectionDecryptBufferPostRequestBody provides operations to call the decryptBuffer method.
 type ItemSitesItemInformationProtectionDecryptBufferPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The encryptedBuffer property
+    encryptedBuffer []byte
+    // The publishingLicense property
+    publishingLicense []byte
 }
 // NewItemSitesItemInformationProtectionDecryptBufferPostRequestBody instantiates a new ItemSitesItemInformationProtectionDecryptBufferPostRequestBody and sets the default values.
 func NewItemSitesItemInformationProtectionDecryptBufferPostRequestBody()(*ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) {
     m := &ItemSitesItemInformationProtectionDecryptBufferPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -23,20 +26,11 @@ func CreateItemSitesItemInformationProtectionDecryptBufferPostRequestBodyFromDis
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetEncryptedBuffer gets the encryptedBuffer property value. The encryptedBuffer property
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) GetEncryptedBuffer()([]byte) {
-    return m.GetBackingStore().Get("encryptedBuffer");
+    return m.encryptedBuffer
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -65,7 +59,7 @@ func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) GetFiel
 }
 // GetPublishingLicense gets the publishingLicense property value. The publishingLicense property
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) GetPublishingLicense()([]byte) {
-    return m.GetBackingStore().Get("publishingLicense");
+    return m.publishingLicense
 }
 // Serialize serializes information the current object
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -81,21 +75,23 @@ func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) Seriali
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetEncryptedBuffer sets the encryptedBuffer property value. The encryptedBuffer property
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) SetEncryptedBuffer(value []byte)() {
-    m.GetBackingStore().Set("encryptedBuffer", value)
+    m.encryptedBuffer = value
 }
 // SetPublishingLicense sets the publishingLicense property value. The publishingLicense property
 func (m *ItemSitesItemInformationProtectionDecryptBufferPostRequestBody) SetPublishingLicense(value []byte)() {
-    m.GetBackingStore().Set("publishingLicense", value)
+    m.publishingLicense = value
 }
