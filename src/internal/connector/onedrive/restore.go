@@ -31,6 +31,24 @@ const (
 	copyBufferSize = 5 * 1024 * 1024
 )
 
+func getParentPermissions(parentPath path.Path, parentPermissions map[string][]UserPermission) ([]UserPermission, error) {
+	parentPerms, ok := parentPermissions[parentPath.String()]
+	if !ok {
+		onedrivePath, err := path.ToOneDrivePath(parentPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid restore path")
+		}
+
+		if len(onedrivePath.Folders) == 0 {
+			// root directory will not have permissions
+			parentPerms = []UserPermission{}
+		} else {
+			return nil, errors.Wrap(err, "unable to find parent permissions")
+		}
+	}
+	return parentPerms, nil
+}
+
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
@@ -46,8 +64,6 @@ func RestoreCollections(
 		metrics        support.CollectionMetrics
 		folderPerms    map[string][]UserPermission
 		canceled       bool
-		parentPerms    []UserPermission
-		ok             bool
 
 		// permissionIDMappings is used to map between old and new id
 		// of permissions as we restore them
@@ -68,20 +84,14 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
+		var (
+			parentPerms []UserPermission
+			err         error
+		)
 		if opts.RestorePermissions {
-			parentPerms, ok = parentPermissions[dc.FullPath().String()]
-			if !ok {
-				onedrivePath, err := path.ToOneDrivePath(dc.FullPath())
-				if err != nil {
-					errUpdater(dc.FullPath().String(), fmt.Errorf("invalid restore path"))
-				}
-
-				if len(onedrivePath.Folders) == 0 {
-					// root directory will not have permissions
-					parentPerms = []UserPermission{}
-				} else {
-					errUpdater(dc.FullPath().String(), fmt.Errorf("unable to find parent permissions"))
-				}
+			parentPerms, err = getParentPermissions(dc.FullPath(), parentPermissions)
+			if err != nil {
+				errUpdater(dc.FullPath().String(), err)
 			}
 		}
 
@@ -133,7 +143,7 @@ func RestoreCollection(
 	deets *details.Builder,
 	errUpdater func(string, error),
 	permissionIDMappings map[string]string,
-	enablePermissionsRestore bool,
+	restorePerms bool,
 ) (support.CollectionMetrics, map[string][]UserPermission, map[string]string, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
@@ -217,11 +227,11 @@ func RestoreCollection(
 
 					// Mark it as success without processing .meta
 					// file if we are not restoring permissions
-					if !enablePermissionsRestore {
+					if !restorePerms {
 						metrics.Successes++
 					}
 				} else if strings.HasSuffix(name, MetaFileSuffix) {
-					if !enablePermissionsRestore {
+					if !restorePerms {
 						continue
 					}
 
@@ -271,7 +281,7 @@ func RestoreCollection(
 						continue
 					}
 
-					if !enablePermissionsRestore {
+					if !restorePerms {
 						continue
 					}
 
