@@ -29,7 +29,7 @@ import (
 
 const (
 	oneDriveServiceCommand                 = "onedrive"
-	oneDriveServiceCommandCreateUseSuffix  = "--user <userId or email> | '" + utils.Wildcard + "'"
+	oneDriveServiceCommandCreateUseSuffix  = "--user <email> | '" + utils.Wildcard + "'"
 	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -85,7 +85,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(&user,
 			utils.UserFN, nil,
-			"Backup OneDrive data by user ID; accepts '"+utils.Wildcard+"' to select all users. (required)")
+			"Backup OneDrive data by user's email address; accepts '"+utils.Wildcard+"' to select all users. (required)")
 		options.AddOperationFlags(c)
 
 	case listCommand:

@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -167,7 +168,8 @@ type itemCollector func(
 	ctx context.Context,
 	driveID, driveName string,
 	driveItems []models.DriveItemable,
-	paths map[string]string,
+	oldPaths map[string]string,
+	newPaths map[string]string,
 ) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
@@ -182,8 +184,11 @@ func collectItems(
 		newDeltaURL = ""
 		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
 		// take in previous paths.
-		paths = map[string]string{}
+		oldPaths = map[string]string{}
+		newPaths = map[string]string{}
 	)
+
+	maps.Copy(newPaths, oldPaths)
 
 	// TODO: Specify a timestamp in the delta query
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
@@ -221,7 +226,7 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, driveName, r.GetValue(), paths)
+		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths)
 		if err != nil {
 			return "", nil, err
 		}
@@ -240,7 +245,7 @@ func collectItems(
 		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
-	return newDeltaURL, paths, nil
+	return newDeltaURL, newPaths, nil
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
@@ -356,7 +361,8 @@ func GetAllFolders(
 				innerCtx context.Context,
 				driveID, driveName string,
 				items []models.DriveItemable,
-				paths map[string]string,
+				oldPaths map[string]string,
+				newPaths map[string]string,
 			) error {
 				for _, item := range items {
 					// Skip the root item.

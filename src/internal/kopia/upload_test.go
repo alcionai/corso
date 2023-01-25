@@ -468,7 +468,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 
 					for k, v := range ci {
 						if cachedTest.cached {
-							cp.CachedFile(k, 42)
+							cp.CachedFile(k, v.totalBytes)
 						}
 
 						cp.FinishedFile(k, v.err)
@@ -487,6 +487,38 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 			}
 		})
 	}
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
+	t := suite.T()
+	bd := &details.Builder{}
+	cachedItems := map[string]testInfo{
+		suite.targetFileName: {
+			info:       &itemDetails{info: nil, repoPath: suite.targetFilePath},
+			err:        nil,
+			totalBytes: 100,
+		},
+	}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+	}
+
+	for k, v := range cachedItems {
+		cp.put(k, v.info)
+	}
+
+	require.Len(t, cp.pending, len(cachedItems))
+
+	for k, v := range cachedItems {
+		cp.CachedFile(k, v.totalBytes)
+		cp.FinishedFile(k, v.err)
+	}
+
+	assert.Empty(t, cp.pending)
+	assert.Empty(t, bd.Details().Entries)
+	assert.Error(t, cp.errs.ErrorOrNil())
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
@@ -995,7 +1027,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(testFileName)[0],
 							time.Time{},
-							bytes.NewReader(testFileData),
+							io.NopCloser(bytes.NewReader(testFileData)),
 						),
 					},
 				),
@@ -1301,7 +1333,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(inboxFileName1)[0],
 							time.Time{},
-							bytes.NewReader(inboxFileData1),
+							io.NopCloser(bytes.NewReader(inboxFileData1)),
 						),
 						virtualfs.NewStaticDirectory(
 							encodeElements(personalDir)[0],
@@ -1309,12 +1341,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName1)[0],
 									time.Time{},
-									bytes.NewReader(testFileData),
+									io.NopCloser(bytes.NewReader(testFileData)),
 								),
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName2)[0],
 									time.Time{},
-									bytes.NewReader(testFileData2),
+									io.NopCloser(bytes.NewReader(testFileData2)),
 								),
 							},
 						),
@@ -1324,7 +1356,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(workFileName1)[0],
 									time.Time{},
-									bytes.NewReader(testFileData3),
+									io.NopCloser(bytes.NewReader(testFileData3)),
 								),
 							},
 						),
@@ -1941,7 +1973,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName)[0],
 									time.Time{},
-									bytes.NewReader(testFileData),
+									io.NopCloser(bytes.NewReader(testFileData)),
 								),
 							},
 						),
@@ -1951,7 +1983,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName2)[0],
 									time.Time{},
-									bytes.NewReader(testFileData2),
+									io.NopCloser(bytes.NewReader(testFileData2)),
 								),
 							},
 						),
@@ -1966,7 +1998,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName3)[0],
 									time.Time{},
-									bytes.NewReader(testFileData3),
+									io.NopCloser(bytes.NewReader(testFileData3)),
 								),
 							},
 						),
@@ -1976,7 +2008,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName4)[0],
 									time.Time{},
-									bytes.NewReader(testFileData4),
+									io.NopCloser(bytes.NewReader(testFileData4)),
 								),
 							},
 						),
@@ -2123,7 +2155,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
-									bytes.NewReader(inboxFileData1),
+									io.NopCloser(bytes.NewReader(inboxFileData1)),
 								),
 							},
 						),
@@ -2138,7 +2170,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
-									bytes.NewReader(contactsFileData1),
+									io.NopCloser(bytes.NewReader(contactsFileData1)),
 								),
 							},
 						),
@@ -2196,7 +2228,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(eventsFileName1)[0],
 									time.Time{},
-									bytes.NewReader(eventsFileData1),
+									io.NopCloser(bytes.NewReader(eventsFileData1)),
 								),
 							},
 						),
