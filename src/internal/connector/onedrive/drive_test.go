@@ -153,7 +153,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service,
 				service.updateStatus,
 				control.Options{},
-			).Get(ctx)
+			).Get(ctx, nil)
 			assert.NoError(t, err)
 
 			for _, entry := range odcs {
