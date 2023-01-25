@@ -2,8 +2,8 @@ package groups
 
 import (
     i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e "time"
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody provides operations to call the createLink method.
@@ -15,7 +15,7 @@ type ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody struct {
     // The password property
     password *string
     // The recipients property
-    recipients []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable
+    recipients []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable
     // The retainInheritedPermissions property
     retainInheritedPermissions *bool
     // The scope property
@@ -66,14 +66,14 @@ func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) GetFieldDeser
         return nil
     }
     res["recipients"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetCollectionOfObjectValues(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateDriveRecipientFromDiscriminatorValue)
+        val, err := n.GetCollectionOfObjectValues(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateDriveRecipientFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable, len(val))
+            res := make([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable, len(val))
             for i, v := range val {
-                res[i] = v.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable)
+                res[i] = v.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable)
             }
             m.SetRecipients(res)
         }
@@ -116,7 +116,7 @@ func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) GetPassword()
     return m.password
 }
 // GetRecipients gets the recipients property value. The recipients property
-func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) GetRecipients()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable) {
+func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) GetRecipients()([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable) {
     return m.recipients
 }
 // GetRetainInheritedPermissions gets the retainInheritedPermissions property value. The retainInheritedPermissions property
@@ -194,7 +194,7 @@ func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) SetPassword(v
     m.password = value
 }
 // SetRecipients sets the recipients property value. The recipients property
-func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) SetRecipients(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable)() {
+func (m *ItemSitesItemListsItemItemsItemCreateLinkPostRequestBody) SetRecipients(value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable)() {
     m.recipients = value
 }
 // SetRetainInheritedPermissions sets the retainInheritedPermissions property value. The retainInheritedPermissions property

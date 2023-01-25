@@ -4,7 +4,7 @@
   "lockFileVersion": "1.0.0",
   "kiotaVersion": "1.0.0.0",
   "clientClassName": "BetaClient",
-  "clientNamespaceName": "BetaSdk",
+  "clientNamespaceName": "github.com/alcionai/corso/src/internal/connector/graph/betasdk",
   "language": "Go",
   "usesBackingStore": false,
   "includeAdditionalData": true,

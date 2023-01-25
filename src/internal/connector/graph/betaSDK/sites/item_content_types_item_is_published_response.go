@@ -6,14 +6,15 @@ import (
 
 // ItemContentTypesItemIsPublishedResponse provides operations to call the isPublished method.
 type ItemContentTypesItemIsPublishedResponse struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The value property
+    value *bool
 }
 // NewItemContentTypesItemIsPublishedResponse instantiates a new ItemContentTypesItemIsPublishedResponse and sets the default values.
 func NewItemContentTypesItemIsPublishedResponse()(*ItemContentTypesItemIsPublishedResponse) {
     m := &ItemContentTypesItemIsPublishedResponse{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -23,16 +24,7 @@ func CreateItemContentTypesItemIsPublishedResponseFromDiscriminatorValue(parseNo
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemContentTypesItemIsPublishedResponse) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemContentTypesItemIsPublishedResponse) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemContentTypesItemIsPublishedResponse) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -51,7 +43,7 @@ func (m *ItemContentTypesItemIsPublishedResponse) GetFieldDeserializers()(map[st
 }
 // GetValue gets the value property value. The value property
 func (m *ItemContentTypesItemIsPublishedResponse) GetValue()(*bool) {
-    return m.GetBackingStore().Get("value");
+    return m.value
 }
 // Serialize serializes information the current object
 func (m *ItemContentTypesItemIsPublishedResponse) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -61,17 +53,19 @@ func (m *ItemContentTypesItemIsPublishedResponse) Serialize(writer i878a80d2330e
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemContentTypesItemIsPublishedResponse) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemContentTypesItemIsPublishedResponse) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetValue sets the value property value. The value property
 func (m *ItemContentTypesItemIsPublishedResponse) SetValue(value *bool)() {
-    m.GetBackingStore().Set("value", value)
+    m.value = value
 }

@@ -6,14 +6,21 @@ import (
 
 // ItemPagesItemGetWebPartsByPositionPostRequestBody provides operations to call the getWebPartsByPosition method.
 type ItemPagesItemGetWebPartsByPositionPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The columnId property
+    columnId *float64
+    // The horizontalSectionId property
+    horizontalSectionId *float64
+    // The isInVerticalSection property
+    isInVerticalSection *bool
+    // The webPartIndex property
+    webPartIndex *float64
 }
 // NewItemPagesItemGetWebPartsByPositionPostRequestBody instantiates a new ItemPagesItemGetWebPartsByPositionPostRequestBody and sets the default values.
 func NewItemPagesItemGetWebPartsByPositionPostRequestBody()(*ItemPagesItemGetWebPartsByPositionPostRequestBody) {
     m := &ItemPagesItemGetWebPartsByPositionPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -23,20 +30,11 @@ func CreateItemPagesItemGetWebPartsByPositionPostRequestBodyFromDiscriminatorVal
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetColumnId gets the columnId property value. The columnId property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetColumnId()(*float64) {
-    return m.GetBackingStore().Get("columnId");
+    return m.columnId
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -85,15 +83,15 @@ func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetFieldDeserializer
 }
 // GetHorizontalSectionId gets the horizontalSectionId property value. The horizontalSectionId property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetHorizontalSectionId()(*float64) {
-    return m.GetBackingStore().Get("horizontalSectionId");
+    return m.horizontalSectionId
 }
 // GetIsInVerticalSection gets the isInVerticalSection property value. The isInVerticalSection property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetIsInVerticalSection()(*bool) {
-    return m.GetBackingStore().Get("isInVerticalSection");
+    return m.isInVerticalSection
 }
 // GetWebPartIndex gets the webPartIndex property value. The webPartIndex property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) GetWebPartIndex()(*float64) {
-    return m.GetBackingStore().Get("webPartIndex");
+    return m.webPartIndex
 }
 // Serialize serializes information the current object
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -121,29 +119,31 @@ func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) Serialize(writer i87
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetColumnId sets the columnId property value. The columnId property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) SetColumnId(value *float64)() {
-    m.GetBackingStore().Set("columnId", value)
+    m.columnId = value
 }
 // SetHorizontalSectionId sets the horizontalSectionId property value. The horizontalSectionId property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) SetHorizontalSectionId(value *float64)() {
-    m.GetBackingStore().Set("horizontalSectionId", value)
+    m.horizontalSectionId = value
 }
 // SetIsInVerticalSection sets the isInVerticalSection property value. The isInVerticalSection property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) SetIsInVerticalSection(value *bool)() {
-    m.GetBackingStore().Set("isInVerticalSection", value)
+    m.isInVerticalSection = value
 }
 // SetWebPartIndex sets the webPartIndex property value. The webPartIndex property
 func (m *ItemPagesItemGetWebPartsByPositionPostRequestBody) SetWebPartIndex(value *float64)() {
-    m.GetBackingStore().Set("webPartIndex", value)
+    m.webPartIndex = value
 }

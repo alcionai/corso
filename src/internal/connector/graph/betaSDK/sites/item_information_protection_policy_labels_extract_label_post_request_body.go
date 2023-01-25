@@ -1,20 +1,21 @@
 package sites
 
 import (
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody provides operations to call the extractLabel method.
 type ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The contentInfo property
+    contentInfo ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable
 }
 // NewItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody instantiates a new ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody and sets the default values.
 func NewItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody()(*ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) {
     m := &ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,31 +25,22 @@ func CreateItemInformationProtectionPolicyLabelsExtractLabelPostRequestBodyFromD
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetContentInfo gets the contentInfo property value. The contentInfo property
-func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) GetContentInfo()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable) {
-    return m.GetBackingStore().Get("contentInfo");
+func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) GetContentInfo()(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable) {
+    return m.contentInfo
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
     res := make(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error))
     res["contentInfo"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetObjectValue(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateContentInfoFromDiscriminatorValue)
+        val, err := n.GetObjectValue(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateContentInfoFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            m.SetContentInfo(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfo))
+            m.SetContentInfo(val.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable))
         }
         return nil
     }
@@ -62,17 +54,19 @@ func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) Seria
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetContentInfo sets the contentInfo property value. The contentInfo property
-func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) SetContentInfo(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable)() {
-    m.GetBackingStore().Set("contentInfo", value)
+func (m *ItemInformationProtectionPolicyLabelsExtractLabelPostRequestBody) SetContentInfo(value ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable)() {
+    m.contentInfo = value
 }

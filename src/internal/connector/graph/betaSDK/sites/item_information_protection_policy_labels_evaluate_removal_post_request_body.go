@@ -1,20 +1,23 @@
 package sites
 
 import (
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody provides operations to call the evaluateRemoval method.
 type ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The contentInfo property
+    contentInfo ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable
+    // The downgradeJustification property
+    downgradeJustification ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DowngradeJustificationable
 }
 // NewItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody instantiates a new ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody and sets the default values.
 func NewItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody()(*ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) {
     m := &ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -24,45 +27,36 @@ func CreateItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBodyFr
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetContentInfo gets the contentInfo property value. The contentInfo property
-func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetContentInfo()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable) {
-    return m.GetBackingStore().Get("contentInfo");
+func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetContentInfo()(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable) {
+    return m.contentInfo
 }
 // GetDowngradeJustification gets the downgradeJustification property value. The downgradeJustification property
-func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetDowngradeJustification()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DowngradeJustificationable) {
-    return m.GetBackingStore().Get("downgradeJustification");
+func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetDowngradeJustification()(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DowngradeJustificationable) {
+    return m.downgradeJustification
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
     res := make(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error))
     res["contentInfo"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetObjectValue(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateContentInfoFromDiscriminatorValue)
+        val, err := n.GetObjectValue(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateContentInfoFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            m.SetContentInfo(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfo))
+            m.SetContentInfo(val.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable))
         }
         return nil
     }
     res["downgradeJustification"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetObjectValue(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateDowngradeJustificationFromDiscriminatorValue)
+        val, err := n.GetObjectValue(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateDowngradeJustificationFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            m.SetDowngradeJustification(val.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DowngradeJustification))
+            m.SetDowngradeJustification(val.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DowngradeJustificationable))
         }
         return nil
     }
@@ -82,21 +76,23 @@ func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) Se
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetContentInfo sets the contentInfo property value. The contentInfo property
-func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) SetContentInfo(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentInfoable)() {
-    m.GetBackingStore().Set("contentInfo", value)
+func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) SetContentInfo(value ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentInfoable)() {
+    m.contentInfo = value
 }
 // SetDowngradeJustification sets the downgradeJustification property value. The downgradeJustification property
-func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) SetDowngradeJustification(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DowngradeJustificationable)() {
-    m.GetBackingStore().Set("downgradeJustification", value)
+func (m *ItemInformationProtectionPolicyLabelsEvaluateRemovalPostRequestBody) SetDowngradeJustification(value ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DowngradeJustificationable)() {
+    m.downgradeJustification = value
 }

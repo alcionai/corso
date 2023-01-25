@@ -1,18 +1,20 @@
 package sites
 
 import (
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemGetApplicableContentTypesForListWithListIdResponse provides operations to call the getApplicableContentTypesForList method.
 type ItemGetApplicableContentTypesForListWithListIdResponse struct {
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.BaseCollectionPaginationCountResponse
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.BaseCollectionPaginationCountResponse
+    // The value property
+    value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentTypeable
 }
 // NewItemGetApplicableContentTypesForListWithListIdResponse instantiates a new ItemGetApplicableContentTypesForListWithListIdResponse and sets the default values.
 func NewItemGetApplicableContentTypesForListWithListIdResponse()(*ItemGetApplicableContentTypesForListWithListIdResponse) {
     m := &ItemGetApplicableContentTypesForListWithListIdResponse{
-        BaseCollectionPaginationCountResponse: *ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.NewBaseCollectionPaginationCountResponse(),
+        BaseCollectionPaginationCountResponse: *ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.NewBaseCollectionPaginationCountResponse(),
     }
     return m
 }
@@ -24,14 +26,14 @@ func CreateItemGetApplicableContentTypesForListWithListIdResponseFromDiscriminat
 func (m *ItemGetApplicableContentTypesForListWithListIdResponse) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
     res := m.BaseCollectionPaginationCountResponse.GetFieldDeserializers()
     res["value"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetCollectionOfObjectValues(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateContentTypeFromDiscriminatorValue)
+        val, err := n.GetCollectionOfObjectValues(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateContentTypeFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentType, len(val))
+            res := make([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentTypeable, len(val))
             for i, v := range val {
-                res[i] = *(v.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentType))
+                res[i] = v.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentTypeable)
             }
             m.SetValue(res)
         }
@@ -40,8 +42,8 @@ func (m *ItemGetApplicableContentTypesForListWithListIdResponse) GetFieldDeseria
     return res
 }
 // GetValue gets the value property value. The value property
-func (m *ItemGetApplicableContentTypesForListWithListIdResponse) GetValue()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentTypeable) {
-    return m.GetBackingStore().Get("value");
+func (m *ItemGetApplicableContentTypesForListWithListIdResponse) GetValue()([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentTypeable) {
+    return m.value
 }
 // Serialize serializes information the current object
 func (m *ItemGetApplicableContentTypesForListWithListIdResponse) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -52,8 +54,7 @@ func (m *ItemGetApplicableContentTypesForListWithListIdResponse) Serialize(write
     if m.GetValue() != nil {
         cast := make([]i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, len(m.GetValue()))
         for i, v := range m.GetValue() {
-            temp := v
-            cast[i] = i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable(&temp)
+            cast[i] = v.(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable)
         }
         err = writer.WriteCollectionOfObjectValues("value", cast)
         if err != nil {
@@ -63,6 +64,6 @@ func (m *ItemGetApplicableContentTypesForListWithListIdResponse) Serialize(write
     return nil
 }
 // SetValue sets the value property value. The value property
-func (m *ItemGetApplicableContentTypesForListWithListIdResponse) SetValue(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ContentTypeable)() {
-    m.GetBackingStore().Set("value", value)
+func (m *ItemGetApplicableContentTypesForListWithListIdResponse) SetValue(value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ContentTypeable)() {
+    m.value = value
 }

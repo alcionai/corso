@@ -1,8 +1,8 @@
 package groups
 
 import (
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody provides operations to call the copyToDefaultContentLocation method.
@@ -12,7 +12,7 @@ type ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostReque
     // The destinationFileName property
     destinationFileName *string
     // The sourceFile property
-    sourceFile ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable
+    sourceFile ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ItemReferenceable
 }
 // NewItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody instantiates a new ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody and sets the default values.
 func NewItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody()(*ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) {
@@ -47,19 +47,19 @@ func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostR
         return nil
     }
     res["sourceFile"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetObjectValue(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateItemReferenceFromDiscriminatorValue)
+        val, err := n.GetObjectValue(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateItemReferenceFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            m.SetSourceFile(val.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable))
+            m.SetSourceFile(val.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ItemReferenceable))
         }
         return nil
     }
     return res
 }
 // GetSourceFile gets the sourceFile property value. The sourceFile property
-func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetSourceFile()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable) {
+func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) GetSourceFile()(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ItemReferenceable) {
     return m.sourceFile
 }
 // Serialize serializes information the current object
@@ -93,6 +93,6 @@ func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostR
     m.destinationFileName = value
 }
 // SetSourceFile sets the sourceFile property value. The sourceFile property
-func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) SetSourceFile(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable)() {
+func (m *ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBody) SetSourceFile(value ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ItemReferenceable)() {
     m.sourceFile = value
 }

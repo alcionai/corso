@@ -1,20 +1,20 @@
 package groups
 
 import (
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemSitesDeltaResponse provides operations to call the delta method.
 type ItemSitesDeltaResponse struct {
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.BaseDeltaFunctionResponse
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.BaseDeltaFunctionResponse
     // The value property
-    value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.Siteable
+    value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.Siteable
 }
 // NewItemSitesDeltaResponse instantiates a new ItemSitesDeltaResponse and sets the default values.
 func NewItemSitesDeltaResponse()(*ItemSitesDeltaResponse) {
     m := &ItemSitesDeltaResponse{
-        BaseDeltaFunctionResponse: *ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.NewBaseDeltaFunctionResponse(),
+        BaseDeltaFunctionResponse: *ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.NewBaseDeltaFunctionResponse(),
     }
     return m
 }
@@ -26,14 +26,14 @@ func CreateItemSitesDeltaResponseFromDiscriminatorValue(parseNode i878a80d2330e8
 func (m *ItemSitesDeltaResponse) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
     res := m.BaseDeltaFunctionResponse.GetFieldDeserializers()
     res["value"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetCollectionOfObjectValues(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateSiteFromDiscriminatorValue)
+        val, err := n.GetCollectionOfObjectValues(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateSiteFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.Siteable, len(val))
+            res := make([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.Siteable, len(val))
             for i, v := range val {
-                res[i] = v.(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.Siteable)
+                res[i] = v.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.Siteable)
             }
             m.SetValue(res)
         }
@@ -42,7 +42,7 @@ func (m *ItemSitesDeltaResponse) GetFieldDeserializers()(map[string]func(i878a80
     return res
 }
 // GetValue gets the value property value. The value property
-func (m *ItemSitesDeltaResponse) GetValue()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.Siteable) {
+func (m *ItemSitesDeltaResponse) GetValue()([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.Siteable) {
     return m.value
 }
 // Serialize serializes information the current object
@@ -64,6 +64,6 @@ func (m *ItemSitesDeltaResponse) Serialize(writer i878a80d2330e89d26896388a3f487
     return nil
 }
 // SetValue sets the value property value. The value property
-func (m *ItemSitesDeltaResponse) SetValue(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.Siteable)() {
+func (m *ItemSitesDeltaResponse) SetValue(value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.Siteable)() {
     m.value = value
 }

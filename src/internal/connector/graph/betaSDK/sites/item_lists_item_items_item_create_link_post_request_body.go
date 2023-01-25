@@ -2,22 +2,31 @@ package sites
 
 import (
     i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e "time"
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemListsItemItemsItemCreateLinkPostRequestBody provides operations to call the createLink method.
 type ItemListsItemItemsItemCreateLinkPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The expirationDateTime property
+    expirationDateTime *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
+    // The password property
+    password *string
+    // The recipients property
+    recipients []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable
+    // The retainInheritedPermissions property
+    retainInheritedPermissions *bool
+    // The scope property
+    scope *string
     // The type property
-    Type_escaped *string
+    type_escaped *string
 }
 // NewItemListsItemItemsItemCreateLinkPostRequestBody instantiates a new ItemListsItemItemsItemCreateLinkPostRequestBody and sets the default values.
 func NewItemListsItemItemsItemCreateLinkPostRequestBody()(*ItemListsItemItemsItemCreateLinkPostRequestBody) {
     m := &ItemListsItemItemsItemCreateLinkPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -27,20 +36,11 @@ func CreateItemListsItemItemsItemCreateLinkPostRequestBodyFromDiscriminatorValue
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetExpirationDateTime gets the expirationDateTime property value. The expirationDateTime property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetExpirationDateTime()(*i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time) {
-    return m.GetBackingStore().Get("expirationDateTime");
+    return m.expirationDateTime
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -66,14 +66,14 @@ func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetFieldDeserializers(
         return nil
     }
     res["recipients"] = func (n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
-        val, err := n.GetCollectionOfObjectValues(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.CreateDriveRecipientFromDiscriminatorValue)
+        val, err := n.GetCollectionOfObjectValues(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateDriveRecipientFromDiscriminatorValue)
         if err != nil {
             return err
         }
         if val != nil {
-            res := make([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipient, len(val))
+            res := make([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable, len(val))
             for i, v := range val {
-                res[i] = *(v.(*ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipient))
+                res[i] = v.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable)
             }
             m.SetRecipients(res)
         }
@@ -113,23 +113,23 @@ func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetFieldDeserializers(
 }
 // GetPassword gets the password property value. The password property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetPassword()(*string) {
-    return m.GetBackingStore().Get("password");
+    return m.password
 }
 // GetRecipients gets the recipients property value. The recipients property
-func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetRecipients()([]ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable) {
-    return m.GetBackingStore().Get("recipients");
+func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetRecipients()([]ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable) {
+    return m.recipients
 }
 // GetRetainInheritedPermissions gets the retainInheritedPermissions property value. The retainInheritedPermissions property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetRetainInheritedPermissions()(*bool) {
-    return m.GetBackingStore().Get("retainInheritedPermissions");
+    return m.retainInheritedPermissions
 }
 // GetScope gets the scope property value. The scope property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetScope()(*string) {
-    return m.GetBackingStore().Get("scope");
+    return m.scope
 }
 // GetType gets the type property value. The type property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) GetType()(*string) {
-    return m.GetBackingStore().Get("type_escaped");
+    return m.type_escaped
 }
 // Serialize serializes information the current object
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -148,8 +148,7 @@ func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) Serialize(writer i878a
     if m.GetRecipients() != nil {
         cast := make([]i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, len(m.GetRecipients()))
         for i, v := range m.GetRecipients() {
-            temp := v
-            cast[i] = i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable(&temp)
+            cast[i] = v.(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable)
         }
         err := writer.WriteCollectionOfObjectValues("recipients", cast)
         if err != nil {
@@ -174,37 +173,39 @@ func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) Serialize(writer i878a
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetExpirationDateTime sets the expirationDateTime property value. The expirationDateTime property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetExpirationDateTime(value *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time)() {
-    m.GetBackingStore().Set("expirationDateTime", value)
+    m.expirationDateTime = value
 }
 // SetPassword sets the password property value. The password property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetPassword(value *string)() {
-    m.GetBackingStore().Set("password", value)
+    m.password = value
 }
 // SetRecipients sets the recipients property value. The recipients property
-func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetRecipients(value []ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.DriveRecipientable)() {
-    m.GetBackingStore().Set("recipients", value)
+func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetRecipients(value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.DriveRecipientable)() {
+    m.recipients = value
 }
 // SetRetainInheritedPermissions sets the retainInheritedPermissions property value. The retainInheritedPermissions property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetRetainInheritedPermissions(value *bool)() {
-    m.GetBackingStore().Set("retainInheritedPermissions", value)
+    m.retainInheritedPermissions = value
 }
 // SetScope sets the scope property value. The scope property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetScope(value *string)() {
-    m.GetBackingStore().Set("scope", value)
+    m.scope = value
 }
 // SetType sets the type property value. The type property
 func (m *ItemListsItemItemsItemCreateLinkPostRequestBody) SetType(value *string)() {
-    m.GetBackingStore().Set("type_escaped", value)
+    m.type_escaped = value
 }

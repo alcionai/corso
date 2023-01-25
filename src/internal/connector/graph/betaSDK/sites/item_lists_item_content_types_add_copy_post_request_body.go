@@ -6,14 +6,15 @@ import (
 
 // ItemListsItemContentTypesAddCopyPostRequestBody provides operations to call the addCopy method.
 type ItemListsItemContentTypesAddCopyPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The contentType property
+    contentType *string
 }
 // NewItemListsItemContentTypesAddCopyPostRequestBody instantiates a new ItemListsItemContentTypesAddCopyPostRequestBody and sets the default values.
 func NewItemListsItemContentTypesAddCopyPostRequestBody()(*ItemListsItemContentTypesAddCopyPostRequestBody) {
     m := &ItemListsItemContentTypesAddCopyPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -23,20 +24,11 @@ func CreateItemListsItemContentTypesAddCopyPostRequestBodyFromDiscriminatorValue
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemListsItemContentTypesAddCopyPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemListsItemContentTypesAddCopyPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetContentType gets the contentType property value. The contentType property
 func (m *ItemListsItemContentTypesAddCopyPostRequestBody) GetContentType()(*string) {
-    return m.GetBackingStore().Get("contentType");
+    return m.contentType
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemListsItemContentTypesAddCopyPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -61,17 +53,19 @@ func (m *ItemListsItemContentTypesAddCopyPostRequestBody) Serialize(writer i878a
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemListsItemContentTypesAddCopyPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemListsItemContentTypesAddCopyPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetContentType sets the contentType property value. The contentType property
 func (m *ItemListsItemContentTypesAddCopyPostRequestBody) SetContentType(value *string)() {
-    m.GetBackingStore().Set("contentType", value)
+    m.contentType = value
 }

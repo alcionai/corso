@@ -1,8 +1,8 @@
 package groups
 
 import (
-    ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4 "betasdk/models"
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
+    ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostRequestBodyable 
@@ -10,7 +10,7 @@ type ItemSitesItemListsItemContentTypesItemCopyToDefaultContentLocationPostReque
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.AdditionalDataHolder
     i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable
     GetDestinationFileName()(*string)
-    GetSourceFile()(ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable)
+    GetSourceFile()(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ItemReferenceable)
     SetDestinationFileName(value *string)()
-    SetSourceFile(value ic45d1687cb32013b93e5270fd0556a260c6a6c0c3808e299c1c39a4f617eb8f4.ItemReferenceable)()
+    SetSourceFile(value ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.ItemReferenceable)()
 }

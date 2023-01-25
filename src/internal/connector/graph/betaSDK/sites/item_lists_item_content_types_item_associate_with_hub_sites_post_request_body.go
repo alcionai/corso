@@ -6,14 +6,17 @@ import (
 
 // ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody provides operations to call the associateWithHubSites method.
 type ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody struct {
-    // Stores model information.
-    backingStore BackingStore
+    // Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
+    additionalData map[string]interface{}
+    // The hubSiteUrls property
+    hubSiteUrls []string
+    // The propagateToExistingLists property
+    propagateToExistingLists *bool
 }
 // NewItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody instantiates a new ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody and sets the default values.
 func NewItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody()(*ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) {
     m := &ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody{
     }
-    m._backingStore = BackingStoreFactorySingleton.Instance.CreateBackingStore();
     m.SetAdditionalData(make(map[string]interface{}));
     return m
 }
@@ -23,16 +26,7 @@ func CreateItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBodyFrom
 }
 // GetAdditionalData gets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) GetAdditionalData()(map[string]interface{}) {
-    map[string]interface{} value = m._backingStore.Get("additionalData")
-    if value == nil {
-        value = make(map[string]interface{});
-        m.SetAdditionalData(value);
-    }
-    return value;
-}
-// GetBackingStore gets the backingStore property value. Stores model information.
-func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) GetBackingStore()(BackingStore) {
-    return m.backingStore
+    return m.additionalData
 }
 // GetFieldDeserializers the deserialization information for the current model
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) GetFieldDeserializers()(map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode)(error)) {
@@ -65,11 +59,11 @@ func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) GetF
 }
 // GetHubSiteUrls gets the hubSiteUrls property value. The hubSiteUrls property
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) GetHubSiteUrls()([]string) {
-    return m.GetBackingStore().Get("hubSiteUrls");
+    return m.hubSiteUrls
 }
 // GetPropagateToExistingLists gets the propagateToExistingLists property value. The propagateToExistingLists property
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) GetPropagateToExistingLists()(*bool) {
-    return m.GetBackingStore().Get("propagateToExistingLists");
+    return m.propagateToExistingLists
 }
 // Serialize serializes information the current object
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter)(error) {
@@ -85,21 +79,23 @@ func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) Seri
             return err
         }
     }
+    {
+        err := writer.WriteAdditionalData(m.GetAdditionalData())
+        if err != nil {
+            return err
+        }
+    }
     return nil
 }
 // SetAdditionalData sets the additionalData property value. Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) SetAdditionalData(value map[string]interface{})() {
-    m.GetBackingStore().Set("additionalData", value)
-}
-// SetBackingStore sets the backingStore property value. Stores model information.
-func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) SetBackingStore(value BackingStore)() {
-    m.GetBackingStore().Set("backingStore", value)
+    m.additionalData = value
 }
 // SetHubSiteUrls sets the hubSiteUrls property value. The hubSiteUrls property
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) SetHubSiteUrls(value []string)() {
-    m.GetBackingStore().Set("hubSiteUrls", value)
+    m.hubSiteUrls = value
 }
 // SetPropagateToExistingLists sets the propagateToExistingLists property value. The propagateToExistingLists property
 func (m *ItemListsItemContentTypesItemAssociateWithHubSitesPostRequestBody) SetPropagateToExistingLists(value *bool)() {
-    m.GetBackingStore().Set("propagateToExistingLists", value)
+    m.propagateToExistingLists = value
 }

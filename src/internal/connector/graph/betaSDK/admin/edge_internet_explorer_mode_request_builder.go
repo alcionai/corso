@@ -36,7 +36,7 @@ func NewEdgeInternetExplorerModeRequestBuilder(rawUrl string, requestAdapter i2a
 func (m *EdgeInternetExplorerModeRequestBuilder) SiteLists()(*EdgeInternetExplorerModeSiteListsRequestBuilder) {
     return NewEdgeInternetExplorerModeSiteListsRequestBuilderInternal(m.pathParameters, m.requestAdapter);
 }
-// SiteListsById gets an item from the BetaSdk.admin.edge.internetExplorerMode.siteLists.item collection
+// SiteListsById gets an item from the github.com/alcionai/corso/src/internal/connector/graph/betasdk.admin.edge.internetExplorerMode.siteLists.item collection
 func (m *EdgeInternetExplorerModeRequestBuilder) SiteListsById(id string)(*EdgeInternetExplorerModeSiteListsBrowserSiteListItemRequestBuilder) {
     urlTplParams := make(map[string]string)
     for idx, item := range m.pathParameters {
