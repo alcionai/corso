@@ -255,7 +255,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
-			mockItem.SetId(&testItemID)
 			mockItem.SetName(&name)
 			mockItem.SetSize(&size)
 			mockItem.SetCreatedDateTime(&now)

@@ -207,7 +207,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	for id, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
-			continue
+			break
 		}
 
 		if item == nil {
@@ -231,10 +231,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			switch oc.source {
 			case SharePointSource:
-				itemInfo.SharePoint = sharePointItemInfo(item, *item.GetSize())
+				itemInfo.SharePoint = sharePointItemInfo(item, itemSize)
 				itemInfo.SharePoint.ParentPath = parentPathString
 			default:
-				itemInfo.OneDrive = oneDriveItemInfo(item, *item.GetSize())
+				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
