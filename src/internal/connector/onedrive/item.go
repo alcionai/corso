@@ -67,6 +67,7 @@ func oneDriveItemReader(
 	}
 
 	// Decorate the traffic
+	//nolint:lll
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
