@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -147,7 +146,6 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				NewOneDriveBackup([]string{test.user}).
 				AllData()[0]
 			odcs, err := NewCollections(
-				graph.LargeItemClient(),
 				creds.AzureTenantID,
 				test.user,
 				OneDriveSource,
