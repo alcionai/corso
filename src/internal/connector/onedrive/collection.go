@@ -191,7 +191,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		"/"+parentPathString,
+		observe.PII("/"+parentPathString),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -267,7 +267,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 
 				// display/log the item download
-				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName, itemSize)
+				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, observe.PII(itemName), itemSize)
 				go closer()
 
 				return progReader, nil
