@@ -26,7 +26,13 @@ const (
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
-var err401Unauthorized = errors.New("401 unauthorized intercepted")
+var (
+	Err401Unauthorized = errors.New("401 unauthorized")
+	// normally the graph client will catch this for us, but in case we
+	// run our own client Do(), we need to translate it to a timeout type
+	// failure locally.
+	Err429TooManyRequests = errors.New("429 too many requests")
+)
 
 // The folder or item was deleted between the time we identified
 // it and when we tried to fetch data for it.
@@ -121,6 +127,27 @@ func isTimeoutErr(err error) bool {
 	}
 }
 
+type ErrThrottled struct {
+	common.Err
+}
+
+func IsErrThrottled(err error) error {
+	if errors.Is(err, Err429TooManyRequests) {
+		return err
+	}
+
+	if asThrottled(err) {
+		return err
+	}
+
+	return nil
+}
+
+func asThrottled(err error) bool {
+	e := ErrThrottled{}
+	return errors.As(err, &e)
+}
+
 type ErrUnauthorized struct {
 	common.Err
 }
@@ -129,16 +156,12 @@ func IsErrUnauthorized(err error) error {
 	// TODO: refine this investigation.  We don't currently know if
 	// a specific item download url expired, or if the full connection
 	// auth expired.
-	if errors.Is(err, err401Unauthorized) {
+	if errors.Is(err, Err401Unauthorized) {
 		return err
 	}
 
 	if asUnauthorized(err) {
 		return err
-	}
-
-	if hasErrorCode(err, "foo") {
-		return ErrInvalidDelta{*common.EncapsulateError(err)}
 	}
 
 	return nil

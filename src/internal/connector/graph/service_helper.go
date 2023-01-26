@@ -95,6 +95,8 @@ func (handler *LoggingMiddleware) Intercept(
 
 	if (resp.StatusCode / 100) == 2 {
 		if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
+			respDump, _ := httputil.DumpResponse(resp, false)
+
 			metadata := []any{
 				"idx", middlewareIndex,
 				"method", req.Method,
@@ -102,6 +104,7 @@ func (handler *LoggingMiddleware) Intercept(
 				"statusCode", resp.StatusCode,
 				"requestLen", req.ContentLength,
 				"url", req.URL,
+				"response", respDump,
 			}
 
 			logger.Ctx(ctx).Debugw("2xx graph api resp", metadata...)
@@ -133,12 +136,6 @@ func (handler *LoggingMiddleware) Intercept(
 		if resp.StatusCode != http.StatusTooManyRequests && (resp.StatusCode/100) != 2 {
 			logger.Ctx(ctx).Infow("graph api error", "status", resp.Status, "method", req.Method, "url", req.URL)
 		}
-	}
-
-	// this is a hack to address 401 responses from graph api not coming
-	// through as errors.
-	if err == nil && resp.StatusCode == http.StatusUnauthorized {
-		return resp, err401Unauthorized
 	}
 
 	return resp, err

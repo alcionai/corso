@@ -88,7 +88,24 @@ func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, e
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
-	return hc.Do(req)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if (resp.StatusCode / 100) == 2 {
+		return resp, nil
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return resp, graph.Err429TooManyRequests
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return resp, graph.Err401Unauthorized
+	}
+
+	return resp, errors.New("non-2xx http response: " + resp.Status)
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
