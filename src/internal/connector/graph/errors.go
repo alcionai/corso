@@ -41,21 +41,17 @@ type ErrDeletedInFlight struct {
 	common.Err
 }
 
-func IsErrDeletedInFlight(err error) error {
-	if asDeletedInFlight(err) {
-		return err
+func IsErrDeletedInFlight(err error) bool {
+	e := ErrDeletedInFlight{}
+	if errors.As(err, &e) {
+		return true
 	}
 
 	if hasErrorCode(err, errCodeItemNotFound, errCodeSyncFolderNotFound) {
-		return ErrDeletedInFlight{*common.EncapsulateError(err)}
+		return true
 	}
 
-	return nil
-}
-
-func asDeletedInFlight(err error) bool {
-	e := ErrDeletedInFlight{}
-	return errors.As(err, &e)
+	return false
 }
 
 // Delta tokens can be desycned or expired.  In either case, the token
@@ -65,21 +61,17 @@ type ErrInvalidDelta struct {
 	common.Err
 }
 
-func IsErrInvalidDelta(err error) error {
-	if asInvalidDelta(err) {
-		return err
+func IsErrInvalidDelta(err error) bool {
+	e := ErrInvalidDelta{}
+	if errors.As(err, &e) {
+		return true
 	}
 
 	if hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) {
-		return ErrInvalidDelta{*common.EncapsulateError(err)}
+		return true
 	}
 
-	return nil
-}
-
-func asInvalidDelta(err error) bool {
-	e := ErrInvalidDelta{}
-	return errors.As(err, &e)
+	return false
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
@@ -94,28 +86,12 @@ type ErrTimeout struct {
 	common.Err
 }
 
-func IsErrTimeout(err error) error {
-	if asTimeout(err) {
-		return err
-	}
-
-	if isTimeoutErr(err) {
-		return ErrTimeout{*common.EncapsulateError(err)}
-	}
-
-	return nil
-}
-
-func asTimeout(err error) bool {
+func IsErrTimeout(err error) bool {
 	e := ErrTimeout{}
-	return errors.As(err, &e)
-}
+	if errors.As(err, &e) {
+		return true
+	}
 
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
 		return true
 	}
@@ -132,45 +108,37 @@ type ErrThrottled struct {
 	common.Err
 }
 
-func IsErrThrottled(err error) error {
+func IsErrThrottled(err error) bool {
 	if errors.Is(err, Err429TooManyRequests) {
-		return err
+		return true
 	}
 
-	if asThrottled(err) {
-		return err
-	}
-
-	return nil
-}
-
-func asThrottled(err error) bool {
 	e := ErrThrottled{}
-	return errors.As(err, &e)
+	if errors.As(err, &e) {
+		return true
+	}
+
+	return false
 }
 
 type ErrUnauthorized struct {
 	common.Err
 }
 
-func IsErrUnauthorized(err error) error {
+func IsErrUnauthorized(err error) bool {
 	// TODO: refine this investigation.  We don't currently know if
 	// a specific item download url expired, or if the full connection
 	// auth expired.
 	if errors.Is(err, Err401Unauthorized) {
-		return err
+		return true
 	}
 
-	if asUnauthorized(err) {
-		return err
-	}
-
-	return nil
-}
-
-func asUnauthorized(err error) bool {
 	e := ErrUnauthorized{}
-	return errors.As(err, &e)
+	if errors.As(err, &e) {
+		return true
+	}
+
+	return false
 }
 
 type ErrServiceUnavailable struct {

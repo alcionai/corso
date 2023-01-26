@@ -260,17 +260,13 @@ func (col *Collection) streamItems(ctx context.Context) {
 				// If the data is no longer available just return here and chalk it up
 				// as a success. There's no reason to retry and no way we can backup up
 				// enough information to restore the item anyway.
-				if e := graph.IsErrDeletedInFlight(err); e != nil {
+				if graph.IsErrDeletedInFlight(err) {
 					atomic.AddInt64(&success, 1)
 					logger.Ctx(ctx).Infow(
 						"Graph reported item not found",
-						"error",
-						e,
-						"service",
-						path.ExchangeService.String(),
-						"category",
-						col.category.String,
-					)
+						"error", err,
+						"service", path.ExchangeService.String(),
+						"category", col.category.String)
 
 					return
 				}
@@ -286,17 +282,13 @@ func (col *Collection) streamItems(ctx context.Context) {
 				// there's really nothing we can do and not reporting it will make the
 				// status code upset cause we won't have the same number of results as
 				// attempted items.
-				if e := graph.IsErrDeletedInFlight(err); e != nil {
+				if graph.IsErrDeletedInFlight(err) {
 					atomic.AddInt64(&success, 1)
 					logger.Ctx(ctx).Infow(
 						"Graph reported item not found",
-						"error",
-						e,
-						"service",
-						path.ExchangeService.String(),
-						"category",
-						col.category.String,
-					)
+						"error", err,
+						"service", path.ExchangeService.String(),
+						"category", col.category.String)
 
 					return
 				}

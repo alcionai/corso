@@ -72,11 +72,7 @@ func getItemsAddedAndRemovedFromContainer(
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
 		if err != nil {
-			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, nil, deltaURL, err
-			}
-
-			if err := graph.IsErrInvalidDelta(err); err != nil {
+			if graph.IsErrDeletedInFlight(err) || graph.IsErrInvalidDelta(err) {
 				return nil, nil, deltaURL, err
 			}
 

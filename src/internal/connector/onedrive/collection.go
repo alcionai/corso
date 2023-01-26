@@ -256,7 +256,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						break
 					}
 
-					if graph.IsErrUnauthorized(err) != nil {
+					if graph.IsErrUnauthorized(err) {
 						// assume unauthorized requests are a sign of an expired
 						// jwt token, and that we've overrun the available window
 						// to download the actual file.  Re-downloading the item
