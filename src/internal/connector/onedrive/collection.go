@@ -251,8 +251,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 				for i := 1; i <= maxRetries; i++ {
 					_, itemData, err = oc.itemReader(oc.itemClient, item)
-					if err == nil || graph.IsErrTimeout(err) == nil {
-						// retry on Timeout type errors, break otherwise.
+					if err == nil {
 						break
 					}
 
@@ -271,13 +270,22 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName, itemSize)
 				go closer()
 
-				// Item read successfully, add to collection
-				atomic.AddInt64(&itemsRead, 1)
-				// byteCount iteration
-				atomic.AddInt64(&byteCount, itemSize)
-
 				return progReader, nil
 			})
+
+			// This can cause inaccurate counts.  Right now it counts all the items
+			// we intend to read.  Errors within the lazy readCloser will create a
+			// conflict: an item is both successful and erroneous.  But the async
+			// control to fix that is more error-prone than helpful.
+			//
+			// TODO: transform this into a stats bus so that async control of stats
+			// aggregation is handled at the backup level, not at the item iteration
+			// level.
+			//
+			// Item read successfully, add to collection
+			atomic.AddInt64(&itemsRead, 1)
+			// byteCount iteration
+			atomic.AddInt64(&byteCount, itemSize)
 
 			oc.data <- &Item{
 				id:   itemName,
