@@ -3,6 +3,7 @@ package onedrive
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -46,6 +47,9 @@ type folderMatcher interface {
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
+	// configured to handle large item downloads
+	itemClient *http.Client
+
 	tenant        string
 	resourceOwner string
 	source        driveSource
@@ -66,6 +70,7 @@ type Collections struct {
 }
 
 func NewCollections(
+	itemClient *http.Client,
 	tenant string,
 	resourceOwner string,
 	source driveSource,
@@ -75,6 +80,7 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
+		itemClient:    itemClient,
 		tenant:        tenant,
 		resourceOwner: resourceOwner,
 		source:        source,
@@ -265,13 +271,13 @@ func (c *Collections) UpdateCollections(
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
 				col = NewCollection(
+					c.itemClient,
 					collectionPath,
 					driveID,
 					c.service,
 					c.statusUpdater,
 					c.source,
-					c.ctrl,
-				)
+					c.ctrl)
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++
