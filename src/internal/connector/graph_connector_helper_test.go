@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"io"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -978,9 +979,9 @@ func getSelectorWith(
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T, r resource) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
-	connector, err := NewGraphConnector(ctx, a, r)
+	connector, err := NewGraphConnector(ctx, itemClient, a, r)
 	require.NoError(t, err)
 
 	return connector
