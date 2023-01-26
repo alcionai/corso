@@ -19,6 +19,8 @@ type SiteItemRequestBuilder struct {
 }
 
 // SiteItemRequestBuilderGetQueryParameters retrieve properties and relationships for a [site][] resource.A **site** resource represents a team site in SharePoint.
+//
+//nolint:lll
 type SiteItemRequestBuilderGetQueryParameters struct {
 	// Expand related entities
 	Expand []string `uriparametername:"%24expand"`
@@ -27,6 +29,8 @@ type SiteItemRequestBuilderGetQueryParameters struct {
 }
 
 // SiteItemRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type SiteItemRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -37,6 +41,8 @@ type SiteItemRequestBuilderGetRequestConfiguration struct {
 }
 
 // SiteItemRequestBuilderPatchRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type SiteItemRequestBuilderPatchRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -52,6 +58,8 @@ type SiteItemRequestBuilderPatchRequestConfiguration struct {
 // ColumnsById provides operations to manage the columns property of the microsoft.graph.site entity.
 
 // NewSiteItemRequestBuilderInternal instantiates a new SiteItemRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewSiteItemRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *SiteItemRequestBuilder {
 	m := &SiteItemRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}{?%24select,%24expand}"
@@ -65,6 +73,8 @@ func NewSiteItemRequestBuilderInternal(pathParameters map[string]string, request
 }
 
 // NewSiteItemRequestBuilder instantiates a new SiteItemRequestBuilder and sets the default values.
+//
+//nolint:lll,revive,wsl
 func NewSiteItemRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *SiteItemRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -74,8 +84,9 @@ func NewSiteItemRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee26337
 // ContentTypes provides operations to manage the contentTypes property of the microsoft.graph.site entity.
 
 // ContentTypesById provides operations to manage the contentTypes property of the microsoft.graph.site entity.
-
 // CreateGetRequestInformation retrieve properties and relationships for a [site][] resource.A **site** resource represents a team site in SharePoint.
+//
+//nolint:lll,wsl
 func (m *SiteItemRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *SiteItemRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -93,16 +104,15 @@ func (m *SiteItemRequestBuilder) CreateGetRequestInformation(ctx context.Context
 }
 
 // CreatePatchRequestInformation update entity in sites by key (id)
+//
+//nolint:lll,errcheck,wsl
 func (m *SiteItemRequestBuilder) CreatePatchRequestInformation(ctx context.Context, body msmodel.Siteable, requestConfiguration *SiteItemRequestBuilderPatchRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
 	requestInfo.PathParameters = m.pathParameters
 	requestInfo.Method = i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.PATCH
 	requestInfo.Headers.Add("Accept", "application/json")
-	err := requestInfo.SetContentFromParsable(ctx, m.requestAdapter, "application/json", body)
-	if err != nil {
-		return nil, err
-	}
+	requestInfo.SetContentFromParsable(ctx, m.requestAdapter, "application/json", body)
 
 	if requestConfiguration != nil {
 		requestInfo.Headers.AddAll(requestConfiguration.Headers)
@@ -123,21 +133,24 @@ func (m *SiteItemRequestBuilder) CreatePatchRequestInformation(ctx context.Conte
 // ExternalColumns provides operations to manage the externalColumns property of the microsoft.graph.site entity.
 
 // // ExternalColumnsById provides operations to manage the externalColumns property of the microsoft.graph.site entity.
-// func (m *SiteItemRequestBuilder) ExternalColumnsById(id string) *ItemExternalColumnsColumnDefinitionItemRequestBuilder {
-// 	urlTplParams := make(map[string]string)
-// 	for idx, item := range m.pathParameters {
-// 		urlTplParams[idx] = item
-// 	}
-// 	if id != "" {
-// 		urlTplParams["columnDefinition%2Did"] = id
-// 	}
-// 	return NewItemExternalColumnsColumnDefinitionItemRequestBuilderInternal(urlTplParams, m.requestAdapter)
-// }
-
+//
+//	func (m *SiteItemRequestBuilder) ExternalColumnsById(id string) *ItemExternalColumnsColumnDefinitionItemRequestBuilder {
+//		urlTplParams := make(map[string]string)
+//		for idx, item := range m.pathParameters {
+//			urlTplParams[idx] = item
+//		}
+//		if id != "" {
+//			urlTplParams["columnDefinition%2Did"] = id
+//		}
+//		return NewItemExternalColumnsColumnDefinitionItemRequestBuilderInternal(urlTplParams, m.requestAdapter)
+//	}
+//
 // Get retrieve properties and relationships for a [site][] resource.A **site** resource represents a team site in SharePoint.
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/site-get?view=graph-rest-1.0
+//
+//nolint:wsl,revive,lll
 func (m *SiteItemRequestBuilder) Get(ctx context.Context, requestConfiguration *SiteItemRequestBuilderGetRequestConfiguration) (msmodel.Siteable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -157,6 +170,7 @@ func (m *SiteItemRequestBuilder) Get(ctx context.Context, requestConfiguration *
 	return res.(msmodel.Siteable), nil
 }
 
+//nolint:lll
 // GetActivitiesByIntervalWithStartDateTimeWithEndDateTimeWithInterval provides operations to call the getActivitiesByInterval method.
 // GetApplicableContentTypesForListWithListId provides operations to call the getApplicableContentTypesForList method.
 // GetByPathWithPath provides operations to call the getByPath method.
@@ -176,7 +190,7 @@ func (m *SiteItemRequestBuilder) Pages() *ItemPagesRequestBuilder {
 
 // PagesById provides operations to manage the pages property of the microsoft.graph.site entity.
 //
-//nolint:revive
+//nolint:revive,wsl
 func (m *SiteItemRequestBuilder) PagesById(id string) *ItemPagesSitePageItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {
@@ -189,6 +203,8 @@ func (m *SiteItemRequestBuilder) PagesById(id string) *ItemPagesSitePageItemRequ
 }
 
 // Patch update entity in sites by key (id)
+//
+//nolint:wsl,revive,lll
 func (m *SiteItemRequestBuilder) Patch(
 	ctx context.Context,
 	body msmodel.Siteable,
@@ -214,15 +230,11 @@ func (m *SiteItemRequestBuilder) Patch(
 
 // Permissions provides operations to manage the permissions property of the microsoft.graph.site entity.
 // PermissionsById provides operations to manage the permissions property of the microsoft.graph.site entity.
-
 // Sites provides operations to manage the sites property of the microsoft.graph.site entity.
-func (m *SiteItemRequestBuilder) Sites() *ItemSitesRequestBuilder {
-	return NewItemSitesRequestBuilderInternal(m.pathParameters, m.requestAdapter)
-}
-
+// func (m *SiteItemRequestBuilder) Sites()
 // SitesById provides operations to manage the sites property of the microsoft.graph.site entity.
 //
-//nolint:revive
+//nolint:revive,wsl
 func (m *SiteItemRequestBuilder) SitesById(id string) *ItemSitesSiteItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {

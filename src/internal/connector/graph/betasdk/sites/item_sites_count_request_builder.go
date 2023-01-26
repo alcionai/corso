@@ -26,6 +26,8 @@ type ItemSitesCountRequestBuilderGetQueryParameters struct {
 }
 
 // ItemSitesCountRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemSitesCountRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -36,6 +38,8 @@ type ItemSitesCountRequestBuilderGetRequestConfiguration struct {
 }
 
 // NewItemSitesCountRequestBuilderInternal instantiates a new CountRequestBuilder and sets the default values.
+//
+//nolint:wsl,lll
 func NewItemSitesCountRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemSitesCountRequestBuilder {
 	m := &ItemSitesCountRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/sites/$count{?%24search,%24filter}"
@@ -49,6 +53,8 @@ func NewItemSitesCountRequestBuilderInternal(pathParameters map[string]string, r
 }
 
 // NewItemSitesCountRequestBuilder instantiates a new CountRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemSitesCountRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemSitesCountRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -56,6 +62,8 @@ func NewItemSitesCountRequestBuilder(rawUrl string, requestAdapter i2ae4187f7dae
 }
 
 // CreateGetRequestInformation get the number of the resource
+//
+//nolint:wsl,revive,lll
 func (m *ItemSitesCountRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemSitesCountRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -73,6 +81,8 @@ func (m *ItemSitesCountRequestBuilder) CreateGetRequestInformation(ctx context.C
 }
 
 // Get get the number of the resource
+//
+//nolint:wsl,revive,lll
 func (m *ItemSitesCountRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemSitesCountRequestBuilderGetRequestConfiguration) (*int32, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {

@@ -9,6 +9,8 @@ import (
 )
 
 // ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder provides operations to call the getPositionOfWebPart method.
+//
+//nolint:lll
 type ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -19,6 +21,8 @@ type ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder struct {
 }
 
 // ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderPostRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -27,6 +31,8 @@ type ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderPostRequestConfi
 }
 
 // NewItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderInternal instantiates a new GetPositionOfWebPartRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder {
 	m := &ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/webParts/{webPart%2Did}/microsoft.graph.getPositionOfWebPart"
@@ -40,6 +46,8 @@ func NewItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderInternal(path
 }
 
 // NewItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder instantiates a new GetPositionOfWebPartRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -47,6 +55,8 @@ func NewItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder(rawUrl strin
 }
 
 // CreatePostRequestInformation invoke action getPositionOfWebPart
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder) CreatePostRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -64,6 +74,8 @@ func (m *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder) CreatePost
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/webpart-getposition?view=graph-rest-1.0
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilder) Post(ctx context.Context, requestConfiguration *ItemPagesItemWebPartsItemGetPositionOfWebPartRequestBuilderPostRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartPositionable, error) {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, requestConfiguration)
 	if err != nil {

@@ -26,6 +26,8 @@ type ItemPagesItemWebPartsCountRequestBuilderGetQueryParameters struct {
 }
 
 // ItemPagesItemWebPartsCountRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemWebPartsCountRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -36,6 +38,8 @@ type ItemPagesItemWebPartsCountRequestBuilderGetRequestConfiguration struct {
 }
 
 // NewItemPagesItemWebPartsCountRequestBuilderInternal instantiates a new CountRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesItemWebPartsCountRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemWebPartsCountRequestBuilder {
 	m := &ItemPagesItemWebPartsCountRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/webParts/$count{?%24search,%24filter}"
@@ -49,6 +53,8 @@ func NewItemPagesItemWebPartsCountRequestBuilderInternal(pathParameters map[stri
 }
 
 // NewItemPagesItemWebPartsCountRequestBuilder instantiates a new CountRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesItemWebPartsCountRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemWebPartsCountRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -56,6 +62,8 @@ func NewItemPagesItemWebPartsCountRequestBuilder(rawUrl string, requestAdapter i
 }
 
 // CreateGetRequestInformation get the number of the resource
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsCountRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemWebPartsCountRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -73,6 +81,8 @@ func (m *ItemPagesItemWebPartsCountRequestBuilder) CreateGetRequestInformation(c
 }
 
 // Get get the number of the resource
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsCountRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemWebPartsCountRequestBuilderGetRequestConfiguration) (*int32, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {

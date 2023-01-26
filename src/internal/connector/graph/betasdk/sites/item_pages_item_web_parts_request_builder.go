@@ -9,6 +9,8 @@ import (
 )
 
 // ItemPagesItemWebPartsRequestBuilder provides operations to manage the webParts property of the microsoft.graph.sitePage entity.
+//
+//nolint:lll
 type ItemPagesItemWebPartsRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -39,6 +41,8 @@ type ItemPagesItemWebPartsRequestBuilderGetQueryParameters struct {
 }
 
 // ItemPagesItemWebPartsRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemWebPartsRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -49,6 +53,8 @@ type ItemPagesItemWebPartsRequestBuilderGetRequestConfiguration struct {
 }
 
 // ItemPagesItemWebPartsRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemWebPartsRequestBuilderPostRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -57,6 +63,8 @@ type ItemPagesItemWebPartsRequestBuilderPostRequestConfiguration struct {
 }
 
 // NewItemPagesItemWebPartsRequestBuilderInternal instantiates a new WebPartsRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemWebPartsRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemWebPartsRequestBuilder {
 	m := &ItemPagesItemWebPartsRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/webParts{?%24top,%24skip,%24search,%24filter,%24count,%24orderby,%24select,%24expand}"
@@ -70,6 +78,8 @@ func NewItemPagesItemWebPartsRequestBuilderInternal(pathParameters map[string]st
 }
 
 // NewItemPagesItemWebPartsRequestBuilder instantiates a new WebPartsRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesItemWebPartsRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemWebPartsRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -82,6 +92,8 @@ func (m *ItemPagesItemWebPartsRequestBuilder) Count() *ItemPagesItemWebPartsCoun
 }
 
 // CreateGetRequestInformation collection of webparts on the SharePoint page
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemWebPartsRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -99,6 +111,8 @@ func (m *ItemPagesItemWebPartsRequestBuilder) CreateGetRequestInformation(ctx co
 }
 
 // CreatePostRequestInformation create new navigation property to webParts for sites
+//
+//nolint:wsl,revive,lll,errcheck
 func (m *ItemPagesItemWebPartsRequestBuilder) CreatePostRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, requestConfiguration *ItemPagesItemWebPartsRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -114,6 +128,8 @@ func (m *ItemPagesItemWebPartsRequestBuilder) CreatePostRequestInformation(ctx c
 }
 
 // Get collection of webparts on the SharePoint page
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemWebPartsRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartCollectionResponseable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -134,6 +150,8 @@ func (m *ItemPagesItemWebPartsRequestBuilder) Get(ctx context.Context, requestCo
 }
 
 // Post create new navigation property to webParts for sites
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesItemWebPartsRequestBuilder) Post(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, requestConfiguration *ItemPagesItemWebPartsRequestBuilderPostRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, error) {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {

@@ -17,6 +17,7 @@ type ItemPagesItemPublishRequestBuilder struct {
 	urlTemplate string
 }
 
+// nolint:lll
 // ItemPagesItemPublishRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
 type ItemPagesItemPublishRequestBuilderPostRequestConfiguration struct {
 	// Request headers
@@ -25,6 +26,7 @@ type ItemPagesItemPublishRequestBuilderPostRequestConfiguration struct {
 	Options []i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestOption
 }
 
+// nolint:lll,wsl
 // NewItemPagesItemPublishRequestBuilderInternal instantiates a new PublishRequestBuilder and sets the default values.
 func NewItemPagesItemPublishRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemPublishRequestBuilder {
 	m := &ItemPagesItemPublishRequestBuilder{}
@@ -39,12 +41,15 @@ func NewItemPagesItemPublishRequestBuilderInternal(pathParameters map[string]str
 }
 
 // NewItemPagesItemPublishRequestBuilder instantiates a new PublishRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl,revive
 func NewItemPagesItemPublishRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemPublishRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
 	return NewItemPagesItemPublishRequestBuilderInternal(urlParams, requestAdapter)
 }
 
+// //nolint:wsl,revive,lll
 // CreatePostRequestInformation invoke action publish
 func (m *ItemPagesItemPublishRequestBuilder) CreatePostRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemPublishRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
@@ -58,6 +63,7 @@ func (m *ItemPagesItemPublishRequestBuilder) CreatePostRequestInformation(ctx co
 	return requestInfo, nil
 }
 
+// //nolint:wsl,revive,lll
 // Post invoke action publish
 func (m *ItemPagesItemPublishRequestBuilder) Post(ctx context.Context, requestConfiguration *ItemPagesItemPublishRequestBuilderPostRequestConfiguration) error {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, requestConfiguration)

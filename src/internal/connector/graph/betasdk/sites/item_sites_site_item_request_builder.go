@@ -27,6 +27,8 @@ type ItemSitesSiteItemRequestBuilderGetQueryParameters struct {
 }
 
 // ItemSitesSiteItemRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemSitesSiteItemRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -37,6 +39,8 @@ type ItemSitesSiteItemRequestBuilderGetRequestConfiguration struct {
 }
 
 // NewItemSitesSiteItemRequestBuilderInternal instantiates a new SiteItemRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemSitesSiteItemRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemSitesSiteItemRequestBuilder {
 	m := &ItemSitesSiteItemRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/sites/{site%2Did1}{?%24select,%24expand}"
@@ -50,6 +54,8 @@ func NewItemSitesSiteItemRequestBuilderInternal(pathParameters map[string]string
 }
 
 // NewItemSitesSiteItemRequestBuilder instantiates a new SiteItemRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemSitesSiteItemRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemSitesSiteItemRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -57,6 +63,8 @@ func NewItemSitesSiteItemRequestBuilder(rawUrl string, requestAdapter i2ae4187f7
 }
 
 // CreateGetRequestInformation the collection of the sub-sites under this site.
+//
+//nolint:wsl,revive,lll
 func (m *ItemSitesSiteItemRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemSitesSiteItemRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -74,6 +82,8 @@ func (m *ItemSitesSiteItemRequestBuilder) CreateGetRequestInformation(ctx contex
 }
 
 // Get the collection of the sub-sites under this site.
+//
+//nolint:wsl,revive,lll
 func (m *ItemSitesSiteItemRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemSitesSiteItemRequestBuilderGetRequestConfiguration) (msmodel.Siteable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {

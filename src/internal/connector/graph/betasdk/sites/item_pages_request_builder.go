@@ -19,6 +19,8 @@ type ItemPagesRequestBuilder struct {
 }
 
 // ItemPagesRequestBuilderGetQueryParameters get the collection of [sitePage][] objects from the site pages [list][] in a site [site][]. All pages in the site are returned (with pagination). Sort alphabetically by `name` in ascending order.
+//
+//nolint:lll
 type ItemPagesRequestBuilderGetQueryParameters struct {
 	// Include count of items
 	Count *bool `uriparametername:"%24count"`
@@ -39,6 +41,8 @@ type ItemPagesRequestBuilderGetQueryParameters struct {
 }
 
 // ItemPagesRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:wsl,revive,lll
 type ItemPagesRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -49,6 +53,8 @@ type ItemPagesRequestBuilderGetRequestConfiguration struct {
 }
 
 // ItemPagesRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:wsl,revive,lll
 type ItemPagesRequestBuilderPostRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -57,6 +63,8 @@ type ItemPagesRequestBuilderPostRequestConfiguration struct {
 }
 
 // NewItemPagesRequestBuilderInternal instantiates a new PagesRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesRequestBuilder {
 	m := &ItemPagesRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages{?%24top,%24skip,%24search,%24filter,%24count,%24orderby,%24select,%24expand}"
@@ -70,6 +78,8 @@ func NewItemPagesRequestBuilderInternal(pathParameters map[string]string, reques
 }
 
 // NewItemPagesRequestBuilder instantiates a new PagesRequestBuilder and sets the default values.
+//
+//nolint:wsl,revive,lll
 func NewItemPagesRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -82,6 +92,8 @@ func (m *ItemPagesRequestBuilder) Count() *ItemPagesCountRequestBuilder {
 }
 
 // CreateGetRequestInformation get the collection of [sitePage][] objects from the site pages [list][] in a site [site][]. All pages in the site are returned (with pagination). Sort alphabetically by `name` in ascending order.
+//
+//nolint:wsl,revive,lll
 func (m *ItemPagesRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -99,6 +111,8 @@ func (m *ItemPagesRequestBuilder) CreateGetRequestInformation(ctx context.Contex
 }
 
 // CreatePostRequestInformation create a new [sitePage][] in the site pages [list][] in a [site][].
+//
+//nolint:errcheck,lll,wsl
 func (m *ItemPagesRequestBuilder) CreatePostRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SitePageable, requestConfiguration *ItemPagesRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -117,6 +131,7 @@ func (m *ItemPagesRequestBuilder) CreatePostRequestInformation(ctx context.Conte
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/sitepage-list?view=graph-rest-1.0
+// //nolint:wsl,revive,lll
 func (m *ItemPagesRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SitePageCollectionResponseable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -140,6 +155,7 @@ func (m *ItemPagesRequestBuilder) Get(ctx context.Context, requestConfiguration 
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/sitepage-create?view=graph-rest-1.0
+// nolint:wsl,revive,lll
 func (m *ItemPagesRequestBuilder) Post(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SitePageable, requestConfiguration *ItemPagesRequestBuilderPostRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SitePageable, error) {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {
