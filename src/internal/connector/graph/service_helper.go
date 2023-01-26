@@ -94,31 +94,51 @@ func (handler *LoggingMiddleware) Intercept(
 	}
 
 	if (resp.StatusCode / 100) == 2 {
+		if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
+			metadata := []any{
+				"idx", middlewareIndex,
+				"method", req.Method,
+				"status", resp.Status,
+				"statusCode", resp.StatusCode,
+				"requestLen", req.ContentLength,
+				"url", req.URL,
+			}
+
+			logger.Ctx(ctx).Debugw("2xx graph api resp", metadata...)
+		}
+
 		return resp, err
-	}
-
-	// special case for supportability: log all throttling cases.
-	if resp.StatusCode == http.StatusTooManyRequests {
-		logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
-	}
-
-	if resp.StatusCode != http.StatusTooManyRequests && (resp.StatusCode/100) != 2 {
-		logger.Ctx(ctx).Infow("graph api error", "method", req.Method, "url", req.URL)
 	}
 
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		respDump, _ := httputil.DumpResponse(resp, true)
 
 		metadata := []any{
+			"idx", middlewareIndex,
 			"method", req.Method,
-			"url", req.URL,
-			"requestLen", req.ContentLength,
 			"status", resp.Status,
 			"statusCode", resp.StatusCode,
-			"request", string(respDump),
+			"requestLen", req.ContentLength,
+			"url", req.URL,
+			"response", string(respDump),
 		}
 
 		logger.Ctx(ctx).Errorw("non-2xx graph api response", metadata...)
+	} else {
+		// special case for supportability: log all throttling cases.
+		if resp.StatusCode == http.StatusTooManyRequests {
+			logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
+		}
+
+		if resp.StatusCode != http.StatusTooManyRequests && (resp.StatusCode/100) != 2 {
+			logger.Ctx(ctx).Infow("graph api error", "status", resp.Status, "method", req.Method, "url", req.URL)
+		}
+	}
+
+	// this is a hack to address 401 responses from graph api not coming
+	// through as errors.
+	if err == nil && resp.StatusCode == http.StatusUnauthorized {
+		return resp, err401Unauthorized
 	}
 
 	return resp, err

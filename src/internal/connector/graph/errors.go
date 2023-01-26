@@ -10,6 +10,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,10 @@ const (
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
+)
+
+var (
+	err401Unauthorized = errors.New("401 unauthorized intercepted")
 )
 
 // The folder or item was deleted between the time we identified
@@ -49,7 +54,7 @@ func asDeletedInFlight(err error) bool {
 	return errors.As(err, &e)
 }
 
-// Delta tokens can be desycned or expired.  In either case, the token
+// Delta tokens can be desycned or Unauthorized.  In either case, the token
 // becomes invalid, and cannot be used again.
 // https://learn.microsoft.com/en-us/graph/errors#code-property
 type ErrInvalidDelta struct {
@@ -102,6 +107,51 @@ func asTimeout(err error) bool {
 	return errors.As(err, &e)
 }
 
+// isTimeoutErr is used to determine if the Graph error returned is
+// because of Timeout. This is used to restrict retries to just
+// timeouts as other errors are handled within a middleware in the
+// client.
+func isTimeoutErr(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+		return true
+	}
+
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	default:
+		return false
+	}
+}
+
+type ErrUnauthorized struct {
+	common.Err
+}
+
+func IsErrUnauthorized(err error) error {
+	// TODO: refine this investigation.  We don't currently know if
+	// a specific item download url expired, or if the full connection
+	// auth expired.
+	if errors.Is(err, err401Unauthorized) {
+		return err
+	}
+
+	if asUnauthorized(err) {
+		return err
+	}
+
+	if hasErrorCode(err, "foo") {
+		return ErrInvalidDelta{*common.EncapsulateError(err)}
+	}
+
+	return nil
+}
+
+func asUnauthorized(err error) bool {
+	e := ErrUnauthorized{}
+	return errors.As(err, &e)
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -120,22 +170,7 @@ func hasErrorCode(err error, codes ...string) bool {
 		return false
 	}
 
+	logger.Ctx(context.Background()).Errorw("ERR CODE", "code", *oDataError.GetError().GetCode())
+
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
-}
-
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
-		return true
-	}
-
-	switch err := err.(type) {
-	case *url.Error:
-		return err.Timeout()
-	default:
-		return false
-	}
 }
