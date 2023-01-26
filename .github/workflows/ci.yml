@@ -208,6 +208,7 @@ jobs:
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          CORSO_LOG_FILE: stderr
           LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
@@ -219,7 +220,7 @@ jobs:
           -p 1          \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
-      # Upload the original go test log as an artifact for later review.
+      # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v3

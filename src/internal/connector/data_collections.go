@@ -87,6 +87,7 @@ func (gc *GraphConnector) DataCollections(
 	case selectors.ServiceSharePoint:
 		colls, err := sharepoint.DataCollections(
 			ctx,
+			gc.itemClient,
 			sels,
 			gc.credentials.AzureTenantID,
 			gc.Service,
@@ -198,6 +199,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
 		odcs, err := onedrive.NewCollections(
+			gc.itemClient,
 			gc.credentials.AzureTenantID,
 			user,
 			onedrive.OneDriveSource,

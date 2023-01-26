@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -89,7 +90,9 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 
 			paths := map[string]string{}
 			newPaths := map[string]string{}
+			excluded := map[string]struct{}{}
 			c := onedrive.NewCollections(
+				graph.LargeItemClient(),
 				tenant,
 				site,
 				onedrive.SharePointSource,
@@ -97,7 +100,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths)
+			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, excluded)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
