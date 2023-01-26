@@ -68,14 +68,6 @@ func CreateHTTPClient() *http.Client {
 func LargeItemClient() *http.Client {
 	httpClient := CreateHTTPClient()
 	httpClient.Timeout = 0 // infinite timeout for pulling large files
-	httpClient.Transport = &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       30 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
 
 	return httpClient
 }

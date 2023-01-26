@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -60,7 +61,16 @@ func oneDriveItemReader(
 		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
 
-	resp, err := hc.Get(*url)
+	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	if err != nil {
+		return details.ItemInfo{}, nil, err
+	}
+
+	// Decorate the traffic
+	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
+	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
+
+	resp, err := hc.Do(req)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
