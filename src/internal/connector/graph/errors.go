@@ -31,7 +31,8 @@ var (
 	// normally the graph client will catch this for us, but in case we
 	// run our own client Do(), we need to translate it to a timeout type
 	// failure locally.
-	Err429TooManyRequests = errors.New("429 too many requests")
+	Err429TooManyRequests    = errors.New("429 too many requests")
+	Err503ServiceUnavailable = errors.New("503 Service Unavailable")
 )
 
 // The folder or item was deleted between the time we identified
@@ -168,6 +169,27 @@ func IsErrUnauthorized(err error) error {
 }
 
 func asUnauthorized(err error) bool {
+	e := ErrUnauthorized{}
+	return errors.As(err, &e)
+}
+
+type ErrServiceUnavailable struct {
+	common.Err
+}
+
+func IsSericeUnavailable(err error) error {
+	if errors.Is(err, Err503ServiceUnavailable) {
+		return err
+	}
+
+	if asServiceUnavailable(err) {
+		return err
+	}
+
+	return nil
+}
+
+func asServiceUnavailable(err error) bool {
 	e := ErrUnauthorized{}
 	return errors.As(err, &e)
 }
