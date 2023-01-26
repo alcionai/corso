@@ -207,7 +207,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	for id, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
-			break
+			continue
 		}
 
 		if item == nil {
@@ -223,56 +223,61 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			// Read the item
 			var (
+				itemName = *item.GetName()
+				itemSize = *item.GetSize()
 				itemInfo details.ItemInfo
-				itemData io.ReadCloser
-				err      error
-			)
-
-			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(oc.itemClient, item)
-				if err == nil || graph.IsErrTimeout(err) == nil {
-					// retry on Timeout type errors, break otherwise.
-					break
-				}
-
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
-				}
-			}
-
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
-			}
-
-			var (
-				itemName string
-				itemSize int64
 			)
 
 			switch oc.source {
 			case SharePointSource:
+				itemInfo.SharePoint = sharePointItemInfo(item, *item.GetSize())
 				itemInfo.SharePoint.ParentPath = parentPathString
-				itemName = itemInfo.SharePoint.ItemName
-				itemSize = itemInfo.SharePoint.Size
 			default:
+				itemInfo.OneDrive = oneDriveItemInfo(item, *item.GetSize())
 				itemInfo.OneDrive.ParentPath = parentPathString
-				itemName = itemInfo.OneDrive.ItemName
-				itemSize = itemInfo.OneDrive.Size
 			}
 
+			// Construct a new lazy readCloser to feed to the collection consumer.
+			// This ensures that downloads won't be attempted unless that consumer
+			// attempts to read bytes.  Assumption is that kopia will check things
+			// like file modtimes before attempting to read.
 			itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+				// Read the item
+				var (
+					itemData io.ReadCloser
+					err      error
+				)
+
+				for i := 1; i <= maxRetries; i++ {
+					_, itemData, err = oc.itemReader(oc.itemClient, item)
+					if err == nil || graph.IsErrTimeout(err) == nil {
+						// retry on Timeout type errors, break otherwise.
+						break
+					}
+
+					if i < maxRetries {
+						time.Sleep(1 * time.Second)
+					}
+				}
+
+				// check for errors following retries
+				if err != nil {
+					errUpdater(*item.GetId(), err)
+					return nil, err
+				}
+
+				// display/log the item download
 				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName, itemSize)
 				go closer()
+
+				// Item read successfully, add to collection
+				atomic.AddInt64(&itemsRead, 1)
+				// byteCount iteration
+				atomic.AddInt64(&byteCount, itemSize)
+
 				return progReader, nil
 			})
-
-			// Item read successfully, add to collection
-			atomic.AddInt64(&itemsRead, 1)
-			// byteCount iteration
-			atomic.AddInt64(&byteCount, itemSize)
 
 			oc.data <- &Item{
 				id:   itemName,
