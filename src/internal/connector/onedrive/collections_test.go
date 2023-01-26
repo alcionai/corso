@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -105,6 +106,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 		expectedContainerCount  int
 		expectedFileCount       int
 		expectedMetadataPaths   map[string]string
+		expectedExcludes        map[string]struct{}
 	}{
 		{
 			testCase: "Invalid item",
@@ -115,6 +117,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:                 anyFolder,
 			expect:                assert.Error,
 			expectedMetadataPaths: map[string]string{},
+			expectedExcludes:      map[string]struct{}{},
 		},
 		{
 			testCase: "Single File",
@@ -135,6 +138,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedContainerCount: 1,
 			// Root folder is skipped since it's always present.
 			expectedMetadataPaths: map[string]string{},
+			expectedExcludes:      map[string]struct{}{},
 		},
 		{
 			testCase: "Single Folder",
@@ -153,6 +157,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "Single Package",
@@ -171,6 +176,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/package",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
@@ -209,6 +215,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/package",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "contains folder selector",
@@ -258,6 +265,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder/subfolder/folder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "prefix subfolder selector",
@@ -292,6 +300,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder/subfolder/folder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "match subfolder selector",
@@ -318,6 +327,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.
 			expectedMetadataPaths: map[string]string{},
+			expectedExcludes:      map[string]struct{}{},
 		},
 		{
 			testCase: "not moved folder tree",
@@ -358,6 +368,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder/subfolder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "moved folder tree",
@@ -398,6 +409,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder/subfolder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "moved folder tree and subfolder 1",
@@ -439,6 +451,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/subfolder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "moved folder tree and subfolder 2",
@@ -480,6 +493,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/subfolder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "deleted folder and package",
@@ -508,6 +522,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedFileCount:       0,
 			expectedContainerCount:  0,
 			expectedMetadataPaths:   map[string]string{},
+			expectedExcludes:        map[string]struct{}{},
 		},
 		{
 			testCase: "delete folder tree move subfolder",
@@ -543,6 +558,24 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/subfolder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "delete file",
+			items: []models.DriveItemable{
+				delItem("item", testBaseDrivePath, true, false, false),
+			},
+			inputFolderMap:          map[string]string{},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       1,
+			expectedFileCount:       1,
+			expectedContainerCount:  0,
+			expectedMetadataPaths:   map[string]string{},
+			expectedExcludes: map[string]struct{}{
+				"item": {},
+			},
 		},
 	}
 
@@ -551,9 +584,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			excludes := map[string]struct{}{}
 			outputFolderMap := map[string]string{}
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 			c := NewCollections(
+				graph.LargeItemClient(),
 				tenant,
 				user,
 				OneDriveSource,
@@ -562,7 +597,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				nil,
 				control.Options{})
 
-			err := c.UpdateCollections(ctx, "driveID", "General", tt.items, tt.inputFolderMap, outputFolderMap)
+			err := c.UpdateCollections(
+				ctx,
+				"driveID",
+				"General",
+				tt.items,
+				tt.inputFolderMap,
+				outputFolderMap,
+				excludes,
+			)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
@@ -573,6 +616,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			}
 
 			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap)
+			assert.Equal(t, tt.expectedExcludes, excludes)
 		})
 	}
 }

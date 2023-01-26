@@ -101,6 +101,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		items []models.DriveItemable,
 		oldPaths map[string]string,
 		newPaths map[string]string,
+		excluded map[string]struct{},
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
@@ -111,7 +112,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
-	_, _, err := collectItems(ctx, suite, suite.userDriveID, "General", itemCollector)
+	_, _, _, err := collectItems(ctx, suite, suite.userDriveID, "General", itemCollector)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file
@@ -125,7 +126,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	// Read data for the file
 
-	itemInfo, itemData, err := oneDriveItemReader(ctx, driveItem)
+	itemInfo, itemData, err := oneDriveItemReader(graph.LargeItemClient(), driveItem)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)
