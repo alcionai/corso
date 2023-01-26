@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -20,55 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var (
-	errFolderNotFound = errors.New("folder not found")
-
-	// nolint:lll
-	// OneDrive associated SKUs located at:
-	// https://learn.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
-	skuIDs = []string{
-		// Microsoft 365 Apps for Business 0365
-		"cdd28e44-67e3-425e-be4c-737fab2899d3",
-		// Microsoft 365 Apps for Business SMB_Business
-		"b214fe43-f5a3-4703-beeb-fa97188220fc",
-		// Microsoft 365 Apps for enterprise
-		"c2273bd0-dff7-4215-9ef5-2c7bcfb06425",
-		// Microsoft 365 Apps for Faculty
-		"12b8c807-2e20-48fc-b453-542b6ee9d171",
-		// Microsoft 365 Apps for Students
-		"c32f9321-a627-406d-a114-1f9c81aaafac",
-		// OneDrive for Business (Plan 1)
-		"e6778190-713e-4e4f-9119-8b8238de25df",
-		// OneDrive for Business (Plan 2)
-		"ed01faf2-1d88-4947-ae91-45ca18703a96",
-		// Visio Plan 1
-		"ca7f3140-d88c-455b-9a1c-7f0679e31a76",
-		// Visio Plan 2
-		"38b434d2-a15e-4cde-9a98-e737c75623e1",
-		// Visio Online Plan 1
-		"4b244418-9658-4451-a2b8-b5e2b364e9bd",
-		// Visio Online Plan 2
-		"c5928f49-12ba-48f7-ada3-0d743a3601d5",
-		// Visio Plan 2 for GCC
-		"4ae99959-6b0f-43b0-b1ce-68146001bdba",
-		// ONEDRIVEENTERPRISE
-		"afcafa6a-d966-4462-918c-ec0b4e0fe642",
-		// Microsoft 365 E5 Developer
-		"c42b9cae-ea4f-4ab7-9717-81576235ccac",
-		// Microsoft 365 E5
-		"06ebc4ee-1bb5-47dd-8120-11324bc54e06",
-		// Office 365 E4
-		"1392051d-0cb9-4b7a-88d5-621fee5e8711",
-		// Microsoft 365 E3
-		"05e9a617-0261-4cee-bb44-138d3ef5d965",
-		// Microsoft 365 Business Premium
-		"cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46",
-		// Microsoft 365 Business Standard
-		"f245ecc8-75af-4f8e-b61f-27d8114de5f3",
-		// Microsoft 365 Business Basic
-		"3b555118-da6a-4418-894f-7df1e2096870",
-	}
-)
+var errFolderNotFound = errors.New("folder not found")
 
 const (
 	// nextLinkKey is used to find the next link in a paged
@@ -116,20 +67,10 @@ func siteDrives(ctx context.Context, service graph.Servicer, site string) ([]mod
 
 func userDrives(ctx context.Context, service graph.Servicer, user string) ([]models.Driveable, error) {
 	var (
-		hasDrive        bool
 		numberOfRetries = 3
 		r               models.DriveCollectionResponseable
+		err             error
 	)
-
-	hasDrive, err := hasDriveLicense(ctx, service, user)
-	if err != nil {
-		return nil, errors.Wrap(err, user)
-	}
-
-	if !hasDrive {
-		logger.Ctx(ctx).Debugf("User %s does not have a license for OneDrive", user)
-		return make([]models.Driveable, 0), nil // no license
-	}
 
 	// Retry Loop for Drive retrieval. Request can timeout
 	for i := 0; i <= numberOfRetries; i++ {
@@ -421,57 +362,4 @@ func DeleteItem(
 	}
 
 	return nil
-}
-
-// hasDriveLicense utility function that queries M365 server
-// to investigate the user's includes access to OneDrive.
-func hasDriveLicense(
-	ctx context.Context,
-	service graph.Servicer,
-	user string,
-) (bool, error) {
-	var hasDrive bool
-
-	resp, err := service.Client().UsersById(user).LicenseDetails().Get(ctx, nil)
-	if err != nil {
-		return false,
-			errors.Wrap(err, "failure obtaining license details for user")
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, service.Adapter(),
-		models.CreateLicenseDetailsCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return false, err
-	}
-
-	cb := func(pageItem any) bool {
-		entry, ok := pageItem.(models.LicenseDetailsable)
-		if !ok {
-			err = errors.New("casting item to models.LicenseDetailsable")
-			return false
-		}
-
-		sku := entry.GetSkuId()
-		if sku == nil {
-			return true
-		}
-
-		for _, license := range skuIDs {
-			if sku.String() == license {
-				hasDrive = true
-				return false
-			}
-		}
-
-		return true
-	}
-
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return false,
-			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	return hasDrive, nil
 }
