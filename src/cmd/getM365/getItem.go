@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -178,7 +177,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, account.M365Config, 
 		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "finding m365 account details"))
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
 		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "connecting to graph API"))
 	}

@@ -2,7 +2,6 @@ package sharepoint
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/pkg/errors"
 
@@ -25,7 +24,6 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
-	itemClient *http.Client,
 	selector selectors.Selector,
 	tenantID string,
 	serv graph.Servicer,
@@ -68,7 +66,6 @@ func DataCollections(
 		case path.LibrariesCategory:
 			spcs, err = collectLibraries(
 				ctx,
-				itemClient,
 				serv,
 				tenantID,
 				site,
@@ -127,7 +124,6 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	itemClient *http.Client,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
@@ -142,7 +138,6 @@ func collectLibraries(
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
 	colls := onedrive.NewCollections(
-		itemClient,
 		tenantID,
 		siteID,
 		onedrive.SharePointSource,

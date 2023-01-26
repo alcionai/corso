@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -588,7 +587,6 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			outputFolderMap := map[string]string{}
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 			c := NewCollections(
-				graph.LargeItemClient(),
 				tenant,
 				user,
 				OneDriveSource,

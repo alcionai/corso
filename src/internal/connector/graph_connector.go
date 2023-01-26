@@ -4,7 +4,6 @@ package connector
 
 import (
 	"context"
-	"net/http"
 	"runtime/trace"
 	"strings"
 	"sync"
@@ -39,9 +38,8 @@ import (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	Service    graph.Servicer
-	Owners     api.Client
-	itemClient *http.Client // configured to handle large item downloads
+	Service graph.Servicer
+	Owners  api.Client
 
 	tenant      string
 	Users       map[string]string // key<email> value<id>
@@ -66,19 +64,13 @@ const (
 	Sites
 )
 
-func NewGraphConnector(
-	ctx context.Context,
-	itemClient *http.Client,
-	acct account.Account,
-	r resource,
-) (*GraphConnector, error) {
+func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m365 account configuration")
 	}
 
 	gc := GraphConnector{
-		itemClient:  itemClient,
 		tenant:      m365.AzureTenantID,
 		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
