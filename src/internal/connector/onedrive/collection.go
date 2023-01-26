@@ -4,11 +4,13 @@ package onedrive
 import (
 	"context"
 	"io"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -43,6 +45,9 @@ var (
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
+	// configured to handle large item downloads
+	itemClient *http.Client
+
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
 	// folderPath indicates what level in the hierarchy this collection
@@ -64,12 +69,13 @@ type Collection struct {
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
 // NewCollection creates a Collection
 func NewCollection(
+	itemClient *http.Client,
 	folderPath path.Path,
 	driveID string,
 	service graph.Servicer,
@@ -78,6 +84,7 @@ func NewCollection(
 	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
+		itemClient:    itemClient,
 		folderPath:    folderPath,
 		driveItems:    map[string]models.DriveItemable{},
 		driveID:       driveID,
@@ -198,9 +205,14 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		m.Unlock()
 	}
 
-	for _, item := range oc.driveItems {
+	for id, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
 			break
+		}
+
+		if item == nil {
+			errUpdater(id, errors.New("nil item"))
+			continue
 		}
 
 		semaphoreCh <- struct{}{}
@@ -219,10 +231,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			)
 
 			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, item)
-
-				// retry on Timeout type errors, break otherwise.
+				itemInfo, itemData, err = oc.itemReader(oc.itemClient, item)
 				if err == nil || graph.IsErrTimeout(err) == nil {
+					// retry on Timeout type errors, break otherwise.
 					break
 				}
 

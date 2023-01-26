@@ -655,7 +655,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	m365, err := acct.M365Config()
 	require.NoError(t, err)
 
-	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Users)
 	require.NoError(t, err)
 
 	ac, err := api.NewClient(m365)
