@@ -3,12 +3,15 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder provides operations to manage the verticalSection property of the microsoft.graph.canvasLayout entity.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -19,6 +22,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder struct {
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderDeleteRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderDeleteRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -27,6 +32,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderDeleteRequestConfigur
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetQueryParameters read the properties and relationships of a verticalSection object.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetQueryParameters struct {
 	// Expand related entities
 	Expand []string `uriparametername:"%24expand"`
@@ -35,6 +42,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetQueryParameters st
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -45,6 +54,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetRequestConfigurati
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderPatchRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderPatchRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -53,6 +64,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderPatchRequestConfigura
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilderInternal instantiates a new VerticalSectionRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder {
 	m := &ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/canvasLayout/verticalSection{?%24select,%24expand}"
@@ -66,6 +79,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilderInternal(pathParam
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilder instantiates a new VerticalSectionRequestBuilder and sets the default values.
+//
+//nolint:lll,revive,wsl
 func NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -73,6 +88,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilder(rawUrl string, re
 }
 
 // CreateDeleteRequestInformation delete navigation property verticalSection for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) CreateDeleteRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderDeleteRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -86,6 +103,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) CreateDeleteReq
 }
 
 // CreateGetRequestInformation read the properties and relationships of a verticalSection object.
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -103,6 +122,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) CreateGetReques
 }
 
 // CreatePatchRequestInformation update the navigation property verticalSection in sites
+//
+//nolint:lll,wsl,errcheck
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) CreatePatchRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.VerticalSectionable, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderPatchRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -118,6 +139,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) CreatePatchRequ
 }
 
 // Delete delete navigation property verticalSection for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Delete(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderDeleteRequestConfiguration) error {
 	requestInfo, err := m.CreateDeleteRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -138,6 +161,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Delete(ctx cont
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/verticalsection-get?view=graph-rest-1.0
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.VerticalSectionable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -158,6 +183,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Get(ctx context
 }
 
 // Patch update the navigation property verticalSection in sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Patch(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.VerticalSectionable, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilderPatchRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.VerticalSectionable, error) {
 	requestInfo, err := m.CreatePatchRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {
@@ -178,11 +205,15 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Patch(ctx conte
 }
 
 // Webparts provides operations to manage the webparts property of the microsoft.graph.verticalSection entity.
+//
+//nolint:lll
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) Webparts() *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder {
 	return NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }
 
 // WebpartsById provides operations to manage the webparts property of the microsoft.graph.verticalSection entity.
+//
+//nolint:lll,wsl,revive
 func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) WebpartsById(id string) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {

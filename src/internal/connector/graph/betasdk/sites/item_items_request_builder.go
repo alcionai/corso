@@ -18,7 +18,8 @@ type ItemItemsRequestBuilder struct {
 	urlTemplate string
 }
 
-// ItemItemsRequestBuilderGetQueryParameters used to address any item contained in this site. This collection cannot be enumerated.
+// ItemItemsRequestBuilderGetQueryParameters used to address any item
+// contained in this site. This collection cannot be enumerated.
 type ItemItemsRequestBuilderGetQueryParameters struct {
 	// Include count of items
 	Count *bool `uriparametername:"%24count"`
@@ -38,7 +39,8 @@ type ItemItemsRequestBuilderGetQueryParameters struct {
 	Top *int32 `uriparametername:"%24top"`
 }
 
-// ItemItemsRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+// ItemItemsRequestBuilderGetRequestConfiguration configuration for the request
+// such as headers, query parameters, and middleware options.
 type ItemItemsRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -49,22 +51,33 @@ type ItemItemsRequestBuilderGetRequestConfiguration struct {
 }
 
 // NewItemItemsRequestBuilderInternal instantiates a new ItemsRequestBuilder and sets the default values.
-func NewItemItemsRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemItemsRequestBuilder {
+func NewItemItemsRequestBuilderInternal(
+	pathParameters map[string]string,
+	requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter,
+) *ItemItemsRequestBuilder {
 	m := &ItemItemsRequestBuilder{}
+	//nolint:lll
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/items{?%24top,%24skip,%24search,%24filter,%24count,%24orderby,%24select,%24expand}"
 	urlTplParams := make(map[string]string)
+
 	for idx, item := range pathParameters {
 		urlTplParams[idx] = item
 	}
+
 	m.pathParameters = urlTplParams
 	m.requestAdapter = requestAdapter
+
 	return m
 }
 
 // NewItemItemsRequestBuilder instantiates a new ItemsRequestBuilder and sets the default values.
-func NewItemItemsRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemItemsRequestBuilder {
+func NewItemItemsRequestBuilder(
+	rawURL string,
+	requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter,
+) *ItemItemsRequestBuilder {
 	urlParams := make(map[string]string)
-	urlParams["request-raw-url"] = rawUrl
+	urlParams["request-raw-url"] = rawURL
+
 	return NewItemItemsRequestBuilderInternal(urlParams, requestAdapter)
 }
 
@@ -74,38 +87,56 @@ func (m *ItemItemsRequestBuilder) Count() *ItemItemsCountRequestBuilder {
 }
 
 // CreateGetRequestInformation used to address any item contained in this site. This collection cannot be enumerated.
-func (m *ItemItemsRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemItemsRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
+func (m *ItemItemsRequestBuilder) CreateGetRequestInformation(
+	ctx context.Context,
+	requestConfiguration *ItemItemsRequestBuilderGetRequestConfiguration,
+) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
 	requestInfo.PathParameters = m.pathParameters
 	requestInfo.Method = i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.GET
 	requestInfo.Headers.Add("Accept", "application/json")
+
 	if requestConfiguration != nil {
 		if requestConfiguration.QueryParameters != nil {
 			requestInfo.AddQueryParameters(*(requestConfiguration.QueryParameters))
 		}
+
 		requestInfo.Headers.AddAll(requestConfiguration.Headers)
 		requestInfo.AddRequestOptions(requestConfiguration.Options)
 	}
+
 	return requestInfo, nil
 }
 
 // Get used to address any item contained in this site. This collection cannot be enumerated.
-func (m *ItemItemsRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemItemsRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.BaseItemCollectionResponseable, error) {
+func (m *ItemItemsRequestBuilder) Get(
+	ctx context.Context,
+	requestConfiguration *ItemItemsRequestBuilderGetRequestConfiguration,
+) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.BaseItemCollectionResponseable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
 		return nil, err
 	}
+
 	errorMapping := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.ErrorMappings{
 		"4XX": i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0.CreateODataErrorFromDiscriminatorValue,
 		"5XX": i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0.CreateODataErrorFromDiscriminatorValue,
 	}
-	res, err := m.requestAdapter.Send(ctx, requestInfo, ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateBaseItemCollectionResponseFromDiscriminatorValue, errorMapping)
+
+	res, err := m.requestAdapter.Send(
+		ctx,
+		requestInfo,
+		//nolint:lll
+		ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateBaseItemCollectionResponseFromDiscriminatorValue,
+		errorMapping)
 	if err != nil {
 		return nil, err
 	}
+
 	if res == nil {
 		return nil, nil
 	}
+
 	return res.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.BaseItemCollectionResponseable), nil
 }

@@ -8,6 +8,8 @@ import (
 )
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder provides operations to count the resources in the collection.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -18,6 +20,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder struct 
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetQueryParameters get the number of the resource
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetQueryParameters struct {
 	// Filter items by property values
 	Filter *string `uriparametername:"%24filter"`
@@ -26,6 +30,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetQuery
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -36,6 +42,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetReque
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderInternal instantiates a new CountRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder {
 	m := &ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/canvasLayout/verticalSection/webparts/$count{?%24search,%24filter}"
@@ -49,6 +57,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderInter
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder instantiates a new CountRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl,revive
 func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -56,6 +66,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder(rawU
 }
 
 // CreateGetRequestInformation get the number of the resource
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -73,6 +85,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder) Cr
 }
 
 // Get get the number of the resource
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderGetRequestConfiguration) (*int32, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {

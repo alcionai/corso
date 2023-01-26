@@ -3,12 +3,15 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder provides operations to manage the webparts property of the microsoft.graph.verticalSection entity.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -19,6 +22,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder struct {
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetQueryParameters the set of web parts in this section.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetQueryParameters struct {
 	// Include count of items
 	Count *bool `uriparametername:"%24count"`
@@ -39,6 +44,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetQueryParam
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -49,6 +56,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetRequestCon
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderPostRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -57,6 +66,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderPostRequestCo
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderInternal instantiates a new WebpartsRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder {
 	m := &ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/canvasLayout/verticalSection/webparts{?%24top,%24skip,%24search,%24filter,%24count,%24orderby,%24select,%24expand}"
@@ -70,6 +81,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderInternal(p
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder instantiates a new WebpartsRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl,revive
 func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -77,11 +90,15 @@ func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder(rawUrl st
 }
 
 // Count provides operations to count the resources in the collection.
+//
+//nolint:lll
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) Count() *ItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilder {
 	return NewItemPagesItemCanvasLayoutVerticalSectionWebpartsCountRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }
 
 // CreateGetRequestInformation the set of web parts in this section.
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -99,6 +116,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) CreateG
 }
 
 // CreatePostRequestInformation create new navigation property to webparts for sites
+//
+//nolint:lll,wsl,errcheck
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) CreatePostRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -114,6 +133,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) CreateP
 }
 
 // Get the set of web parts in this section.
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartCollectionResponseable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -134,6 +155,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) Get(ctx
 }
 
 // Post create new navigation property to webparts for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilder) Post(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsRequestBuilderPostRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, error) {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {

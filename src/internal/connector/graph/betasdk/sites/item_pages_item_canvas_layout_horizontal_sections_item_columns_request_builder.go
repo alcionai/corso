@@ -3,12 +3,15 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder provides operations to manage the columns property of the microsoft.graph.horizontalSection entity.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -19,6 +22,8 @@ type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder struct
 }
 
 // ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetQueryParameters get a list of the horizontalSectionColumn objects and their properties. Sort by `id` in ascending order.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetQueryParameters struct {
 	// Include count of items
 	Count *bool `uriparametername:"%24count"`
@@ -39,6 +44,8 @@ type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetQuer
 }
 
 // ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -49,6 +56,8 @@ type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetRequ
 }
 
 // ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderPostRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -57,6 +66,8 @@ type ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderPostReq
 }
 
 // NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderInternal instantiates a new ColumnsRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder {
 	m := &ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/canvasLayout/horizontalSections/{horizontalSection%2Did}/columns{?%24top,%24skip,%24search,%24filter,%24count,%24orderby,%24select,%24expand}"
@@ -70,6 +81,8 @@ func NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderInte
 }
 
 // NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder instantiates a new ColumnsRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl,revive
 func NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -77,11 +90,15 @@ func NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder(raw
 }
 
 // Count provides operations to count the resources in the collection.
+//
+//nolint:lll
 func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) Count() *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsCountRequestBuilder {
 	return NewItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsCountRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }
 
 // CreateGetRequestInformation get a list of the horizontalSectionColumn objects and their properties. Sort by `id` in ascending order.
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -99,6 +116,8 @@ func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) C
 }
 
 // CreatePostRequestInformation create new navigation property to columns for sites
+//
+//nolint:lll,wsl,errcheck
 func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) CreatePostRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.HorizontalSectionColumnable, requestConfiguration *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -117,6 +136,8 @@ func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) C
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/horizontalsectioncolumn-list?view=graph-rest-1.0
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.HorizontalSectionColumnCollectionResponseable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -137,6 +158,8 @@ func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) G
 }
 
 // Post create new navigation property to columns for sites
+//
+//nolint:lll, wsl
 func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilder) Post(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.HorizontalSectionColumnable, requestConfiguration *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsRequestBuilderPostRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.HorizontalSectionColumnable, error) {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {

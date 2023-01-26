@@ -18,6 +18,8 @@ type ItemPagesItemGetWebPartsByPositionRequestBuilder struct {
 }
 
 // ItemPagesItemGetWebPartsByPositionRequestBuilderPostRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemGetWebPartsByPositionRequestBuilderPostRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -26,6 +28,8 @@ type ItemPagesItemGetWebPartsByPositionRequestBuilderPostRequestConfiguration st
 }
 
 // NewItemPagesItemGetWebPartsByPositionRequestBuilderInternal instantiates a new GetWebPartsByPositionRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemGetWebPartsByPositionRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemGetWebPartsByPositionRequestBuilder {
 	m := &ItemPagesItemGetWebPartsByPositionRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/microsoft.graph.getWebPartsByPosition"
@@ -39,6 +43,8 @@ func NewItemPagesItemGetWebPartsByPositionRequestBuilderInternal(pathParameters 
 }
 
 // NewItemPagesItemGetWebPartsByPositionRequestBuilder instantiates a new GetWebPartsByPositionRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl,revive
 func NewItemPagesItemGetWebPartsByPositionRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemGetWebPartsByPositionRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -46,6 +52,8 @@ func NewItemPagesItemGetWebPartsByPositionRequestBuilder(rawUrl string, requestA
 }
 
 // CreatePostRequestInformation invoke action getWebPartsByPosition
+//
+//nolint:lll,wsl,errcheck
 func (m *ItemPagesItemGetWebPartsByPositionRequestBuilder) CreatePostRequestInformation(ctx context.Context, body ItemPagesItemGetWebPartsByPositionPostRequestBodyable, requestConfiguration *ItemPagesItemGetWebPartsByPositionRequestBuilderPostRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -61,6 +69,8 @@ func (m *ItemPagesItemGetWebPartsByPositionRequestBuilder) CreatePostRequestInfo
 }
 
 // Post invoke action getWebPartsByPosition
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemGetWebPartsByPositionRequestBuilder) Post(ctx context.Context, body ItemPagesItemGetWebPartsByPositionPostRequestBodyable, requestConfiguration *ItemPagesItemGetWebPartsByPositionRequestBuilderPostRequestConfiguration) (ItemPagesItemGetWebPartsByPositionResponseable, error) {
 	requestInfo, err := m.CreatePostRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {

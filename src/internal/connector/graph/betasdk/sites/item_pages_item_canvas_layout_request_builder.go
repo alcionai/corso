@@ -3,12 +3,15 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesItemCanvasLayoutRequestBuilder provides operations to manage the canvasLayout property of the microsoft.graph.sitePage entity.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -19,6 +22,8 @@ type ItemPagesItemCanvasLayoutRequestBuilder struct {
 }
 
 // ItemPagesItemCanvasLayoutRequestBuilderDeleteRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutRequestBuilderDeleteRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -27,6 +32,8 @@ type ItemPagesItemCanvasLayoutRequestBuilderDeleteRequestConfiguration struct {
 }
 
 // ItemPagesItemCanvasLayoutRequestBuilderGetQueryParameters indicates the layout of the content in a given SharePoint page, including horizontal sections and vertical section
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutRequestBuilderGetQueryParameters struct {
 	// Expand related entities
 	Expand []string `uriparametername:"%24expand"`
@@ -35,6 +42,8 @@ type ItemPagesItemCanvasLayoutRequestBuilderGetQueryParameters struct {
 }
 
 // ItemPagesItemCanvasLayoutRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -45,6 +54,8 @@ type ItemPagesItemCanvasLayoutRequestBuilderGetRequestConfiguration struct {
 }
 
 // ItemPagesItemCanvasLayoutRequestBuilderPatchRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutRequestBuilderPatchRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -53,6 +64,8 @@ type ItemPagesItemCanvasLayoutRequestBuilderPatchRequestConfiguration struct {
 }
 
 // NewItemPagesItemCanvasLayoutRequestBuilderInternal instantiates a new CanvasLayoutRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemCanvasLayoutRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutRequestBuilder {
 	m := &ItemPagesItemCanvasLayoutRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/canvasLayout{?%24select,%24expand}"
@@ -66,6 +79,8 @@ func NewItemPagesItemCanvasLayoutRequestBuilderInternal(pathParameters map[strin
 }
 
 // NewItemPagesItemCanvasLayoutRequestBuilder instantiates a new CanvasLayoutRequestBuilder and sets the default values.
+//
+//nolint:lll,revive,wsl
 func NewItemPagesItemCanvasLayoutRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -73,6 +88,8 @@ func NewItemPagesItemCanvasLayoutRequestBuilder(rawUrl string, requestAdapter i2
 }
 
 // CreateDeleteRequestInformation delete navigation property canvasLayout for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) CreateDeleteRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutRequestBuilderDeleteRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -86,6 +103,8 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) CreateDeleteRequestInformation
 }
 
 // CreateGetRequestInformation indicates the layout of the content in a given SharePoint page, including horizontal sections and vertical section
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -103,6 +122,8 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) CreateGetRequestInformation(ct
 }
 
 // CreatePatchRequestInformation update the navigation property canvasLayout in sites
+//
+//nolint:lll,wsl,errcheck
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) CreatePatchRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CanvasLayoutable, requestConfiguration *ItemPagesItemCanvasLayoutRequestBuilderPatchRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -118,6 +139,8 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) CreatePatchRequestInformation(
 }
 
 // Delete delete navigation property canvasLayout for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) Delete(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutRequestBuilderDeleteRequestConfiguration) error {
 	requestInfo, err := m.CreateDeleteRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -135,6 +158,8 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) Delete(ctx context.Context, re
 }
 
 // Get indicates the layout of the content in a given SharePoint page, including horizontal sections and vertical section
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CanvasLayoutable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -155,11 +180,15 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) Get(ctx context.Context, reque
 }
 
 // HorizontalSections provides operations to manage the horizontalSections property of the microsoft.graph.canvasLayout entity.
+//
+//nolint:lll
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) HorizontalSections() *ItemPagesItemCanvasLayoutHorizontalSectionsRequestBuilder {
 	return NewItemPagesItemCanvasLayoutHorizontalSectionsRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }
 
 // HorizontalSectionsById provides operations to manage the horizontalSections property of the microsoft.graph.canvasLayout entity.
+//
+//nolint:lll,wsl,revive
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) HorizontalSectionsById(id string) *ItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {
@@ -172,6 +201,8 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) HorizontalSectionsById(id stri
 }
 
 // Patch update the navigation property canvasLayout in sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) Patch(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CanvasLayoutable, requestConfiguration *ItemPagesItemCanvasLayoutRequestBuilderPatchRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CanvasLayoutable, error) {
 	requestInfo, err := m.CreatePatchRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {
@@ -192,6 +223,8 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) Patch(ctx context.Context, bod
 }
 
 // VerticalSection provides operations to manage the verticalSection property of the microsoft.graph.canvasLayout entity.
+//
+//nolint:lll
 func (m *ItemPagesItemCanvasLayoutRequestBuilder) VerticalSection() *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder {
 	return NewItemPagesItemCanvasLayoutVerticalSectionRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }

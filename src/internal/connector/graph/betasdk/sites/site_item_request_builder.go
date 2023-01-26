@@ -5,7 +5,6 @@ import (
 
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	msmodel "github.com/microsoftgraph/msgraph-sdk-go/models"
-
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
@@ -100,11 +99,16 @@ func (m *SiteItemRequestBuilder) CreatePatchRequestInformation(ctx context.Conte
 	requestInfo.PathParameters = m.pathParameters
 	requestInfo.Method = i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.PATCH
 	requestInfo.Headers.Add("Accept", "application/json")
-	requestInfo.SetContentFromParsable(ctx, m.requestAdapter, "application/json", body)
+	err := requestInfo.SetContentFromParsable(ctx, m.requestAdapter, "application/json", body)
+	if err != nil {
+		return nil, err
+	}
+
 	if requestConfiguration != nil {
 		requestInfo.Headers.AddAll(requestConfiguration.Headers)
 		requestInfo.AddRequestOptions(requestConfiguration.Options)
 	}
+
 	return requestInfo, nil
 }
 
@@ -171,6 +175,8 @@ func (m *SiteItemRequestBuilder) Pages() *ItemPagesRequestBuilder {
 }
 
 // PagesById provides operations to manage the pages property of the microsoft.graph.site entity.
+//
+//nolint:revive
 func (m *SiteItemRequestBuilder) PagesById(id string) *ItemPagesSitePageItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {
@@ -215,6 +221,8 @@ func (m *SiteItemRequestBuilder) Sites() *ItemSitesRequestBuilder {
 }
 
 // SitesById provides operations to manage the sites property of the microsoft.graph.site entity.
+//
+//nolint:revive
 func (m *SiteItemRequestBuilder) SitesById(id string) *ItemSitesSiteItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {

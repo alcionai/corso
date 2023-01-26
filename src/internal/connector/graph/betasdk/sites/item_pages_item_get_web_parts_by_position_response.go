@@ -1,9 +1,10 @@
 package sites
 
 import (
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91 "github.com/microsoft/kiota-abstractions-go/serialization"
 	msmodel "github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesItemGetWebPartsByPositionResponse provides operations to call the getWebPartsByPosition method.
@@ -14,6 +15,8 @@ type ItemPagesItemGetWebPartsByPositionResponse struct {
 }
 
 // NewItemPagesItemGetWebPartsByPositionResponse instantiates a new ItemPagesItemGetWebPartsByPositionResponse and sets the default values.
+//
+//nolint:wsl,lll
 func NewItemPagesItemGetWebPartsByPositionResponse() *ItemPagesItemGetWebPartsByPositionResponse {
 	m := &ItemPagesItemGetWebPartsByPositionResponse{
 		BaseCollectionPaginationCountResponse: *msmodel.NewBaseCollectionPaginationCountResponse(),
@@ -22,11 +25,15 @@ func NewItemPagesItemGetWebPartsByPositionResponse() *ItemPagesItemGetWebPartsBy
 }
 
 // CreateItemPagesItemGetWebPartsByPositionResponseFromDiscriminatorValue creates a new instance of the appropriate class based on discriminator value
+//
+//nolint:lll
 func CreateItemPagesItemGetWebPartsByPositionResponseFromDiscriminatorValue(parseNode i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) (i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.Parsable, error) {
 	return NewItemPagesItemGetWebPartsByPositionResponse(), nil
 }
 
 // GetFieldDeserializers the deserialization information for the current model
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemGetWebPartsByPositionResponse) GetFieldDeserializers() map[string]func(i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
 	res := m.BaseCollectionPaginationCountResponse.GetFieldDeserializers()
 	res["value"] = func(n i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.ParseNode) error {
@@ -47,11 +54,15 @@ func (m *ItemPagesItemGetWebPartsByPositionResponse) GetFieldDeserializers() map
 }
 
 // GetValue gets the value property value. The value property
+//
+//nolint:lll
 func (m *ItemPagesItemGetWebPartsByPositionResponse) GetValue() []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable {
 	return m.value
 }
 
 // Serialize serializes information the current object
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemGetWebPartsByPositionResponse) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0a0e6c010c493bf80be1452208f91.SerializationWriter) error {
 	err := m.BaseCollectionPaginationCountResponse.Serialize(writer)
 	if err != nil {
@@ -71,6 +82,8 @@ func (m *ItemPagesItemGetWebPartsByPositionResponse) Serialize(writer i878a80d23
 }
 
 // SetValue sets the value property value. The value property
+//
+//nolint:lll
 func (m *ItemPagesItemGetWebPartsByPositionResponse) SetValue(value []ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable) {
 	m.value = value
 }

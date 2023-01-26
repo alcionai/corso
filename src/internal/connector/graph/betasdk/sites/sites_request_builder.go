@@ -2,7 +2,9 @@ package sites
 
 import i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 
-// SitesRequestBuilder builds and executes requests for operations under \sites
+// SitesRequestBuilder builds and executes requests for operations under sites
+//
+//nolint:revive
 type SitesRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -34,11 +36,6 @@ func NewSitesRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb
 	return NewSitesRequestBuilderInternal(urlParams, requestAdapter)
 }
 
-// Count provides operations to count the resources in the collection.
-func (m *SitesRequestBuilder) Count() *CountRequestBuilder {
-	return NewCountRequestBuilderInternal(m.pathParameters, m.requestAdapter)
-}
-
 // Delta provides operations to call the delta method.
 /*
 func (m *SitesRequestBuilder) Delta() *DeltaRequestBuilder {
@@ -50,3 +47,8 @@ func (m *SitesRequestBuilder) Remove() *RemoveRequestBuilder {
 	return NewRemoveRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }
 */
+
+// Count provides operations to count the resources in the collection.
+func (m *SitesRequestBuilder) Count() *CountRequestBuilder {
+	return NewCountRequestBuilderInternal(m.pathParameters, m.requestAdapter)
+}

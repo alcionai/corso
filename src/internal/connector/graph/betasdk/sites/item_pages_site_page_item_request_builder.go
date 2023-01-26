@@ -3,9 +3,10 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesSitePageItemRequestBuilder provides operations to manage the pages property of the microsoft.graph.site entity.
@@ -108,6 +109,8 @@ func (m *ItemPagesSitePageItemRequestBuilder) CreateGetRequestInformation(ctx co
 }
 
 // CreatePatchRequestInformation update the navigation property pages in sites
+//
+//nolint:errcheck
 func (m *ItemPagesSitePageItemRequestBuilder) CreatePatchRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SitePageable, requestConfiguration *ItemPagesSitePageItemRequestBuilderPatchRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -115,6 +118,7 @@ func (m *ItemPagesSitePageItemRequestBuilder) CreatePatchRequestInformation(ctx 
 	requestInfo.Method = i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.PATCH
 	requestInfo.Headers.Add("Accept", "application/json")
 	requestInfo.SetContentFromParsable(ctx, m.requestAdapter, "application/json", body)
+
 	if requestConfiguration != nil {
 		requestInfo.Headers.AddAll(requestConfiguration.Headers)
 		requestInfo.AddRequestOptions(requestConfiguration.Options)
@@ -195,6 +199,8 @@ func (m *ItemPagesSitePageItemRequestBuilder) WebParts() *ItemPagesItemWebPartsR
 }
 
 // WebPartsById provides operations to manage the webParts property of the microsoft.graph.sitePage entity.
+//
+//nolint:revive
 func (m *ItemPagesSitePageItemRequestBuilder) WebPartsById(id string) *ItemPagesItemWebPartsWebPartItemRequestBuilder {
 	urlTplParams := make(map[string]string)
 	for idx, item := range m.pathParameters {

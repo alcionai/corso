@@ -3,12 +3,15 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
 	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
+
+	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder provides operations to manage the webparts property of the microsoft.graph.verticalSection entity.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder struct {
 	// Path parameters for the request
 	pathParameters map[string]string
@@ -19,6 +22,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder s
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderDeleteRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderDeleteRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -27,6 +32,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderDe
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGetQueryParameters the set of web parts in this section.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGetQueryParameters struct {
 	// Expand related entities
 	Expand []string `uriparametername:"%24expand"`
@@ -35,6 +42,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGe
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGetRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGetRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -45,6 +54,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGe
 }
 
 // ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderPatchRequestConfiguration configuration for the request such as headers, query parameters, and middleware options.
+//
+//nolint:lll
 type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderPatchRequestConfiguration struct {
 	// Request headers
 	Headers *i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestHeaders
@@ -53,6 +64,8 @@ type ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderPa
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderInternal instantiates a new WebPartItemRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl
 func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderInternal(pathParameters map[string]string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder {
 	m := &ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder{}
 	m.urlTemplate = "{+baseurl}/sites/{site%2Did}/pages/{sitePage%2Did}/canvasLayout/verticalSection/webparts/{webPart%2Did}{?%24select,%24expand}"
@@ -66,6 +79,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilde
 }
 
 // NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder instantiates a new WebPartItemRequestBuilder and sets the default values.
+//
+//nolint:lll,wsl,revive
 func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder(rawUrl string, requestAdapter i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestAdapter) *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder {
 	urlParams := make(map[string]string)
 	urlParams["request-raw-url"] = rawUrl
@@ -73,6 +88,8 @@ func NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilde
 }
 
 // CreateDeleteRequestInformation delete navigation property webparts for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) CreateDeleteRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderDeleteRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -86,6 +103,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuild
 }
 
 // CreateGetRequestInformation the set of web parts in this section.
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) CreateGetRequestInformation(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGetRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -103,6 +122,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuild
 }
 
 // CreatePatchRequestInformation update the navigation property webparts in sites
+//
+//nolint:lll,wsl,errcheck
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) CreatePatchRequestInformation(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderPatchRequestConfiguration) (*i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.RequestInformation, error) {
 	requestInfo := i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f.NewRequestInformation()
 	requestInfo.UrlTemplate = m.urlTemplate
@@ -118,6 +139,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuild
 }
 
 // Delete delete navigation property webparts for sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) Delete(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderDeleteRequestConfiguration) error {
 	requestInfo, err := m.CreateDeleteRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -135,6 +158,8 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuild
 }
 
 // Get the set of web parts in this section.
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
@@ -155,11 +180,15 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuild
 }
 
 // GetPositionOfWebPart provides operations to call the getPositionOfWebPart method.
+//
+//nolint:lll
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) GetPositionOfWebPart() *ItemPagesItemCanvasLayoutVerticalSectionWebpartsItemGetPositionOfWebPartRequestBuilder {
 	return NewItemPagesItemCanvasLayoutVerticalSectionWebpartsItemGetPositionOfWebPartRequestBuilderInternal(m.pathParameters, m.requestAdapter)
 }
 
 // Patch update the navigation property webparts in sites
+//
+//nolint:lll,wsl
 func (m *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilder) Patch(ctx context.Context, body ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, requestConfiguration *ItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderPatchRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.WebPartable, error) {
 	requestInfo, err := m.CreatePatchRequestInformation(ctx, body, requestConfiguration)
 	if err != nil {
