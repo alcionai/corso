@@ -400,7 +400,32 @@ func consumeBackupDataCollections(
 		)
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
+	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
+		ctx,
+		bases,
+		cs,
+		tags,
+		isIncremental,
+	)
+
+	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+		if err != nil {
+			err = errors.Wrapf(
+				err,
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		} else {
+			err = errors.Errorf(
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		}
+	}
+
+	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
