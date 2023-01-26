@@ -251,7 +251,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 				for i := 1; i <= maxRetries; i++ {
 					_, itemData, err = oc.itemReader(oc.itemClient, item)
-					if err == nil {
+					if err == nil || graph.IsErrTimeout(err) == nil {
 						break
 					}
 
