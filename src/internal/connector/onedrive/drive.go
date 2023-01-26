@@ -79,7 +79,7 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 			detailedError := support.ConnectorStackErrorTrace(err)
 			if strings.Contains(detailedError, userMysiteURLNotFound) ||
 				strings.Contains(detailedError, userMysiteNotFound) {
-				logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
+				logger.Ctx(ctx).Infof("User %s does not have a drive", user)
 				return make([]models.Driveable, 0), nil // no license
 			}
 
