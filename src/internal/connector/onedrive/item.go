@@ -53,8 +53,6 @@ func sharePointItemReader(
 	return dii, resp.Body, nil
 }
 
-var iii = 0
-
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
@@ -85,8 +83,8 @@ func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, e
 		return nil, errors.Wrap(err, "new request")
 	}
 
-	// Decorate the traffic
 	//nolint:lll
+	// Decorate the traffic
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 

@@ -26,9 +26,7 @@ const (
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
-var (
-	err401Unauthorized = errors.New("401 unauthorized intercepted")
-)
+var err401Unauthorized = errors.New("401 unauthorized intercepted")
 
 // The folder or item was deleted between the time we identified
 // it and when we tried to fetch data for it.
