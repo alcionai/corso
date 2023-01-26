@@ -35,6 +35,6 @@ body:
     id: logs
     attributes:
       label: Relevant log output
-      description: Please run Corso with `--log-level debug` and attach the log file.
+      description: Please run Corso with `--hide-progress --log-level debug` and attach the log file.
       placeholder: This will be automatically formatted, so no need for backticks.
       render: shell
