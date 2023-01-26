@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -91,6 +92,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 			newPaths := map[string]string{}
 			excluded := map[string]struct{}{}
 			c := onedrive.NewCollections(
+				graph.LargeItemClient(),
 				tenant,
 				site,
 				onedrive.SharePointSource,
