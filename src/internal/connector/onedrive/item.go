@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -27,7 +29,7 @@ const (
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func sharePointItemReader(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
@@ -35,7 +37,7 @@ func sharePointItemReader(
 		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
 
-	rc, err := driveItemReader(ctx, *url)
+	resp, err := hc.Get(*url)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
@@ -44,14 +46,14 @@ func sharePointItemReader(
 		SharePoint: sharePointItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, nil
+	return dii, resp.Body, nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func oneDriveItemReader(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
@@ -59,7 +61,17 @@ func oneDriveItemReader(
 		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
 
-	rc, err := driveItemReader(ctx, *url)
+	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	if err != nil {
+		return details.ItemInfo{}, nil, err
+	}
+
+	// Decorate the traffic
+	//nolint:lll
+	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
+	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
+
+	resp, err := hc.Do(req)
 	if err != nil {
 		return details.ItemInfo{}, nil, err
 	}
@@ -68,25 +80,7 @@ func oneDriveItemReader(
 		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, nil
-}
-
-// driveItemReader will return a io.ReadCloser for the specified item
-// It crafts this by querying M365 for a download URL for the item
-// and using a http client to initialize a reader
-func driveItemReader(
-	ctx context.Context,
-	url string,
-) (io.ReadCloser, error) {
-	httpClient := graph.CreateHTTPClient()
-	httpClient.Timeout = 0 // infinite timeout for pulling large files
-
-	resp, err := httpClient.Get(url)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to download file from %s", url)
-	}
-
-	return resp.Body, nil
+	return dii, resp.Body, nil
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
@@ -97,7 +91,7 @@ func driveItemReader(
 func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
 	var email, parent string
 
-	if di.GetCreatedBy().GetUser() != nil {
+	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
 		// User is sometimes not available when created via some
 		// external applications (like backup/restore solutions)
 		ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
@@ -106,11 +100,9 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		}
 	}
 
-	if di.GetParentReference() != nil {
-		if di.GetParentReference().GetName() != nil {
-			// EndPoint is not always populated from external apps
-			parent = *di.GetParentReference().GetName()
-		}
+	if di.GetParentReference() != nil && di.GetParentReference().GetName() != nil {
+		// EndPoint is not always populated from external apps
+		parent = *di.GetParentReference().GetName()
 	}
 
 	return &details.OneDriveInfo{

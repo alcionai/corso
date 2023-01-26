@@ -55,6 +55,23 @@ func CreateHTTPClient() *http.Client {
 	return httpClient
 }
 
+// LargeItemClient generates a client that's configured to handle
+// large file downloads.  This client isn't suitable for other queries
+// due to loose restrictions on timeouts and such.
+//
+// Re-use of http clients is critical, or else we leak os resources
+// and consume relatively unbound socket connections.  It is important
+// to centralize this client to be passed downstream where api calls
+// can utilize it on a per-download basis.
+//
+// TODO: this should get owned by an API client layer, not the GC itself.
+func LargeItemClient() *http.Client {
+	httpClient := CreateHTTPClient()
+	httpClient.Timeout = 0 // infinite timeout for pulling large files
+
+	return httpClient
+}
+
 // ---------------------------------------------------------------------------
 // Logging Middleware
 // ---------------------------------------------------------------------------
@@ -83,6 +100,10 @@ func (handler *LoggingMiddleware) Intercept(
 	// special case for supportability: log all throttling cases.
 	if resp.StatusCode == http.StatusTooManyRequests {
 		logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
+	}
+
+	if resp.StatusCode != http.StatusTooManyRequests && (resp.StatusCode/100) != 2 {
+		logger.Ctx(ctx).Infow("graph api error", "method", req.Method, "url", req.URL)
 	}
 
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
