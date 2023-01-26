@@ -3,9 +3,9 @@ package sites
 import (
 	"context"
 
-	ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
-	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models/odataerrors"
 	i2ae4187f7daee263371cb1c977df639813ab50ffa529013b7437480d1ec0158f "github.com/microsoft/kiota-abstractions-go"
+	msmodel "github.com/microsoftgraph/msgraph-sdk-go/models"
+	i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0 "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
 // ItemSitesRequestBuilder provides operations to manage the sites property of the microsoft.graph.site entity.
@@ -94,7 +94,7 @@ func (m *ItemSitesRequestBuilder) CreateGetRequestInformation(ctx context.Contex
 // [Find more info here]
 //
 // [Find more info here]: https://docs.microsoft.com/graph/api/site-list-subsites?view=graph-rest-1.0
-func (m *ItemSitesRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemSitesRequestBuilderGetRequestConfiguration) (ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SiteCollectionResponseable, error) {
+func (m *ItemSitesRequestBuilder) Get(ctx context.Context, requestConfiguration *ItemSitesRequestBuilderGetRequestConfiguration) (msmodel.SiteCollectionResponseable, error) {
 	requestInfo, err := m.CreateGetRequestInformation(ctx, requestConfiguration)
 	if err != nil {
 		return nil, err
@@ -103,12 +103,12 @@ func (m *ItemSitesRequestBuilder) Get(ctx context.Context, requestConfiguration 
 		"4XX": i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0.CreateODataErrorFromDiscriminatorValue,
 		"5XX": i7ad325c11fbf3db4d761c429267362d8b24daa1eda0081f914ebc3cdc85181a0.CreateODataErrorFromDiscriminatorValue,
 	}
-	res, err := m.requestAdapter.Send(ctx, requestInfo, ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.CreateSiteCollectionResponseFromDiscriminatorValue, errorMapping)
+	res, err := m.requestAdapter.Send(ctx, requestInfo, msmodel.CreateSiteCollectionResponseFromDiscriminatorValue, errorMapping)
 	if err != nil {
 		return nil, err
 	}
 	if res == nil {
 		return nil, nil
 	}
-	return res.(ifda19816f54f079134d70c11e75d6b26799300cf72079e282f1d3bb9a6750354.SiteCollectionResponseable), nil
+	return res.(msmodel.SiteCollectionResponseable), nil
 }
