@@ -10,7 +10,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -54,7 +53,7 @@ func asDeletedInFlight(err error) bool {
 	return errors.As(err, &e)
 }
 
-// Delta tokens can be desycned or Unauthorized.  In either case, the token
+// Delta tokens can be desycned or expired.  In either case, the token
 // becomes invalid, and cannot be used again.
 // https://learn.microsoft.com/en-us/graph/errors#code-property
 type ErrInvalidDelta struct {
@@ -169,8 +168,6 @@ func hasErrorCode(err error, codes ...string) bool {
 	if oDataError.GetError().GetCode() == nil {
 		return false
 	}
-
-	logger.Ctx(context.Background()).Errorw("ERR CODE", "code", *oDataError.GetError().GetCode())
 
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
 }
