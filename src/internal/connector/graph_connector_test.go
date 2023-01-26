@@ -156,7 +156,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.LargeItemClient(), Users)
+	suite.connector = loadConnector(ctx, suite.T(), Users)
 	suite.user = tester.M365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
 
@@ -380,7 +380,7 @@ func runRestoreBackupTest(
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+	restoreGC := loadConnector(ctx, t, test.resource)
 	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
@@ -419,7 +419,7 @@ func runRestoreBackupTest(
 		})
 	}
 
-	backupGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+	backupGC := loadConnector(ctx, t, test.resource)
 	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
@@ -870,7 +870,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest.ContainerName,
 				)
 
-				restoreGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+				restoreGC := loadConnector(ctx, t, test.resource)
 				deets, err := restoreGC.RestoreDataCollections(ctx, suite.acct, restoreSel, dest, collections)
 				require.NoError(t, err)
 				require.NotNil(t, deets)
@@ -888,7 +888,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Run a backup and compare its output with what we put in.
 
-			backupGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+			backupGC := loadConnector(ctx, t, test.resource)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 

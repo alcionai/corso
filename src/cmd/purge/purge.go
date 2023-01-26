@@ -255,7 +255,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}
