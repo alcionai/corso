@@ -63,6 +63,8 @@ func drives(
 	retry bool,
 ) ([]models.Driveable, error) {
 	var (
+		err             error
+		page            api.PageLinker
 		numberOfRetries = getDrivesRetries
 		drives          = []models.Driveable{}
 	)
@@ -71,49 +73,50 @@ func drives(
 		numberOfRetries = 0
 	}
 
-	for done := false; !done; {
+	// Loop through all pages returned by Graph API.
+	for {
 		// Retry Loop for Drive retrieval. Request can timeout
 		for i := 0; i <= numberOfRetries; i++ {
-			page, err := pager.GetPage(ctx)
-			if err == nil {
-				// Success path, break out of inner loop at the end.
-				tmp, err := pager.ValuesIn(page)
-				if err != nil {
-					return nil, errors.Wrap(err, "extracting user drives from response")
+			page, err = pager.GetPage(ctx)
+			if err != nil {
+				// Various error handling. May return an error or perform a retry.
+				detailedError := support.ConnectorStackErrorTrace(err)
+				if strings.Contains(detailedError, userMysiteURLNotFound) ||
+					strings.Contains(detailedError, userMysiteNotFound) {
+					logger.Ctx(ctx).Infof("resource owner does not have a drive")
+					return make([]models.Driveable, 0), nil // no license or drives.
 				}
 
-				drives = append(drives, tmp...)
-
-				nextLink := page.GetOdataNextLink()
-				if nextLink == nil || len(*nextLink) == 0 {
-					done = true
-					break
+				if strings.Contains(detailedError, contextDeadlineExceeded) && i < numberOfRetries {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					continue
 				}
 
-				pager.SetNext(*nextLink)
-
-				break
+				return nil, errors.Wrapf(
+					err,
+					"failed to retrieve drives. details: %s",
+					detailedError,
+				)
 			}
 
-			// Various error handling. May return an error or perform a retry.
-			detailedError := support.ConnectorStackErrorTrace(err)
-			if strings.Contains(detailedError, userMysiteURLNotFound) ||
-				strings.Contains(detailedError, userMysiteNotFound) {
-				logger.Ctx(ctx).Infof("resource owner does not have a drive")
-				return make([]models.Driveable, 0), nil // no license or drives.
-			}
-
-			if strings.Contains(detailedError, contextDeadlineExceeded) && i < numberOfRetries {
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
-				continue
-			}
-
-			return nil, errors.Wrapf(
-				err,
-				"failed to retrieve drives. details: %s",
-				detailedError,
-			)
+			// No error encountered, break the retry loop so we can extract results
+			// and see if there's another page to fetch.
+			break
 		}
+
+		tmp, err := pager.ValuesIn(page)
+		if err != nil {
+			return nil, errors.Wrap(err, "extracting drives from response")
+		}
+
+		drives = append(drives, tmp...)
+
+		nextLink := page.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
+			break
+		}
+
+		pager.SetNext(*nextLink)
 	}
 
 	logger.Ctx(ctx).Debugf("Found %d drives", len(drives))
