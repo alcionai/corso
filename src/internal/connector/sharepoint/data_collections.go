@@ -175,6 +175,9 @@ func collectPages(
 
 	spcs := make([]data.Collection, 0)
 
+	// make the betaClient
+	betaService := betaService
+
 	tuples, err := fetchPages(ctx, serv, siteID)
 	if err != nil {
 		return nil, err
