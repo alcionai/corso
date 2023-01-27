@@ -9,11 +9,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 )
-
-type PageLinker interface {
-	GetOdataNextLink() *string
-}
 
 type userDrivePager struct {
 	gs      graph.Servicer
@@ -41,7 +38,7 @@ func NewUserDrivePager(
 	return res
 }
 
-func (p *userDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
+func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	return p.builder.Get(ctx, p.options)
 }
 
@@ -49,7 +46,7 @@ func (p *userDrivePager) SetNext(link string) {
 	p.builder = msusers.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
+func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
 	page, ok := l.(interface{ GetValue() []models.Driveable })
 	if !ok {
 		return nil, errors.Errorf(
@@ -87,7 +84,7 @@ func NewSiteDrivePager(
 	return res
 }
 
-func (p *siteDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
+func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	return p.builder.Get(ctx, p.options)
 }
 
@@ -95,7 +92,7 @@ func (p *siteDrivePager) SetNext(link string) {
 	p.builder = mssites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *siteDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
+func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
 	page, ok := l.(interface{ GetValue() []models.Driveable })
 	if !ok {
 		return nil, errors.Errorf(

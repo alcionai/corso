@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -198,7 +199,7 @@ type mailPager struct {
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *mailPager) getPage(ctx context.Context) (pageLinker, error) {
+func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	return p.builder.Get(ctx, p.options)
 }
 
@@ -206,7 +207,7 @@ func (p *mailPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *mailPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 
