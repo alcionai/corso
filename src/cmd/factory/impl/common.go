@@ -112,7 +112,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
 	if err != nil {
 		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}

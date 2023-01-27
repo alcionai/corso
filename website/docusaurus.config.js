@@ -59,7 +59,7 @@ const config = {
           filename: 'sitemap.xml',
         },
         gtag: {
-          trackingID: 'G-YXBFPQZ05N',
+          trackingID: 'GTM-KM3XWPV',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.scss'),
