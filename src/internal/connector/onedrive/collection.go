@@ -224,6 +224,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			defer func() { <-semaphoreCh }()
 
 			var (
+				itemID   = *item.GetId()
 				itemName = *item.GetName()
 				itemSize = *item.GetSize()
 				itemInfo details.ItemInfo
@@ -251,7 +252,32 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 				for i := 1; i <= maxRetries; i++ {
 					_, itemData, err = oc.itemReader(oc.itemClient, item)
-					if err == nil || graph.IsErrTimeout(err) == nil {
+					if err == nil {
+						break
+					}
+
+					if graph.IsErrUnauthorized(err) != nil {
+						// assume unauthorized requests are a sign of an expired
+						// jwt token, and that we've overrun the available window
+						// to download the actual file.  Re-downloading the item
+						// will refresh that download url.
+						di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+						if diErr != nil {
+							err = errors.Wrap(diErr, "retrieving expired item")
+							break
+						}
+
+						item = di
+
+						continue
+
+					} else if graph.IsErrTimeout(err) == nil &&
+						graph.IsErrThrottled(err) == nil &&
+						graph.IsSericeUnavailable(err) == nil {
+						// TODO: graphAPI will provides headers that state the duration to wait
+						// in order to succeed again.  The one second sleep won't cut it here.
+						//
+						// for all non-timeout, non-unauth, non-throttling errors, do not retry
 						break
 					}
 
@@ -262,7 +288,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 				// check for errors following retries
 				if err != nil {
-					errUpdater(*item.GetId(), err)
+					errUpdater(itemID, err)
 					return nil, err
 				}
 
