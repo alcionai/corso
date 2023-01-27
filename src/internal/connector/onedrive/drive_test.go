@@ -455,7 +455,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				NewOneDriveBackup([]string{test.user}).
 				AllData()[0]
 			odcs, err := NewCollections(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				creds.AzureTenantID,
 				test.user,
 				OneDriveSource,
