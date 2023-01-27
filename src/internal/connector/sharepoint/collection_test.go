@@ -100,7 +100,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 	defer flush()
 
 	t := suite.T()
-	count := 1
+	count := 0
 	siteID := tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	account, err := a.M365Config()
