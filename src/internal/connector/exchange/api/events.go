@@ -216,7 +216,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
+		if !graph.IsErrInvalidDelta(err) {
 			return nil, nil, DeltaUpdate{}, err
 		}
 

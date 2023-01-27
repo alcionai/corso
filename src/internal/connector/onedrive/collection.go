@@ -256,7 +256,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						break
 					}
 
-					if graph.IsErrUnauthorized(err) != nil {
+					if graph.IsErrUnauthorized(err) {
 						// assume unauthorized requests are a sign of an expired
 						// jwt token, and that we've overrun the available window
 						// to download the actual file.  Re-downloading the item
@@ -271,9 +271,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 						continue
 
-					} else if graph.IsErrTimeout(err) == nil &&
-						graph.IsErrThrottled(err) == nil &&
-						graph.IsSericeUnavailable(err) == nil {
+					} else if !graph.IsErrTimeout(err) && !graph.IsErrThrottled(err) && !graph.IsSericeUnavailable(err) {
 						// TODO: graphAPI will provides headers that state the duration to wait
 						// in order to succeed again.  The one second sleep won't cut it here.
 						//
