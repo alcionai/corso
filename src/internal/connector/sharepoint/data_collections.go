@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -176,9 +177,14 @@ func collectPages(
 	spcs := make([]data.Collection, 0)
 
 	// make the betaClient
-	betaService := betaService
+	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return nil, errors.Wrap(err, "adapter for betaservice not created")
+	}
 
-	tuples, err := fetchPages(ctx, serv, siteID)
+	betaService := betasdk.NewService(adpt)
+
+	tuples, err := fetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +201,7 @@ func collectPages(
 		}
 
 		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection.betaService = betaService
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
