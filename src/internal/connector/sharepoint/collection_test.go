@@ -106,8 +106,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
+	service := createTestBetaService(t, account)
 
 	tuples, err := fetchPages(ctx, service, siteID)
 	require.NoError(t, err)
@@ -122,8 +121,9 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 		)
 	require.NoError(t, err)
 
-	col := NewCollection(dir, service, Pages, nil)
+	col := NewCollection(dir, nil, Pages, nil)
 	col.jobs = []string{tuples[0].id}
+	col.betaService = service
 
 	streamChannel := col.Items()
 
