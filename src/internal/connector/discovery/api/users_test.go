@@ -1,22 +1,22 @@
-package discovery
+package api
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/suite"
 )
 
-type DiscoverySuite struct {
+type UsersUnitSuite struct {
 	suite.Suite
 }
 
-func TestDiscoverySuite(t *testing.T) {
-	suite.Run(t, new(DiscoverySuite))
+func TestUsersUnitSuite(t *testing.T) {
+	suite.Run(t, new(UsersUnitSuite))
 }
 
-func (suite *DiscoverySuite) TestParseUser() {
+func (suite *UsersUnitSuite) TestValidateUser() {
 	t := suite.T()
 
 	name := "testuser"
@@ -60,7 +60,7 @@ func (suite *DiscoverySuite) TestParseUser() {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseUser(tt.args)
+			got, err := validateUser(tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseUser() error = %v, wantErr %v", err, tt.wantErr)
 				return

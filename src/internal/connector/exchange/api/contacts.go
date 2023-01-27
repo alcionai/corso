@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
