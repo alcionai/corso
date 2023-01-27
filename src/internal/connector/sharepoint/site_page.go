@@ -13,7 +13,7 @@ import (
 // Returns error if error experienced during the call
 func GetSitePage(
 	ctx context.Context,
-	serv betasdk.Service,
+	serv *betasdk.Service,
 	siteID string,
 	pages []string,
 ) ([]models.SitePageable, error) {
@@ -33,7 +33,7 @@ func GetSitePage(
 }
 
 // fetchPages utility function to return the tuple of item
-func fetchPages(ctx context.Context, bs betasdk.Service, siteID string) ([]listTuple, error) {
+func fetchPages(ctx context.Context, bs *betasdk.Service, siteID string) ([]listTuple, error) {
 	var (
 		builder    = bs.Client().SitesById(siteID).Pages()
 		opts       = fetchPageOptions()
