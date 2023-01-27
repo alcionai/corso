@@ -108,7 +108,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd(), utils.HideCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
