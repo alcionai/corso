@@ -108,7 +108,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, resource)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource)
 	if err != nil {
 		return nil, err
 	}
