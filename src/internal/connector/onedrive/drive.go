@@ -195,18 +195,19 @@ func collectItems(
 			return "", nil, nil, err
 		}
 
-		if r.GetOdataDeltaLink() != nil && len(*r.GetOdataDeltaLink()) > 0 {
-			newDeltaURL = *r.GetOdataDeltaLink()
+		nextLink, deltaLink := gapi.NextAndDeltaLink(page)
+
+		if len(deltaLink) > 0 {
+			newDeltaURL = deltaLink
 		}
 
 		// Check if there are more items
-		nextLink := r.GetOdataNextLink()
-		if nextLink == nil {
+		if len(nextLink) == 0 {
 			break
 		}
 
-		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
-		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
+		logger.Ctx(ctx).Debugw("Found nextLink", "link", nextLink)
+		pager.SetNext(nextLink)
 	}
 
 	return newDeltaURL, newPaths, excluded, nil
