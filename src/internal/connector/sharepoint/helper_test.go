@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -16,6 +17,16 @@ import (
 // SharePoint Test Services
 // ---------------------------------------------------------------------------
 type MockGraphService struct{}
+
+type MockUpdater struct {
+	UpdateState func(*support.ConnectorOperationStatus)
+}
+
+func (mu *MockUpdater) UpdateStatus(input *support.ConnectorOperationStatus) {
+	if mu.UpdateState != nil {
+		mu.UpdateState(input)
+	}
+}
 
 //------------------------------------------------------------
 // Interface Functions: @See graph.Service
