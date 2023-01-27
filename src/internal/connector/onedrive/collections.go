@@ -144,7 +144,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		maps.Copy(excludedItems, excluded)
 	}
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
 
 	// Add an extra for the metadata collection.
 	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)
