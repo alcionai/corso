@@ -1,6 +1,8 @@
 package path
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -30,18 +32,20 @@ const (
 )
 
 func toServiceType(service string) ServiceType {
-	switch service {
-	case ExchangeService.String():
+	s := strings.ToLower(service)
+
+	switch s {
+	case strings.ToLower(ExchangeService.String()):
 		return ExchangeService
-	case OneDriveService.String():
+	case strings.ToLower(OneDriveService.String()):
 		return OneDriveService
-	case SharePointService.String():
+	case strings.ToLower(SharePointService.String()):
 		return SharePointService
-	case ExchangeMetadataService.String():
+	case strings.ToLower(ExchangeMetadataService.String()):
 		return ExchangeMetadataService
-	case OneDriveMetadataService.String():
+	case strings.ToLower(OneDriveMetadataService.String()):
 		return OneDriveMetadataService
-	case SharePointMetadataService.String():
+	case strings.ToLower(SharePointMetadataService.String()):
 		return SharePointMetadataService
 	default:
 		return UnknownService
@@ -70,22 +74,24 @@ const (
 )
 
 func ToCategoryType(category string) CategoryType {
-	switch category {
-	case EmailCategory.String():
+	cat := strings.ToLower(category)
+
+	switch cat {
+	case strings.ToLower(EmailCategory.String()):
 		return EmailCategory
-	case ContactsCategory.String():
+	case strings.ToLower(ContactsCategory.String()):
 		return ContactsCategory
-	case EventsCategory.String():
+	case strings.ToLower(EventsCategory.String()):
 		return EventsCategory
-	case FilesCategory.String():
+	case strings.ToLower(FilesCategory.String()):
 		return FilesCategory
-	case LibrariesCategory.String():
+	case strings.ToLower(LibrariesCategory.String()):
 		return LibrariesCategory
-	case ListsCategory.String():
+	case strings.ToLower(ListsCategory.String()):
 		return ListsCategory
-	case PagesCategory.String():
+	case strings.ToLower(PagesCategory.String()):
 		return PagesCategory
-	case DetailsCategory.String():
+	case strings.ToLower(DetailsCategory.String()):
 		return DetailsCategory
 	default:
 		return UnknownCategory

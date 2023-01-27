@@ -3,7 +3,7 @@ package api
 import (
 	"fmt"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
 // -----------------------------------------------------------------------
