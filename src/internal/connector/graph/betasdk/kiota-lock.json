@@ -4,6 +4,7 @@
     "clientClassName": "BetaClient",
     "clientNamespaceName": "github.com/alcionai/corso/src/internal/connector/graph/betasdk",
     "language": "Go",
+    "betaVersion": "0.53.0",
     "usesBackingStore": false,
     "includeAdditionalData": true,
     "serializers": [
