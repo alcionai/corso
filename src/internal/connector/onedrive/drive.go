@@ -7,6 +7,7 @@ import (
 	"time"
 
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
