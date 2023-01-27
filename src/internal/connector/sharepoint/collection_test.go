@@ -34,7 +34,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	suite.Run(t, new(SharePointCollectionSuite))
 }
 
-func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
+func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 	t := suite.T()
 	m := []byte("test message")
 	name := "aFile"
@@ -49,9 +49,9 @@ func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
 	assert.Equal(t, readData, m)
 }
 
-// TestSharePointListCollection tests basic functionality to create
+// TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
+func (suite *SharePointCollectionSuite) TestListCollection() {
 	t := suite.T()
 
 	ow := kioser.NewJsonSerializationWriter()
@@ -95,7 +95,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() {
+func (suite *SharePointCollectionSuite) TestPageCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -141,7 +141,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 }
 
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
-func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
+func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
