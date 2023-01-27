@@ -160,7 +160,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 
 	updater := &MockUpdater{UpdateState: updateFunc}
 
-	col, err := collectPages(ctx, serv, account.AzureTenantID, siteID, updater, control.Options{})
+	col, err := collectPages(ctx, account, serv, siteID, updater, control.Options{})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, col)
 }

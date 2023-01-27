@@ -13,8 +13,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -30,7 +30,7 @@ func DataCollections(
 	ctx context.Context,
 	itemClient *http.Client,
 	selector selectors.Selector,
-	tenantID string,
+	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
@@ -60,7 +60,7 @@ func DataCollections(
 			spcs, err = collectLists(
 				ctx,
 				serv,
-				tenantID,
+				creds.AzureTenantID,
 				site,
 				su,
 				ctrlOpts)
@@ -73,7 +73,7 @@ func DataCollections(
 				ctx,
 				itemClient,
 				serv,
-				tenantID,
+				creds.AzureTenantID,
 				site,
 				scope,
 				su,
@@ -84,8 +84,8 @@ func DataCollections(
 		case path.PagesCategory:
 			spcs, err = collectPages(
 				ctx,
+				creds,
 				serv,
-				tenantID,
 				site,
 				su,
 				ctrlOpts)
@@ -178,8 +178,9 @@ func collectLibraries(
 // TODO: Credentials necessary to create separate HTTP client
 func collectPages(
 	ctx context.Context,
+	creds account.M365Config,
 	serv graph.Servicer,
-	tenantID, siteID string,
+	siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
@@ -189,10 +190,7 @@ func collectPages(
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
-	// TODO: Cannot create beta service from serv.Adapter() params cannot be overwritten
-	creds := credentials.GetM365()
-
-	adpt, err := graph.CreateAdapter(tenantID, creds.AzureClientID, creds.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create adapter w/ env credentials")
 	}
@@ -207,7 +205,7 @@ func collectPages(
 	for _, tuple := range tuples {
 		dir, err := path.Builder{}.Append(tuple.name).
 			ToDataLayerSharePointPath(
-				tenantID,
+				creds.AzureTenantID,
 				siteID,
 				path.PagesCategory,
 				false)
