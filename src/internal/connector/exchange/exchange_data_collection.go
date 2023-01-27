@@ -183,9 +183,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 		var closer func()
 		colProgress, closer = observe.CollectionProgress(
 			ctx,
-			user,
 			col.fullPath.Category().String(),
-			col.fullPath.Folder())
+			observe.PII(user),
+			observe.PII(col.fullPath.Folder()))
 
 		go closer()
 

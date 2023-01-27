@@ -447,6 +447,22 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.False(t, stats.Incomplete)
 	// 5 file and 6 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+6)
+
+	failedPath, err := suite.testPath2.Append(testFileName4, true)
+	require.NoError(t, err)
+
+	ic := i64counter{}
+
+	_, err = suite.w.RestoreMultipleItems(
+		suite.ctx,
+		string(stats.SnapshotID),
+		[]path.Path{failedPath},
+		&ic,
+	)
+	// Files that had an error shouldn't make a dir entry in kopia. If they do we
+	// may run into kopia-assisted incrementals issues because only mod time and
+	// not file size is checked for StreamingFiles.
+	assert.ErrorIs(t, err, ErrNotFound, "errored file is restorable")
 }
 
 type backedupFile struct {
