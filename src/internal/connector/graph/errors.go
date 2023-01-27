@@ -145,21 +145,17 @@ type ErrServiceUnavailable struct {
 	common.Err
 }
 
-func IsSericeUnavailable(err error) error {
+func IsSericeUnavailable(err error) bool {
 	if errors.Is(err, Err503ServiceUnavailable) {
-		return err
+		return true
 	}
 
-	if asServiceUnavailable(err) {
-		return err
-	}
-
-	return nil
-}
-
-func asServiceUnavailable(err error) bool {
 	e := ErrUnauthorized{}
-	return errors.As(err, &e)
+	if errors.As(err, &e) {
+		return true
+	}
+
+	return true
 }
 
 // ---------------------------------------------------------------------------
