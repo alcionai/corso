@@ -106,9 +106,7 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
@@ -172,9 +170,7 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	siteID := tester.M365SiteID(t)
 
