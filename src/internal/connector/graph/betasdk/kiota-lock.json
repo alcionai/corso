@@ -4,6 +4,7 @@
     "clientClassName": "BetaClient",
     "clientNamespaceName": "github.com/alcionai/corso/src/internal/connector/graph/betasdk",
     "language": "Go",
+    "betaVersion": "0.53.0",
     "usesBackingStore": false,
     "includeAdditionalData": true,
     "serializers": [
@@ -30,7 +31,7 @@
         "**/groups/**",
         "**/onenote/**"
     ],
-    "Necessary Sites Files": [
+    "sitesFiles": [
         "count_request_builder.go",
         "item_pages_count_request_builder.go",
         "item_pages_item_canvas_layout_horizontal_sections_count_request_builder.go",
@@ -65,7 +66,7 @@
         "item_sites_site_item_request_builder.go",
         "site_item_request_builder.go"
     ],
-    "Necessary Model Files":[
+    "modelFiles":[
         "base_item.go",
         "page_layout_type.go",
         "standard_web_partable.go",
