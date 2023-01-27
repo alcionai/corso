@@ -12,6 +12,18 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 )
 
+func getValues[T any](l api.PageLinker) ([]T, error) {
+	page, ok := l.(interface{ GetValue() []T })
+	if !ok {
+		return nil, errors.Errorf(
+			"response of type [%T] does not comply with GetValue() interface",
+			l,
+		)
+	}
+
+	return page.GetValue(), nil
+}
+
 type userDrivePager struct {
 	gs      graph.Servicer
 	builder *msusers.ItemDrivesRequestBuilder
@@ -47,15 +59,7 @@ func (p *userDrivePager) SetNext(link string) {
 }
 
 func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
-	page, ok := l.(interface{ GetValue() []models.Driveable })
-	if !ok {
-		return nil, errors.Errorf(
-			"response of type [%T] does not comply with GetValue() interface",
-			l,
-		)
-	}
-
-	return page.GetValue(), nil
+	return getValues[models.Driveable](l)
 }
 
 type siteDrivePager struct {
@@ -93,13 +97,5 @@ func (p *siteDrivePager) SetNext(link string) {
 }
 
 func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
-	page, ok := l.(interface{ GetValue() []models.Driveable })
-	if !ok {
-		return nil, errors.Errorf(
-			"response of type [%T] does not comply with GetValue() interface",
-			l,
-		)
-	}
-
-	return page.GetValue(), nil
+	return getValues[models.Driveable](l)
 }
