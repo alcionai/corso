@@ -163,6 +163,8 @@ func collectLibraries(
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
 // M365 IDs for the associated Pages
+//
+//nolint:unused
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
