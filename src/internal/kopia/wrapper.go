@@ -119,6 +119,7 @@ func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.Collection,
+	globalExcludeSet map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
 ) (*BackupStats, *details.Builder, map[string]path.Path, error) {
@@ -128,10 +129,6 @@ func (w Wrapper) BackupCollections(
 
 	ctx, end := D.Span(ctx, "kopia:backupCollections")
 	defer end()
-
-	// TODO(ashmrtn): Make this a parameter when actually enabling the global
-	// exclude set.
-	var globalExcludeSet map[string]struct{}
 
 	if len(collections) == 0 && len(globalExcludeSet) == 0 {
 		return &BackupStats{}, &details.Builder{}, nil, nil
