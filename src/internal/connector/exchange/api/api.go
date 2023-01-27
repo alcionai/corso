@@ -61,7 +61,7 @@ type Client struct {
 	stable graph.Servicer
 
 	// The largeItem graph servicer is configured specifically for
-	// downloading large items.  Specificlaly for use when handling
+	// downloading large items.  Specifically for use when handling
 	// attachments, and for no other use.
 	largeItem graph.Servicer
 }
@@ -69,7 +69,12 @@ type Client struct {
 // NewClient produces a new exchange api client.  Must be used in
 // place of creating an ad-hoc client struct.
 func NewClient(creds account.M365Config) (Client, error) {
-	s, li, err := newServices(creds)
+	s, err := newService(creds)
+	if err != nil {
+		return Client{}, err
+	}
+
+	li, err := newLargeItemService(creds)
 	if err != nil {
 		return Client{}, err
 	}
@@ -81,29 +86,33 @@ func NewClient(creds account.M365Config) (Client, error) {
 // requests instead of the client's stable service, so that in-flight state
 // within the adapter doesn't get clobbered
 func (c Client) service() (*graph.Service, error) {
-	s, _, err := newServices(c.Credentials)
+	s, err := newService(c.Credentials)
 	return s, err
 }
 
-func newServices(creds account.M365Config) (*graph.Service, *graph.Service, error) {
+func newService(creds account.M365Config) (*graph.Service, error) {
 	a, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
 		creds.AzureClientSecret)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "generating graph adapter")
+		return nil, errors.Wrap(err, "generating no-timeout graph adapter")
 	}
 
-	nta, err := graph.CreateAdapter(
+	return graph.NewService(a), nil
+}
+
+func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
+	a, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
 		creds.AzureClientSecret,
 		graph.NoTimeout())
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "generating no-timeout graph adapter")
+		return nil, errors.Wrap(err, "generating no-timeout graph adapter")
 	}
 
-	return graph.NewService(a), graph.NewService(nta), nil
+	return graph.NewService(a), nil
 }
 
 // ---------------------------------------------------------------------------
