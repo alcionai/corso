@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))
 - Guest and External users (for cloud accounts) and non-on-premise users (for systems that use on-prem AD syncs) are now excluded from backup and restore operations.
 - Remove the M365 license guid check in OneDrive backup which wasn't reliable.
-
+- Reduced extra socket consumption while downloading multiple drive files.
+- Extended timeout boundaries for exchange attachment downloads, reducing risk of cancellation on large files.
 
 ## [v0.1.0] (alpha) - 2023-01-13
 

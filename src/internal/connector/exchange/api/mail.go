@@ -97,7 +97,8 @@ func (c Mail) GetContainerByID(
 	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 }
 
-// GetItem retrieves a Messageable item.
+// GetItem retrieves a Messageable item.  If the item contains an attachment, that
+// attachment is also downloaded.
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
@@ -105,6 +106,31 @@ func (c Mail) GetItem(
 	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	var errs *multierror.Error
+
+	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.largeItem.
+				Client().
+				UsersById(user).
+				MessagesById(itemID).
+				Attachments().
+				Get(ctx, nil)
+			if err == nil {
+				mail.SetAttachments(attached.GetValue())
+				break
+			}
+
+			logger.Ctx(ctx).Debugw("retrying mail attachment download", "err", err)
+			errs = multierror.Append(errs, err)
+		}
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("mail attachment download exceeded maximum retries", "err", errs)
+			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "downloading mail attachment"), nil)
+		}
 	}
 
 	return mail, MailInfo(mail), nil
@@ -238,8 +264,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 // Serialization
 // ---------------------------------------------------------------------------
 
-// Serialize retrieves attachment data identified by the mail item, and then
-// serializes it into a byte slice.
+// Serialize transforms the mail item into a byte slice.
 func (c Mail) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,
@@ -256,31 +281,6 @@ func (c Mail) Serialize(
 	)
 
 	defer writer.Close()
-
-	if *msg.GetHasAttachments() || support.HasAttachments(msg.GetBody()) {
-		// getting all the attachments might take a couple attempts due to filesize
-		var retriesErr error
-
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := c.stable.
-				Client().
-				UsersById(user).
-				MessagesById(itemID).
-				Attachments().
-				Get(ctx, nil)
-			retriesErr = err
-
-			if err == nil {
-				msg.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
-		}
-	}
 
 	if err = writer.WriteObjectValue("", msg); err != nil {
 		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))

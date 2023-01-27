@@ -243,6 +243,8 @@ func (handler *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
+	// Return immediately if the response is good (2xx).
+	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
 		if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 			respDump, _ := httputil.DumpResponse(resp, false)
@@ -263,6 +265,10 @@ func (handler *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
+	// Log errors according to api debugging configurations.
+	// When debugging is toggled, every non-2xx is recorded with a respose dump.
+	// Otherwise, throttling cases and other non-2xx responses are logged
+	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		respDump, _ := httputil.DumpResponse(resp, true)
 
