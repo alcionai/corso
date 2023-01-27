@@ -2,19 +2,19 @@ package onedrive
 
 import (
 	"bytes"
-	"context"
-	"errors"
 	"io"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -73,7 +73,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			source:       OneDriveSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -87,7 +87,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			source:       OneDriveSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -101,7 +101,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			source:       SharePointSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -115,7 +115,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			source:       SharePointSource,
-			itemReader: func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -140,6 +140,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
+				graph.LargeItemClient(),
 				folderPath,
 				"drive-id",
 				suite,
@@ -224,6 +225,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
+				graph.LargeItemClient(),
 				folderPath,
 				"fakeDriveID",
 				suite,
@@ -235,10 +237,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			mockItem.SetId(&testItemID)
 			coll.Add(mockItem)
 
-			readError := errors.New("Test error")
-
-			coll.itemReader = func(context.Context, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{}, nil, readError
+			coll.itemReader = func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, assert.AnError
 			}
 
 			coll.Items()

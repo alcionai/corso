@@ -3,7 +3,7 @@ package support
 import (
 	"strings"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 // CloneMessageableFields places data from original data into new message object.

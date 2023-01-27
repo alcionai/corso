@@ -13,6 +13,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -27,9 +28,12 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
+// sharePoint bucket info from flags
 var (
 	libraryItems []string
 	libraryPaths []string
+	pageFolders  []string
+	page         []string
 	site         []string
 	weburl       []string
 
@@ -38,6 +42,7 @@ var (
 
 const (
 	dataLibraries = "libraries"
+	dataPages     = "pages"
 )
 
 const (
@@ -89,11 +94,10 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			utils.WebURLFN, nil,
 			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		// TODO: implement
 		fs.StringSliceVar(
 			&sharepointData,
 			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataLibraries+".")
+			"Select one or more types of data to backup: "+dataLibraries+" or "+dataPages+".")
 		options.AddOperationFlags(c)
 
 	case listCommand:
@@ -128,11 +132,22 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		fs.StringArrayVar(&site,
 			utils.SiteFN, nil,
-			"Backup SharePoint data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
+			"Select backup details by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
 		fs.StringSliceVar(&weburl,
 			utils.WebURLFN, nil,
-			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
+			"Select backup data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
+
+		fs.StringSliceVar(
+			&pageFolders,
+			utils.PageFN, nil,
+			"Select backup data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
+
+		fs.StringSliceVar(
+			&page,
+			utils.PageItemFN, nil,
+			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
+		)
 
 		// info flags
 
@@ -179,7 +194,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(site, weburl); err != nil {
+	if err := validateSharePointBackupCreateFlags(site, weburl, sharepointData); err != nil {
 		return err
 	}
 
@@ -195,12 +210,12 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	gc, err := connector.NewGraphConnector(ctx, acct, connector.Sites)
+	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Sites)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, site, weburl, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, site, weburl, sharepointData, gc)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and WebURL"))
 	}
@@ -250,7 +265,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateSharePointBackupCreateFlags(sites, weburls []string) error {
+func validateSharePointBackupCreateFlags(sites, weburls, data []string) error {
 	if len(sites) == 0 && len(weburls) == 0 {
 		return errors.New(
 			"requires one or more --" +
@@ -260,13 +275,21 @@ func validateSharePointBackupCreateFlags(sites, weburls []string) error {
 		)
 	}
 
+	for _, d := range data {
+		if d != dataLibraries && d != dataPages {
+			return errors.New(
+				d + " is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
+			)
+		}
+	}
+
 	return nil
 }
 
 // TODO: users might specify a data type, this only supports AllData().
 func sharePointBackupCreateSelectors(
 	ctx context.Context,
-	sites, weburls []string,
+	sites, weburls, data []string,
 	gc *connector.GraphConnector,
 ) (*selectors.SharePointBackup, error) {
 	if len(sites) == 0 && len(weburls) == 0 {
@@ -297,7 +320,20 @@ func sharePointBackupCreateSelectors(
 	}
 
 	sel := selectors.NewSharePointBackup(union)
-	sel.Include(sel.AllData())
+	if len(data) == 0 {
+		sel.Include(sel.AllData())
+
+		return sel, nil
+	}
+
+	for _, d := range data {
+		switch d {
+		case dataLibraries:
+			sel.Include(sel.Libraries(selectors.Any()))
+		case dataPages:
+			sel.Include(sel.Pages(selectors.Any()))
+		}
+	}
 
 	return sel, nil
 }
