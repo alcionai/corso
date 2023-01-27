@@ -151,7 +151,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"drive-id",
 				suite,
@@ -245,7 +245,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"fakeDriveID",
 				suite,
