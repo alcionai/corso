@@ -429,10 +429,10 @@ func (op *Displayable) GetDisplayName() *string {
 func GetAllFolders(
 	ctx context.Context,
 	gs graph.Servicer,
-	userID string,
+	pager drivePager,
 	prefix string,
 ) ([]*Displayable, error) {
-	drives, err := drives(ctx, gs, userID, OneDriveSource)
+	drives, err := drives(ctx, pager, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}

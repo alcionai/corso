@@ -151,7 +151,12 @@ func purgeOneDriveFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Servicer, uid, prefix string) ([]purgable, error) {
-		cfs, err := onedrive.GetAllFolders(ctx, gs, uid, prefix)
+		pager, err := onedrive.PagerForSource(onedrive.OneDriveSource, gs, uid, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix)
 		if err != nil {
 			return nil, err
 		}

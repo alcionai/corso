@@ -44,7 +44,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderElements := []string{folderName1}
 	gs := loadTestService(t)
 
-	drives, err := drives(ctx, gs, suite.userID, OneDriveSource)
+	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
+	require.NoError(t, err)
+
+	drives, err := drives(ctx, pager, true)
 	require.NoError(t, err)
 	require.NotEmpty(t, drives)
 
@@ -89,7 +92,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			allFolders, err := GetAllFolders(ctx, gs, suite.userID, test.prefix)
+			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
+			require.NoError(t, err)
+
+			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix)
 			require.NoError(t, err)
 
 			foundFolderIDs := []string{}
