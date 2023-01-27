@@ -39,7 +39,7 @@ var (
 	link      = "foo"
 	link2     = "bar"
 
-	basicInputs = []testInput{
+	nextLinkInputs = []testInput{
 		{
 			name:         "empty",
 			inputLink:    &emptyLink,
@@ -67,7 +67,7 @@ func TestAPIUnitSuite(t *testing.T) {
 }
 
 func (suite *APIUnitSuite) TestNextLink() {
-	for _, test := range basicInputs {
+	for _, test := range nextLinkInputs {
 		suite.T().Run(test.name, func(t *testing.T) {
 			l := mockNextLink{nextLink: test.inputLink}
 			assert.Equal(t, test.expectedLink, api.NextLink(l))
@@ -95,7 +95,7 @@ func (suite *APIUnitSuite) TestNextAndDeltaLink() {
 		},
 	}
 
-	for _, next := range basicInputs {
+	for _, next := range nextLinkInputs {
 		for _, delta := range deltaTable {
 			name := strings.Join([]string{next.name, "next", delta.name, "delta"}, "_")
 
