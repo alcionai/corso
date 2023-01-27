@@ -96,9 +96,9 @@ func AddCommand(parent, c *cobra.Command, opts ...cmdOpt) (*cobra.Command, *pfla
 	if cc.preRelese {
 		// There is a default deprecated message that always shows so we do some terminal magic to overwrite it
 		c.Deprecated = "\n\033[1F\033[K" +
-			"=================================================================================\n" +
-"\tWARNING!!! THIS IS A PRE-RELEASE COMMAND THAT MAY NOT FUNCTION PROPERLY, OR AT ALL\n" +
-			"=================================================================================\n"
+			"==================================================================================================\n" +
+			"\tWARNING!!! THIS IS A PRE-RELEASE COMMAND THAT MAY NOT FUNCTION PROPERLY, OR AT ALL\n" +
+			"==================================================================================================\n"
 	}
 
 	c.Flags().SortFlags = false
