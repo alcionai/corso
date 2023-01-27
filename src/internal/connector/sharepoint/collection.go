@@ -3,6 +3,7 @@ package sharepoint
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -57,6 +59,7 @@ type Collection struct {
 	category      DataCategory
 	service       graph.Servicer
 	ctrl          control.Options
+	betaService   *betasdk.Service
 	statusUpdater support.StatusUpdater
 }
 
@@ -260,7 +263,12 @@ func (sc *Collection) retrievePages(
 		metrics numMetrics
 	)
 
-	pages, err := GetSitePages(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
+	betaService := sc.betaService
+	if betaService == nil {
+		return metrics, fmt.Errorf("beta service not found in collection")
+	}
+
+	pages, err := GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
 		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
 	}

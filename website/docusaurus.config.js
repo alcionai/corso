@@ -47,7 +47,7 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           remarkPlugins: [require('mdx-mermaid')],
           editUrl:
-            'https://github.com/alcionai/corso/tree/main/docs',
+            'https://github.com/alcionai/corso/tree/main/website',
         },
         blog: {
           showReadingTime: true,

@@ -2,14 +2,18 @@ package sharepoint
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -24,8 +28,9 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	itemClient *http.Client,
 	selector selectors.Selector,
-	tenantID string,
+	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
@@ -55,7 +60,7 @@ func DataCollections(
 			spcs, err = collectLists(
 				ctx,
 				serv,
-				tenantID,
+				creds.AzureTenantID,
 				site,
 				su,
 				ctrlOpts)
@@ -66,8 +71,9 @@ func DataCollections(
 		case path.LibrariesCategory:
 			spcs, err = collectLibraries(
 				ctx,
+				itemClient,
 				serv,
-				tenantID,
+				creds.AzureTenantID,
 				site,
 				scope,
 				su,
@@ -78,10 +84,9 @@ func DataCollections(
 		case path.PagesCategory:
 			spcs, err = collectPages(
 				ctx,
+				creds,
 				serv,
-				tenantID,
 				site,
-				scope,
 				su,
 				ctrlOpts)
 			if err != nil {
@@ -136,6 +141,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
+	itemClient *http.Client,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
@@ -150,6 +156,7 @@ func collectLibraries(
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
 	colls := onedrive.NewCollections(
+		itemClient,
 		tenantID,
 		siteID,
 		onedrive.SharePointSource,
@@ -171,9 +178,9 @@ func collectLibraries(
 // TODO: Credentials necessary to create separate HTTP client
 func collectPages(
 	ctx context.Context,
+	creds account.M365Config,
 	serv graph.Servicer,
-	tenantID, siteID string,
-	scope selectors.SharePointScope,
+	siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
@@ -181,7 +188,16 @@ func collectPages(
 
 	spcs := make([]data.Collection, 0)
 
-	tuples, err := fetchPages(ctx, serv, siteID)
+	// make the betaClient
+	// Need to receive From DataCollection Call
+	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create adapter w/ env credentials")
+	}
+
+	betaService := betasdk.NewService(adpt)
+
+	tuples, err := fetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +205,7 @@ func collectPages(
 	for _, tuple := range tuples {
 		dir, err := path.Builder{}.Append(tuple.name).
 			ToDataLayerSharePointPath(
-				tenantID,
+				creds.AzureTenantID,
 				siteID,
 				path.PagesCategory,
 				false)
@@ -198,6 +214,7 @@ func collectPages(
 		}
 
 		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
+		collection.betaService = betaService
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)

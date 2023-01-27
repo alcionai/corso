@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -35,7 +35,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	suite.Run(t, new(SharePointCollectionSuite))
 }
 
-func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
+func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 	t := suite.T()
 	m := []byte("test message")
 	name := "aFile"
@@ -50,9 +50,9 @@ func (suite *SharePointCollectionSuite) TestSharePointDataReader_Valid() {
 	assert.Equal(t, readData, m)
 }
 
-// TestSharePointListCollection tests basic functionality to create
+// TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
+func (suite *SharePointCollectionSuite) TestListCollection() {
 	t := suite.T()
 
 	ow := kioser.NewJsonSerializationWriter()
@@ -96,7 +96,7 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() {
+func (suite *SharePointCollectionSuite) TestPageCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -107,8 +107,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
+	service := createTestBetaService(t, account)
 
 	tuples, err := fetchPages(ctx, service, siteID)
 	require.NoError(t, err)
@@ -123,8 +122,9 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 		)
 	require.NoError(t, err)
 
-	col := NewCollection(dir, service, Pages, nil, control.Defaults())
+	col := NewCollection(dir, nil, Pages, nil, control.Defaults())
 	col.jobs = []string{tuples[0].id}
+	col.betaService = service
 
 	streamChannel := col.Items()
 
@@ -142,7 +142,7 @@ func (suite *SharePointCollectionSuite) TestSharePointPageCollection_Populate() 
 }
 
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
-func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
+func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -152,9 +152,7 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
@@ -218,9 +216,7 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	siteID := tester.M365SiteID(t)
 

@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -44,7 +44,7 @@ func (gc *GraphConnector) DataCollections(
 		return nil, err
 	}
 
-	serviceEnabled, err := checkServiceEnabled(ctx, gc.Service, path.ServiceType(sels.Service), sels.DiscreteOwner)
+	serviceEnabled, err := checkServiceEnabled(ctx, gc.Owners.Users(), path.ServiceType(sels.Service), sels.DiscreteOwner)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +87,9 @@ func (gc *GraphConnector) DataCollections(
 	case selectors.ServiceSharePoint:
 		colls, err := sharepoint.DataCollections(
 			ctx,
+			gc.itemClient,
 			sels,
-			gc.credentials.AzureTenantID,
+			gc.credentials,
 			gc.Service,
 			gc,
 			ctrlOpts)
@@ -138,7 +139,7 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 
 func checkServiceEnabled(
 	ctx context.Context,
-	gs graph.Servicer,
+	au api.Users,
 	service path.ServiceType,
 	resource string,
 ) (bool, error) {
@@ -147,7 +148,7 @@ func checkServiceEnabled(
 		return true, nil
 	}
 
-	_, info, err := discovery.User(ctx, gs, resource)
+	_, info, err := discovery.User(ctx, au, resource)
 	if err != nil {
 		return false, err
 	}
@@ -198,6 +199,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
 		odcs, err := onedrive.NewCollections(
+			gc.itemClient,
 			gc.credentials.AzureTenantID,
 			user,
 			onedrive.OneDriveSource,
