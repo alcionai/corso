@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -57,37 +59,51 @@ type Client struct {
 	// The stable service is re-usable for any non-paged request.
 	// This allows us to maintain performance across async requests.
 	stable graph.Servicer
+
+	// The largeItem graph servicer is configured specifically for
+	// downloading large items.  Specificlaly for use when handling
+	// attachments, and for no other use.
+	largeItem graph.Servicer
 }
 
 // NewClient produces a new exchange api client.  Must be used in
 // place of creating an ad-hoc client struct.
 func NewClient(creds account.M365Config) (Client, error) {
-	s, err := newService(creds)
+	s, li, err := newServices(creds)
 	if err != nil {
 		return Client{}, err
 	}
 
-	return Client{creds, s}, nil
+	return Client{creds, s, li}, nil
 }
 
 // service generates a new service.  Used for paged and other long-running
 // requests instead of the client's stable service, so that in-flight state
 // within the adapter doesn't get clobbered
 func (c Client) service() (*graph.Service, error) {
-	return newService(c.Credentials)
+	s, _, err := newServices(c.Credentials)
+	return s, err
 }
 
-func newService(creds account.M365Config) (*graph.Service, error) {
-	adapter, err := graph.CreateAdapter(
+func newServices(creds account.M365Config) (*graph.Service, *graph.Service, error) {
+	a, err := graph.CreateAdapter(
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "generating graph adapter")
+	}
+
+	nta, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
 		creds.AzureClientSecret,
-	)
+		graph.NoTimeout())
 	if err != nil {
-		return nil, errors.Wrap(err, "generating graph api service client")
+		return nil, nil, errors.Wrap(err, "generating no-timeout graph adapter")
 	}
 
-	return graph.NewService(adapter), nil
+	return graph.NewService(a), graph.NewService(nta), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -116,4 +132,15 @@ func orNow(t *time.Time) time.Time {
 	}
 
 	return *t
+}
+
+func HasAttachments(body models.ItemBodyable) bool {
+	if body.GetContent() == nil || body.GetContentType() == nil ||
+		*body.GetContentType() == models.TEXT_BODYTYPE || len(*body.GetContent()) == 0 {
+		return false
+	}
+
+	content := *body.GetContent()
+
+	return strings.Contains(content, "src=\"cid:")
 }
