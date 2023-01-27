@@ -65,7 +65,7 @@ func (suite *SharePointPageSuite) TestGetSitePage() {
 	require.NotNil(t, tuples)
 
 	jobs := []string{tuples[0].id}
-	pages, err := GetSitePage(ctx, service, siteID, jobs)
+	pages, err := GetSitePages(ctx, service, siteID, jobs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
 }
