@@ -114,11 +114,8 @@ func IsErrThrottled(err error) bool {
 	}
 
 	e := ErrThrottled{}
-	if errors.As(err, &e) {
-		return true
-	}
 
-	return false
+	return errors.As(err, &e)
 }
 
 type ErrUnauthorized struct {
@@ -134,11 +131,8 @@ func IsErrUnauthorized(err error) bool {
 	}
 
 	e := ErrUnauthorized{}
-	if errors.As(err, &e) {
-		return true
-	}
 
-	return false
+	return errors.As(err, &e)
 }
 
 type ErrServiceUnavailable struct {
