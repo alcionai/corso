@@ -26,6 +26,15 @@ const (
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
+var (
+	Err401Unauthorized = errors.New("401 unauthorized")
+	// normally the graph client will catch this for us, but in case we
+	// run our own client Do(), we need to translate it to a timeout type
+	// failure locally.
+	Err429TooManyRequests    = errors.New("429 too many requests")
+	Err503ServiceUnavailable = errors.New("503 Service Unavailable")
+)
+
 // The folder or item was deleted between the time we identified
 // it and when we tried to fetch data for it.
 type ErrDeletedInFlight struct {
@@ -102,6 +111,89 @@ func asTimeout(err error) bool {
 	return errors.As(err, &e)
 }
 
+// isTimeoutErr is used to determine if the Graph error returned is
+// because of Timeout. This is used to restrict retries to just
+// timeouts as other errors are handled within a middleware in the
+// client.
+func isTimeoutErr(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+		return true
+	}
+
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	default:
+		return false
+	}
+}
+
+type ErrThrottled struct {
+	common.Err
+}
+
+func IsErrThrottled(err error) error {
+	if errors.Is(err, Err429TooManyRequests) {
+		return err
+	}
+
+	if asThrottled(err) {
+		return err
+	}
+
+	return nil
+}
+
+func asThrottled(err error) bool {
+	e := ErrThrottled{}
+	return errors.As(err, &e)
+}
+
+type ErrUnauthorized struct {
+	common.Err
+}
+
+func IsErrUnauthorized(err error) error {
+	// TODO: refine this investigation.  We don't currently know if
+	// a specific item download url expired, or if the full connection
+	// auth expired.
+	if errors.Is(err, Err401Unauthorized) {
+		return err
+	}
+
+	if asUnauthorized(err) {
+		return err
+	}
+
+	return nil
+}
+
+func asUnauthorized(err error) bool {
+	e := ErrUnauthorized{}
+	return errors.As(err, &e)
+}
+
+type ErrServiceUnavailable struct {
+	common.Err
+}
+
+func IsSericeUnavailable(err error) error {
+	if errors.Is(err, Err503ServiceUnavailable) {
+		return err
+	}
+
+	if asServiceUnavailable(err) {
+		return err
+	}
+
+	return nil
+}
+
+func asServiceUnavailable(err error) bool {
+	e := ErrUnauthorized{}
+	return errors.As(err, &e)
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -121,21 +213,4 @@ func hasErrorCode(err error, codes ...string) bool {
 	}
 
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
-}
-
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
-		return true
-	}
-
-	switch err := err.(type) {
-	case *url.Error:
-		return err.Timeout()
-	default:
-		return false
-	}
 }
