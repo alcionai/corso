@@ -14,6 +14,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -36,9 +37,9 @@ const (
 )
 
 type drivePager interface {
-	GetPage(context.Context) (api.PageLinker, error)
+	GetPage(context.Context) (gapi.PageLinker, error)
 	SetNext(nextLink string)
-	ValuesIn(api.PageLinker) ([]models.Driveable, error)
+	ValuesIn(gapi.PageLinker) ([]models.Driveable, error)
 }
 
 func PagerForSource(
@@ -64,7 +65,7 @@ func drives(
 ) ([]models.Driveable, error) {
 	var (
 		err             error
-		page            api.PageLinker
+		page            gapi.PageLinker
 		numberOfRetries = getDrivesRetries
 		drives          = []models.Driveable{}
 	)
@@ -111,12 +112,12 @@ func drives(
 
 		drives = append(drives, tmp...)
 
-		nextLink := page.GetOdataNextLink()
-		if nextLink == nil || len(*nextLink) == 0 {
+		nextLink := gapi.NextLink(page)
+		if len(nextLink) == 0 {
 			break
 		}
 
-		pager.SetNext(*nextLink)
+		pager.SetNext(nextLink)
 	}
 
 	logger.Ctx(ctx).Debugf("Found %d drives", len(drives))

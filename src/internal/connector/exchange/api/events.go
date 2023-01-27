@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -203,7 +204,7 @@ type eventPager struct {
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
+func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, err
 }
@@ -212,7 +213,7 @@ func (p *eventPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 

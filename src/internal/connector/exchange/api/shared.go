@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
@@ -14,14 +15,9 @@ import (
 // ---------------------------------------------------------------------------
 
 type itemPager interface {
-	getPage(context.Context) (pageLinker, error)
+	getPage(context.Context) (api.DeltaPageLinker, error)
 	setNext(string)
-	valuesIn(pageLinker) ([]getIDAndAddtler, error)
-}
-
-type pageLinker interface {
-	GetOdataDeltaLink() *string
-	GetOdataNextLink() *string
+	valuesIn(api.DeltaPageLinker) ([]getIDAndAddtler, error)
 }
 
 type getIDAndAddtler interface {
@@ -98,24 +94,24 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
+		nextLink, delta := api.NextAndDeltaLink(resp)
+
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will
 		// produce a deltaLink instead (if supported), which we'll use on
 		// the next backup to only get the changes since this run.
-		delta := resp.GetOdataDeltaLink()
-		if delta != nil && len(*delta) > 0 {
-			deltaURL = *delta
+		if len(delta) > 0 {
+			deltaURL = delta
 		}
 
 		// the nextLink is our page cursor within this query.
 		// if we have more data to retrieve, we'll have a
 		// nextLink instead of a deltaLink.
-		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil || len(*nextLink) == 0 {
+		if len(nextLink) == 0 {
 			break
 		}
 
-		pager.setNext(*nextLink)
+		pager.setNext(nextLink)
 	}
 
 	return addedIDs, removedIDs, deltaURL, nil

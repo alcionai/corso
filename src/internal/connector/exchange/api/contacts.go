@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -173,7 +174,7 @@ type contactPager struct {
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *contactPager) getPage(ctx context.Context) (pageLinker, error) {
+func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	return p.builder.Get(ctx, p.options)
 }
 
@@ -181,7 +182,7 @@ func (p *contactPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
