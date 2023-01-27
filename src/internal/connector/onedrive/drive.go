@@ -10,11 +10,11 @@ import (
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -22,86 +22,106 @@ import (
 var errFolderNotFound = errors.New("folder not found")
 
 const (
+	getDrivesRetries = 3
+
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
-	nextLinkKey           = "@odata.nextLink"
-	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-	itemNotFoundErrorCode = "itemNotFound"
-	userMysiteURLNotFound = "BadRequest Unable to retrieve user's mysite URL"
-	userMysiteNotFound    = "ResourceNotFound User's mysite not found"
+	nextLinkKey             = "@odata.nextLink"
+	itemChildrenRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+	itemByPathRawURLFmt     = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	itemNotFoundErrorCode   = "itemNotFound"
+	userMysiteURLNotFound   = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteNotFound      = "ResourceNotFound User's mysite not found"
+	contextDeadlineExceeded = "context deadline exceeded"
 )
 
-// Enumerates the drives for the specified user
-func drives(
-	ctx context.Context,
-	service graph.Servicer,
-	resourceOwner string,
+type drivePager interface {
+	GetPage(context.Context) (api.PageLinker, error)
+	SetNext(nextLink string)
+	ValuesIn(api.PageLinker) ([]models.Driveable, error)
+}
+
+func PagerForSource(
 	source driveSource,
-) ([]models.Driveable, error) {
+	servicer graph.Servicer,
+	resourceOwner string,
+	fields []string,
+) (drivePager, error) {
 	switch source {
 	case OneDriveSource:
-		return userDrives(ctx, service, resourceOwner)
+		return api.NewUserDrivePager(servicer, resourceOwner, fields), nil
 	case SharePointSource:
-		return siteDrives(ctx, service, resourceOwner)
+		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
 		return nil, errors.Errorf("unrecognized drive data source")
 	}
 }
 
-func siteDrives(ctx context.Context, service graph.Servicer, site string) ([]models.Driveable, error) {
-	options := &sites.ItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.ItemDrivesRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name", "weburl", "system"},
-		},
-	}
-
-	r, err := service.Client().SitesById(site).Drives().Get(ctx, options)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
-			site, support.ConnectorStackErrorTrace(err))
-	}
-
-	return r.GetValue(), nil
-}
-
-func userDrives(ctx context.Context, service graph.Servicer, user string) ([]models.Driveable, error) {
+func drives(
+	ctx context.Context,
+	pager drivePager,
+	retry bool,
+) ([]models.Driveable, error) {
 	var (
-		numberOfRetries = 3
-		r               models.DriveCollectionResponseable
 		err             error
+		page            api.PageLinker
+		numberOfRetries = getDrivesRetries
+		drives          = []models.Driveable{}
 	)
 
-	// Retry Loop for Drive retrieval. Request can timeout
-	for i := 0; i <= numberOfRetries; i++ {
-		r, err = service.Client().UsersById(user).Drives().Get(ctx, nil)
-		if err != nil {
-			detailedError := support.ConnectorStackErrorTrace(err)
-			if strings.Contains(detailedError, userMysiteURLNotFound) ||
-				strings.Contains(detailedError, userMysiteNotFound) {
-				logger.Ctx(ctx).Infof("User %s does not have a drive", user)
-				return make([]models.Driveable, 0), nil // no license
-			}
-
-			if strings.Contains(detailedError, "context deadline exceeded") && i < numberOfRetries {
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
-				continue
-			}
-
-			return nil, errors.Wrapf(
-				err,
-				"failed to retrieve user drives. user: %s, details: %s",
-				user,
-				detailedError,
-			)
-		}
-
-		break
+	if !retry {
+		numberOfRetries = 0
 	}
 
-	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(r.GetValue()), user)
+	// Loop through all pages returned by Graph API.
+	for {
+		// Retry Loop for Drive retrieval. Request can timeout
+		for i := 0; i <= numberOfRetries; i++ {
+			page, err = pager.GetPage(ctx)
+			if err != nil {
+				// Various error handling. May return an error or perform a retry.
+				detailedError := support.ConnectorStackErrorTrace(err)
+				if strings.Contains(detailedError, userMysiteURLNotFound) ||
+					strings.Contains(detailedError, userMysiteNotFound) {
+					logger.Ctx(ctx).Infof("resource owner does not have a drive")
+					return make([]models.Driveable, 0), nil // no license or drives.
+				}
 
-	return r.GetValue(), nil
+				if strings.Contains(detailedError, contextDeadlineExceeded) && i < numberOfRetries {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					continue
+				}
+
+				return nil, errors.Wrapf(
+					err,
+					"failed to retrieve drives. details: %s",
+					detailedError,
+				)
+			}
+
+			// No error encountered, break the retry loop so we can extract results
+			// and see if there's another page to fetch.
+			break
+		}
+
+		tmp, err := pager.ValuesIn(page)
+		if err != nil {
+			return nil, errors.Wrap(err, "extracting drives from response")
+		}
+
+		drives = append(drives, tmp...)
+
+		nextLink := page.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
+			break
+		}
+
+		pager.SetNext(*nextLink)
+	}
+
+	logger.Ctx(ctx).Debugf("Found %d drives", len(drives))
+
+	return drives, nil
 }
 
 // itemCollector functions collect the items found in a drive
@@ -284,10 +304,10 @@ func (op *Displayable) GetDisplayName() *string {
 func GetAllFolders(
 	ctx context.Context,
 	gs graph.Servicer,
-	userID string,
+	pager drivePager,
 	prefix string,
 ) ([]*Displayable, error) {
-	drives, err := drives(ctx, gs, userID, OneDriveSource)
+	drives, err := drives(ctx, pager, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}

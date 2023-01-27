@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove the M365 license guid check in OneDrive backup which wasn't reliable.
 - Reduced extra socket consumption while downloading multiple drive files.
 - Extended timeout boundaries for exchange attachment downloads, reducing risk of cancellation on large files.
+- Identify all drives associated with a user or SharePoint site instead of just the results on the first page returned by Graph API.
 
 ## [v0.1.0] (alpha) - 2023-01-13
 
