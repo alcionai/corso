@@ -3,10 +3,9 @@ package sharepoint
 import (
 	"context"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
-
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
@@ -14,7 +13,7 @@ import (
 // Returns error if error experienced during the call
 func GetSitePage(
 	ctx context.Context,
-	serv graph.Servicer,
+	serv betasdk.Service,
 	siteID string,
 	pages []string,
 ) ([]models.SitePageable, error) {
@@ -34,7 +33,7 @@ func GetSitePage(
 }
 
 // fetchPages utility function to return the tuple of item
-func fetchPages(ctx context.Context, bs graph.Servicer, siteID string) ([]listTuple, error) {
+func fetchPages(ctx context.Context, bs betasdk.Service, siteID string) ([]listTuple, error) {
 	var (
 		builder    = bs.Client().SitesById(siteID).Pages()
 		opts       = fetchPageOptions()
