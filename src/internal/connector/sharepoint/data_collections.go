@@ -163,14 +163,11 @@ func collectLibraries(
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
 // M365 IDs for the associated Pages
-//
-//nolint:unused
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
 	serv graph.Servicer,
 	tenantID, siteID string,
-	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
