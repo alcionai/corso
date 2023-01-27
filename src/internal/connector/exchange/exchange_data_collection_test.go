@@ -10,23 +10,29 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type mockItemer struct{}
+type mockItemer struct {
+	getErr       error
+	serializeErr error
+}
 
 func (mi mockItemer) GetItem(
 	context.Context,
 	string, string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	return nil, nil, nil
+	return nil, nil, mi.getErr
 }
 
 func (mi mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
-	return nil, nil
+	return nil, mi.serializeErr
 }
 
 type ExchangeDataCollectionSuite struct {
@@ -157,6 +163,50 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 				control.Options{},
 				false)
 			assert.Equal(t, test.expect, c.State())
+		})
+	}
+}
+
+func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
+	table := []struct {
+		name      string
+		items     mockItemer
+		expectErr func(*testing.T, error)
+	}{
+		{
+			name:  "happy",
+			items: mockItemer{},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:  "an error",
+			items: mockItemer{getErr: assert.AnError},
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+			},
+		},
+		{
+			name: "deleted in flight",
+			items: mockItemer{
+				getErr: graph.ErrDeletedInFlight{
+					Err: *common.EncapsulateError(assert.AnError),
+				},
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			// itemer is mocked, so only the errors are configured atm.
+			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items)
+			test.expectErr(t, err)
 		})
 	}
 }
