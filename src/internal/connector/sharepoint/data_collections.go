@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -186,7 +188,16 @@ func collectPages(
 	spcs := make([]data.Collection, 0)
 
 	// make the betaClient
-	betaService := betasdk.NewService(serv.Adapter())
+	// Need to receive From DataCollection Call
+	// TODO: Cannot create beta service from serv.Adapter() params cannot be overwritten
+	creds := credentials.GetM365()
+
+	adpt, err := graph.CreateAdapter(tenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create adapter w/ env credentials")
+	}
+
+	betaService := betasdk.NewService(adpt)
 
 	tuples, err := fetchPages(ctx, betaService, siteID)
 	if err != nil {
