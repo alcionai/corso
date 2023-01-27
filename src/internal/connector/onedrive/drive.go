@@ -10,11 +10,11 @@ import (
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -50,32 +50,91 @@ func drives(
 }
 
 func siteDrives(ctx context.Context, service graph.Servicer, site string) ([]models.Driveable, error) {
-	options := &sites.ItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.ItemDrivesRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name", "weburl", "system"},
-		},
+	var (
+		drives []models.Driveable
+
+		// TODO(ashmrtn): Pass this in instead of creating it here so it can be
+		// mocked for testing.
+		drivePager = api.NewSiteDrivePager(
+			service,
+			site,
+			[]string{
+				"id",
+				"name",
+				"weburl",
+				"system",
+			},
+		)
+	)
+
+	for {
+		page, err := drivePager.GetPage(ctx)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
+				site, support.ConnectorStackErrorTrace(err))
+		}
+
+		tmp, err := drivePager.ValuesIn(page)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"extracting site drives from response for site %s",
+				site,
+			)
+		}
+
+		drives = append(drives, tmp...)
+
+		nextLink := page.GetOdataNextLink()
+		if nextLink == nil || len(*nextLink) == 0 {
+			break
+		}
+
+		drivePager.SetNext(*nextLink)
 	}
 
-	r, err := service.Client().SitesById(site).Drives().Get(ctx, options)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
-			site, support.ConnectorStackErrorTrace(err))
-	}
-
-	return r.GetValue(), nil
+	return drives, nil
 }
 
 func userDrives(ctx context.Context, service graph.Servicer, user string) ([]models.Driveable, error) {
 	var (
 		numberOfRetries = 3
-		r               models.DriveCollectionResponseable
-		err             error
+		drives          = []models.Driveable{}
 	)
 
-	// Retry Loop for Drive retrieval. Request can timeout
-	for i := 0; i <= numberOfRetries; i++ {
-		r, err = service.Client().UsersById(user).Drives().Get(ctx, nil)
-		if err != nil {
+	// TODO(ashmrtn): Pass this in instead of creating it here so it can be
+	// mocked for testing.
+	drivePager := api.NewUserDrivePager(service, user, nil)
+
+	for done := false; !done; {
+		// Retry Loop for Drive retrieval. Request can timeout
+		for i := 0; i <= numberOfRetries; i++ {
+			page, err := drivePager.GetPage(ctx)
+			if err == nil {
+				// Success path, break out of inner loop at the end.
+				tmp, err := drivePager.ValuesIn(page)
+				if err != nil {
+					return nil, errors.Wrapf(
+						err,
+						"extracting user drives from response for user %s",
+						user,
+					)
+				}
+
+				drives = append(drives, tmp...)
+
+				nextLink := page.GetOdataNextLink()
+				if nextLink == nil || len(*nextLink) == 0 {
+					done = true
+					break
+				}
+
+				drivePager.SetNext(*nextLink)
+
+				break
+			}
+
+			// Various error handling. May return an error or perform a retry.
 			detailedError := support.ConnectorStackErrorTrace(err)
 			if strings.Contains(detailedError, userMysiteURLNotFound) ||
 				strings.Contains(detailedError, userMysiteNotFound) {
@@ -95,13 +154,11 @@ func userDrives(ctx context.Context, service graph.Servicer, user string) ([]mod
 				detailedError,
 			)
 		}
-
-		break
 	}
 
-	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(r.GetValue()), user)
+	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(drives), user)
 
-	return r.GetValue(), nil
+	return drives, nil
 }
 
 // itemCollector functions collect the items found in a drive
