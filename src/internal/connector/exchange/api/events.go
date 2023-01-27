@@ -90,6 +90,8 @@ func (c Events) GetItem(
 		return nil, nil, err
 	}
 
+	var errs *multierror.Error
+
 	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := c.largeItem.
@@ -102,10 +104,13 @@ func (c Events) GetItem(
 				event.SetAttachments(attached.GetValue())
 				break
 			}
+
+			logger.Ctx(ctx).Debugw("retrying event attachment download", "err", err)
+			errs = multierror.Append(errs, err)
 		}
 
 		if err != nil {
-			logger.Ctx(ctx).Error("event attachment download exceeded maximum retries")
+			logger.Ctx(ctx).Errorw("event attachment download exceeded maximum retries", "err", errs)
 			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "download event attachment"), nil)
 		}
 	}

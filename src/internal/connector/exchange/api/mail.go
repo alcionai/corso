@@ -108,6 +108,8 @@ func (c Mail) GetItem(
 		return nil, nil, err
 	}
 
+	var errs *multierror.Error
+
 	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := c.largeItem.
@@ -120,10 +122,13 @@ func (c Mail) GetItem(
 				mail.SetAttachments(attached.GetValue())
 				break
 			}
+
+			logger.Ctx(ctx).Debugw("retrying mail attachment download", "err", err)
+			errs = multierror.Append(errs, err)
 		}
 
 		if err != nil {
-			logger.Ctx(ctx).Error("mail attachment download exceeded maximum retries")
+			logger.Ctx(ctx).Errorw("mail attachment download exceeded maximum retries", "err", errs)
 			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "downloading mail attachment"), nil)
 		}
 	}
