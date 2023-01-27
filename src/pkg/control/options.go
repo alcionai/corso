@@ -75,4 +75,10 @@ type Toggles struct {
 	// DisableIncrementals prevents backups from using incremental lookups,
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+
+	// DisablePermissionsBackup is used to disable backups for
+	// permissions. This can be used by other tools to completely
+	// disable the backup and restore functionality for backups as
+	// they consume more API credits and can cause increased throttling.
+	DisablePermissionsBackup bool `json:"disablePermissionsBackup,omitempty"`
 }

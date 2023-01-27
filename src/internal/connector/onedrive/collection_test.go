@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -85,13 +86,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			source:       OneDriveSource,
 			itemReader: func(
 				context.Context,
-				graph.Servicer,
-				string,
 				models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
-					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -104,12 +102,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemReader: func(
-				context.Context, graph.Servicer,
-				string, models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+				context.Context,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
-					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -122,12 +119,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       SharePointSource,
 			itemReader: func(
-				context.Context, graph.Servicer,
-				string, models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+				context.Context,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
-					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -140,12 +136,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       SharePointSource,
 			itemReader: func(
-				context.Context, graph.Servicer,
-				string, models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+				context.Context, models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
-					testItemMeta,
 					nil
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -187,6 +181,18 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			}
 
 			coll.itemReader = test.itemReader
+			coll.itemMetaReader = func(_ context.Context,
+				_ graph.Servicer,
+				_ string,
+				_ models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				metaJSON, err := json.Marshal(testItemMeta)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+			}
 
 			// Read items from the collection
 			wg.Add(1)
@@ -282,10 +288,10 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			readError := errors.New("Test error")
 
 			coll.itemReader = func(
-				context.Context, graph.Servicer,
-				string, models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, Metadata, error) {
-				return details.ItemInfo{}, nil, Metadata{}, readError
+				context.Context,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, readError
 			}
 
 			coll.Items()
@@ -294,6 +300,82 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			// Expect no items
 			require.Equal(t, 1, collStatus.ObjectCount)
 			require.Equal(t, 0, collStatus.Successful)
+		})
+	}
+}
+
+func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
+	table := []struct {
+		name   string
+		source driveSource
+	}{
+		{
+			name:   "oneDrive",
+			source: OneDriveSource,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				testItemID = "fakeItemID"
+
+				collStatus = support.ConnectorOperationStatus{}
+				wg         = sync.WaitGroup{}
+			)
+
+			wg.Add(1)
+
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			require.NoError(t, err)
+
+			coll := NewCollection(
+				folderPath,
+				"fakeDriveID",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{ToggleFeatures: control.Toggles{DisablePermissionsBackup: true}})
+
+			mockItem := models.NewDriveItem()
+			mockItem.SetId(&testItemID)
+			mockItem.SetFile(models.NewFile())
+			coll.Add(mockItem)
+
+			coll.itemReader = func(
+				context.Context,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
+					io.NopCloser(strings.NewReader("Fake Data!")),
+					nil
+			}
+
+			coll.itemMetaReader = func(_ context.Context,
+				_ graph.Servicer,
+				_ string,
+				_ models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{"key": "value"}`)), 16, nil
+			}
+
+			readItems := []data.Stream{}
+			for item := range coll.Items() {
+				readItems = append(readItems, item)
+			}
+
+			wg.Wait()
+
+			// Expect no items
+			require.Equal(t, 1, collStatus.ObjectCount)
+			require.Equal(t, 1, collStatus.Successful)
+
+			for _, i := range readItems {
+				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
+					content, err := io.ReadAll(i.ToReader())
+					require.NoError(t, err)
+					require.Equal(t, content, []byte("{}"))
+				}
+			}
 		})
 	}
 }

@@ -1,7 +1,9 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -29,25 +31,42 @@ const (
 // TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
 	ctx context.Context,
-	_ graph.Servicer,
-	_ string,
 	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+) (details.ItemInfo, io.ReadCloser, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
-		return details.ItemInfo{}, nil, Metadata{}, fmt.Errorf("failed to get url for %s", *item.GetName())
+		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
 	}
 
 	rc, err := driveItemReader(ctx, *url)
 	if err != nil {
-		return details.ItemInfo{}, nil, Metadata{}, err
+		return details.ItemInfo{}, nil, err
 	}
 
 	dii := details.ItemInfo{
 		SharePoint: sharePointItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, Metadata{}, nil
+	return dii, rc, nil
+}
+
+func oneDriveItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+) (io.ReadCloser, int, error) {
+	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -55,38 +74,30 @@ func sharePointItemReader(
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
-	service graph.Servicer,
-	driveID string,
 	item models.DriveItemable,
-) (details.ItemInfo, io.ReadCloser, Metadata, error) {
+) (details.ItemInfo, io.ReadCloser, error) {
 	var (
-		rc     io.ReadCloser
-		err    error
-		isFile = item.GetFile() != nil
+		rc  io.ReadCloser
+		err error
 	)
-
-	if isFile {
-		url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-		if !ok {
-			return details.ItemInfo{}, nil, Metadata{}, fmt.Errorf("failed to get url for %s", *item.GetName())
-		}
-
-		rc, err = driveItemReader(ctx, *url)
-		if err != nil {
-			return details.ItemInfo{}, nil, Metadata{}, err
-		}
-	}
 
 	dii := details.ItemInfo{
 		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
 	}
 
-	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
-	if err != nil {
-		return details.ItemInfo{}, nil, Metadata{}, err
+	if item.GetFile() != nil {
+		url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+		if !ok {
+			return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
+		}
+
+		rc, err = driveItemReader(ctx, *url)
+		if err != nil {
+			return details.ItemInfo{}, nil, err
+		}
 	}
 
-	return dii, rc, meta, nil
+	return dii, rc, nil
 }
 
 // driveItemReader will return a io.ReadCloser for the specified item

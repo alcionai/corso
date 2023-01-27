@@ -2,10 +2,9 @@
 package onedrive
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -57,12 +56,13 @@ type Collection struct {
 	// M365 IDs of file items within this collection
 	driveItems map[string]models.DriveItemable
 	// M365 ID of the drive this collection was created from
-	driveID       string
-	source        driveSource
-	service       graph.Servicer
-	statusUpdater support.StatusUpdater
-	itemReader    itemReaderFunc
-	ctrl          control.Options
+	driveID        string
+	source         driveSource
+	service        graph.Servicer
+	statusUpdater  support.StatusUpdater
+	itemReader     itemReaderFunc
+	itemMetaReader itemMetaReaderFunc
+	ctrl           control.Options
 
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
@@ -71,10 +71,17 @@ type Collection struct {
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
+	item models.DriveItemable,
+) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
+
+// itemMetaReaderFunc returns a reader for the metadata of the
+// specified item
+type itemMetaReaderFunc func(
+	ctx context.Context,
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-) (itemInfo details.ItemInfo, itemData io.ReadCloser, meta Metadata, err error)
+) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -102,6 +109,7 @@ func NewCollection(
 		c.itemReader = sharePointItemReader
 	default:
 		c.itemReader = oneDriveItemReader
+		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
 	return c
@@ -239,11 +247,12 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Read the item
 			var (
-				itemInfo   details.ItemInfo
-				itemData   io.ReadCloser
-				itemMeta   Metadata
-				metaSuffix string
-				err        error
+				itemInfo     details.ItemInfo
+				itemData     io.ReadCloser
+				itemMeta     io.ReadCloser
+				itemMetaSize int
+				metaSuffix   string
+				err          error
 			)
 
 			isFile := item.GetFile() != nil
@@ -258,9 +267,38 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				metaSuffix = DirMetaFileSuffix
 			}
 
-			// Fetch data for files
+			// Fetch data for the file
 			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, itemMeta, err = oc.itemReader(ctx, oc.service, oc.driveID, item)
+				itemInfo, itemData, err = oc.itemReader(ctx, item)
+
+				// retry on Timeout type errors, break otherwise.
+				if err == nil || graph.IsErrTimeout(err) == nil {
+					break
+				}
+
+				if i < maxRetries {
+					time.Sleep(1 * time.Second)
+				}
+			}
+
+			if err != nil {
+				errUpdater(*item.GetId(), err)
+				return
+			}
+
+			// Fetch metadata for the file
+			// TODO(meain): refactor these multiple retry logic
+			for i := 1; i <= maxRetries; i++ {
+				if !oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
+					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+				} else {
+					// We are still writing the metadata file but with
+					// empty permissions as we are not sure how the
+					// restore will be called.
+					itemMeta = io.NopCloser(strings.NewReader("{}"))
+					itemMetaSize = 2
+					err = nil
+				}
 
 				// retry on Timeout type errors, break otherwise.
 				if err == nil || graph.IsErrTimeout(err) == nil {
@@ -293,12 +331,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemSize = itemInfo.OneDrive.Size
 			}
 
-			itemMetaJSON, err := json.Marshal(itemMeta)
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
-			}
-
 			if isFile {
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 					progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName+DataFileSuffix, itemSize)
@@ -315,8 +347,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 				progReader, closer := observe.ItemProgress(
-					ctx, io.NopCloser(bytes.NewReader(itemMetaJSON)), observe.ItemBackupMsg,
-					itemName+metaSuffix, int64(len(itemMetaJSON)))
+					ctx, itemMeta, observe.ItemBackupMsg,
+					itemName+metaSuffix, int64(itemMetaSize))
 				go closer()
 				return progReader, nil
 			})
