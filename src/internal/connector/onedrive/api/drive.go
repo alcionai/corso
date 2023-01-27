@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
 	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -22,6 +23,56 @@ func getValues[T any](l api.PageLinker) ([]T, error) {
 	}
 
 	return page.GetValue(), nil
+}
+
+// max we can do is 999
+const pageSize = int32(999)
+
+type driveItemPager struct {
+	gs      graph.Servicer
+	builder *msdrives.ItemRootDeltaRequestBuilder
+	options *msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration
+}
+
+func NewItemPager(
+	gs graph.Servicer,
+	driveID, link string,
+	fields []string,
+) *driveItemPager {
+	pageCount := pageSize
+	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
+			Top:    &pageCount,
+			Select: fields,
+		},
+	}
+
+	res := &driveItemPager{
+		gs:      gs,
+		options: requestConfig,
+		// TODO: Specify a timestamp in the delta query
+		// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
+		// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
+		builder: gs.Client().DrivesById(driveID).Root().Delta(),
+	}
+
+	if len(link) > 0 {
+		res.builder = msdrives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
+	}
+
+	return res
+}
+
+func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, error) {
+	return p.builder.Get(ctx, p.options)
+}
+
+func (p *driveItemPager) SetNext(link string) {
+	p.builder = msdrives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
+}
+
+func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable, error) {
+	return getValues[models.DriveItemable](l)
 }
 
 type userDrivePager struct {
