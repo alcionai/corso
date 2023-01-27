@@ -275,6 +275,7 @@ type backuper interface {
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
+		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
@@ -404,6 +405,7 @@ func consumeBackupDataCollections(
 		ctx,
 		bases,
 		cs,
+		nil,
 		tags,
 		isIncremental,
 	)
