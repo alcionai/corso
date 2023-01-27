@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/hashicorp/go-multierror"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -27,17 +28,6 @@ import (
 
 type CollectionUnitTestSuite struct {
 	suite.Suite
-}
-
-// Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
-// TODO: Implement these methods
-
-func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
-	return nil
-}
-
-func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return nil
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {
@@ -165,7 +155,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"drive-id",
-				suite,
+				&MockGraphService{},
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
@@ -298,7 +288,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"fakeDriveID",
-				suite,
+				&MockGraphService{},
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
@@ -419,6 +409,203 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 					require.Equal(t, content, []byte("{}"))
 				}
 			}
+		})
+	}
+}
+
+func (suite *CollectionUnitTestSuite) TestStreamItem() {
+	var (
+		id         = "id"
+		name       = "name"
+		size int64 = 42
+		now        = time.Now()
+	)
+
+	mockItem := models.NewDriveItem()
+	mockItem.SetId(&id)
+	mockItem.SetName(&name)
+	mockItem.SetSize(&size)
+	mockItem.SetCreatedDateTime(&now)
+	mockItem.SetLastModifiedDateTime(&now)
+
+	mockReader := func(v string, e error) itemReaderFunc {
+		return func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			return details.ItemInfo{}, io.NopCloser(strings.NewReader(v)), e
+		}
+	}
+
+	mockGetter := func(e error) itemGetterFunc {
+		return func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+			return mockItem, e
+		}
+	}
+
+	mockDataChan := func() chan data.Stream {
+		return make(chan data.Stream, 1)
+	}
+
+	table := []struct {
+		name       string
+		coll       *Collection
+		expectData string
+		errsIs     func(*testing.T, error, int)
+		readErrIs  func(*testing.T, error)
+	}{
+		{
+			name:       "happy",
+			expectData: "happy",
+			coll: &Collection{
+				data:       mockDataChan(),
+				itemReader: mockReader("happy", nil),
+				itemGetter: mockGetter(nil),
+			},
+			errsIs: func(t *testing.T, e error, count int) {
+				assert.NoError(t, e, "no errors")
+				assert.Zero(t, count, "zero errors")
+			},
+			readErrIs: func(t *testing.T, e error) {
+				assert.NoError(t, e, "no reader error")
+			},
+		},
+		{
+			name:       "reader err",
+			expectData: "",
+			coll: &Collection{
+				data:       mockDataChan(),
+				itemReader: mockReader("foo", assert.AnError),
+				itemGetter: mockGetter(nil),
+			},
+			errsIs: func(t *testing.T, e error, count int) {
+				assert.ErrorIs(t, e, assert.AnError)
+				assert.Equal(t, 1, count, "one errors")
+			},
+			readErrIs: func(t *testing.T, e error) {
+				assert.Error(t, e, "basic error")
+			},
+		},
+		{
+			name:       "iteration err",
+			expectData: "",
+			coll: &Collection{
+				data:       mockDataChan(),
+				itemReader: mockReader("foo", graph.Err401Unauthorized),
+				itemGetter: mockGetter(assert.AnError),
+			},
+			errsIs: func(t *testing.T, e error, count int) {
+				assert.True(t, graph.IsErrUnauthorized(e), "is unauthorized error")
+				assert.ErrorIs(t, e, graph.Err401Unauthorized)
+				assert.Equal(t, 2, count, "count of errors aggregated")
+			},
+			readErrIs: func(t *testing.T, e error) {
+				assert.True(t, graph.IsErrUnauthorized(e), "is unauthorized error")
+				assert.ErrorIs(t, e, graph.Err401Unauthorized)
+			},
+		},
+		{
+			name:       "timeout errors",
+			expectData: "",
+			coll: &Collection{
+				data:       mockDataChan(),
+				itemReader: mockReader("foo", context.DeadlineExceeded),
+				itemGetter: mockGetter(nil),
+			},
+			errsIs: func(t *testing.T, e error, count int) {
+				assert.True(t, graph.IsErrTimeout(e), "is timeout error")
+				assert.ErrorIs(t, e, context.DeadlineExceeded)
+				assert.Equal(t, 1, count, "one errors")
+			},
+			readErrIs: func(t *testing.T, e error) {
+				assert.True(t, graph.IsErrTimeout(e), "is timeout error")
+				assert.ErrorIs(t, e, context.DeadlineExceeded)
+			},
+		},
+		{
+			name:       "throttled errors",
+			expectData: "",
+			coll: &Collection{
+				data:       mockDataChan(),
+				itemReader: mockReader("foo", graph.Err429TooManyRequests),
+				itemGetter: mockGetter(nil),
+			},
+			errsIs: func(t *testing.T, e error, count int) {
+				assert.True(t, graph.IsErrThrottled(e), "is throttled error")
+				assert.ErrorIs(t, e, graph.Err429TooManyRequests)
+				assert.Equal(t, 1, count, "one errors")
+			},
+			readErrIs: func(t *testing.T, e error) {
+				assert.True(t, graph.IsErrThrottled(e), "is throttled error")
+				assert.ErrorIs(t, e, graph.Err429TooManyRequests)
+			},
+		},
+		{
+			name:       "service unavailable errors",
+			expectData: "",
+			coll: &Collection{
+				data:       mockDataChan(),
+				itemReader: mockReader("foo", graph.Err503ServiceUnavailable),
+				itemGetter: mockGetter(nil),
+			},
+			errsIs: func(t *testing.T, e error, count int) {
+				assert.True(t, graph.IsSericeUnavailable(e), "is unavailable error")
+				assert.ErrorIs(t, e, graph.Err503ServiceUnavailable)
+				assert.Equal(t, 1, count, "one errors")
+			},
+			readErrIs: func(t *testing.T, e error) {
+				assert.True(t, graph.IsSericeUnavailable(e), "is unavailable error")
+				assert.ErrorIs(t, e, graph.Err503ServiceUnavailable)
+			},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			var (
+				wg       sync.WaitGroup
+				errs     error
+				errCount int
+				size     int64
+
+				countUpdater = func(sz int64) { size = sz }
+				errUpdater   = func(s string, e error) {
+					errs = multierror.Append(errs, e)
+					errCount++
+				}
+
+				semaphore = make(chan struct{}, 1)
+				progress  = make(chan struct{}, 1)
+			)
+
+			wg.Add(1)
+			semaphore <- struct{}{}
+
+			go test.coll.streamItem(
+				ctx,
+				&wg,
+				semaphore,
+				progress,
+				errUpdater,
+				countUpdater,
+				mockItem,
+				"parentPath",
+			)
+
+			// wait for the func to run
+			wg.Wait()
+
+			assert.Zero(t, len(semaphore), "semaphore was released")
+			assert.NotNil(t, <-progress, "progress was communicated")
+			assert.NotZero(t, size, "countUpdater was called")
+
+			data, ok := <-test.coll.data
+			assert.True(t, ok, "data channel survived")
+
+			bs, err := io.ReadAll(data.ToReader())
+
+			test.readErrIs(t, err)
+			test.errsIs(t, errs, errCount)
+			assert.Equal(t, test.expectData, string(bs), "streamed item bytes")
 		})
 	}
 }
