@@ -40,10 +40,9 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 
 	t := suite.T()
 	siteID := tester.M365SiteID(t)
-	service, err := createTestService(suite.creds)
-	require.NoError(t, err)
+	service := createTestBetaService(t, suite.creds)
 
-	pgs, err := fetchPages(ctx, *service, siteID)
+	pgs, err := fetchPages(ctx, service, siteID)
 	assert.NoError(t, err)
 	require.NotNil(t, pgs)
 	assert.NotZero(t, len(pgs))
@@ -60,9 +59,8 @@ func (suite *SharePointPageSuite) TestGetSitePage() {
 	t := suite.T()
 	siteID := tester.M365SiteID(t)
 
-	service, err := createTestService(suite.creds)
-	require.NoError(t, err)
-	tuples, err := fetchPages(ctx, *service, siteID)
+	service := createTestBetaService(t, suite.creds)
+	tuples, err := fetchPages(ctx, service, siteID)
 	require.NoError(t, err)
 	require.NotNil(t, tuples)
 
