@@ -19,10 +19,12 @@ If you don't have Go available, you can find installation instructions [here](ht
 This will generate a binary named `corso` in the directory where you run the build.
 
 :::note
-You can download binary artifacts of the latest commit from GitHub by
-navigating to the "Summary" page of the `Build/Release Corso` CI job
-that was run for that commit.
-You will find the artifacts at the bottom of the page.
+Prebuilt binary artifacts of the latest commit are available on GitHub.
+You can access them by navigating to the "Summary" page of
+`Build/Release Corso` CI job that was run for the latest commit on the
+`main` branch.
+The downloads will be available in the "Artifacts" section towards the
+bottom of the page.
 :::
 
 ### Building via Docker
