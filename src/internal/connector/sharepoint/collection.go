@@ -265,6 +265,7 @@ func (sc *Collection) retrievePages(
 	if betaService == nil {
 		return metrics, fmt.Errorf("beta service not found in collection")
 	}
+
 	pages, err := GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
 		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
