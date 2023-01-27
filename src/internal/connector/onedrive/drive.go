@@ -7,7 +7,6 @@ import (
 	"time"
 
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
@@ -154,34 +153,30 @@ func collectItems(
 
 	maps.Copy(newPaths, oldPaths)
 
-	// TODO: Specify a timestamp in the delta query
-	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
-	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
-	builder := service.Client().DrivesById(driveID).Root().Delta()
-	pageCount := int32(999) // max we can do is 999
-	requestFields := []string{
-		"content.downloadUrl",
-		"createdBy",
-		"createdDateTime",
-		"file",
-		"folder",
-		"id",
-		"lastModifiedDateTime",
-		"name",
-		"package",
-		"parentReference",
-		"root",
-		"size",
-	}
-	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
-			Top:    &pageCount,
-			Select: requestFields,
+	// TODO(ashmrtn): Pass this in instead of creating it here so it can be
+	// mocked for testing.
+	pager := api.NewItemPager(
+		service,
+		driveID,
+		"",
+		[]string{
+			"content.downloadUrl",
+			"createdBy",
+			"createdDateTime",
+			"file",
+			"folder",
+			"id",
+			"lastModifiedDateTime",
+			"name",
+			"package",
+			"parentReference",
+			"root",
+			"size",
 		},
-	}
+	)
 
 	for {
-		r, err := builder.Get(ctx, requestConfig)
+		page, err := pager.GetPage(ctx)
 		if err != nil {
 			return "", nil, nil, errors.Wrapf(
 				err,
@@ -190,7 +185,12 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths, excluded)
+		vals, err := pager.ValuesIn(page)
+		if err != nil {
+			return "", nil, nil, errors.Wrap(err, "extracting items from response")
+		}
+
+		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded)
 		if err != nil {
 			return "", nil, nil, err
 		}
