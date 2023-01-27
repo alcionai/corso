@@ -246,7 +246,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				ctx,
 				graph.LargeItemClient(),
 				test.getSelector(),
-				connector.credentials.AzureTenantID,
+				connector.credentials,
 				connector.Service,
 				connector,
 				control.Options{})
