@@ -468,7 +468,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 
 					for k, v := range ci {
 						if cachedTest.cached {
-							cp.CachedFile(k, 42)
+							cp.CachedFile(k, v.totalBytes)
 						}
 
 						cp.FinishedFile(k, v.err)
@@ -487,6 +487,38 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 			}
 		})
 	}
+}
+
+func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
+	t := suite.T()
+	bd := &details.Builder{}
+	cachedItems := map[string]testInfo{
+		suite.targetFileName: {
+			info:       &itemDetails{info: nil, repoPath: suite.targetFilePath},
+			err:        nil,
+			totalBytes: 100,
+		},
+	}
+	cp := corsoProgress{
+		UploadProgress: &snapshotfs.NullUploadProgress{},
+		deets:          bd,
+		pending:        map[string]*itemDetails{},
+	}
+
+	for k, v := range cachedItems {
+		cp.put(k, v.info)
+	}
+
+	require.Len(t, cp.pending, len(cachedItems))
+
+	for k, v := range cachedItems {
+		cp.CachedFile(k, v.totalBytes)
+		cp.FinishedFile(k, v.err)
+	}
+
+	assert.Empty(t, cp.pending)
+	assert.Empty(t, bd.Details().Entries)
+	assert.Error(t, cp.errs.ErrorOrNil())
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
@@ -673,7 +705,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, err := inflateDirTree(ctx, nil, nil, collections, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
 	require.NoError(t, err)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -761,7 +793,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		suite.T().Run(test.name, func(t *testing.T) {
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
 			require.NoError(t, err)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -857,7 +889,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		defer flush()
 
 		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil)
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
 			assert.Error(t, err)
 		})
 	}
@@ -960,7 +992,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 				cols = append(cols, mc)
 			}
 
-			_, err := inflateDirTree(ctx, nil, nil, cols, progress)
+			_, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
 			require.Error(t, err)
 		})
 	}
@@ -995,7 +1027,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(testFileName)[0],
 							time.Time{},
-							bytes.NewReader(testFileData),
+							io.NopCloser(bytes.NewReader(testFileData)),
 						),
 					},
 				),
@@ -1229,6 +1261,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
+				nil,
 				progress,
 			)
 			require.NoError(t, err)
@@ -1249,7 +1282,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		[]string{testTenant, service, testUser, category, testInboxDir},
 		false,
 	)
-	inboxFileName1 := testFileName4
+	inboxFileName1 := testFileName
 	inboxFileData1 := testFileData4
 	inboxFileName2 := testFileName5
 	inboxFileData2 := testFileData5
@@ -1259,7 +1292,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		append(inboxPath.Elements(), personalDir),
 		false,
 	)
-	personalFileName1 := testFileName
+	personalFileName1 := inboxFileName1
 	personalFileName2 := testFileName2
 
 	workPath := makePath(
@@ -1280,7 +1313,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	//     - user1
 	//       - email
 	//         - Inbox
-	//           - file4
+	//           - file1
 	//           - personal
 	//             - file1
 	//             - file2
@@ -1301,7 +1334,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(inboxFileName1)[0],
 							time.Time{},
-							bytes.NewReader(inboxFileData1),
+							io.NopCloser(bytes.NewReader(inboxFileData1)),
 						),
 						virtualfs.NewStaticDirectory(
 							encodeElements(personalDir)[0],
@@ -1309,12 +1342,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName1)[0],
 									time.Time{},
-									bytes.NewReader(testFileData),
+									io.NopCloser(bytes.NewReader(testFileData)),
 								),
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName2)[0],
 									time.Time{},
-									bytes.NewReader(testFileData2),
+									io.NopCloser(bytes.NewReader(testFileData2)),
 								),
 							},
 						),
@@ -1324,7 +1357,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(workFileName1)[0],
 									time.Time{},
-									bytes.NewReader(testFileData3),
+									io.NopCloser(bytes.NewReader(testFileData3)),
 								),
 							},
 						),
@@ -1337,8 +1370,51 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	table := []struct {
 		name             string
 		inputCollections func(t *testing.T) []data.Collection
+		inputExcludes    map[string]struct{}
 		expected         *expectedNode
 	}{
+		{
+			name: "GlobalExcludeSet",
+			inputCollections: func(t *testing.T) []data.Collection {
+				return nil
+			},
+			inputExcludes: map[string]struct{}{
+				inboxFileName1: {},
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name: personalDir,
+								children: []*expectedNode{
+									{
+										name:     personalFileName2,
+										children: []*expectedNode{},
+									},
+								},
+							},
+							{
+								name: workDir,
+								children: []*expectedNode{
+									{
+										name:     workFileName1,
+										children: []*expectedNode{},
+									},
+								},
+							},
+						},
+					},
+				},
+			),
+		},
 		{
 			name: "MovesSubtree",
 			inputCollections: func(t *testing.T) []data.Collection {
@@ -1887,6 +1963,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
+				test.inputExcludes,
 				progress,
 			)
 			require.NoError(t, err)
@@ -1941,7 +2018,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName)[0],
 									time.Time{},
-									bytes.NewReader(testFileData),
+									io.NopCloser(bytes.NewReader(testFileData)),
 								),
 							},
 						),
@@ -1951,7 +2028,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName2)[0],
 									time.Time{},
-									bytes.NewReader(testFileData2),
+									io.NopCloser(bytes.NewReader(testFileData2)),
 								),
 							},
 						),
@@ -1966,7 +2043,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName3)[0],
 									time.Time{},
-									bytes.NewReader(testFileData3),
+									io.NopCloser(bytes.NewReader(testFileData3)),
 								),
 							},
 						),
@@ -1976,7 +2053,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName4)[0],
 									time.Time{},
-									bytes.NewReader(testFileData4),
+									io.NopCloser(bytes.NewReader(testFileData4)),
 								),
 							},
 						),
@@ -2047,6 +2124,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
+		nil,
 		progress,
 	)
 	require.NoError(t, err)
@@ -2123,7 +2201,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
-									bytes.NewReader(inboxFileData1),
+									io.NopCloser(bytes.NewReader(inboxFileData1)),
 								),
 							},
 						),
@@ -2138,7 +2216,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
-									bytes.NewReader(contactsFileData1),
+									io.NopCloser(bytes.NewReader(contactsFileData1)),
 								),
 							},
 						),
@@ -2196,7 +2274,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(eventsFileName1)[0],
 									time.Time{},
-									bytes.NewReader(eventsFileData1),
+									io.NopCloser(bytes.NewReader(eventsFileData1)),
 								),
 							},
 						),
@@ -2293,6 +2371,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 			mockIncrementalBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
+		nil,
 		progress,
 	)
 	require.NoError(t, err)

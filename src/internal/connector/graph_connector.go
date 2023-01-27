@@ -4,17 +4,19 @@ package connector
 
 import (
 	"context"
+	"net/http"
 	"runtime/trace"
 	"strings"
 	"sync"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -37,7 +39,10 @@ import (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	Service     graph.Servicer
+	Service    graph.Servicer
+	Owners     api.Client
+	itemClient *http.Client // configured to handle large item downloads
+
 	tenant      string
 	Users       map[string]string // key<email> value<id>
 	Sites       map[string]string // key<???> value<???>
@@ -61,25 +66,34 @@ const (
 	Sites
 )
 
-func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*GraphConnector, error) {
+func NewGraphConnector(
+	ctx context.Context,
+	itemClient *http.Client,
+	acct account.Account,
+	r resource,
+) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m365 account configuration")
 	}
 
 	gc := GraphConnector{
+		itemClient:  itemClient,
 		tenant:      m365.AzureTenantID,
 		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
 		credentials: m365,
 	}
 
-	gService, err := gc.createService()
+	gc.Service, err = gc.createService()
 	if err != nil {
 		return nil, errors.Wrap(err, "creating service connection")
 	}
 
-	gc.Service = gService
+	gc.Owners, err = api.NewClient(m365)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating api client")
+	}
 
 	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
 	// is not a wildcard don't populate users or sites when making the connector.
@@ -121,7 +135,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.Service, gc.tenant)
+	users, err := discovery.Users(ctx, gc.Owners.Users())
 	if err != nil {
 		return err
 	}

@@ -134,6 +134,7 @@ type corsoProgress struct {
 	toMerge    map[string]path.Path
 	mu         sync.RWMutex
 	totalBytes int64
+	errs       *multierror.Error
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -162,8 +163,13 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
 	if d.info == nil {
-		// TODO(ashmrtn): We should probably be returning an error here?
 		if d.prevPath == nil {
+			cp.errs = multierror.Append(cp.errs, errors.Errorf(
+				"item sourced from previous backup with no previous path. Service: %s, Category: %s",
+				d.repoPath.Service().String(),
+				d.repoPath.Category().String(),
+			))
+
 			return
 		}
 
@@ -339,6 +345,7 @@ func streamBaseEntries(
 	prevPath path.Path,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
+	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
 ) error {
 	if dir == nil {
@@ -365,6 +372,12 @@ func streamBaseEntries(
 		entName, err := decodeElement(entry.Name())
 		if err != nil {
 			return errors.Wrapf(err, "unable to decode entry name %s", entry.Name())
+		}
+
+		// This entry was marked as deleted by a service that can't tell us the
+		// previous path of deleted items, only the item ID.
+		if _, ok := globalExcludeSet[entName]; ok {
+			return nil
 		}
 
 		// For now assuming that item IDs don't need escaping.
@@ -415,6 +428,7 @@ func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.Collection,
 	baseDir fs.Directory,
+	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -437,6 +451,7 @@ func getStreamItemFunc(
 			prevPath,
 			baseDir,
 			seen,
+			globalExcludeSet,
 			progress,
 		); err != nil {
 			errs = multierror.Append(
@@ -451,13 +466,14 @@ func getStreamItemFunc(
 
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are virtualfs.StreamingDirectory.
-func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.Directory, error) {
+func buildKopiaDirs(
+	dirName string,
+	dir *treeMap,
+	globalExcludeSet map[string]struct{},
+	progress *corsoProgress,
+) (fs.Directory, error) {
 	// Reuse kopia directories directly if the subtree rooted at them is
 	// unchanged.
-	//
-	// TODO(ashmrtn): This will need updated when we have OneDrive backups where
-	// items have been deleted because we can't determine which directory used to
-	// have the item.
 	//
 	// TODO(ashmrtn): We could possibly also use this optimization if we know that
 	// the collection has no items in it. In that case though, we may need to take
@@ -465,7 +481,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 	// example, a directory that has been renamed but with no additional items may
 	// not be able to directly use kopia's version of the directory due to the
 	// rename.
-	if dir.collection == nil && len(dir.childDirs) == 0 && dir.baseDir != nil {
+	if dir.collection == nil && len(dir.childDirs) == 0 && dir.baseDir != nil && len(globalExcludeSet) == 0 {
 		return dir.baseDir, nil
 	}
 
@@ -474,7 +490,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 	var childDirs []fs.Entry
 
 	for childName, childDir := range dir.childDirs {
-		child, err := buildKopiaDirs(childName, childDir, progress)
+		child, err := buildKopiaDirs(childName, childDir, globalExcludeSet, progress)
 		if err != nil {
 			return nil, err
 		}
@@ -490,6 +506,7 @@ func buildKopiaDirs(dirName string, dir *treeMap, progress *corsoProgress) (fs.D
 			childDirs,
 			dir.collection,
 			dir.baseDir,
+			globalExcludeSet,
 			progress,
 		),
 	), nil
@@ -873,11 +890,19 @@ func inflateBaseTree(
 // virtualfs.StreamingDirectory with the given DataCollections if there is one
 // for that node. Tags can be used in future backups to fetch old snapshots for
 // caching reasons.
+//
+// globalExcludeSet represents a set of items, represented with file names, to
+// exclude from base directories when uploading the snapshot. As items in *all*
+// base directories will be checked for in every base directory, this assumes
+// that items in the bases are unique. Deletions of directories or subtrees
+// should be represented as changes in the status of a Collection, not an entry
+// in the globalExcludeSet.
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
 	collections []data.Collection,
+	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
@@ -909,7 +934,7 @@ func inflateDirTree(
 	var res fs.Directory
 
 	for dirName, dir := range roots {
-		tmp, err := buildKopiaDirs(dirName, dir, progress)
+		tmp, err := buildKopiaDirs(dirName, dir, globalExcludeSet, progress)
 		if err != nil {
 			return nil, err
 		}

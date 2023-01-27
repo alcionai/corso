@@ -2,10 +2,12 @@ package sharepoint
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -24,6 +26,7 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	itemClient *http.Client,
 	selector selectors.Selector,
 	tenantID string,
 	serv graph.Servicer,
@@ -66,6 +69,7 @@ func DataCollections(
 		case path.LibrariesCategory:
 			spcs, err = collectLibraries(
 				ctx,
+				itemClient,
 				serv,
 				tenantID,
 				site,
@@ -81,7 +85,6 @@ func DataCollections(
 				serv,
 				tenantID,
 				site,
-				scope,
 				su,
 				ctrlOpts)
 			if err != nil {
@@ -136,6 +139,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
+	itemClient *http.Client,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
@@ -150,6 +154,7 @@ func collectLibraries(
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
 	colls := onedrive.NewCollections(
+		itemClient,
 		tenantID,
 		siteID,
 		onedrive.SharePointSource,
@@ -173,7 +178,6 @@ func collectPages(
 	ctx context.Context,
 	serv graph.Servicer,
 	tenantID, siteID string,
-	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
@@ -181,7 +185,10 @@ func collectPages(
 
 	spcs := make([]data.Collection, 0)
 
-	tuples, err := fetchPages(ctx, serv, siteID)
+	// make the betaClient
+	betaService := betasdk.NewService(serv.Adapter())
+
+	tuples, err := fetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +205,7 @@ func collectPages(
 		}
 
 		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
+		collection.betaService = betaService
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
