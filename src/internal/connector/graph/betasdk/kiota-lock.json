@@ -30,7 +30,7 @@
         "**/groups/**",
         "**/onenote/**"
     ],
-    "Necessary Sites Files": [
+    "sitesFiles": [
         "count_request_builder.go",
         "item_pages_count_request_builder.go",
         "item_pages_item_canvas_layout_horizontal_sections_count_request_builder.go",
@@ -65,7 +65,7 @@
         "item_sites_site_item_request_builder.go",
         "site_item_request_builder.go"
     ],
-    "Necessary Model Files":[
+    "modelFiles":[
         "base_item.go",
         "page_layout_type.go",
         "standard_web_partable.go",
