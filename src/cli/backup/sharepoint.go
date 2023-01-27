@@ -210,7 +210,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Sites)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
