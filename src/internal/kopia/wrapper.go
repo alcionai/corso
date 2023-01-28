@@ -129,7 +129,11 @@ func (w Wrapper) BackupCollections(
 	ctx, end := D.Span(ctx, "kopia:backupCollections")
 	defer end()
 
-	if len(collections) == 0 {
+	// TODO(ashmrtn): Make this a parameter when actually enabling the global
+	// exclude set.
+	var globalExcludeSet map[string]struct{}
+
+	if len(collections) == 0 && len(globalExcludeSet) == 0 {
 		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
@@ -147,7 +151,14 @@ func (w Wrapper) BackupCollections(
 		base = previousSnapshots
 	}
 
-	dirTree, err := inflateDirTree(ctx, w.c, base, collections, progress)
+	dirTree, err := inflateDirTree(
+		ctx,
+		w.c,
+		base,
+		collections,
+		globalExcludeSet,
+		progress,
+	)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
@@ -160,10 +171,11 @@ func (w Wrapper) BackupCollections(
 		progress,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		combinedErrs := multierror.Append(nil, err, progress.errs)
+		return nil, nil, nil, combinedErrs.ErrorOrNil()
 	}
 
-	return s, progress.deets, progress.toMerge, nil
+	return s, progress.deets, progress.toMerge, progress.errs.ErrorOrNil()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(

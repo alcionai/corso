@@ -6,10 +6,11 @@ import (
 	"io"
 	"runtime/trace"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -273,7 +274,7 @@ func RestoreCollection(
 
 func restoreSitePage(
 	ctx context.Context,
-	service graph.Servicer,
+	service *betasdk.Service,
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {

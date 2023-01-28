@@ -20,7 +20,7 @@ services, possibly beyond M365, will expand based on the interest and needs of t
 
 # Getting Started
 
-See the [Corso Documentation](https://corsobackup.io/docs/intro) for more information.
+See the [Corso Quickstart](https://corsobackup.io/docs/quickstart/) on our docs page.
 
 # Building Corso
 

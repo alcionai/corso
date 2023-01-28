@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 )
 
@@ -195,7 +196,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 			assert.NoError,
 			assert.NotNil,
 			func(t *testing.T) []byte {
-				pg := models.NewSitePage()
+				pg := bmodels.NewSitePage()
 				title := "Tested"
 				pg.SetTitle(&title)
 				pg.SetName(&title)
