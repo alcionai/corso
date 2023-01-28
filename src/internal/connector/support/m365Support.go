@@ -3,9 +3,10 @@ package support
 import (
 	"strings"
 
+	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 )
 
@@ -75,13 +76,13 @@ func CreateListFromBytes(bytes []byte) (models.Listable, error) {
 }
 
 // CreatePageFromBytes transforms given bytes in models.SitePageable object
-func CreatePageFromBytes(bytes []byte) (models.SitePageable, error) {
-	parsable, err := CreateFromBytes(bytes, models.CreateSitePageFromDiscriminatorValue)
+func CreatePageFromBytes(bytes []byte) (bmodels.SitePageable, error) {
+	parsable, err := CreateFromBytes(bytes, bmodels.CreateSitePageFromDiscriminatorValue)
 	if err != nil {
 		return nil, errors.Wrap(err, "createing m365 sharepoint.Page object from provided bytes")
 	}
 
-	page := parsable.(models.SitePageable)
+	page := parsable.(bmodels.SitePageable)
 
 	return page, nil
 }
