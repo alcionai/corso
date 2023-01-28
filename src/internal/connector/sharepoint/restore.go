@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -68,7 +69,7 @@ func RestoreCollections(
 				deets,
 				errUpdater)
 		case path.ListsCategory:
-			metrics, canceled = RestoreCollection(
+			metrics, canceled = RestoreListCollection(
 				ctx,
 				service,
 				dc,
@@ -77,11 +78,14 @@ func RestoreCollections(
 				errUpdater,
 			)
 		case path.PagesCategory:
-			errorMessage := fmt.Sprintf("restore of %s not supported", dc.FullPath().Category())
-			logger.Ctx(ctx).Error(errorMessage)
-
-			return nil, errors.New(errorMessage)
-
+			metrics, canceled = RestorePageCollection(
+				ctx,
+				service,
+				dc,
+				dest.ContainerName,
+				deets,
+				errUpdater,
+			)
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
@@ -203,7 +207,7 @@ func restoreListItem(
 	return dii, nil
 }
 
-func RestoreCollection(
+func RestoreListCollection(
 	ctx context.Context,
 	service graph.Servicer,
 	dc data.Collection,
@@ -211,7 +215,7 @@ func RestoreCollection(
 	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restoreCollection", D.Label("path", dc.FullPath()))
+	ctx, end := D.Span(ctx, "gc:sharepoint:restoreListCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -219,7 +223,7 @@ func RestoreCollection(
 		directory = dc.FullPath()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restoreCollection", directory.String())
+	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
 	siteID := directory.ResourceOwner()
 
 	// Restore items from the collection
@@ -269,4 +273,150 @@ func RestoreCollection(
 			metrics.Successes++
 		}
 	}
+}
+
+// RestorePageCollection handles restoration of an individual site page collection.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation station. True iff context is canceled.
+func RestorePageCollection(
+	ctx context.Context,
+	service graph.Servicer,
+	dc data.Collection,
+	restoreContainerName string,
+	deets *details.Builder,
+	errUpdater func(string, error),
+) (support.CollectionMetrics, bool) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restorePageCollection", D.Label("path", dc.FullPath()))
+	defer end()
+
+	var (
+		metrics   = support.CollectionMetrics{}
+		directory = dc.FullPath()
+	)
+
+	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
+	siteID := directory.ResourceOwner()
+
+	// Restore items from collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return metrics, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return metrics, false
+			}
+			metrics.Objects++
+
+			itemInfo, err := restoreSitePage(
+				ctx,
+				service,
+				itemData,
+				siteID,
+				restoreContainerName,
+			)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			metrics.TotalBytes += itemInfo.SharePoint.Size
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				true,
+				itemInfo,
+			)
+
+			metrics.Successes++
+		}
+	}
+}
+
+// restoreSitePage handles the restoration of single site page to SharePoint.
+// The new M365ID is placed within the details.ItemInfo
+func restoreSitePage(
+	ctx context.Context,
+	service *betasdk.Service,
+	itemData data.Stream,
+	siteID, destName string,
+) (details.ItemInfo, error) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restorePage", D.Label("item_uuid", itemData.UUID()))
+	defer end()
+
+	var (
+		dii      = details.ItemInfo{}
+		pageID   = itemData.UUID()
+		pageName = pageID
+	)
+
+	byteArray, err := io.ReadAll(itemData.ToReader())
+	if err != nil {
+		return dii, errors.Wrap(err, "reading sharepoint page bytes from stream")
+	}
+
+	// Hydrate Page
+	page, err := support.CreatePageFromBytes(byteArray)
+	if err != nil {
+		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
+	}
+
+	pageNamePtr := page.GetName()
+	if pageNamePtr != nil {
+		pageName = *pageNamePtr
+	}
+
+	newName := fmt.Sprintf("%s_%s", destName, pageName)
+	page.SetName(&newName)
+
+	// Restore is a 2-Step Process in Graph API
+	// 1. Create the Page on the site
+	// 2. Publish the site
+	// See: https://learn.microsoft.com/en-us/graph/api/sitepage-create?view=graph-rest-beta
+	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
+	if err != nil {
+		sendErr := support.ConnectorStackErrorTraceWrap(
+			err,
+			"creating page from ID: %s"+pageName+" API Error Details",
+		)
+
+		return dii, sendErr
+	}
+
+	// Publish page to make visible
+	// See https://learn.microsoft.com/en-us/graph/api/sitepage-publish?view=graph-rest-beta
+	if restoredPage.GetWebUrl() == nil {
+		return dii, fmt.Errorf("creating page %s incomplete. Field  `webURL` not populated", *restoredPage.GetId())
+	}
+
+	err = service.Client().
+		SitesById(siteID).
+		PagesById(*restoredPage.GetId()).Publish().Post(ctx, nil)
+	if err != nil {
+		return dii, support.ConnectorStackErrorTraceWrap(
+			err,
+			"publishing page ID: "+*restoredPage.GetId()+" API Error Details",
+		)
+	}
+
+	dii.SharePoint = sharePointPageInfo(restoredPage, int64(len(byteArray)))
+	// Storing new pageID in unused field.
+	dii.SharePoint.ParentPath = pageID
+
+	return dii, nil
 }

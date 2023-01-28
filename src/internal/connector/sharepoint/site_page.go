@@ -80,6 +80,21 @@ func fetchPageOptions() *sites.ItemPagesRequestBuilderGetRequestConfiguration {
 	return options
 }
 
+// DeleteSitePage removes the selected page from the SharePoint Site
+// https://learn.microsoft.com/en-us/graph/api/sitepage-delete?view=graph-rest-beta
+func DeleteSitePage(
+	ctx context.Context,
+	serv *betasdk.Service,
+	siteID, pageID string,
+) error {
+	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
+	if err != nil {
+		return support.ConnectorStackErrorTraceWrap(err, "deleting page: "+pageID)
+	}
+
+	return nil
+}
+
 // retrievePageOptions returns options to expand
 func retrieveSitePageOptions() *sites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration {
 	fields := []string{"canvasLayout"}
