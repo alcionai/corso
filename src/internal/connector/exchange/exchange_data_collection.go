@@ -270,8 +270,6 @@ func (col *Collection) streamItems(ctx context.Context) {
 				return
 			}
 
-			atomic.AddInt64(&success, 1)
-
 			data, err := col.items.Serialize(ctx, item, user, id)
 			if err != nil {
 				errUpdater(user, err)
