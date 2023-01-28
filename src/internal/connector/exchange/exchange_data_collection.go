@@ -173,6 +173,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 		colProgress chan<- struct{}
 
 		user = col.user
+		log  = logger.Ctx(ctx).With(
+			"service", path.ExchangeService.String(),
+			"category", col.category.String())
 	)
 
 	defer func() {
@@ -251,49 +254,18 @@ func (col *Collection) streamItems(ctx context.Context) {
 				err  error
 			)
 
-			for i := 1; i <= numberOfRetries; i++ {
-				item, info, err = col.items.GetItem(ctx, user, id)
-				if err == nil {
-					break
-				}
-
-				// If the data is no longer available just return here and chalk it up
-				// as a success. There's no reason to retry and no way we can backup up
-				// enough information to restore the item anyway.
-				if graph.IsErrDeletedInFlight(err) {
-					atomic.AddInt64(&success, 1)
-					logger.Ctx(ctx).Infow(
-						"Graph reported item not found",
-						"error", err,
-						"service", path.ExchangeService.String(),
-						"category", col.category.String)
-
-					return
-				}
-
-				if i < numberOfRetries {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
-				}
-			}
-
+			item, info, err = getItemWithRetries(ctx, user, id, col.items)
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
-				// back up data that is gone. Chalk them up as a "success" though since
-				// there's really nothing we can do and not reporting it will make the
-				// status code upset cause we won't have the same number of results as
-				// attempted items.
+				// back up data that is gone. Record it as a "success", since there's
+				// nothing else we can do, and not reporting it will make the status
+				// investigation upset.
 				if graph.IsErrDeletedInFlight(err) {
 					atomic.AddInt64(&success, 1)
-					logger.Ctx(ctx).Infow(
-						"Graph reported item not found",
-						"error", err,
-						"service", path.ExchangeService.String(),
-						"category", col.category.String)
-
-					return
+					log.Infow("item not found", "err", err)
+				} else {
+					errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
 				}
-
-				errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
 
 				return
 			}
@@ -323,6 +295,42 @@ func (col *Collection) streamItems(ctx context.Context) {
 	}
 
 	wg.Wait()
+}
+
+// get an item while handling retry and backoff.
+func getItemWithRetries(
+	ctx context.Context,
+	userID, itemID string,
+	items itemer,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	var (
+		item serialization.Parsable
+		info *details.ExchangeInfo
+		err  error
+	)
+
+	for i := 1; i <= numberOfRetries; i++ {
+		item, info, err = items.GetItem(ctx, userID, itemID)
+		if err == nil {
+			break
+		}
+
+		// If the data is no longer available just return here and chalk it up
+		// as a success. There's no reason to retry; it's gone  Let it go.
+		if graph.IsErrDeletedInFlight(err) {
+			return nil, nil, err
+		}
+
+		if i < numberOfRetries {
+			time.Sleep(time.Duration(3*(i+1)) * time.Second)
+		}
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return item, info, err
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel

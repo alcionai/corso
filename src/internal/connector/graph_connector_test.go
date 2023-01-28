@@ -375,8 +375,7 @@ func runRestoreBackupTest(
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
 		dest.ContainerName,
-		resourceOwners,
-	)
+		resourceOwners)
 
 	start := time.Now()
 
@@ -394,8 +393,10 @@ func runRestoreBackupTest(
 	status := restoreGC.AwaitStatus()
 	runTime := time.Since(start)
 
-	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.NoError(t, status.Err, "restored status.Err")
+	assert.Zero(t, status.ErrorCount, "restored status.ErrorCount")
+	assert.Equal(t, totalItems, status.ObjectCount, "restored status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "restored status.Successful")
 	assert.Len(
 		t,
 		deets.Entries,
@@ -434,8 +435,13 @@ func runRestoreBackupTest(
 	skipped := checkCollections(t, totalItems, expectedData, dcs)
 
 	status = backupGC.AwaitStatus()
-	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
+
+	assert.NoError(t, status.Err, "backup status.Err")
+	assert.Zero(t, status.ErrorCount, "backup status.ErrorCount")
+	assert.Equalf(t, totalItems+skipped, status.ObjectCount,
+		"backup status.ObjectCount; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Successful,
+		"backup status.Successful; wanted %d items + %d skipped", totalItems, skipped)
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
@@ -906,4 +912,31 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			assert.Equal(t, allItems+skipped, status.Successful, "status.Successful")
 		})
 	}
+}
+
+// TODO: this should only be run during smoke tests, not part of the standard CI.
+// That's why it's set aside instead of being included in the other test set.
+func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
+	subjectText := "Test message for restore with large attachment"
+
+	test := restoreBackupInfo{
+		name:     "EmailsWithLargeAttachments",
+		service:  path.ExchangeService,
+		resource: Users,
+		collections: []colInfo{
+			{
+				pathElements: []string{"Inbox"},
+				category:     path.EmailCategory,
+				items: []itemInfo{
+					{
+						name:      "35mbAttachment",
+						data:      mockconnector.GetMockMessageWithSizedAttachment(subjectText, 35),
+						lookupKey: subjectText,
+					},
+				},
+			},
+		},
+	}
+
+	runRestoreBackupTest(suite.T(), suite.acct, test, suite.connector.tenant, []string{suite.user})
 }
