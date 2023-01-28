@@ -159,8 +159,11 @@ func GetMockMessageWith(
 // Max limit on N is 35 (imposed by exchange) .
 // Serialized with: kiota-serialization-json-go v0.7.1
 func GetMockMessageWithSizedAttachment(subject string, n int) []byte {
-	if n > 35 {
-		n = 35
+	// I know we said 35, but after base64encoding, 24mb of base content
+	// bloats up to 34mb (35 baloons to 49).  So we have to restrict n
+	// appropriately.
+	if n > 24 {
+		n = 24
 	}
 
 	//nolint:lll
