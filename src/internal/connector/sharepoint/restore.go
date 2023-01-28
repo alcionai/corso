@@ -283,7 +283,8 @@ func restoreSitePage(
 
 	var (
 		dii      = details.ItemInfo{}
-		pageName = itemData.UUID()
+		pageID   = itemData.UUID()
+		pageName = pageID
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
@@ -294,12 +295,17 @@ func restoreSitePage(
 	// Hydrate Page
 	page, err := support.CreatePageFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "failed to create Page object %s", pageName)
+		return dii, errors.Wrapf(err, "failed to create Page object %s", pageID)
 	}
 
-	newName := fmt.Sprintf("%s_%s", destName, *page.GetName())
+	pageNamePtr := page.GetName()
+	if pageNamePtr != nil {
+		pageName = *pageNamePtr
+	}
+
+	newName := fmt.Sprintf("%s_%s", destName, pageName)
 	page.SetName(&newName)
-	fmt.Printf("Page Name: %s\n", *page.GetName())
+
 	// Restore is a 2-Step Process in Graph API
 	// 1. Create the Page on the site
 	// 2. Publish the site
