@@ -3,10 +3,12 @@ package onedrive
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -45,6 +47,9 @@ type folderMatcher interface {
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
+	// configured to handle large item downloads
+	itemClient *http.Client
+
 	tenant        string
 	resourceOwner string
 	source        driveSource
@@ -65,6 +70,7 @@ type Collections struct {
 }
 
 func NewCollections(
+	itemClient *http.Client,
 	tenant string,
 	resourceOwner string,
 	source driveSource,
@@ -74,6 +80,7 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
+		itemClient:    itemClient,
 		tenant:        tenant,
 		resourceOwner: resourceOwner,
 		source:        source,
@@ -98,6 +105,12 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
+		// Items that should be excluded when sourcing data from the base backup.
+		// TODO(ashmrtn): This list contains the M365 IDs of deleted items so while
+		// it's technically safe to pass all the way through to kopia (files are
+		// unlikely to be named their M365 ID) we should wait to do that until we've
+		// switched to using those IDs for file names in kopia.
+		excludedItems = map[string]struct{}{}
 	)
 
 	// Update the collection map with items from each drive
@@ -105,7 +118,13 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		driveID := *d.GetId()
 		driveName := *d.GetName()
 
-		delta, paths, err := collectItems(ctx, c.service, driveID, driveName, c.UpdateCollections)
+		delta, paths, excluded, err := collectItems(
+			ctx,
+			c.service,
+			driveID,
+			driveName,
+			c.UpdateCollections,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -121,6 +140,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 				folderPaths[driveID][id] = p
 			}
 		}
+
+		maps.Copy(excludedItems, excluded)
 	}
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
@@ -161,12 +182,17 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
-// A new collection is created for every drive folder (or package)
+// A new collection is created for every drive folder (or package).
+// oldPaths is the unchanged data that was loaded from the metadata file.
+// newPaths starts as a copy of oldPaths and is updated as changes are found in
+// the returned results.
 func (c *Collections) UpdateCollections(
 	ctx context.Context,
 	driveID, driveName string,
 	items []models.DriveItemable,
-	paths map[string]string,
+	oldPaths map[string]string,
+	newPaths map[string]string,
+	excluded map[string]struct{},
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -197,31 +223,61 @@ func (c *Collections) UpdateCollections(
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			// Eventually, deletions of folders will be handled here so we may as well
-			// start off by saving the path.Path of the item instead of just the
-			// OneDrive parentRef or such.
+			if item.GetDeleted() != nil {
+				// Nested folders also return deleted delta results so we don't have to
+				// worry about doing a prefix search in the map to remove the subtree of
+				// the deleted folder/package.
+				delete(newPaths, *item.GetId())
+
+				// TODO(ashmrtn): Create a collection with state Deleted.
+
+				break
+			}
+
+			// Deletions of folders are handled in this case so we may as well start
+			// off by saving the path.Path of the item instead of just the OneDrive
+			// parentRef or such.
 			folderPath, err := collectionPath.Append(*item.GetName(), false)
 			if err != nil {
 				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
 				return err
 			}
 
-			// TODO(ashmrtn): Handle deletions by removing this entry from the map.
-			// TODO(ashmrtn): Handle moves by setting the collection state if the
-			// collection doesn't already exist/have that state.
-			paths[*item.GetId()] = folderPath.String()
+			// Moved folders don't cause delta results for any subfolders nested in
+			// them. We need to go through and update paths to handle that. We only
+			// update newPaths so we don't accidentally clobber previous deletes.
+			//
+			// TODO(ashmrtn): Since we're also getting notifications about folder
+			// moves we may need to handle updates to a path of a collection we've
+			// already created and partially populated.
+			updatePath(newPaths, *item.GetId(), folderPath.String())
 
 		case item.GetFile() != nil:
+			if item.GetDeleted() != nil {
+				excluded[*item.GetId()] = struct{}{}
+				// Exchange counts items streamed through it which includes deletions so
+				// add that here too.
+				c.NumFiles++
+				c.NumItems++
+
+				continue
+			}
+
+			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
+			// the exclude list.
+
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
+				// TODO(ashmrtn): Compare old and new path and set collection state
+				// accordingly.
 				col = NewCollection(
+					c.itemClient,
 					collectionPath,
 					driveID,
 					c.service,
 					c.statusUpdater,
 					c.source,
-					c.ctrl,
-				)
+					c.ctrl)
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++
@@ -285,4 +341,28 @@ func includePath(ctx context.Context, m folderMatcher, folderPath path.Path) boo
 	}
 
 	return m.Matches(folderPathString)
+}
+
+func updatePath(paths map[string]string, id, newPath string) {
+	oldPath := paths[id]
+	if len(oldPath) == 0 {
+		paths[id] = newPath
+		return
+	}
+
+	if oldPath == newPath {
+		return
+	}
+
+	// We need to do a prefix search on the rest of the map to update the subtree.
+	// We don't need to make collections for all of these, as hierarchy merging in
+	// other components should take care of that. We do need to ensure that the
+	// resulting map contains all folders though so we know the next time around.
+	for folderID, p := range paths {
+		if !strings.HasPrefix(p, oldPath) {
+			continue
+		}
+
+		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+	}
 }

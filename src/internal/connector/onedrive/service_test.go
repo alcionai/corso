@@ -3,7 +3,7 @@ package onedrive
 import (
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"

@@ -6,10 +6,11 @@ import (
 	"io"
 	"runtime/trace"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -351,7 +352,7 @@ func RestorePageCollection(
 // The new M365ID is placed within the details.ItemInfo
 func restoreSitePage(
 	ctx context.Context,
-	service graph.Servicer,
+	service *betasdk.Service,
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
@@ -360,23 +361,29 @@ func restoreSitePage(
 
 	var (
 		dii      = details.ItemInfo{}
-		pageName = itemData.UUID()
+		pageID   = itemData.UUID()
+		pageName = pageID
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
-		return dii, errors.Wrap(err, "sharepoint restorePage failed to restore bytes from data.Stream")
+		return dii, errors.Wrap(err, "reading sharepoint page bytes from stream")
 	}
 
 	// Hydrate Page
 	page, err := support.CreatePageFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "failed to create Page object %s", pageName)
+		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
 	}
 
-	newName := fmt.Sprintf("%s_%s", destName, *page.GetName())
+	pageNamePtr := page.GetName()
+	if pageNamePtr != nil {
+		pageName = *pageNamePtr
+	}
+
+	newName := fmt.Sprintf("%s_%s", destName, pageName)
 	page.SetName(&newName)
-	fmt.Printf("Page Name: %s\n", *page.GetName())
+
 	// Restore is a 2-Step Process in Graph API
 	// 1. Create the Page on the site
 	// 2. Publish the site
@@ -385,7 +392,7 @@ func restoreSitePage(
 	if err != nil {
 		sendErr := support.ConnectorStackErrorTraceWrap(
 			err,
-			"failure to create page from ID: %s"+pageName+" API Error Details",
+			"creating page from ID: %s"+pageName+" API Error Details",
 		)
 
 		return dii, sendErr
@@ -394,16 +401,16 @@ func restoreSitePage(
 	// Publish page to make visible
 	// See https://learn.microsoft.com/en-us/graph/api/sitepage-publish?view=graph-rest-beta
 	if restoredPage.GetWebUrl() == nil {
-		return dii, fmt.Errorf("created page %s did not return webURL from API", *restoredPage.GetId())
+		return dii, fmt.Errorf("creating page %s incomplete. Field  `webURL` not populated", *restoredPage.GetId())
 	}
 
-	pageID := *restoredPage.GetId()
-
-	err = service.Client().SitesById(siteID).PagesById(pageID).Publish().Post(ctx, nil)
+	err = service.Client().
+		SitesById(siteID).
+		PagesById(*restoredPage.GetId()).Publish().Post(ctx, nil)
 	if err != nil {
 		return dii, support.ConnectorStackErrorTraceWrap(
 			err,
-			"unable to publish page ID: "+pageID+" API Error Details",
+			"publishing page ID: "+*restoredPage.GetId()+" API Error Details",
 		)
 	}
 

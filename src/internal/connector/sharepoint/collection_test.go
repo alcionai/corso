@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -106,9 +106,7 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
@@ -171,8 +169,7 @@ func (suite *SharePointCollectionSuite) TestRestoreSinglePage() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
+	service := createTestBetaService(t, account)
 
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 	testName := "MockPage"
@@ -220,9 +217,7 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	siteID := tester.M365SiteID(t)
 
