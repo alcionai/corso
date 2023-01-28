@@ -329,7 +329,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				logger.Ctx(ctx).Errorw("transforming item to full path", "error", err)
 				errUpdater(itemData.UUID(), err)
 
 				continue
