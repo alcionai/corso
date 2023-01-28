@@ -316,8 +316,7 @@ func getItemWithRetries(
 		}
 
 		// If the data is no longer available just return here and chalk it up
-		// as a success. There's no reason to retry and no way we can backup up
-		// enough information to restore the item anyway.
+		// as a success. There's no reason to retry; it's gone  Let it go.
 		if graph.IsErrDeletedInFlight(err) {
 			return nil, nil, err
 		}

@@ -20,18 +20,22 @@ import (
 )
 
 type mockItemer struct {
-	getErr       error
-	serializeErr error
+	getCount       int
+	serializeCount int
+	getErr         error
+	serializeErr   error
 }
 
-func (mi mockItemer) GetItem(
+func (mi *mockItemer) GetItem(
 	context.Context,
 	string, string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
+	mi.getCount++
 	return nil, nil, mi.getErr
 }
 
-func (mi mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+func (mi *mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+	mi.serializeCount++
 	return nil, mi.serializeErr
 }
 
@@ -159,7 +163,7 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 				"u",
 				test.curr, test.prev,
 				0,
-				mockItemer{}, nil,
+				&mockItemer{}, nil,
 				control.Options{},
 				false)
 			assert.Equal(t, test.expect, c.State())
@@ -169,27 +173,30 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 
 func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 	table := []struct {
-		name      string
-		items     mockItemer
-		expectErr func(*testing.T, error)
+		name           string
+		items          *mockItemer
+		expectErr      func(*testing.T, error)
+		expectGetCalls int
 	}{
 		{
 			name:  "happy",
-			items: mockItemer{},
+			items: &mockItemer{},
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
 			},
+			expectGetCalls: 1,
 		},
 		{
 			name:  "an error",
-			items: mockItemer{getErr: assert.AnError},
+			items: &mockItemer{getErr: assert.AnError},
 			expectErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
 			},
+			expectGetCalls: 3,
 		},
 		{
 			name: "deleted in flight",
-			items: mockItemer{
+			items: &mockItemer{
 				getErr: graph.ErrDeletedInFlight{
 					Err: *common.EncapsulateError(assert.AnError),
 				},
@@ -197,6 +204,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			expectErr: func(t *testing.T, err error) {
 				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")
 			},
+			expectGetCalls: 1,
 		},
 	}
 	for _, test := range table {
