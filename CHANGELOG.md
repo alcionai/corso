@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+## [v0.2.0] (alpha) - 2023-1-29
+
 ### Fixed
 
 - Check if the user specified for an exchange backup operation has a mailbox.
@@ -129,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/alcionai/corso/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/alcionai/corso/compare/v0.0.4...v0.1.0
 [v0.0.4]: https://github.com/alcionai/corso/compare/v0.0.3...v0.0.4
 [v0.0.3]: https://github.com/alcionai/corso/compare/v0.0.2...v0.0.3
