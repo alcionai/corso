@@ -65,6 +65,13 @@ type Collections struct {
 	// for a OneDrive folder
 	CollectionMap map[string]data.Collection
 
+	// Not the most ideal, but allows us to change the pager function for testing
+	// as needed. This will allow us to mock out some scenarios during testing.
+	itemPagerFunc func(
+		servicer graph.Servicer,
+		driveID, link string,
+	) itemPager
+
 	// Track stats from drive enumeration. Represents the items backed up.
 	NumItems      int
 	NumFiles      int
@@ -88,6 +95,7 @@ func NewCollections(
 		source:        source,
 		matcher:       matcher,
 		CollectionMap: map[string]data.Collection{},
+		itemPagerFunc: defaultItemPager,
 		service:       service,
 		statusUpdater: statusUpdater,
 		ctrl:          ctrlOpts,
@@ -266,7 +274,11 @@ func (c *Collections) Get(
 
 		delta, paths, excluded, err := collectItems(
 			ctx,
-			c.service,
+			c.itemPagerFunc(
+				c.service,
+				driveID,
+				"",
+			),
 			driveID,
 			driveName,
 			c.UpdateCollections,
