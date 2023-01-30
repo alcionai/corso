@@ -3,9 +3,9 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,7 +86,7 @@ type itemMetaReaderFunc func(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-) (io.ReadCloser, int, error)
+) (io.ReadCloser, int64, error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -205,22 +205,21 @@ func newLazyReader(
 	oc *Collection,
 	itemName string,
 	item models.DriveItemable,
+	readFunc func(models.DriveItemable) (io.ReadCloser, int64, error),
 	errUpdater func(id string, err error),
 ) io.ReadCloser {
-	var (
-		itemID   = *item.GetId()
-		itemSize = *item.GetSize()
-	)
+	itemID := *item.GetId()
 
 	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 		// Read the item
 		var (
 			itemData io.ReadCloser
+			itemSize int64
 			err      error
 		)
 
 		for i := 1; i <= maxRetries; i++ {
-			_, itemData, err = oc.itemReader(oc.itemClient, item)
+			itemData, itemSize, err = readFunc(item)
 			if err == nil {
 				break
 			}
@@ -349,12 +348,52 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
-			// Construct a new lazy readCloser to feed to the collection consumer.
-			// This ensures that downloads won't be attempted unless that consumer
-			// attempts to read bytes.  Assumption is that kopia will check things
-			// like file modtimes before attempting to read.
-			itemReader := newLazyReader(ctx, oc, itemName+DataFileSuffix, item, errUpdater)
-			fmt.Println(metaSuffix)
+			if isFile {
+				// Construct a new lazy readCloser to feed to the collection consumer.
+				// This ensures that downloads won't be attempted unless that consumer
+				// attempts to read bytes.  Assumption is that kopia will check things
+				// like file modtimes before attempting to read.
+				itemReader := newLazyReader(
+					ctx,
+					oc,
+					itemName+DataFileSuffix,
+					item,
+					func(item models.DriveItemable) (io.ReadCloser, int64, error) {
+						_, itemData, err := oc.itemReader(oc.itemClient, item)
+						return itemData, itemSize, err
+					},
+					errUpdater)
+
+				oc.data <- &Item{
+					id:   itemName + DataFileSuffix,
+					data: itemReader,
+					info: itemInfo,
+				}
+			}
+
+			// Create a metadata reader
+			itemReader := newLazyReader(
+				ctx,
+				oc,
+				itemName+metaSuffix,
+				item,
+				func(item models.DriveItemable) (io.ReadCloser, int64, error) {
+					if !oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
+						return oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+					}
+					// We are still writing the metadata file but with
+					// empty permissions as we are not sure how the
+					// restore will be called.
+					itemData := io.NopCloser(strings.NewReader("{}"))
+					return itemData, int64(2), nil
+				},
+				errUpdater)
+
+			oc.data <- &Item{
+				id:   itemName + metaSuffix,
+				data: itemReader,
+				info: itemInfo,
+			}
 
 			// This can cause inaccurate counts.  Right now it counts all the items
 			// we intend to read.  Errors within the lazy readCloser will create a
@@ -374,11 +413,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			// byteCount iteration
 			atomic.AddInt64(&byteCount, itemSize)
 
-			oc.data <- &Item{
-				id:   itemName,
-				data: itemReader,
-				info: itemInfo,
-			}
 			folderProgress <- struct{}{}
 		}(item)
 	}

@@ -61,7 +61,7 @@ func oneDriveItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-) (io.ReadCloser, int, error) {
+) (io.ReadCloser, int64, error) {
 	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
 	if err != nil {
 		return nil, 0, err
@@ -72,7 +72,7 @@ func oneDriveItemMetaReader(
 		return nil, 0, err
 	}
 
-	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+	return io.NopCloser(bytes.NewReader(metaJSON)), int64(len(metaJSON)), nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
