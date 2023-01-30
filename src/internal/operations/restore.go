@@ -167,9 +167,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	ctx = clues.Add(ctx, "details_paths", len(paths))
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
 	defer closer()
 	defer close(kopiaComplete)
 
@@ -191,7 +191,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, opStats.readErr
 	}
 
-	restoreComplete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
+	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
 	defer closer()
 	defer close(restoreComplete)
 
@@ -298,6 +298,10 @@ func formatDetailsForRestoration(
 		}
 
 		paths[i] = p
+	}
+
+	if errs != nil {
+		return nil, errs
 	}
 
 	return paths, nil

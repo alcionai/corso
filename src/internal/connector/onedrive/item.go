@@ -25,6 +25,15 @@ const (
 	downloadURLKey = "@microsoft.graph.downloadUrl"
 )
 
+// generic drive item getter
+func getDriveItem(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	return srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+}
+
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
@@ -32,14 +41,9 @@ func sharePointItemReader(
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
-
-	resp, err := hc.Get(*url)
+	resp, err := downloadItem(hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, err
+		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
@@ -56,24 +60,9 @@ func oneDriveItemReader(
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
-
-	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	resp, err := downloadItem(hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, err
-	}
-
-	// Decorate the traffic
-	//nolint:lll
-	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
-	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
-
-	resp, err := hc.Do(req)
-	if err != nil {
-		return details.ItemInfo{}, nil, err
+		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
@@ -81,6 +70,46 @@ func oneDriveItemReader(
 	}
 
 	return dii, resp.Body, nil
+}
+
+func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+	if !ok {
+		return nil, fmt.Errorf("extracting file url: file %s", *item.GetId())
+	}
+
+	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "new request")
+	}
+
+	//nolint:lll
+	// Decorate the traffic
+	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
+	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
+
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if (resp.StatusCode / 100) == 2 {
+		return resp, nil
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return resp, graph.Err429TooManyRequests
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return resp, graph.Err401Unauthorized
+	}
+
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		return resp, graph.Err503ServiceUnavailable
+	}
+
+	return resp, errors.New("non-2xx http response: " + resp.Status)
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct

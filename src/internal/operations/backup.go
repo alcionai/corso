@@ -254,7 +254,7 @@ func produceBackupDataCollections(
 	metadata []data.Collection,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -273,6 +273,7 @@ type backuper interface {
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
+		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
@@ -336,7 +337,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -398,7 +399,33 @@ func consumeBackupDataCollections(
 		)
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
+	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
+		ctx,
+		bases,
+		cs,
+		nil,
+		tags,
+		isIncremental,
+	)
+
+	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+		if err != nil {
+			err = errors.Wrapf(
+				err,
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		} else {
+			err = errors.Errorf(
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		}
+	}
+
+	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
