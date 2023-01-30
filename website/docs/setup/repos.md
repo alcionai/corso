@@ -10,7 +10,7 @@ import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
 
-A Corso [repository](../concepts#corso-concepts) stores encrypted copies of a Microst 365 tenant's
+A Corso [repository](../concepts#corso-concepts) stores encrypted copies of a Microsoft 365 tenant's
 backup data. Each repository is configured to store data in an object storage bucket and, optionally,
 a user-specified prefix within the bucket. A repository is only meant to store a single tenant's data
 but a single object storage bucket can contain multiple repositories if unique `--prefix` options are
