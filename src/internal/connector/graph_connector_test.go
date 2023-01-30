@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -231,7 +232,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(ctx, acct, sel, dest, control.Options{}, nil)
+	deets, err := suite.connector.RestoreDataCollections(ctx, backup.CurrentBackupVersion, acct, sel, dest, control.Options{}, nil)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 
@@ -299,6 +300,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 			deets, err := suite.connector.RestoreDataCollections(
 				ctx,
+				backup.CurrentBackupVersion,
 				suite.acct,
 				test.sel,
 				dest,
@@ -393,6 +395,7 @@ func runRestoreBackupTest(
 	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
+		backup.CurrentBackupVersion,
 		acct,
 		restoreSel,
 		dest,
@@ -1007,8 +1010,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest.ContainerName,
 				)
 
+				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 				deets, err := restoreGC.RestoreDataCollections(
 					ctx,
+					backup.CurrentBackupVersion,
 					suite.acct,
 					restoreSel,
 					dest,
@@ -1382,5 +1387,5 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 		},
 	}
 
-	runRestoreBackupTest(suite.T(), suite.acct, test, suite.connector.tenant, []string{suite.user})
+	runRestoreBackupTest(suite.T(), suite.acct, test, suite.connector.tenant, []string{suite.user}, control.Options{})
 }

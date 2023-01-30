@@ -164,7 +164,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			expectedItemCount:      1,
 			expectedContainerCount: 1,
-			expectedExcludes: map[string]struct{}{},
+			expectedExcludes:       map[string]struct{}{},
 		},
 		{
 			testCase: "Single Package",
@@ -190,7 +190,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			expectedItemCount:      1,
 			expectedContainerCount: 1,
-			expectedExcludes: map[string]struct{}{},
+			expectedExcludes:       map[string]struct{}{},
 		},
 		{
 			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
