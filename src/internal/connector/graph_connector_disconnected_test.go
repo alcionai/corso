@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -65,7 +66,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := NewGraphConnector(ctx, test.acct(t), Users)
+			gc, err := NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), test.acct(t), Users)
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+"failed")
 		})

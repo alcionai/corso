@@ -3,13 +3,15 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"strings"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -48,6 +50,9 @@ var (
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
+	// configured to handle large item downloads
+	itemClient *http.Client
+
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
 	// folderPath indicates what level in the hierarchy this collection
@@ -70,7 +75,7 @@ type Collection struct {
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
@@ -85,6 +90,7 @@ type itemMetaReaderFunc func(
 
 // NewCollection creates a Collection
 func NewCollection(
+	itemClient *http.Client,
 	folderPath path.Path,
 	driveID string,
 	service graph.Servicer,
@@ -93,6 +99,7 @@ func NewCollection(
 	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
+		itemClient:    itemClient,
 		folderPath:    folderPath,
 		driveItems:    map[string]models.DriveItemable{},
 		driveID:       driveID,
@@ -193,6 +200,73 @@ func (od *Item) ModTime() time.Time {
 	return od.info.Modified()
 }
 
+func newLazyReader(
+	ctx context.Context,
+	oc *Collection,
+	itemName string,
+	item models.DriveItemable,
+	errUpdater func(id string, err error),
+) io.ReadCloser {
+	var (
+		itemID   = *item.GetId()
+		itemSize = *item.GetSize()
+	)
+
+	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+		// Read the item
+		var (
+			itemData io.ReadCloser
+			err      error
+		)
+
+		for i := 1; i <= maxRetries; i++ {
+			_, itemData, err = oc.itemReader(oc.itemClient, item)
+			if err == nil {
+				break
+			}
+
+			if graph.IsErrUnauthorized(err) {
+				// assume unauthorized requests are a sign of an expired
+				// jwt token, and that we've overrun the available window
+				// to download the actual file.  Re-downloading the item
+				// will refresh that download url.
+				di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+				if diErr != nil {
+					err = errors.Wrap(diErr, "retrieving expired item")
+					break
+				}
+
+				item = di
+
+				continue
+
+			} else if !graph.IsErrTimeout(err) && !graph.IsErrThrottled(err) && !graph.IsSericeUnavailable(err) {
+				// TODO: graphAPI will provides headers that state the duration to wait
+				// in order to succeed again.  The one second sleep won't cut it here.
+				//
+				// for all non-timeout, non-unauth, non-throttling errors, do not retry
+				break
+			}
+
+			if i < maxRetries {
+				time.Sleep(1 * time.Second)
+			}
+		}
+
+		// check for errors following retries
+		if err != nil {
+			errUpdater(itemID, err)
+			return nil, err
+		}
+
+		// display/log the item download
+		progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, observe.PII(itemName), itemSize)
+		go closer()
+
+		return progReader, nil
+	})
+}
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
@@ -218,7 +292,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		"/"+parentPathString,
+		observe.PII("/"+parentPathString),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -232,9 +306,14 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		m.Unlock()
 	}
 
-	for _, item := range oc.driveItems {
+	for id, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
 			break
+		}
+
+		if item == nil {
+			errUpdater(id, errors.New("nil item"))
+			continue
 		}
 
 		semaphoreCh <- struct{}{}
@@ -245,130 +324,61 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			// Read the item
 			var (
-				itemInfo     details.ItemInfo
-				itemData     io.ReadCloser
-				itemMeta     io.ReadCloser
-				itemMetaSize int
-				metaSuffix   string
-				err          error
+				itemName   = *item.GetName()
+				itemSize   = *item.GetSize()
+				isFile     = item.GetFile() != nil
+				itemInfo   details.ItemInfo
+				metaSuffix string
 			)
-
-			isFile := item.GetFile() != nil
 
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
-
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
-
 				metaSuffix = DirMetaFileSuffix
 			}
 
-			// Fetch data for the file
-			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, item)
-
-				// retry on Timeout type errors, break otherwise.
-				if err == nil || graph.IsErrTimeout(err) == nil {
-					break
-				}
-
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
-				}
-			}
-
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
-			}
-
-			// Fetch metadata for the file
-			// TODO(meain): refactor these multiple retry logic
-			for i := 1; i <= maxRetries; i++ {
-				if !oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
-					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-				} else {
-					// We are still writing the metadata file but with
-					// empty permissions as we are not sure how the
-					// restore will be called.
-					itemMeta = io.NopCloser(strings.NewReader("{}"))
-					itemMetaSize = 2
-					err = nil
-				}
-
-				// retry on Timeout type errors, break otherwise.
-				if err == nil || graph.IsErrTimeout(err) == nil {
-					break
-				}
-
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
-				}
-			}
-
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
-			}
-
-			var (
-				itemName string
-				itemSize int64
-			)
-
 			switch oc.source {
 			case SharePointSource:
+				itemInfo.SharePoint = sharePointItemInfo(item, itemSize)
 				itemInfo.SharePoint.ParentPath = parentPathString
-				itemName = itemInfo.SharePoint.ItemName
-				itemSize = itemInfo.SharePoint.Size
 			default:
+				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
 				itemInfo.OneDrive.ParentPath = parentPathString
-				itemName = itemInfo.OneDrive.ItemName
-				itemSize = itemInfo.OneDrive.Size
 			}
 
-			if isFile {
-				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName+DataFileSuffix, itemSize)
-					go closer()
-					return progReader, nil
-				})
+			// Construct a new lazy readCloser to feed to the collection consumer.
+			// This ensures that downloads won't be attempted unless that consumer
+			// attempts to read bytes.  Assumption is that kopia will check things
+			// like file modtimes before attempting to read.
+			itemReader := newLazyReader(ctx, oc, itemName+DataFileSuffix, item, errUpdater)
+			fmt.Println(metaSuffix)
 
-				oc.data <- &Item{
-					id:   itemName + DataFileSuffix,
-					data: itemReader,
-					info: itemInfo,
-				}
-			}
-
-			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				progReader, closer := observe.ItemProgress(
-					ctx, itemMeta, observe.ItemBackupMsg,
-					itemName+metaSuffix, int64(itemMetaSize))
-				go closer()
-				return progReader, nil
-			})
-
-			oc.data <- &Item{
-				id:   itemName + metaSuffix,
-				data: metaReader,
-				info: itemInfo,
-			}
-
+			// This can cause inaccurate counts.  Right now it counts all the items
+			// we intend to read.  Errors within the lazy readCloser will create a
+			// conflict: an item is both successful and erroneous.  But the async
+			// control to fix that is more error-prone than helpful.
+			//
+			// TODO: transform this into a stats bus so that async control of stats
+			// aggregation is handled at the backup level, not at the item iteration
+			// level.
+			//
 			// Item read successfully, add to collection
 			if isFile {
 				atomic.AddInt64(&itemsRead, 1)
 			} else {
 				atomic.AddInt64(&dirsRead, 1)
 			}
-
 			// byteCount iteration
 			atomic.AddInt64(&byteCount, itemSize)
 
+			oc.data <- &Item{
+				id:   itemName,
+				data: itemReader,
+				info: itemInfo,
+			}
 			folderProgress <- struct{}{}
 		}(item)
 	}

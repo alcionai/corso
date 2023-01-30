@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -119,6 +120,14 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", tenantID, // TODO: pii
+		"resource_owner", op.ResourceOwner, // TODO: pii
+		"backup_id", op.Results.BackupID,
+		"service", op.Selectors.Service,
+		"incremental", uib)
+
 	op.bus.Event(
 		ctx,
 		events.BackupStart,
@@ -174,6 +183,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
+	ctx = clues.Add(ctx, "collections", len(cs))
+
 	opStats.k, backupDetails, toMerge, err = consumeBackupDataCollections(
 		ctx,
 		op.kopia,
@@ -208,13 +219,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	opStats.gc = gc.AwaitStatus()
 
 	if opStats.gc.ErrorCount > 0 {
-		opStats.writeErr = multierror.Append(nil, opStats.writeErr, errors.Errorf(
-			"%v errors reported while fetching item data",
-			opStats.gc.ErrorCount,
-		)).ErrorOrNil()
+		merr := multierror.Append(opStats.readErr, errors.Wrap(opStats.gc.Err, "retrieving data"))
+		opStats.readErr = merr.ErrorOrNil()
 
 		// Need to exit before we set started to true else we'll report no errors.
-		return opStats.writeErr
+		return opStats.readErr
 	}
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
@@ -247,7 +256,7 @@ func produceBackupDataCollections(
 	metadata []data.Collection,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -266,6 +275,7 @@ type backuper interface {
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
+		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
@@ -329,7 +339,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -391,7 +401,33 @@ func consumeBackupDataCollections(
 		)
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
+	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
+		ctx,
+		bases,
+		cs,
+		nil,
+		tags,
+		isIncremental,
+	)
+
+	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+		if err != nil {
+			err = errors.Wrapf(
+				err,
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		} else {
+			err = errors.Errorf(
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		}
+	}
+
+	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -130,6 +131,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"backup_id", op.BackupID,
+		"service", op.Selectors.Service)
+
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -142,6 +149,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 		return nil, err
 	}
+
+	ctx = clues.Add(ctx, "resource_owner", bup.Selector.DiscreteOwner)
 
 	op.bus.Event(
 		ctx,
@@ -160,9 +169,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	ctx = clues.Add(ctx, "details_paths", len(paths))
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
+
+	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
 	defer closer()
 	defer close(kopiaComplete)
 
@@ -175,6 +186,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}
 	kopiaComplete <- struct{}{}
 
+	ctx = clues.Add(ctx, "collections", len(dcs))
+
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
@@ -184,7 +197,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, opStats.readErr
 	}
 
-	restoreComplete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
+	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
 	defer closer()
 	defer close(restoreComplete)
 

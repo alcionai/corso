@@ -208,6 +208,7 @@ jobs:
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          CORSO_LOG_FILE: stderr
           LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
@@ -219,7 +220,7 @@ jobs:
           -p 1          \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
-      # Upload the original go test log as an artifact for later review.
+      # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v3
@@ -516,7 +517,7 @@ jobs:
           curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz > corso.tar.gz
           tar -xf corso.tar.gz
           ./corso --help
-          ./corso --version 2>&1 | grep -E "^version: ${{ env.CORSO_VERSION }}$"
+          ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
       - name: Validate arm64 binary artifacts
         uses: uraimo/run-on-arch-action@v2
         with:
@@ -530,7 +531,7 @@ jobs:
             curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_arm64.tar.gz > corso.tar.gz
             tar -xf corso.tar.gz
             ./corso --help
-            ./corso --version 2>&1 | grep -E "^version: ${{ env.CORSO_VERSION }}$"
+            ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Validate-Docker-Artifacts:
     needs: [Publish-Binary, Publish-Image, SetEnv]
@@ -548,11 +549,11 @@ jobs:
       - name: Validate amd64 container images
         run: |
           docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --help
-          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --version | grep -E "^version: ${{ env.CORSO_VERSION }}$"
+          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --version | grep -E "version: ${{ env.CORSO_VERSION }}$"
       - name: Validate arm64 container images
         run: |
           docker run --platform linux/arm64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --help
-          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --version | grep -E "^version: ${{ env.CORSO_VERSION }}$"
+          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --version | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Validate-MacOS-Artifacts:
     needs: [Publish-Binary, Publish-Image, SetEnv]
@@ -568,7 +569,7 @@ jobs:
           curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_x86_64.tar.gz > corso.tar.gz
           tar -xf corso.tar.gz
           ./corso --help
-          ./corso --version 2>&1 | grep -E "^version: ${{ env.CORSO_VERSION }}$"
+          ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
       - name: Validate arm64 binary artifacts
         run: |
           set -ex
@@ -589,7 +590,7 @@ jobs:
           curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Windows_x86_64.zip -o corso.zip
           7z x corso.zip
           ./corso.exe --help
-          ./corso.exe --version 2>&1 | grep -E "^version: ${{ env.CORSO_VERSION }}$"
+          ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Publish-Website-Test:
     needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
