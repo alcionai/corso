@@ -3,10 +3,10 @@ package operations
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -157,6 +157,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 
 			if b, ok := reasons[reasonKey]; ok {
 				failed = true
+
 				errs.Add(clues.New("manifests have overlapping reasons").
 					WithMap(clues.Values(ctx)).
 					With("other_manifest_id", b))
