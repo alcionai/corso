@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -41,7 +40,6 @@ func DataCollections(
 	var (
 		site        = b.DiscreteOwner
 		collections = []data.Collection{}
-		allExcludes = map[string]struct{}{}
 		errs        error
 	)
 
@@ -53,10 +51,7 @@ func DataCollections(
 		defer closer()
 		defer close(foldersComplete)
 
-		var (
-			spcs     []data.Collection
-			excludes map[string]struct{}
-		)
+		var spcs []data.Collection
 
 		switch scope.Category().PathType() {
 		case path.ListsCategory:
@@ -72,7 +67,7 @@ func DataCollections(
 			}
 
 		case path.LibrariesCategory:
-			spcs, excludes, err = collectLibraries(
+			spcs, _, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -88,11 +83,9 @@ func DataCollections(
 
 		collections = append(collections, spcs...)
 		foldersComplete <- struct{}{}
-
-		maps.Copy(allExcludes, excludes)
 	}
 
-	return collections, allExcludes, errs
+	return collections, nil, errs
 }
 
 func collectLists(
