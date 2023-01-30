@@ -160,7 +160,7 @@ func deserializeMetadata(
 					)
 				}
 
-				logger.Ctx(ctx).Error(
+				logger.Ctx(ctx).Errorw(
 					"deserializing base backup metadata. Falling back to full backup for selected drives",
 					"error",
 					err,
