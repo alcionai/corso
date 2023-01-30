@@ -328,7 +328,11 @@ func GetAllFolders(
 	for _, d := range drives {
 		_, _, _, err = collectItems(
 			ctx,
-			gs,
+			defaultItemPager(
+				gs,
+				*d.GetId(),
+				"",
+			),
 			*d.GetId(),
 			*d.GetName(),
 			func(

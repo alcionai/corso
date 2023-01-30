@@ -115,7 +115,17 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
-	_, _, _, err := collectItems(ctx, suite, suite.userDriveID, "General", itemCollector)
+	_, _, _, err := collectItems(
+		ctx,
+		defaultItemPager(
+			suite,
+			suite.userDriveID,
+			"",
+		),
+		suite.userDriveID,
+		"General",
+		itemCollector,
+	)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file
