@@ -98,7 +98,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, map[string]st
 	// Enumerate drives for the specified resourceOwner
 	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	retry := c.source == OneDriveSource
