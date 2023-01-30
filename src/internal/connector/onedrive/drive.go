@@ -134,31 +134,20 @@ type itemCollector func(
 	excluded map[string]struct{},
 ) error
 
-// collectItems will enumerate all items in the specified drive and hand them to the
-// provided `collector` method
-func collectItems(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, driveName string,
-	collector itemCollector,
-) (string, map[string]string, map[string]struct{}, error) {
-	var (
-		newDeltaURL = ""
-		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
-		// take in previous paths.
-		oldPaths = map[string]string{}
-		newPaths = map[string]string{}
-		excluded = map[string]struct{}{}
-	)
+type itemPager interface {
+	GetPage(context.Context) (gapi.DeltaPageLinker, error)
+	SetNext(nextLink string)
+	ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error)
+}
 
-	maps.Copy(newPaths, oldPaths)
-
-	// TODO(ashmrtn): Pass this in instead of creating it here so it can be
-	// mocked for testing.
-	pager := api.NewItemPager(
-		service,
+func defaultItemPager(
+	servicer graph.Servicer,
+	driveID, link string,
+) itemPager {
+	return api.NewItemPager(
+		servicer,
 		driveID,
-		"",
+		link,
 		[]string{
 			"content.downloadUrl",
 			"createdBy",
@@ -174,6 +163,26 @@ func collectItems(
 			"size",
 		},
 	)
+}
+
+// collectItems will enumerate all items in the specified drive and hand them to the
+// provided `collector` method
+func collectItems(
+	ctx context.Context,
+	pager itemPager,
+	driveID, driveName string,
+	collector itemCollector,
+) (string, map[string]string, map[string]struct{}, error) {
+	var (
+		newDeltaURL = ""
+		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
+		// take in previous paths.
+		oldPaths = map[string]string{}
+		newPaths = map[string]string{}
+		excluded = map[string]struct{}{}
+	)
+
+	maps.Copy(newPaths, oldPaths)
 
 	for {
 		page, err := pager.GetPage(ctx)
