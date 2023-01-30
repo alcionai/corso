@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -85,12 +86,37 @@ func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	evt, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	event, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return evt, EventInfo(evt), nil
+	var errs *multierror.Error
+
+	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.largeItem.
+				Client().
+				UsersById(user).
+				EventsById(itemID).
+				Attachments().
+				Get(ctx, nil)
+			if err == nil {
+				event.SetAttachments(attached.GetValue())
+				break
+			}
+
+			logger.Ctx(ctx).Debugw("retrying event attachment download", "err", err)
+			errs = multierror.Append(errs, err)
+		}
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("event attachment download exceeded maximum retries", "err", errs)
+			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "download event attachment"), nil)
+		}
+	}
+
+	return event, EventInfo(event), nil
 }
 
 func (c Client) GetAllCalendarNamesForUser(
@@ -178,7 +204,7 @@ type eventPager struct {
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
+func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, err
 }
@@ -187,7 +213,7 @@ func (p *eventPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 
@@ -249,8 +275,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 // Serialization
 // ---------------------------------------------------------------------------
 
-// Serialize retrieves attachment data identified by the event item, and then
-// serializes it into a byte slice.
+// Serialize transforms the event into a byte slice.
 func (c Events) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,
@@ -267,31 +292,6 @@ func (c Events) Serialize(
 	)
 
 	defer writer.Close()
-
-	if *event.GetHasAttachments() || support.HasAttachments(event.GetBody()) {
-		// getting all the attachments might take a couple attempts due to filesize
-		var retriesErr error
-
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := c.stable.
-				Client().
-				UsersById(user).
-				EventsById(itemID).
-				Attachments().
-				Get(ctx, nil)
-			retriesErr = err
-
-			if err == nil {
-				event.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
-		}
-	}
 
 	if err = writer.WriteObjectValue("", event); err != nil {
 		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))

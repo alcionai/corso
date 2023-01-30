@@ -44,7 +44,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvVars(suite.T(), tester.M365AcctCredEnvs...)
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.LargeItemClient(), AllResources)
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), AllResources)
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 
@@ -63,7 +63,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	selUsers := []string{suite.user}
 
-	connector := loadConnector(ctx, suite.T(), graph.LargeItemClient(), Users)
+	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -141,7 +141,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 
 	owners := []string{"snuffleupagus"}
 
-	connector := loadConnector(ctx, suite.T(), graph.LargeItemClient(), Users)
+	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -218,7 +218,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	selSites := []string{suite.site}
 
-	connector := loadConnector(ctx, suite.T(), graph.LargeItemClient(), Sites)
+	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
 	tests := []struct {
 		name        string
 		expected    int
@@ -247,7 +247,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 		suite.T().Run(test.name, func(t *testing.T) {
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				test.getSelector(),
 				connector.credentials.AzureTenantID,
 				connector.Service,
@@ -305,7 +305,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.LargeItemClient(), Sites)
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -318,7 +318,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	var (
 		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, graph.LargeItemClient(), Sites)
+		gc      = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), Sites)
 		siteIDs = []string{siteID}
 	)
 
@@ -344,7 +344,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	var (
 		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, graph.LargeItemClient(), Sites)
+		gc      = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), Sites)
 		siteIDs = []string{siteID}
 	)
 

@@ -96,7 +96,14 @@ func NewCollections(
 // be excluded from the upcoming backup.
 func (c *Collections) Get(ctx context.Context) ([]data.Collection, map[string]struct{}, error) {
 	// Enumerate drives for the specified resourceOwner
-	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
+	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	retry := c.source == OneDriveSource
+
+	drives, err := drives(ctx, pager, retry)
 	if err != nil {
 		return nil, nil, err
 	}
