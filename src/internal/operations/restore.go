@@ -309,8 +309,8 @@ func formatDetailsForRestoration(
 		paths[i] = p
 	}
 
-	if err != nil {
-		return nil, err
+	if errs != nil {
+		return nil, errs
 	}
 
 	return paths, nil
