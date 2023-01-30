@@ -144,14 +144,18 @@ func (b Backup) Values() []string {
 func (b Backup) errorCount() int {
 	var errCount int
 
+	// current tracking
+	if b.ReadErrors != nil || b.WriteErrors != nil {
+		return support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
+	}
+
+	// future tracking
 	if b.Errors.Err != nil || len(b.Errors.Errs) > 0 {
 		if b.Errors.Err != nil {
 			errCount++
 		}
 
 		errCount += len(b.Errors.Errs)
-	} else {
-		errCount = support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
 	}
 
 	return errCount
