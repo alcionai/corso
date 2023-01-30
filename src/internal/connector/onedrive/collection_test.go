@@ -217,15 +217,15 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, testItemData, readData)
 
 			// Expect only 1 item
-			require.Len(t, readItems, 2) // .data and .meta
+			if test.source == OneDriveSource {
+				require.Len(t, readItems, 2) // .data and .meta
+			} else {
+				require.Len(t, readItems, 1)
+			}
 			require.Equal(t, 1, collStatus.ObjectCount, "items iterated")
 			require.Equal(t, 1, collStatus.Successful, "items successful")
 
 			assert.Equal(t, testItemName+DataFileSuffix, readItem.UUID())
-
-			readItemMeta := readItems[1]
-
-			assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)
@@ -235,15 +235,21 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, testItemName, name)
 			assert.Equal(t, driveFolderPath, parentPath)
 
-			readMetaData, err := io.ReadAll(readItemMeta.ToReader())
-			require.NoError(t, err)
+			if test.source == OneDriveSource {
+				readItemMeta := readItems[1]
 
-			tm, err := json.Marshal(testItemMeta)
-			if err != nil {
-				t.Fatal("unable to marshall test permissions", err)
+				assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
+
+				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
+				require.NoError(t, err)
+
+				tm, err := json.Marshal(testItemMeta)
+				if err != nil {
+					t.Fatal("unable to marshall test permissions", err)
+				}
+
+				assert.Equal(t, tm, readMetaData)
 			}
-
-			assert.Equal(t, tm, readMetaData)
 		})
 	}
 }

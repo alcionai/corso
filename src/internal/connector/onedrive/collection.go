@@ -373,28 +373,30 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 			}
 
-			// Create a metadata reader
-			itemReader := newLazyReader(
-				ctx,
-				oc,
-				itemName+metaSuffix,
-				item,
-				func(item models.DriveItemable) (io.ReadCloser, int64, error) {
-					if !oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
-						return oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-					}
-					// We are still writing the metadata file but with
-					// empty permissions as we are not sure how the
-					// restore will be called.
-					itemData := io.NopCloser(strings.NewReader("{}"))
-					return itemData, int64(2), nil
-				},
-				errUpdater)
+			if oc.source == OneDriveSource {
+				// Create a metadata reader
+				itemReader := newLazyReader(
+					ctx,
+					oc,
+					itemName+metaSuffix,
+					item,
+					func(item models.DriveItemable) (io.ReadCloser, int64, error) {
+						if !oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
+							return oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+						}
+						// We are still writing the metadata file but with
+						// empty permissions as we are not sure how the
+						// restore will be called.
+						itemData := io.NopCloser(strings.NewReader("{}"))
+						return itemData, int64(2), nil
+					},
+					errUpdater)
 
-			oc.data <- &Item{
-				id:   itemName + metaSuffix,
-				data: itemReader,
-				info: itemInfo,
+				oc.data <- &Item{
+					id:   itemName + metaSuffix,
+					data: itemReader,
+					info: itemInfo,
+				}
 			}
 
 			// This can cause inaccurate counts.  Right now it counts all the items
