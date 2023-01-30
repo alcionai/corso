@@ -22,7 +22,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -232,7 +231,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(ctx, backup.CurrentBackupFormatVersion, acct, sel, dest, control.Options{}, nil)
+	deets, err := suite.connector.RestoreDataCollections(ctx, acct, sel, dest, control.Options{}, nil)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 
@@ -300,7 +299,6 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 			deets, err := suite.connector.RestoreDataCollections(
 				ctx,
-				backup.CurrentBackupFormatVersion,
 				suite.acct,
 				test.sel,
 				dest,
@@ -395,7 +393,6 @@ func runRestoreBackupTest(
 	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
-		backup.CurrentBackupFormatVersion,
 		acct,
 		restoreSel,
 		dest,
@@ -457,112 +454,6 @@ func runRestoreBackupTest(
 		"backup status.ObjectCount; wanted %d items + %d skipped", totalItems, skipped)
 	assert.Equalf(t, totalItems+skipped, status.Successful,
 		"backup status.Successful; wanted %d items + %d skipped", totalItems, skipped)
-}
-
-func runRestoreBackupTestVersion0(
-	t *testing.T,
-	acct account.Account,
-	test restoreBackupInfoMultiVersion,
-	tenant string,
-	resourceOwners []string,
-	opts control.Options,
-) {
-	var (
-		collections     []data.Collection
-		expectedData    = map[string]map[string][]byte{}
-		totalItems      = 0
-		totalKopiaItems = 0
-		// Get a dest per test so they're independent.
-		dest = tester.DefaultTestRestoreDestination()
-	)
-
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	for _, owner := range resourceOwners {
-		numItems, kopiaItems, ownerCollections, userExpectedData := collectionsForInfoVersion0(
-			t,
-			test.service,
-			tenant,
-			owner,
-			dest,
-			test.collectionsPrevious,
-		)
-
-		collections = append(collections, ownerCollections...)
-		totalItems += numItems
-		totalKopiaItems += kopiaItems
-
-		maps.Copy(expectedData, userExpectedData)
-	}
-
-	t.Logf(
-		"Restoring collections to %s for resourceOwners(s) %v\n",
-		dest.ContainerName,
-		resourceOwners,
-	)
-
-	start := time.Now()
-
-	restoreGC := loadConnector(ctx, t, test.resource)
-	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
-	deets, err := restoreGC.RestoreDataCollections(
-		ctx,
-		0, // The OG version ;)
-		acct,
-		restoreSel,
-		dest,
-		opts,
-		collections,
-	)
-	require.NoError(t, err)
-	assert.NotNil(t, deets)
-
-	status := restoreGC.AwaitStatus()
-	runTime := time.Since(start)
-
-	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "status.Successful")
-	assert.Len(
-		t,
-		deets.Entries,
-		totalItems,
-		"details entries contains same item count as total successful items restored")
-
-	t.Logf("Restore complete in %v\n", runTime)
-
-	// Run a backup and compare its output with what we put in.
-	cats := make(map[path.CategoryType]struct{}, len(test.collectionsLatest))
-	for _, c := range test.collectionsLatest {
-		cats[c.category] = struct{}{}
-	}
-
-	expectedDests := make([]destAndCats, 0, len(resourceOwners))
-	for _, ro := range resourceOwners {
-		expectedDests = append(expectedDests, destAndCats{
-			resourceOwner: ro,
-			dest:          dest.ContainerName,
-			cats:          cats,
-		})
-	}
-
-	backupGC := loadConnector(ctx, t, test.resource)
-	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
-	t.Logf("Selective backup of %s\n", backupSel)
-
-	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
-	require.NoError(t, err)
-
-	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
-
-	// Pull the data prior to waiting for the status as otherwise it will
-	// deadlock.
-	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
-
-	status = backupGC.AwaitStatus()
-	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
 }
 
 func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
@@ -1013,255 +904,6 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	}
 }
 
-func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		suite.T(),
-		ctx,
-		suite.connector.Service,
-		suite.user,
-	)
-
-	table := []restoreBackupInfoMultiVersion{
-		{
-			name:     "OneDriveMultipleFoldersAndFiles",
-			service:  path.OneDriveService,
-			resource: Users,
-
-			collectionsPrevious: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt",
-							data:      []byte(strings.Repeat("a", 33)),
-							lookupKey: "test-file.txt",
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt",
-							data:      []byte(strings.Repeat("b", 65)),
-							lookupKey: "test-file.txt",
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt",
-							data:      []byte(strings.Repeat("c", 129)),
-							lookupKey: "test-file.txt",
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt",
-							data:      []byte(strings.Repeat("d", 257)),
-							lookupKey: "test-file.txt",
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"b",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt",
-							data:      []byte(strings.Repeat("e", 257)),
-							lookupKey: "test-file.txt",
-						},
-					},
-				},
-			},
-
-			collectionsLatest: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt" + onedrive.DataFileSuffix,
-							data:      []byte(strings.Repeat("a", 33)),
-							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
-						},
-						{
-							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
-						},
-						{
-							name:      "folder-a" + onedrive.DirMetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
-						},
-						{
-							name:      "b" + onedrive.DirMetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "b" + onedrive.DirMetaFileSuffix,
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt" + onedrive.DataFileSuffix,
-							data:      []byte(strings.Repeat("b", 65)),
-							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
-						},
-						{
-							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
-						},
-						{
-							name:      "b" + onedrive.DirMetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "b" + onedrive.DirMetaFileSuffix,
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt" + onedrive.DataFileSuffix,
-							data:      []byte(strings.Repeat("c", 129)),
-							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
-						},
-						{
-							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
-						},
-						{
-							name:      "folder-a" + onedrive.DirMetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt" + onedrive.DataFileSuffix,
-							data:      []byte(strings.Repeat("d", 257)),
-							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
-						},
-						{
-							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
-						},
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"b",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						{
-							name:      "test-file.txt" + onedrive.DataFileSuffix,
-							data:      []byte(strings.Repeat("e", 257)),
-							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
-						},
-						{
-							name:      "test-file.txt" + onedrive.MetaFileSuffix,
-							data:      []byte("{}"),
-							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTestVersion0(
-				t,
-				suite.acct,
-				test,
-				suite.connector.tenant,
-				[]string{suite.user},
-				control.Options{RestorePermissions: true},
-			)
-		})
-	}
-}
-
 func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
@@ -1367,7 +1009,6 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 				deets, err := restoreGC.RestoreDataCollections(
 					ctx,
-					backup.CurrentBackupFormatVersion,
 					suite.acct,
 					restoreSel,
 					dest,
