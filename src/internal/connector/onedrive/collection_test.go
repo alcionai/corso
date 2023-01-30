@@ -332,7 +332,9 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			var (
-				testItemID = "fakeItemID"
+				testItemID   = "fakeItemID"
+				testItemName = "FakeName"
+				testItemSize = int64(10)
 
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
@@ -352,8 +354,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{DisablePermissionsBackup: true}})
 
+			now := time.Now()
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
+			mockItem.SetName(&testItemName)
+			mockItem.SetSize(&testItemSize)
+			mockItem.SetCreatedDateTime(&now)
+			mockItem.SetLastModifiedDateTime(&now)
 			mockItem.SetFile(models.NewFile())
 			coll.Add(mockItem)
 
