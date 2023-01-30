@@ -190,13 +190,13 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
+			) (io.ReadCloser, int64, error) {
 				metaJSON, err := json.Marshal(testItemMeta)
 				if err != nil {
 					return nil, 0, err
 				}
 
-				return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+				return io.NopCloser(bytes.NewReader(metaJSON)), int64(len(metaJSON)), nil
 			}
 
 			// Read items from the collection
@@ -344,6 +344,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
+				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"fakeDriveID",
 				suite,
@@ -357,7 +358,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 			coll.Add(mockItem)
 
 			coll.itemReader = func(
-				context.Context,
+				*http.Client,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
@@ -369,7 +370,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
+			) (io.ReadCloser, int64, error) {
 				return io.NopCloser(strings.NewReader(`{"key": "value"}`)), 16, nil
 			}
 

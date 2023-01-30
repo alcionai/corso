@@ -232,7 +232,15 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(ctx, backup.CurrentBackupVersion, acct, sel, dest, control.Options{}, nil)
+	deets, err := suite.connector.RestoreDataCollections(
+		ctx,
+		backup.CurrentBackupVersion,
+		acct,
+		sel,
+		dest,
+		control.Options{},
+		nil,
+	)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 

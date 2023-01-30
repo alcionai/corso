@@ -333,9 +333,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
+
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
+
 				metaSuffix = DirMetaFileSuffix
 			}
 

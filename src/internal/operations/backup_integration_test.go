@@ -337,7 +337,13 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
-	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, control.Options{RestorePermissions: true}, dataColls)
+	deets, err := gc.RestoreDataCollections(ctx,
+		backup.CurrentBackupVersion,
+		acct,
+		sel,
+		dest,
+		control.Options{RestorePermissions: true},
+		dataColls)
 	require.NoError(t, err)
 
 	return deets

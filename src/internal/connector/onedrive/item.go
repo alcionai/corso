@@ -92,6 +92,7 @@ func oneDriveItemReader(
 		if err != nil {
 			return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 		}
+
 		rc = resp.Body
 	}
 
