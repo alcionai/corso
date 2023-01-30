@@ -95,7 +95,14 @@ func NewCollections(
 // Retrieves drive data as set of `data.Collections`
 func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 	// Enumerate drives for the specified resourceOwner
-	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
+	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	retry := c.source == OneDriveSource
+
+	drives, err := drives(ctx, pager, retry)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +151,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		maps.Copy(excludedItems, excluded)
 	}
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
 
 	// Add an extra for the metadata collection.
 	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)

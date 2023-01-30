@@ -158,9 +158,9 @@ func (sc *Collection) populate(ctx context.Context) {
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
-		"name",
 		sc.fullPath.Category().String(),
-		sc.fullPath.Folder())
+		observe.Safe("name"),
+		observe.PII(sc.fullPath.Folder()))
 	go closer()
 
 	defer func() {
