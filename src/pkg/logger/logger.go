@@ -265,7 +265,7 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 		return singleton(levelOf(llFlag), defaultLogLocation())
 	}
 
-	return l.(*zap.SugaredLogger).With(clues.Slice(ctx))
+	return l.(*zap.SugaredLogger).With(clues.Slice(ctx)...)
 }
 
 // transforms the llevel flag value to a logLevel enum

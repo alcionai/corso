@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -40,13 +41,17 @@ func preRun(cc *cobra.Command, args []string) error {
 		return err
 	}
 
-	logger.Ctx(cc.Context()).
-		Infow("cli command",
-			"called_as", cc.CalledAs(),
-			"cmd_path", cc.CommandPath(),
-			"flag_usages", cc.Flags().FlagUsages(),
-			"name", cc.Name(),
-			"name_alias", cc.NameAndAliases())
+	log := logger.Ctx(cc.Context())
+
+	flags := utils.GetPopulatedFlags(cc)
+	flagSl := make([]string, 0, len(flags))
+
+	// currently only tracking flag names to avoid pii leakage.
+	for f := range flags {
+		flagSl = append(flagSl, f)
+	}
+
+	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl)
 
 	return nil
 }
@@ -56,7 +61,7 @@ func preRun(cc *cobra.Command, args []string) error {
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
-		print.Outf(cmd.Context(), "Corso version: "+version.Version)
+		print.Outf(cmd.Context(), "Corso version: "+version.CurrentVersion())
 		return nil
 	}
 
@@ -112,7 +117,7 @@ func Handle() {
 	loglevel, logfile := logger.PreloadLoggingFlags()
 	ctx, log := logger.Seed(ctx, loglevel, logfile)
 
-	ctx = clues.AddAll(ctx, "corso_version", version.Version)
+	ctx = clues.AddAll(ctx, "corso_version", version.CurrentVersion())
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
