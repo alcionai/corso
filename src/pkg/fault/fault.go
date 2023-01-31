@@ -96,7 +96,9 @@ func (e *Errors) setErr(err error) *Errors {
 	return e
 }
 
-// TODO: introduce Adder interface
+type Adder interface {
+	Add(err error) *Errors
+}
 
 // Add appends the error to the slice of recoverable and
 // iterated errors (ie: errors.errs).  If failFast is true,

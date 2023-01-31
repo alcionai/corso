@@ -105,6 +105,10 @@ func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, e
 		return resp, graph.Err401Unauthorized
 	}
 
+	if resp.StatusCode == http.StatusInternalServerError {
+		return resp, graph.Err500InternalServerError
+	}
+
 	if resp.StatusCode == http.StatusServiceUnavailable {
 		return resp, graph.Err503ServiceUnavailable
 	}
