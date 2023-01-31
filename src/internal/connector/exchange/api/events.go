@@ -73,7 +73,13 @@ func (c Events) GetContainerByID(
 		return nil, errors.Wrap(err, "options for event calendar")
 	}
 
-	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	var cal models.Calendarable
+
+	err = runWithRetry(func() error {
+		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +92,16 @@ func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	event, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	var (
+		event models.Eventable
+		err   error
+	)
+
+	err = runWithRetry(func() error {
+		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -128,7 +143,14 @@ func (c Client) GetAllCalendarNamesForUser(
 		return nil, err
 	}
 
-	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
+	var resp models.CalendarCollectionResponseable
+
+	err = runWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
+		return err
+	})
+
+	return resp, err
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -147,7 +169,10 @@ func (c Events) EnumerateContainers(
 		return err
 	}
 
-	var errs *multierror.Error
+	var (
+		resp models.CalendarCollectionResponseable
+		errs *multierror.Error
+	)
 
 	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
@@ -157,7 +182,13 @@ func (c Events) EnumerateContainers(
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		resp, err := builder.Get(ctx, ofc)
+		var err error
+
+		err = runWithRetry(func() error {
+			resp, err = builder.Get(ctx, ofc)
+			return err
+		})
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -205,7 +236,16 @@ type eventPager struct {
 }
 
 func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
+	var (
+		resp api.DeltaPageLinker
+		err  error
+	)
+
+	err = runWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
 	return resp, err
 }
 
