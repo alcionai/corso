@@ -139,23 +139,6 @@ func IsErrUnauthorized(err error) bool {
 	return errors.As(err, &e)
 }
 
-type ErrServiceUnavailable struct {
-	common.Err
-}
-
-func IsServiceUnavailable(err error) bool {
-	if errors.Is(err, Err503ServiceUnavailable) {
-		return true
-	}
-
-	e := ErrServiceUnavailable{}
-	if errors.As(err, &e) {
-		return true
-	}
-
-	return true
-}
-
 type ErrInternalServerError struct {
 	common.Err
 }

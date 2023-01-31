@@ -272,12 +272,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						continue
 
 					} else if !graph.IsErrTimeout(err) &&
-						!graph.IsServiceUnavailable(err) &&
 						!graph.IsInternalServerError(err) {
-						// TODO: graphAPI will provides headers that state the duration to wait
-						// in order to succeed again.  The one second sleep won't cut it here.
-						//
-						// for all non-timeout, non-unauth, non-throttling errors, do not retry
+						// for all non-timeout, on-unauth, do not
+						// retry as we are already retrying it from
+						// the builtin middleware
 						break
 					}
 

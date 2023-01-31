@@ -138,11 +138,7 @@ func (c Contacts) EnumerateContainers(
 				break
 			}
 
-			if !graph.IsErrTimeout(err) &&
-				!graph.IsServiceUnavailable(err) &&
-				!graph.IsInternalServerError(err) {
-				break
-			}
+			if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
 				break
 			}
 
