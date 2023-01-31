@@ -99,7 +99,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := exchange.DataCollections(
+			collections, excludes, err := exchange.DataCollections(
 				ctx,
 				test.getSelector(t),
 				nil,
@@ -107,6 +107,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				connector.UpdateStatus,
 				control.Options{})
 			require.NoError(t, err)
+
+			assert.Empty(t, excludes)
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -199,9 +201,10 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := connector.DataCollections(ctx, test.getSelector(t), nil, control.Options{})
+			collections, excludes, err := connector.DataCollections(ctx, test.getSelector(t), nil, control.Options{})
 			assert.Error(t, err)
 			assert.Empty(t, collections)
+			assert.Empty(t, excludes)
 		})
 	}
 }
@@ -242,7 +245,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := sharepoint.DataCollections(
+			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
 				test.getSelector(),
@@ -251,6 +254,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector,
 				control.Options{})
 			require.NoError(t, err)
+			// Not expecting excludes as this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -320,9 +325,11 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Libraries([]string{"foo"}, selectors.PrefixMatch()))
 
-	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	cols, excludes, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
 	require.NoError(t, err)
 	assert.Len(t, cols, 1)
+	// No excludes yet as this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
@@ -344,9 +351,11 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
 
-	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	cols, excludes, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
 	require.NoError(t, err)
 	assert.Less(t, 0, len(cols))
+	// No excludes yet as this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())

@@ -92,19 +92,20 @@ func NewCollections(
 	}
 }
 
-// Retrieves drive data as set of `data.Collections`
-func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
+// Retrieves drive data as set of `data.Collections` and a set of item names to
+// be excluded from the upcoming backup.
+func (c *Collections) Get(ctx context.Context) ([]data.Collection, map[string]struct{}, error) {
 	// Enumerate drives for the specified resourceOwner
 	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	retry := c.source == OneDriveSource
 
 	drives, err := drives(ctx, pager, retry)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var (
@@ -133,7 +134,7 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 			c.UpdateCollections,
 		)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if len(delta) > 0 {
@@ -185,7 +186,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		collections = append(collections, metadata)
 	}
 
-	return collections, nil
+	// TODO(ashmrtn): Track and return the set of items to exclude.
+	return collections, nil, nil
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections

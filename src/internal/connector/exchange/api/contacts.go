@@ -48,9 +48,8 @@ func (c Contacts) CreateContactFolder(
 	return c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 }
 
-// DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
-// Errors returned if the function call was not successful.
-func (c Contacts) DeleteContactFolder(
+// DeleteContainer deletes the ContactFolder associated with the M365 ID if permissions are valid.
+func (c Contacts) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
