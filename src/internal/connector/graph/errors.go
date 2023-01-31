@@ -148,7 +148,24 @@ func IsServiceUnavailable(err error) bool {
 		return true
 	}
 
-	e := ErrUnauthorized{}
+	e := ErrServiceUnavailable{}
+	if errors.As(err, &e) {
+		return true
+	}
+
+	return true
+}
+
+type ErrInternalServerError struct {
+	common.Err
+}
+
+func IsInternalServerError(err error) bool {
+	if errors.Is(err, Err500InternalServerError) {
+		return true
+	}
+
+	e := ErrInternalServerError{}
 	if errors.As(err, &e) {
 		return true
 	}
