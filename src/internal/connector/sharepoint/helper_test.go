@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -27,6 +28,9 @@ func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
 
 func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
+}
+
+func (ms *MockGraphService) UpdateStatus(*support.ConnectorOperationStatus) {
 }
 
 // ---------------------------------------------------------------------------
