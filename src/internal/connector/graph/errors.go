@@ -94,9 +94,7 @@ func IsErrTimeout(err error) bool {
 		return true
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) ||
-		os.IsTimeout(err) ||
-		errors.Is(err, Err504GatewayTimeout) {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
 		return true
 	}
 
