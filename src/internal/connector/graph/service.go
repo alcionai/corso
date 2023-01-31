@@ -149,7 +149,7 @@ func HTTPClient(opts ...option) *http.Client {
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
 	middlewares = append(middlewares, &LoggingMiddleware{})
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Second * 90
+	httpClient.Timeout = time.Minute * 3
 
 	(&clientConfig{}).
 		populate(opts...).
