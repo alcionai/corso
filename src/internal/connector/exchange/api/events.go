@@ -50,9 +50,9 @@ func (c Events) CreateCalendar(
 	return c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 }
 
-// DeleteCalendar removes calendar from user's M365 account
+// DeleteContainer removes a calendar from user's M365 account
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
-func (c Events) DeleteCalendar(
+func (c Events) DeleteContainer(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
