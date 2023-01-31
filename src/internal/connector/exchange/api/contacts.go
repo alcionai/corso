@@ -66,7 +66,7 @@ func (c Contacts) GetItem(
 		err  error
 	)
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 		return err
 	})
@@ -92,7 +92,7 @@ func (c Contacts) GetAllContactFolderNamesForUser(
 
 	var resp models.ContactFolderCollectionResponseable
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
 		return err
 	})
@@ -111,7 +111,7 @@ func (c Contacts) GetContainerByID(
 
 	var resp models.ContactFolderable
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 		return err
 	})
@@ -152,7 +152,7 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		runWithRetry(func() error {
+		err = runWithRetry(func() error {
 			resp, err = builder.Get(ctx, ofcf)
 			return err
 		})
@@ -204,7 +204,7 @@ func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error)
 		err  error
 	)
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		resp, err = p.builder.Get(ctx, p.options)
 		return err
 	})

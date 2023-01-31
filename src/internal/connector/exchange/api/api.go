@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -155,8 +156,8 @@ func HasAttachments(body models.ItemBodyable) bool {
 }
 
 // Run a function with retries
-func runWithRetry(run func() error) err {
-        var err errror
+func runWithRetry(run func() error) error {
+	var err error
 
 	for i := 1; i <= numberOfRetries; i++ {
 		err = run()
@@ -172,6 +173,6 @@ func runWithRetry(run func() error) err {
 			time.Sleep(time.Duration(3*(i+1)) * time.Second)
 		}
 	}
-	
-	return support.ConnectorStackErrorTraceWrap(err, "")
+
+	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
 }

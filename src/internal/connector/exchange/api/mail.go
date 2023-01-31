@@ -97,7 +97,7 @@ func (c Mail) GetContainerByID(
 
 	var resp graph.Container
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 		return err
 	})
@@ -116,7 +116,7 @@ func (c Mail) GetItem(
 		err  error
 	)
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 		return err
 	})
@@ -179,7 +179,9 @@ func (c Mail) EnumerateContainers(
 	)
 
 	for {
-		runWithRetry(func() error {
+		var err error
+
+		err = runWithRetry(func() error {
 			resp, err = builder.Get(ctx, nil)
 			return err
 		})
@@ -226,7 +228,7 @@ func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		page, err = p.builder.Get(ctx, p.options)
 		return err
 	})

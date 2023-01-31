@@ -75,7 +75,7 @@ func (c Events) GetContainerByID(
 
 	var cal models.Calendarable
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 		return err
 	})
@@ -97,7 +97,7 @@ func (c Events) GetItem(
 		err   error
 	)
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 		return err
 	})
@@ -145,7 +145,7 @@ func (c Client) GetAllCalendarNamesForUser(
 
 	var resp models.CalendarCollectionResponseable
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
 		return err
 	})
@@ -182,7 +182,9 @@ func (c Events) EnumerateContainers(
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		runWithRetry(func() error {
+		var err error
+
+		err = runWithRetry(func() error {
 			resp, err = builder.Get(ctx, ofc)
 			return err
 		})
@@ -239,7 +241,7 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	runWithRetry(func() error {
+	err = runWithRetry(func() error {
 		resp, err = p.builder.Get(ctx, p.options)
 		return err
 	})
