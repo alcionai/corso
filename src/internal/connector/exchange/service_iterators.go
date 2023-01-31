@@ -93,8 +93,7 @@ func filterContainersAndFillCollections(
 
 		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
-			// note == nil check; only catches non-inFlight error cases.
-			if graph.IsErrDeletedInFlight(err) == nil {
+			if !graph.IsErrDeletedInFlight(err) {
 				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
 				continue
 			}

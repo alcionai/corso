@@ -26,6 +26,12 @@ func TestObserveProgressUnitSuite(t *testing.T) {
 	suite.Run(t, new(ObserveProgressUnitSuite))
 }
 
+var (
+	tst        = observe.Safe("test")
+	testcat    = observe.Safe("testcat")
+	testertons = observe.Safe("testertons")
+)
+
 func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -47,7 +53,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 		ctx,
 		io.NopCloser(bytes.NewReader(from)),
 		"folder",
-		"test",
+		tst,
 		100)
 	require.NotNil(t, prog)
 	require.NotNil(t, closer)
@@ -97,7 +103,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		observe.SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := observe.CollectionProgress(ctx, "test", "testcat", "testertons")
+	progCh, closer := observe.CollectionProgress(ctx, "test", testcat, testertons)
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 
@@ -132,7 +138,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		observe.SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := observe.CollectionProgress(ctx, "test", "testcat", "testertons")
+	progCh, closer := observe.CollectionProgress(ctx, "test", testcat, testertons)
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 
@@ -164,7 +170,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
 
 	message := "Test Message"
 
-	observe.Message(ctx, message)
+	observe.Message(ctx, observe.Safe(message))
 	observe.Complete()
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
@@ -185,7 +191,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 
 	message := "Test Message"
 
-	ch, closer := observe.MessageWithCompletion(ctx, message)
+	ch, closer := observe.MessageWithCompletion(ctx, observe.Safe(message))
 
 	// Trigger completion
 	ch <- struct{}{}
@@ -215,7 +221,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 
 	message := "Test Message"
 
-	ch, closer := observe.MessageWithCompletion(ctx, message)
+	ch, closer := observe.MessageWithCompletion(ctx, observe.Safe(message))
 
 	// Close channel without completing
 	close(ch)
@@ -247,7 +253,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 
 	message := "Test Message"
 
-	_, closer := observe.MessageWithCompletion(ctx, message)
+	_, closer := observe.MessageWithCompletion(ctx, observe.Safe(message))
 
 	// cancel context
 	cancel()
@@ -278,7 +284,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 	message := "Test Message"
 	count := 3
 
-	ch, closer := observe.ProgressWithCount(ctx, header, message, int64(count))
+	ch, closer := observe.ProgressWithCount(ctx, header, observe.Safe(message), int64(count))
 
 	for i := 0; i < count; i++ {
 		ch <- struct{}{}
@@ -311,7 +317,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCountChannelClosed
 	message := "Test Message"
 	count := 3
 
-	ch, closer := observe.ProgressWithCount(ctx, header, message, int64(count))
+	ch, closer := observe.ProgressWithCount(ctx, header, observe.Safe(message), int64(count))
 
 	close(ch)
 

@@ -588,7 +588,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			outputFolderMap := map[string]string{}
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 			c := NewCollections(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				tenant,
 				user,
 				OneDriveSource,
