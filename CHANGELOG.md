@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+### Added
+
+- Document Corso's fault-tolerance and restartability features
+
 ## [v0.2.0] (alpha) - 2023-1-29
 
 ### Fixed
