@@ -21,8 +21,8 @@ succeed in the face of transient or temporary failures.
 
 ## Restarting from permanent API failures
 
-The Graph API can, for internal reasons, exhibit permanent failures
-for particular Graph objects or for temporary periods of time. In this
+The Graph API can, for internal reasons, exhibit failures for particular Graph
+objects permanently or for an extended period of time. In this
 scenario, bounded retries will be ineffective. Unless invoked with its
 fail fast option, Corso will skip over the failing object. For
 backups, it will move forward with backing up other objects belonging
@@ -33,7 +33,7 @@ also continue processing backups for the remaining users. In both
 cases, Corso will exit with a non-zero exit code to reflect incomplete
 backups or restores.
 
-On subsequent attempts to backup a user’s data, Corso will attempt to
+On subsequent backup attempts, Corso will try to
 minimize the work involved. If the previous backup was successful and
 Corso’s stored state tokens haven’t expired, it will use [delta
 queries](https://learn.microsoft.com/en-us/graph/delta-query-overview),
