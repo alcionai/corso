@@ -96,22 +96,17 @@ type RepositoryIntegrationSuite struct {
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoRepositoryTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoRepositoryTests)
 
 	suite.Run(t, new(RepositoryIntegrationSuite))
 }
 
 // ensure all required env values are populated
 func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
@@ -162,6 +157,28 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	assert.NoError(t, err)
 }
 
+func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	r, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	require.NoError(t, err)
+
+	oldID := r.GetID()
+
+	require.NoError(t, r.Close(ctx))
+
+	// now re-connect
+	r, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
+	require.NoError(t, err)
+	assert.Equal(t, oldID, r.GetID())
+}
+
 func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -176,7 +193,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{})
+	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"})
 	require.NoError(t, err)
 	require.NotNil(t, bo)
 }
@@ -196,7 +213,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err)
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{}, dest)
+	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, dest)
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }

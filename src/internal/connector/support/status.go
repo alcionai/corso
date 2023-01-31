@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	multierror "github.com/hashicorp/go-multierror"
 	bytesize "github.com/inhies/go-bytesize"
 
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -20,7 +21,8 @@ type ConnectorOperationStatus struct {
 	ObjectCount       int
 	FolderCount       int
 	Successful        int
-	errorCount        int
+	ErrorCount        int
+	Err               error
 	incomplete        bool
 	incompleteReason  string
 	additionalDetails string
@@ -69,14 +71,15 @@ func CreateStatus(
 		ObjectCount:       cm.Objects,
 		FolderCount:       folders,
 		Successful:        cm.Successes,
-		errorCount:        numErr,
+		ErrorCount:        numErr,
+		Err:               err,
 		incomplete:        hasErrors,
 		incompleteReason:  reason,
 		bytes:             cm.TotalBytes,
 		additionalDetails: details,
 	}
 
-	if status.ObjectCount != status.errorCount+status.Successful {
+	if status.ObjectCount != status.ErrorCount+status.Successful {
 		logger.Ctx(ctx).Errorw(
 			"status object count does not match errors + successes",
 			"objects", cm.Objects,
@@ -114,7 +117,8 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 		ObjectCount:       one.ObjectCount + two.ObjectCount,
 		FolderCount:       one.FolderCount + two.FolderCount,
 		Successful:        one.Successful + two.Successful,
-		errorCount:        one.errorCount + two.errorCount,
+		ErrorCount:        one.ErrorCount + two.ErrorCount,
+		Err:               multierror.Append(one.Err, two.Err).ErrorOrNil(),
 		bytes:             one.bytes + two.bytes,
 		incomplete:        hasErrors,
 		incompleteReason:  one.incompleteReason + ", " + two.incompleteReason,

@@ -39,7 +39,7 @@ var corsoCmd = &cobra.Command{
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
-		print.Outf(cmd.Context(), "Corso\nversion: "+version.Version)
+		print.Outf(cmd.Context(), "Corso version: "+version.Version)
 		return nil
 	}
 
@@ -64,7 +64,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.Flags().BoolP("version", "v", false, "current version info")
 	cmd.PersistentPostRunE = config.InitFunc()
 	config.AddConfigFlags(cmd)
-	logger.AddLogLevelFlag(cmd)
+	logger.AddLoggingFlags(cmd)
 	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
 	options.AddGlobalOperationFlags(cmd)
@@ -91,7 +91,9 @@ func Handle() {
 
 	BuildCommandTree(corsoCmd)
 
-	ctx, log := logger.Seed(ctx, logger.PreloadLogLevel())
+	loglevel, logfile := logger.PreloadLoggingFlags()
+	ctx, log := logger.Seed(ctx, loglevel, logfile)
+
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()

@@ -26,14 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
-
       - name: Build the otel-daemon
         run: make build-otel-daemon
 
@@ -55,13 +47,18 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          CORSO_LOAD_TESTS: true 
+          CORSO_LOG_FILE: stderr
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           CORSO_M365_LOAD_TEST_ORG_USERS: ${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}
-          CORSO_LOAD_TESTS: true 
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          IGNORE_LOAD_TEST_USER_ID: ${{ secrets.EXT_SDK_TEST_USER_ID }}
+          LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
           go test       \

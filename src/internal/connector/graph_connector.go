@@ -4,17 +4,19 @@ package connector
 
 import (
 	"context"
+	"net/http"
 	"runtime/trace"
 	"strings"
 	"sync"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -25,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -36,7 +39,10 @@ import (
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
-	graphService
+	Service    graph.Servicer
+	Owners     api.Client
+	itemClient *http.Client // configured to handle large item downloads
+
 	tenant      string
 	Users       map[string]string // key<email> value<id>
 	Sites       map[string]string // key<???> value<???>
@@ -51,31 +57,6 @@ type GraphConnector struct {
 	status support.ConnectorOperationStatus // contains the status of the last run status
 }
 
-// Service returns the GC's embedded graph.Service
-func (gc *GraphConnector) Service() graph.Service {
-	return gc.graphService
-}
-
-var _ graph.Service = &graphService{}
-
-type graphService struct {
-	client   msgraphsdk.GraphServiceClient
-	adapter  msgraphsdk.GraphRequestAdapter
-	failFast bool // if true service will exit sequence upon encountering an error
-}
-
-func (gs graphService) Client() *msgraphsdk.GraphServiceClient {
-	return &gs.client
-}
-
-func (gs graphService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return &gs.adapter
-}
-
-func (gs graphService) ErrPolicy() bool {
-	return gs.failFast
-}
-
 type resource int
 
 const (
@@ -85,25 +66,34 @@ const (
 	Sites
 )
 
-func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*GraphConnector, error) {
+func NewGraphConnector(
+	ctx context.Context,
+	itemClient *http.Client,
+	acct account.Account,
+	r resource,
+) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving m365 account configuration")
 	}
 
 	gc := GraphConnector{
+		itemClient:  itemClient,
 		tenant:      m365.AzureTenantID,
 		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
 		credentials: m365,
 	}
 
-	aService, err := gc.createService(false)
+	gc.Service, err = gc.createService()
 	if err != nil {
 		return nil, errors.Wrap(err, "creating service connection")
 	}
 
-	gc.graphService = *aService
+	gc.Owners, err = api.NewClient(m365)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating api client")
+	}
 
 	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
 	// is not a wildcard don't populate users or sites when making the connector.
@@ -125,27 +115,17 @@ func NewGraphConnector(ctx context.Context, acct account.Account, r resource) (*
 }
 
 // createService constructor for graphService component
-func (gc *GraphConnector) createService(shouldFailFast bool) (*graphService, error) {
+func (gc *GraphConnector) createService() (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
 		gc.credentials.AzureClientSecret,
 	)
 	if err != nil {
-		return nil, err
+		return &graph.Service{}, err
 	}
 
-	connector := graphService{
-		adapter:  *adapter,
-		client:   *msgraphsdk.NewGraphServiceClient(adapter),
-		failFast: shouldFailFast,
-	}
-
-	return &connector, nil
-}
-
-func (gs *graphService) EnableFailFast() {
-	gs.failFast = true
+	return graph.NewService(adapter), nil
 }
 
 // setTenantUsers queries the M365 to identify the users in the
@@ -155,7 +135,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.graphService, gc.tenant)
+	users, err := discovery.Users(ctx, gc.Owners.Users())
 	if err != nil {
 		return err
 	}
@@ -169,14 +149,14 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	return nil
 }
 
-// GetUsers returns the email address of users within tenant.
+// GetUsers returns the email address of users within the tenant.
 func (gc *GraphConnector) GetUsers() []string {
-	return buildFromMap(true, gc.Users)
+	return maps.Keys(gc.Users)
 }
 
 // GetUsersIds returns the M365 id for the user
 func (gc *GraphConnector) GetUsersIds() []string {
-	return buildFromMap(false, gc.Users)
+	return maps.Values(gc.Users)
 }
 
 // setTenantSites queries the M365 to identify the sites in the
@@ -190,7 +170,7 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
 
 	sites, err := getResources(
 		ctx,
-		gc.graphService,
+		gc.Service,
 		gc.tenant,
 		sharepoint.GetAllSitesForTenant,
 		models.CreateSiteCollectionResponseFromDiscriminatorValue,
@@ -218,7 +198,7 @@ func identifySite(item any) (string, string, error) {
 	}
 
 	if m.GetName() == nil {
-		// the built-in site at "htps://{tenant-domain}/search" never has a name.
+		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
 			return "", "", errKnownSkippableCase
 		}
@@ -232,35 +212,53 @@ func identifySite(item any) (string, string, error) {
 		return "", "", errKnownSkippableCase
 	}
 
-	return *m.GetName(), *m.GetId(), nil
+	return *m.GetWebUrl(), *m.GetId(), nil
 }
 
-// GetSites returns the siteIDs of sharepoint sites within tenant.
-func (gc *GraphConnector) GetSites() []string {
-	return buildFromMap(true, gc.Sites)
+// GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.
+func (gc *GraphConnector) GetSiteWebURLs() []string {
+	return maps.Keys(gc.Sites)
 }
 
-// GetSiteIds returns the M365 id for the user
-func (gc *GraphConnector) GetSiteIds() []string {
-	return buildFromMap(false, gc.Sites)
+// GetSiteIds returns the canonical site IDs in the tenant
+func (gc *GraphConnector) GetSiteIDs() []string {
+	return maps.Values(gc.Sites)
 }
 
-// buildFromMap helper function for returning []string from map.
-// Returns list of keys iff true; otherwise returns a list of values
-func buildFromMap(isKey bool, mapping map[string]string) []string {
-	returnString := make([]string, 0)
-
-	if isKey {
-		for k := range mapping {
-			returnString = append(returnString, k)
-		}
-	} else {
-		for _, v := range mapping {
-			returnString = append(returnString, v)
+// UnionSiteIDsAndWebURLs reduces the id and url slices into a single slice of site IDs.
+// WebURLs will run as a path-suffix style matcher.  Callers may provide partial urls, though
+// each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
+// but not match "www.ex.com/foobar".
+// The returned IDs are reduced to a set of unique values.
+func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls []string) ([]string, error) {
+	if len(gc.Sites) == 0 {
+		if err := gc.setTenantSites(ctx); err != nil {
+			return nil, err
 		}
 	}
 
-	return returnString
+	idm := map[string]struct{}{}
+
+	for _, id := range ids {
+		idm[id] = struct{}{}
+	}
+
+	match := filters.PathSuffix(urls)
+
+	for url, id := range gc.Sites {
+		if !match.Compare(url) {
+			continue
+		}
+
+		idm[id] = struct{}{}
+	}
+
+	idsl := make([]string, 0, len(idm))
+	for id := range idm {
+		idsl = append(idsl, id)
+	}
+
+	return idsl, nil
 }
 
 // RestoreDataCollections restores data from the specified collections
@@ -268,6 +266,7 @@ func buildFromMap(isKey bool, mapping map[string]string) []string {
 // SideEffect: gc.status is updated at the completion of operation
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
+	acct account.Account,
 	selector selectors.Selector,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
@@ -278,16 +277,21 @@ func (gc *GraphConnector) RestoreDataCollections(
 	var (
 		status *support.ConnectorOperationStatus
 		err    error
-		deets  = &details.Details{}
+		deets  = &details.Builder{}
 	)
+
+	creds, err := acct.M365Config()
+	if err != nil {
+		return nil, errors.Wrap(err, "malformed azure credentials")
+	}
 
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, gc.graphService, dest, dcs, deets)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, gc, dest, dcs, deets)
+		status, err = onedrive.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, gc, dest, dcs, deets)
+		status, err = sharepoint.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
@@ -295,7 +299,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	gc.incrementAwaitingMessages()
 	gc.UpdateStatus(status)
 
-	return deets, err
+	return deets.Details(), err
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
@@ -343,9 +347,9 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func getResources(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	tenantID string,
-	query func(context.Context, graph.Service) (serialization.Parsable, error),
+	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
 	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
 	identify func(any) (string, string, error),
 ) (map[string]string, error) {

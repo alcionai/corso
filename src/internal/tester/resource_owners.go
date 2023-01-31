@@ -1,11 +1,23 @@
 package tester
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// M365TenantID returns a tenantID string representing the azureTenantID described
+// by either the env var AZURE_TENANT_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func M365TenantID(t *testing.T) string {
+	cfg, err := readTestConfig()
+	require.NoError(t, err, "retrieving m365 user id from test configuration")
+
+	return cfg[TestCfgAzureTenantID]
+}
 
 // M365UserID returns an userID string representing the m365UserID described
 // by either the env var CORSO_M365_TEST_USER_ID, the corso_test.toml config
@@ -89,7 +101,25 @@ func LoadTestM365OrgUsers(t *testing.T) []string {
 	users = strings.ReplaceAll(users, `'`, "")
 	users = strings.ReplaceAll(users, "|", ",")
 
-	return strings.Split(users, ",")
+	// a hack to skip using certain users when those accounts are
+	// temporarily being co-opted for non-testing purposes.
+	sl := strings.Split(users, ",")
+	remove := os.Getenv("IGNORE_LOAD_TEST_USER_ID")
+
+	if len(remove) == 0 {
+		return sl
+	}
+
+	idx := -1
+
+	for i, s := range sl {
+		if s == remove {
+			idx = i
+			break
+		}
+	}
+
+	return append(sl[:idx], sl[idx+1:]...)
 }
 
 // M365SiteID returns a siteID string representing the m365SiteID described

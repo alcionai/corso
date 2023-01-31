@@ -2,7 +2,7 @@ package sharepoint
 
 import (
 	"context"
-	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
 
@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -20,80 +21,120 @@ type statusUpdater interface {
 	UpdateStatus(status *support.ConnectorOperationStatus)
 }
 
-type connector interface {
-	statusUpdater
-
-	Service() graph.Service
-}
-
 // DataCollections returns a set of DataCollection which represents the SharePoint data
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	itemClient *http.Client,
 	selector selectors.Selector,
-	siteIDs []string,
 	tenantID string,
-	con connector,
-) ([]data.Collection, error) {
+	serv graph.Servicer,
+	su statusUpdater,
+	ctrlOpts control.Options,
+) ([]data.Collection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
-		scopes      = b.DiscreteScopes(siteIDs)
+		site        = b.DiscreteOwner
 		collections = []data.Collection{}
-		serv        = con.Service()
 		errs        error
 	)
 
-	for _, scope := range scopes {
-		// due to DiscreteScopes(siteIDs), each range should only contain one site.
-		for _, site := range scope.Get(selectors.SharePointSite) {
-			foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf(
-				"∙ %s - %s:",
-				scope.Category().PathType(), site))
-			defer closer()
-			defer close(foldersComplete)
+	for _, scope := range b.Scopes() {
+		foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
+			"%s - %s",
+			observe.Safe(scope.Category().PathType().String()),
+			observe.PII(site)))
+		defer closer()
+		defer close(foldersComplete)
 
-			switch scope.Category().PathType() {
-			// TODO path.ListCategory: PR
-			// collect Lists
-			// done?
-			case path.ListsCategory:
-				return nil, fmt.Errorf("sharePoint list collections not supported")
+		var spcs []data.Collection
 
-			case path.LibrariesCategory:
-				spcs, err := collectLibraries(
-					ctx,
-					serv,
-					tenantID,
-					site,
-					scope,
-					con)
-				if err != nil {
-					return nil, support.WrapAndAppend(site, err, errs)
-				}
-
-				collections = append(collections, spcs...)
+		switch scope.Category().PathType() {
+		case path.ListsCategory:
+			spcs, err = collectLists(
+				ctx,
+				serv,
+				tenantID,
+				site,
+				su,
+				ctrlOpts)
+			if err != nil {
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 
-			foldersComplete <- struct{}{}
+		case path.LibrariesCategory:
+			spcs, _, err = collectLibraries(
+				ctx,
+				itemClient,
+				serv,
+				tenantID,
+				site,
+				scope,
+				su,
+				ctrlOpts)
+			if err != nil {
+				return nil, nil, support.WrapAndAppend(site, err, errs)
+			}
 		}
+
+		collections = append(collections, spcs...)
+		foldersComplete <- struct{}{}
 	}
 
-	return collections, errs
+	return collections, nil, errs
+}
+
+func collectLists(
+	ctx context.Context,
+	serv graph.Servicer,
+	tenantID, siteID string,
+	updater statusUpdater,
+	ctrlOpts control.Options,
+) ([]data.Collection, error) {
+	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
+
+	spcs := make([]data.Collection, 0)
+
+	tuples, err := preFetchLists(ctx, serv, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tuple := range tuples {
+		dir, err := path.Builder{}.Append(tuple.name).
+			ToDataLayerSharePointPath(
+				tenantID,
+				siteID,
+				path.ListsCategory,
+				false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+		}
+
+		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection.AddJob(tuple.id)
+
+		spcs = append(spcs, collection)
+	}
+
+	return spcs, nil
 }
 
 // collectLibraries constructs a onedrive Collections struct and Get()s
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	serv graph.Service,
+	itemClient *http.Client,
+	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
-) ([]data.Collection, error) {
+	ctrlOpts control.Options,
+) ([]data.Collection, map[string]struct{}, error) {
 	var (
 		collections = []data.Collection{}
 		errs        error
@@ -102,19 +143,21 @@ func collectLibraries(
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
 	colls := onedrive.NewCollections(
+		itemClient,
 		tenantID,
 		siteID,
 		onedrive.SharePointSource,
 		folderMatcher{scope},
 		serv,
-		updater.UpdateStatus)
+		updater.UpdateStatus,
+		ctrlOpts)
 
-	odcs, err := colls.Get(ctx)
+	odcs, excludes, err := colls.Get(ctx)
 	if err != nil {
-		return nil, support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
 
-	return append(collections, odcs...), errs
+	return append(collections, odcs...), excludes, errs
 }
 
 type folderMatcher struct {

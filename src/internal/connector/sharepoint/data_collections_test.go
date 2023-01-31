@@ -1,21 +1,21 @@
-package sharepoint_test
+package sharepoint
 
 import (
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
-// consts, mocks
+// consts
 // ---------------------------------------------------------------------------
 
 const (
@@ -34,20 +34,6 @@ func (fm testFolderMatcher) Matches(path string) bool {
 	return fm.scope.Matches(selectors.SharePointLibrary, path)
 }
 
-type MockGraphService struct{}
-
-func (ms *MockGraphService) Client() *msgraphsdk.GraphServiceClient {
-	return nil
-}
-
-func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return nil
-}
-
-func (ms *MockGraphService) ErrPolicy() bool {
-	return false
-}
-
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
@@ -61,7 +47,7 @@ func TestSharePointLibrariesSuite(t *testing.T) {
 }
 
 func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
-	anyFolder := (&selectors.SharePointBackup{}).Libraries(selectors.Any(), selectors.Any())[0]
+	anyFolder := (&selectors.SharePointBackup{}).Libraries(selectors.Any())[0]
 
 	const (
 		tenant = "tenant"
@@ -102,14 +88,19 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			paths := map[string]string{}
+			newPaths := map[string]string{}
+			excluded := map[string]struct{}{}
 			c := onedrive.NewCollections(
+				graph.HTTPClient(graph.NoTimeout()),
 				tenant,
 				site,
 				onedrive.SharePointSource,
 				testFolderMatcher{test.scope},
 				&MockGraphService{},
-				nil)
-			err := c.UpdateCollections(ctx, "driveID", test.items)
+				nil,
+				control.Options{})
+			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, excluded)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
@@ -136,21 +127,4 @@ func driveItem(name string, path string, isFile bool) models.DriveItemable {
 	}
 
 	return item
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
-	res := make([]string, 0, len(rest))
-
-	for _, r := range rest {
-		p, err := onedrive.GetCanonicalPath(r, tenant, user, onedrive.SharePointSource)
-		require.NoError(t, err)
-
-		res = append(res, p.String())
-	}
-
-	return res
 }

@@ -2,19 +2,73 @@ package sharepoint
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/columns"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columnlinks"
-	tc "github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/contenttypes/item/columns"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites/item/lists/item/items"
+	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 )
+
+type listTuple struct {
+	name string
+	id   string
+}
+
+func preFetchListOptions() *mssite.ItemListsRequestBuilderGetRequestConfiguration {
+	selecting := []string{"id", "displayName"}
+	queryOptions := mssite.ItemListsRequestBuilderGetQueryParameters{
+		Select: selecting,
+	}
+	options := &mssite.ItemListsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &queryOptions,
+	}
+
+	return options
+}
+
+func preFetchLists(
+	ctx context.Context,
+	gs graph.Servicer,
+	siteID string,
+) ([]listTuple, error) {
+	var (
+		builder    = gs.Client().SitesById(siteID).Lists()
+		options    = preFetchListOptions()
+		listTuples = make([]listTuple, 0)
+		errs       error
+	)
+
+	for {
+		resp, err := builder.Get(ctx, options)
+		if err != nil {
+			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+		}
+
+		for _, entry := range resp.GetValue() {
+			temp := listTuple{id: *entry.GetId()}
+
+			name := entry.GetDisplayName()
+			if name != nil {
+				temp.name = *name
+			} else {
+				temp.name = *entry.GetId()
+			}
+
+			listTuples = append(listTuples, temp)
+		}
+
+		if resp.GetOdataNextLink() == nil {
+			break
+		}
+
+		builder = mssite.NewItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+	}
+
+	return listTuples, nil
+}
 
 // list.go contains additional functions to help retrieve SharePoint List data from M365
 // SharePoint lists represent lists on a site. Inherits additional properties from
@@ -23,65 +77,45 @@ import (
 // be found at: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
 // Note additional calls are required for the relationships that exist outside of the object properties.
 
-// loadLists is a utility function to populate the List object.
+// loadSiteLists is a utility function to populate a collection of SharePoint.List
+// objects associated with a given siteID.
 // @param siteID the M365 ID that represents the SharePoint Site
 // Makes additional calls to retrieve the following relationships:
 // - Columns
 // - ContentTypes
 // - List Items
-func loadLists(
+func loadSiteLists(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID string,
+	listIDs []string,
 ) ([]models.Listable, error) {
 	var (
-		prefix  = gs.Client().SitesById(siteID)
-		builder = prefix.Lists()
 		results = make([]models.Listable, 0)
 		errs    error
 	)
 
-	for {
-		resp, err := builder.Get(ctx, nil)
+	for _, listID := range listIDs {
+		entry, err := gs.Client().SitesById(siteID).ListsById(listID).Get(ctx, nil)
 		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+			errs = support.WrapAndAppend(
+				listID,
+				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
+				errs,
+			)
 		}
 
-		for _, entry := range resp.GetValue() {
-			id := *entry.GetId()
-
-			cols, err := fetchColumns(ctx, gs, siteID, id, "")
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
+		cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, listID)
+		if err == nil {
 			entry.SetColumns(cols)
-
-			cTypes, err := fetchContentTypes(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
 			entry.SetContentTypes(cTypes)
-
-			lItems, err := fetchListItems(ctx, gs, siteID, id)
-			if err != nil {
-				errs = support.WrapAndAppend(siteID, err, errs)
-				continue
-			}
-
 			entry.SetItems(lItems)
-
-			results = append(results, entry)
+		} else {
+			errs = support.WrapAndAppend("unable to fetchRelationships during loadSiteLists", err, errs)
+			continue
 		}
 
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = lists.NewListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		results = append(results, entry)
 	}
 
 	if errs != nil {
@@ -91,13 +125,50 @@ func loadLists(
 	return results, nil
 }
 
+// fetchListContents utility function to retrieve associated M365 relationships
+// which are not included with the standard List query:
+// - Columns, ContentTypes, ListItems
+func fetchListContents(
+	ctx context.Context,
+	service graph.Servicer,
+	siteID, listID string,
+) (
+	[]models.ColumnDefinitionable,
+	[]models.ContentTypeable,
+	[]models.ListItemable,
+	error,
+) {
+	var errs error
+
+	cols, err := fetchColumns(ctx, service, siteID, listID, "")
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	cTypes, err := fetchContentTypes(ctx, service, siteID, listID)
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	lItems, err := fetchListItems(ctx, service, siteID, listID)
+	if err != nil {
+		errs = support.WrapAndAppend(siteID, err, errs)
+	}
+
+	if errs != nil {
+		return nil, nil, nil, errs
+	}
+
+	return cols, cTypes, lItems, nil
+}
+
 // fetchListItems utility for retrieving ListItem data and the associated relationship
 // data. Additional call append data to the tracked items, and do not create additional collections.
 // Additional Call:
 // * Fields
 func fetchListItems(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID string,
 ) ([]models.ListItemable, error) {
 	var (
@@ -130,7 +201,7 @@ func fetchListItems(
 			break
 		}
 
-		builder = items.NewItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -146,7 +217,7 @@ func fetchListItems(
 // TODO: Refactor on if/else (dadams39)
 func fetchColumns(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnDefinitionable, error) {
 	cs := make([]models.ColumnDefinitionable, 0)
@@ -166,7 +237,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = columns.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewItemListsItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	} else {
 		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
@@ -183,7 +254,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = tc.NewColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewItemListsItemContentTypesItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 		}
 	}
 
@@ -194,16 +265,11 @@ func fetchColumns(
 // for the following:
 // - ColumnLinks
 // - Columns
-// The following two are not included:
-// - ColumnPositions
-// - BaseTypes
-// These relationships are not included as they following error from the API:
-// itemNotFound Item not found: error status code received from the API
-// Current as of github.com/microsoftgraph/msgraph-sdk-go v0.40.0
-// TODO: Verify functionality after version upgrade or remove (dadams39) Check Stubs
+// Expand queries not used to retrieve the above. Possibly more than 20.
+// Known Limitations: https://learn.microsoft.com/en-us/graph/known-issues#query-parameters
 func fetchContentTypes(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID string,
 ) ([]models.ContentTypeable, error) {
 	var (
@@ -228,7 +294,6 @@ func fetchContentTypes(
 			}
 
 			cont.SetColumnLinks(links)
-			// TODO: stub for columPositions
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
@@ -236,7 +301,6 @@ func fetchContentTypes(
 			}
 
 			cont.SetColumns(cs)
-			// TODO: stub for BaseTypes
 
 			cTypes = append(cTypes, cont)
 		}
@@ -245,7 +309,7 @@ func fetchContentTypes(
 			break
 		}
 
-		builder = contenttypes.NewContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
 	if errs != nil {
@@ -257,7 +321,7 @@ func fetchContentTypes(
 
 func fetchColumnLinks(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnLinkable, error) {
 	var (
@@ -277,8 +341,28 @@ func fetchColumnLinks(
 			break
 		}
 
-		builder = columnlinks.NewColumnLinksRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.
+			NewItemListsItemContentTypesItemColumnLinksRequestBuilder(
+				*resp.GetOdataNextLink(),
+				gs.Adapter(),
+			)
 	}
 
 	return links, nil
+}
+
+// DeleteList removes a list object from a site.
+func DeleteList(
+	ctx context.Context,
+	gs graph.Servicer,
+	siteID, listID string,
+) error {
+	err := gs.Client().SitesById(siteID).ListsById(listID).Delete(ctx, nil)
+	errorMsg := fmt.Sprintf("failure deleting listID %s from site %s. Details: %s",
+		listID,
+		siteID,
+		support.ConnectorStackErrorTrace(err),
+	)
+
+	return errors.Wrap(err, errorMsg)
 }

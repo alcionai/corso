@@ -37,16 +37,15 @@ type (
 )
 
 var (
-	_ Reducer         = &ExchangeRestore{}
-	_ printabler      = &ExchangeRestore{}
-	_ resourceOwnerer = &ExchangeRestore{}
+	_ Reducer        = &ExchangeRestore{}
+	_ pathCategorier = &ExchangeRestore{}
 )
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
-func NewExchangeBackup() *ExchangeBackup {
+func NewExchangeBackup(users []string) *ExchangeBackup {
 	src := ExchangeBackup{
 		exchange{
-			newSelector(ServiceExchange),
+			newSelector(ServiceExchange, users),
 		},
 	}
 
@@ -65,11 +64,22 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 	return &src, nil
 }
 
+func (s ExchangeBackup) SplitByResourceOwner(users []string) []ExchangeBackup {
+	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+
+	ss := make([]ExchangeBackup, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, ExchangeBackup{exchange{sel}})
+	}
+
+	return ss
+}
+
 // NewExchangeRestore produces a new Selector with the service set to ServiceExchange.
-func NewExchangeRestore() *ExchangeRestore {
+func NewExchangeRestore(users []string) *ExchangeRestore {
 	src := ExchangeRestore{
 		exchange{
-			newSelector(ServiceExchange),
+			newSelector(ServiceExchange, users),
 		},
 	}
 
@@ -88,18 +98,23 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 	return &src, nil
 }
 
-// Printable creates the minimized display of a selector, formatted for human readability.
-func (s exchange) Printable() Printable {
-	return toPrintable[ExchangeScope](s.Selector)
+func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore {
+	sels := splitByResourceOwner[ExchangeScope](sr.Selector, users, ExchangeUser)
+
+	ss := make([]ExchangeRestore, 0, len(sels))
+	for _, sel := range sels {
+		ss = append(ss, ExchangeRestore{exchange{sel}})
+	}
+
+	return ss
 }
 
-// ResourceOwners produces the aggregation of discrete users described by each type of scope.
-// Any and None values are omitted.
-func (s exchange) ResourceOwners() selectorResourceOwners {
-	return selectorResourceOwners{
-		Excludes: resourceOwnersIn(s.Excludes, ExchangeUser.String()),
-		Filters:  resourceOwnersIn(s.Filters, ExchangeUser.String()),
-		Includes: resourceOwnersIn(s.Includes, ExchangeUser.String()),
+// PathCategories produces the aggregation of discrete users described by each type of scope.
+func (s exchange) PathCategories() selectorPathCategories {
+	return selectorPathCategories{
+		Excludes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Excludes),
+		Filters:  pathCategoriesIn[ExchangeScope, exchangeCategory](s.Filters),
+		Includes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Includes),
 	}
 }
 
@@ -173,14 +188,7 @@ func (s *exchange) Scopes() []ExchangeScope {
 	return scopes[ExchangeScope](s.Selector)
 }
 
-// DiscreteScopes retrieves the list of exchangeScopes in the selector.
-// If any Include scope's User category is set to Any, replaces that
-// scope's value with the list of userPNs instead.
-func (s *exchange) DiscreteScopes(userPNs []string) []ExchangeScope {
-	return discreteScopes[ExchangeScope](s.Selector, ExchangeUser, userPNs)
-}
-
-type ExchangeItemScopeConstructor func([]string, []string, []string, ...option) []ExchangeScope
+type ExchangeItemScopeConstructor func([]string, []string, ...option) []ExchangeScope
 
 // -------------------
 // Scope Factories
@@ -190,12 +198,12 @@ type ExchangeItemScopeConstructor func([]string, []string, []string, ...option) 
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *exchange) Contacts(users, folders, contacts []string, opts ...option) []ExchangeScope {
+func (s *exchange) Contacts(folders, contacts []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContact, users, contacts).
+		makeScope[ExchangeScope](ExchangeContact, contacts).
 			set(ExchangeContactFolder, folders, opts...),
 	)
 
@@ -207,15 +215,15 @@ func (s *exchange) Contacts(users, folders, contacts []string, opts ...option) [
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *exchange) ContactFolders(users, folders []string, opts ...option) []ExchangeScope {
+func (s *exchange) ContactFolders(folders []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContactFolder, users, folders, os...),
+		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...),
 	)
 
 	return scopes
@@ -226,12 +234,12 @@ func (s *exchange) ContactFolders(users, folders []string, opts ...option) []Exc
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *exchange) Events(users, calendars, events []string, opts ...option) []ExchangeScope {
+func (s *exchange) Events(calendars, events []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEvent, users, events).
+		makeScope[ExchangeScope](ExchangeEvent, events).
 			set(ExchangeEventCalendar, calendars, opts...),
 	)
 
@@ -244,15 +252,15 @@ func (s *exchange) Events(users, calendars, events []string, opts ...option) []E
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *exchange) EventCalendars(users, events []string, opts ...option) []ExchangeScope {
+func (s *exchange) EventCalendars(events []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEventCalendar, users, events, os...),
+		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...),
 	)
 
 	return scopes
@@ -263,12 +271,12 @@ func (s *exchange) EventCalendars(users, events []string, opts ...option) []Exch
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *exchange) Mails(users, folders, mails []string, opts ...option) []ExchangeScope {
+func (s *exchange) Mails(folders, mails []string, opts ...option) []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMail, users, mails).
+		makeScope[ExchangeScope](ExchangeMail, mails).
 			set(ExchangeMailFolder, folders, opts...),
 	)
 
@@ -280,32 +288,32 @@ func (s *exchange) Mails(users, folders, mails []string, opts ...option) []Excha
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 // options are only applied to the folder scopes.
-func (s *exchange) MailFolders(users, folders []string, opts ...option) []ExchangeScope {
+func (s *exchange) MailFolders(folders []string, opts ...option) []ExchangeScope {
 	var (
 		scopes = []ExchangeScope{}
-		os     = append([]option{pathType()}, opts...)
+		os     = append([]option{pathComparator()}, opts...)
 	)
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMailFolder, users, folders, os...),
+		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...),
 	)
 
 	return scopes
 }
 
-// Produces one or more exchange contact user scopes.
+// Retrieves all exchange data.
 // Each user id generates three scopes, one for each data type: contact, event, and mail.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *exchange) Users(users []string) []ExchangeScope {
+func (s *exchange) AllData() []ExchangeScope {
 	scopes := []ExchangeScope{}
 
 	scopes = append(scopes,
-		makeScope[ExchangeScope](ExchangeContactFolder, users, Any()),
-		makeScope[ExchangeScope](ExchangeEventCalendar, users, Any()),
-		makeScope[ExchangeScope](ExchangeMailFolder, users, Any()),
+		makeScope[ExchangeScope](ExchangeContactFolder, Any()),
+		makeScope[ExchangeScope](ExchangeEventCalendar, Any()),
+		makeScope[ExchangeScope](ExchangeMailFolder, Any()),
 	)
 
 	return scopes
@@ -500,15 +508,15 @@ const (
 // exchangeLeafProperties describes common metadata of the leaf categories
 var exchangeLeafProperties = map[categorizer]leafProperty{
 	ExchangeContact: {
-		pathKeys: []categorizer{ExchangeUser, ExchangeContactFolder, ExchangeContact},
+		pathKeys: []categorizer{ExchangeContactFolder, ExchangeContact},
 		pathType: path.ContactsCategory,
 	},
 	ExchangeEvent: {
-		pathKeys: []categorizer{ExchangeUser, ExchangeEventCalendar, ExchangeEvent},
+		pathKeys: []categorizer{ExchangeEventCalendar, ExchangeEvent},
 		pathType: path.EventsCategory,
 	},
 	ExchangeMail: {
-		pathKeys: []categorizer{ExchangeUser, ExchangeMailFolder, ExchangeMail},
+		pathKeys: []categorizer{ExchangeMailFolder, ExchangeMail},
 		pathType: path.EmailCategory,
 	},
 	ExchangeUser: { // the root category must be represented, even though it isn't a leaf
@@ -589,9 +597,8 @@ func (ec exchangeCategory) pathValues(p path.Path) map[categorizer]string {
 	}
 
 	return map[categorizer]string{
-		ExchangeUser: p.ResourceOwner(),
-		folderCat:    p.Folder(),
-		itemCat:      p.Item(),
+		folderCat: p.Folder(),
+		itemCat:   p.Item(),
 	}
 }
 
@@ -663,7 +670,7 @@ func (s ExchangeScope) Get(cat exchangeCategory) []string {
 func (s ExchangeScope) set(cat exchangeCategory, v []string, opts ...option) ExchangeScope {
 	os := []option{}
 	if cat == ExchangeContactFolder || cat == ExchangeEventCalendar || cat == ExchangeMailFolder {
-		os = append(os, pathType())
+		os = append(os, pathComparator())
 	}
 
 	return set(s, cat, v, append(os, opts...)...)
@@ -689,12 +696,6 @@ func (s ExchangeScope) setDefaults() {
 		s[ExchangeMailFolder.String()] = passAny
 		s[ExchangeMail.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
-// user comparison with only the provided user.
-func (s ExchangeScope) DiscreteCopy(user string) ExchangeScope {
-	return discreteCopy(s, user)
 }
 
 // ---------------------------------------------------------------------------

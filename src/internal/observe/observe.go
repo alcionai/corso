@@ -7,10 +7,13 @@ import (
 	"os"
 	"sync"
 
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 const (
@@ -127,15 +130,18 @@ func Complete() {
 }
 
 const (
-	ItemBackupMsg  = "Backing up item:"
-	ItemRestoreMsg = "Restoring item:"
-	ItemQueueMsg   = "Queuing items:"
+	ItemBackupMsg  = "Backing up item"
+	ItemRestoreMsg = "Restoring item"
+	ItemQueueMsg   = "Queuing items"
 )
 
 // Progress Updates
 
 // Message is used to display a progress message
-func Message(message string) {
+func Message(ctx context.Context, msg cleanable) {
+	logger.Ctx(ctx).Info(msg.clean())
+	message := msg.String()
+
 	if cfg.hidden() {
 		return
 	}
@@ -153,12 +159,21 @@ func Message(message string) {
 	// Complete the bar immediately
 	bar.SetTotal(-1, true)
 
-	waitAndCloseBar(bar)()
+	waitAndCloseBar(bar, func() {})()
 }
 
 // MessageWithCompletion is used to display progress with a spinner
 // that switches to "done" when the completion channel is signalled
-func MessageWithCompletion(message string) (chan<- struct{}, func()) {
+func MessageWithCompletion(
+	ctx context.Context,
+	msg cleanable,
+) (chan<- struct{}, func()) {
+	clean := msg.clean()
+	message := msg.String()
+
+	log := logger.Ctx(ctx)
+	log.Info(clean)
+
 	completionCh := make(chan struct{}, 1)
 
 	if cfg.hidden() {
@@ -173,7 +188,7 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 		-1,
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
-			decor.Name(message),
+			decor.Name(message+":"),
 			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8}),
 		),
 		mpb.BarFillerOnComplete("done"),
@@ -192,7 +207,11 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 		}
 	}(completionCh)
 
-	return completionCh, waitAndCloseBar(bar)
+	wacb := waitAndCloseBar(bar, func() {
+		log.Info("done - " + clean)
+	})
+
+	return completionCh, wacb
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +221,16 @@ func MessageWithCompletion(message string) (chan<- struct{}, func()) {
 // ItemProgress tracks the display of an item in a folder by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
-func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.ReadCloser, func()) {
+func ItemProgress(
+	ctx context.Context,
+	rc io.ReadCloser,
+	header string,
+	iname cleanable,
+	totalBytes int64,
+) (io.ReadCloser, func()) {
+	log := logger.Ctx(ctx).With("item", iname.clean(), "size", humanize.Bytes(uint64(totalBytes)))
+	log.Debug(header)
+
 	if cfg.hidden() || rc == nil || totalBytes == 0 {
 		return rc, func() {}
 	}
@@ -212,7 +240,7 @@ func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(iname, decor.WCSyncSpaceR),
+			decor.Name(iname.String(), decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
 			decor.NewPercentage("%d ", decor.WC{W: 4}),
 		),
@@ -224,14 +252,28 @@ func ItemProgress(rc io.ReadCloser, header, iname string, totalBytes int64) (io.
 
 	bar := progress.New(totalBytes, mpb.NopStyle(), barOpts...)
 
-	return bar.ProxyReader(rc), waitAndCloseBar(bar)
+	wacb := waitAndCloseBar(bar, func() {
+		// might be overly chatty, we can remove if needed.
+		log.Debug("done - " + header)
+	})
+
+	return bar.ProxyReader(rc), wacb
 }
 
 // ProgressWithCount tracks the display of a bar that tracks the completion
 // of the specified count.
 // Each write to the provided channel counts as a single increment.
 // The caller is expected to close the channel.
-func ProgressWithCount(header, message string, count int64) (chan<- struct{}, func()) {
+func ProgressWithCount(
+	ctx context.Context,
+	header string,
+	message cleanable,
+	count int64,
+) (chan<- struct{}, func()) {
+	log := logger.Ctx(ctx)
+	lmsg := fmt.Sprintf("%s %s - %d", header, message.clean(), count)
+	log.Info(lmsg)
+
 	progressCh := make(chan struct{})
 
 	if cfg.hidden() {
@@ -252,7 +294,7 @@ func ProgressWithCount(header, message string, count int64) (chan<- struct{}, fu
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(message),
+			decor.Name(message.String()),
 			decor.Counters(0, " %d/%d "),
 		),
 	}
@@ -282,7 +324,11 @@ func ProgressWithCount(header, message string, count int64) (chan<- struct{}, fu
 		}
 	}(ch)
 
-	return ch, waitAndCloseBar(bar)
+	wacb := waitAndCloseBar(bar, func() {
+		log.Info("done - " + lmsg)
+	})
+
+	return ch, wacb
 }
 
 // ---------------------------------------------------------------------------
@@ -320,8 +366,19 @@ func makeSpinFrames(barWidth int) {
 // CollectionProgress tracks the display a spinner that idles while the collection
 // incrementing the count of items handled.  Each write to the provided channel
 // counts as a single increment.  The caller is expected to close the channel.
-func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()) {
-	if cfg.hidden() || len(user) == 0 || len(dirName) == 0 {
+func CollectionProgress(
+	ctx context.Context,
+	category string,
+	user, dirName cleanable,
+) (chan<- struct{}, func()) {
+	log := logger.Ctx(ctx).With(
+		"user", user.clean(),
+		"category", category,
+		"dir", dirName.clean())
+	message := "Collecting Directory"
+	log.Info(message)
+
+	if cfg.hidden() || len(user.String()) == 0 || len(dirName.String()) == 0 {
 		ch := make(chan struct{})
 
 		go func(ci <-chan struct{}) {
@@ -339,11 +396,12 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 	wg.Add(1)
 
 	barOpts := []mpb.BarOption{
-		mpb.PrependDecorators(decor.Name(category)),
+		mpb.PrependDecorators(decor.Name(string(category))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
 			decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
 		),
+		mpb.BarFillerOnComplete(spinFrames[0]),
 	}
 
 	if !cfg.keepBarsAfterComplete {
@@ -355,6 +413,8 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 		mpb.SpinnerStyle(spinFrames...),
 		barOpts...,
 	)
+
+	var counted int
 
 	ch := make(chan struct{})
 	go func(ci <-chan struct{}) {
@@ -370,17 +430,91 @@ func CollectionProgress(user, category, dirName string) (chan<- struct{}, func()
 					return
 				}
 
+				counted++
+
 				bar.Increment()
 			}
 		}
 	}(ch)
 
-	return ch, waitAndCloseBar(bar)
+	wacb := waitAndCloseBar(bar, func() {
+		log.Infow("done - "+message, "count", counted)
+	})
+
+	return ch, wacb
 }
 
-func waitAndCloseBar(bar *mpb.Bar) func() {
+func waitAndCloseBar(bar *mpb.Bar, log func()) func() {
 	return func() {
 		bar.Wait()
 		wg.Done()
+		log()
 	}
+}
+
+// ---------------------------------------------------------------------------
+// other funcs
+// ---------------------------------------------------------------------------
+
+const Bullet = "∙"
+
+// ---------------------------------------------------------------------------
+// PII redaction
+// ---------------------------------------------------------------------------
+
+type cleanable interface {
+	clean() string
+	String() string
+}
+
+type PII string
+
+func (p PII) clean() string {
+	return "***"
+}
+
+func (p PII) String() string {
+	return string(p)
+}
+
+type Safe string
+
+func (s Safe) clean() string {
+	return string(s)
+}
+
+func (s Safe) String() string {
+	return string(s)
+}
+
+type bulletPII struct {
+	tmpl string
+	vars []cleanable
+}
+
+func Bulletf(template string, vs ...cleanable) bulletPII {
+	return bulletPII{
+		tmpl: "∙ " + template,
+		vars: vs,
+	}
+}
+
+func (b bulletPII) clean() string {
+	vs := make([]any, 0, len(b.vars))
+
+	for _, v := range b.vars {
+		vs = append(vs, v.clean())
+	}
+
+	return fmt.Sprintf(b.tmpl, vs...)
+}
+
+func (b bulletPII) String() string {
+	vs := make([]any, 0, len(b.vars))
+
+	for _, v := range b.vars {
+		vs = append(vs, v.String())
+	}
+
+	return fmt.Sprintf(b.tmpl, vs...)
 }

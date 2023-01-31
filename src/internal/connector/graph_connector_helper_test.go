@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"io"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -244,10 +246,9 @@ func checkMessage(
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	assert.Equal(t, expected.GetFlag(), got.GetFlag(), "Flag")
+	checkFlags(t, expected.GetFlag(), got.GetFlag())
 
-	assert.Equal(t, expected.GetFrom(), got.GetFrom(), "From")
-
+	checkRecipentables(t, expected.GetFrom(), got.GetFrom())
 	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
@@ -281,7 +282,7 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
-	assert.Equal(t, expected.GetSender(), got.GetSender(), "Sender")
+	checkRecipentables(t, expected.GetSender(), got.GetSender())
 
 	testEmptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
 
@@ -292,6 +293,39 @@ func checkMessage(
 	// Skip WebLink as it's tied to this specific instance of the item.
 
 	assert.Equal(t, expected.GetUniqueBody(), got.GetUniqueBody(), "UniqueBody")
+}
+
+// checkFlags is a helper function to check equality of models.FollowupFlabables
+// OdataTypes are omitted as these do change between msgraph-sdk-go versions
+func checkFlags(
+	t *testing.T,
+	expected, got models.FollowupFlagable,
+) {
+	assert.Equal(t, expected.GetCompletedDateTime(), got.GetCompletedDateTime())
+	assert.Equal(t, expected.GetDueDateTime(), got.GetDueDateTime())
+	assert.Equal(t, expected.GetFlagStatus(), got.GetFlagStatus())
+	assert.Equal(t, expected.GetStartDateTime(), got.GetStartDateTime())
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
+}
+
+// checkRecipentables is a helper function to check equality between
+// models.Recipientables. OdataTypes omitted.
+func checkRecipentables(
+	t *testing.T,
+	expected, got models.Recipientable,
+) {
+	checkEmailAddressables(t, expected.GetEmailAddress(), got.GetEmailAddress())
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
+}
+
+// checkEmailAddressables inspects EmailAddressables for equality
+func checkEmailAddressables(
+	t *testing.T,
+	expected, got models.EmailAddressable,
+) {
+	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
+	assert.Equal(t, *expected.GetAddress(), *got.GetAddress())
+	assert.Equal(t, expected.GetName(), got.GetName())
 }
 
 func checkContact(
@@ -684,9 +718,10 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.Collection,
-) {
+) int {
 	collectionsWithItems := []data.Collection{}
 
+	skipped := 0
 	gotItems := 0
 
 	for _, returned := range got {
@@ -699,6 +734,18 @@ func checkCollections(
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
 		for item := range returned.Items() {
+			// Skip metadata collections as they aren't directly related to items to
+			// backup. Don't add them to the item count either since the item count
+			// is for actual pull items.
+			// TODO(ashmrtn): Should probably eventually check some data in metadata
+			// collections.
+			if service == path.ExchangeMetadataService ||
+				service == path.OneDriveMetadataService ||
+				service == path.SharePointMetadataService {
+				skipped++
+				continue
+			}
+
 			gotItems++
 
 			if expectedColData == nil {
@@ -715,6 +762,10 @@ func checkCollections(
 
 	assert.Equal(t, expectedItems, gotItems, "expected items")
 	checkHasCollections(t, expected, collectionsWithItems)
+
+	// Return how many metadata files were skipped so we can account for it in the
+	// check on GraphConnector status.
+	return skipped
 }
 
 type destAndCats struct {
@@ -727,11 +778,16 @@ func makeExchangeBackupSel(
 	t *testing.T,
 	dests []destAndCats,
 ) selectors.Selector {
-	sel := selectors.NewExchangeBackup()
 	toInclude := [][]selectors.ExchangeScope{}
+	resourceOwners := map[string]struct{}{}
 
 	for _, d := range dests {
 		for c := range d.cats {
+			resourceOwners[d.resourceOwner] = struct{}{}
+
+			// nil owners here, but we'll need to stitch this together
+			// below after the loops are complete.
+			sel := selectors.NewExchangeBackup(nil)
 			builder := sel.MailFolders
 
 			switch c {
@@ -743,13 +799,13 @@ func makeExchangeBackupSel(
 			}
 
 			toInclude = append(toInclude, builder(
-				[]string{d.resourceOwner},
 				[]string{d.dest},
 				selectors.PrefixMatch(),
 			))
 		}
 	}
 
+	sel := selectors.NewExchangeBackup(maps.Keys(resourceOwners))
 	sel.Include(toInclude...)
 
 	return sel.Selector
@@ -759,17 +815,23 @@ func makeOneDriveBackupSel(
 	t *testing.T,
 	dests []destAndCats,
 ) selectors.Selector {
-	sel := selectors.NewOneDriveBackup()
 	toInclude := [][]selectors.OneDriveScope{}
+	resourceOwners := map[string]struct{}{}
 
 	for _, d := range dests {
+		resourceOwners[d.resourceOwner] = struct{}{}
+
+		// nil owners here, we'll need to stitch this together
+		// below after the loops are complete.
+		sel := selectors.NewOneDriveBackup(nil)
+
 		toInclude = append(toInclude, sel.Folders(
-			[]string{d.resourceOwner},
 			[]string{d.dest},
 			selectors.PrefixMatch(),
 		))
 	}
 
+	sel := selectors.NewOneDriveBackup(maps.Keys(resourceOwners))
 	sel.Include(toInclude...)
 
 	return sel.Selector
@@ -881,25 +943,43 @@ func collectionsForInfo(
 }
 
 //nolint:deadcode
-func getSelectorWith(service path.ServiceType) selectors.Selector {
-	s := selectors.ServiceUnknown
-
+func getSelectorWith(
+	t *testing.T,
+	service path.ServiceType,
+	resourceOwners []string,
+	forRestore bool,
+) selectors.Selector {
 	switch service {
 	case path.ExchangeService:
-		s = selectors.ServiceExchange
-	case path.OneDriveService:
-		s = selectors.ServiceOneDrive
-	}
-	// TODO: ^ sharepoint
+		if forRestore {
+			return selectors.NewExchangeRestore(resourceOwners).Selector
+		}
 
-	return selectors.Selector{
-		Service: s,
+		return selectors.NewExchangeBackup(resourceOwners).Selector
+
+	case path.OneDriveService:
+		if forRestore {
+			return selectors.NewOneDriveRestore(resourceOwners).Selector
+		}
+
+		return selectors.NewOneDriveBackup(resourceOwners).Selector
+
+	case path.SharePointService:
+		if forRestore {
+			return selectors.NewSharePointRestore(resourceOwners).Selector
+		}
+
+		return selectors.NewSharePointBackup(resourceOwners).Selector
+
+	default:
+		require.FailNow(t, "unknown path service")
+		return selectors.Selector{}
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T, r resource) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
-	connector, err := NewGraphConnector(ctx, a, r)
+	connector, err := NewGraphConnector(ctx, itemClient, a, r)
 	require.NoError(t, err)
 
 	return connector

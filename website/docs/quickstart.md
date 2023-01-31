@@ -21,13 +21,13 @@ pull the image.
 ## Connect to Microsoft 365
 
 Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time operation. Follow the instructions
-[here](../setup/m365_access) to obtain the necessary credentials and then make them available to Corso.
+[here](../setup/m365-access) to obtain the necessary credentials and then make them available to Corso.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  $Env:AZURE_CLIENT_ID = "<Application (../client) ID for configured app>"
+  $Env:AZURE_CLIENT_ID = "<Application (client) ID for configured app>"
   $Env:AZURE_TENANT_ID = "<Directory (tenant) ID for configured app>"
   $Env:AZURE_CLIENT_SECRET = "<Client secret value>"
   ```
@@ -36,7 +36,7 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="unix" label="Linux/macOS">
 
    ```bash
-   export AZURE_CLIENT_ID=<Application (../client) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
    export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
@@ -45,7 +45,7 @@ Obtaining credentials from Microsoft 365 to allow Corso to run is a one-time ope
 <TabItem value="docker" label="Docker">
 
    ```bash
-   export AZURE_CLIENT_ID=<Application (../client) ID for configured app>
+   export AZURE_CLIENT_ID=<Application (client) ID for configured app>
    export AZURE_TENANT_ID=<Directory (tenant) ID for configured app>
    export AZURE_CLIENT_SECRET=<Client secret value>
    ```
@@ -156,7 +156,7 @@ Your first backup may take some time if your mailbox is large.
 There will be progress indicators as the backup and, on completion, you should see output similar to:
 
 ```text
-  Started At            ID                                    Status                Selectors
+  Started At            ID                                    Status                Resource Owner
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
 ```
 
@@ -195,14 +195,14 @@ docker run --env-file $HOME/.corso/corso.env \\
 </Tabs>
 
 ```text
-  Started At            ID                                    Status                Selectors
+  Started At            ID                                    Status                Resource Owner
   2022-10-20T18:28:53Z  d8cd833a-fc63-4872-8981-de5c08e0661b  Completed (0 errors)  alice@contoso.com
   2022-10-20T18:40:45Z  391ceeb3-b44d-4365-9a8e-8a8e1315b565  Completed (0 errors)  alice@contoso.com
   ...
 ```
 
 Next, select one of the available backups and list all backed up emails. See
-[here](../cli/corso_backup_details_exchange) for more advanced filtering options.
+[here](../cli/corso-backup-details-exchange) for more advanced filtering options.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">

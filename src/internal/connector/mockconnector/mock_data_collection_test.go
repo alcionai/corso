@@ -3,9 +3,9 @@ package mockconnector_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"testing"
 
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +30,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 	messagesRead := 0
 
 	for item := range mdc.Items() {
-		_, err := ioutil.ReadAll(item.ToReader())
+		_, err := io.ReadAll(item.ToReader())
 		assert.NoError(suite.T(), err)
 		messagesRead++
 	}
@@ -45,7 +45,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
 	for item := range mdc.Items() {
-		buf, err := ioutil.ReadAll(item.ToReader())
+		buf, err := io.ReadAll(item.ToReader())
 		assert.NoError(t, err)
 
 		assert.Implements(t, (*data.StreamSize)(nil), item)
@@ -110,7 +110,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			assert.Equal(t, id, test.reader.UUID())
-			buf, err := ioutil.ReadAll(test.reader.ToReader())
+			buf, err := io.ReadAll(test.reader.ToReader())
 
 			test.check(t, err)
 			if err != nil {
@@ -177,7 +177,24 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			},
 		},
 		{
-			name: "SharePoint: List",
+			name: "SharePoint: List Empty",
+			transformation: func(t *testing.T) error {
+				emptyMap := make(map[string]string)
+				temp := mockconnector.GetMockList(subject, "Artist", emptyMap)
+				writer := kioser.NewJsonSerializationWriter()
+				err := writer.WriteObjectValue("", temp)
+				require.NoError(t, err)
+
+				bytes, err := writer.GetSerializedContent()
+				require.NoError(suite.T(), err)
+
+				_, err = support.CreateListFromBytes(bytes)
+
+				return err
+			},
+		},
+		{
+			name: "SharePoint: List 6 Items",
 			transformation: func(t *testing.T) error {
 				bytes, err := mockconnector.GetMockListBytes(subject)
 				require.NoError(suite.T(), err)

@@ -150,8 +150,13 @@ func purgeOneDriveFolders(
 	boundary time.Time,
 	uid string,
 ) error {
-	getter := func(gs graph.Service, uid, prefix string) ([]purgable, error) {
-		cfs, err := onedrive.GetAllFolders(ctx, gs, uid, prefix)
+	getter := func(gs graph.Servicer, uid, prefix string) ([]purgable, error) {
+		pager, err := onedrive.PagerForSource(onedrive.OneDriveSource, gs, uid, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +170,7 @@ func purgeOneDriveFolders(
 		return purgables, nil
 	}
 
-	deleter := func(gs graph.Service, uid string, f purgable) error {
+	deleter := func(gs graph.Servicer, uid string, f purgable) error {
 		driveFolder, ok := f.(*onedrive.Displayable)
 		if !ok {
 			return errors.New("non-OneDrive item")
@@ -189,13 +194,13 @@ func purgeFolders(
 	gc *connector.GraphConnector,
 	boundary time.Time,
 	data, uid string,
-	getter func(graph.Service, string, string) ([]purgable, error),
-	deleter func(graph.Service, string, purgable) error,
+	getter func(graph.Servicer, string, string) ([]purgable, error),
+	deleter func(graph.Servicer, string, purgable) error,
 ) error {
 	Infof(ctx, "Container: %s", data)
 
 	// get them folders
-	fs, err := getter(gc.Service(), uid, prefix)
+	fs, err := getter(gc.Service, uid, prefix)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
 	}
@@ -227,7 +232,7 @@ func purgeFolders(
 
 		Infof(ctx, "∙ Deleting [%s]", displayName)
 
-		err = deleter(gc.Service(), uid, fld)
+		err = deleter(gc.Service, uid, fld)
 		if err != nil {
 			err = errors.Wrapf(err, "!! Error")
 			errs = multierror.Append(errs, err)
@@ -255,7 +260,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}

@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 
-	cf "github.com/microsoftgraph/msgraph-sdk-go/users/item/contactfolders/item/childfolders"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -15,7 +14,8 @@ var _ graph.ContainerResolver = &contactFolderCache{}
 
 type contactFolderCache struct {
 	*containerResolver
-	gs     graph.Service
+	enumer containersEnumerator
+	getter containerGetter
 	userID string
 }
 
@@ -24,32 +24,15 @@ func (cfc *contactFolderCache) populateContactRoot(
 	directoryID string,
 	baseContainerPath []string,
 ) error {
-	wantedOpts := []string{"displayName", "parentFolderId"}
-
-	opts, err := optionsForContactFolderByID(wantedOpts)
+	f, err := cfc.getter.GetContainerByID(ctx, cfc.userID, directoryID)
 	if err != nil {
-		return errors.Wrapf(err, "getting options for contact folder cache: %v", wantedOpts)
+		return support.ConnectorStackErrorTraceWrap(err, "fetching root folder")
 	}
 
-	f, err := cfc.
-		gs.
-		Client().
-		UsersById(cfc.userID).
-		ContactFoldersById(directoryID).
-		Get(ctx, opts)
-	if err != nil {
-		return errors.Wrapf(
-			err,
-			"fetching root contact folder: "+support.ConnectorStackErrorTrace(err))
-	}
-
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(baseContainerPath...),
-	}
+	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
 
 	if err := cfc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding cache root")
+		return errors.Wrap(err, "adding resolver dir")
 	}
 
 	return nil
@@ -65,70 +48,19 @@ func (cfc *contactFolderCache) Populate(
 	baseContainerPather ...string,
 ) error {
 	if err := cfc.init(ctx, baseID, baseContainerPather); err != nil {
-		return err
+		return errors.Wrap(err, "initializing")
 	}
 
-	var (
-		errs         error
-		options, err = optionsForContactChildFolders([]string{"displayName", "parentFolderId"})
-	)
-
+	err := cfc.enumer.EnumerateContainers(ctx, cfc.userID, baseID, cfc.addFolder)
 	if err != nil {
-		return errors.Wrap(err, "contact cache resolver option")
-	}
-
-	builder := cfc.
-		gs.Client().
-		UsersById(cfc.userID).
-		ContactFoldersById(baseID).
-		ChildFolders()
-
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, fold := range resp.GetValue() {
-			if err := checkIDAndName(fold); err != nil {
-				errs = support.WrapAndAppend(
-					"adding folder to contact resolver",
-					err,
-					errs,
-				)
-
-				continue
-			}
-
-			temp := cacheFolder{
-				Container: fold,
-			}
-
-			err = cfc.addFolder(temp)
-			if err != nil {
-				errs = support.WrapAndAppend(
-					"cache build in cfc.Populate",
-					err,
-					errs)
-			}
-		}
-
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = cf.NewChildFoldersRequestBuilder(*resp.GetOdataNextLink(), cfc.gs.Adapter())
+		return errors.Wrap(err, "enumerating containers")
 	}
 
 	if err := cfc.populatePaths(ctx); err != nil {
-		errs = support.WrapAndAppend(
-			"contacts resolver",
-			err,
-			errs,
-		)
+		return errors.Wrap(err, "populating paths")
 	}
 
-	return errs
+	return nil
 }
 
 func (cfc *contactFolderCache) init(

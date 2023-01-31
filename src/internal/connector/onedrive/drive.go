@@ -4,179 +4,218 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/items/item"
-	"github.com/microsoftgraph/msgraph-sdk-go/drives/item/root/delta"
+	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
-	mssitedrives "github.com/microsoftgraph/msgraph-sdk-go/sites/item/drives"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var (
-	errFolderNotFound = errors.New("folder not found")
-
-	// nolint:lll
-	// OneDrive associated SKUs located at:
-	// https://learn.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
-	skuIDs = []string{
-		// Microsoft 365 Apps for Business 0365
-		"cdd28e44-67e3-425e-be4c-737fab2899d3",
-		// Microsoft 365 Apps for Business SMB_Business
-		"b214fe43-f5a3-4703-beeb-fa97188220fc",
-		// Microsoft 365 Apps for enterprise
-		"c2273bd0-dff7-4215-9ef5-2c7bcfb06425",
-		// Microsoft 365 Apps for Faculty
-		"12b8c807-2e20-48fc-b453-542b6ee9d171",
-		// Microsoft 365 Apps for Students
-		"c32f9321-a627-406d-a114-1f9c81aaafac",
-		// OneDrive for Business (Plan 1)
-		"e6778190-713e-4e4f-9119-8b8238de25df",
-		// OneDrive for Business (Plan 2)
-		"ed01faf2-1d88-4947-ae91-45ca18703a96",
-		// Visio Plan 1
-		"ca7f3140-d88c-455b-9a1c-7f0679e31a76",
-		// Visio Plan 2
-		"38b434d2-a15e-4cde-9a98-e737c75623e1",
-		// Visio Online Plan 1
-		"4b244418-9658-4451-a2b8-b5e2b364e9bd",
-		// Visio Online Plan 2
-		"c5928f49-12ba-48f7-ada3-0d743a3601d5",
-		// Visio Plan 2 for GCC
-		"4ae99959-6b0f-43b0-b1ce-68146001bdba",
-		// ONEDRIVEENTERPRISE
-		"afcafa6a-d966-4462-918c-ec0b4e0fe642",
-		// Microsoft 365 E5 Developer
-		"c42b9cae-ea4f-4ab7-9717-81576235ccac",
-	}
-)
+var errFolderNotFound = errors.New("folder not found")
 
 const (
+	getDrivesRetries = 3
+
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
-	nextLinkKey           = "@odata.nextLink"
-	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-	itemNotFoundErrorCode = "itemNotFound"
-	userDoesNotHaveDrive  = "BadRequest Unable to retrieve user's mysite URL"
+	nextLinkKey             = "@odata.nextLink"
+	itemChildrenRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+	itemByPathRawURLFmt     = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	itemNotFoundErrorCode   = "itemNotFound"
+	userMysiteURLNotFound   = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteNotFound      = "ResourceNotFound User's mysite not found"
+	contextDeadlineExceeded = "context deadline exceeded"
 )
 
-// Enumerates the drives for the specified user
-func drives(
-	ctx context.Context,
-	service graph.Service,
-	resourceOwner string,
+type drivePager interface {
+	GetPage(context.Context) (gapi.PageLinker, error)
+	SetNext(nextLink string)
+	ValuesIn(gapi.PageLinker) ([]models.Driveable, error)
+}
+
+func PagerForSource(
 	source driveSource,
-) ([]models.Driveable, error) {
+	servicer graph.Servicer,
+	resourceOwner string,
+	fields []string,
+) (drivePager, error) {
 	switch source {
 	case OneDriveSource:
-		return userDrives(ctx, service, resourceOwner)
+		return api.NewUserDrivePager(servicer, resourceOwner, fields), nil
 	case SharePointSource:
-		return siteDrives(ctx, service, resourceOwner)
+		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
 		return nil, errors.Errorf("unrecognized drive data source")
 	}
 }
 
-func siteDrives(ctx context.Context, service graph.Service, site string) ([]models.Driveable, error) {
-	options := &mssitedrives.DrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &mssitedrives.DrivesRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name", "weburl", "system"},
-		},
+func drives(
+	ctx context.Context,
+	pager drivePager,
+	retry bool,
+) ([]models.Driveable, error) {
+	var (
+		err             error
+		page            gapi.PageLinker
+		numberOfRetries = getDrivesRetries
+		drives          = []models.Driveable{}
+	)
+
+	if !retry {
+		numberOfRetries = 0
 	}
 
-	r, err := service.Client().SitesById(site).Drives().Get(ctx, options)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve site drives. site: %s, details: %s",
-			site, support.ConnectorStackErrorTrace(err))
-	}
+	// Loop through all pages returned by Graph API.
+	for {
+		// Retry Loop for Drive retrieval. Request can timeout
+		for i := 0; i <= numberOfRetries; i++ {
+			page, err = pager.GetPage(ctx)
+			if err != nil {
+				// Various error handling. May return an error or perform a retry.
+				detailedError := support.ConnectorStackErrorTrace(err)
+				if strings.Contains(detailedError, userMysiteURLNotFound) ||
+					strings.Contains(detailedError, userMysiteNotFound) {
+					logger.Ctx(ctx).Infof("resource owner does not have a drive")
+					return make([]models.Driveable, 0), nil // no license or drives.
+				}
 
-	return r.GetValue(), nil
-}
+				if strings.Contains(detailedError, contextDeadlineExceeded) && i < numberOfRetries {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					continue
+				}
 
-func userDrives(ctx context.Context, service graph.Service, user string) ([]models.Driveable, error) {
-	var hasDrive bool
+				return nil, errors.Wrapf(
+					err,
+					"failed to retrieve drives. details: %s",
+					detailedError,
+				)
+			}
 
-	hasDrive, err := hasDriveLicense(ctx, service, user)
-	if err != nil {
-		return nil, errors.Wrap(err, user)
-	}
-
-	if !hasDrive {
-		logger.Ctx(ctx).Debugf("User %s does not have a license for OneDrive", user)
-		return make([]models.Driveable, 0), nil // no license
-	}
-
-	r, err := service.Client().UsersById(user).Drives().Get(ctx, nil)
-	if err != nil {
-		if strings.Contains(support.ConnectorStackErrorTrace(err), userDoesNotHaveDrive) {
-			logger.Ctx(ctx).Debugf("User %s does not have a drive", user)
-			return make([]models.Driveable, 0), nil // no license
+			// No error encountered, break the retry loop so we can extract results
+			// and see if there's another page to fetch.
+			break
 		}
 
-		return nil, errors.Wrapf(err, "failed to retrieve user drives. user: %s, details: %s",
-			user, support.ConnectorStackErrorTrace(err))
+		tmp, err := pager.ValuesIn(page)
+		if err != nil {
+			return nil, errors.Wrap(err, "extracting drives from response")
+		}
+
+		drives = append(drives, tmp...)
+
+		nextLink := gapi.NextLink(page)
+		if len(nextLink) == 0 {
+			break
+		}
+
+		pager.SetNext(nextLink)
 	}
 
-	logger.Ctx(ctx).Debugf("Found %d drives for user %s", len(r.GetValue()), user)
+	logger.Ctx(ctx).Debugf("Found %d drives", len(drives))
 
-	return r.GetValue(), nil
+	return drives, nil
 }
 
 // itemCollector functions collect the items found in a drive
-type itemCollector func(ctx context.Context, driveID string, driveItems []models.DriveItemable) error
+type itemCollector func(
+	ctx context.Context,
+	driveID, driveName string,
+	driveItems []models.DriveItemable,
+	oldPaths map[string]string,
+	newPaths map[string]string,
+	excluded map[string]struct{},
+) error
 
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	service graph.Service,
-	driveID string,
+	service graph.Servicer,
+	driveID, driveName string,
 	collector itemCollector,
-) error {
+) (string, map[string]string, map[string]struct{}, error) {
+	var (
+		newDeltaURL = ""
+		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
+		// take in previous paths.
+		oldPaths = map[string]string{}
+		newPaths = map[string]string{}
+		excluded = map[string]struct{}{}
+	)
+
+	maps.Copy(newPaths, oldPaths)
+
 	// TODO: Specify a timestamp in the delta query
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
 	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 	builder := service.Client().DrivesById(driveID).Root().Delta()
+	pageCount := int32(999) // max we can do is 999
+	requestFields := []string{
+		"content.downloadUrl",
+		"createdBy",
+		"createdDateTime",
+		"file",
+		"folder",
+		"id",
+		"lastModifiedDateTime",
+		"name",
+		"package",
+		"parentReference",
+		"root",
+		"size",
+	}
+	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
+			Top:    &pageCount,
+			Select: requestFields,
+		},
+	}
 
 	for {
-		r, err := builder.Get(ctx, nil)
+		r, err := builder.Get(ctx, requestConfig)
 		if err != nil {
-			return errors.Wrapf(
+			return "", nil, nil, errors.Wrapf(
 				err,
 				"failed to query drive items. details: %s",
 				support.ConnectorStackErrorTrace(err),
 			)
 		}
 
-		err = collector(ctx, driveID, r.GetValue())
+		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths, excluded)
 		if err != nil {
-			return err
+			return "", nil, nil, err
+		}
+
+		if r.GetOdataDeltaLink() != nil && len(*r.GetOdataDeltaLink()) > 0 {
+			newDeltaURL = *r.GetOdataDeltaLink()
 		}
 
 		// Check if there are more items
-		if _, found := r.GetAdditionalData()[nextLinkKey]; !found {
+		nextLink := r.GetOdataNextLink()
+		if nextLink == nil {
 			break
 		}
 
-		nextLink := r.GetAdditionalData()[nextLinkKey].(*string)
 		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
-		builder = delta.NewDeltaRequestBuilder(*nextLink, service.Adapter())
+		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
 	}
 
-	return nil
+	return newDeltaURL, newPaths, excluded, nil
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
 func getFolder(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	// The `Children().Get()` API doesn't yet support $filter, so using that to find a folder
@@ -185,8 +224,7 @@ func getFolder(
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
-
-	builder := item.NewDriveItemItemRequestBuilder(rawURL, service.Adapter())
+	builder := msdrive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
@@ -217,7 +255,7 @@ func getFolder(
 // Create a new item in the specified folder
 func createItem(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
 ) (models.DriveItemable, error) {
@@ -225,7 +263,7 @@ func createItem(
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
 
-	builder := items.NewItemsRequestBuilder(rawURL, service.Adapter())
+	builder := msdrive.NewItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -266,11 +304,11 @@ func (op *Displayable) GetDisplayName() *string {
 // are a subfolder or top-level folder in the hierarchy.
 func GetAllFolders(
 	ctx context.Context,
-	gs graph.Service,
-	userID string,
+	gs graph.Servicer,
+	pager drivePager,
 	prefix string,
 ) ([]*Displayable, error) {
-	drives, err := drives(ctx, gs, userID, OneDriveSource)
+	drives, err := drives(ctx, pager, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}
@@ -278,11 +316,19 @@ func GetAllFolders(
 	folders := map[string]*Displayable{}
 
 	for _, d := range drives {
-		err = collectItems(
+		_, _, _, err = collectItems(
 			ctx,
 			gs,
 			*d.GetId(),
-			func(innerCtx context.Context, driveID string, items []models.DriveItemable) error {
+			*d.GetName(),
+			func(
+				innerCtx context.Context,
+				driveID, driveName string,
+				items []models.DriveItemable,
+				oldPaths map[string]string,
+				newPaths map[string]string,
+				excluded map[string]struct{},
+			) error {
 				for _, item := range items {
 					// Skip the root item.
 					if item.GetRoot() != nil {
@@ -327,7 +373,7 @@ func GetAllFolders(
 
 func DeleteItem(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	driveID string,
 	itemID string,
 ) error {
@@ -337,57 +383,4 @@ func DeleteItem(
 	}
 
 	return nil
-}
-
-// hasDriveLicense utility function that queries M365 server
-// to investigate the user's includes access to OneDrive.
-func hasDriveLicense(
-	ctx context.Context,
-	service graph.Service,
-	user string,
-) (bool, error) {
-	var hasDrive bool
-
-	resp, err := service.Client().UsersById(user).LicenseDetails().Get(ctx, nil)
-	if err != nil {
-		return false,
-			errors.Wrap(err, "failure obtaining license details for user")
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(
-		resp, service.Adapter(),
-		models.CreateLicenseDetailsCollectionResponseFromDiscriminatorValue,
-	)
-	if err != nil {
-		return false, err
-	}
-
-	cb := func(pageItem any) bool {
-		entry, ok := pageItem.(models.LicenseDetailsable)
-		if !ok {
-			err = errors.New("casting item to models.LicenseDetailsable")
-			return false
-		}
-
-		sku := entry.GetSkuId()
-		if sku == nil {
-			return true
-		}
-
-		for _, license := range skuIDs {
-			if *sku == license {
-				hasDrive = true
-				return false
-			}
-		}
-
-		return true
-	}
-
-	if err := iter.Iterate(ctx, cb); err != nil {
-		return false,
-			errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-	}
-
-	return hasDrive, nil
 }

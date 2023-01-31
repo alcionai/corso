@@ -1,0 +1,46 @@
+name: Publish Website
+
+inputs:
+  aws-iam-role:
+    description: IAM role for connecting to AWS
+  bucket:
+    description: Bucket to push the website files
+  cfid:
+    description: Cloudfront ID for invalidation
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/download-artifact@master
+      name: Download website from build step
+      with:
+        name: website
+        path: website/build
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ inputs.aws-iam-role }}
+        role-session-name: integration-testing
+        aws-region: us-east-1
+
+    - name: Add rotbots.txt
+      if: github.ref == 'refs/heads/asset-validation-explore'
+      working-directory: website
+      shell: bash
+      run: |
+        printf 'User-agent: *\nDisallow: /' > build/robots.txt
+
+    - name: Push website
+      working-directory: website
+      shell: bash
+      run: |
+        aws s3 sync build "s3://${{ inputs.bucket }}" --delete
+
+    - name: Invalidate cloudfront
+      working-directory: website
+      shell: bash
+      run: |
+        aws cloudfront create-invalidation --distribution-id ${{ inputs.cfid }} --paths "/*"

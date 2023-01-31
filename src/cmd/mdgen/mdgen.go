@@ -102,7 +102,7 @@ func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 		return nil
 	}
 
-	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "-") + ".md"
 	filename := filepath.Join(dir, basename)
 
 	f, err := os.Create(filename)
@@ -125,12 +125,9 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 	// frontMatter section
 	buf.WriteString("---\n")
 	buf.WriteString(fmt.Sprintf("title: %s\n", name))
-	buf.WriteString("hide_title: true\n")
-	buf.WriteString("---\n")
+	buf.WriteString("---\n\n")
 
 	// actual markdown
-	buf.WriteString("## " + name + "\n\n")
-
 	if len(cmd.Long) > 0 {
 		buf.WriteString(cmd.Long + "\n")
 	} else {
@@ -144,21 +141,21 @@ func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
 
 	if cmd.HasExample() {
 		buf.WriteString("\n")
-		buf.WriteString("### Examples\n\n")
+		buf.WriteString("## Examples\n\n")
 		buf.WriteString(fmt.Sprintf("```bash\n%s\n```\n", cmd.Example))
 	}
 
 	flags := cmd.NonInheritedFlags()
 	if flags.HasAvailableFlags() {
 		buf.WriteString("\n")
-		buf.WriteString("### Flags\n\n")
+		buf.WriteString("## Flags\n\n")
 		printFlags(buf, flags)
 	}
 
 	parentFlags := cmd.InheritedFlags()
 	if parentFlags.HasAvailableFlags() {
 		buf.WriteString("\n")
-		buf.WriteString("### Global and inherited flags\n\n")
+		buf.WriteString("## Global and inherited flags\n\n")
 		printFlags(buf, parentFlags)
 	}
 

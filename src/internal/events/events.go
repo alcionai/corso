@@ -23,11 +23,13 @@ const (
 	tenantID     = "m365_tenant_hash"
 
 	// Event Keys
-	RepoInit     = "repo_init"
-	BackupStart  = "backup_start"
-	BackupEnd    = "backup_end"
-	RestoreStart = "restore_start"
-	RestoreEnd   = "restore_end"
+	CorsoStart   = "Corso Start"
+	RepoInit     = "Repo Init"
+	RepoConnect  = "Repo Connect"
+	BackupStart  = "Backup Start"
+	BackupEnd    = "Backup End"
+	RestoreStart = "Restore Start"
+	RestoreEnd   = "Restore End"
 
 	// Event Data Keys
 	BackupCreateTime = "backup_creation_time"
@@ -97,7 +99,6 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 
 	return Bus{
 		client:  client,
-		repoID:  repoHash(s),
 		tenant:  tenantHash(tenID),
 		version: version.Version,
 	}, nil
@@ -150,34 +151,11 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 	}
 }
 
-func storageID(s storage.Storage) string {
-	id := s.Provider.String()
-
-	switch s.Provider {
-	case storage.ProviderS3:
-		s3, err := s.S3Config()
-		if err != nil {
-			return id
-		}
-
-		id += s3.Bucket + s3.Prefix
-	}
-
-	return id
-}
-
-func repoHash(s storage.Storage) string {
-	return md5HashOf(storageID(s))
+func (b *Bus) SetRepoID(hash string) {
+	b.repoID = hash
 }
 
 func tenantHash(tenID string) string {
-	return md5HashOf(tenID)
-}
-
-func md5HashOf(s string) string {
-	sum := md5.Sum(
-		[]byte(s),
-	)
-
+	sum := md5.Sum([]byte(tenID))
 	return fmt.Sprintf("%x", sum)
 }

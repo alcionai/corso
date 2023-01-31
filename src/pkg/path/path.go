@@ -281,6 +281,43 @@ func (pb Builder) withPrefix(elements ...string) *Builder {
 	return res
 }
 
+func (pb Builder) ToStreamStorePath(
+	tenant, purpose string,
+	service ServiceType,
+	isItem bool,
+) (Path, error) {
+	if err := verifyInputValues(tenant, purpose); err != nil {
+		return nil, err
+	}
+
+	if isItem && len(pb.elements) == 0 {
+		return nil, errors.New("missing path beyond prefix")
+	}
+
+	metadataService := UnknownService
+
+	switch service {
+	case ExchangeService:
+		metadataService = ExchangeMetadataService
+	case OneDriveService:
+		metadataService = OneDriveMetadataService
+	case SharePointService:
+		metadataService = SharePointMetadataService
+	}
+
+	return &dataLayerResourcePath{
+		Builder: *pb.withPrefix(
+			tenant,
+			metadataService.String(),
+			purpose,
+			DetailsCategory.String(),
+		),
+		service:  metadataService,
+		category: DetailsCategory,
+		hasItem:  isItem,
+	}, nil
+}
+
 func (pb Builder) ToServiceCategoryMetadataPath(
 	tenant, user string,
 	service ServiceType,
@@ -323,12 +360,13 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	}, nil
 }
 
-func (pb Builder) ToDataLayerExchangePathForCategory(
+func (pb Builder) ToDataLayerPath(
 	tenant, user string,
+	service ServiceType,
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(ExchangeService, category); err != nil {
+	if err := validateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 
@@ -339,35 +377,29 @@ func (pb Builder) ToDataLayerExchangePathForCategory(
 	return &dataLayerResourcePath{
 		Builder: *pb.withPrefix(
 			tenant,
-			ExchangeService.String(),
+			service.String(),
 			user,
 			category.String(),
 		),
-		service:  ExchangeService,
+		service:  service,
 		category: category,
 		hasItem:  isItem,
 	}, nil
+}
+
+func (pb Builder) ToDataLayerExchangePathForCategory(
+	tenant, user string,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	return pb.ToDataLayerPath(tenant, user, ExchangeService, category, isItem)
 }
 
 func (pb Builder) ToDataLayerOneDrivePath(
 	tenant, user string,
 	isItem bool,
 ) (Path, error) {
-	if err := pb.verifyPrefix(tenant, user); err != nil {
-		return nil, err
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			OneDriveService.String(),
-			user,
-			FilesCategory.String(),
-		),
-		service:  OneDriveService,
-		category: FilesCategory,
-		hasItem:  isItem,
-	}, nil
+	return pb.ToDataLayerPath(tenant, user, OneDriveService, FilesCategory, isItem)
 }
 
 func (pb Builder) ToDataLayerSharePointPath(
@@ -375,21 +407,7 @@ func (pb Builder) ToDataLayerSharePointPath(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := pb.verifyPrefix(tenant, site); err != nil {
-		return nil, err
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			SharePointService.String(),
-			site,
-			category.String(),
-		),
-		service:  SharePointService,
-		category: category,
-		hasItem:  isItem,
-	}, nil
+	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
 }
 
 // FromDataLayerPath parses the escaped path p, validates the elements in p

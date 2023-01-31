@@ -11,11 +11,13 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -30,21 +32,19 @@ func RestoreExchangeObject(
 	bits []byte,
 	category path.CategoryType,
 	policy control.CollisionPolicy,
-	service graph.Service,
+	service graph.Servicer,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
 	if policy != control.Copy {
 		return nil, fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
 	}
 
-	setting := CategoryToOptionIdentifier(category)
-
-	switch setting {
-	case messages:
+	switch category {
+	case path.EmailCategory:
 		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
-	case contacts:
+	case path.ContactsCategory:
 		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
-	case events:
+	case path.EventsCategory:
 		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
 	default:
 		return nil, fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
@@ -60,7 +60,7 @@ func RestoreExchangeObject(
 func RestoreExchangeContact(
 	ctx context.Context,
 	bits []byte,
-	service graph.Service,
+	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -84,7 +84,10 @@ func RestoreExchangeContact(
 		return nil, errors.New("msgraph contact post fail: REST response not received")
 	}
 
-	return ContactInfo(contact, int64(len(bits))), nil
+	info := api.ContactInfo(contact)
+	info.Size = int64(len(bits))
+
+	return info, nil
 }
 
 // RestoreExchangeEvent restores a contact to the @bits byte
@@ -96,7 +99,7 @@ func RestoreExchangeContact(
 func RestoreExchangeEvent(
 	ctx context.Context,
 	bits []byte,
-	service graph.Service,
+	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -153,7 +156,10 @@ func RestoreExchangeEvent(
 		}
 	}
 
-	return EventInfo(event, int64(len(bits))), errs
+	info := api.EventInfo(event)
+	info.Size = int64(len(bits))
+
+	return info, errs
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -165,7 +171,7 @@ func RestoreExchangeEvent(
 func RestoreMailMessage(
 	ctx context.Context,
 	bits []byte,
-	service graph.Service,
+	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
 ) (*details.ExchangeInfo, error) {
@@ -215,7 +221,10 @@ func RestoreMailMessage(
 		}
 	}
 
-	return MessageInfo(clone, int64(len(bits))), nil
+	info := api.MailInfo(clone)
+	info.Size = int64(len(bits))
+
+	return info, nil
 }
 
 // attachmentBytes is a helper to retrieve the attachment content from a models.Attachmentable
@@ -230,7 +239,7 @@ func attachmentBytes(attachment models.Attachmentable) []byte {
 // @param message is a models.Messageable interface from "github.com/microsoftgraph/msgraph-sdk-go/models"
 func SendMailToBackStore(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	user, destination string,
 	message models.Messageable,
 ) error {
@@ -247,7 +256,7 @@ func SendMailToBackStore(
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
 		return errors.Wrap(err,
-			user+": failure sendMailAPI:  "+support.ConnectorStackErrorTrace(err),
+			user+": failure sendMailAPI: Dest: "+destination+" Details: "+support.ConnectorStackErrorTrace(err),
 		)
 	}
 
@@ -285,10 +294,11 @@ func SendMailToBackStore(
 // @param dest:  container destination to M365
 func RestoreExchangeDataCollections(
 	ctx context.Context,
-	gs graph.Service,
+	creds account.M365Config,
+	gs graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
-	deets *details.Details,
+	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		// map of caches... but not yet...
@@ -312,9 +322,9 @@ func RestoreExchangeDataCollections(
 			userCaches = directoryCaches[userID]
 		}
 
-		containerID, err := GetContainerIDFromCache(
+		containerID, err := CreateContainerDestinaion(
 			ctx,
-			gs,
+			creds,
 			dc.FullPath(),
 			dest.ContainerName,
 			userCaches)
@@ -345,11 +355,11 @@ func RestoreExchangeDataCollections(
 // restoreCollection handles restoration of an individual collection.
 func restoreCollection(
 	ctx context.Context,
-	gs graph.Service,
+	gs graph.Servicer,
 	dc data.Collection,
 	folderID string,
 	policy control.CollisionPolicy,
-	deets *details.Details,
+	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:exchange:restoreCollection", D.Label("path", dc.FullPath()))
@@ -364,7 +374,11 @@ func restoreCollection(
 		user      = directory.ResourceOwner()
 	)
 
-	colProgress, closer := observe.CollectionProgress(user, category.String(), directory.Folder())
+	colProgress, closer := observe.CollectionProgress(
+		ctx,
+		category.String(),
+		observe.PII(user),
+		observe.PII(directory.Folder()))
 	defer closer()
 	defer close(colProgress)
 
@@ -415,6 +429,7 @@ func restoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				true,
 				details.ItemInfo{
 					Exchange: info,
 				})
@@ -424,12 +439,14 @@ func restoreCollection(
 	}
 }
 
-// generateRestoreContainerFunc utility function that holds logic for creating
-// Root Directory or necessary functions based on path.CategoryType
-// Assumption: collisionPolicy == COPY
-func GetContainerIDFromCache(
+// CreateContainerDestinaion builds the destination into the container
+// at the provided path.  As a precondition, the destination cannot
+// already exist.  If it does then an error is returned.  The provided
+// containerResolver is updated with the new destination.
+// @ returns the container ID of the new destination container.
+func CreateContainerDestinaion(
 	ctx context.Context,
-	gs graph.Service,
+	creds account.M365Config,
 	directory path.Path,
 	destination string,
 	caches map[path.CategoryType]graph.ContainerResolver,
@@ -442,12 +459,20 @@ func GetContainerIDFromCache(
 		newPathFolders = append([]string{destination}, directory.Folders()...)
 	)
 
+	// TODO(rkeepers): pass the api client into this func, rather than generating one.
+	ac, err := api.NewClient(creds)
+	if err != nil {
+		return "", err
+	}
+
 	switch category {
 	case path.EmailCategory:
 		if directoryCache == nil {
+			acm := ac.Mail()
 			mfc := &mailFolderCache{
 				userID: user,
-				gs:     gs,
+				enumer: acm,
+				getter: acm,
 			}
 
 			caches[category] = mfc
@@ -457,16 +482,19 @@ func GetContainerIDFromCache(
 
 		return establishMailRestoreLocation(
 			ctx,
+			ac,
 			newPathFolders,
 			directoryCache,
 			user,
-			gs,
 			newCache)
+
 	case path.ContactsCategory:
 		if directoryCache == nil {
+			acc := ac.Contacts()
 			cfc := &contactFolderCache{
 				userID: user,
-				gs:     gs,
+				enumer: acc,
+				getter: acc,
 			}
 			caches[category] = cfc
 			newCache = true
@@ -475,16 +503,19 @@ func GetContainerIDFromCache(
 
 		return establishContactsRestoreLocation(
 			ctx,
+			ac,
 			newPathFolders,
 			directoryCache,
 			user,
-			gs,
 			newCache)
+
 	case path.EventsCategory:
 		if directoryCache == nil {
+			ace := ac.Events()
 			ecc := &eventCalendarCache{
 				userID: user,
-				gs:     gs,
+				getter: ace,
+				enumer: ace,
 			}
 			caches[category] = ecc
 			newCache = true
@@ -493,10 +524,10 @@ func GetContainerIDFromCache(
 
 		return establishEventsRestoreLocation(
 			ctx,
+			ac,
 			newPathFolders,
 			directoryCache,
 			user,
-			gs,
 			newCache,
 		)
 	default:
@@ -511,10 +542,10 @@ func GetContainerIDFromCache(
 // @param isNewCache identifies if the cache is created and not populated
 func establishMailRestoreLocation(
 	ctx context.Context,
+	ac api.Client,
 	folders []string,
 	mfc graph.ContainerResolver,
 	user string,
-	service graph.Service,
 	isNewCache bool,
 ) (string, error) {
 	// Process starts with the root folder in order to recreate
@@ -524,15 +555,14 @@ func establishMailRestoreLocation(
 
 	for _, folder := range folders {
 		pb = *pb.Append(folder)
-		cached, ok := mfc.PathInCache(pb.String())
 
+		cached, ok := mfc.PathInCache(pb.String())
 		if ok {
 			folderID = cached
 			continue
 		}
 
-		temp, err := CreateMailFolderWithParent(ctx,
-			service, user, folder, folderID)
+		temp, err := ac.Mail().CreateMailFolderWithParent(ctx, user, folder, folderID)
 		if err != nil {
 			// Should only error if cache malfunctions or incorrect parameters
 			return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -544,7 +574,7 @@ func establishMailRestoreLocation(
 		// newCache to false in this we'll only try to populate it once per function
 		// call even if we make a new cache.
 		if isNewCache {
-			if err := mfc.Populate(ctx, folderID, folder); err != nil {
+			if err := mfc.Populate(ctx, rootFolderAlias); err != nil {
 				return "", errors.Wrap(err, "populating folder cache")
 			}
 
@@ -568,10 +598,10 @@ func establishMailRestoreLocation(
 // @param isNewCache bool representation of whether Populate function needs to be run
 func establishContactsRestoreLocation(
 	ctx context.Context,
+	ac api.Client,
 	folders []string,
 	cfc graph.ContainerResolver,
 	user string,
-	gs graph.Service,
 	isNewCache bool,
 ) (string, error) {
 	cached, ok := cfc.PathInCache(folders[0])
@@ -579,7 +609,7 @@ func establishContactsRestoreLocation(
 		return cached, nil
 	}
 
-	temp, err := CreateContactFolder(ctx, gs, user, folders[0])
+	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -601,10 +631,10 @@ func establishContactsRestoreLocation(
 
 func establishEventsRestoreLocation(
 	ctx context.Context,
+	ac api.Client,
 	folders []string,
 	ecc graph.ContainerResolver, // eventCalendarCache
 	user string,
-	gs graph.Service,
 	isNewCache bool,
 ) (string, error) {
 	cached, ok := ecc.PathInCache(folders[0])
@@ -612,7 +642,7 @@ func establishEventsRestoreLocation(
 		return cached, nil
 	}
 
-	temp, err := CreateCalendar(ctx, gs, user, folders[0])
+	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 	}
@@ -624,8 +654,8 @@ func establishEventsRestoreLocation(
 			return "", errors.Wrap(err, "populating event cache")
 		}
 
-		transform := CreateCalendarDisplayable(temp)
-		if err = ecc.AddToCache(ctx, transform); err != nil {
+		displayable := api.CalendarDisplayable{Calendarable: temp}
+		if err = ecc.AddToCache(ctx, displayable); err != nil {
 			return "", errors.Wrap(err, "adding new calendar to cache")
 		}
 	}

@@ -9,12 +9,22 @@ import (
 const (
 	LibraryItemFN = "library-item"
 	LibraryFN     = "library"
+	ListItemFN    = "list-item"
+	ListFN        = "list"
+	PageFN        = "page"
+	PageItemFN    = "page-item"
+	WebURLFN      = "web-url"
 )
 
 type SharePointOpts struct {
-	Sites        []string
 	LibraryItems []string
 	LibraryPaths []string
+	ListItems    []string
+	ListPaths    []string
+	PageFolders  []string
+	Pages        []string
+	Sites        []string
+	WebURLs      []string
 
 	Populated PopulatedFlags
 }
@@ -48,44 +58,90 @@ func AddSharePointFilter(
 
 // IncludeSharePointRestoreDataSelectors builds the common data-selector
 // inclusions for SharePoint commands.
-func IncludeSharePointRestoreDataSelectors(
-	sel *selectors.SharePointRestore,
-	opts SharePointOpts,
-) {
-	lp, ln := len(opts.LibraryPaths), len(opts.LibraryItems)
+func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.SharePointRestore {
+	sites := opts.Sites
 
-	// only use the inclusion if either a path or item name
-	// is specified
-	if lp+ln == 0 {
-		return
+	lp, li := len(opts.LibraryPaths), len(opts.LibraryItems)
+	ls, lwu := len(opts.Sites), len(opts.WebURLs)
+	slp, sli := len(opts.ListPaths), len(opts.ListItems)
+	pf, pi := len(opts.PageFolders), len(opts.Pages)
+
+	if ls == 0 {
+		sites = selectors.Any()
 	}
 
-	if len(opts.Sites) == 0 {
-		opts.Sites = selectors.Any()
+	sel := selectors.NewSharePointRestore(sites)
+
+	if lp+li+lwu+slp+sli+pf+pi == 0 {
+		sel.Include(sel.AllData())
+		return sel
 	}
 
-	// either scope the request to a set of sites
-	if lp+ln == 0 {
-		sel.Include(sel.Sites(opts.Sites))
+	if lp+li > 0 {
+		if li == 0 {
+			opts.LibraryItems = selectors.Any()
+		}
 
-		return
+		opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.LibraryItems(containsFolders, opts.LibraryItems))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.LibraryItems(prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+		}
 	}
 
-	opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
+	if slp+sli > 0 {
+		if sli == 0 {
+			opts.ListItems = selectors.Any()
+		}
 
-	if ln == 0 {
-		opts.LibraryItems = selectors.Any()
+		opts.ListPaths = trimFolderSlash(opts.ListPaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListPaths)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.ListItems(containsFolders, opts.ListItems))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.ListItems(prefixFolders, opts.ListItems, selectors.PrefixMatch()))
+		}
 	}
 
-	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
+	if pf+pi > 0 {
+		if pi == 0 {
+			opts.Pages = selectors.Any()
+		}
 
-	if len(containsFolders) > 0 {
-		sel.Include(sel.LibraryItems(opts.Sites, containsFolders, opts.LibraryItems))
+		opts.PageFolders = trimFolderSlash(opts.PageFolders)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolders)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.PageItems(containsFolders, opts.Pages))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.PageItems(prefixFolders, opts.Pages, selectors.PrefixMatch()))
+		}
 	}
 
-	if len(prefixFolders) > 0 {
-		sel.Include(sel.LibraryItems(opts.Sites, prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+	if lwu > 0 {
+		opts.WebURLs = trimFolderSlash(opts.WebURLs)
+		containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURLs)
+
+		if len(containsURLs) > 0 {
+			sel.Include(sel.WebURL(containsURLs))
+		}
+
+		if len(suffixURLs) > 0 {
+			sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
+		}
 	}
+
+	return sel
 }
 
 // FilterSharePointRestoreInfoSelectors builds the common info-selector filters.

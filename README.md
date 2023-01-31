@@ -1,6 +1,7 @@
-<img src="https://github.com/alcionai/corso/blob/main/website/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
-
-# Corso
+<p align="center">
+    <img src="https://github.com/alcionai/corso/blob/main/website/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
+</p>
+<h1 align="center">Corso</h1>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/alcionai/corso/src)](https://goreportcard.com/report/github.com/alcionai/corso/src)
 [![Discord](https://img.shields.io/badge/discuss-discord-blue)](https://discord.gg/63DTTSnuhT)
@@ -19,7 +20,7 @@ services, possibly beyond M365, will expand based on the interest and needs of t
 
 # Getting Started
 
-See the [Corso Documentation](https://corsobackup.io/docs/intro) for more information.
+See the [Corso Quickstart](https://corsobackup.io/docs/quickstart/) on our docs page.
 
 # Building Corso
 

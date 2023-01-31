@@ -5,18 +5,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery"
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -24,44 +26,91 @@ import (
 // Data Collections
 // ---------------------------------------------------------------------------
 
-// DataCollections utility function to launch backup operations for exchange and onedrive
-func (gc *GraphConnector) DataCollections(ctx context.Context, sels selectors.Selector) ([]data.Collection, error) {
+// DataCollections utility function to launch backup operations for exchange and
+// onedrive. metadataCols contains any collections with metadata files that may
+// be useful for the current backup. Metadata can include things like delta
+// tokens or the previous backup's folder hierarchy. The absence of metadataCols
+// results in all data being pulled.
+func (gc *GraphConnector) DataCollections(
+	ctx context.Context,
+	sels selectors.Selector,
+	metadata []data.Collection,
+	ctrlOpts control.Options,
+) ([]data.Collection, map[string]struct{}, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIds())
+	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	serviceEnabled, err := checkServiceEnabled(ctx, gc.Owners.Users(), path.ServiceType(sels.Service), sels.DiscreteOwner)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !serviceEnabled {
+		return []data.Collection{}, nil, nil
 	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange:
-		return gc.ExchangeDataCollection(ctx, sels)
-	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels)
-	case selectors.ServiceSharePoint:
-		colls, err := sharepoint.DataCollections(ctx, sels, gc.GetSiteIds(), gc.credentials.AzureTenantID, gc)
+		colls, excludes, err := exchange.DataCollections(
+			ctx,
+			sels,
+			metadata,
+			gc.credentials,
+			// gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		for _, c := range colls {
+			// kopia doesn't stream Items() from deleted collections,
+			// and so they never end up calling the UpdateStatus closer.
+			// This is a brittle workaround, since changes in consumer
+			// behavior (such as calling Items()) could inadvertently
+			// break the process state, putting us into deadlock or
+			// panics.
+			if c.State() != data.DeletedState {
+				gc.incrementAwaitingMessages()
+			}
+		}
+
+		return colls, excludes, nil
+
+	case selectors.ServiceOneDrive:
+		return gc.OneDriveDataCollections(ctx, sels, ctrlOpts)
+
+	case selectors.ServiceSharePoint:
+		colls, excludes, err := sharepoint.DataCollections(
+			ctx,
+			gc.itemClient,
+			sels,
+			gc.credentials.AzureTenantID,
+			gc.Service,
+			gc,
+			ctrlOpts)
+		if err != nil {
+			return nil, nil, err
 		}
 
 		for range colls {
 			gc.incrementAwaitingMessages()
 		}
 
-		return colls, nil
+		return colls, excludes, nil
+
 	default:
-		return nil, errors.Errorf("service %s not supported", sels.Service.String())
+		return nil, nil, errors.Errorf("service %s not supported", sels.Service.String())
 	}
 }
 
 func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
 	var ids []string
-
-	resourceOwners, err := sels.ResourceOwners()
-	if err != nil {
-		return errors.Wrap(err, "invalid backup inputs")
-	}
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
@@ -71,127 +120,45 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 		ids = siteIDs
 	}
 
-	// verify resourceOwners
-	normROs := map[string]struct{}{}
+	resourceOwner := strings.ToLower(sels.DiscreteOwner)
+
+	var found bool
 
 	for _, id := range ids {
-		normROs[strings.ToLower(id)] = struct{}{}
-	}
-
-	for _, ro := range resourceOwners.Includes {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("included resource owner %s not found within tenant", ro)
+		if strings.ToLower(id) == resourceOwner {
+			found = true
+			break
 		}
 	}
 
-	for _, ro := range resourceOwners.Excludes {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("excluded resource owner %s not found within tenant", ro)
-		}
-	}
-
-	for _, ro := range resourceOwners.Filters {
-		if _, ok := normROs[strings.ToLower(ro)]; !ok {
-			return fmt.Errorf("filtered resource owner %s not found within tenant", ro)
-		}
+	if !found {
+		return fmt.Errorf("resource owner [%s] not found within tenant", sels.DiscreteOwner)
 	}
 
 	return nil
 }
 
-// ---------------------------------------------------------------------------
-// Exchange
-// ---------------------------------------------------------------------------
-
-// createExchangeCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.ExchangeScope
-// determines the type of collections that are retrieved.
-func (gc *GraphConnector) createExchangeCollections(
+func checkServiceEnabled(
 	ctx context.Context,
-	scope selectors.ExchangeScope,
-) ([]data.Collection, error) {
-	var (
-		errs           *multierror.Error
-		users          = scope.Get(selectors.ExchangeUser)
-		allCollections = make([]data.Collection, 0)
-	)
-
-	// Create collection of ExchangeDataCollection
-	for _, user := range users {
-		collections := make(map[string]data.Collection)
-
-		qp := graph.QueryParams{
-			Category:      scope.Category().PathType(),
-			ResourceOwner: user,
-			FailFast:      gc.failFast,
-			Credentials:   gc.credentials,
-		}
-
-		foldersComplete, closer := observe.MessageWithCompletion(fmt.Sprintf("∙ %s - %s:", qp.Category, user))
-		defer closer()
-		defer close(foldersComplete)
-
-		resolver, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting folder cache")
-		}
-
-		err = exchange.FilterContainersAndFillCollections(
-			ctx,
-			qp,
-			collections,
-			gc.UpdateStatus,
-			resolver,
-			scope)
-
-		if err != nil {
-			return nil, errors.Wrap(err, "filling collections")
-		}
-
-		foldersComplete <- struct{}{}
-
-		for _, collection := range collections {
-			gc.incrementAwaitingMessages()
-
-			allCollections = append(allCollections, collection)
-		}
+	au api.Users,
+	service path.ServiceType,
+	resource string,
+) (bool, error) {
+	if service == path.SharePointService {
+		// No "enabled" check required for sharepoint
+		return true, nil
 	}
 
-	return allCollections, errs.ErrorOrNil()
-}
-
-// ExchangeDataCollections returns a DataCollection which the caller can
-// use to read mailbox data out for the specified user
-// Assumption: User exists
-//
-//	Add iota to this call -> mail, contacts, calendar,  etc.
-func (gc *GraphConnector) ExchangeDataCollection(
-	ctx context.Context,
-	selector selectors.Selector,
-) ([]data.Collection, error) {
-	eb, err := selector.ToExchangeBackup()
+	_, info, err := discovery.User(ctx, au, resource)
 	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
+		return false, err
 	}
 
-	var (
-		scopes      = eb.DiscreteScopes(gc.GetUsers())
-		collections = []data.Collection{}
-		errs        error
-	)
-
-	for _, scope := range scopes {
-		// Creates a map of collections based on scope
-		dcs, err := gc.createExchangeCollections(ctx, scope)
-		if err != nil {
-			user := scope.Get(selectors.ExchangeUser)
-			return nil, support.WrapAndAppend(user[0], err, errs)
-		}
-
-		collections = append(collections, dcs...)
+	if _, ok := info.DiscoveredServices[service]; !ok {
+		return false, nil
 	}
 
-	return collections, errs
+	return true, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -215,42 +182,46 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func (gc *GraphConnector) OneDriveDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-) ([]data.Collection, error) {
+	ctrlOpts control.Options,
+) ([]data.Collection, map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
 	}
 
 	var (
-		scopes      = odb.DiscreteScopes(gc.GetUsers())
+		user        = selector.DiscreteOwner
 		collections = []data.Collection{}
+		allExcludes = map[string]struct{}{}
 		errs        error
 	)
 
 	// for each scope that includes oneDrive items, get all
-	for _, scope := range scopes {
-		for _, user := range scope.Get(selectors.OneDriveUser) {
-			logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
+	for _, scope := range odb.Scopes() {
+		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
 
-			odcs, err := onedrive.NewCollections(
-				gc.credentials.AzureTenantID,
-				user,
-				onedrive.OneDriveSource,
-				odFolderMatcher{scope},
-				&gc.graphService,
-				gc.UpdateStatus,
-			).Get(ctx)
-			if err != nil {
-				return nil, support.WrapAndAppend(user, err, errs)
-			}
-
-			collections = append(collections, odcs...)
+		odcs, excludes, err := onedrive.NewCollections(
+			gc.itemClient,
+			gc.credentials.AzureTenantID,
+			user,
+			onedrive.OneDriveSource,
+			odFolderMatcher{scope},
+			gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts,
+		).Get(ctx)
+		if err != nil {
+			return nil, nil, support.WrapAndAppend(user, err, errs)
 		}
+
+		collections = append(collections, odcs...)
+
+		maps.Copy(allExcludes, excludes)
 	}
 
 	for range collections {
 		gc.incrementAwaitingMessages()
 	}
 
-	return collections, errs
+	return collections, allExcludes, errs
 }

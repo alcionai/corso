@@ -126,3 +126,32 @@ directory within the container.
 
 </TabItem>
 </Tabs>
+
+## Log Files
+
+The default location of Corso's log file is shown below but the location can be overridden by using the `--log-file` flag.
+You can also use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
+
+<Tabs groupId="os">
+<TabItem value="win" label="Windows">
+
+  ```powershell
+  %LocalAppData%\corso\logs\<timestamp>.log
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux">
+
+  ```bash
+  $HOME/.cache/corso/logs/<timestamp>.log
+  ```
+
+</TabItem>
+<TabItem value="macos" label="macOS">
+
+  ```bash
+  $HOME/Library/Logs/corso/logs/<timestamp>.log
+  ```
+
+</TabItem>
+</Tabs>

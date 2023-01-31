@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	ups "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars/item/events/item/attachments/createuploadsession"
-	"github.com/microsoftgraph/msgraph-sdk-go/users/item/messages/item/attachments/createuploadsession"
+	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -31,7 +30,7 @@ type mailAttachmentUploader struct {
 	userID   string
 	folderID string
 	itemID   string
-	service  graph.Service
+	service  graph.Servicer
 }
 
 func (mau *mailAttachmentUploader) getItemID() string {
@@ -57,11 +56,18 @@ func (mau *mailAttachmentUploader) uploadSession(
 	attachmentName string,
 	attachmentSize int64,
 ) (models.UploadSessionable, error) {
-	session := createuploadsession.NewCreateUploadSessionPostRequestBody()
+	session := msusers.NewItemMailFoldersItemMessagesItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
-	r, err := mau.service.Client().UsersById(mau.userID).MailFoldersById(mau.folderID).
-		MessagesById(mau.itemID).Attachments().CreateUploadSession().Post(ctx, session, nil)
+	r, err := mau.
+		service.
+		Client().
+		UsersById(mau.userID).
+		MailFoldersById(mau.folderID).
+		MessagesById(mau.itemID).
+		Attachments().
+		CreateUploadSession().
+		Post(ctx, session, nil)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err,
@@ -79,7 +85,7 @@ type eventAttachmentUploader struct {
 	userID     string
 	calendarID string
 	itemID     string
-	service    graph.Service
+	service    graph.Servicer
 }
 
 func (eau *eventAttachmentUploader) getItemID() string {
@@ -105,7 +111,7 @@ func (eau *eventAttachmentUploader) uploadSession(
 	attachmentName string,
 	attachmentSize int64,
 ) (models.UploadSessionable, error) {
-	session := ups.NewCreateUploadSessionPostRequestBody()
+	session := msusers.NewItemCalendarEventsItemAttachmentsCreateUploadSessionPostRequestBody()
 	session.SetAttachmentItem(makeSessionAttachment(attachmentName, attachmentSize))
 
 	r, err := eau.service.Client().

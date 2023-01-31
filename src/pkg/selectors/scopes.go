@@ -3,6 +3,8 @@ package selectors
 import (
 	"context"
 
+	"golang.org/x/exp/maps"
+
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -159,17 +161,16 @@ type (
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
 	cat categorizer,
-	resources, vs []string,
+	vs []string,
 	opts ...option,
 ) T {
 	sc := &scopeConfig{}
 	sc.populate(opts...)
 
 	s := T{
-		scopeKeyCategory:       filters.Identity(cat.String()),
-		scopeKeyDataType:       filters.Identity(cat.leafCat().String()),
-		cat.String():           filterize(*sc, vs...),
-		cat.rootCat().String(): filterize(scopeConfig{}, resources...),
+		scopeKeyCategory: filters.Identity(cat.String()),
+		scopeKeyDataType: filters.Identity(cat.leafCat().String()),
+		cat.String():     filterize(*sc, vs...),
 	}
 
 	return s
@@ -250,11 +251,7 @@ func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
 // discreteCopy makes a shallow clone of the scocpe, and sets the resource
 // owner filter target in the clone to the provided string.
 func discreteCopy[T scopeT](s T, resourceOwner string) T {
-	clone := T{}
-
-	for k, v := range s {
-		clone[k] = v
-	}
+	clone := maps.Clone(s)
 
 	return set(
 		clone,
@@ -297,6 +294,12 @@ func reduce[T scopeT, C categoryT](
 		return nil
 	}
 
+	// if a DiscreteOwner is specified, only match details for that owner.
+	matchesResourceOwner := s.ResourceOwners
+	if len(s.DiscreteOwner) > 0 {
+		matchesResourceOwner = filterize(scopeConfig{}, s.DiscreteOwner)
+	}
+
 	// aggregate each scope type by category for easier isolation in future processing.
 	excls := scopesByCategory[T](s.Excludes, dataCategories, false)
 	filts := scopesByCategory[T](s.Filters, dataCategories, true)
@@ -312,19 +315,24 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
+		// first check, every entry needs to match the selector's resource owners.
+		if !matchesResourceOwner.Compare(repoPath.ResourceOwner()) {
+			continue
+		}
+
 		dc, ok := dataCategories[repoPath.Category()]
 		if !ok {
 			continue
 		}
 
-		passed := passes(
-			dc,
-			dc.pathValues(repoPath),
-			*ent,
-			excls[dc],
-			filts[dc],
-			incls[dc],
-		)
+		e, f, i := excls[dc], filts[dc], incls[dc]
+
+		// at least one filter or inclusion must be presentt
+		if len(f)+len(i) == 0 {
+			continue
+		}
+
+		passed := passes(dc, dc.pathValues(repoPath), *ent, e, f, i)
 		if passed {
 			ents = append(ents, *ent)
 		}
@@ -441,6 +449,11 @@ func matchesPathValues[T scopeT, C categoryT](
 	shortRef string,
 ) bool {
 	for _, c := range cat.pathKeys() {
+		// resourceOwners are now checked at the beginning of the reduction.
+		if c == c.rootCat() {
+			continue
+		}
+
 		// the pathValues must have an entry for the given categorizer
 		pathVal, ok := pathValues[c]
 		if !ok {

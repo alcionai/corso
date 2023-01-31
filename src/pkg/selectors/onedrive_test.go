@@ -24,14 +24,14 @@ func TestOneDriveSelectorSuite(t *testing.T) {
 
 func (suite *OneDriveSelectorSuite) TestNewOneDriveBackup() {
 	t := suite.T()
-	ob := NewOneDriveBackup()
+	ob := NewOneDriveBackup(Any())
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
 
 func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	t := suite.T()
-	ob := NewOneDriveBackup()
+	ob := NewOneDriveBackup(Any())
 	s := ob.Selector
 	ob, err := s.ToOneDriveBackup()
 	require.NoError(t, err)
@@ -39,67 +39,21 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	assert.NotZero(t, ob.Scopes())
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveBackup_DiscreteScopes() {
-	usrs := []string{"u1", "u2"}
-	table := []struct {
-		name     string
-		include  []string
-		discrete []string
-		expect   []string
-	}{
-		{
-			name:     "any user",
-			include:  Any(),
-			discrete: usrs,
-			expect:   usrs,
-		},
-		{
-			name:     "discrete user",
-			include:  []string{"u3"},
-			discrete: usrs,
-			expect:   []string{"u3"},
-		},
-		{
-			name:     "nil discrete slice",
-			include:  Any(),
-			discrete: nil,
-			expect:   Any(),
-		},
-	}
-
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			eb := NewOneDriveBackup()
-			eb.Include(eb.Users(test.include))
-
-			scopes := eb.DiscreteScopes(test.discrete)
-			for _, sc := range scopes {
-				users := sc.Get(OneDriveUser)
-				assert.Equal(t, test.expect, users)
-			}
-		})
-	}
-}
-
-func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 	t := suite.T()
-	sel := NewOneDriveBackup()
 
-	const (
-		u1 = "u1"
-		u2 = "u2"
+	var (
+		users     = []string{"u1", "u2"}
+		sel       = NewOneDriveBackup(users)
+		allScopes = sel.AllData()
 	)
 
-	userScopes := sel.Users([]string{u1, u2})
-	for _, scope := range userScopes {
-		// Scope value is either u1 or u2
-		assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
-	}
+	assert.ElementsMatch(t, users, sel.DiscreteResourceOwners())
 
 	// Initialize the selector Include, Exclude, Filter
-	sel.Exclude(userScopes)
-	sel.Include(userScopes)
-	sel.Filter(userScopes)
+	sel.Exclude(allScopes)
+	sel.Include(allScopes)
+	sel.Filter(allScopes)
 
 	table := []struct {
 		name          string
@@ -113,23 +67,34 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Users() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			require.Len(t, test.scopesToCheck, 1)
 			for _, scope := range test.scopesToCheck {
-				// Scope value is u1,u2
-				assert.Contains(t, join(u1, u2), scope[OneDriveUser.String()].Target)
+				scopeMustHave(
+					t,
+					OneDriveScope(scope),
+					map[categorizer]string{
+						OneDriveItem:   AnyTgt,
+						OneDriveFolder: AnyTgt,
+					},
+				)
 			}
 		})
 	}
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_AllData() {
 	t := suite.T()
-	sel := NewOneDriveBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
-	sel.Include(sel.Users([]string{u1, u2}))
+	var (
+		users     = []string{u1, u2}
+		sel       = NewOneDriveBackup(users)
+		allScopes = sel.AllData()
+	)
+
+	sel.Include(allScopes)
 	scopes := sel.Includes
 	require.Len(t, scopes, 1)
 
@@ -137,21 +102,29 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_Users() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{OneDriveUser: join(u1, u2)},
+			map[categorizer]string{
+				OneDriveItem:   AnyTgt,
+				OneDriveFolder: AnyTgt,
+			},
 		)
 	}
 }
 
-func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
+func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_AllData() {
 	t := suite.T()
-	sel := NewOneDriveBackup()
 
 	const (
 		u1 = "u1"
 		u2 = "u2"
 	)
 
-	sel.Exclude(sel.Users([]string{u1, u2}))
+	var (
+		users     = []string{u1, u2}
+		sel       = NewOneDriveBackup(users)
+		allScopes = sel.AllData()
+	)
+
+	sel.Exclude(allScopes)
 	scopes := sel.Excludes
 	require.Len(t, scopes, 1)
 
@@ -159,21 +132,24 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_Users() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{OneDriveUser: join(u1, u2)},
+			map[categorizer]string{
+				OneDriveItem:   AnyTgt,
+				OneDriveFolder: AnyTgt,
+			},
 		)
 	}
 }
 
 func (suite *OneDriveSelectorSuite) TestNewOneDriveRestore() {
 	t := suite.T()
-	or := NewOneDriveRestore()
+	or := NewOneDriveRestore(Any())
 	assert.Equal(t, or.Service, ServiceOneDrive)
 	assert.NotZero(t, or.Scopes())
 }
 
 func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 	t := suite.T()
-	eb := NewOneDriveRestore()
+	eb := NewOneDriveRestore(Any())
 	s := eb.Selector
 	or, err := s.ToOneDriveRestore()
 	require.NoError(t, err)
@@ -233,8 +209,8 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			"all",
 			deets,
 			func() *OneDriveRestore {
-				odr := NewOneDriveRestore()
-				odr.Include(odr.Users(Any()))
+				odr := NewOneDriveRestore(Any())
+				odr.Include(odr.AllData())
 				return odr
 			},
 			arr(file, file2, file3),
@@ -243,8 +219,8 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			"only match file",
 			deets,
 			func() *OneDriveRestore {
-				odr := NewOneDriveRestore()
-				odr.Include(odr.Items(Any(), Any(), []string{"file2"}))
+				odr := NewOneDriveRestore(Any())
+				odr.Include(odr.Items(Any(), []string{"file2"}))
 				return odr
 			},
 			arr(file2),
@@ -253,8 +229,8 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			"only match folder",
 			deets,
 			func() *OneDriveRestore {
-				odr := NewOneDriveRestore()
-				odr.Include(odr.Folders([]string{"uid"}, []string{"folderA/folderB", "folderA/folderC"}))
+				odr := NewOneDriveRestore([]string{"uid"})
+				odr.Include(odr.Folders([]string{"folderA/folderB", "folderA/folderC"}))
 				return odr
 			},
 			arr(file, file2),
@@ -281,7 +257,6 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	require.NoError(t, err)
 
 	expected := map[categorizer]string{
-		OneDriveUser:   "user",
 		OneDriveFolder: "dir1/dir2",
 		OneDriveItem:   "file",
 	}
@@ -290,7 +265,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
-	ods := NewOneDriveRestore()
+	ods := NewOneDriveRestore(Any())
 
 	var (
 		epoch  = time.Time{}

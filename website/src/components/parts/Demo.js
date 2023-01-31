@@ -9,7 +9,7 @@ export default function Demo() {
           <div className="wow w-[95%] sm:w-[80%] animate__animated relative  animate__fadeIn">
             <div className="flex flex-row items-center bg-gray-200 rounded-t-lg h-6">
               <div className="align-middle flex flex-col items-center justify-center">
-                <img className="h-4 px-2" src="assets/images/powershell.svg" />
+                <img className="h-4 px-2" src="assets/images/powershell.svg" alt="Powershell logo"/>
               </div>
             </div>
             <div
@@ -18,6 +18,7 @@ export default function Demo() {
                 borderLeft: "2px solid #e5e7eb",
                 borderRight: "2px solid #e5e7eb",
                 borderBottom: "2px solid #e5e7eb",
+                backgroundColor: "#121831",
               }}
             >
               <video className="w-full" poster="assets/images/corso_demo_thumbnail.png" muted loop autoPlay playsInline>

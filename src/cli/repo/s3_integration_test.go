@@ -20,22 +20,17 @@ type S3IntegrationSuite struct {
 }
 
 func TestS3IntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIRepoTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIRepoTests)
 
 	suite.Run(t, new(S3IntegrationSuite))
 }
 
 func (suite *S3IntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *S3IntegrationSuite) TestInitS3Cmd() {
@@ -62,8 +57,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 			cfg, err := st.S3Config()
 			require.NoError(t, err)
 
-			vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-			require.NoError(t, err)
+			vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 			ctx = config.SetViper(ctx, vpr)
 
@@ -95,8 +89,7 @@ func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -125,8 +118,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -169,8 +161,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 				tester.TestCfgStorageProvider: "S3",
 				tester.TestCfgPrefix:          cfg.Prefix,
 			}
-			vpr, configFP, err := tester.MakeTempTestConfigClone(t, force)
-			require.NoError(t, err)
+			vpr, configFP := tester.MakeTempTestConfigClone(t, force)
 
 			ctx = config.SetViper(ctx, vpr)
 
@@ -203,8 +194,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 
@@ -229,8 +219,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 	cfg, err := st.S3Config()
 	require.NoError(t, err)
 
-	vpr, configFP, err := tester.MakeTempTestConfigClone(t, nil)
-	require.NoError(t, err)
+	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
 	ctx = config.SetViper(ctx, vpr)
 

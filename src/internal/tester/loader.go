@@ -3,16 +3,17 @@ package tester
 import (
 	"bufio"
 	"os"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func LoadAFile(aFile string) ([]byte, error) {
+func LoadAFile(t *testing.T, fileName string) []byte {
 	// Preserves '\n' of original file. Uses incremental version when file too large
-	bytes, err := os.ReadFile(aFile)
+	bytes, err := os.ReadFile(fileName)
 	if err != nil {
-		f, err := os.Open(aFile)
-		if err != nil {
-			return nil, err
-		}
+		f, err := os.Open(fileName)
+		require.NoError(t, err, "opening file: "+fileName)
 
 		defer f.Close()
 
@@ -24,13 +25,10 @@ func LoadAFile(aFile string) ([]byte, error) {
 			buffer = append(buffer, temp...)
 		}
 
-		aErr := reader.Err()
-		if aErr != nil {
-			return nil, aErr
-		}
+		require.NoError(t, reader.Err(), "reading file: "+fileName)
 
-		return buffer, nil
+		return buffer
 	}
 
-	return bytes, nil
+	return bytes
 }

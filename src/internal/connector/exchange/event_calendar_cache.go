@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 
-	mscal "github.com/microsoftgraph/msgraph-sdk-go/users/item/calendars"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -15,8 +14,42 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	gs     graph.Service
+	enumer containersEnumerator
+	getter containerGetter
 	userID string
+}
+
+// init ensures that the structure's fields are initialized.
+// Fields Initialized when cache == nil:
+// [mc.cache]
+func (ecc *eventCalendarCache) init(
+	ctx context.Context,
+) error {
+	if ecc.containerResolver == nil {
+		ecc.containerResolver = newContainerResolver()
+	}
+
+	return ecc.populateEventRoot(ctx)
+}
+
+// populateEventRoot manually fetches directories that are not returned during Graph for msgraph-sdk-go v. 40+
+// DefaultCalendar is the traditional "Calendar".
+// Action ensures that cache will stop at appropriate level.
+// @error iff the struct is not properly instantiated
+func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
+	container := DefaultCalendar
+
+	f, err := ecc.getter.GetContainerByID(ctx, ecc.userID, container)
+	if err != nil {
+		return errors.Wrap(err, "fetching calendar "+support.ConnectorStackErrorTrace(err))
+	}
+
+	temp := graph.NewCacheFolder(f, path.Builder{}.Append(container))
+	if err := ecc.addFolder(temp); err != nil {
+		return errors.Wrap(err, "initializing calendar resolver")
+	}
+
+	return nil
 }
 
 // Populate utility function for populating eventCalendarCache.
@@ -27,88 +60,40 @@ func (ecc *eventCalendarCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
-	if ecc.containerResolver == nil {
-		ecc.containerResolver = newContainerResolver()
+	if err := ecc.init(ctx); err != nil {
+		return errors.Wrap(err, "initializing")
 	}
 
-	options, err := optionsForCalendars([]string{"name"})
+	err := ecc.enumer.EnumerateContainers(ctx, ecc.userID, "", ecc.addFolder)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "enumerating containers")
 	}
 
-	var (
-		errs        error
-		directories = make([]graph.Container, 0)
-	)
-
-	builder := ecc.gs.Client().UsersById(ecc.userID).Calendars()
-
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
-		}
-
-		for _, cal := range resp.GetValue() {
-			temp := CreateCalendarDisplayable(cal)
-			if err := checkIDAndName(temp); err != nil {
-				errs = support.WrapAndAppend(
-					"adding folder to cache",
-					err,
-					errs,
-				)
-
-				continue
-			}
-
-			directories = append(directories, temp)
-		}
-
-		if resp.GetOdataNextLink() == nil {
-			break
-		}
-
-		builder = mscal.NewCalendarsRequestBuilder(*resp.GetOdataNextLink(), ecc.gs.Adapter())
+	if err := ecc.populatePaths(ctx); err != nil {
+		return errors.Wrap(err, "establishing calendar paths")
 	}
 
-	for _, container := range directories {
-		temp := cacheFolder{
-			Container: container,
-			p:         path.Builder{}.Append(*container.GetDisplayName()),
-		}
-
-		if err := ecc.addFolder(temp); err != nil {
-			errs = support.WrapAndAppend(
-				"failure adding "+*container.GetDisplayName(),
-				err,
-				errs)
-		}
-	}
-
-	return errs
+	return nil
 }
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkIDAndName(f); err != nil {
-		return errors.Wrap(err, "adding cache folder")
+		return errors.Wrap(err, "validating container")
 	}
 
-	temp := cacheFolder{
-		Container: f,
-		p:         path.Builder{}.Append(*f.GetDisplayName()),
-	}
+	temp := graph.NewCacheFolder(f, path.Builder{}.Append(*f.GetDisplayName()))
 
 	if err := ecc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding cache folder")
+		return errors.Wrap(err, "adding container")
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
 	_, err := ecc.IDToPath(ctx, *f.GetId())
 	if err != nil {
-		return errors.Wrap(err, "adding cache entry")
+		return errors.Wrap(err, "setting path to container id")
 	}
 
 	return nil

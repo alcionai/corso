@@ -16,8 +16,7 @@ export default function Cookies() {
         This website uses cookies to provide you with a great user experience.
         By using it, you accept our{" "}
         <a
-          href="cookies.html"
-          target="_blank"
+          href="/cookies"
           className="text-emerald-600 dark:text-emerald-500 font-semibold"
         >
           use of cookies

@@ -47,7 +47,7 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           remarkPlugins: [require('mdx-mermaid')],
           editUrl:
-            'https://github.com/alcionai/corso/tree/main/docs',
+            'https://github.com/alcionai/corso/tree/main/website',
         },
         blog: {
           showReadingTime: true,
@@ -59,7 +59,7 @@ const config = {
           filename: 'sitemap.xml',
         },
         gtag: {
-          trackingID: 'G-YXBFPQZ05N',
+          trackingID: 'GTM-KM3XWPV',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.scss'),
@@ -145,8 +145,8 @@ const config = {
       },
       colorMode: {
         defaultMode: 'dark',
-        disableSwitch: true,
-        respectPrefersColorScheme: false,
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
       },
 
       zoom: {
@@ -163,13 +163,18 @@ const config = {
         },
       },
 
+      algolia: {
+        appId: 'EPJZU1WKE7',
+        apiKey: 'd432a94741013719fdd0d78275c7aa9c',
+        indexName: 'corsobackup',
+        contextualSearch: true,
+      },
+
       image: 'img/cloudbackup.png',
 
       metadata : [
         {name: 'twitter:card', content: 'summary_large_image'},
         {name: 'twitter:site', content: '@corsobackup'},
-        {name: 'twitter:title', content: 'Corso: Free, Secure, and Open-Source Backup for Microsoft 365'},
-        {name: 'twitter:description', content: 'Corso is an open-source tool that protects Microsoft 365 data by securely and efficiently backing up all business-critical data to object storage.'},
       ],
 
       prism: {

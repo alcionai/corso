@@ -18,6 +18,15 @@ If you don't have Go available, you can find installation instructions [here](ht
 
 This will generate a binary named `corso` in the directory where you run the build.
 
+:::note
+Prebuilt binary artifacts of the latest commit are available on GitHub.
+You can access them by navigating to the "Summary" page of
+the [`Build/Release Corso` CI job](https://github.com/alcionai/corso/actions/workflows/ci.yml?query=branch%3Amain)
+that was run for the latest commit on the `main` branch.
+The downloads will be available in the "Artifacts" section towards the
+bottom of the page.
+:::
+
 ### Building via Docker
 
 For convenience, the Corso build tooling is containerized. To take advantage, you need

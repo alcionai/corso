@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -38,6 +39,7 @@ type BackupGetter interface {
 }
 
 type Repository interface {
+	GetID() string
 	Close(context.Context) error
 	NewBackup(
 		ctx context.Context,
@@ -55,7 +57,7 @@ type Repository interface {
 
 // Repository contains storage provider information.
 type repository struct {
-	ID        uuid.UUID
+	ID        string
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
@@ -66,6 +68,10 @@ type repository struct {
 	Bus        events.Eventer
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
+}
+
+func (r repository) GetID() string {
+	return r.ID
 }
 
 // Initialize will:
@@ -110,14 +116,22 @@ func Initialize(
 		return nil, err
 	}
 
+	repoID := newRepoID(s)
+	bus.SetRepoID(repoID)
+
 	r := &repository{
-		ID:         uuid.New(),
+		ID:         repoID,
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
 		Bus:        bus,
+		Opts:       opts,
 		dataLayer:  w,
 		modelStore: ms,
+	}
+
+	if err := newRepoModel(ctx, ms, r.ID); err != nil {
+		return nil, errors.New("setting up repository")
 	}
 
 	r.Bus.Event(ctx, events.RepoInit, nil)
@@ -136,7 +150,11 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	complete, closer := observe.MessageWithCompletion("Connecting to repository:")
+	// Close/Reset the progress bar. This ensures callers don't have to worry about
+	// their output getting clobbered (#1720)
+	defer observe.Complete()
+
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to repository"))
 	defer closer()
 	defer close(complete)
 
@@ -163,14 +181,23 @@ func Connect(
 		return nil, err
 	}
 
+	rm, err := getRepoModel(ctx, ms)
+	if err != nil {
+		return nil, errors.New("retrieving repo info")
+	}
+
+	bus.SetRepoID(string(rm.ID))
+
 	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
 	return &repository{
+		ID:         string(rm.ID),
 		Version:    "v1",
 		Account:    acct,
 		Storage:    s,
 		Bus:        bus,
+		Opts:       opts,
 		dataLayer:  w,
 		modelStore: ms,
 	}, nil
@@ -270,7 +297,21 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 // BackupDetails returns the specified backup details object
 func (r repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetDetailsFromBackupID(ctx, model.StableID(backupID))
+
+	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deets, err := streamstore.New(
+		r.dataLayer,
+		r.Account.ID(),
+		b.Selector.PathService()).ReadBackupDetails(ctx, dID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return deets, b, nil
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
@@ -284,7 +325,55 @@ func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 		return err
 	}
 
+	if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
+		return err
+	}
+
 	sw := store.NewKopiaStore(r.modelStore)
 
 	return sw.DeleteBackup(ctx, id)
+}
+
+// ---------------------------------------------------------------------------
+// Repository ID Model
+// ---------------------------------------------------------------------------
+
+// repositoryModel identifies the current repository
+type repositoryModel struct {
+	model.BaseModel
+}
+
+// should only be called on init.
+func newRepoModel(ctx context.Context, ms *kopia.ModelStore, repoID string) error {
+	rm := repositoryModel{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(repoID),
+		},
+	}
+
+	return ms.Put(ctx, model.RepositorySchema, &rm)
+}
+
+// retrieves the repository info
+func getRepoModel(ctx context.Context, ms *kopia.ModelStore) (*repositoryModel, error) {
+	bms, err := ms.GetIDsForType(ctx, model.RepositorySchema, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	rm := &repositoryModel{}
+	if len(bms) == 0 {
+		return rm, nil
+	}
+
+	rm.BaseModel = *bms[0]
+
+	return rm, nil
+}
+
+// newRepoID generates a new unique repository id hash.
+// Repo IDs should only be generated once per repository,
+// and must be stored after that.
+func newRepoID(s storage.Storage) string {
+	return uuid.NewString()
 }

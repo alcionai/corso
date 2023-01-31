@@ -3,7 +3,6 @@ package selectors
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -71,17 +70,17 @@ type Reducer interface {
 	Reduce(context.Context, *details.Details) *details.Details
 }
 
-// selectorResourceOwners aggregates all discrete resource owner ids described
-// in the selector.  Any and None values are ignored.  ResourceOwner sets are
-// grouped by their scope type (includes, excludes, filters).
-type selectorResourceOwners struct {
-	Includes []string
-	Excludes []string
-	Filters  []string
+// selectorResourceOwners aggregates all discrete path category types described
+// in the selector.  Category sets are grouped by their scope type (includes,
+// excludes, filters).
+type selectorPathCategories struct {
+	Includes []path.CategoryType
+	Excludes []path.CategoryType
+	Filters  []path.CategoryType
 }
 
-type resourceOwnerer interface {
-	ResourceOwners() selectorResourceOwners
+type pathCategorier interface {
+	PathCategories() selectorPathCategories
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +92,24 @@ type resourceOwnerer interface {
 type Selector struct {
 	// The service scope of the data.  Exchange, Teams, SharePoint, etc.
 	Service service `json:"service,omitempty"`
+
+	// A record of the resource owners matched by this selector.
+	ResourceOwners filters.Filter `json:"resourceOwners,omitempty"`
+
+	// The single resource owner being observed by the selector.
+	// Selectors are constructed by passing in a list of ResourceOwners,
+	// and those owners represent the "total" data that should be operated
+	// across all corso operations.  But any single operation (backup,restore,
+	// etc) will only observe a single user at a time, and that user is
+	// represented by this value.
+	//
+	// If the constructor is passed a len=1 list of owners, this value is
+	// automatically matched to that entry.  For lists with more than one
+	// owner, the user is expected to call SplitByResourceOwner(), and
+	// iterate over the results, where each one will populate this field
+	// with a different owner.
+	DiscreteOwner string `json:"discreteOwner,omitempty"`
+
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
 	Excludes []scope `json:"exclusions,omitempty"`
@@ -104,12 +121,70 @@ type Selector struct {
 }
 
 // helper for specific selector instance constructors.
-func newSelector(s service) Selector {
-	return Selector{
-		Service:  s,
-		Excludes: []scope{},
-		Includes: []scope{},
+func newSelector(s service, resourceOwners []string) Selector {
+	var owner string
+	if len(resourceOwners) == 1 && resourceOwners[0] != AnyTgt {
+		owner = resourceOwners[0]
 	}
+
+	return Selector{
+		Service:        s,
+		ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+		DiscreteOwner:  owner,
+		Excludes:       []scope{},
+		Includes:       []scope{},
+	}
+}
+
+// DiscreteResourceOwners returns the list of individual resourceOwners used
+// in the selector.
+// TODO(rkeepers): remove in favor of split and s.DiscreteOwner
+func (s Selector) DiscreteResourceOwners() []string {
+	return split(s.ResourceOwners.Target)
+}
+
+// isAnyResourceOwner returns true if the selector includes all resource owners.
+func isAnyResourceOwner(s Selector) bool {
+	return s.ResourceOwners.Comparator == filters.Passes
+}
+
+// isNoneResourceOwner returns true if the selector includes no resource owners.
+func isNoneResourceOwner(s Selector) bool {
+	return s.ResourceOwners.Comparator == filters.Fails
+}
+
+// SplitByResourceOwner makes one shallow clone for each resourceOwner in the
+// selector, specifying a new DiscreteOwner for each one.
+// If the original selector already specified a discrete slice of resource owners,
+// only those owners are used in the result.
+// If the original selector allowed Any() resource owner, the allOwners parameter
+// is used to populate the slice.  allOwners is assumed to be the complete slice of
+// resourceOwners in the tenant for the given service.
+// If the original selector specified None(), thus failing all resource owners,
+// an empty slice is returned.
+//
+// temporarily, clones all scopes in each selector and replaces the owners with
+// the discrete owner.
+func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string, rootCat C) []Selector {
+	if isNoneResourceOwner(s) {
+		return []Selector{}
+	}
+
+	targets := allOwners
+
+	if !isAnyResourceOwner(s) {
+		targets = split(s.ResourceOwners.Target)
+	}
+
+	ss := make([]Selector, 0, len(targets))
+
+	for _, ro := range targets {
+		c := s
+		c.DiscreteOwner = ro
+		ss = append(ss, c)
+	}
+
+	return ss
 }
 
 func (s Selector) String() string {
@@ -140,7 +215,6 @@ func appendScopes[T scopeT](to []scope, scopes ...[]T) []scope {
 }
 
 // scopes retrieves the list of scopes in the selector.
-// future TODO: if Inclues is nil, return filters.
 func scopes[T scopeT](s Selector) []T {
 	scopes := []T{}
 
@@ -149,42 +223,6 @@ func scopes[T scopeT](s Selector) []T {
 	}
 
 	return scopes
-}
-
-// discreteScopes retrieves the list of scopes in the selector.
-// for any scope in the `Includes` set, if scope.IsAny(rootCat),
-// then that category's value is replaced with the provided set of
-// discrete identifiers.
-// If discreteIDs is an empty slice, returns the normal scopes(s).
-// future TODO: if Includes is nil, return filters.
-func discreteScopes[T scopeT, C categoryT](
-	s Selector,
-	rootCat C,
-	discreteIDs []string,
-) []T {
-	sl := []T{}
-
-	if len(discreteIDs) == 0 {
-		return scopes[T](s)
-	}
-
-	for _, v := range s.Includes {
-		t := T(v)
-
-		if isAnyTarget(t, rootCat) {
-			w := T{}
-			for k, v := range t {
-				w[k] = v
-			}
-
-			set(w, rootCat, discreteIDs)
-			t = w
-		}
-
-		sl = append(sl, t)
-	}
-
-	return sl
 }
 
 // Returns the path.ServiceType matching the selector service.
@@ -205,13 +243,14 @@ func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.
 	return r.Reduce(ctx, deets), nil
 }
 
-func (s Selector) ResourceOwners() (selectorResourceOwners, error) {
-	ro, err := selectorAsIface[resourceOwnerer](s)
+// returns the sets of path categories identified in each scope set.
+func (s Selector) PathCategories() (selectorPathCategories, error) {
+	ro, err := selectorAsIface[pathCategorier](s)
 	if err != nil {
-		return selectorResourceOwners{}, err
+		return selectorPathCategories{}, err
 	}
 
-	return ro.ResourceOwners(), nil
+	return ro.PathCategories(), nil
 }
 
 // transformer for arbitrary selector interfaces
@@ -240,129 +279,6 @@ func selectorAsIface[T any](s Selector) (T, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Printing Selectors for Human Reading
-// ---------------------------------------------------------------------------
-
-type Printable struct {
-	Service  string              `json:"service"`
-	Excludes map[string][]string `json:"excludes,omitempty"`
-	Filters  map[string][]string `json:"filters,omitempty"`
-	Includes map[string][]string `json:"includes,omitempty"`
-}
-
-type printabler interface {
-	Printable() Printable
-}
-
-// ToPrintable creates the minimized display of a selector, formatted for human readability.
-func (s Selector) ToPrintable() Printable {
-	p, err := selectorAsIface[printabler](s)
-	if err != nil {
-		return Printable{}
-	}
-
-	return p.Printable()
-}
-
-// toPrintable creates the minimized display of a selector, formatted for human readability.
-func toPrintable[T scopeT](s Selector) Printable {
-	return Printable{
-		Service:  s.Service.String(),
-		Excludes: toResourceTypeMap[T](s.Excludes),
-		Filters:  toResourceTypeMap[T](s.Filters),
-		Includes: toResourceTypeMap[T](s.Includes),
-	}
-}
-
-// Resources generates a tabular-readable output of the resources in Printable.
-// Only the first (arbitrarily picked) resource is displayed.  All others are
-// simply counted.  If no inclusions exist, uses Filters.  If no filters exist,
-// defaults to "None".
-// Resource refers to the top-level entity in the service. User for Exchange,
-// Site for sharepoint, etc.
-func (p Printable) Resources() string {
-	s := resourcesShortFormat(p.Includes)
-	if len(s) == 0 {
-		s = resourcesShortFormat(p.Filters)
-	}
-
-	if len(s) == 0 {
-		s = "None"
-	}
-
-	return s
-}
-
-// returns a string with the resources in the map.  Shortened to the first resource key,
-// plus, if more exist, " (len-1 more)"
-func resourcesShortFormat(m map[string][]string) string {
-	var s string
-
-	for k := range m {
-		s = k
-		break
-	}
-
-	if len(s) > 0 && len(m) > 1 {
-		s = fmt.Sprintf("%s (%d more)", s, len(m)-1)
-	}
-
-	return s
-}
-
-// Transforms the slice to a single map.
-// Keys are each service's rootCat value.
-// Values are the set of all scopeKeyDataTypes for the resource.
-func toResourceTypeMap[T scopeT](s []scope) map[string][]string {
-	if len(s) == 0 {
-		return nil
-	}
-
-	r := make(map[string][]string)
-
-	for _, sc := range s {
-		t := T(sc)
-		res := sc[t.categorizer().rootCat().String()]
-		k := res.Target
-
-		if res.Target == AnyTgt {
-			k = All
-		}
-
-		for _, sk := range split(k) {
-			r[sk] = addToSet(r[sk], split(sc[scopeKeyDataType].Target))
-		}
-	}
-
-	return r
-}
-
-// returns v if set is empty,
-// unions v with set, otherwise.
-func addToSet(set []string, v []string) []string {
-	if len(set) == 0 {
-		return v
-	}
-
-	for _, vv := range v {
-		var matched bool
-
-		for _, s := range set {
-			if vv == s {
-				matched = true
-				break
-			}
-		}
-
-		if !matched {
-			set = append(set, vv)
-		}
-	}
-
-	return set
-}
-
-// ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 
@@ -383,6 +299,30 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 		if k != AnyTgt && k != NoneTgt {
 			rs = append(rs, k)
 		}
+	}
+
+	return rs
+}
+
+// produces the discrete set of path categories in the slice of scopes.
+func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
+	rm := map[path.CategoryType]struct{}{}
+
+	for _, s := range ss {
+		t := T(s)
+
+		lc := t.categorizer().leafCat()
+		if lc == lc.unknownCat() {
+			continue
+		}
+
+		rm[lc.PathType()] = struct{}{}
+	}
+
+	rs := []path.CategoryType{}
+
+	for k := range rm {
+		rs = append(rs, k)
 	}
 
 	return rs
@@ -424,10 +364,10 @@ func SuffixMatch() option {
 	}
 }
 
-// pathType is an internal-facing option.  It is assumed that scope
-// constructors will provide the pathType option whenever a folder-
+// pathComparator is an internal-facing option.  It is assumed that scope
+// constructors will provide the pathComparator option whenever a folder-
 // level scope (ie, a scope that compares path hierarchies) is created.
-func pathType() option {
+func pathComparator() option {
 	return func(sc *scopeConfig) {
 		sc.usePathFilter = true
 	}

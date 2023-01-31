@@ -1,4 +1,6 @@
 name: Build/Release Corso
+env:
+  IMAGE_NAME: ghcr.io/alcionai/corso
 on:
   workflow_dispatch:
 
@@ -47,6 +49,41 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.websitefileschanged == 'true'
         with:
           go-version-file: src/go.mod
+
+  # SetM365App will decide which M365 app to use for this CI run
+  SetM365App:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
+      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
+      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
+    steps:
+      - name: Figure out which client id to use
+        id: roundrobin
+        run: |
+          slot=$((GITHUB_RUN_NUMBER % 4))
+          echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
+
+          case $slot in
+
+            0)
+              echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
+              ;;
+            1)
+              echo "CLIENT_ID_ENV=CLIENT_ID_2" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_2" >> $GITHUB_OUTPUT
+              ;;
+            2)
+              echo "CLIENT_ID_ENV=CLIENT_ID_3" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_3" >> $GITHUB_OUTPUT
+              ;;
+            3)
+              echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
+              ;;
+          esac
 
   SetEnv:
     environment: Testing
@@ -103,6 +140,7 @@ jobs:
             echo "::set-output name=website-cfid::ESFTEIYTIP7Y3"
           fi
 
+
   # ----------------------------------------------------------------------------------------------------
   # --- Website Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
@@ -116,60 +154,28 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v3
+      - name: Lint Website
+        uses: ./.github/actions/website-linting
         with:
-          go-version-file: src/go.mod
-
-      - name: Generate CLI Docs
-        working-directory: ./src
-        run: |
-          go run ./cmd/mdgen/mdgen.go generate
-
-      # migrate generated md files into /website/docs/cli
-      - name: Move CLI .md to Docs
-        run: |
-          mkdir -p ./website/docs/cli
-          mv ./src/cmd/mdgen/cli_markdown/* ./website/docs/cli/
-          rm -R ./src/cmd/mdgen/cli_markdown/
-
-      - name: Install dependencies for website lint
-        run: |
-          wget https://github.com/errata-ai/vale/releases/download/v2.20.2/vale_2.20.2_Linux_64-bit.tar.gz # NOTE: update in Dockerfile when updating
-          mkdir bin && tar -xvzf vale_2.20.2_Linux_64-bit.tar.gz -C bin
-          echo "$PWD/bin" >> $GITHUB_PATH
-          npm i -g markdownlint-cli@0.32.2 # NOTE: update in Dockerfile when updating
-
-      - name: Run website lint
-        run: |
-          cd website && make -o genclidocs localcheck
-
-      - name: Build website
-        env:
-          CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
-        run: |
-          cd website &&
-            npm ci &&
-            npm run build
-
-      - uses: actions/upload-artifact@master
-        name: Upload website as artifacts
-        with:
-          name: website
-          path: website/build
+          version: ${{ needs.SetEnv.outputs.version }}
 
   # ----------------------------------------------------------------------------------------------------
   # --- Integration and Unit Testing -------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
   Test-Suite-Trusted:
-    needs: [Precheck, Checkout]
+    needs: [Precheck, Checkout, SetM365App]
     environment: Testing
     runs-on: ubuntu-latest
     if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
     defaults:
       run:
         working-directory: src
+    env:
+      # Resolve the name of the secret that contains the Azure client ID/secret
+      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
+      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
+      CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
     steps:
       - uses: actions/checkout@v3
 
@@ -195,13 +201,15 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          CORSO_LOG_FILE: stderr
+          LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
           go test       \
@@ -209,9 +217,10 @@ jobs:
           -json         \
           -v            \
           -failfast     \
+          -p 1          \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
-      # Upload the original go test log as an artifact for later review.
+      # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v3
@@ -373,7 +382,7 @@ jobs:
         run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
 
       - name: Run staticcheck
-        uses: dominikh/staticcheck-action@v1.2.0
+        uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false
           working-directory: src
@@ -402,11 +411,20 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+      - name: Decide goreleaser release mode
+        shell: bash
+        run: |
+          if test '${{ github.ref }}' = "refs/heads/main"; then
+            echo "grflags=--snapshot" >> $GITHUB_ENV
+          else
+            echo "grflags=" >> $GITHUB_ENV
+          fi
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v4
         with:
           version: latest
-          args: release --rm-dist --timeout 500m
+          args: release --rm-dist --timeout 500m --parallelism 1 ${{ env.grflags }}
           workdir: src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -414,49 +432,35 @@ jobs:
           RUDDERSTACK_CORSO_DATA_PLANE_URL: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
           CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
 
-      - name: Upload assets
+      - name: Upload darwin arm64
         uses: actions/upload-artifact@v3
         with:
-          name: corso
-          path: src/dist/*
+          name: corso_Darwin_arm64
+          path: src/dist/corso_darwin_arm64/corso
 
-  Publish-Website:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
-    environment: ${{ needs.SetEnv.outputs.environment }}
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
-    defaults:
-      run:
-        working-directory: website
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/download-artifact@master
-        name: Download website from build step
+      - name: Upload linux arm64
+        uses: actions/upload-artifact@v3
         with:
-          name: website
-          path: website/build
+          name: corso_Linux_arm64
+          path: src/dist/corso_linux_arm64/corso
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Upload darwin amd64
+        uses: actions/upload-artifact@v3
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+          name: corso_Darwin_amd64
+          path: src/dist/corso_darwin_amd64_v1/corso
 
-      - name: Add rotbots.txt
-        if: github.ref == 'refs/heads/main'
-        run: |
-          printf 'User-agent: *\nDisallow: /' > build/robots.txt
+      - name: Upload linux amd64
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso_Linux_amd64
+          path: src/dist/corso_linux_amd64_v1/corso
 
-      - name: Push website
-        run: |
-          aws s3 sync build "s3://${{ needs.SetEnv.outputs.website-bucket }}" --delete
-
-      - name: Invalidate cloudfront
-        run: |
-          aws cloudfront create-invalidation --distribution-id ${{ needs.SetEnv.outputs.website-cfid }} --paths "/*"
+      - name: Upload windows amd64
+        uses: actions/upload-artifact@v3
+        with:
+          name: corso_Windows_amd64
+          path: src/dist/corso_windows_amd64_v1/corso.exe
 
   Publish-Image:
     needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
@@ -467,7 +471,6 @@ jobs:
       run:
         working-directory: build
     env:
-      imageName: ghcr.io/alcionai/corso
       PLATFORMS: linux/amd64,linux/arm64
     steps:
       - uses: actions/checkout@v3
@@ -490,7 +493,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.imageName }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=tag
             type=sha,format=short,prefix=
@@ -511,3 +514,136 @@ jobs:
           # use the github cache
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  Validate-Linux-Artifacts:
+    needs: [Publish-Binary, Publish-Image, SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - name: Validate x86_64 binary artifacts
+        run: |
+          set -ex
+          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz > corso.tar.gz
+          tar -xf corso.tar.gz
+          ./corso --help
+          ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
+      - name: Validate arm64 binary artifacts
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: armv7
+          distro: ubuntu18.04
+          install: |
+            apt-get -y update && apt-get -y install curl
+          run: |
+            set -ex
+            sudo apt-get update && sudo apt-get install curl
+            curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_arm64.tar.gz > corso.tar.gz
+            tar -xf corso.tar.gz
+            ./corso --help
+            ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
+
+  Validate-Docker-Artifacts:
+    needs: [Publish-Binary, Publish-Image, SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Validate amd64 container images
+        run: |
+          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --help
+          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --version | grep -E "version: ${{ env.CORSO_VERSION }}$"
+      - name: Validate arm64 container images
+        run: |
+          docker run --platform linux/arm64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --help
+          docker run --platform linux/amd64 ${{ env.IMAGE_NAME }}:${{ env.CORSO_VERSION }} --version | grep -E "version: ${{ env.CORSO_VERSION }}$"
+
+  Validate-MacOS-Artifacts:
+    needs: [Publish-Binary, Publish-Image, SetEnv]
+    environment: Testing
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - name: Validate x86_64 binary artifacts
+        run: |
+          set -ex
+          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_x86_64.tar.gz > corso.tar.gz
+          tar -xf corso.tar.gz
+          ./corso --help
+          ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
+      - name: Validate arm64 binary artifacts
+        run: |
+          set -ex
+          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_arm64.tar.gz > corso.tar.gz
+          tar -xf corso.tar.gz
+          # TODO: test/validate arm64 executable once we have arm64 CI
+
+  Validate-Windows-Artifacts:
+    needs: [Publish-Binary, Publish-Image, SetEnv]
+    environment: Testing
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - name: Validate x86_64 binary artifacts
+        run: |
+          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Windows_x86_64.zip -o corso.zip
+          7z x corso.zip
+          ./corso.exe --help
+          ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
+
+  Publish-Website-Test:
+    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    environment: ${{ needs.SetEnv.outputs.environment }}
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3 # need to checkout to make the action available
+
+      - name: Publish website
+        uses: ./.github/actions/publish-website
+        with:
+          aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}
+          bucket: ${{ needs.SetEnv.outputs.website-bucket }}
+          cfid: ${{ needs.SetEnv.outputs.website-cfid }}
+
+  Publish-Website-Prod:
+    needs: [SetEnv, Validate-Linux-Artifacts, Validate-MacOS-Artifacts, Validate-Docker-Artifacts, Validate-Windows-Artifacts]
+    environment: ${{ needs.SetEnv.outputs.environment }}
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v3 # need to checkout to make the action available
+
+      - name: Publish website
+        uses: ./.github/actions/publish-website
+        with:
+          aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}
+          bucket: ${{ needs.SetEnv.outputs.website-bucket }}
+          cfid: ${{ needs.SetEnv.outputs.website-cfid }}
+
+  Validate-Website-Artifacts:
+    needs: [Publish-Website-Prod, SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - name: Validate docs
+        run: |
+          curl https://corsobackup.io/docs/quickstart/ | grep https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz

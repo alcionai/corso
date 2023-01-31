@@ -57,7 +57,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: Completed,
 			expectErr:    assert.NoError,
 			stats: restoreStats{
-				started:       true,
 				resourceCount: 1,
 				bytesRead: &stats.ByteCounter{
 					NumBytes: 42,
@@ -73,7 +72,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: Failed,
 			expectErr:    assert.Error,
 			stats: restoreStats{
-				started:   false,
+				readErr:   assert.AnError,
 				bytesRead: &stats.ByteCounter{},
 				gc:        &support.ConnectorOperationStatus{},
 			},
@@ -82,7 +81,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: NoData,
 			expectErr:    assert.NoError,
 			stats: restoreStats{
-				started:   true,
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.Collection{},
 				gc:        &support.ConnectorOperationStatus{},
@@ -98,7 +96,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				sw,
 				acct,
 				"foo",
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
 			require.NoError(t, err)
@@ -133,12 +131,10 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoOperationTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoOperationTests)
 
 	suite.Run(t, new(RestoreOpIntegrationSuite))
 }
@@ -147,8 +143,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	_, err := tester.GetRequiredEnvVars(tester.M365AcctCredEnvs...)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	t := suite.T()
 
@@ -178,11 +173,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	sw := store.NewKopiaStore(ms)
 	suite.sw = sw
 
-	bsel := selectors.NewExchangeBackup()
+	users := []string{m365UserID}
+
+	bsel := selectors.NewExchangeBackup(users)
+	bsel.DiscreteOwner = m365UserID
 	bsel.Include(
-		bsel.MailFolders([]string{m365UserID}, []string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		bsel.ContactFolders([]string{m365UserID}, []string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{m365UserID}, []string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
+		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
+		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
 	)
 
 	bo, err := NewBackupOperation(
@@ -198,7 +196,9 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	suite.backupID = bo.Results.BackupID
-	suite.numItems = bo.Results.ItemsWritten
+	// Discount metadata files (3 paths, 3 deltas) as
+	// they are not part of the data restored.
+	suite.numItems = bo.Results.ItemsWritten - 6
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
@@ -249,7 +249,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.sw,
 				test.acct,
 				"backup-id",
-				selectors.Selector{},
+				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
 			test.errCheck(t, err)
@@ -262,9 +262,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	defer flush()
 
 	t := suite.T()
+	users := []string{tester.M365UserID(t)}
 
-	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users([]string{tester.M365UserID(t)}))
+	rsel := selectors.NewExchangeRestore(users)
+	rsel.Include(rsel.AllData())
 
 	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
@@ -305,8 +306,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 
 	t := suite.T()
 
-	rsel := selectors.NewExchangeRestore()
-	rsel.Include(rsel.Users(selectors.None()))
+	rsel := selectors.NewExchangeRestore(selectors.None())
+	rsel.Include(rsel.AllData())
 
 	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()

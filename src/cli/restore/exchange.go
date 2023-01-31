@@ -10,9 +10,9 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // exchange bucket info from flags
@@ -63,7 +63,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(&user,
 			utils.UserFN, nil,
-			"Restore data by user ID; accepts '"+utils.Wildcard+"' to select all users.")
+			"Restore data by user's email address; accepts '"+utils.Wildcard+"' to select all users.")
 
 		// email flags
 		fs.StringSliceVar(&email,
@@ -216,24 +216,22 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewExchangeRestore()
-	utils.IncludeExchangeRestoreDataSelectors(sel, opts)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTime)
+
+	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	// if no selector flags were specified, get all data in the service.
-	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Users(selectors.Any()))
-	}
-
-	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTime)
-
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
+		if errors.Is(err, kopia.ErrNotFound) {
+			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", backupID))
+		}
+
 		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
 	}
 

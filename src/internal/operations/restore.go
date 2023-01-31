@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -87,11 +89,19 @@ type restoreStats struct {
 	gc                *support.ConnectorOperationStatus
 	bytesRead         *stats.ByteCounter
 	resourceCount     int
-	started           bool
 	readErr, writeErr error
 
 	// a transient value only used to pair up start-end events.
 	restoreID string
+}
+
+type restorer interface {
+	RestoreMultipleItems(
+		ctx context.Context,
+		snapshotID string,
+		paths []path.Path,
+		bc kopia.ByteCounter,
+	) ([]data.Collection, error)
 }
 
 // Run begins a synchronous restore operation.
@@ -117,13 +127,26 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		}
 	}()
 
-	deets, bup, err := op.store.GetDetailsFromBackupID(ctx, op.BackupID)
-	if err != nil {
-		err = errors.Wrap(err, "getting backup details for restore")
-		opStats.readErr = err
+	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
-		return nil, err
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"backup_id", op.BackupID,
+		"service", op.Selectors.Service)
+
+	bup, deets, err := getBackupAndDetailsFromID(
+		ctx,
+		op.BackupID,
+		op.store,
+		detailsStore,
+	)
+	if err != nil {
+		opStats.readErr = errors.Wrap(err, "restore")
+		return nil, opStats.readErr
 	}
+
+	ctx = clues.Add(ctx, "resource_owner", bup.Selector.DiscreteOwner)
 
 	op.bus.Event(
 		ctx,
@@ -133,7 +156,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			events.BackupID:         op.BackupID,
 			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
-			// TODO: restore options,
 		},
 	)
 
@@ -143,57 +165,48 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	observe.Message(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	ctx = clues.Add(ctx, "details_paths", len(paths))
 
-	kopiaComplete, closer := observe.MessageWithCompletion("Enumerating items in repository:")
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
+
+	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
 	defer closer()
 	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
-		err = errors.Wrap(err, "retrieving service data")
-		opStats.readErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "retrieving service data")
+		return nil, opStats.readErr
 	}
 	kopiaComplete <- struct{}{}
+
+	ctx = clues.Add(ctx, "collections", len(dcs))
 
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
-	gcComplete, closer := observe.MessageWithCompletion("Connecting to M365:")
-	defer closer()
-	defer close(gcComplete)
-
-	// restore those collections using graph
-	resource := connector.Users
-	if op.Selectors.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
-	}
-
-	gc, err := connector.NewGraphConnector(ctx, op.account, resource)
+	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
-		err = errors.Wrap(err, "connecting to microsoft servers")
-		opStats.writeErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "connecting to M365")
+		return nil, opStats.readErr
 	}
-	gcComplete <- struct{}{}
 
-	restoreComplete, closer := observe.MessageWithCompletion("Restoring data:")
+	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
 	defer closer()
 	defer close(restoreComplete)
 
-	restoreDetails, err = gc.RestoreDataCollections(ctx, op.Selectors, op.Destination, dcs)
+	restoreDetails, err = gc.RestoreDataCollections(
+		ctx,
+		op.account,
+		op.Selectors,
+		op.Destination,
+		dcs)
 	if err != nil {
-		err = errors.Wrap(err, "restoring service data")
-		opStats.writeErr = err
-
-		return nil, err
+		opStats.writeErr = errors.Wrap(err, "restoring service data")
+		return nil, opStats.writeErr
 	}
 	restoreComplete <- struct{}{}
 
-	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
@@ -209,10 +222,12 @@ func (op *RestoreOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
+	op.Results.ReadErrors = opStats.readErr
+	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if !opStats.started {
+	if opStats.readErr != nil || opStats.writeErr != nil {
 		op.Status = Failed
 
 		return multierror.Append(
@@ -225,13 +240,12 @@ func (op *RestoreOperation) persistResults(
 		op.Status = NoData
 	}
 
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
-
 	op.Results.BytesRead = opStats.bytesRead.NumBytes
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
 	op.Results.ResourceOwners = opStats.resourceCount
+
+	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
 	op.bus.Event(
 		ctx,
@@ -239,15 +253,15 @@ func (op *RestoreOperation) persistResults(
 		map[string]any{
 			events.BackupID:      op.BackupID,
 			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       op.Results.CompletedAt,
+			events.Duration:      dur,
+			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
 			events.ItemsRead:     op.Results.ItemsRead,
 			events.ItemsWritten:  op.Results.ItemsWritten,
 			events.Resources:     op.Results.ResourceOwners,
 			events.RestoreID:     opStats.restoreID,
 			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     op.Results.StartedAt,
-			events.Status:        op.Status,
+			events.StartTime:     common.FormatTime(op.Results.StartedAt),
+			events.Status:        op.Status.String(),
 		},
 	)
 
@@ -284,6 +298,10 @@ func formatDetailsForRestoration(
 		}
 
 		paths[i] = p
+	}
+
+	if errs != nil {
+		return nil, errs
 	}
 
 	return paths, nil

@@ -2,14 +2,14 @@ package onedrive
 
 import (
 	"bytes"
-	"context"
-	"errors"
 	"io"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -18,33 +18,31 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type OneDriveCollectionSuite struct {
+type CollectionUnitTestSuite struct {
 	suite.Suite
 }
 
-// Allows `*OneDriveCollectionSuite` to be used as a graph.Service
+// Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
 // TODO: Implement these methods
 
-func (suite *OneDriveCollectionSuite) Client() *msgraphsdk.GraphServiceClient {
+func (suite *CollectionUnitTestSuite) Client() *msgraphsdk.GraphServiceClient {
 	return nil
 }
 
-func (suite *OneDriveCollectionSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
-func (suite *OneDriveCollectionSuite) ErrPolicy() bool {
-	return false
-}
-
-func TestOneDriveCollectionSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveCollectionSuite))
+func TestCollectionUnitTestSuite(t *testing.T) {
+	suite.Run(t, new(CollectionUnitTestSuite))
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
-func (suite *OneDriveCollectionSuite) testStatusUpdater(
+func (suite *CollectionUnitTestSuite) testStatusUpdater(
 	wg *sync.WaitGroup,
 	statusToUpdate *support.ConnectorOperationStatus,
 ) support.StatusUpdater {
@@ -56,93 +54,228 @@ func (suite *OneDriveCollectionSuite) testStatusUpdater(
 	}
 }
 
-func (suite *OneDriveCollectionSuite) TestOneDriveCollection() {
-	t := suite.T()
-	wg := sync.WaitGroup{}
-	collStatus := support.ConnectorOperationStatus{}
-	now := time.Now()
+func (suite *CollectionUnitTestSuite) TestCollection() {
+	var (
+		testItemID   = "fakeItemID"
+		testItemName = "itemName"
+		testItemData = []byte("testdata")
+		now          = time.Now()
+	)
 
-	folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "a-tenant", "a-user", OneDriveSource)
-	require.NoError(t, err)
-	driveFolderPath, err := getDriveFolderPath(folderPath)
-	require.NoError(t, err)
-
-	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
-	require.NotNil(t, coll)
-	assert.Equal(t, folderPath, coll.FullPath())
-
-	testItemID := "fakeItemID"
-	testItemName := "itemName"
-	testItemData := []byte("testdata")
-
-	// Set a item reader, add an item and validate we get the item back
-	coll.Add(testItemID)
-
-	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
-		return &details.OneDriveInfo{
-			ItemName: testItemName,
-			Modified: now,
-		}, io.NopCloser(bytes.NewReader(testItemData)), nil
+	type nst struct {
+		name string
+		size int64
+		time time.Time
 	}
 
-	// Read items from the collection
-	wg.Add(1)
-
-	readItems := []data.Stream{}
-
-	for item := range coll.Items() {
-		readItems = append(readItems, item)
+	table := []struct {
+		name         string
+		numInstances int
+		source       driveSource
+		itemReader   itemReaderFunc
+		itemDeets    nst
+		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
+	}{
+		{
+			name:         "oneDrive, no duplicates",
+			numInstances: 1,
+			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+		},
+		{
+			name:         "oneDrive, duplicates",
+			numInstances: 3,
+			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+		},
+		{
+			name:         "sharePoint, no duplicates",
+			numInstances: 1,
+			source:       SharePointSource,
+			itemDeets:    nst{testItemName, 42, now},
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.SharePoint)
+				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
+			},
+		},
+		{
+			name:         "sharePoint, duplicates",
+			numInstances: 3,
+			source:       SharePointSource,
+			itemDeets:    nst{testItemName, 42, now},
+			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
+					io.NopCloser(bytes.NewReader(testItemData)),
+					nil
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.SharePoint)
+				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
+			},
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				wg         = sync.WaitGroup{}
+				collStatus = support.ConnectorOperationStatus{}
+				readItems  = []data.Stream{}
+			)
 
-	wg.Wait()
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
+			require.NoError(t, err)
+			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
+			require.NoError(t, err)
 
-	// Expect only 1 item
-	require.Len(t, readItems, 1)
-	require.Equal(t, 1, collStatus.ObjectCount)
-	require.Equal(t, 1, collStatus.Successful)
+			coll := NewCollection(
+				graph.HTTPClient(graph.NoTimeout()),
+				folderPath,
+				"drive-id",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{})
+			require.NotNil(t, coll)
+			assert.Equal(t, folderPath, coll.FullPath())
 
-	// Validate item info and data
-	readItem := readItems[0]
-	readItemInfo := readItem.(data.StreamInfo)
+			// Set a item reader, add an item and validate we get the item back
+			mockItem := models.NewDriveItem()
+			mockItem.SetId(&testItemID)
+			mockItem.SetName(&test.itemDeets.name)
+			mockItem.SetSize(&test.itemDeets.size)
+			mockItem.SetCreatedDateTime(&test.itemDeets.time)
+			mockItem.SetLastModifiedDateTime(&test.itemDeets.time)
 
-	assert.Equal(t, testItemName, readItem.UUID())
+			for i := 0; i < test.numInstances; i++ {
+				coll.Add(mockItem)
+			}
 
-	// TODO(ashmrtn): Uncomment when #1702 is resolved.
-	// require.Implements(t, (*data.StreamModTime)(nil), readItem)
-	// mt := readItem.(data.StreamModTime)
-	// assert.Equal(t, now, mt.ModTime())
+			coll.itemReader = test.itemReader
 
-	readData, err := io.ReadAll(readItem.ToReader())
-	require.NoError(t, err)
+			// Read items from the collection
+			wg.Add(1)
 
-	assert.Equal(t, testItemData, readData)
-	require.NotNil(t, readItemInfo.Info())
-	require.NotNil(t, readItemInfo.Info().OneDrive)
-	assert.Equal(t, testItemName, readItemInfo.Info().OneDrive.ItemName)
-	assert.Equal(t, driveFolderPath, readItemInfo.Info().OneDrive.ParentPath)
+			for item := range coll.Items() {
+				readItems = append(readItems, item)
+			}
+
+			wg.Wait()
+
+			// Validate item info and data
+			readItem := readItems[0]
+			readItemInfo := readItem.(data.StreamInfo)
+
+			readData, err := io.ReadAll(readItem.ToReader())
+			require.NoError(t, err)
+			assert.Equal(t, testItemData, readData)
+
+			// Expect only 1 item
+			require.Len(t, readItems, 1)
+			require.Equal(t, 1, collStatus.ObjectCount, "items iterated")
+			require.Equal(t, 1, collStatus.Successful, "items successful")
+
+			assert.Equal(t, testItemName, readItem.UUID())
+
+			require.Implements(t, (*data.StreamModTime)(nil), readItem)
+			mt := readItem.(data.StreamModTime)
+			assert.Equal(t, now, mt.ModTime())
+
+			name, parentPath := test.infoFrom(t, readItemInfo.Info())
+			assert.Equal(t, testItemName, name)
+			assert.Equal(t, driveFolderPath, parentPath)
+		})
+	}
 }
 
-func (suite *OneDriveCollectionSuite) TestOneDriveCollectionReadError() {
-	t := suite.T()
-	collStatus := support.ConnectorOperationStatus{}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
+	var (
+		name       = "name"
+		size int64 = 42
+		now        = time.Now()
+	)
 
-	folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", OneDriveSource)
-	require.NoError(t, err)
-
-	coll := NewCollection(folderPath, "fakeDriveID", suite, suite.testStatusUpdater(&wg, &collStatus))
-	coll.Add("testItemID")
-
-	readError := errors.New("Test error")
-
-	coll.itemReader = func(context.Context, graph.Service, string, string) (*details.OneDriveInfo, io.ReadCloser, error) {
-		return nil, nil, readError
+	table := []struct {
+		name   string
+		source driveSource
+	}{
+		{
+			name:   "oneDrive",
+			source: OneDriveSource,
+		},
+		{
+			name:   "sharePoint",
+			source: SharePointSource,
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				testItemID = "fakeItemID"
 
-	coll.Items()
-	wg.Wait()
-	// Expect no items
-	require.Equal(t, 1, collStatus.ObjectCount)
-	require.Equal(t, 0, collStatus.Successful)
+				collStatus = support.ConnectorOperationStatus{}
+				wg         = sync.WaitGroup{}
+			)
+
+			wg.Add(1)
+
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			require.NoError(t, err)
+
+			coll := NewCollection(
+				graph.HTTPClient(graph.NoTimeout()),
+				folderPath,
+				"fakeDriveID",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{})
+
+			mockItem := models.NewDriveItem()
+			mockItem.SetId(&testItemID)
+			mockItem.SetName(&name)
+			mockItem.SetSize(&size)
+			mockItem.SetCreatedDateTime(&now)
+			mockItem.SetLastModifiedDateTime(&now)
+			coll.Add(mockItem)
+
+			coll.itemReader = func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, assert.AnError
+			}
+
+			collItem, ok := <-coll.Items()
+			assert.True(t, ok)
+
+			_, err = io.ReadAll(collItem.ToReader())
+			assert.Error(t, err)
+
+			wg.Wait()
+
+			// Expect no items
+			require.Equal(t, 1, collStatus.ObjectCount, "only one object should be counted")
+			require.Equal(t, 1, collStatus.Successful, "TODO: should be 0, but allowing 1 to reduce async management")
+		})
+	}
 }

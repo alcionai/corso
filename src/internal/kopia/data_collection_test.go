@@ -3,7 +3,6 @@ package kopia
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,7 +99,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 				assert.Equal(t, returnedStream.UUID(), uuids[count])
 
-				buf, err := ioutil.ReadAll(returnedStream.ToReader())
+				buf, err := io.ReadAll(returnedStream.ToReader())
 				require.NoError(t, err)
 				assert.Equal(t, buf, testData[count])
 				require.Implements(t, (*data.StreamSize)(nil), returnedStream)

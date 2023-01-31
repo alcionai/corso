@@ -2,14 +2,42 @@ package exchange
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+type mockItemer struct {
+	getCount       int
+	serializeCount int
+	getErr         error
+	serializeErr   error
+}
+
+func (mi *mockItemer) GetItem(
+	context.Context,
+	string, string,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	mi.getCount++
+	return nil, nil, mi.getErr
+}
+
+func (mi *mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+	mi.serializeCount++
+	return nil, mi.serializeErr
+}
 
 type ExchangeDataCollectionSuite struct {
 	suite.Suite
@@ -90,17 +118,103 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 	suite.Equal(fullPath, edc.FullPath())
 }
 
-func (suite *ExchangeDataCollectionSuite) TestExchangeCollection_AddJob() {
-	eoc := Collection{
-		user:     "Dexter",
-		fullPath: nil,
-	}
-	suite.Zero(len(eoc.jobs))
+func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
+	fooP, err := path.Builder{}.
+		Append("foo").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
+	barP, err := path.Builder{}.
+		Append("bar").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
 
-	shopping := []string{"tomotoes", "potatoes", "pasta", "ice tea"}
-	for _, item := range shopping {
-		eoc.AddJob(item)
+	table := []struct {
+		name   string
+		prev   path.Path
+		curr   path.Path
+		expect data.CollectionState
+	}{
+		{
+			name:   "new",
+			curr:   fooP,
+			expect: data.NewState,
+		},
+		{
+			name:   "not moved",
+			prev:   fooP,
+			curr:   fooP,
+			expect: data.NotMovedState,
+		},
+		{
+			name:   "moved",
+			prev:   fooP,
+			curr:   barP,
+			expect: data.MovedState,
+		},
+		{
+			name:   "deleted",
+			prev:   fooP,
+			expect: data.DeletedState,
+		},
 	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			c := NewCollection(
+				"u",
+				test.curr, test.prev,
+				0,
+				&mockItemer{}, nil,
+				control.Options{},
+				false)
+			assert.Equal(t, test.expect, c.State())
+		})
+	}
+}
 
-	suite.Equal(len(shopping), len(eoc.jobs))
+func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
+	table := []struct {
+		name           string
+		items          *mockItemer
+		expectErr      func(*testing.T, error)
+		expectGetCalls int
+	}{
+		{
+			name:  "happy",
+			items: &mockItemer{},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+			expectGetCalls: 1,
+		},
+		{
+			name:  "an error",
+			items: &mockItemer{getErr: assert.AnError},
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+			},
+			expectGetCalls: 3,
+		},
+		{
+			name: "deleted in flight",
+			items: &mockItemer{
+				getErr: graph.ErrDeletedInFlight{
+					Err: *common.EncapsulateError(assert.AnError),
+				},
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")
+			},
+			expectGetCalls: 1,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			// itemer is mocked, so only the errors are configured atm.
+			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items)
+			test.expectErr(t, err)
+		})
+	}
 }

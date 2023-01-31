@@ -25,35 +25,13 @@ const (
 	copyBufferSize = 5 * 1024 * 1024
 )
 
-// drivePath is used to represent path components
-// of an item within the drive i.e.
-// Given `drives/b!X_8Z2zuXpkKkXZsr7gThk9oJpuj0yXVGnK5_VjRRPK-q725SX_8ZQJgFDK8PlFxA/root:/Folder1/Folder2/file`
-//
-// driveID is `b!X_8Z2zuXpkKkXZsr7gThk9oJpuj0yXVGnK5_VjRRPK-q725SX_8ZQJgFDK8PlFxA` and
-// folders[] is []{"Folder1", "Folder2"}
-type drivePath struct {
-	driveID string
-	folders []string
-}
-
-func toOneDrivePath(p path.Path) (*drivePath, error) {
-	folders := p.Folders()
-
-	// Must be at least `drives/<driveID>/root:`
-	if len(folders) < 3 {
-		return nil, errors.Errorf("folder path doesn't match expected format for OneDrive items: %s", p.Folder())
-	}
-
-	return &drivePath{driveID: folders[1], folders: folders[3:]}, nil
-}
-
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
-	deets *details.Details,
+	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -66,7 +44,7 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		temp, canceled := RestoreCollection(ctx, service, dc, dest.ContainerName, deets, errUpdater)
+		temp, canceled := RestoreCollection(ctx, service, dc, OneDriveSource, dest.ContainerName, deets, errUpdater)
 
 		restoreMetrics.Combine(temp)
 
@@ -91,10 +69,11 @@ func RestoreCollections(
 // - the context cancellation state (true if the context is cancelled)
 func RestoreCollection(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	dc data.Collection,
+	source driveSource,
 	restoreContainerName string,
-	deets *details.Details,
+	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
@@ -106,7 +85,7 @@ func RestoreCollection(
 		directory  = dc.FullPath()
 	)
 
-	drivePath, err := toOneDrivePath(directory)
+	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
 		errUpdater(directory.String(), err)
 		return metrics, false
@@ -117,13 +96,16 @@ func RestoreCollection(
 	// i.e. Restore into `<drive>/root:/<restoreContainerName>/<original folder path>`
 
 	restoreFolderElements := []string{restoreContainerName}
-	restoreFolderElements = append(restoreFolderElements, drivePath.folders...)
+	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
 
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
-	logger.Ctx(ctx).Debugf("Restore target for %s is %v", dc.FullPath(), restoreFolderElements)
+	logger.Ctx(ctx).Infow(
+		"restoring to destination",
+		"origin", dc.FullPath().Folder(),
+		"destination", restoreFolderElements)
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
-	restoreFolderID, err := createRestoreFolders(ctx, service, drivePath.driveID, restoreFolderElements)
+	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
 		return metrics, false
@@ -149,9 +131,10 @@ func RestoreCollection(
 			itemInfo, err := restoreItem(ctx,
 				service,
 				itemData,
-				drivePath.driveID,
+				drivePath.DriveID,
 				restoreFolderID,
-				copyBuffer)
+				copyBuffer,
+				source)
 			if err != nil {
 				errUpdater(itemData.UUID(), err)
 				continue
@@ -169,9 +152,8 @@ func RestoreCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
-				details.ItemInfo{
-					OneDrive: itemInfo,
-				})
+				true,
+				itemInfo)
 
 			metrics.Successes++
 		}
@@ -180,7 +162,7 @@ func RestoreCollection(
 
 // createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
 // of the last folder entry in the hiearchy
-func createRestoreFolders(ctx context.Context, service graph.Service, driveID string, restoreFolders []string,
+func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
@@ -216,7 +198,11 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 			)
 		}
 
-		logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
+		logger.Ctx(ctx).Debugw("resolved restore destination",
+			"dest_name", folder,
+			"parent", parentFolderID,
+			"dest_id", *folderItem.GetId())
+
 		parentFolderID = *folderItem.GetId()
 	}
 
@@ -226,11 +212,12 @@ func createRestoreFolders(ctx context.Context, service graph.Service, driveID st
 // restoreItem will create a new item in the specified `parentFolderID` and upload the data.Stream
 func restoreItem(
 	ctx context.Context,
-	service graph.Service,
+	service graph.Servicer,
 	itemData data.Stream,
 	driveID, parentFolderID string,
 	copyBuffer []byte,
-) (*details.OneDriveInfo, error) {
+	source driveSource,
+) (details.ItemInfo, error) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
 	defer end()
 
@@ -240,31 +227,40 @@ func restoreItem(
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)
 	if !ok {
-		return nil, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
+		return details.ItemInfo{}, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
 	}
 
 	// Create Item
 	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(itemData.UUID(), false))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create item %s", itemName)
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
 	}
 
 	// Get a drive item writer
 	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), ss.Size())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create item upload session %s", itemName)
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to create item upload session %s", itemName)
 	}
 
 	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(iReader, observe.ItemRestoreMsg, itemName, ss.Size())
+	progReader, closer := observe.ItemProgress(ctx, iReader, observe.ItemRestoreMsg, observe.PII(itemName), ss.Size())
 
 	go closer()
 
 	// Upload the stream data
 	written, err := io.CopyBuffer(w, progReader, copyBuffer)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to upload data: item %s", itemName)
+		return details.ItemInfo{}, errors.Wrapf(err, "failed to upload data: item %s", itemName)
 	}
 
-	return driveItemInfo(newItem, written), nil
+	dii := details.ItemInfo{}
+
+	switch source {
+	case SharePointSource:
+		dii.SharePoint = sharePointItemInfo(newItem, written)
+	default:
+		dii.OneDrive = oneDriveItemInfo(newItem, written)
+	}
+
+	return dii, nil
 }

@@ -10,15 +10,18 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var (
-	site         []string
-	libraryPaths []string
+	listItems    []string
+	listPaths    []string
 	libraryItems []string
+	libraryPaths []string
+	site         []string
+	weburl       []string
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -30,7 +33,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, sharePointRestoreCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointRestoreCmd(), utils.MarkPreReleaseCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandUseSuffix
 
@@ -47,10 +50,14 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			utils.SiteFN, nil,
 			"Restore data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
+		fs.StringSliceVar(&weburl,
+			utils.WebURLFN, nil,
+			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
+
 		// sharepoint hierarchy (path/name) flags
 
 		fs.StringSliceVar(
-			&folderPaths,
+			&libraryPaths,
 			utils.LibraryFN, nil,
 			"Restore library items by SharePoint library")
 
@@ -58,6 +65,16 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&libraryItems,
 			utils.LibraryItemFN, nil,
 			"Restore library items by file name or ID")
+
+		fs.StringSliceVar(
+			&listPaths,
+			utils.ListFN, nil,
+			"Restore list items by SharePoint list ID")
+
+		fs.StringSliceVar(
+			&listItems,
+			utils.ListItemFN, nil,
+			"Restore list items by ID")
 
 		// sharepoint info flags
 
@@ -110,9 +127,12 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.SharePointOpts{
-		Sites:        site,
-		LibraryPaths: libraryPaths,
+		ListItems:    listItems,
+		ListPaths:    listPaths,
 		LibraryItems: libraryItems,
+		LibraryPaths: libraryPaths,
+		Sites:        site,
+		WebURLs:      weburl,
 		// FileCreatedAfter:   fileCreatedAfter,
 
 		Populated: utils.GetPopulatedFlags(cmd),
@@ -134,24 +154,22 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := selectors.NewSharePointRestore()
-	utils.IncludeSharePointRestoreDataSelectors(sel, opts)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTime)
+
+	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	// if no selector flags were specified, get all data in the service.
-	if len(sel.Scopes()) == 0 {
-		sel.Include(sel.Sites(selectors.Any()))
-	}
-
-	restoreDest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
-
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, restoreDest)
+	ro, err := r.NewRestore(ctx, backupID, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize SharePoint restore"))
 	}
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
+		if errors.Is(err, kopia.ErrNotFound) {
+			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", backupID))
+		}
+
 		return Only(ctx, errors.Wrap(err, "Failed to run SharePoint restore"))
 	}
 

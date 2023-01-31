@@ -40,13 +40,7 @@ type NoBackupOneDriveIntegrationSuite struct {
 }
 
 func TestNoBackupOneDriveIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
-		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+	tester.RunOnAny(t, tester.CorsoCITests, tester.CorsoCLITests, tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(NoBackupOneDriveIntegrationSuite))
 }
@@ -57,10 +51,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 
 	defer flush()
 
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -75,8 +66,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
 
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx = config.SetViper(ctx, suite.vpr)
 	suite.m365UserID = tester.M365UserID(t)
@@ -129,23 +119,18 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 }
 
 func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIBackupTests)
 
 	suite.Run(t, new(BackupDeleteOneDriveIntegrationSuite))
 }
 
 func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(t, err)
+	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -159,8 +144,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 		tester.TestCfgStorageProvider: "S3",
 		tester.TestCfgPrefix:          cfg.Prefix,
 	}
-	suite.vpr, suite.cfgFP, err = tester.MakeTempTestConfigClone(t, force)
-	require.NoError(t, err)
+	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -172,10 +156,11 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	m365UserID := tester.M365UserID(t)
+	users := []string{m365UserID}
 
 	// some tests require an existing backup
-	sel := selectors.NewOneDriveBackup()
-	sel.Include(sel.Folders([]string{m365UserID}, selectors.Any()))
+	sel := selectors.NewOneDriveBackup(users)
+	sel.Include(sel.Folders(selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

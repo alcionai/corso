@@ -10,8 +10,17 @@ import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
 
-A Corso [repository](../concepts#corso-concepts) stores encrypted copies of your backup data. Repositories are
-supported on the following object storage systems:
+A Corso [repository](../concepts#corso-concepts) stores encrypted copies of a Microsoft 365 tenant's
+backup data. Each repository is configured to store data in an object storage bucket and, optionally,
+a user-specified prefix within the bucket. A repository is only meant to store a single tenant's data
+but a single object storage bucket can contain multiple repositories if unique `--prefix` options are
+specified when initializing a repository.
+
+Within a repository, Corso uses
+AES256-GCM-HMAC-SHA256 to encrypt data at rest using keys that are derived from the repository passphrase.
+Data in flight to and from the repositiry is encrypted via TLS.
+
+Repositories are supported on the following object storage systems:
 
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
@@ -67,7 +76,7 @@ The two most commonly-used options are:
 ### Initialize repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init s3`. See the command details
-[here](../../cli/corso_repo_init_s3).
+[here](../../cli/corso-repo-init-s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -104,7 +113,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ### Connect to a repository
 
 If a repository already exists, you can connect to it with `corso repo connect s3`. See the command details
-[here](../../cli/corso_repo_connect_s3).
+[here](../../cli/corso-repo-connect-s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -149,4 +158,4 @@ need to use the following flag with the initial Corso `repo init` command:
 
 Corso also supports the use of object storage systems with no TLS certificate or with self-signed
 TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
-[These flags](../../cli/corso_repo_init_s3) should only be used for testing.
+[These flags](../../cli/corso-repo-init-s3) should only be used for testing.

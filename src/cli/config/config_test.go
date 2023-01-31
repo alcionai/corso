@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,7 +52,7 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	// Generate test config file
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
-	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
+	err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
 	require.NoError(t, err)
 
 	// Configure viper to read test config file
@@ -188,21 +187,16 @@ type ConfigIntegrationSuite struct {
 }
 
 func TestConfigIntegrationSuite(t *testing.T) {
-	if err := tester.RunOnAny(
+	tester.RunOnAny(
+		t,
 		tester.CorsoCITests,
-		tester.CorsoCLIConfigTests,
-	); err != nil {
-		t.Skip(err)
-	}
+		tester.CorsoCLIConfigTests)
 
 	suite.Run(t, new(ConfigIntegrationSuite))
 }
 
 func (suite *ConfigIntegrationSuite) SetupSuite() {
-	_, err := tester.GetRequiredEnvSls(
-		tester.AWSStorageCredEnvs,
-		tester.M365AcctCredEnvs)
-	require.NoError(suite.T(), err)
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {

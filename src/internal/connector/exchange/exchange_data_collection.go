@@ -6,23 +6,19 @@ package exchange
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	kw "github.com/microsoft/kiota-serialization-json-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -43,72 +39,104 @@ const (
 	urlPrefetchChannelBufferSize = 4
 )
 
+type itemer interface {
+	GetItem(
+		ctx context.Context,
+		user, itemID string,
+	) (serialization.Parsable, *details.ExchangeInfo, error)
+	Serialize(
+		ctx context.Context,
+		item serialization.Parsable,
+		user, itemID string,
+	) ([]byte, error)
+}
+
 // Collection implements the interface from data.Collection
 // Structure holds data for an Exchange application for a single user
 type Collection struct {
 	// M365 user
 	user string // M365 user
 	data chan data.Stream
-	// jobs represents items from the inventory of M365 objectIds whose information
-	// is desired to be sent through the data channel for eventual storage
-	jobs []string
-	// service - client/adapter pair used to access M365 back store
-	service graph.Service
 
-	collectionType optionIdentifier
-	statusUpdater  support.StatusUpdater
-	// FullPath is the slice representation of the action context passed down through the hierarchy.
-	// The original request can be gleaned from the slice. (e.g. {<tenant ID>, <user ID>, "emails"})
+	// added is a list of existing item IDs that were added to a container
+	added map[string]struct{}
+	// removed is a list of item IDs that were deleted from, or moved out, of a container
+	removed map[string]struct{}
+
+	items itemer
+
+	category      path.CategoryType
+	statusUpdater support.StatusUpdater
+	ctrl          control.Options
+
+	// FullPath is the current hierarchical path used by this collection.
 	fullPath path.Path
+
+	// PrevPath is the previous hierarchical path used by this collection.
+	// It may be the same as fullPath, if the folder was not renamed or
+	// moved.  It will be empty on its first retrieval.
+	prevPath path.Path
+
+	state data.CollectionState
+
+	// doNotMergeItems should only be true if the old delta token expired.
+	doNotMergeItems bool
 }
 
-// NewExchangeDataCollection creates an ExchangeDataCollection with fullPath is annotated
+// NewExchangeDataCollection creates an ExchangeDataCollection.
+// State of the collection is set as an observation of the current
+// and previous paths.  If the curr path is nil, the state is assumed
+// to be deleted.  If the prev path is nil, it is assumed newly created.
+// If both are populated, then state is either moved (if they differ),
+// or notMoved (if they match).
 func NewCollection(
 	user string,
-	fullPath path.Path,
-	collectionType optionIdentifier,
-	service graph.Service,
+	curr, prev path.Path,
+	category path.CategoryType,
+	items itemer,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
+	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		user:           user,
-		data:           make(chan data.Stream, collectionChannelBufferSize),
-		jobs:           make([]string, 0),
-		service:        service,
-		statusUpdater:  statusUpdater,
-		fullPath:       fullPath,
-		collectionType: collectionType,
+		category:        category,
+		ctrl:            ctrlOpts,
+		data:            make(chan data.Stream, collectionChannelBufferSize),
+		doNotMergeItems: doNotMergeItems,
+		fullPath:        curr,
+		added:           make(map[string]struct{}, 0),
+		removed:         make(map[string]struct{}, 0),
+		prevPath:        prev,
+		state:           stateOf(prev, curr),
+		statusUpdater:   statusUpdater,
+		user:            user,
+		items:           items,
 	}
 
 	return collection
 }
 
-// AddJob appends additional objectID to structure's jobs field
-func (col *Collection) AddJob(objID string) {
-	col.jobs = append(col.jobs, objID)
+func stateOf(prev, curr path.Path) data.CollectionState {
+	if curr == nil || len(curr.String()) == 0 {
+		return data.DeletedState
+	}
+
+	if prev == nil || len(prev.String()) == 0 {
+		return data.NewState
+	}
+
+	if curr.Folder() != prev.Folder() {
+		return data.MovedState
+	}
+
+	return data.NotMovedState
 }
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
 func (col *Collection) Items() <-chan data.Stream {
-	go col.populateByOptionIdentifier(context.TODO())
+	go col.streamItems(context.TODO())
 	return col.data
-}
-
-// GetQueryAndSerializeFunc helper function that returns the two functions functions
-// required to convert M365 identifier into a byte array filled with the serialized data
-func GetQueryAndSerializeFunc(optID optionIdentifier) (GraphRetrievalFunc, GraphSerializeFunc) {
-	switch optID {
-	case contacts:
-		return RetrieveContactDataForUser, contactToDataCollection
-	case events:
-		return RetrieveEventDataForUser, eventToDataCollection
-	case messages:
-		return RetrieveMessageDataForUser, messageToDataCollection
-	// Unsupported options returns nil, nil
-	default:
-		return nil, nil
-	}
 }
 
 // FullPath returns the Collection's fullPath []string
@@ -119,108 +147,197 @@ func (col *Collection) FullPath() path.Path {
 // TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
 // and new folder hierarchies.
 func (col Collection) PreviousPath() path.Path {
-	return nil
+	return col.prevPath
 }
 
-// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
-// hierarchies.
 func (col Collection) State() data.CollectionState {
-	return data.NewState
+	return col.state
 }
 
-// populateByOptionIdentifier is a utility function that uses col.collectionType to be able to serialize
-// all the M365IDs defined in the jobs field. data channel is closed by this function
-func (col *Collection) populateByOptionIdentifier(
-	ctx context.Context,
-) {
+func (col Collection) DoNotMergeItems() bool {
+	return col.doNotMergeItems
+}
+
+// ---------------------------------------------------------------------------
+// Items() channel controller
+// ---------------------------------------------------------------------------
+
+// streamItems is a utility function that uses col.collectionType to be able to serialize
+// all the M365IDs defined in the added field. data channel is closed by this function
+func (col *Collection) streamItems(ctx context.Context) {
 	var (
-		errs       error
-		success    int64
-		totalBytes int64
-		wg         sync.WaitGroup
+		errs        error
+		success     int64
+		totalBytes  int64
+		wg          sync.WaitGroup
+		colProgress chan<- struct{}
 
 		user = col.user
+		log  = logger.Ctx(ctx).With(
+			"service", path.ExchangeService.String(),
+			"category", col.category.String())
 	)
 
-	colProgress, closer := observe.CollectionProgress(user, col.fullPath.Category().String(), col.fullPath.Folder())
-	go closer()
-
 	defer func() {
-		close(colProgress)
 		col.finishPopulation(ctx, int(success), totalBytes, errs)
 	}()
 
-	// get QueryBasedonIdentifier
-	// verify that it is the correct type in called function
-	// serializationFunction
-	query, serializeFunc := GetQueryAndSerializeFunc(col.collectionType)
-	if query == nil {
-		errs = fmt.Errorf("unrecognized collection type: %s", col.collectionType.String())
-		return
+	if len(col.added)+len(col.removed) > 0 {
+		var closer func()
+		colProgress, closer = observe.CollectionProgress(
+			ctx,
+			col.fullPath.Category().String(),
+			observe.PII(user),
+			observe.PII(col.fullPath.Folder()))
+
+		go closer()
+
+		defer func() {
+			close(colProgress)
+		}()
 	}
 
 	// Limit the max number of active requests to GC
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
-	errUpdater := func(user string, err error) {
-		errs = support.WrapAndAppend(user, err, errs)
-	}
-
-	for _, identifier := range col.jobs {
-		if col.service.ErrPolicy() && errs != nil {
-			break
-		}
+	// delete all removed items
+	for id := range col.removed {
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
 
-		go func(identifier string) {
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			col.data <- &Stream{
+				id:      id,
+				modTime: time.Now().UTC(), // removed items have no modTime entry.
+				deleted: true,
+			}
+
+			atomic.AddInt64(&success, 1)
+			atomic.AddInt64(&totalBytes, 0)
+
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id)
+	}
+
+	updaterMu := sync.Mutex{}
+	errUpdater := func(user string, err error) {
+		updaterMu.Lock()
+		defer updaterMu.Unlock()
+
+		errs = support.WrapAndAppend(user, err, errs)
+	}
+
+	// add any new items
+	for id := range col.added {
+		if col.ctrl.FailFast && errs != nil {
+			break
+		}
+
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(id string) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
 			var (
-				response absser.Parsable
-				err      error
+				item serialization.Parsable
+				info *details.ExchangeInfo
+				err  error
 			)
 
-			for i := 1; i <= numberOfRetries; i++ {
-				response, err = query(ctx, col.service, user, identifier)
-				if err == nil {
-					break
+			item, info, err = getItemWithRetries(ctx, user, id, col.items)
+			if err != nil {
+				// Don't report errors for deleted items as there's no way for us to
+				// back up data that is gone. Record it as a "success", since there's
+				// nothing else we can do, and not reporting it will make the status
+				// investigation upset.
+				if graph.IsErrDeletedInFlight(err) {
+					atomic.AddInt64(&success, 1)
+					log.Infow("item not found", "err", err)
+				} else {
+					errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
 				}
-				// TODO: Tweak sleep times
-				if i < numberOfRetries {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
-				}
+
+				return
 			}
 
+			data, err := col.items.Serialize(ctx, item, user, id)
 			if err != nil {
 				errUpdater(user, err)
 				return
 			}
 
-			byteCount, err := serializeFunc(ctx, col.service.Client(), kw.NewJsonSerializationWriter(), col.data, response, user)
-			if err != nil {
-				errUpdater(user, err)
-				return
+			info.Size = int64(len(data))
+
+			col.data <- &Stream{
+				id:      id,
+				message: data,
+				info:    info,
+				modTime: info.Modified,
 			}
 
 			atomic.AddInt64(&success, 1)
-			atomic.AddInt64(&totalBytes, int64(byteCount))
+			atomic.AddInt64(&totalBytes, info.Size)
 
-			colProgress <- struct{}{}
-		}(identifier)
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id)
 	}
 
 	wg.Wait()
+}
+
+// get an item while handling retry and backoff.
+func getItemWithRetries(
+	ctx context.Context,
+	userID, itemID string,
+	items itemer,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	var (
+		item serialization.Parsable
+		info *details.ExchangeInfo
+		err  error
+	)
+
+	for i := 1; i <= numberOfRetries; i++ {
+		item, info, err = items.GetItem(ctx, userID, itemID)
+		if err == nil {
+			break
+		}
+
+		// If the data is no longer available just return here and chalk it up
+		// as a success. There's no reason to retry; it's gone  Let it go.
+		if graph.IsErrDeletedInFlight(err) {
+			return nil, nil, err
+		}
+
+		if i < numberOfRetries {
+			time.Sleep(time.Duration(3*(i+1)) * time.Second)
+		}
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return item, info, err
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
 func (col *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
 	close(col.data)
-	attempted := len(col.jobs)
+	attempted := len(col.added) + len(col.removed)
 	status := support.CreateStatus(ctx,
 		support.Backup,
 		1,
@@ -231,202 +348,8 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 		},
 		errs,
 		col.fullPath.Folder())
-	logger.Ctx(ctx).Debug(status.String())
+	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	col.statusUpdater(status)
-}
-
-type modTimer interface {
-	GetLastModifiedDateTime() *time.Time
-}
-
-func getModTime(mt modTimer) time.Time {
-	res := time.Now()
-
-	if t := mt.GetLastModifiedDateTime(); t != nil {
-		res = *t
-	}
-
-	return res
-}
-
-// GraphSerializeFunc are class of functions that are used by Collections to transform GraphRetrievalFunc
-// responses into data.Stream items contained within the Collection
-type GraphSerializeFunc func(
-	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- data.Stream,
-	parsable absser.Parsable,
-	user string,
-) (int, error)
-
-// eventToDataCollection is a GraphSerializeFunc used to serialize models.Eventable objects into
-// data.Stream objects. Returns an error the process finishes unsuccessfully.
-func eventToDataCollection(
-	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- data.Stream,
-	parsable absser.Parsable,
-	user string,
-) (int, error) {
-	var err error
-
-	defer objectWriter.Close()
-
-	event, ok := parsable.(models.Eventable)
-	if !ok {
-		return 0, fmt.Errorf("expected Eventable, got %T", parsable)
-	}
-
-	if *event.GetHasAttachments() {
-		var retriesErr error
-
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := client.
-				UsersById(user).
-				EventsById(*event.GetId()).
-				Attachments().
-				Get(ctx, nil)
-			retriesErr = err
-
-			if err == nil && attached != nil {
-				event.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-
-			return 0, support.WrapAndAppend(
-				*event.GetId(),
-				errors.Wrap(retriesErr, "attachment failed"),
-				nil)
-		}
-	}
-
-	err = objectWriter.WriteObjectValue("", event)
-	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrap(err, *event.GetId()))
-	}
-
-	byteArray, err := objectWriter.GetSerializedContent()
-	if err != nil {
-		return 0, support.WrapAndAppend(*event.GetId(), errors.Wrap(err, "serializing content"), nil)
-	}
-
-	if len(byteArray) > 0 {
-		dataChannel <- &Stream{
-			id:      *event.GetId(),
-			message: byteArray,
-			info:    EventInfo(event, int64(len(byteArray))),
-			modTime: getModTime(event),
-		}
-	}
-
-	return len(byteArray), nil
-}
-
-// contactToDataCollection is a GraphSerializeFunc for models.Contactable
-func contactToDataCollection(
-	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- data.Stream,
-	parsable absser.Parsable,
-	user string,
-) (int, error) {
-	defer objectWriter.Close()
-
-	contact, ok := parsable.(models.Contactable)
-	if !ok {
-		return 0, fmt.Errorf("expected Contactable, got %T", parsable)
-	}
-
-	err := objectWriter.WriteObjectValue("", contact)
-	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrap(err, *contact.GetId()))
-	}
-
-	byteArray, err := objectWriter.GetSerializedContent()
-	if err != nil {
-		return 0, support.WrapAndAppend(*contact.GetId(), err, nil)
-	}
-
-	if len(byteArray) > 0 {
-		dataChannel <- &Stream{
-			id:      *contact.GetId(),
-			message: byteArray,
-			info:    ContactInfo(contact, int64(len(byteArray))),
-			modTime: getModTime(contact),
-		}
-	}
-
-	return len(byteArray), nil
-}
-
-// messageToDataCollection is the GraphSerializeFunc for models.Messageable
-func messageToDataCollection(
-	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	objectWriter *kw.JsonSerializationWriter,
-	dataChannel chan<- data.Stream,
-	parsable absser.Parsable,
-	user string,
-) (int, error) {
-	var err error
-
-	defer objectWriter.Close()
-
-	aMessage, ok := parsable.(models.Messageable)
-	if !ok {
-		return 0, fmt.Errorf("expected Messageable, got %T", parsable)
-	}
-
-	if *aMessage.GetHasAttachments() {
-		// getting all the attachments might take a couple attempts due to filesize
-		var retriesErr error
-
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := client.
-				UsersById(user).
-				MessagesById(*aMessage.GetId()).
-				Attachments().
-				Get(ctx, nil)
-			retriesErr = err
-
-			if err == nil {
-				aMessage.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return 0, support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(retriesErr, "attachment failed"), nil)
-		}
-	}
-
-	err = objectWriter.WriteObjectValue("", aMessage)
-	if err != nil {
-		return 0, support.SetNonRecoverableError(errors.Wrapf(err, "%s", *aMessage.GetId()))
-	}
-
-	byteArray, err := objectWriter.GetSerializedContent()
-	if err != nil {
-		err = support.WrapAndAppend(*aMessage.GetId(), errors.Wrap(err, "serializing mail content"), nil)
-		return 0, support.SetNonRecoverableError(err)
-	}
-
-	dataChannel <- &Stream{
-		id:      *aMessage.GetId(),
-		message: byteArray,
-		info:    MessageInfo(aMessage, int64(len(byteArray))),
-		modTime: getModTime(aMessage),
-	}
-
-	return len(byteArray), nil
 }
 
 // Stream represents a single item retrieved from exchange
@@ -440,6 +363,9 @@ type Stream struct {
 	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
 	// request to provide modtime in ItemInfo structs.
 	modTime time.Time
+
+	// true if the item was marked by graph as deleted.
+	deleted bool
 }
 
 func (od *Stream) UUID() string {
@@ -450,9 +376,8 @@ func (od *Stream) ToReader() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(od.message))
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
 func (od Stream) Deleted() bool {
-	return false
+	return od.deleted
 }
 
 func (od *Stream) Info() details.ItemInfo {
