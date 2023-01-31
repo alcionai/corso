@@ -74,6 +74,7 @@ func (c Events) GetContainerByID(
 	}
 
 	var cal models.Calendarable
+
 	runWithRetry(func() error {
 		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 		return err
@@ -91,7 +92,16 @@ func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	event, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	var (
+		event models.Eventable
+		err   error
+	)
+
+	runWithRetry(func() error {
+		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,7 +143,14 @@ func (c Client) GetAllCalendarNamesForUser(
 		return nil, err
 	}
 
-	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
+	var resp models.CalendarCollectionResponseable
+
+	runWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
+		return err
+	})
+
+	return resp, err
 }
 
 // EnumerateContainers iterates through all of the users current

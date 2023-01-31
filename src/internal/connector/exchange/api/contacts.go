@@ -61,7 +61,16 @@ func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+	var (
+		cont models.Contactable
+		err  error
+	)
+
+	runWithRetry(func() error {
+		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,7 +90,14 @@ func (c Contacts) GetAllContactFolderNamesForUser(
 		return nil, err
 	}
 
-	return c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
+	var resp models.ContactFolderCollectionResponseable
+
+	runWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (c Contacts) GetContainerByID(
@@ -93,10 +109,14 @@ func (c Contacts) GetContainerByID(
 		return nil, errors.Wrap(err, "options for contact folder")
 	}
 
-	return c.stable.Client().
-		UsersById(userID).
-		ContactFoldersById(dirID).
-		Get(ctx, ofcf)
+	var resp models.ContactFolderable
+
+	runWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
+		return err
+	})
+
+	return resp, err
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -179,7 +199,17 @@ type contactPager struct {
 }
 
 func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+	var (
+		resp api.DeltaPageLinker
+		err  error
+	)
+
+	runWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (p *contactPager) setNext(nextLink string) {
