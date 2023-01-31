@@ -3,6 +3,7 @@ package m365
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -20,10 +21,10 @@ type User struct {
 
 // Users returns a list of users in the specified M365 tenant
 // TODO: Implement paging support
-func Users(ctx context.Context, m365Account account.Account) ([]*User, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), m365Account, connector.Users)
+func Users(ctx context.Context, acct account.Account) ([]*User, error) {
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+		return nil, errors.Wrap(err, "initializing M365 graph connection")
 	}
 
 	users, err := discovery.Users(ctx, gc.Owners.Users())
@@ -36,7 +37,7 @@ func Users(ctx context.Context, m365Account account.Account) ([]*User, error) {
 	for _, u := range users {
 		pu, err := parseUser(u)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "parsing userable")
 		}
 
 		ret = append(ret, pu)
@@ -45,8 +46,8 @@ func Users(ctx context.Context, m365Account account.Account) ([]*User, error) {
 	return ret, nil
 }
 
-func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error) {
-	users, err := Users(ctx, m365Account)
+func UserIDs(ctx context.Context, acct account.Account) ([]string, error) {
+	users, err := Users(ctx, acct)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +62,8 @@ func UserIDs(ctx context.Context, m365Account account.Account) ([]string, error)
 
 // UserPNs retrieves all user principleNames in the tenant.  Principle Names
 // can be used analogous userIDs in graph API queries.
-func UserPNs(ctx context.Context, m365Account account.Account) ([]string, error) {
-	users, err := Users(ctx, m365Account)
+func UserPNs(ctx context.Context, acct account.Account) ([]string, error) {
+	users, err := Users(ctx, acct)
 	if err != nil {
 		return nil, err
 	}
@@ -76,20 +77,20 @@ func UserPNs(ctx context.Context, m365Account account.Account) ([]string, error)
 }
 
 // SiteURLs returns a list of SharePoint site WebURLs in the specified M365 tenant
-func SiteURLs(ctx context.Context, m365Account account.Account) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), m365Account, connector.Sites)
+func SiteURLs(ctx context.Context, acct account.Account) ([]string, error) {
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+		return nil, errors.Wrap(err, "initializing M365 graph connection")
 	}
 
 	return gc.GetSiteWebURLs(), nil
 }
 
 // SiteURLs returns a list of SharePoint sites IDs in the specified M365 tenant
-func SiteIDs(ctx context.Context, m365Account account.Account) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), m365Account, connector.Sites)
+func SiteIDs(ctx context.Context, acct account.Account) ([]string, error) {
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not initialize M365 graph connection")
+		return nil, errors.Wrap(err, "initializing graph connection")
 	}
 
 	return gc.GetSiteIDs(), nil
@@ -98,7 +99,8 @@ func SiteIDs(ctx context.Context, m365Account account.Account) ([]string, error)
 // parseUser extracts information from `models.Userable` we care about
 func parseUser(item models.Userable) (*User, error) {
 	if item.GetUserPrincipalName() == nil {
-		return nil, errors.Errorf("no principal name for User: %s", *item.GetId())
+		return nil, clues.New("userable missing principal name").
+			With("user_id", *item.GetId()) // TODO: pii
 	}
 
 	u := &User{PrincipalName: *item.GetUserPrincipalName(), ID: *item.GetId()}

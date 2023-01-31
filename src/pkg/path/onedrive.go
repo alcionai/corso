@@ -1,8 +1,6 @@
 package path
 
-import (
-	"github.com/pkg/errors"
-)
+import "github.com/alcionai/clues"
 
 // drivePath is used to represent path components
 // of an item within the drive i.e.
@@ -20,10 +18,9 @@ func ToOneDrivePath(p Path) (*DrivePath, error) {
 
 	// Must be at least `drives/<driveID>/root:`
 	if len(folders) < 3 {
-		return nil, errors.Errorf(
-			"folder path doesn't match expected format for OneDrive items: %s",
-			p.Folder(),
-		)
+		return nil, clues.
+			New("folder path doesn't match expected format for OneDrive items").
+			With("folders", p.Folder())
 	}
 
 	return &DrivePath{DriveID: folders[1], Folders: folders[3:]}, nil

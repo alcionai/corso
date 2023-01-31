@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -45,7 +46,7 @@ func (s Storage) CommonConfig() (CommonConfig, error) {
 // ensures all required properties are present
 func (c CommonConfig) validate() error {
 	if len(c.CorsoPassphrase) == 0 {
-		return errors.Wrap(errMissingRequired, credentials.CorsoPassphrase)
+		return clues.Stack(errMissingRequired, errors.New(credentials.CorsoPassphrase))
 	}
 
 	// kopiaCfgFilePath is not required
