@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+### Added
+
+- Document Corso's fault-tolerance and restartability features
+
 ## [v0.2.0] (alpha) - 2023-1-29
 
 ### Fixed
 
 - Check if the user specified for an exchange backup operation has a mailbox.
+
+### Changed
+
+- BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk` 
 - Handle case where user's drive has not been initialized
 - Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))
 - Guest and External users (for cloud accounts) and non-on-premise users (for systems that use on-prem AD syncs) are now excluded from backup and restore operations.

@@ -41,7 +41,7 @@ jobs:
         working-directory: src
     steps:
       - uses: actions/checkout@v3
-
+      
       # single setup and sum cache handling here.
       # the results will cascade onto both testing and linting.
       - name: Setup Golang with cache
@@ -239,17 +239,29 @@ jobs:
       run:
         working-directory: src
     steps:
-      - name: Fail check
+      - name: Fail check if not repository_dispatch
         if: github.event_name != 'repository_dispatch'
         run: |
           echo "Workflow requires approval from a maintainer to run. It will be automatically rerun on approval."
+          exit 1
+
+      - uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event.client_payload.slash_command.args.named.sha != '' && contains(github.event.client_payload.pull_request.head.sha, github.event.client_payload.slash_command.args.named.sha)
+        with:
+          message: |
+            Workflow run sha specified via `ok-to-test` is not the latest commit on PR. Run canceled.
+
+      - name: Fail check if not head of PR
+        if: github.event.client_payload.slash_command.args.named.sha != '' && contains(github.event.client_payload.pull_request.head.sha, github.event.client_payload.slash_command.args.named.sha)
+        run: |
+          echo "Workflow run sha specified is not the latest commit on PR. Exiting."
           exit 1
 
       # add comment to PR with link to workflow run
       - uses: marocchino/sticky-pull-request-comment@v2
         with:
           message: |
-            https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+            Test suite run will be available at https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
       # Check out merge commit
       - name: Fork based /ok-to-test checkout

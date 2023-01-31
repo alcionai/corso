@@ -114,6 +114,7 @@ func runLoadTest(
 	prefix, service string,
 	usersUnderTest []string,
 	bupSel, restSel selectors.Selector,
+	runRestore bool,
 ) {
 	//revive:enable:context-as-argument
 	t.Run(prefix+"_load_test_main", func(t *testing.T) {
@@ -126,12 +127,33 @@ func runLoadTest(
 		runBackupListLoadTest(t, ctx, r, service, bid)
 		runBackupDetailsLoadTest(t, ctx, r, service, bid, usersUnderTest)
 
+		runRestoreLoadTest(t, ctx, r, prefix, service, bid, usersUnderTest, restSel, b, runRestore)
+	})
+}
+
+//revive:disable:context-as-argument
+func runRestoreLoadTest(
+	t *testing.T,
+	ctx context.Context,
+	r repository.Repository,
+	prefix, service, backupID string,
+	usersUnderTest []string,
+	restSel selectors.Selector,
+	bup operations.BackupOperation,
+	runRestore bool,
+) {
+	//revive:enable:context-as-argument
+	t.Run(prefix+"_load_test_restore", func(t *testing.T) {
+		if !runRestore {
+			t.Skip("restore load test is toggled off")
+		}
+
 		dest := tester.DefaultTestRestoreDestination()
 
-		rst, err := r.NewRestore(ctx, bid, restSel, dest)
+		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
 		require.NoError(t, err)
 
-		runRestoreLoadTest(t, ctx, rst, service, b.Results.ItemsWritten, usersUnderTest)
+		doRestoreLoadTest(t, ctx, rst, service, bup.Results.ItemsWritten, usersUnderTest)
 	})
 }
 
@@ -242,7 +264,7 @@ func runBackupDetailsLoadTest(
 }
 
 //revive:disable:context-as-argument
-func runRestoreLoadTest(
+func doRestoreLoadTest(
 	t *testing.T,
 	ctx context.Context,
 	r operations.RestoreOperation,
@@ -412,6 +434,7 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 		"all_users", "exchange",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
+		true,
 	)
 }
 
@@ -460,6 +483,7 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
 		"single_user", "exchange",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
+		true,
 	)
 }
 
@@ -508,6 +532,7 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 		"all_users", "one_drive",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
+		false,
 	)
 }
 
@@ -527,7 +552,6 @@ func TestRepositoryIndividualLoadTestOneDriveSuite(t *testing.T) {
 
 func (suite *RepositoryIndividualLoadTestOneDriveSuite) SetupSuite() {
 	t := suite.T()
-	t.Skip("not running onedrive load tests atm")
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 	suite.usersUnderTest = singleUserSet(t)
@@ -552,6 +576,7 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 		"single_user", "one_drive",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
+		false,
 	)
 }
 
@@ -600,6 +625,7 @@ func (suite *RepositoryLoadTestSharePointSuite) TestSharePoint() {
 		"all_sites", "share_point",
 		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
+		false,
 	)
 }
 
@@ -644,5 +670,6 @@ func (suite *RepositoryIndividualLoadTestSharePointSuite) TestSharePoint() {
 		"single_site", "share_point",
 		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
+		false,
 	)
 }
