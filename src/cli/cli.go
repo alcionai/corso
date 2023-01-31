@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/backup"
@@ -31,7 +32,23 @@ var corsoCmd = &cobra.Command{
 	Short:             "Free, Secure, Open-Source Backup for M365.",
 	Long:              `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 	RunE:              handleCorsoCmd,
-	PersistentPreRunE: config.InitFunc(),
+	PersistentPreRunE: preRun,
+}
+
+func preRun(cc *cobra.Command, args []string) error {
+	if err := config.InitFunc(cc, args); err != nil {
+		return err
+	}
+
+	logger.Ctx(cc.Context()).
+		Infow("cli command",
+			"called_as", cc.CalledAs(),
+			"cmd_path", cc.CommandPath(),
+			"flag_usages", cc.Flags().FlagUsages(),
+			"name", cc.Name(),
+			"name_alias", cc.NameAndAliases())
+
+	return nil
 }
 
 // Handler for flat calls to `corso`.
@@ -62,7 +79,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.PersistentFlags().SortFlags = false
 
 	cmd.Flags().BoolP("version", "v", false, "current version info")
-	cmd.PersistentPostRunE = config.InitFunc()
+	cmd.PersistentPreRunE = preRun
 	config.AddConfigFlags(cmd)
 	logger.AddLoggingFlags(cmd)
 	observe.AddProgressBarFlags(cmd)
@@ -85,6 +102,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
@@ -93,6 +111,8 @@ func Handle() {
 
 	loglevel, logfile := logger.PreloadLoggingFlags()
 	ctx, log := logger.Seed(ctx, loglevel, logfile)
+
+	ctx = clues.AddAll(ctx, "corso_version", version.Version)
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
