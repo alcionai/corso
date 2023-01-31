@@ -17,6 +17,7 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
+	errCodeActivityLimitReached        = "activityLimitReached"
 	errCodeItemNotFound                = "ErrorItemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired"
@@ -115,6 +116,10 @@ func IsErrThrottled(err error) bool {
 		return true
 	}
 
+	if hasErrorCode(err, errCodeActivityLimitReached) {
+		return true
+	}
+
 	e := ErrThrottled{}
 
 	return errors.As(err, &e)
@@ -147,11 +152,8 @@ func IsInternalServerError(err error) bool {
 	}
 
 	e := ErrInternalServerError{}
-	if errors.As(err, &e) {
-		return true
-	}
 
-	return true
+	return errors.As(err, &e)
 }
 
 // ---------------------------------------------------------------------------

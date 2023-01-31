@@ -159,19 +159,19 @@ func HasAttachments(body models.ItemBodyable) bool {
 func runWithRetry(run func() error) error {
 	var err error
 
-	for i := 1; i <= numberOfRetries; i++ {
+	for i := 0; i < numberOfRetries; i++ {
 		err = run()
 		if err == nil {
 			return nil
 		}
 
 		// only retry on timeouts and 500-internal-errors.
-		if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
+		if !(graph.IsErrTimeout(err) || graph.IsInternalServerError(err)) {
 			break
 		}
 
 		if i < numberOfRetries {
-			time.Sleep(time.Duration(3*(i+1)) * time.Second)
+			time.Sleep(time.Duration(3*(i+2)) * time.Second)
 		}
 	}
 

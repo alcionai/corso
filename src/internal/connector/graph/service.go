@@ -250,7 +250,6 @@ func (handler *LoggingMiddleware) Intercept(
 			respDump, _ := httputil.DumpResponse(resp, false)
 
 			metadata := []any{
-				"idx", middlewareIndex,
 				"method", req.Method,
 				"status", resp.Status,
 				"statusCode", resp.StatusCode,
@@ -273,7 +272,6 @@ func (handler *LoggingMiddleware) Intercept(
 		respDump, _ := httputil.DumpResponse(resp, true)
 
 		metadata := []any{
-			"idx", middlewareIndex,
 			"method", req.Method,
 			"status", resp.Status,
 			"statusCode", resp.StatusCode,
