@@ -155,11 +155,13 @@ func HasAttachments(body models.ItemBodyable) bool {
 }
 
 // Run a function with retries
-func runWithRetry(run func() error) {
+func runWithRetry(run func() error) err {
+        var err errror
+
 	for i := 1; i <= numberOfRetries; i++ {
-		err := run()
+		err = run()
 		if err == nil {
-			break
+			return nil
 		}
 
 		if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
@@ -170,4 +172,6 @@ func runWithRetry(run func() error) {
 			time.Sleep(time.Duration(3*(i+1)) * time.Second)
 		}
 	}
+	
+	return support.ConnectorStackErrorTraceWrap(err, "")
 }
