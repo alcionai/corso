@@ -57,7 +57,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: Completed,
 			expectErr:    assert.NoError,
 			stats: restoreStats{
-				started:       true,
 				resourceCount: 1,
 				bytesRead: &stats.ByteCounter{
 					NumBytes: 42,
@@ -73,7 +72,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: Failed,
 			expectErr:    assert.Error,
 			stats: restoreStats{
-				started:   false,
+				readErr:   assert.AnError,
 				bytesRead: &stats.ByteCounter{},
 				gc:        &support.ConnectorOperationStatus{},
 			},
@@ -82,7 +81,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: NoData,
 			expectErr:    assert.NoError,
 			stats: restoreStats{
-				started:   true,
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.Collection{},
 				gc:        &support.ConnectorOperationStatus{},

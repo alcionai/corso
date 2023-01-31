@@ -3,10 +3,13 @@ package kopia
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
 	"runtime/trace"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -203,6 +206,19 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	// Pass the call through as well so we don't break expected functionality.
 	defer cp.UploadProgress.FinishedHashingFile(fname, bs)
+
+	sl := strings.Split(fname, "/")
+
+	for i := range sl {
+		rdt, err := base64.StdEncoding.DecodeString(sl[i])
+		if err != nil {
+			fmt.Println("f did not decode")
+		}
+
+		sl[i] = string(rdt)
+	}
+
+	logger.Ctx(context.Background()).Debugw("finished hashing file", "path", sl[2:])
 
 	atomic.AddInt64(&cp.totalBytes, bs)
 }

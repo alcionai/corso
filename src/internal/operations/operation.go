@@ -95,7 +95,7 @@ func connectToM365(
 	sel selectors.Selector,
 	acct account.Account,
 ) (*connector.GraphConnector, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to M365"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -108,7 +108,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, resource)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,7 @@ package sharepoint
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -13,7 +13,7 @@ import (
 // Returns error if error experienced during the call
 func GetSitePages(
 	ctx context.Context,
-	serv *betasdk.Service,
+	serv *api.BetaService,
 	siteID string,
 	pages []string,
 ) ([]models.SitePageable, error) {
@@ -33,7 +33,7 @@ func GetSitePages(
 }
 
 // fetchPages utility function to return the tuple of item
-func fetchPages(ctx context.Context, bs *betasdk.Service, siteID string) ([]listTuple, error) {
+func fetchPages(ctx context.Context, bs *api.BetaService, siteID string) ([]listTuple, error) {
 	var (
 		builder    = bs.Client().SitesById(siteID).Pages()
 		opts       = fetchPageOptions()
@@ -61,7 +61,7 @@ func fetchPages(ctx context.Context, bs *betasdk.Service, siteID string) ([]list
 			break
 		}
 
-		builder = sites.NewItemPagesRequestBuilder(*resp.GetOdataNextLink(), bs.Adapter())
+		builder = sites.NewItemPagesRequestBuilder(*resp.GetOdataNextLink(), bs.Client().Adapter())
 	}
 
 	return pageTuples, nil

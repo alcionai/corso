@@ -10,9 +10,15 @@ import TabItem from '@theme/TabItem';
 import TOCInline from '@theme/TOCInline';
 import {Version} from '@site/src/corsoEnv';
 
-A Corso [repository](../concepts#corso-concepts) stores encrypted copies of your backup data. Corso uses
+A Corso [repository](../concepts#corso-concepts) stores encrypted copies of a Microsoft 365 tenant's
+backup data. Each repository is configured to store data in an object storage bucket and, optionally,
+a user-specified prefix within the bucket. A repository is only meant to store a single tenant's data
+but a single object storage bucket can contain multiple repositories if unique `--prefix` options are
+specified when initializing a repository.
+
+Within a repository, Corso uses
 AES256-GCM-HMAC-SHA256 to encrypt data at rest using keys that are derived from the repository passphrase.
-Data in flight is encrypted via TLS.
+Data in flight to and from the repositiry is encrypted via TLS.
 
 Repositories are supported on the following object storage systems:
 

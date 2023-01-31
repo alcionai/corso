@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -78,30 +77,4 @@ func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 			assert.NotNil(t, page.GetId())
 		}
 	}
-}
-
-func (suite *BetaClientSuite) TestServiceRequirements() {
-	t := suite.T()
-
-	adpt, err := graph.CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
-	)
-	require.NoError(t, err)
-
-	service := NewService(adpt)
-	require.NotNil(t, service)
-
-	testPage := models.NewSitePage()
-	name := "testFile"
-	desc := "working with parsing"
-
-	testPage.SetName(&name)
-	testPage.SetDescription(&desc)
-
-	byteArray, err := service.Serialize(testPage)
-	assert.NotEmpty(t, byteArray)
-	assert.NoError(t, err)
-
 }
