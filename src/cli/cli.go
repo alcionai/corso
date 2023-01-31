@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/backup"
@@ -116,8 +115,6 @@ func Handle() {
 
 	loglevel, logfile := logger.PreloadLoggingFlags()
 	ctx, log := logger.Seed(ctx, loglevel, logfile)
-
-	ctx = clues.AddAll(ctx, "corso_version", version.CurrentVersion())
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
