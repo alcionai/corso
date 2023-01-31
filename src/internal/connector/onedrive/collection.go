@@ -273,9 +273,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 					} else if !graph.IsErrTimeout(err) &&
 						!graph.IsInternalServerError(err) {
-						// for all non-timeout, on-unauth, do not
-						// retry as we are already retrying it from
-						// the builtin middleware
+						// Don't retry for non-timeout, on-unauth, as
+						// we are already retrying it in the default
+						// retry middleware
 						break
 					}
 
