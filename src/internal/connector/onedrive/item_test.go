@@ -75,7 +75,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	suite.user = tester.SecondaryM365UserID(t)
 
-	odDrives, err := drives(ctx, suite, suite.user, OneDriveSource)
+	pager, err := PagerForSource(OneDriveSource, suite, suite.user, nil)
+	require.NoError(t, err)
+
+	odDrives, err := drives(ctx, pager, true)
 	require.NoError(t, err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
@@ -126,7 +129,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	// Read data for the file
 
-	itemInfo, itemData, err := oneDriveItemReader(graph.LargeItemClient(), driveItem)
+	itemInfo, itemData, err := oneDriveItemReader(graph.HTTPClient(graph.NoTimeout()), driveItem)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)

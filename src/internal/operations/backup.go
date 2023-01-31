@@ -44,7 +44,7 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
-	stats.Errs
+	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
@@ -90,7 +90,6 @@ type backupStats struct {
 	k                 *kopia.BackupStats
 	gc                *support.ConnectorOperationStatus
 	resourceCount     int
-	started           bool
 	readErr, writeErr error
 }
 
@@ -228,7 +227,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
-	opStats.started = true
 
 	return err
 }
@@ -256,14 +254,18 @@ func produceBackupDataCollections(
 	metadata []data.Collection,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
 		closer()
 	}()
 
-	return gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+	// TODO(ashmrtn): When we're ready to wire up the global exclude list return
+	// all values.
+	cols, _, errs := gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+
+	return cols, errs
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +277,7 @@ type backuper interface {
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.Collection,
+		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
@@ -338,7 +341,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -400,7 +403,33 @@ func consumeBackupDataCollections(
 		)
 	}
 
-	return bu.BackupCollections(ctx, bases, cs, tags, isIncremental)
+	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
+		ctx,
+		bases,
+		cs,
+		nil,
+		tags,
+		isIncremental,
+	)
+
+	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+		if err != nil {
+			err = errors.Wrapf(
+				err,
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		} else {
+			err = errors.Errorf(
+				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+				kopiaStats.ErrorCount,
+				kopiaStats.IgnoredErrorCount,
+			)
+		}
+	}
+
+	return kopiaStats, deets, itemsSourcedFromBase, err
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
@@ -531,9 +560,12 @@ func (op *BackupOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
+	op.Results.ReadErrors = opStats.readErr
+	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
-	if !opStats.started {
+
+	if opStats.readErr != nil || opStats.writeErr != nil {
 		op.Status = Failed
 
 		return multierror.Append(
@@ -545,9 +577,6 @@ func (op *BackupOperation) persistResults(
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
-
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
@@ -580,6 +609,7 @@ func (op *BackupOperation) createBackupModels(
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
+		op.Errors,
 	)
 
 	err = op.store.Put(ctx, model.BackupSchema, b)
