@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -483,7 +484,11 @@ func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
 
 // Reduce filters the entries in a details struct to only those that match the
 // inclusions, filters, and exclusions in the selector.
-func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+func (s oneDrive) Reduce(
+	ctx context.Context,
+	deets *details.Details,
+	errs fault.Adder,
+) *details.Details {
 	return reduce[OneDriveScope](
 		ctx,
 		deets,
@@ -491,7 +496,7 @@ func (s oneDrive) Reduce(ctx context.Context, deets *details.Details) *details.D
 		map[path.CategoryType]oneDriveCategory{
 			path.FilesCategory: OneDriveItem,
 		},
-	)
+		errs)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an oneDriveInfo

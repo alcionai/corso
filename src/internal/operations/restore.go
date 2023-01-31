@@ -344,7 +344,7 @@ func formatDetailsForRestoration(
 	deets *details.Details,
 	errs *fault.Errors,
 ) ([]path.Path, error) {
-	fds, err := sel.Reduce(ctx, deets)
+	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
 		return nil, err
 	}
