@@ -11,8 +11,11 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -621,13 +624,304 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	}
 }
 
-func driveItem(id string, name string, path string, isFile, isFolder, isPackage bool) models.DriveItemable {
+func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
+	tenant := "a-tenant"
+	user := "a-user"
+	driveID1 := "1"
+	driveID2 := "2"
+	deltaURL1 := "url/1"
+	deltaURL2 := "url/2"
+
+	folderID1 := "folder1"
+	folderID2 := "folder2"
+	path1 := "folder1/path"
+	path2 := "folder2/path"
+
+	table := []struct {
+		name string
+		// Each function returns the set of files for a single data.Collection.
+		cols           []func() []graph.MetadataCollectionEntry
+		expectedDeltas map[string]string
+		expectedPaths  map[string]map[string]string
+		errCheck       assert.ErrorAssertionFunc
+	}{
+		{
+			name: "SuccessOneDriveAllOneCollection",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{
+				driveID1: deltaURL1,
+			},
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			name: "MissingPaths",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{},
+			expectedPaths:  map[string]map[string]string{},
+			errCheck:       assert.NoError,
+		},
+		{
+			name: "MissingDeltas",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{},
+			expectedPaths:  map[string]map[string]string{},
+			errCheck:       assert.NoError,
+		},
+		{
+			name: "SuccessTwoDrivesTwoCollections",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+					}
+				},
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID2: deltaURL2},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID2: {
+									folderID2: path2,
+								},
+							},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{
+				driveID1: deltaURL1,
+				driveID2: deltaURL2,
+			},
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+				},
+				driveID2: {
+					folderID2: path2,
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			// Bad formats are logged but skip adding entries to the maps and don't
+			// return an error.
+			name: "BadFormat",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{},
+			expectedPaths:  map[string]map[string]string{},
+			errCheck:       assert.NoError,
+		},
+		{
+			// Unexpected files are logged and skipped. They don't cause an error to
+			// be returned.
+			name: "BadFileName",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+						graph.NewMetadataEntry(
+							"foo",
+							map[string]string{driveID1: deltaURL1},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{
+				driveID1: deltaURL1,
+			},
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			name: "DriveAlreadyFound_Paths",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+					}
+				},
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID2: path2,
+								},
+							},
+						),
+					}
+				},
+			},
+			expectedDeltas: nil,
+			expectedPaths:  nil,
+			errCheck:       assert.Error,
+		},
+		{
+			name: "DriveAlreadyFound_Deltas",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+					}
+				},
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL2},
+						),
+					}
+				},
+			},
+			expectedDeltas: nil,
+			expectedPaths:  nil,
+			errCheck:       assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			cols := []data.Collection{}
+
+			for _, c := range test.cols {
+				mc, err := graph.MakeMetadataCollection(
+					tenant,
+					user,
+					path.OneDriveService,
+					path.FilesCategory,
+					c(),
+					func(*support.ConnectorOperationStatus) {},
+				)
+				require.NoError(t, err)
+
+				cols = append(cols, mc)
+			}
+
+			deltas, paths, err := deserializeMetadata(ctx, cols)
+			test.errCheck(t, err)
+
+			assert.Equal(t, test.expectedDeltas, deltas)
+			assert.Equal(t, test.expectedPaths, paths)
+		})
+	}
+}
+
+func driveItem(id string, name string, parentPath string, isFile, isFolder, isPackage bool) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
 
 	parentReference := models.NewItemReference()
-	parentReference.SetPath(&path)
+	parentReference.SetPath(&parentPath)
 	item.SetParentReference(parentReference)
 
 	switch {
@@ -644,13 +938,13 @@ func driveItem(id string, name string, path string, isFile, isFolder, isPackage 
 
 // delItem creates a DriveItemable that is marked as deleted. path must be set
 // to the base drive path.
-func delItem(id string, path string, isFile, isFolder, isPackage bool) models.DriveItemable {
+func delItem(id string, parentPath string, isFile, isFolder, isPackage bool) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetId(&id)
 	item.SetDeleted(models.NewDeleted())
 
 	parentReference := models.NewItemReference()
-	parentReference.SetPath(&path)
+	parentReference.SetPath(&parentPath)
 	item.SetParentReference(parentReference)
 
 	switch {
