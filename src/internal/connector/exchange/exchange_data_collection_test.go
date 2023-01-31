@@ -10,23 +10,33 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type mockItemer struct{}
+type mockItemer struct {
+	getCount       int
+	serializeCount int
+	getErr         error
+	serializeErr   error
+}
 
-func (mi mockItemer) GetItem(
+func (mi *mockItemer) GetItem(
 	context.Context,
 	string, string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	return nil, nil, nil
+	mi.getCount++
+	return nil, nil, mi.getErr
 }
 
-func (mi mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
-	return nil, nil
+func (mi *mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+	mi.serializeCount++
+	return nil, mi.serializeErr
 }
 
 type ExchangeDataCollectionSuite struct {
@@ -153,10 +163,58 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 				"u",
 				test.curr, test.prev,
 				0,
-				mockItemer{}, nil,
+				&mockItemer{}, nil,
 				control.Options{},
 				false)
 			assert.Equal(t, test.expect, c.State())
+		})
+	}
+}
+
+func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
+	table := []struct {
+		name           string
+		items          *mockItemer
+		expectErr      func(*testing.T, error)
+		expectGetCalls int
+	}{
+		{
+			name:  "happy",
+			items: &mockItemer{},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+			expectGetCalls: 1,
+		},
+		{
+			name:  "an error",
+			items: &mockItemer{getErr: assert.AnError},
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+			},
+			expectGetCalls: 3,
+		},
+		{
+			name: "deleted in flight",
+			items: &mockItemer{
+				getErr: graph.ErrDeletedInFlight{
+					Err: *common.EncapsulateError(assert.AnError),
+				},
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")
+			},
+			expectGetCalls: 1,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			// itemer is mocked, so only the errors are configured atm.
+			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items)
+			test.expectErr(t, err)
 		})
 	}
 }
