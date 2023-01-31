@@ -50,7 +50,7 @@ func preRun(cc *cobra.Command, args []string) error {
 		flagSl = append(flagSl, f)
 	}
 
-	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl)
+	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())
 
 	return nil
 }
