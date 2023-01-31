@@ -165,6 +165,7 @@ func runWithRetry(run func() error) error {
 			return nil
 		}
 
+		// only retry on timeouts and 500-internal-errors.
 		if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
 			break
 		}
