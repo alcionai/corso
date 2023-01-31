@@ -153,3 +153,21 @@ func HasAttachments(body models.ItemBodyable) bool {
 
 	return strings.Contains(content, "src=\"cid:")
 }
+
+// Run a function with retries
+func runWithRetry(run func() error) {
+	for i := 1; i <= numberOfRetries; i++ {
+		err := run()
+		if err == nil {
+			break
+		}
+
+		if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
+			break
+		}
+
+		if i < numberOfRetries {
+			time.Sleep(time.Duration(3*(i+1)) * time.Second)
+		}
+	}
+}

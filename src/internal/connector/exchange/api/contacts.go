@@ -132,20 +132,10 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		for i := 1; i <= numberOfRetries; i++ {
+		runWithRetry(func() error {
 			resp, err = builder.Get(ctx, ofcf)
-			if err == nil {
-				break
-			}
-
-			if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
-				break
-			}
-
-			if i < numberOfRetries {
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
-			}
-		}
+			return err
+		})
 
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))

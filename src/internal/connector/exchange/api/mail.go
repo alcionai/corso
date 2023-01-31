@@ -95,7 +95,14 @@ func (c Mail) GetContainerByID(
 		return nil, errors.Wrap(err, "options for mail folder")
 	}
 
-	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+	var resp graph.Container
+
+	runWithRetry(func() error {
+		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+		return err
+	})
+
+	return resp, err
 }
 
 // GetItem retrieves a Messageable item.  If the item contains an attachment, that
@@ -104,7 +111,16 @@ func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	var (
+		mail models.Messageable
+		err  error
+	)
+
+	runWithRetry(func() error {
+		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -163,20 +179,10 @@ func (c Mail) EnumerateContainers(
 	)
 
 	for {
-		for i := 1; i <= numberOfRetries; i++ {
+		runWithRetry(func() error {
 			resp, err = builder.Get(ctx, nil)
-			if err == nil {
-				break
-			}
-
-			if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
-				break
-			}
-
-			if i < numberOfRetries {
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
-			}
-		}
+			return err
+		})
 
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -215,7 +221,17 @@ type mailPager struct {
 }
 
 func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+	var (
+		page api.DeltaPageLinker
+		err  error
+	)
+
+	runWithRetry(func() error {
+		page, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return page, err
 }
 
 func (p *mailPager) setNext(nextLink string) {

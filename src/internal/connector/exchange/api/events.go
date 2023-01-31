@@ -73,7 +73,12 @@ func (c Events) GetContainerByID(
 		return nil, errors.Wrap(err, "options for event calendar")
 	}
 
-	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	var cal models.Calendarable
+	runWithRetry(func() error {
+		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -160,20 +165,10 @@ func (c Events) EnumerateContainers(
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		for i := 1; i <= numberOfRetries; i++ {
+		runWithRetry(func() error {
 			resp, err = builder.Get(ctx, ofc)
-			if err == nil {
-				break
-			}
-
-			if !graph.IsErrTimeout(err) && !graph.IsInternalServerError(err) {
-				break
-			}
-
-			if i < numberOfRetries {
-				time.Sleep(time.Duration(3*(i+1)) * time.Second)
-			}
-		}
+			return err
+		})
 
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -222,7 +217,16 @@ type eventPager struct {
 }
 
 func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
+	var (
+		resp api.DeltaPageLinker
+		err  error
+	)
+
+	runWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
 	return resp, err
 }
 
