@@ -154,6 +154,7 @@ func (c Mail) EnumerateContainers(
 	}
 
 	var (
+		resp    users.ItemMailFoldersDeltaResponseable
 		errs    *multierror.Error
 		builder = service.Client().
 			UsersById(userID).
@@ -162,7 +163,21 @@ func (c Mail) EnumerateContainers(
 	)
 
 	for {
-		resp, err := builder.Get(ctx, nil)
+		for i := 1; i <= numberOfRetries; i++ {
+			resp, err = builder.Get(ctx, nil)
+			if err == nil {
+				break
+			}
+
+			if !graph.IsErrTimeout(err) && !graph.IsSericeUnavailable(err) {
+				break
+			}
+
+			if i < numberOfRetries {
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+			}
+		}
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}

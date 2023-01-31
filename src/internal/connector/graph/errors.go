@@ -31,8 +31,10 @@ var (
 	// normally the graph client will catch this for us, but in case we
 	// run our own client Do(), we need to translate it to a timeout type
 	// failure locally.
-	Err429TooManyRequests    = errors.New("429 too many requests")
-	Err503ServiceUnavailable = errors.New("503 Service Unavailable")
+	Err429TooManyRequests     = errors.New("429 too many requests")
+	Err503ServiceUnavailable  = errors.New("503 Service Unavailable")
+	Err504GatewayTimeout      = errors.New("504 Gateway Timeout")
+	Err500InternalServerError = errors.New("500 Internal Server Error")
 )
 
 // The folder or item was deleted between the time we identified
@@ -92,7 +94,9 @@ func IsErrTimeout(err error) bool {
 		return true
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+	if errors.Is(err, context.DeadlineExceeded) ||
+		os.IsTimeout(err) ||
+		errors.Is(err, Err504GatewayTimeout) {
 		return true
 	}
 

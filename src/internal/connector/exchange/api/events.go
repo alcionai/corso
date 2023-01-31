@@ -147,7 +147,10 @@ func (c Events) EnumerateContainers(
 		return err
 	}
 
-	var errs *multierror.Error
+	var (
+		resp models.CalendarCollectionResponseable
+		errs *multierror.Error
+	)
 
 	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
@@ -157,7 +160,21 @@ func (c Events) EnumerateContainers(
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		resp, err := builder.Get(ctx, ofc)
+		for i := 1; i <= numberOfRetries; i++ {
+			resp, err = builder.Get(ctx, ofc)
+			if err == nil {
+				break
+			}
+
+			if !graph.IsErrTimeout(err) && !graph.IsSericeUnavailable(err) {
+				break
+			}
+
+			if i < numberOfRetries {
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+			}
+		}
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}

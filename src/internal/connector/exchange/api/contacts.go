@@ -117,6 +117,7 @@ func (c Contacts) EnumerateContainers(
 
 	var (
 		errs   *multierror.Error
+		resp   models.ContactFolderCollectionResponseable
 		fields = []string{"displayName", "parentFolderId"}
 	)
 
@@ -131,7 +132,21 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		resp, err := builder.Get(ctx, ofcf)
+		for i := 1; i <= numberOfRetries; i++ {
+			resp, err = builder.Get(ctx, ofcf)
+			if err == nil {
+				break
+			}
+
+			if !graph.IsErrTimeout(err) && !graph.IsSericeUnavailable(err) {
+				break
+			}
+
+			if i < numberOfRetries {
+				time.Sleep(time.Duration(3*(i+1)) * time.Second)
+			}
+		}
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
