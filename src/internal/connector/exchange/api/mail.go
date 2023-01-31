@@ -72,9 +72,9 @@ func (c Mail) CreateMailFolderWithParent(
 		Post(ctx, requestBody, nil)
 }
 
-// DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
+// DeleteContainer removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func (c Mail) DeleteMailFolder(
+func (c Mail) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {

@@ -633,6 +633,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	tester.LogTimeOfTest(suite.T())
+
 	var (
 		t          = suite.T()
 		acct       = tester.NewM365Account(t)
@@ -803,7 +805,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		{
 			name: "move an email folder to a subfolder",
 			updateUserData: func(t *testing.T) {
-				// contacts cannot be sufoldered; this is an email-only change
+				// contacts and events cannot be sufoldered; this is an email-only change
 				toContainer := dataset[path.EmailCategory].dests[container1].containerID
 				fromContainer := dataset[path.EmailCategory].dests[container2].containerID
 
@@ -826,23 +828,22 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container2].containerID
-					cli := gc.Service.Client().UsersById(suite.user)
 
 					switch category {
 					case path.EmailCategory:
 						require.NoError(
 							t,
-							cli.MailFoldersById(containerID).Delete(ctx, nil),
+							ac.Mail().DeleteContainer(ctx, suite.user, containerID),
 							"deleting an email folder")
 					case path.ContactsCategory:
 						require.NoError(
 							t,
-							cli.ContactFoldersById(containerID).Delete(ctx, nil),
+							ac.Contacts().DeleteContainer(ctx, suite.user, containerID),
 							"deleting a contacts folder")
 					case path.EventsCategory:
 						require.NoError(
 							t,
-							cli.CalendarsById(containerID).Delete(ctx, nil),
+							ac.Events().DeleteContainer(ctx, suite.user, containerID),
 							"deleting a calendar")
 					}
 				}
@@ -923,19 +924,19 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "updating contact folder name")
 
 					case path.EventsCategory:
-						ccf := cli.CalendarsById(containerID)
+						cbi := cli.CalendarsById(containerID)
 
-						body, err := ccf.Get(ctx, nil)
+						body, err := cbi.Get(ctx, nil)
 						require.NoError(t, err, "getting calendar")
 
 						body.SetName(&containerRename)
-						_, err = ccf.Patch(ctx, body, nil)
+						_, err = cbi.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating calendar name")
 					}
 				}
 			},
-			itemsRead:    0,
-			itemsWritten: 4,
+			itemsRead:    0, // containers are not counted as reads
+			itemsWritten: 4, // two items per category
 		},
 		{
 			name: "add a new item",

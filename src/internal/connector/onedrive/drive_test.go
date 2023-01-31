@@ -454,7 +454,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			scope := selectors.
 				NewOneDriveBackup([]string{test.user}).
 				AllData()[0]
-			odcs, err := NewCollections(
+			odcs, excludes, err := NewCollections(
 				graph.HTTPClient(graph.NoTimeout()),
 				creds.AzureTenantID,
 				test.user,
@@ -465,6 +465,8 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				control.Options{},
 			).Get(ctx)
 			assert.NoError(t, err)
+			// Don't expect excludes as this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			for _, entry := range odcs {
 				assert.NotEmpty(t, entry.FullPath())

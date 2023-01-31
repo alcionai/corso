@@ -29,11 +29,14 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "configuring storage from test file")
 
+	prefix := testRepoRootPrefix + t.Name() + "-" + now
+	t.Logf("testing at s3 bucket [%s] prefix [%s]", cfg[TestCfgBucket], prefix)
+
 	st, err := storage.NewStorage(
 		storage.ProviderS3,
 		storage.S3Config{
 			Bucket: cfg[TestCfgBucket],
-			Prefix: testRepoRootPrefix + t.Name() + "-" + now,
+			Prefix: prefix,
 		},
 		storage.CommonConfig{
 			Corso:       credentials.GetCorso(),
