@@ -271,7 +271,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 						continue
 
-					} else if !graph.IsErrTimeout(err) && !graph.IsErrThrottled(err) && !graph.IsSericeUnavailable(err) {
+					} else if !graph.IsErrTimeout(err) && !graph.IsErrThrottled(err) && !graph.IsServiceUnavailable(err) {
 						// TODO: graphAPI will provides headers that state the duration to wait
 						// in order to succeed again.  The one second sleep won't cut it here.
 						//

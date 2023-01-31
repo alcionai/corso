@@ -143,7 +143,7 @@ type ErrServiceUnavailable struct {
 	common.Err
 }
 
-func IsSericeUnavailable(err error) bool {
+func IsServiceUnavailable(err error) bool {
 	if errors.Is(err, Err503ServiceUnavailable) {
 		return true
 	}
