@@ -76,9 +76,8 @@ type Toggles struct {
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
 
-	// DisablePermissionsBackup is used to disable backups for
-	// permissions. This can be used by other tools to completely
-	// disable the backup and restore functionality for backups as
-	// they consume more API credits and can cause increased throttling.
+	// DisablePermissionsBackup is used to disable backups of item
+	// permissions. Permission metadata increases graph api call count,
+	// so disabling their retrieval when not needed is advised.
 	DisablePermissionsBackup bool `json:"disablePermissionsBackup,omitempty"`
 }

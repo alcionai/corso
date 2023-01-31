@@ -91,7 +91,7 @@ func DisablePermissionsBackup() func(*pflag.FlagSet) {
 			&disablePermissionsBackup,
 			"disable-permissions-backup",
 			false,
-			"Disable backing up permissions for OneDrive")
+			"Disable backing up item permissions for OneDrive")
 		cobra.CheckErr(fs.MarkHidden("disable-permissions-backup"))
 	}
 }
