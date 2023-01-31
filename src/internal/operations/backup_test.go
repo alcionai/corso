@@ -420,11 +420,11 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
+			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
 			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")

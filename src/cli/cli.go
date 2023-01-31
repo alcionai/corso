@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -31,7 +32,27 @@ var corsoCmd = &cobra.Command{
 	Short:             "Free, Secure, Open-Source Backup for M365.",
 	Long:              `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 	RunE:              handleCorsoCmd,
-	PersistentPreRunE: config.InitFunc(),
+	PersistentPreRunE: preRun,
+}
+
+func preRun(cc *cobra.Command, args []string) error {
+	if err := config.InitFunc(cc, args); err != nil {
+		return err
+	}
+
+	log := logger.Ctx(cc.Context())
+
+	flags := utils.GetPopulatedFlags(cc)
+	flagSl := make([]string, 0, len(flags))
+
+	// currently only tracking flag names to avoid pii leakage.
+	for f := range flags {
+		flagSl = append(flagSl, f)
+	}
+
+	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())
+
+	return nil
 }
 
 // Handler for flat calls to `corso`.
@@ -39,7 +60,7 @@ var corsoCmd = &cobra.Command{
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
-		print.Outf(cmd.Context(), "Corso version: "+version.Version)
+		print.Outf(cmd.Context(), "Corso version: "+version.CurrentVersion())
 		return nil
 	}
 
@@ -62,7 +83,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.PersistentFlags().SortFlags = false
 
 	cmd.Flags().BoolP("version", "v", false, "current version info")
-	cmd.PersistentPostRunE = config.InitFunc()
+	cmd.PersistentPreRunE = preRun
 	config.AddConfigFlags(cmd)
 	logger.AddLoggingFlags(cmd)
 	observe.AddProgressBarFlags(cmd)
@@ -85,6 +106,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())

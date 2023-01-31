@@ -13,6 +13,7 @@ require (
 	github.com/microsoft/kiota-abstractions-go v0.16.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
 	github.com/microsoft/kiota-http-go v0.13.0
+	github.com/microsoft/kiota-serialization-form-go v0.2.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
 	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
@@ -40,7 +41,6 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/microsoft/kiota-serialization-form-go v0.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
@@ -84,7 +84,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.6.0 // indirect
+	github.com/microsoft/kiota-serialization-text-go v0.6.0
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.45 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
