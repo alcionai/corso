@@ -7,8 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -34,10 +34,10 @@ func DataCollections(
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
@@ -49,7 +49,8 @@ func DataCollections(
 	for _, scope := range b.Scopes() {
 		foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
 			"%s - %s",
-			scope.Category().PathType(), site))
+			observe.Safe(scope.Category().PathType().String()),
+			observe.PII(site)))
 		defer closer()
 		defer close(foldersComplete)
 
@@ -65,11 +66,11 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 
 		case path.LibrariesCategory:
-			spcs, err = collectLibraries(
+			spcs, _, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -79,7 +80,7 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 		case path.PagesCategory:
 			spcs, err = collectPages(
@@ -98,7 +99,7 @@ func DataCollections(
 		foldersComplete <- struct{}{}
 	}
 
-	return collections, errs
+	return collections, nil, errs
 }
 
 func collectLists(
@@ -147,7 +148,7 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	var (
 		collections = []data.Collection{}
 		errs        error
@@ -165,12 +166,12 @@ func collectLibraries(
 		updater.UpdateStatus,
 		ctrlOpts)
 
-	odcs, err := colls.Get(ctx)
+	odcs, excludes, err := colls.Get(ctx)
 	if err != nil {
-		return nil, support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
 
-	return append(collections, odcs...), errs
+	return append(collections, odcs...), excludes, errs
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
@@ -195,7 +196,7 @@ func collectPages(
 		return nil, fmt.Errorf("unable to create adapter w/ env credentials")
 	}
 
-	betaService := betasdk.NewService(adpt)
+	betaService := api.NewBetaService(adpt)
 
 	tuples, err := fetchPages(ctx, betaService, siteID)
 	if err != nil {

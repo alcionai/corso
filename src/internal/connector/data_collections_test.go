@@ -44,7 +44,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvVars(suite.T(), tester.M365AcctCredEnvs...)
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.LargeItemClient(), AllResources)
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), AllResources)
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 
@@ -63,7 +63,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	selUsers := []string{suite.user}
 
-	connector := loadConnector(ctx, suite.T(), graph.LargeItemClient(), Users)
+	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -99,7 +99,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := exchange.DataCollections(
+			collections, excludes, err := exchange.DataCollections(
 				ctx,
 				test.getSelector(t),
 				nil,
@@ -107,6 +107,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				connector.UpdateStatus,
 				control.Options{})
 			require.NoError(t, err)
+
+			assert.Empty(t, excludes)
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -139,7 +141,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 
 	owners := []string{"snuffleupagus"}
 
-	connector := loadConnector(ctx, suite.T(), graph.LargeItemClient(), Users)
+	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	tests := []struct {
 		name        string
 		getSelector func(t *testing.T) selectors.Selector
@@ -199,9 +201,10 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := connector.DataCollections(ctx, test.getSelector(t), nil, control.Options{})
+			collections, excludes, err := connector.DataCollections(ctx, test.getSelector(t), nil, control.Options{})
 			assert.Error(t, err)
 			assert.Empty(t, collections)
+			assert.Empty(t, excludes)
 		})
 	}
 }
@@ -215,7 +218,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	selSites := []string{suite.site}
 
-	connector := loadConnector(ctx, suite.T(), graph.LargeItemClient(), Sites)
+	connector := loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
 	tests := []struct {
 		name        string
 		expected    int
@@ -242,15 +245,17 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, err := sharepoint.DataCollections(
+			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				test.getSelector(),
 				connector.credentials,
 				connector.Service,
 				connector,
 				control.Options{})
 			require.NoError(t, err)
+			// Not expecting excludes as this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			for range collections {
 				connector.incrementAwaitingMessages()
@@ -300,7 +305,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.LargeItemClient(), Sites)
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
 	suite.user = tester.M365UserID(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -313,16 +318,18 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	var (
 		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, graph.LargeItemClient(), Sites)
+		gc      = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), Sites)
 		siteIDs = []string{siteID}
 	)
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Libraries([]string{"foo"}, selectors.PrefixMatch()))
 
-	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	cols, excludes, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
 	require.NoError(t, err)
 	assert.Len(t, cols, 1)
+	// No excludes yet as this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
@@ -337,16 +344,18 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	var (
 		t       = suite.T()
 		siteID  = tester.M365SiteID(t)
-		gc      = loadConnector(ctx, t, graph.LargeItemClient(), Sites)
+		gc      = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), Sites)
 		siteIDs = []string{siteID}
 	)
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
 
-	cols, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	cols, excludes, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
 	require.NoError(t, err)
 	assert.Less(t, 0, len(cols))
+	// No excludes yet as this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())

@@ -151,7 +151,12 @@ func purgeOneDriveFolders(
 	uid string,
 ) error {
 	getter := func(gs graph.Servicer, uid, prefix string) ([]purgable, error) {
-		cfs, err := onedrive.GetAllFolders(ctx, gs, uid, prefix)
+		pager, err := onedrive.PagerForSource(onedrive.OneDriveSource, gs, uid, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +260,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}

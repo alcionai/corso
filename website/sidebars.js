@@ -19,8 +19,8 @@ const sidebars = {
     'quickstart',
     {
       type: 'category',
-      label: 'Corso setup',
-      items: ['setup/concepts', 'setup/download', 'setup/m365-access', 'setup/configuration', 'setup/repos'],
+      label: 'Usage',
+      items: ['setup/concepts', 'setup/download', 'setup/m365-access', 'setup/configuration', 'setup/repos', 'setup/fault-tolerance'],
     },
     {
       type: 'category',
