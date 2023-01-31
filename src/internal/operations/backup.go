@@ -44,7 +44,7 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
-	stats.Errs
+	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
@@ -609,6 +609,7 @@ func (op *BackupOperation) createBackupModels(
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
+		op.Errors,
 	)
 
 	err = op.store.Put(ctx, model.BackupSchema, b)
