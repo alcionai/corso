@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -183,7 +183,7 @@ func collectPages(
 		return nil, errors.Wrap(err, "adapter for betaservice not created")
 	}
 
-	betaService := betasdk.NewService(adpt)
+	betaService := api.NewBetaService(adpt)
 
 	tuples, err := fetchPages(ctx, betaService, siteID)
 	if err != nil {
