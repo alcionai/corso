@@ -712,6 +712,60 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 			errCheck:       assert.NoError,
 		},
 		{
+			// An empty path map but valid delta results in metadata being returned
+			// since it's possible to have a drive with no folders other than the
+			// root.
+			name: "EmptyPaths",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {},
+							},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{driveID1: deltaURL1},
+			expectedPaths:  map[string]map[string]string{driveID1: {}},
+			errCheck:       assert.NoError,
+		},
+		{
+			// An empty delta map but valid path results in no metadata for that drive
+			// being returned since the path map is only useful if we have a valid
+			// delta.
+			name: "EmptyDeltas",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							graph.DeltaURLsFileName,
+							map[string]string{
+								driveID1: "",
+							},
+						),
+						graph.NewMetadataEntry(
+							graph.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							},
+						),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{},
+			expectedPaths:  map[string]map[string]string{},
+			errCheck:       assert.NoError,
+		},
+		{
 			name: "SuccessTwoDrivesTwoCollections",
 			cols: []func() []graph.MetadataCollectionEntry{
 				func() []graph.MetadataCollectionEntry {
