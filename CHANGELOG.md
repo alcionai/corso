@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Document Corso's fault-tolerance and restartability features
 - Add retries on timeouts and status code 500 for Exchange
+- Increase page size preference for delta requests for Exchange to reduce number of roundtrips
 
 ## [v0.2.0] (alpha) - 2023-1-29
 
