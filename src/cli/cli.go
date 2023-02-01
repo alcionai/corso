@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/backup"
@@ -121,6 +122,9 @@ func Handle() {
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
+		logger.Ctx(ctx).
+			With("err", err).
+			Errorw("cli execution", clues.InErr(err).Slice()...)
 		os.Exit(1)
 	}
 }

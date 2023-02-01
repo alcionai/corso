@@ -12,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -270,6 +272,11 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		resetDelta bool
 		errs       *multierror.Error
 	)
+
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeEvent,
+		"calendar_id", calendarID)
 
 	if len(oldDelta) > 0 {
 		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
