@@ -50,9 +50,6 @@ func NewItemPager(
 	res := &driveItemPager{
 		gs:      gs,
 		options: requestConfig,
-		// TODO: Specify a timestamp in the delta query
-		// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
-		// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
 		builder: gs.Client().DrivesById(driveID).Root().Delta(),
 	}
 
