@@ -108,7 +108,14 @@ func (c Events) GetItem(
 		return nil, nil, err
 	}
 
-	var errs *multierror.Error
+	var (
+		errs    *multierror.Error
+		options = &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
+	)
 
 	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
 		for count := 0; count < numberOfRetries; count++ {
@@ -117,7 +124,7 @@ func (c Events) GetItem(
 				UsersById(user).
 				EventsById(itemID).
 				Attachments().
-				Get(ctx, nil)
+				Get(ctx, options)
 			if err == nil {
 				event.SetAttachments(attached.GetValue())
 				break

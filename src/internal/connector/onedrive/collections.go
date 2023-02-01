@@ -67,6 +67,12 @@ type Collections struct {
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
+	drivePagerFunc func(
+		source driveSource,
+		servicer graph.Servicer,
+		resourceOwner string,
+		fields []string,
+	) (drivePager, error)
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
@@ -89,16 +95,17 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		itemClient:    itemClient,
-		tenant:        tenant,
-		resourceOwner: resourceOwner,
-		source:        source,
-		matcher:       matcher,
-		CollectionMap: map[string]data.Collection{},
-		itemPagerFunc: defaultItemPager,
-		service:       service,
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		itemClient:     itemClient,
+		tenant:         tenant,
+		resourceOwner:  resourceOwner,
+		source:         source,
+		matcher:        matcher,
+		CollectionMap:  map[string]data.Collection{},
+		drivePagerFunc: PagerForSource,
+		itemPagerFunc:  defaultItemPager,
+		service:        service,
+		statusUpdater:  statusUpdater,
+		ctrl:           ctrlOpts,
 	}
 }
 
@@ -250,7 +257,7 @@ func (c *Collections) Get(
 	}
 
 	// Enumerate drives for the specified resourceOwner
-	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
+	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
 		return nil, nil, err
 	}
