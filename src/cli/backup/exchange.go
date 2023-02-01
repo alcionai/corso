@@ -61,7 +61,7 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = "--user <userId or email> | '" + utils.Wildcard + "'"
+	exchangeServiceCommandCreateUseSuffix  = "--user <email> | '" + utils.Wildcard + "'"
 	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -115,7 +115,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&user,
 			utils.UserFN, nil,
-			"Backup Exchange data by user ID; accepts '"+utils.Wildcard+"' to select all users")
+			"Backup Exchange data by a user's email; accepts '"+utils.Wildcard+"' to select all users")
 		fs.StringSliceVar(
 			&exchangeData,
 			utils.DataFN, nil,
@@ -274,7 +274,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	users, err := m365.UserPNs(ctx, acct)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
+		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 user(s)"))
 	}
 
 	var (
@@ -347,7 +347,7 @@ func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBa
 
 func validateExchangeBackupCreateFlags(userIDs, data []string) error {
 	if len(userIDs) == 0 {
-		return errors.New("--user requires one or more ids or the wildcard *")
+		return errors.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
 	for _, d := range data {

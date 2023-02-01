@@ -2,27 +2,27 @@ module github.com/alcionai/corso/src
 
 go 1.19
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.10.8-0.20230112200734-ac706ef83a1c
-
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
-	github.com/aws/aws-sdk-go v1.44.183
+	github.com/alcionai/clues v0.0.0-20230120231953-1cf61dbafc40
+	github.com/aws/aws-sdk-go v1.44.190
 	github.com/aws/aws-xray-sdk-go v1.8.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/kopia/kopia v0.12.2-0.20221229232524-ba938cf58cc8
+	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
 	github.com/microsoft/kiota-abstractions-go v0.16.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
 	github.com/microsoft/kiota-http-go v0.13.0
+	github.com/microsoft/kiota-serialization-form-go v0.2.0
 	github.com/microsoft/kiota-serialization-json-go v0.7.2
-	github.com/microsoftgraph/msgraph-beta-sdk-go v0.53.0
+	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
 	github.com/pkg/errors v0.9.1
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
 	github.com/spatialcurrent/go-lazy v0.0.0-20211115014721-47315cc003d1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.14.0
+	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
@@ -40,19 +40,16 @@ require (
 	github.com/dnaeon/go-vcr v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/magiconair/properties v1.8.6 // indirect
-	github.com/microsoft/kiota-serialization-form-go v0.2.0 // indirect
+	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/pelletier/go-toml v1.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
-	github.com/spf13/afero v1.9.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
+	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/subosito/gotenv v1.4.1 // indirect
+	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.34.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 require (
@@ -87,7 +84,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.6.0 // indirect
+	github.com/microsoft/kiota-serialization-text-go v0.6.0
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.45 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
@@ -114,14 +111,14 @@ require (
 	go.opentelemetry.io/otel/trace v1.11.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/crypto v0.3.0 // indirect
+	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
-	google.golang.org/genproto v0.0.0-20221206210731-b1a01be3a5f6 // indirect
-	google.golang.org/grpc v1.51.0 // indirect
+	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef // indirect
+	google.golang.org/grpc v1.52.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

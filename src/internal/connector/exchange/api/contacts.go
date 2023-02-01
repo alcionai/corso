@@ -8,11 +8,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -47,9 +48,8 @@ func (c Contacts) CreateContactFolder(
 	return c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 }
 
-// DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
-// Errors returned if the function call was not successful.
-func (c Contacts) DeleteContactFolder(
+// DeleteContainer deletes the ContactFolder associated with the M365 ID if permissions are valid.
+func (c Contacts) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
@@ -173,7 +173,7 @@ type contactPager struct {
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *contactPager) getPage(ctx context.Context) (pageLinker, error) {
+func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	return p.builder.Get(ctx, p.options)
 }
 
@@ -181,7 +181,7 @@ func (p *contactPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
@@ -215,7 +215,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
+		if !graph.IsErrInvalidDelta(err) {
 			return nil, nil, DeltaUpdate{}, err
 		}
 

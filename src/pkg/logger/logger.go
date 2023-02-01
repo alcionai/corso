@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
@@ -104,6 +105,11 @@ func PreloadLoggingFlags() (string, string) {
 	logfile, err := fs.GetString(logFileFN)
 	if err != nil {
 		return "info", dlf
+	}
+
+	// if not specified, attempt to fall back to env declaration.
+	if len(logfile) == 0 {
+		logfile = os.Getenv("CORSO_LOG_FILE")
 	}
 
 	if logfile == "-" {
@@ -259,7 +265,7 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 		return singleton(levelOf(llFlag), defaultLogLocation())
 	}
 
-	return l.(*zap.SugaredLogger)
+	return l.(*zap.SugaredLogger).With(clues.Slice(ctx)...)
 }
 
 // transforms the llevel flag value to a logLevel enum

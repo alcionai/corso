@@ -4,11 +4,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -96,6 +98,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	tests := []struct {
 		testCase                string
 		items                   []models.DriveItemable
+		inputFolderMap          map[string]string
 		scope                   selectors.OneDriveScope
 		expect                  assert.ErrorAssertionFunc
 		expectedCollectionPaths []string
@@ -103,23 +106,27 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 		expectedContainerCount  int
 		expectedFileCount       int
 		expectedMetadataPaths   map[string]string
+		expectedExcludes        map[string]struct{}
 	}{
 		{
 			testCase: "Invalid item",
 			items: []models.DriveItemable{
 				driveItem("item", "item", testBaseDrivePath, false, false, false),
 			},
+			inputFolderMap:        map[string]string{},
 			scope:                 anyFolder,
 			expect:                assert.Error,
 			expectedMetadataPaths: map[string]string{},
+			expectedExcludes:      map[string]struct{}{},
 		},
 		{
 			testCase: "Single File",
 			items: []models.DriveItemable{
 				driveItem("file", "file", testBaseDrivePath, true, false, false),
 			},
-			scope:  anyFolder,
-			expect: assert.NoError,
+			inputFolderMap: map[string]string{},
+			scope:          anyFolder,
+			expect:         assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
@@ -131,12 +138,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedContainerCount: 1,
 			// Root folder is skipped since it's always present.
 			expectedMetadataPaths: map[string]string{},
+			expectedExcludes:      map[string]struct{}{},
 		},
 		{
 			testCase: "Single Folder",
 			items: []models.DriveItemable{
 				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
 			},
+			inputFolderMap:          map[string]string{},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
 			expectedCollectionPaths: []string{},
@@ -148,12 +157,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "Single Package",
 			items: []models.DriveItemable{
 				driveItem("package", "package", testBaseDrivePath, false, false, true),
 			},
+			inputFolderMap:          map[string]string{},
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
 			expectedCollectionPaths: []string{},
@@ -165,6 +176,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/package",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
@@ -175,8 +187,9 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
 				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  anyFolder,
-			expect: assert.NoError,
+			inputFolderMap: map[string]string{},
+			scope:          anyFolder,
+			expect:         assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
@@ -202,6 +215,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/package",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "contains folder selector",
@@ -215,8 +229,9 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
 				driveItem("fileInFolderPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  (&selectors.OneDriveBackup{}).Folders([]string{"folder"})[0],
-			expect: assert.NoError,
+			inputFolderMap: map[string]string{},
+			scope:          (&selectors.OneDriveBackup{}).Folders([]string{"folder"})[0],
+			expect:         assert.NoError,
 			expectedCollectionPaths: append(
 				expectedPathAsSlice(
 					suite.T(),
@@ -250,6 +265,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 					testBaseDrivePath+"/folder/subfolder/folder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "prefix subfolder selector",
@@ -257,12 +273,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, true, false, false),
 				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
 				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("folder", "folder", testBaseDrivePath+folderSub, false, true, false),
+				driveItem("folder2", "folder", testBaseDrivePath+folderSub, false, true, false),
 				driveItem("package", "package", testBaseDrivePath, false, false, true),
 				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
 				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
 				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
+			inputFolderMap: map[string]string{},
 			scope: (&selectors.OneDriveBackup{}).
 				Folders([]string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
 			expect: assert.NoError,
@@ -276,13 +293,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
-				"folder": expectedPathAsSlice(
+				"folder2": expectedPathAsSlice(
 					suite.T(),
 					tenant,
 					user,
 					testBaseDrivePath+"/folder/subfolder/folder",
 				)[0],
 			},
+			expectedExcludes: map[string]struct{}{},
 		},
 		{
 			testCase: "match subfolder selector",
@@ -295,8 +313,9 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("fileInSubfolder", "fileInSubfolder", testBaseDrivePath+folderSub, true, false, false),
 				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
 			},
-			scope:  (&selectors.OneDriveBackup{}).Folders([]string{"folder/subfolder"})[0],
-			expect: assert.NoError,
+			inputFolderMap: map[string]string{},
+			scope:          (&selectors.OneDriveBackup{}).Folders([]string{"folder/subfolder"})[0],
+			expect:         assert.NoError,
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
@@ -308,6 +327,255 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.
 			expectedMetadataPaths: map[string]string{},
+			expectedExcludes:      map[string]struct{}{},
+		},
+		{
+			testCase: "not moved folder tree",
+			items: []models.DriveItemable{
+				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder",
+				)[0],
+			},
+			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "moved folder tree",
+			items: []models.DriveItemable{
+				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/a-folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/a-folder/subfolder",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder",
+				)[0],
+			},
+			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "moved folder tree and subfolder 1",
+			items: []models.DriveItemable{
+				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath, false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/a-folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/a-folder/subfolder",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/subfolder",
+				)[0],
+			},
+			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "moved folder tree and subfolder 2",
+			items: []models.DriveItemable{
+				driveItem("subfolder", "subfolder", testBaseDrivePath, false, true, false),
+				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/a-folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/a-folder/subfolder",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/subfolder",
+				)[0],
+			},
+			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "deleted folder and package",
+			items: []models.DriveItemable{
+				delItem("folder", testBaseDrivePath, false, true, false),
+				delItem("package", testBaseDrivePath, false, false, true),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"package": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/package",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths:   map[string]string{},
+			expectedExcludes:        map[string]struct{}{},
+		},
+		{
+			testCase: "delete folder tree move subfolder",
+			items: []models.DriveItemable{
+				delItem("folder", testBaseDrivePath, false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath, false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"folder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0],
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder/subfolder",
+				)[0],
+			},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       0,
+			expectedFileCount:       0,
+			expectedContainerCount:  0,
+			expectedMetadataPaths: map[string]string{
+				"subfolder": expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/subfolder",
+				)[0],
+			},
+			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "delete file",
+			items: []models.DriveItemable{
+				delItem("item", testBaseDrivePath, true, false, false),
+			},
+			inputFolderMap:          map[string]string{},
+			scope:                   anyFolder,
+			expect:                  assert.NoError,
+			expectedCollectionPaths: []string{},
+			expectedItemCount:       1,
+			expectedFileCount:       1,
+			expectedContainerCount:  0,
+			expectedMetadataPaths:   map[string]string{},
+			expectedExcludes: map[string]struct{}{
+				"item": {},
+			},
 		},
 	}
 
@@ -316,8 +584,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			paths := map[string]string{}
+			excludes := map[string]struct{}{}
+			outputFolderMap := map[string]string{}
+			maps.Copy(outputFolderMap, tt.inputFolderMap)
 			c := NewCollections(
+				graph.HTTPClient(graph.NoTimeout()),
 				tenant,
 				user,
 				OneDriveSource,
@@ -326,7 +597,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				nil,
 				control.Options{})
 
-			err := c.UpdateCollections(ctx, "driveID", "General", tt.items, paths)
+			err := c.UpdateCollections(
+				ctx,
+				"driveID",
+				"General",
+				tt.items,
+				tt.inputFolderMap,
+				outputFolderMap,
+				excludes,
+			)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
@@ -336,7 +615,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				assert.Contains(t, c.CollectionMap, collPath)
 			}
 
-			assert.Equal(t, tt.expectedMetadataPaths, paths)
+			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap)
+			assert.Equal(t, tt.expectedExcludes, excludes)
 		})
 	}
 }
@@ -345,6 +625,29 @@ func driveItem(id string, name string, path string, isFile, isFolder, isPackage 
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
+
+	parentReference := models.NewItemReference()
+	parentReference.SetPath(&path)
+	item.SetParentReference(parentReference)
+
+	switch {
+	case isFile:
+		item.SetFile(models.NewFile())
+	case isFolder:
+		item.SetFolder(models.NewFolder())
+	case isPackage:
+		item.SetPackage(models.NewPackage_escaped())
+	}
+
+	return item
+}
+
+// delItem creates a DriveItemable that is marked as deleted. path must be set
+// to the base drive path.
+func delItem(id string, path string, isFile, isFolder, isPackage bool) models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetId(&id)
+	item.SetDeleted(models.NewDeleted())
 
 	parentReference := models.NewItemReference()
 	parentReference.SetPath(&path)

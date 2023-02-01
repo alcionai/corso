@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
-	msdrives "github.com/microsoftgraph/msgraph-beta-sdk-go/drives"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -23,70 +25,91 @@ const (
 	downloadURLKey = "@microsoft.graph.downloadUrl"
 )
 
+// generic drive item getter
+func getDriveItem(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	return srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+}
+
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func sharePointItemReader(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
-
-	rc, err := driveItemReader(ctx, *url)
+	resp, err := downloadItem(hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, err
+		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
 		SharePoint: sharePointItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, nil
+	return dii, resp.Body, nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func oneDriveItemReader(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
-
-	rc, err := driveItemReader(ctx, *url)
+	resp, err := downloadItem(hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, err
+		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
 		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, rc, nil
+	return dii, resp.Body, nil
 }
 
-// driveItemReader will return a io.ReadCloser for the specified item
-// It crafts this by querying M365 for a download URL for the item
-// and using a http client to initialize a reader
-func driveItemReader(
-	ctx context.Context,
-	url string,
-) (io.ReadCloser, error) {
-	httpClient := graph.CreateHTTPClient()
-	httpClient.Timeout = 0 // infinite timeout for pulling large files
-
-	resp, err := httpClient.Get(url)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to download file from %s", url)
+func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+	if !ok {
+		return nil, fmt.Errorf("extracting file url: file %s", *item.GetId())
 	}
 
-	return resp.Body, nil
+	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "new request")
+	}
+
+	//nolint:lll
+	// Decorate the traffic
+	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
+	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
+
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if (resp.StatusCode / 100) == 2 {
+		return resp, nil
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return resp, graph.Err429TooManyRequests
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return resp, graph.Err401Unauthorized
+	}
+
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		return resp, graph.Err503ServiceUnavailable
+	}
+
+	return resp, errors.New("non-2xx http response: " + resp.Status)
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
@@ -97,7 +120,7 @@ func driveItemReader(
 func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
 	var email, parent string
 
-	if di.GetCreatedBy().GetUser() != nil {
+	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
 		// User is sometimes not available when created via some
 		// external applications (like backup/restore solutions)
 		ed, ok := di.GetCreatedBy().GetUser().GetAdditionalData()["email"]
@@ -106,11 +129,9 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		}
 	}
 
-	if di.GetParentReference() != nil {
-		if di.GetParentReference().GetName() != nil {
-			// EndPoint is not always populated from external apps
-			parent = *di.GetParentReference().GetName()
-		}
+	if di.GetParentReference() != nil && di.GetParentReference().GetName() != nil {
+		// EndPoint is not always populated from external apps
+		parent = *di.GetParentReference().GetName()
 	}
 
 	return &details.OneDriveInfo{

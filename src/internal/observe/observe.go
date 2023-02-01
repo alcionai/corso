@@ -138,8 +138,9 @@ const (
 // Progress Updates
 
 // Message is used to display a progress message
-func Message(ctx context.Context, message string) {
-	logger.Ctx(ctx).Info(message)
+func Message(ctx context.Context, msg cleanable) {
+	logger.Ctx(ctx).Info(msg.clean())
+	message := msg.String()
 
 	if cfg.hidden() {
 		return
@@ -163,9 +164,15 @@ func Message(ctx context.Context, message string) {
 
 // MessageWithCompletion is used to display progress with a spinner
 // that switches to "done" when the completion channel is signalled
-func MessageWithCompletion(ctx context.Context, message string) (chan<- struct{}, func()) {
+func MessageWithCompletion(
+	ctx context.Context,
+	msg cleanable,
+) (chan<- struct{}, func()) {
+	clean := msg.clean()
+	message := msg.String()
+
 	log := logger.Ctx(ctx)
-	log.Info(message)
+	log.Info(clean)
 
 	completionCh := make(chan struct{}, 1)
 
@@ -201,7 +208,7 @@ func MessageWithCompletion(ctx context.Context, message string) (chan<- struct{}
 	}(completionCh)
 
 	wacb := waitAndCloseBar(bar, func() {
-		log.Info("done - " + message)
+		log.Info("done - " + clean)
 	})
 
 	return completionCh, wacb
@@ -217,10 +224,11 @@ func MessageWithCompletion(ctx context.Context, message string) (chan<- struct{}
 func ItemProgress(
 	ctx context.Context,
 	rc io.ReadCloser,
-	header, iname string,
+	header string,
+	iname cleanable,
 	totalBytes int64,
 ) (io.ReadCloser, func()) {
-	log := logger.Ctx(ctx).With("item", iname, "size", humanize.Bytes(uint64(totalBytes)))
+	log := logger.Ctx(ctx).With("item", iname.clean(), "size", humanize.Bytes(uint64(totalBytes)))
 	log.Debug(header)
 
 	if cfg.hidden() || rc == nil || totalBytes == 0 {
@@ -232,7 +240,7 @@ func ItemProgress(
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(iname, decor.WCSyncSpaceR),
+			decor.Name(iname.String(), decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
 			decor.NewPercentage("%d ", decor.WC{W: 4}),
 		),
@@ -256,9 +264,14 @@ func ItemProgress(
 // of the specified count.
 // Each write to the provided channel counts as a single increment.
 // The caller is expected to close the channel.
-func ProgressWithCount(ctx context.Context, header, message string, count int64) (chan<- struct{}, func()) {
+func ProgressWithCount(
+	ctx context.Context,
+	header string,
+	message cleanable,
+	count int64,
+) (chan<- struct{}, func()) {
 	log := logger.Ctx(ctx)
-	lmsg := fmt.Sprintf("%s %s - %d", header, message, count)
+	lmsg := fmt.Sprintf("%s %s - %d", header, message.clean(), count)
 	log.Info(lmsg)
 
 	progressCh := make(chan struct{})
@@ -281,7 +294,7 @@ func ProgressWithCount(ctx context.Context, header, message string, count int64)
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(message),
+			decor.Name(message.String()),
 			decor.Counters(0, " %d/%d "),
 		),
 	}
@@ -355,13 +368,17 @@ func makeSpinFrames(barWidth int) {
 // counts as a single increment.  The caller is expected to close the channel.
 func CollectionProgress(
 	ctx context.Context,
-	user, category, dirName string,
+	category string,
+	user, dirName cleanable,
 ) (chan<- struct{}, func()) {
-	log := logger.Ctx(ctx).With("user", user, "category", category, "dir", dirName)
-	message := "Collecting " + dirName
+	log := logger.Ctx(ctx).With(
+		"user", user.clean(),
+		"category", category,
+		"dir", dirName.clean())
+	message := "Collecting Directory"
 	log.Info(message)
 
-	if cfg.hidden() || len(user) == 0 || len(dirName) == 0 {
+	if cfg.hidden() || len(user.String()) == 0 || len(dirName.String()) == 0 {
 		ch := make(chan struct{})
 
 		go func(ci <-chan struct{}) {
@@ -379,7 +396,7 @@ func CollectionProgress(
 	wg.Add(1)
 
 	barOpts := []mpb.BarOption{
-		mpb.PrependDecorators(decor.Name(category)),
+		mpb.PrependDecorators(decor.Name(string(category))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
 			decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
@@ -439,8 +456,65 @@ func waitAndCloseBar(bar *mpb.Bar, log func()) func() {
 // other funcs
 // ---------------------------------------------------------------------------
 
-// Bulletf prepends the message with "∙ ", and formats it.
-// Ex: Bulletf("%s", "foo") => "∙ foo"
-func Bulletf(template string, vs ...any) string {
-	return fmt.Sprintf("∙ "+template, vs...)
+const Bullet = "∙"
+
+// ---------------------------------------------------------------------------
+// PII redaction
+// ---------------------------------------------------------------------------
+
+type cleanable interface {
+	clean() string
+	String() string
+}
+
+type PII string
+
+func (p PII) clean() string {
+	return "***"
+}
+
+func (p PII) String() string {
+	return string(p)
+}
+
+type Safe string
+
+func (s Safe) clean() string {
+	return string(s)
+}
+
+func (s Safe) String() string {
+	return string(s)
+}
+
+type bulletPII struct {
+	tmpl string
+	vars []cleanable
+}
+
+func Bulletf(template string, vs ...cleanable) bulletPII {
+	return bulletPII{
+		tmpl: "∙ " + template,
+		vars: vs,
+	}
+}
+
+func (b bulletPII) clean() string {
+	vs := make([]any, 0, len(b.vars))
+
+	for _, v := range b.vars {
+		vs = append(vs, v.clean())
+	}
+
+	return fmt.Sprintf(b.tmpl, vs...)
+}
+
+func (b bulletPII) String() string {
+	vs := make([]any, 0, len(b.vars))
+
+	for _, v := range b.vars {
+		vs = append(vs, v.String())
+	}
+
+	return fmt.Sprintf(b.tmpl, vs...)
 }

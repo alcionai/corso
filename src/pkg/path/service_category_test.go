@@ -1,6 +1,7 @@
 package path
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,6 +126,54 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 
 			assert.Equal(t, test.expectedService, s)
 			assert.Equal(t, test.expectedCategory, c)
+		})
+	}
+}
+
+func (suite *ServiceCategoryUnitSuite) TestToServiceType() {
+	table := []struct {
+		name     string
+		service  string
+		expected ServiceType
+	}{
+		{
+			name:     "SameCase",
+			service:  ExchangeMetadataService.String(),
+			expected: ExchangeMetadataService,
+		},
+		{
+			name:     "DifferentCase",
+			service:  strings.ToUpper(ExchangeMetadataService.String()),
+			expected: ExchangeMetadataService,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, toServiceType(test.service))
+		})
+	}
+}
+
+func (suite *ServiceCategoryUnitSuite) TestToCategoryType() {
+	table := []struct {
+		name     string
+		category string
+		expected CategoryType
+	}{
+		{
+			name:     "SameCase",
+			category: EmailCategory.String(),
+			expected: EmailCategory,
+		},
+		{
+			name:     "DifferentCase",
+			category: strings.ToUpper(EmailCategory.String()),
+			expected: EmailCategory,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, ToCategoryType(test.category))
 		})
 	}
 }

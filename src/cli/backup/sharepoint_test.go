@@ -98,12 +98,13 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, validateSharePointBackupCreateFlags(test.site, test.weburl))
+			test.expect(t, validateSharePointBackupCreateFlags(test.site, test.weburl, nil))
 		})
 	}
 }
 
 func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
+	comboString := []string{"id_1", "id_2"}
 	gc := &connector.GraphConnector{
 		Sites: map[string]string{
 			"url_1": "id_1",
@@ -115,6 +116,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 		name            string
 		site            []string
 		weburl          []string
+		data            []string
 		expect          []string
 		expectScopesLen int
 	}{
@@ -163,7 +165,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			name:            "duplicate sites and urls",
 			site:            []string{"id_1", "id_2"},
 			weburl:          []string{"url_1", "url_2"},
-			expect:          []string{"id_1", "id_2"},
+			expect:          comboString,
 			expectScopesLen: 2,
 		},
 		{
@@ -175,10 +177,17 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 		},
 		{
 			name:            "unnecessary url wildcard",
-			site:            []string{"id_1", "id_2"},
+			site:            comboString,
 			weburl:          []string{"url_1", utils.Wildcard},
 			expect:          selectors.Any(),
 			expectScopesLen: 2,
+		},
+		{
+			name:            "Pages",
+			site:            comboString,
+			data:            []string{dataPages},
+			expect:          comboString,
+			expectScopesLen: 1,
 		},
 	}
 	for _, test := range table {
@@ -186,7 +195,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			sel, err := sharePointBackupCreateSelectors(ctx, test.site, test.weburl, gc)
+			sel, err := sharePointBackupCreateSelectors(ctx, test.site, test.weburl, test.data, gc)
 			require.NoError(t, err)
 
 			assert.ElementsMatch(t, test.expect, sel.DiscreteResourceOwners())

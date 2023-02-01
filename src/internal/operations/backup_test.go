@@ -95,6 +95,7 @@ func (mbu mockBackuper) BackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.Collection,
+	excluded map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
@@ -372,7 +373,6 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			expectStatus: Completed,
 			expectErr:    assert.NoError,
 			stats: backupStats{
-				started:       true,
 				resourceCount: 1,
 				k: &kopia.BackupStats{
 					TotalFileCount:     1,
@@ -388,7 +388,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			expectStatus: Failed,
 			expectErr:    assert.Error,
 			stats: backupStats{
-				started: false,
+				readErr: assert.AnError,
 				k:       &kopia.BackupStats{},
 				gc:      &support.ConnectorOperationStatus{},
 			},
@@ -397,9 +397,8 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			expectStatus: NoData,
 			expectErr:    assert.NoError,
 			stats: backupStats{
-				started: true,
-				k:       &kopia.BackupStats{},
-				gc:      &support.ConnectorOperationStatus{},
+				k:  &kopia.BackupStats{},
+				gc: &support.ConnectorOperationStatus{},
 			},
 		},
 	}

@@ -6,8 +6,8 @@ import (
 	"io"
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-beta-sdk-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -75,7 +75,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	suite.user = tester.SecondaryM365UserID(t)
 
-	odDrives, err := drives(ctx, suite, suite.user, OneDriveSource)
+	pager, err := PagerForSource(OneDriveSource, suite, suite.user, nil)
+	require.NoError(t, err)
+
+	odDrives, err := drives(ctx, pager, true)
 	require.NoError(t, err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
@@ -99,7 +102,9 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		ctx context.Context,
 		driveID, driveName string,
 		items []models.DriveItemable,
-		paths map[string]string,
+		oldPaths map[string]string,
+		newPaths map[string]string,
+		excluded map[string]struct{},
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
@@ -110,7 +115,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
-	_, _, err := collectItems(ctx, suite, suite.userDriveID, "General", itemCollector)
+	_, _, _, err := collectItems(ctx, suite, suite.userDriveID, "General", itemCollector)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file
@@ -124,7 +129,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	// Read data for the file
 
-	itemInfo, itemData, err := oneDriveItemReader(ctx, driveItem)
+	itemInfo, itemData, err := oneDriveItemReader(graph.HTTPClient(graph.NoTimeout()), driveItem)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)

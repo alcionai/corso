@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -88,7 +89,6 @@ type restoreStats struct {
 	gc                *support.ConnectorOperationStatus
 	bytesRead         *stats.ByteCounter
 	resourceCount     int
-	started           bool
 	readErr, writeErr error
 
 	// a transient value only used to pair up start-end events.
@@ -129,6 +129,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"backup_id", op.BackupID,
+		"service", op.Selectors.Service)
+
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -136,11 +142,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		detailsStore,
 	)
 	if err != nil {
-		err = errors.Wrap(err, "restore")
-		opStats.readErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "restore")
+		return nil, opStats.readErr
 	}
+
+	ctx = clues.Add(ctx, "resource_owner", bup.Selector.DiscreteOwner)
 
 	op.bus.Event(
 		ctx,
@@ -159,20 +165,22 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, err
 	}
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	ctx = clues.Add(ctx, "details_paths", len(paths))
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
+
+	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
 	defer closer()
 	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
-		err = errors.Wrap(err, "retrieving service data")
-		opStats.readErr = err
-
-		return nil, err
+		opStats.readErr = errors.Wrap(err, "retrieving service data")
+		return nil, opStats.readErr
 	}
 	kopiaComplete <- struct{}{}
+
+	ctx = clues.Add(ctx, "collections", len(dcs))
 
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
@@ -183,7 +191,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		return nil, opStats.readErr
 	}
 
-	restoreComplete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
+	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
 	defer closer()
 	defer close(restoreComplete)
 
@@ -194,14 +202,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.Destination,
 		dcs)
 	if err != nil {
-		err = errors.Wrap(err, "restoring service data")
-		opStats.writeErr = err
-
-		return nil, err
+		opStats.writeErr = errors.Wrap(err, "restoring service data")
+		return nil, opStats.writeErr
 	}
 	restoreComplete <- struct{}{}
 
-	opStats.started = true
 	opStats.gc = gc.AwaitStatus()
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
@@ -217,10 +222,12 @@ func (op *RestoreOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
+	op.Results.ReadErrors = opStats.readErr
+	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if !opStats.started {
+	if opStats.readErr != nil || opStats.writeErr != nil {
 		op.Status = Failed
 
 		return multierror.Append(
@@ -232,9 +239,6 @@ func (op *RestoreOperation) persistResults(
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
-
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Results.BytesRead = opStats.bytesRead.NumBytes
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
@@ -294,6 +298,10 @@ func formatDetailsForRestoration(
 		}
 
 		paths[i] = p
+	}
+
+	if errs != nil {
+		return nil, errs
 	}
 
 	return paths, nil

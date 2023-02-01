@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -95,6 +96,30 @@ func (suite *SharePointCollectionSuite) TestSharePointListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
+func (suite *SharePointCollectionSuite) TestCollectPages() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+	siteID := tester.M365SiteID(t)
+	a := tester.NewM365Account(t)
+	account, err := a.M365Config()
+	require.NoError(t, err)
+
+	col, err := collectPages(
+		ctx,
+		account,
+		nil,
+		account.AzureTenantID,
+		siteID,
+		nil,
+		&MockGraphService{},
+		control.Defaults(),
+	)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, col)
+}
+
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
 func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	ctx, flush := tester.NewContext()
@@ -106,9 +131,7 @@ func (suite *SharePointCollectionSuite) TestRestoreListCollection() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
@@ -172,9 +195,7 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	service, err := createTestService(account)
-	require.NoError(t, err)
-
+	service := createTestService(t, account)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	siteID := tester.M365SiteID(t)
 

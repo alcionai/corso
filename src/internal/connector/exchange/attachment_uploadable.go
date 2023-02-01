@@ -3,8 +3,8 @@ package exchange
 import (
 	"context"
 
-	"github.com/microsoftgraph/msgraph-beta-sdk-go/models"
-	msusers "github.com/microsoftgraph/msgraph-beta-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
