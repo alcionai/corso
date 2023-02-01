@@ -969,7 +969,12 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 	}
 }
 
-func driveItem(id string, name string, parentPath string, isFile, isFolder, isPackage bool) models.DriveItemable {
+func driveItem(
+	id string,
+	name string,
+	parentPath string,
+	isFile, isFolder, isPackage bool,
+) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
@@ -992,7 +997,11 @@ func driveItem(id string, name string, parentPath string, isFile, isFolder, isPa
 
 // delItem creates a DriveItemable that is marked as deleted. path must be set
 // to the base drive path.
-func delItem(id string, parentPath string, isFile, isFolder, isPackage bool) models.DriveItemable {
+func delItem(
+	id string,
+	parentPath string,
+	isFile, isFolder, isPackage bool,
+) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetId(&id)
 	item.SetDeleted(models.NewDeleted())
