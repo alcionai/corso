@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/dustin/go-humanize"
 	multierror "github.com/hashicorp/go-multierror"
-	bytesize "github.com/inhies/go-bytesize"
 
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -142,7 +142,7 @@ func (cos *ConnectorOperationStatus) String() string {
 		cos.lastOperation.String(),
 		cos.Successful,
 		cos.ObjectCount,
-		bytesize.New(float64(cos.bytes)),
+		humanize.Bytes(uint64(cos.bytes)),
 		cos.FolderCount,
 	)
 
