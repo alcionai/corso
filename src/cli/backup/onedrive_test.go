@@ -94,13 +94,13 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
 
 	for _, test := range testdata.OneDriveOptionDetailLookups {
 		suite.T().Run(test.Name, func(t *testing.T) {
-			output, err := runDetailsOneDriveCmd(
+			output, errs := runDetailsOneDriveCmd(
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err.Err())
-			assert.Empty(t, err.Errs())
+			assert.NoError(t, errs.Err())
+			assert.Empty(t, errs.Errs())
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -112,13 +112,13 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 
 	for _, test := range testdata.BadOneDriveOptionsFormats {
 		suite.T().Run(test.Name, func(t *testing.T) {
-			output, err := runDetailsOneDriveCmd(
+			output, errs := runDetailsOneDriveCmd(
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err.Err())
-			assert.Empty(t, err.Errs())
+			assert.Error(t, errs.Err())
+			assert.Empty(t, errs.Errs())
 			assert.Empty(t, output)
 		})
 	}

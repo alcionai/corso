@@ -252,9 +252,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
-	bups, err := r.Backups(ctx, bIDs)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
+	bups, ferrs := r.Backups(ctx, bIDs)
+	// TODO: print/log recoverable errors
+	if ferrs.Err() != nil {
+		return Only(ctx, errors.Wrap(ferrs.Err(), "Unable to retrieve backup results from storage"))
 	}
 
 	backup.PrintAll(ctx, bups)
@@ -513,13 +514,14 @@ func runDetailsSharePointCmd(
 		return nil, errs.Fail(err)
 	}
 
-	d, _, err := r.BackupDetails(ctx, backupID)
-	if err != nil {
-		if errors.Is(err, kopia.ErrNotFound) {
+	d, _, errs := r.BackupDetails(ctx, backupID)
+	// TODO: log/track recoverable errors
+	if errs.Err() != nil {
+		if errors.Is(errs.Err(), kopia.ErrNotFound) {
 			return nil, errs.Fail(errors.Errorf("no backup exists with the id %s", backupID))
 		}
 
-		return nil, errs.Fail(errors.Wrap(err, "Failed to get backup details in the repository"))
+		return nil, errs.Fail(errors.Wrap(errs.Err(), "Failed to get backup details in the repository"))
 	}
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)

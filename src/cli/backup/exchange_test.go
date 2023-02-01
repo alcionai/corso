@@ -219,13 +219,13 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 
 	for _, test := range testdata.ExchangeOptionDetailLookups {
 		suite.T().Run(test.Name, func(t *testing.T) {
-			output, err := runDetailsExchangeCmd(
+			output, errs := runDetailsExchangeCmd(
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err.Err(), "failure")
-			assert.Empty(t, err.Errs(), "recovered errors")
+			assert.NoError(t, errs.Err(), "failure")
+			assert.Empty(t, errs.Errs(), "recovered errors")
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -237,13 +237,13 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 
 	for _, test := range testdata.BadExchangeOptionsFormats {
 		suite.T().Run(test.Name, func(t *testing.T) {
-			output, err := runDetailsExchangeCmd(
+			output, errs := runDetailsExchangeCmd(
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err.Err(), "failure")
-			assert.Empty(t, err.Errs(), "recovered errors")
+			assert.Error(t, errs.Err(), "failure")
+			assert.Empty(t, errs.Errs(), "recovered errors")
 			assert.Empty(t, output)
 		})
 	}
