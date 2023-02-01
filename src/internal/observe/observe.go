@@ -390,6 +390,11 @@ func CollectionProgress(
 					return
 				}
 				counted++
+
+				// Log every 1000 items that are processed
+				if counted%1000 == 0 {
+					log.Infow("uploading", "count", counted)
+				}
 			}
 		}(ch)
 
@@ -434,6 +439,11 @@ func CollectionProgress(
 				}
 
 				counted++
+
+				// Log every 1000 items that are processed
+				if counted%1000 == 0 {
+					log.Infow("uploading", "count", counted)
+				}
 
 				bar.Increment()
 			}
