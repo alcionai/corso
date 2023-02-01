@@ -177,7 +177,7 @@ func MessageWithCompletion(
 	completionCh := make(chan struct{}, 1)
 
 	if cfg.hidden() {
-		return completionCh, func() {}
+		return completionCh, func() { log.Info("done - " + clean) }
 	}
 
 	wg.Add(1)
@@ -232,7 +232,7 @@ func ItemProgress(
 	log.Debug(header)
 
 	if cfg.hidden() || rc == nil || totalBytes == 0 {
-		return rc, func() {}
+		return rc, func() { log.Debug("done - " + header) }
 	}
 
 	wg.Add(1)
@@ -286,7 +286,7 @@ func ProgressWithCount(
 			}
 		}(progressCh)
 
-		return progressCh, func() {}
+		return progressCh, func() { log.Info("done - " + lmsg) }
 	}
 
 	wg.Add(1)
@@ -381,16 +381,19 @@ func CollectionProgress(
 	if cfg.hidden() || len(user.String()) == 0 || len(dirName.String()) == 0 {
 		ch := make(chan struct{})
 
+		counted := 0
+
 		go func(ci <-chan struct{}) {
 			for {
 				_, ok := <-ci
 				if !ok {
 					return
 				}
+				counted++
 			}
 		}(ch)
 
-		return ch, func() {}
+		return ch, func() { log.Infow("done - "+message, "count", counted) }
 	}
 
 	wg.Add(1)
