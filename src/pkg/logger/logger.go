@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/cli/print"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
@@ -118,6 +119,7 @@ func PreloadLoggingFlags() (string, string) {
 
 	if logfile != "stdout" && logfile != "stderr" {
 		logdir := filepath.Dir(logfile)
+		print.Info(context.Background(), "Logging to file: "+logfile)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
