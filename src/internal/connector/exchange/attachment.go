@@ -53,6 +53,12 @@ func uploadAttachment(
 		return nil
 	}
 
+	// item Attachments to be skipped until the completion of Issue #2353
+	if attachmentType == models.ITEM_ATTACHMENTTYPE {
+		logger.Ctx(ctx).Debugf("skip uploading of item attachment. Not supported: ", *attachment.GetName())
+		return nil
+	}
+
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
 	if attachmentType != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
 		err := uploader.uploadSmallAttachment(ctx, attachment)
