@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -967,6 +969,62 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 			assert.Equal(t, test.expectedPaths, paths)
 		})
 	}
+}
+
+type mockDeltaPageLinker struct {
+	link  *string
+	delta *string
+}
+
+func (pl *mockDeltaPageLinker) GetOdataNextLink() *string {
+	return pl.link
+}
+
+func (pl *mockDeltaPageLinker) GetOdataDeltaLink() *string {
+	return pl.delta
+}
+
+type deltaPagerResult struct {
+	items     []models.DriveItemable
+	nextLink  *string
+	deltaLink *string
+	err       error
+}
+
+type mockItemPager struct {
+	// DriveID -> set of return values for queries for that drive.
+	toReturn []deltaPagerResult
+	getIdx   int
+}
+
+func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
+	if len(p.toReturn) <= p.getIdx {
+		return nil, assert.AnError
+	}
+
+	idx := p.getIdx
+	p.getIdx++
+
+	return &mockDeltaPageLinker{
+		p.toReturn[idx].nextLink,
+		p.toReturn[idx].deltaLink,
+	}, p.toReturn[idx].err
+}
+
+func (p *mockItemPager) SetNext(string) {}
+
+func (p *mockItemPager) ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error) {
+	idx := p.getIdx
+	if idx > 0 {
+		// Return values lag by one since we increment in GetPage().
+		idx--
+	}
+
+	if len(p.toReturn) <= idx {
+		return nil, assert.AnError
+	}
+
+	return p.toReturn[idx].items, nil
 }
 
 func driveItem(
