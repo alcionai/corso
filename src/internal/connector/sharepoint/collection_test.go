@@ -95,7 +95,7 @@ func (suite *SharePointCollectionSuite) TestListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestPageCollection() {
+func (suite *SharePointCollectionSuite) TestCollectPages() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 

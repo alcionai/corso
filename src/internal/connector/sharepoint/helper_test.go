@@ -40,6 +40,9 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
+func (ms *MockGraphService) UpdateStatus(*support.ConnectorOperationStatus) {
+}
+
 // ---------------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------------
