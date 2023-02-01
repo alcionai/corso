@@ -15,8 +15,8 @@ But where does that data go?
 
 Corso creates a repository to store your backups, and the default in our
 documentation is to send that data to AWS S3.
-It is possible however to back up to any object storage system that has an S3-com
-patible API.
+It is possible however to back up to any object storage system that has an S3-compatible
+API.
 Let’s talk about some options.
 
 <!-- truncate -->
@@ -101,7 +101,7 @@ used as well as the amount of network
 traffic when writing to object storage.
 Corso also combines different emails, attachments, etc.
 into larger objects to make it more cost-effective by reducing the number of API
-calls and increasing network throughput as well as making Corso data eligible an
+calls and increasing network throughput as well as making Corso data eligible and
 cost-effective for some of the other
 storage classes described below.
 
@@ -123,7 +123,7 @@ full stop.
 However, Glacier Instant Retrieval (IR) is a good candidate to store the objects
 that represent the backup data but not the various indexes needed to maintain the
 repo.
-Glacier Instant Retrieval should provide the best price performance for a  backup workload as backup data blobs are
+Glacier Instant Retrieval should provide the best price performance for a backup workload as backup data blobs are
 typically written once, with occasional re-compacting, and read infrequently in the case of restore.
 One should note that recommendations such as these are always workload dependant and should be verified for your use
 case.
@@ -132,7 +132,7 @@ backups and limited retention.
 
 For most typical backup workloads (write mostly, read rarely), Glacier Instant Retrieval should work just fine and
 deliver the best price-performance ratio.
-Unlike a naive backup solution and as mentioned above, Corso efficiently packs smaller backup items (e.g., multiple
+Unlike a naive backup solution, as mentioned above, Corso efficiently packs smaller backup items (e.g., multiple
 emails) into a larger object.
 This makes Corso’s backup data eligible for S3 Intelligent Tiering where infrequently accessed objects can be moved into
 Glacier IR.
