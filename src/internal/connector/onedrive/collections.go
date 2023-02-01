@@ -180,7 +180,15 @@ func deserializeMetadata(
 
 		// Go through and remove partial results (i.e. path mapping but no delta URL
 		// or vice-versa).
-		for k := range prevDeltas {
+		for k, v := range prevDeltas {
+			// Remove entries with an empty delta token as it's not useful.
+			if len(v) == 0 {
+				delete(prevDeltas, k)
+				delete(prevFolders, k)
+			}
+
+			// Remove entries without a folders map as we can't tell kopia the
+			// hierarchy changes.
 			if _, ok := prevFolders[k]; !ok {
 				delete(prevDeltas, k)
 			}
@@ -287,17 +295,21 @@ func (c *Collections) Get(
 			return nil, nil, err
 		}
 
+		// It's alright to have an empty folders map (i.e. no folders found) but not
+		// an empty delta token. This is because when deserializing the metadata we
+		// remove entries for which there is no corresponding delta token/folder. If
+		// we leave empty delta tokens then we may end up setting the State field
+		// for collections when not actually getting delta results.
 		if len(delta) > 0 {
 			deltaURLs[driveID] = delta
 		}
 
-		if len(paths) > 0 {
-			folderPaths[driveID] = map[string]string{}
-
-			for id, p := range paths {
-				folderPaths[driveID][id] = p
-			}
-		}
+		// Avoid the edge case where there's no paths but we do have a valid delta
+		// token. We can accomplish this by adding an empty paths map for this
+		// drive. If we don't have this then the next backup won't use the delta
+		// token because it thinks the folder paths weren't persisted.
+		folderPaths[driveID] = map[string]string{}
+		maps.Copy(folderPaths[driveID], paths)
 
 		maps.Copy(excludedItems, excluded)
 	}
