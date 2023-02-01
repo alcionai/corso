@@ -177,7 +177,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 		},
 		{
 			name:     "Test Mail: Item Attachment",
-			bytes:    mockconnector.GetMockMessageWithItemAttachment("Item Attachment"),
+			bytes:    mockconnector.GetMockMessageWithItemAttachmentEvent("Event Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
@@ -278,7 +278,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				userID,
 			)
 			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
-			assert.NotNil(t, info, "item info is populated")
+			assert.NotNil(t, info, "item info was not populated")
 			assert.NoError(t, deleters[test.category].DeleteContainer(ctx, userID, destination))
 		})
 	}
