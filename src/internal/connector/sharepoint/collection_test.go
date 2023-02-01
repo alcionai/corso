@@ -106,7 +106,16 @@ func (suite *SharePointCollectionSuite) TestCollectPages() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	col, err := collectPages(ctx, account, nil, account.AzureTenantID, siteID, nil, &MockGraphService{}, control.Defaults())
+	col, err := collectPages(
+		ctx,
+		account,
+		nil,
+		account.AzureTenantID,
+		siteID,
+		nil,
+		&MockGraphService{},
+		control.Defaults(),
+	)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, col)
 }
