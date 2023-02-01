@@ -51,7 +51,9 @@ func preRun(cc *cobra.Command, args []string) error {
 		flagSl = append(flagSl, f)
 	}
 
-	avoidTheseCommands := []string{"corso", "env", "help", "sharepoint", "onedrive", "exchange", "repo"}
+	avoidTheseCommands := []string{
+		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
+	}
 	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
 		print.Info(cc.Context(), "Logging to file: "+logger.LogFile)
 	}
