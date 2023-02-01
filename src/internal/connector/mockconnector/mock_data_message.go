@@ -337,19 +337,25 @@ func GetMockEventMessageRequest(subject string) []byte {
 	return []byte(message)
 }
 
-func GetMockMessageWithItemAttachment(subject string) []byte {
+func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
 	//nolint:lll
-	message := "{\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/mailFolders('AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBCQAAAA%3D%3D')/messages(attachments())/$entity\"," +
-		"\"createdDateTime\":\"2023-02-01T13:48:43Z\",\"lastModifiedDateTime\":\"2023-02-01T13:53:39Z\",\"changeKey\":\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK2KP\",\"categories\":[]," +
-		"\"receivedDateTime\":\"2023-02-01T13:48:47Z\",\"sentDateTime\":\"2023-02-01T13:48:46Z\",\"hasAttachments\":true,\"internetMessageId\":\"<SJ0PR17MB56220B4F6A443386A11D5154C3D19@SJ0PR17MB5622.namprd17.prod.outlook.com>\"," +
-		"\"subject\":\"" + subject + "\",\"bodyPreview\":\"Lookingtodothis\",\"importance\":\"normal\",\"parentFolderId\":\"AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBCQAAAA==\"," +
-		"\"conversationId\":\"AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQADGvj5ACBMdGpESX4xSOxCo=\",\"conversationIndex\":\"AQHZNkPmMa+PkAIEx0akRJfjFI7EKg==\",\"isDeliveryReceiptRequested\":false,\"isReadReceiptRequested\":false," +
-		"\"isRead\":true,\"isDraft\":false,\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEJAAB8wYc0thTTTYl3RpEYIUq%2BAADFfrteAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"," +
-		"\"inferenceClassification\":\"focused\",\"body\":{\"contentType\":\"html\",\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"><styletype=\\\"text/css\\\"style=\\\"display:none\\\">\\r\\n<!--\\r\\np\\r\\n\\t{margin-top:0;\\r\\n\\tmargin-bottom:0}\\r\\n-->\\r\\n</style></head><bodydir=\\\"ltr\\\"><divclass=\\\"elementToProof\\\"style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\\\">Lookingtodothis </div></body></html>\"}," +
-		"\"sender\":{\"emailAddress\":{\"name\":\"" + defaultAlias + "\",\"address\":\"" + defaultMessageSender + "\"}}," +
-		"\"from\":{\"emailAddress\":{\"name\":\"" + defaultAlias + " \",\"address\":\"" + defaultMessageFrom + "\"}},\"toRecipients\":[{\"emailAddress\":{\"name\":\"" + defaultAlias + "\",\"address\":\"" + defaultMessageTo + "\"}}]," +
-		"\"ccRecipients\":[],\"bccRecipients\":[],\"replyTo\":[],\"flag\":{\"flagStatus\":\"notFlagged\"},\"attachments\":[{\"@odata.type\":\"#microsoft.graph.itemAttachment\"," +
-		"\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEJAAB8wYc0thTTTYl3RpEYIUq_AADFfrteAAABEgAQAKHxTL6mNCZPo71dbwrfKYM=\",\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"name\":\"Holidayevent\",\"contentType\":null,\"size\":2059,\"isInline\":false}]}"
+	message := "{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAA=\",\"@odata.type\":\"#microsoft.graph.message\"," +
+		"\"@odata.etag\":\"W/\\\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('dustina%408qzvrj.onmicrosoft.com')/messages/$entity\",\"categories\":[]," +
+		"\"changeKey\":\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\",\"createdDateTime\":\"2023-02-01T13:48:43Z\",\"lastModifiedDateTime\":\"2023-02-01T18:27:03Z\"," +
+		"\"attachments\":[{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAABEgAQAKHxTL6mNCZPo71dbwrfKYM=\"," +
+		"\"@odata.type\":\"#microsoft.graph.itemAttachment\",\"isInline\":false,\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"name\":\"Holidayevent\",\"size\":2059,\"item\":{\"id\":\"\",\"@odata.type\":\"#microsoft.graph.event\"," +
+		"\"createdDateTime\":\"2023-02-01T13:52:56Z\",\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"body\":{\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"></head><body>Let'slookforfunding!</body></html>\"," +
+		"\"contentType\":\"html\"},\"end\":{\"dateTime\":\"2016-12-02T19:00:00.0000000Z\",\"timeZone\":\"UTC\"}," +
+		"\"hasAttachments\":false,\"isAllDay\":false,\"isCancelled\":false,\"isDraft\":true,\"isOnlineMeeting\":false,\"isOrganizer\":true,\"isReminderOn\":false,\"organizer\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"" + defaultAlias + "\"}}," +
+		"\"originalEndTimeZone\":\"tzone://Microsoft/Utc\",\"originalStartTimeZone\":\"tzone://Microsoft/Utc\",\"reminderMinutesBeforeStart\":0,\"responseRequested\":true,\"start\":{\"dateTime\":\"2016-12-02T18:00:00.0000000Z\",\"timeZone\":\"UTC\"}," +
+		"\"subject\":\"Discussgiftsforchildren\",\"type\":\"singleInstance\"}}],\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"><styletype=\\\"text/css\\\"style=\\\"display:none\\\">\\r\\n<!--\\r\\np\\r\\n\\t{margin-top:0;\\r\\n\\tmargin-bottom:0}\\r\\n-->\\r\\n</style></head><bodydir=\\\"ltr\\\"><divclass=\\\"elementToProof\\\"style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\\\">Lookingtodothis </div></body></html>\",\"contentType\":\"html\"}," +
+		"\"bodyPreview\":\"Lookingtodothis\",\"ccRecipients\":[],\"conversationId\":\"AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQADGvj5ACBMdGpESX4xSOxCo=\",\"conversationIndex\":\"AQHZNkPmMa+PkAIEx0akRJfjFI7EKg==\",\"flag\":{\"flagStatus\":\"notFlagged\"}," +
+		"\"from\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"" + defaultAlias + "\"}},\"hasAttachments\":true,\"importance\":\"normal\",\"inferenceClassification\":\"focused\"," +
+		"\"internetMessageId\":\"<SJ0PR17MB56220B4F6A443386A11D5154C3D19@SJ0PR17MB5622.namprd17.prod.outlook.com>\",\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":true,\"isReadReceiptRequested\":false," +
+		"\"parentFolderId\":\"AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==\",\"receivedDateTime\":\"2023-02-01T13:48:47Z\",\"replyTo\":[]," +
+		"\"sender\":{\"emailAddress\":{\"address\":\"" + defaultMessageSender + "\",\"name\":\"" + defaultAlias + "\"}},\"sentDateTime\":\"2023-02-01T13:48:46Z\"," +
+		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"" + defaultMessageTo + "\",\"name\":\"" + defaultAlias + "\"}}]," +
+		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%2BAADFfThMAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
 
 	return []byte(message)
 }
