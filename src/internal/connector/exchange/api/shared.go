@@ -87,7 +87,7 @@ func getItemsAddedAndRemovedFromContainer(
 		}
 
 		itemCount += len(items)
-		page += 1
+		page++
 
 		// Log every ~1000 items (the page size we use is 200)
 		if page%5 == 0 {
