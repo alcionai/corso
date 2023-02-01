@@ -2,11 +2,12 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -88,6 +89,8 @@ func Initialize(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
+	ctx = clues.AddAll(ctx, "acct_provider", acct.Provider, "storage_provider", s.Provider)
+
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
@@ -95,7 +98,7 @@ func Initialize(
 			return nil, ErrorRepoAlreadyExists
 		}
 
-		return nil, err
+		return nil, errors.Wrap(err, "initializing kopia")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
@@ -103,17 +106,17 @@ func Initialize(
 
 	w, err := kopia.NewWrapper(kopiaRef)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	ms, err := kopia.NewModelStore(kopiaRef)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "constructing event bus")
 	}
 
 	repoID := newRepoID(s)
@@ -131,7 +134,7 @@ func Initialize(
 	}
 
 	if err := newRepoModel(ctx, ms, r.ID); err != nil {
-		return nil, errors.New("setting up repository")
+		return nil, clues.New("setting up repository").WithClues(ctx)
 	}
 
 	r.Bus.Event(ctx, events.RepoInit, nil)
@@ -150,6 +153,8 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
+	ctx = clues.AddAll(ctx, "acct_provider", acct.Provider, "storage_provider", s.Provider)
+
 	// Close/Reset the progress bar. This ensures callers don't have to worry about
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
@@ -160,7 +165,7 @@ func Connect(
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
@@ -168,17 +173,17 @@ func Connect(
 
 	w, err := kopia.NewWrapper(kopiaRef)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	ms, err := kopia.NewModelStore(kopiaRef)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "constructing event bus")
 	}
 
 	rm, err := getRepoModel(ctx, ms)

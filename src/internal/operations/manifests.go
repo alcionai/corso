@@ -73,7 +73,7 @@ func produceManifestsAndMetadata(
 	if err := verifyDistinctBases(ctx, ms, errs); err != nil {
 		logger.Ctx(ctx).With("error", err).Infow(
 			"base snapshot collision, falling back to full backup",
-			clues.Slice(ctx)...)
+			clues.In(ctx).Slice()...)
 
 		return ms, nil, false, nil
 	}
@@ -87,7 +87,7 @@ func produceManifestsAndMetadata(
 
 		bID, ok := man.GetTag(kopia.TagBackupID)
 		if !ok {
-			err = clues.New("snapshot manifest missing backup ID").WithMap(clues.Values(mctx))
+			err = clues.New("snapshot manifest missing backup ID").WithClues(ctx)
 			return nil, nil, false, err
 		}
 
@@ -98,7 +98,7 @@ func produceManifestsAndMetadata(
 			// if no backup exists for any of the complete manifests, we want
 			// to fall back to a complete backup.
 			if errors.Is(err, kopia.ErrNotFound) {
-				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.Slice(mctx)...)
+				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
 				return ms, nil, false, nil
 			}
 
@@ -113,7 +113,7 @@ func produceManifestsAndMetadata(
 		// This makes an assumption that the ID points to a populated set of
 		// details; we aren't doing the work to look them up.
 		if len(dID) == 0 {
-			logger.Ctx(ctx).Infow("backup missing details ID, falling back to full backup", clues.Slice(mctx)...)
+			logger.Ctx(ctx).Infow("backup missing details ID, falling back to full backup", clues.In(mctx).Slice()...)
 			return ms, nil, false, nil
 		}
 
@@ -159,7 +159,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 				failed = true
 
 				errs.Add(clues.New("manifests have overlapping reasons").
-					WithMap(clues.Values(ctx)).
+					WithClues(ctx).
 					With("other_manifest_id", b))
 
 				continue
@@ -170,7 +170,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 	}
 
 	if failed {
-		return clues.New("multiple base snapshots qualify").WithMap(clues.Values(ctx))
+		return clues.New("multiple base snapshots qualify").WithClues(ctx)
 	}
 
 	return nil
