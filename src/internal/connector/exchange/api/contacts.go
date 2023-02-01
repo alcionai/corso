@@ -12,10 +12,12 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -233,6 +235,11 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		errs       *multierror.Error
 		resetDelta bool
 	)
+
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeContact,
+		"folder_id", directoryID)
 
 	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
