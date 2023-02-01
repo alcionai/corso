@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,8 @@ func getItemsAddedAndRemovedFromContainer(
 		if err != nil {
 			return nil, nil, "", err
 		}
+
+		logger.Ctx(ctx).Infow("Got page", "items", len(items))
 
 		// iterate through the items in the page
 		for _, item := range items {
