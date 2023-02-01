@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
@@ -48,6 +49,11 @@ func preRun(cc *cobra.Command, args []string) error {
 	// currently only tracking flag names to avoid pii leakage.
 	for f := range flags {
 		flagSl = append(flagSl, f)
+	}
+
+	avoidTheseCommands := []string{"corso", "env", "help", "sharepoint", "onedrive", "exchange", "repo"}
+	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
+		print.Info(cc.Context(), "Logging to file: "+logger.LogFile)
 	}
 
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())

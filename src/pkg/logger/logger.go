@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/cli/print"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
@@ -29,6 +28,8 @@ var (
 
 	DebugAPI       bool
 	readableOutput bool
+
+	LogFile string
 )
 
 type logLevel int
@@ -118,8 +119,8 @@ func PreloadLoggingFlags() (string, string) {
 	}
 
 	if logfile != "stdout" && logfile != "stderr" {
+		LogFile = logfile
 		logdir := filepath.Dir(logfile)
-		print.Info(context.Background(), "Logging to file: "+logfile)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
