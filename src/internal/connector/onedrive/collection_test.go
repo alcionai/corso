@@ -538,21 +538,21 @@ func (suite *CollectionUnitTestSuite) TestStreamItem() {
 			},
 		},
 		{
-			name:       "service unavailable errors",
+			name:       "internal server errors",
 			expectData: "",
 			coll: &Collection{
 				data:       mockDataChan(),
-				itemReader: mockReader("foo", graph.Err503ServiceUnavailable),
+				itemReader: mockReader("foo", graph.Err500InternalServerError),
 				itemGetter: mockGetter(nil),
 			},
 			errsIs: func(t *testing.T, e error, count int) {
-				assert.True(t, graph.IsSericeUnavailable(e), "is unavailable error")
-				assert.ErrorIs(t, e, graph.Err503ServiceUnavailable)
+				assert.True(t, graph.IsInternalServerError(e), "is internal server error")
+				assert.ErrorIs(t, e, graph.Err500InternalServerError)
 				assert.Equal(t, 1, count, "one errors")
 			},
 			readErrIs: func(t *testing.T, e error) {
-				assert.True(t, graph.IsSericeUnavailable(e), "is unavailable error")
-				assert.ErrorIs(t, e, graph.Err503ServiceUnavailable)
+				assert.True(t, graph.IsInternalServerError(e), "is internal server error")
+				assert.ErrorIs(t, e, graph.Err500InternalServerError)
 			},
 		},
 	}
