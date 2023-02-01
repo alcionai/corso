@@ -9,8 +9,8 @@ import (
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -47,7 +47,7 @@ type Collection struct {
 	jobs []string
 	// M365 IDs of the items of this collection
 	service       graph.Servicer
-	betaService   *betasdk.Service
+	betaService   *api.BetaService
 	statusUpdater support.StatusUpdater
 }
 
@@ -160,9 +160,9 @@ func (sc *Collection) populate(ctx context.Context) {
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
-		"name",
 		sc.fullPath.Category().String(),
-		sc.fullPath.Folder())
+		observe.Safe("name"),
+		observe.PII(sc.fullPath.Folder()))
 	go closer()
 
 	defer func() {

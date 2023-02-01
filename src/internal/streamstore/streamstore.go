@@ -78,6 +78,7 @@ func (ss *streamStore) WriteBackupDetails(
 		nil,
 		[]data.Collection{dc},
 		nil,
+		nil,
 		false,
 	)
 	if err != nil {

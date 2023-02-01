@@ -6,9 +6,10 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -29,6 +30,9 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
+func (ms *MockGraphService) UpdateStatus(*support.ConnectorOperationStatus) {
+}
+
 // ---------------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------------
@@ -44,7 +48,7 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	return graph.NewService(adapter)
 }
 
-func createTestBetaService(t *testing.T, credentials account.M365Config) *betasdk.Service {
+func createTestBetaService(t *testing.T, credentials account.M365Config) *api.BetaService {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
@@ -52,7 +56,7 @@ func createTestBetaService(t *testing.T, credentials account.M365Config) *betasd
 	)
 	require.NoError(t, err)
 
-	return betasdk.NewService(adapter)
+	return api.NewBetaService(adapter)
 }
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {
