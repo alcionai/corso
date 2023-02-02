@@ -46,8 +46,11 @@ func uploadAttachment(
 	attachment models.Attachmentable,
 ) error {
 	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
-	attachmentType := attachmentType(attachment)
 
+	var (
+		attachmentType = attachmentType(attachment)
+		err            error
+	)
 	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
 	if attachmentType == models.REFERENCE_ATTACHMENTTYPE &&
 		attachment.GetIsInline() != nil && *attachment.GetIsInline() {
@@ -57,12 +60,15 @@ func uploadAttachment(
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
-		attachment, err := support.ToItemAttachment(attachment)
+		prev := attachment
+		attachment, err = support.ToItemAttachment(attachment)
+
 		if err != nil {
+			// TODO: Update to support PII protection
 			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
-				"attachment_name", *attachment.GetName(), // TODO: Update to support PII protection
+				"attachment_name", *prev.GetName(),
 				"attachment_type", attachmentType,
-				"attachment_id", *attachment.GetId(),
+				"attachment_id", *prev.GetId(),
 			)
 
 			fmt.Println("Error returned: " + err.Error())
