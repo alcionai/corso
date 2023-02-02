@@ -13,6 +13,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -80,7 +81,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, sharePointCreateCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointCreateCmd(), utils.MarkPreReleaseCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -100,14 +101,14 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, sharePointListCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointListCmd(), utils.MarkPreReleaseCommand())
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd(), utils.MarkPreReleaseCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -156,7 +157,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// 	"Select backup details for items created after this datetime.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.HideCommand())
+		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
@@ -209,7 +210,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	gc, err := connector.NewGraphConnector(ctx, acct, connector.Sites)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}

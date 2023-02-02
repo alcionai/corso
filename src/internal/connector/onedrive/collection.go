@@ -4,12 +4,14 @@ package onedrive
 import (
 	"context"
 	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -48,6 +50,9 @@ var (
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
+	// configured to handle large item downloads
+	itemClient *http.Client
+
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
 	// folderPath indicates what level in the hierarchy this collection
@@ -70,7 +75,7 @@ type Collection struct {
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
-	ctx context.Context,
+	hc *http.Client,
 	item models.DriveItemable,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
 
@@ -85,6 +90,7 @@ type itemMetaReaderFunc func(
 
 // NewCollection creates a Collection
 func NewCollection(
+	itemClient *http.Client,
 	folderPath path.Path,
 	driveID string,
 	service graph.Servicer,
@@ -93,6 +99,7 @@ func NewCollection(
 	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
+		itemClient:    itemClient,
 		folderPath:    folderPath,
 		driveItems:    map[string]models.DriveItemable{},
 		driveID:       driveID,
@@ -218,7 +225,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		"/"+parentPathString,
+		observe.PII("/"+parentPathString),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -247,8 +254,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			// Read the item
 			var (
+				itemID       = *item.GetId()
+				itemName     = *item.GetName()
+				itemSize     = *item.GetSize()
 				itemInfo     details.ItemInfo
-				itemData     io.ReadCloser
 				itemMeta     io.ReadCloser
 				itemMetaSize int
 				metaSuffix   string
@@ -267,97 +276,137 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				metaSuffix = DirMetaFileSuffix
 			}
 
-			// Fetch data for the file
-			for i := 1; i <= maxRetries; i++ {
-				itemInfo, itemData, err = oc.itemReader(ctx, item)
+			if oc.source == OneDriveSource {
+				// Fetch metadata for the file
+				for i := 1; i <= maxRetries; i++ {
+					if oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
+						// We are still writing the metadata file but with
+						// empty permissions as we are not sure how the
+						// restore will be called.
+						itemMeta = io.NopCloser(strings.NewReader("{}"))
+						itemMetaSize = 2
 
-				// retry on Timeout type errors, break otherwise.
-				if err == nil || graph.IsErrTimeout(err) == nil {
-					break
+						break
+					}
+
+					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+
+					// retry on Timeout type errors, break otherwise.
+					if err == nil || !graph.IsErrTimeout(err) {
+						break
+					}
+
+					if i < maxRetries {
+						time.Sleep(1 * time.Second)
+					}
 				}
 
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
-				}
-			}
-
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
-			}
-
-			// Fetch metadata for the file
-			// TODO(meain): refactor these multiple retry logic
-			for i := 1; i <= maxRetries; i++ {
-				if oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
-					// We are still writing the metadata file but with
-					// empty permissions as we are not sure how the
-					// restore will be called.
-					itemMeta = io.NopCloser(strings.NewReader("{}"))
-					itemMetaSize = 2
-
-					break
-				}
-
-				itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-
-				// retry on Timeout type errors, break otherwise.
-				if err == nil || graph.IsErrTimeout(err) == nil {
-					break
-				}
-
-				if i < maxRetries {
-					time.Sleep(1 * time.Second)
+				if err != nil {
+					errUpdater(*item.GetId(), err)
+					return
 				}
 			}
-
-			if err != nil {
-				errUpdater(*item.GetId(), err)
-				return
-			}
-
-			var (
-				itemName string
-				itemSize int64
-			)
 
 			switch oc.source {
 			case SharePointSource:
+				itemInfo.SharePoint = sharePointItemInfo(item, itemSize)
 				itemInfo.SharePoint.ParentPath = parentPathString
-				itemName = itemInfo.SharePoint.ItemName
-				itemSize = itemInfo.SharePoint.Size
 			default:
+				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
 				itemInfo.OneDrive.ParentPath = parentPathString
-				itemName = itemInfo.OneDrive.ItemName
-				itemSize = itemInfo.OneDrive.Size
 			}
 
 			if isFile {
+				dataSuffix := ""
+				if oc.source == OneDriveSource {
+					dataSuffix = DataFileSuffix
+				}
+
+				// Construct a new lazy readCloser to feed to the collection consumer.
+				// This ensures that downloads won't be attempted unless that consumer
+				// attempts to read bytes.  Assumption is that kopia will check things
+				// like file modtimes before attempting to read.
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, itemName+DataFileSuffix, itemSize)
+					// Read the item
+					var (
+						itemData io.ReadCloser
+						err      error
+					)
+
+					for i := 1; i <= maxRetries; i++ {
+						_, itemData, err = oc.itemReader(oc.itemClient, item)
+						if err == nil {
+							break
+						}
+
+						if graph.IsErrUnauthorized(err) {
+							// assume unauthorized requests are a sign of an expired
+							// jwt token, and that we've overrun the available window
+							// to download the actual file.  Re-downloading the item
+							// will refresh that download url.
+							di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+							if diErr != nil {
+								err = errors.Wrap(diErr, "retrieving expired item")
+								break
+							}
+
+							item = di
+
+							continue
+
+						} else if !graph.IsErrTimeout(err) &&
+							!graph.IsInternalServerError(err) {
+							// Don't retry for non-timeout, on-unauth, as
+							// we are already retrying it in the default
+							// retry middleware
+							break
+						}
+
+						if i < maxRetries {
+							time.Sleep(1 * time.Second)
+						}
+					}
+
+					// check for errors following retries
+					if err != nil {
+						errUpdater(itemID, err)
+						return nil, err
+					}
+
+					// display/log the item download
+					progReader, closer := observe.ItemProgress(
+						ctx,
+						itemData,
+						observe.ItemBackupMsg,
+						observe.PII(itemName+dataSuffix),
+						itemSize,
+					)
 					go closer()
+
 					return progReader, nil
 				})
 
 				oc.data <- &Item{
-					id:   itemName + DataFileSuffix,
+					id:   itemName + dataSuffix,
 					data: itemReader,
 					info: itemInfo,
 				}
 			}
 
-			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				progReader, closer := observe.ItemProgress(
-					ctx, itemMeta, observe.ItemBackupMsg,
-					itemName+metaSuffix, int64(itemMetaSize))
-				go closer()
-				return progReader, nil
-			})
+			if oc.source == OneDriveSource {
+				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+					progReader, closer := observe.ItemProgress(
+						ctx, itemMeta, observe.ItemBackupMsg,
+						observe.PII(itemName+metaSuffix), int64(itemMetaSize))
+					go closer()
+					return progReader, nil
+				})
 
-			oc.data <- &Item{
-				id:   itemName + metaSuffix,
-				data: metaReader,
-				info: itemInfo,
+				oc.data <- &Item{
+					id:   itemName + metaSuffix,
+					data: metaReader,
+					info: itemInfo,
+				}
 			}
 
 			// Item read successfully, add to collection

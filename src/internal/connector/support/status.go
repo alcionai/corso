@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	bytesize "github.com/inhies/go-bytesize"
+	"github.com/dustin/go-humanize"
+	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -21,6 +22,7 @@ type ConnectorOperationStatus struct {
 	FolderCount       int
 	Successful        int
 	ErrorCount        int
+	Err               error
 	incomplete        bool
 	incompleteReason  string
 	additionalDetails string
@@ -71,6 +73,7 @@ func CreateStatus(
 		FolderCount:       folders,
 		Successful:        cm.Successes,
 		ErrorCount:        numErr,
+		Err:               err,
 		incomplete:        hasErrors,
 		incompleteReason:  reason,
 		bytes:             cm.TotalBytes,
@@ -116,6 +119,7 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 		FolderCount:       one.FolderCount + two.FolderCount,
 		Successful:        one.Successful + two.Successful,
 		ErrorCount:        one.ErrorCount + two.ErrorCount,
+		Err:               multierror.Append(one.Err, two.Err).ErrorOrNil(),
 		bytes:             one.bytes + two.bytes,
 		incomplete:        hasErrors,
 		incompleteReason:  one.incompleteReason + ", " + two.incompleteReason,
@@ -139,7 +143,7 @@ func (cos *ConnectorOperationStatus) String() string {
 		cos.lastOperation.String(),
 		cos.Successful,
 		cos.ObjectCount,
-		bytesize.New(float64(cos.bytes)),
+		humanize.Bytes(uint64(cos.bytes)),
 		cos.FolderCount,
 	)
 

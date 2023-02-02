@@ -3,7 +3,6 @@ run:
 
 linters:
   enable:
-    - gci
     - gofmt
     - gofumpt
     - errcheck
@@ -106,3 +105,14 @@ issues:
       linters:
         - forbidigo
       text: "context.(Background|TODO)"
+    - path: internal/connector/graph/betasdk
+      linters:
+        - wsl
+        - revive
+        - gci
+        - lll
+        - gofmt
+        - gofumpt
+        - misspell
+        - errcheck
+

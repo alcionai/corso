@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/fault/mock"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -400,7 +401,10 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			err := verifyDistinctBases(test.mans)
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			err := verifyDistinctBases(ctx, test.mans, mock.NewAdder())
 			test.expect(t, err)
 		})
 	}
@@ -646,6 +650,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			ma := mock.NewAdder()
+
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				&test.mr,
@@ -653,7 +659,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				test.reasons,
 				tid,
 				test.getMeta,
-			)
+				ma)
 			test.assertErr(t, err)
 			test.assertB(t, b)
 
@@ -680,6 +686,273 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			}
 
 			assert.ElementsMatch(t, expect, got, "expected collections are present")
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// older tests
+// ---------------------------------------------------------------------------
+
+type BackupManifestSuite struct {
+	suite.Suite
+}
+
+func TestBackupManifestSuite(t *testing.T) {
+	suite.Run(t, new(BackupOpSuite))
+}
+
+func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
+	const user = "a-user"
+
+	table := []struct {
+		name     string
+		input    []*kopia.ManifestEntry
+		errCheck assert.ErrorAssertionFunc
+	}{
+		{
+			name: "SingleManifestMultipleReasons",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EventsCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			name: "MultipleManifestsDistinctReason",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id2",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EventsCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+		},
+		{
+			name: "MultipleManifestsSameReason",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id2",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.Error,
+		},
+		{
+			name: "MultipleManifestsSameReasonOneIncomplete",
+			input: []*kopia.ManifestEntry{
+				{
+					Manifest: &snapshot.Manifest{
+						ID: "id1",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+				{
+					Manifest: &snapshot.Manifest{
+						ID:               "id2",
+						IncompleteReason: "checkpoint",
+					},
+					Reasons: []kopia.Reason{
+						{
+							ResourceOwner: user,
+							Service:       path.ExchangeService,
+							Category:      path.EmailCategory,
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			test.errCheck(t, verifyDistinctBases(ctx, test.input, mock.NewAdder()))
+		})
+	}
+}
+
+func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
+	var (
+		tenant        = "a-tenant"
+		resourceOwner = "a-user"
+		fileNames     = []string{
+			"delta",
+			"paths",
+		}
+
+		emailDeltaPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.EmailCategory,
+			fileNames[0],
+		)
+		emailPathsPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.EmailCategory,
+			fileNames[1],
+		)
+		contactsDeltaPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.ContactsCategory,
+			fileNames[0],
+		)
+		contactsPathsPath = makeMetadataPath(
+			suite.T(),
+			tenant,
+			path.ExchangeService,
+			resourceOwner,
+			path.ContactsCategory,
+			fileNames[1],
+		)
+	)
+
+	table := []struct {
+		name       string
+		inputMan   *kopia.ManifestEntry
+		inputFiles []string
+		expected   []path.Path
+	}{
+		{
+			name: "SingleReasonSingleFile",
+			inputMan: &kopia.ManifestEntry{
+				Manifest: &snapshot.Manifest{},
+				Reasons: []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
+			inputFiles: []string{fileNames[0]},
+			expected:   []path.Path{emailDeltaPath},
+		},
+		{
+			name: "SingleReasonMultipleFiles",
+			inputMan: &kopia.ManifestEntry{
+				Manifest: &snapshot.Manifest{},
+				Reasons: []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+				},
+			},
+			inputFiles: fileNames,
+			expected:   []path.Path{emailDeltaPath, emailPathsPath},
+		},
+		{
+			name: "MultipleReasonsMultipleFiles",
+			inputMan: &kopia.ManifestEntry{
+				Manifest: &snapshot.Manifest{},
+				Reasons: []kopia.Reason{
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.EmailCategory,
+					},
+					{
+						ResourceOwner: resourceOwner,
+						Service:       path.ExchangeService,
+						Category:      path.ContactsCategory,
+					},
+				},
+			},
+			inputFiles: fileNames,
+			expected: []path.Path{
+				emailDeltaPath,
+				emailPathsPath,
+				contactsDeltaPath,
+				contactsPathsPath,
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			mr := &mockRestorer{}
+
+			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant)
+			assert.NoError(t, err)
+
+			checkPaths(t, test.expected, mr.gotPaths)
 		})
 	}
 }

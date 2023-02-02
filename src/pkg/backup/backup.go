@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -31,8 +32,11 @@ type Backup struct {
 	// Selector used in this operation
 	Selector selectors.Selector `json:"selectors"`
 
+	// Errors contains all errors aggregated during a backup operation.
+	Errors fault.ErrorsData `json:"errors"`
+
 	// stats are embedded so that the values appear as top-level properties
-	stats.Errs
+	stats.Errs // Deprecated, replaced with Errors.
 	stats.ReadWrites
 	stats.StartAndEndTime
 }
@@ -46,6 +50,7 @@ func New(
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
+	errs *fault.Errors,
 ) *Backup {
 	return &Backup{
 		BaseModel: model.BaseModel{
@@ -59,6 +64,7 @@ func New(
 		DetailsID:       detailsID,
 		Status:          status,
 		Selector:        selector,
+		Errors:          errs.Data(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 	}
@@ -102,7 +108,7 @@ type Printable struct {
 func (b Backup) MinimumPrintable() any {
 	return Printable{
 		ID:            b.ID,
-		ErrorCount:    support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors),
+		ErrorCount:    b.errorCount(),
 		StartedAt:     b.StartedAt,
 		Status:        b.Status,
 		Version:       "0",
@@ -125,8 +131,7 @@ func (b Backup) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (b Backup) Values() []string {
-	errCount := support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
-	status := fmt.Sprintf("%s (%d errors)", b.Status, errCount)
+	status := fmt.Sprintf("%s (%d errors)", b.Status, b.errorCount())
 
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),
@@ -134,4 +139,24 @@ func (b Backup) Values() []string {
 		status,
 		b.Selector.DiscreteOwner,
 	}
+}
+
+func (b Backup) errorCount() int {
+	var errCount int
+
+	// current tracking
+	if b.ReadErrors != nil || b.WriteErrors != nil {
+		return support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
+	}
+
+	// future tracking
+	if b.Errors.Err != nil || len(b.Errors.Errs) > 0 {
+		if b.Errors.Err != nil {
+			errCount++
+		}
+
+		errCount += len(b.Errors.Errs)
+	}
+
+	return errCount
 }

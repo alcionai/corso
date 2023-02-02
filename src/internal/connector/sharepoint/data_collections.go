@@ -2,6 +2,7 @@ package sharepoint
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/pkg/errors"
 
@@ -24,15 +25,16 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
+	itemClient *http.Client,
 	selector selectors.Selector,
 	tenantID string,
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
@@ -44,7 +46,8 @@ func DataCollections(
 	for _, scope := range b.Scopes() {
 		foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
 			"%s - %s",
-			scope.Category().PathType(), site))
+			observe.Safe(scope.Category().PathType().String()),
+			observe.PII(site)))
 		defer closer()
 		defer close(foldersComplete)
 
@@ -60,12 +63,13 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 
 		case path.LibrariesCategory:
-			spcs, err = collectLibraries(
+			spcs, _, err = collectLibraries(
 				ctx,
+				itemClient,
 				serv,
 				tenantID,
 				site,
@@ -73,7 +77,7 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 		}
 
@@ -81,7 +85,7 @@ func DataCollections(
 		foldersComplete <- struct{}{}
 	}
 
-	return collections, errs
+	return collections, nil, errs
 }
 
 func collectLists(
@@ -124,12 +128,13 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
+	itemClient *http.Client,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	var (
 		collections = []data.Collection{}
 		errs        error
@@ -138,6 +143,7 @@ func collectLibraries(
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
 	colls := onedrive.NewCollections(
+		itemClient,
 		tenantID,
 		siteID,
 		onedrive.SharePointSource,
@@ -146,12 +152,14 @@ func collectLibraries(
 		updater.UpdateStatus,
 		ctrlOpts)
 
-	odcs, err := colls.Get(ctx)
+	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
+	// token-based incrementals.
+	odcs, excludes, err := colls.Get(ctx, nil)
 	if err != nil {
-		return nil, support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
 
-	return append(collections, odcs...), errs
+	return append(collections, odcs...), excludes, errs
 }
 
 type folderMatcher struct {

@@ -2,11 +2,15 @@ package onedrive
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -45,6 +49,9 @@ type folderMatcher interface {
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
 type Collections struct {
+	// configured to handle large item downloads
+	itemClient *http.Client
+
 	tenant        string
 	resourceOwner string
 	source        driveSource
@@ -58,6 +65,19 @@ type Collections struct {
 	// for a OneDrive folder
 	CollectionMap map[string]data.Collection
 
+	// Not the most ideal, but allows us to change the pager function for testing
+	// as needed. This will allow us to mock out some scenarios during testing.
+	drivePagerFunc func(
+		source driveSource,
+		servicer graph.Servicer,
+		resourceOwner string,
+		fields []string,
+	) (drivePager, error)
+	itemPagerFunc func(
+		servicer graph.Servicer,
+		driveID, link string,
+	) itemPager
+
 	// Track stats from drive enumeration. Represents the items backed up.
 	NumItems      int
 	NumFiles      int
@@ -65,6 +85,7 @@ type Collections struct {
 }
 
 func NewCollections(
+	itemClient *http.Client,
 	tenant string,
 	resourceOwner string,
 	source driveSource,
@@ -74,23 +95,178 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		tenant:        tenant,
-		resourceOwner: resourceOwner,
-		source:        source,
-		matcher:       matcher,
-		CollectionMap: map[string]data.Collection{},
-		service:       service,
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		itemClient:     itemClient,
+		tenant:         tenant,
+		resourceOwner:  resourceOwner,
+		source:         source,
+		matcher:        matcher,
+		CollectionMap:  map[string]data.Collection{},
+		drivePagerFunc: PagerForSource,
+		itemPagerFunc:  defaultItemPager,
+		service:        service,
+		statusUpdater:  statusUpdater,
+		ctrl:           ctrlOpts,
 	}
 }
 
-// Retrieves drive data as set of `data.Collections`
-func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
-	// Enumerate drives for the specified resourceOwner
-	drives, err := drives(ctx, c.service, c.resourceOwner, c.source)
+func deserializeMetadata(
+	ctx context.Context,
+	cols []data.Collection,
+) (map[string]string, map[string]map[string]string, error) {
+	logger.Ctx(ctx).Infow(
+		"deserialzing previous backup metadata",
+		"num_collections",
+		len(cols),
+	)
+
+	prevDeltas := map[string]string{}
+	prevFolders := map[string]map[string]string{}
+
+	for _, col := range cols {
+		items := col.Items()
+
+		for breakLoop := false; !breakLoop; {
+			select {
+			case <-ctx.Done():
+				return nil, nil, errors.Wrap(ctx.Err(), "deserialzing previous backup metadata")
+
+			case item, ok := <-items:
+				if !ok {
+					// End of collection items.
+					breakLoop = true
+					break
+				}
+
+				var err error
+
+				switch item.UUID() {
+				case graph.PreviousPathFileName:
+					err = deserializeMap(item.ToReader(), prevFolders)
+
+				case graph.DeltaURLsFileName:
+					err = deserializeMap(item.ToReader(), prevDeltas)
+
+				default:
+					logger.Ctx(ctx).Infow(
+						"skipping unknown metadata file",
+						"file_name",
+						item.UUID(),
+					)
+
+					continue
+				}
+
+				if err == nil {
+					// Successful decode.
+					continue
+				}
+
+				// This is conservative, but report an error if any of the items for
+				// any of the deserialized maps have duplicate drive IDs. This will
+				// cause the entire backup to fail, but it's not clear if higher
+				// layers would have caught this. Worst case if we don't handle this
+				// we end up in a situation where we're sourcing items from the wrong
+				// base in kopia wrapper.
+				if errors.Is(err, errExistingMapping) {
+					return nil, nil, errors.Wrapf(
+						err,
+						"deserializing metadata file %s",
+						item.UUID(),
+					)
+				}
+
+				logger.Ctx(ctx).Errorw(
+					"deserializing base backup metadata. Falling back to full backup for selected drives",
+					"error",
+					err,
+					"file_name",
+					item.UUID(),
+				)
+			}
+		}
+
+		// Go through and remove partial results (i.e. path mapping but no delta URL
+		// or vice-versa).
+		for k, v := range prevDeltas {
+			// Remove entries with an empty delta token as it's not useful.
+			if len(v) == 0 {
+				delete(prevDeltas, k)
+				delete(prevFolders, k)
+			}
+
+			// Remove entries without a folders map as we can't tell kopia the
+			// hierarchy changes.
+			if _, ok := prevFolders[k]; !ok {
+				delete(prevDeltas, k)
+			}
+		}
+
+		for k := range prevFolders {
+			if _, ok := prevDeltas[k]; !ok {
+				delete(prevFolders, k)
+			}
+		}
+	}
+
+	return prevDeltas, prevFolders, nil
+}
+
+var errExistingMapping = errors.New("mapping already exists for same drive ID")
+
+// deserializeMap takes an reader and a map of already deserialized items and
+// adds the newly deserialized items to alreadyFound. Items are only added to
+// alreadyFound if none of the keys in the freshly deserialized map already
+// exist in alreadyFound. reader is closed at the end of this function.
+func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) error {
+	defer reader.Close()
+
+	tmp := map[string]T{}
+
+	err := json.NewDecoder(reader).Decode(&tmp)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, "deserializing file contents")
+	}
+
+	var duplicate bool
+
+	for k := range tmp {
+		if _, ok := alreadyFound[k]; ok {
+			duplicate = true
+			break
+		}
+	}
+
+	if duplicate {
+		return errors.WithStack(errExistingMapping)
+	}
+
+	maps.Copy(alreadyFound, tmp)
+
+	return nil
+}
+
+// Retrieves drive data as set of `data.Collections` and a set of item names to
+// be excluded from the upcoming backup.
+func (c *Collections) Get(
+	ctx context.Context,
+	prevMetadata []data.Collection,
+) ([]data.Collection, map[string]struct{}, error) {
+	_, _, err := deserializeMetadata(ctx, prevMetadata)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Enumerate drives for the specified resourceOwner
+	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	retry := c.source == OneDriveSource
+
+	drives, err := drives(ctx, pager, retry)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	var (
@@ -98,6 +274,12 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		deltaURLs = map[string]string{}
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
+		// Items that should be excluded when sourcing data from the base backup.
+		// TODO(ashmrtn): This list contains the M365 IDs of deleted items so while
+		// it's technically safe to pass all the way through to kopia (files are
+		// unlikely to be named their M365 ID) we should wait to do that until we've
+		// switched to using those IDs for file names in kopia.
+		excludedItems = map[string]struct{}{}
 	)
 
 	// Update the collection map with items from each drive
@@ -105,25 +287,41 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		driveID := *d.GetId()
 		driveName := *d.GetName()
 
-		delta, paths, err := collectItems(ctx, c.service, driveID, driveName, c.UpdateCollections)
+		delta, paths, excluded, err := collectItems(
+			ctx,
+			c.itemPagerFunc(
+				c.service,
+				driveID,
+				"",
+			),
+			driveID,
+			driveName,
+			c.UpdateCollections,
+		)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
+		// It's alright to have an empty folders map (i.e. no folders found) but not
+		// an empty delta token. This is because when deserializing the metadata we
+		// remove entries for which there is no corresponding delta token/folder. If
+		// we leave empty delta tokens then we may end up setting the State field
+		// for collections when not actually getting delta results.
 		if len(delta) > 0 {
 			deltaURLs[driveID] = delta
 		}
 
-		if len(paths) > 0 {
-			folderPaths[driveID] = map[string]string{}
+		// Avoid the edge case where there's no paths but we do have a valid delta
+		// token. We can accomplish this by adding an empty paths map for this
+		// drive. If we don't have this then the next backup won't use the delta
+		// token because it thinks the folder paths weren't persisted.
+		folderPaths[driveID] = map[string]string{}
+		maps.Copy(folderPaths[driveID], paths)
 
-			for id, p := range paths {
-				folderPaths[driveID][id] = p
-			}
-		}
+		maps.Copy(excludedItems, excluded)
 	}
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
+	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
 
 	// Add an extra for the metadata collection.
 	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)
@@ -157,7 +355,8 @@ func (c *Collections) Get(ctx context.Context) ([]data.Collection, error) {
 		collections = append(collections, metadata)
 	}
 
-	return collections, nil
+	// TODO(ashmrtn): Track and return the set of items to exclude.
+	return collections, nil, nil
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
@@ -171,6 +370,7 @@ func (c *Collections) UpdateCollections(
 	items []models.DriveItemable,
 	oldPaths map[string]string,
 	newPaths map[string]string,
+	excluded map[string]struct{},
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -237,19 +437,32 @@ func (c *Collections) UpdateCollections(
 			fallthrough
 
 		case item.GetFile() != nil:
+			if item.GetDeleted() != nil {
+				excluded[*item.GetId()] = struct{}{}
+				// Exchange counts items streamed through it which includes deletions so
+				// add that here too.
+				c.NumFiles++
+				c.NumItems++
+
+				continue
+			}
+
+			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
+			// the exclude list.
+
 			col, found := c.CollectionMap[collectionPath.String()]
 
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
 				col = NewCollection(
+					c.itemClient,
 					collectionPath,
 					driveID,
 					c.service,
 					c.statusUpdater,
 					c.source,
-					c.ctrl,
-				)
+					c.ctrl)
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++

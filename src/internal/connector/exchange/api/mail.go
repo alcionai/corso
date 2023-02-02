@@ -12,10 +12,13 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -71,9 +74,9 @@ func (c Mail) CreateMailFolderWithParent(
 		Post(ctx, requestBody, nil)
 }
 
-// DeleteMailFolder removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
+// DeleteContainer removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
 // Reference: https://docs.microsoft.com/en-us/graph/api/mailfolder-delete?view=graph-rest-1.0&tabs=http
-func (c Mail) DeleteMailFolder(
+func (c Mail) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
@@ -94,17 +97,64 @@ func (c Mail) GetContainerByID(
 		return nil, errors.Wrap(err, "options for mail folder")
 	}
 
-	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+	var resp graph.Container
+
+	err = runWithRetry(func() error {
+		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+		return err
+	})
+
+	return resp, err
 }
 
-// GetItem retrieves a Messageable item.
+// GetItem retrieves a Messageable item.  If the item contains an attachment, that
+// attachment is also downloaded.
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	var (
+		mail models.Messageable
+		err  error
+	)
+
+	err = runWithRetry(func() error {
+		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
+	}
+
+	var errs *multierror.Error
+
+	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
+		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.largeItem.
+				Client().
+				UsersById(user).
+				MessagesById(itemID).
+				Attachments().
+				Get(ctx, options)
+			if err == nil {
+				mail.SetAttachments(attached.GetValue())
+				break
+			}
+
+			logger.Ctx(ctx).Debugw("retrying mail attachment download", "err", err)
+			errs = multierror.Append(errs, err)
+		}
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("mail attachment download exceeded maximum retries", "err", errs)
+			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "downloading mail attachment"), nil)
+		}
 	}
 
 	return mail, MailInfo(mail), nil
@@ -127,6 +177,7 @@ func (c Mail) EnumerateContainers(
 	}
 
 	var (
+		resp    users.ItemMailFoldersDeltaResponseable
 		errs    *multierror.Error
 		builder = service.Client().
 			UsersById(userID).
@@ -135,7 +186,13 @@ func (c Mail) EnumerateContainers(
 	)
 
 	for {
-		resp, err := builder.Get(ctx, nil)
+		var err error
+
+		err = runWithRetry(func() error {
+			resp, err = builder.Get(ctx, nil)
+			return err
+		})
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -172,15 +229,25 @@ type mailPager struct {
 	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *mailPager) getPage(ctx context.Context) (pageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+	var (
+		page api.DeltaPageLinker
+		err  error
+	)
+
+	err = runWithRetry(func() error {
+		page, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return page, err
 }
 
 func (p *mailPager) setNext(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *mailPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *mailPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Messageable](pl)
 }
 
@@ -199,6 +266,11 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		resetDelta bool
 	)
 
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeMail,
+		"folder_id", directoryID)
+
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
@@ -215,7 +287,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
+		if !graph.IsErrInvalidDelta(err) {
 			return nil, nil, DeltaUpdate{}, err
 		}
 
@@ -238,8 +310,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 // Serialization
 // ---------------------------------------------------------------------------
 
-// Serialize retrieves attachment data identified by the mail item, and then
-// serializes it into a byte slice.
+// Serialize transforms the mail item into a byte slice.
 func (c Mail) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,
@@ -256,31 +327,6 @@ func (c Mail) Serialize(
 	)
 
 	defer writer.Close()
-
-	if *msg.GetHasAttachments() || support.HasAttachments(msg.GetBody()) {
-		// getting all the attachments might take a couple attempts due to filesize
-		var retriesErr error
-
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := c.stable.
-				Client().
-				UsersById(user).
-				MessagesById(itemID).
-				Attachments().
-				Get(ctx, nil)
-			retriesErr = err
-
-			if err == nil {
-				msg.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
-		}
-	}
 
 	if err = writer.WriteObjectValue("", msg); err != nil {
 		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
