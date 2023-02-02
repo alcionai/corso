@@ -191,7 +191,7 @@ func oneDriveItemMetaInfo(
 
 	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
 	if err != nil {
-		return Metadata{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
+		return Metadata{}, err
 	}
 
 	uperms := filterUserPermissions(perm.GetValue())

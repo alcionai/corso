@@ -292,7 +292,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
 
 					// retry on Timeout type errors, break otherwise.
-					if err == nil || !graph.IsErrTimeout(err) {
+					if err == nil ||
+						!graph.IsErrTimeout(err) ||
+						!graph.IsInternalServerError(err) {
 						break
 					}
 
