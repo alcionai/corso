@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -1430,4 +1431,95 @@ func delItem(
 	}
 
 	return item
+}
+
+func (suite *OneDriveCollectionsSuite) TestCollectItems() {
+	next := "next"
+	delta := "delta"
+
+	syncStateNotFound := "SyncStateNotFound" // TODO(meain): export graph.errCodeSyncStateNotFound
+	me := odataerrors.NewMainError()
+	me.SetCode(&syncStateNotFound)
+
+	deltaError := odataerrors.NewODataError()
+	deltaError.SetError(me)
+
+	table := []struct {
+		name             string
+		items            []deltaPagerResult
+		deltaURL         string
+		prevDelta        string
+		prevDeltaSuccess bool
+		err              error
+	}{
+		{
+			name:     "delta on first run",
+			deltaURL: delta,
+			items: []deltaPagerResult{
+				{deltaLink: &delta},
+			},
+			prevDeltaSuccess: true,
+		},
+		{
+			name:     "next then delta",
+			deltaURL: delta,
+			items: []deltaPagerResult{
+				{nextLink: &next},
+				{deltaLink: &delta},
+			},
+			prevDeltaSuccess: true,
+		},
+		{
+			name:     "invalid prev delta",
+			deltaURL: delta,
+			items: []deltaPagerResult{
+				{nextLink: &next, err: deltaError},
+				{deltaLink: &delta}, // works on retry
+			},
+			prevDeltaSuccess: false,
+		},
+		{
+			name: "fail a normal delta query",
+			items: []deltaPagerResult{
+				{nextLink: &next},
+				{nextLink: &next, err: assert.AnError},
+			},
+			prevDeltaSuccess: true,
+			err:              assert.AnError,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			itemPager := &mockItemPager{
+				toReturn: test.items,
+			}
+
+			collectorFunc := func(
+				ctx context.Context,
+				driveID, driveName string,
+				driveItems []models.DriveItemable,
+				oldPaths map[string]string,
+				newPaths map[string]string,
+				excluded map[string]struct{},
+			) error {
+				return nil
+			}
+
+			delta, _, _, err := collectItems(
+				ctx,
+				itemPager,
+				"",
+				"General",
+				collectorFunc,
+				"",
+			)
+
+			require.ErrorIs(suite.T(), err, test.err)
+			require.Equal(suite.T(), test.deltaURL, delta.URL)
+			require.Equal(suite.T(), !test.prevDeltaSuccess, delta.Reset)
+		})
+	}
 }

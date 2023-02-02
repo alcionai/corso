@@ -251,7 +251,7 @@ func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.Collection,
 ) ([]data.Collection, map[string]struct{}, error) {
-	_, _, err := deserializeMetadata(ctx, prevMetadata)
+	prevDeltas, _, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -287,6 +287,8 @@ func (c *Collections) Get(
 		driveID := *d.GetId()
 		driveName := *d.GetName()
 
+		prevDelta := prevDeltas[driveID]
+
 		delta, paths, excluded, err := collectItems(
 			ctx,
 			c.itemPagerFunc(
@@ -297,6 +299,7 @@ func (c *Collections) Get(
 			driveID,
 			driveName,
 			c.UpdateCollections,
+			prevDelta,
 		)
 		if err != nil {
 			return nil, nil, err
@@ -307,8 +310,8 @@ func (c *Collections) Get(
 		// remove entries for which there is no corresponding delta token/folder. If
 		// we leave empty delta tokens then we may end up setting the State field
 		// for collections when not actually getting delta results.
-		if len(delta) > 0 {
-			deltaURLs[driveID] = delta
+		if len(delta.URL) > 0 {
+			deltaURLs[driveID] = delta.URL
 		}
 
 		// Avoid the edge case where there's no paths but we do have a valid delta
