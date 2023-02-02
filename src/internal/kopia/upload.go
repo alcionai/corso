@@ -339,9 +339,15 @@ func collectionEntries(
 				modTime = smt.ModTime()
 			}
 
+			o := fs.OwnerInfo{}
+			if sv, ok := e.(data.Versioner); ok {
+				o.UserID = sv.Version()
+			}
+
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
 				encodedName,
 				modTime,
+				o,
 				newBackupStreamReader(serializationVersion, e.ToReader()),
 			)
 			if err := cb(ctx, entry); err != nil {
