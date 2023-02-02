@@ -1,10 +1,13 @@
 package support
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
+
+const itmAttachment = "#microsoft.graph.itemAttachment"
 
 // CloneMessageableFields places data from original data into new message object.
 // SingleLegacyValueProperty is not populated during this operation
@@ -277,4 +280,90 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetValidation(orig.GetValidation())
 
 	return newColumn
+}
+
+// ToItemAttachment transforms internal item, OutlookItemables, into
+// objects that are able to be uploaded into M365.
+// Supported Internal Items:
+// - Events
+func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error) {
+	// First things first. Find out where all the information is
+	transform, ok := orig.(models.ItemAttachmentable)
+	supported := "#microsoft.graph.event"
+
+	if !ok {
+		return nil, fmt.Errorf("transforming attachment to item attachment")
+	}
+
+	item := transform.GetItem()
+	itemType := item.GetOdataType()
+
+	switch *itemType {
+	case supported:
+		event := item.(models.Eventable)
+
+		newEvent, err := sanitizeEvent(event)
+		if err != nil {
+			return nil, err
+		}
+
+		transform.SetItem(newEvent)
+
+		return transform, nil
+	default:
+		return nil, fmt.Errorf("")
+	}
+}
+
+func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
+	newEvent := models.NewEvent()
+	newEvent.SetAttendees(orig.GetAttendees())
+	newEvent.SetBody(orig.GetBody())
+	newEvent.SetBodyPreview(orig.GetBodyPreview())
+	newEvent.SetCalendar(orig.GetCalendar())
+	newEvent.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newEvent.SetEnd(orig.GetEnd())
+	newEvent.SetHasAttachments(orig.GetHasAttachments())
+	newEvent.SetHideAttendees(orig.GetHideAttendees())
+	newEvent.SetImportance(orig.GetImportance())
+	newEvent.SetIsAllDay(orig.GetIsAllDay())
+	newEvent.SetIsOnlineMeeting(orig.GetIsOnlineMeeting())
+	newEvent.SetLocation(orig.GetLocation())
+	newEvent.SetLocations(orig.GetLocations())
+	newEvent.SetSensitivity(orig.GetSensitivity())
+	newEvent.SetReminderMinutesBeforeStart(orig.GetReminderMinutesBeforeStart())
+	newEvent.SetStart(orig.GetStart())
+	newEvent.SetSubject(orig.GetSubject())
+	newEvent.SetType(orig.GetType())
+
+	// Sanitation
+	adtl := orig.GetAdditionalData()
+	adtl["isOrganizer"] = orig.GetIsOrganizer()
+	adtl["isDraft"] = orig.GetIsDraft()
+
+	newEvent.SetIsOrganizer(nil)
+	newEvent.SetIsDraft(nil)
+	newEvent.SetAdditionalData(adtl)
+
+	attached := orig.GetAttachments()
+	attachments := make([]models.Attachmentable, len(attached))
+
+	for _, ax := range attached {
+		if *ax.GetOdataType() == "#microsoft.graph.itemAttachment" {
+			newAttachment, err := ToItemAttachment(ax)
+			if err != nil {
+				return nil, err
+			}
+
+			attachments = append(attachments, newAttachment)
+
+			continue
+		}
+
+		attachments = append(attachments, ax)
+	}
+
+	newEvent.SetAttachments(attachments)
+
+	return newEvent, nil
 }
