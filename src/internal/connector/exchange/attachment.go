@@ -46,7 +46,11 @@ func uploadAttachment(
 	attachment models.Attachmentable,
 ) error {
 	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
-	attachmentType := attachmentType(attachment)
+
+	var (
+		err            error
+		attachmentType = attachmentType(attachment)
+	)
 
 	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
 	if attachmentType == models.REFERENCE_ATTACHMENTTYPE &&
@@ -57,15 +61,23 @@ func uploadAttachment(
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
-		attachment, err := support.ToItemAttachment(attachment)
+		name := ""
+		if attachment.GetName() != nil {
+			name = *attachment.GetName()
+		}
+
+		prev := attachment
+
+		attachment, err = support.ToItemAttachment(attachment)
 		if err != nil {
 			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
-				"attachment_name", *attachment.GetName(), // TODO: Update to support PII protection
-				"attachment_type", attachmentType,
-				"attachment_id", *attachment.GetId(),
+				"attachment_name", name, // TODO: Update to support PII protection
+				"attachment_type", models.ITEM_ATTACHMENTTYPE,
+				"internal_item_type", getItemAttachmentItemType(prev),
+				"attachment_id", prev,
 			)
 
-			fmt.Println("Error returned: " + err.Error())
+			fmt.Printf("Error returned: %v\n", err)
 
 			return nil
 		}
@@ -107,4 +119,20 @@ func uploadLargeAttachment(ctx context.Context, uploader attachmentUploadable,
 	}
 
 	return nil
+}
+
+func getItemAttachmentItemType(query models.Attachmentable) string {
+	empty := ""
+	attachment, ok := query.(models.ItemAttachmentable)
+
+	if !ok {
+		return empty
+	}
+
+	item := attachment.GetItem()
+	if item.GetOdataType() == nil {
+		return empty
+	}
+
+	return *item.GetOdataType()
 }
