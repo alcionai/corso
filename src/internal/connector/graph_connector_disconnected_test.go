@@ -116,58 +116,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	suite.Equal(2, gc.Status().FolderCount)
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
-	tests := []struct {
-		name                 string
-		err                  error
-		returnRecoverable    assert.BoolAssertionFunc
-		returnNonRecoverable assert.BoolAssertionFunc
-	}{
-		{
-			name:                 "Neither Option",
-			err:                  errors.New("regular error"),
-			returnRecoverable:    assert.False,
-			returnNonRecoverable: assert.False,
-		},
-		{
-			name:                 "Validate Recoverable",
-			err:                  support.SetRecoverableError(errors.New("Recoverable")),
-			returnRecoverable:    assert.True,
-			returnNonRecoverable: assert.False,
-		},
-		{
-			name:                 "Validate NonRecoverable",
-			err:                  support.SetNonRecoverableError(errors.New("Non-recoverable")),
-			returnRecoverable:    assert.False,
-			returnNonRecoverable: assert.True,
-		},
-		{
-			name: "Wrapped Recoverable",
-			err: support.WrapAndAppend(
-				"Wrapped Recoverable",
-				support.SetRecoverableError(errors.New("Recoverable")),
-				nil),
-			returnRecoverable:    assert.True,
-			returnNonRecoverable: assert.False,
-		},
-		{
-			name:                 "On Nil",
-			err:                  nil,
-			returnRecoverable:    assert.False,
-			returnNonRecoverable: assert.False,
-		},
-	}
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			recoverable := IsRecoverableError(test.err)
-			nonRecoverable := IsNonRecoverableError(test.err)
-			test.returnRecoverable(suite.T(), recoverable, "Test: %s Recoverable-received %v", test.name, recoverable)
-			test.returnNonRecoverable(suite.T(), nonRecoverable, "Test: %s non-recoverable: %v", test.name, nonRecoverable)
-			t.Logf("Is nil: %v", test.err == nil)
-		})
-	}
-}
-
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 	users := []string{
 		"elliotReid@someHospital.org",
