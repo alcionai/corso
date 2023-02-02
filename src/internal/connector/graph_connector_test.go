@@ -192,9 +192,11 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	require.NoError(suite.T(), err)
 
 	newConnector.Owners = owners
-
 	suite.Empty(len(newConnector.Users))
-	err = newConnector.setTenantUsers(ctx)
+
+	errs := fault.New(true)
+
+	err = newConnector.setTenantUsers(ctx, errs)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Users))
 }
