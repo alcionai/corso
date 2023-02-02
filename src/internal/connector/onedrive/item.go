@@ -194,9 +194,21 @@ func oneDriveItemMetaInfo(
 		return Metadata{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
 	}
 
+	uperms := filterUserPermissions(perm.GetValue())
+
+	return Metadata{Permissions: uperms}, nil
+}
+
+func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 	up := []UserPermission{}
 
-	for _, p := range perm.GetValue() {
+	for _, p := range perms {
+		if p.GetGrantedToV2() == nil {
+			// For link shares, we get permissions without a user
+			// specified
+			continue
+		}
+
 		roles := []string{}
 
 		for _, r := range p.GetRoles() {
@@ -218,7 +230,7 @@ func oneDriveItemMetaInfo(
 		})
 	}
 
-	return Metadata{Permissions: up}, nil
+	return up
 }
 
 // sharePointItemInfo will populate a details.SharePointInfo struct

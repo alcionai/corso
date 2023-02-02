@@ -8,6 +8,7 @@ import (
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -255,5 +256,74 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "")
 			require.NoError(suite.T(), err)
 		})
+	}
+}
+
+func getPermsUperms(permID, userID string, scopes []string) (models.Permissionable, UserPermission) {
+	identity := models.NewIdentity()
+	identity.SetAdditionalData(map[string]any{"email": &userID})
+
+	sharepointIdentity := models.NewSharePointIdentitySet()
+	sharepointIdentity.SetUser(identity)
+
+	perm := models.NewPermission()
+	perm.SetId(&permID)
+	perm.SetRoles([]string{"read"})
+	perm.SetGrantedToV2(sharepointIdentity)
+
+	uperm := UserPermission{
+		ID:    permID,
+		Roles: []string{"read"},
+		Email: userID,
+	}
+
+	return perm, uperm
+}
+
+func TestOneDrivePermissionsFilter(t *testing.T) {
+	permID := "fakePermId"
+	userID := "fakeuser@provider.com"
+	userID2 := "fakeuser2@provider.com"
+
+	readPerm, readUperm := getPermsUperms(permID, userID, []string{"read"})
+	readWritePerm, readWriteUperm := getPermsUperms(permID, userID2, []string{"read", "write"})
+
+	noPerm, _ := getPermsUperms(permID, userID, []string{"read"})
+	noPerm.SetGrantedToV2(nil) // eg: link shares
+
+	cases := []struct {
+		name   string
+		perms  []models.Permissionable
+		uperms []UserPermission
+	}{
+		{
+			name:   "no perms",
+			perms:  []models.Permissionable{},
+			uperms: []UserPermission{},
+		},
+		{
+			name:   "no user bound to perms",
+			perms:  []models.Permissionable{noPerm},
+			uperms: []UserPermission{},
+		},
+		{
+			name:   "user with read permissions",
+			perms:  []models.Permissionable{readPerm},
+			uperms: []UserPermission{readUperm},
+		},
+		{
+			name:   "user with read and write permissions",
+			perms:  []models.Permissionable{readWritePerm},
+			uperms: []UserPermission{readWriteUperm},
+		},
+		{
+			name:   "multiple users with separate permissions",
+			perms:  []models.Permissionable{readPerm, readWritePerm},
+			uperms: []UserPermission{readUperm, readWriteUperm},
+		},
+	}
+	for _, tc := range cases {
+		actual := filterUserPermissions(tc.perms)
+		assert.ElementsMatch(t, tc.uperms, actual)
 	}
 }
