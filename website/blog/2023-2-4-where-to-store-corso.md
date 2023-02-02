@@ -35,7 +35,7 @@ Backblaze offers an S3-compatible API for its B2 Cloud Storage product.
 They also make the bold claim of costing
 [significantly less than AWS S3](https://www.backblaze.com/b2/cloud-storage-pricing.html)
 (I haven’t
-evaluated these claims) but Glacier is still cheaper (see below for more details)
+evaluated these claims) but Glacier is still cheaper (see below for more details).
 - HPE: HPE Greenlake offers S3 compatibility and claims superior performance over
 S3.
 If you want to get a sense of how ‘Enterprise’ HPE is, the best writeup I could
@@ -83,7 +83,7 @@ export AWS_SECRET_ACCESS_KEY=CHANGEME123
 aws s3api create-bucket --bucket corso-backup --endpoint=http://127.0.0.1:9000
 ```
 
-To connect Corso to a local MinIO server with [`corso repo init`](https://corsobackup.io/docs/cli/corso-repo-init-s3/)
+To connect Corso to a local MinIO server with [`corso repo init`](../docs/cli/corso-repo-init-s3/)
 you’ll want to pass the `--disable-tls` flag so that it will accept an `http`
 connection
 
@@ -91,7 +91,7 @@ connection
 
 AWS S3 offers [storage classes](https://aws.amazon.com/s3/storage-classes/)
 for a variety of different use cases and
-Corso can leverage a number of them, but not all, to reduce the cost of storing
+Corso can leverage a number, but not all, of them to reduce the cost of storing
 data in the cloud.
 
 By default, Corso works hard to reduce its data footprint.
