@@ -29,6 +29,8 @@ var (
 
 	DebugAPI       bool
 	readableOutput bool
+
+	LogFile string
 )
 
 type logLevel int
@@ -118,6 +120,7 @@ func PreloadLoggingFlags() (string, string) {
 	}
 
 	if logfile != "stdout" && logfile != "stderr" {
+		LogFile = logfile
 		logdir := filepath.Dir(logfile)
 		print.Info(context.Background(), "Logging to file: "+logfile)
 
