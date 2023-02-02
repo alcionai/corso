@@ -3,11 +3,13 @@ package exchange
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -55,13 +57,18 @@ func uploadAttachment(
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
-		logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
-			"attachment_name", *attachment.GetName(), // TODO: Update to support PII protection
-			"attachment_type", attachmentType,
-			"attachment_id", *attachment.GetId(),
-		)
+		attachment, err := support.ToItemAttachment(attachment)
+		if err != nil {
+			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
+				"attachment_name", *attachment.GetName(), // TODO: Update to support PII protection
+				"attachment_type", attachmentType,
+				"attachment_id", *attachment.GetId(),
+			)
 
-		return nil
+			fmt.Println("Error returned: " + err.Error())
+
+			return nil
+		}
 	}
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
