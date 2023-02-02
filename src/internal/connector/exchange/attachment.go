@@ -55,8 +55,12 @@ func uploadAttachment(
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
+		name := ""
+		if attachment.GetName() != nil{
+			name := *attachment.GetName()
+		}
 		logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
-			"attachment_name", *attachment.GetName(), // TODO: Update to support PII protection
+			"attachment_name", name, // TODO: Update to support PII protection
 			"attachment_type", attachmentType,
 			"internal_item_type", getItemAttachmentItemType(attachment),
 			"attachment_id", *attachment.GetId(),
