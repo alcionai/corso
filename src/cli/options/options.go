@@ -48,6 +48,8 @@ func AddGlobalOperationFlags(cmd *cobra.Command) {
 func AddRestorePermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(&restorePermissions, "restore-permissions", false, "Restore permissions for files and folders")
+	// TODO: reveal this flag once backing up permissions becomes default
+	cobra.CheckErr(fs.MarkHidden("restore-permissions"))
 }
 
 // ---------------------------------------------------------------------------

@@ -281,8 +281,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				for i := 1; i <= maxRetries; i++ {
 					if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
 						// We are still writing the metadata file but with
-						// empty permissions as we are not sure how the
-						// restore will be called.
+						// empty permissions as we don't have a way to
+						// signify that the permissions was explicitly
+						// not added.
 						itemMeta = io.NopCloser(strings.NewReader("{}"))
 						itemMetaSize = 2
 
