@@ -20,6 +20,7 @@ type MockExchangeDataCollection struct {
 	Data         [][]byte
 	Names        []string
 	ModTimes     []time.Time
+	Versions     []uint32
 	ColState     data.CollectionState
 	PrevPath     path.Path
 	DeletedItems []bool
@@ -31,6 +32,7 @@ var (
 	_ data.Stream     = &MockExchangeData{}
 	_ data.StreamInfo = &MockExchangeData{}
 	_ data.StreamSize = &MockExchangeData{}
+	_ data.Versioner  = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of
@@ -53,6 +55,8 @@ func NewMockExchangeCollection(pathRepresentation path.Path, numMessagesToReturn
 		c.ModTimes = append(c.ModTimes, baseTime.Add(1*time.Hour))
 		c.DeletedItems = append(c.DeletedItems, false)
 	}
+
+	c.Versions = make([]uint32, c.messageCount)
 
 	return c
 }
@@ -124,6 +128,7 @@ func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
 				size:         int64(len(medc.Data[i])),
 				modifiedTime: medc.ModTimes[i],
 				deleted:      medc.DeletedItems[i],
+				version:      medc.Versions[i],
 			}
 		}
 	}()
@@ -139,6 +144,7 @@ type MockExchangeData struct {
 	size         int64
 	modifiedTime time.Time
 	deleted      bool
+	version      uint32
 }
 
 func (med *MockExchangeData) UUID() string {
@@ -173,6 +179,10 @@ func (med *MockExchangeData) Size() int64 {
 
 func (med *MockExchangeData) ModTime() time.Time {
 	return med.modifiedTime
+}
+
+func (med *MockExchangeData) Version() uint32 {
+	return med.version
 }
 
 type errReader struct {

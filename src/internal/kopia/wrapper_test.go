@@ -6,6 +6,7 @@ import (
 	"io"
 	stdpath "path"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
@@ -506,6 +507,251 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 
 			assert.Equal(t, BackupStats{}, *s)
 			assert.Empty(t, d.Details().Entries)
+		})
+	}
+}
+
+type KopiaCachedBackupSuite struct {
+	suite.Suite
+	w            *Wrapper
+	ctx          context.Context
+	snapshotBase IncrementalBase
+
+	testPath     path.Path
+	baseFileName string
+	baseModTime  time.Time
+	baseVersion  uint32
+
+	tags         map[string]string
+	expectedTags map[string]string
+}
+
+func TestKopiaCachedBackupSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoKopiaWrapperTests)
+
+	suite.Run(t, new(KopiaCachedBackupSuite))
+}
+
+func (suite *KopiaCachedBackupSuite) SetupSuite() {
+	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
+
+	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
+		testTenant,
+		testUser,
+		path.EmailCategory,
+		false,
+	)
+	require.NoError(suite.T(), err)
+
+	suite.testPath = tmp
+
+	// tags that are supplied by the caller. This includes basic tags to support
+	// lookups and extra tags the caller may want to apply.
+	suite.tags = map[string]string{
+		"fnords":    "smarf",
+		"brunhilda": "",
+	}
+
+	reasons := []Reason{
+		{
+			ResourceOwner: suite.testPath.ResourceOwner(),
+			Service:       suite.testPath.Service(),
+			Category:      suite.testPath.Category(),
+		},
+	}
+
+	for _, r := range reasons {
+		for _, k := range r.TagKeys() {
+			suite.tags[k] = ""
+		}
+	}
+
+	suite.expectedTags = map[string]string{}
+
+	maps.Copy(suite.expectedTags, normalizeTagKVs(suite.tags))
+}
+
+func (suite *KopiaCachedBackupSuite) SetupTest() {
+	t := suite.T()
+
+	//nolint:forbidigo
+	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+	c, err := openKopiaRepo(t, suite.ctx)
+	require.NoError(t, err)
+
+	suite.w = &Wrapper{c}
+
+	baseCollection := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+
+	suite.baseFileName = baseCollection.Names[0]
+	suite.baseModTime = baseCollection.ModTimes[0]
+	suite.baseVersion = baseCollection.Versions[0]
+
+	// Make a backup to start with as the base.
+	stats, deets, _, err := suite.w.BackupCollections(
+		suite.ctx,
+		nil,
+		[]data.Collection{baseCollection},
+		nil,
+		suite.tags,
+		false,
+	)
+	assert.NoError(t, err)
+
+	assert.Equal(suite.T(), 1, stats.TotalFileCount, "total files")
+	assert.Equal(suite.T(), 1, stats.UncachedFileCount, "uncached files")
+	assert.Equal(suite.T(), 0, stats.CachedFileCount, "cached files")
+	assert.Equal(suite.T(), 5, stats.TotalDirectoryCount)
+	assert.Equal(suite.T(), 0, stats.IgnoredErrorCount)
+	assert.Equal(suite.T(), 0, stats.ErrorCount)
+	assert.False(suite.T(), stats.Incomplete)
+
+	// 1 file and 5 folder entries.
+	details := deets.Details().Entries
+	assert.Len(
+		suite.T(),
+		details,
+		6,
+	)
+
+	for _, entry := range details {
+		assert.True(suite.T(), entry.Updated)
+	}
+
+	checkSnapshotTags(
+		t,
+		suite.ctx,
+		suite.w.c,
+		suite.expectedTags,
+		stats.SnapshotID,
+	)
+
+	snap, err := snapshot.LoadSnapshot(
+		suite.ctx,
+		suite.w.c,
+		manifest.ID(stats.SnapshotID),
+	)
+	require.NoError(t, err)
+
+	suite.snapshotBase = IncrementalBase{
+		Manifest: snap,
+	}
+}
+
+func (suite *KopiaCachedBackupSuite) TearDownTest() {
+	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
+	logger.Flush(suite.ctx)
+}
+
+func (suite *KopiaCachedBackupSuite) TestBackupCollections_WithModTimeAndVersion() {
+	table := []struct {
+		name                  string
+		col                   func() data.Collection
+		expectedUploadedFiles int
+		expectedCachedFiles   int
+		// Whether entries in the resulting details should be marked as updated.
+		deetsUpdated bool
+	}{
+		{
+			name: "NoUpdates",
+			col: func() data.Collection {
+				res := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+				res.Names[0] = suite.baseFileName
+				res.ModTimes[0] = suite.baseModTime
+				res.Versions[0] = suite.baseVersion
+
+				return res
+			},
+			expectedUploadedFiles: 0,
+			expectedCachedFiles:   1,
+			deetsUpdated:          false,
+		},
+		{
+			name: "UpdatedModTime",
+			col: func() data.Collection {
+				res := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+				res.Names[0] = suite.baseFileName
+				res.ModTimes[0] = suite.baseModTime.Add(1 * time.Minute)
+				res.Versions[0] = suite.baseVersion
+
+				return res
+			},
+			expectedUploadedFiles: 1,
+			expectedCachedFiles:   0,
+			deetsUpdated:          true,
+		},
+		{
+			name: "UpdatedVersion",
+			col: func() data.Collection {
+				res := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+				res.Names[0] = suite.baseFileName
+				res.ModTimes[0] = suite.baseModTime
+				res.Versions[0] = suite.baseVersion + 1
+
+				return res
+			},
+			expectedUploadedFiles: 1,
+			expectedCachedFiles:   0,
+			deetsUpdated:          true,
+		},
+		{
+			name: "UpdatedModTimeAndVersion",
+			col: func() data.Collection {
+				res := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
+				res.Names[0] = suite.baseFileName
+				res.ModTimes[0] = suite.baseModTime.Add(1 * time.Minute)
+				res.Versions[0] = suite.baseVersion + 1
+
+				return res
+			},
+			expectedUploadedFiles: 1,
+			expectedCachedFiles:   0,
+			deetsUpdated:          true,
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			stats, deets, _, err := suite.w.BackupCollections(
+				suite.ctx,
+				[]IncrementalBase{suite.snapshotBase},
+				[]data.Collection{test.col()},
+				nil,
+				suite.tags,
+				false,
+			)
+			assert.NoError(t, err)
+
+			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
+			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
+			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
+			assert.Equal(t, 5, stats.TotalDirectoryCount)
+			assert.Equal(t, 0, stats.IgnoredErrorCount)
+			assert.Equal(t, 0, stats.ErrorCount)
+			assert.False(t, stats.Incomplete)
+
+			// 1 file and 5 folder entries.
+			details := deets.Details().Entries
+			assert.Len(
+				t,
+				details,
+				test.expectedUploadedFiles+test.expectedCachedFiles+5,
+			)
+
+			for _, entry := range details {
+				assert.Equal(t, test.deetsUpdated, entry.Updated)
+			}
+
+			checkSnapshotTags(
+				t,
+				suite.ctx,
+				suite.w.c,
+				suite.expectedTags,
+				stats.SnapshotID,
+			)
 		})
 	}
 }
