@@ -635,7 +635,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				testFolderMatcher{tt.scope},
 				&MockGraphService{},
 				nil,
-				control.Options{})
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
 
 			err := c.UpdateCollections(
 				ctx,
@@ -1380,7 +1380,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				testFolderMatcher{anyFolder},
 				&MockGraphService{},
 				func(*support.ConnectorOperationStatus) {},
-				control.Options{},
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
 			)
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc

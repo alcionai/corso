@@ -279,7 +279,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			if oc.source == OneDriveSource {
 				// Fetch metadata for the file
 				for i := 1; i <= maxRetries; i++ {
-					if oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
+					if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
 						// We are still writing the metadata file but with
 						// empty permissions as we are not sure how the
 						// restore will be called.

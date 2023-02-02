@@ -72,7 +72,13 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 	suite.m365UserID = tester.M365UserID(t)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
+	suite.repo, err = repository.Initialize(
+		ctx,
+		suite.acct,
+		suite.st,
+		control.Options{
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+		})
 	require.NoError(t, err)
 }
 
@@ -152,7 +158,13 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
+	suite.repo, err = repository.Initialize(
+		ctx,
+		suite.acct,
+		suite.st,
+		control.Options{
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+		})
 	require.NoError(t, err)
 
 	m365UserID := tester.M365UserID(t)
