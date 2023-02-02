@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -1083,7 +1084,8 @@ func getSelectorWith(
 
 func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
-	connector, err := NewGraphConnector(ctx, itemClient, a, r)
+
+	connector, err := NewGraphConnector(ctx, itemClient, a, r, fault.New(true))
 	require.NoError(t, err)
 
 	return connector
