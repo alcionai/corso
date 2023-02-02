@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/fault/mock"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -226,8 +227,11 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				Reasons:  test.reasons,
 			}
 
-			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid)
+			errs := fault.New(false)
+
+			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, errs)
 			assert.ErrorIs(t, err, test.expectErr)
+			assert.Empty(t, errs.Errs())
 		})
 	}
 }
@@ -637,8 +641,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			ma := mock.NewAdder()
-
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				&test.mr,
@@ -646,7 +648,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				test.reasons,
 				tid,
 				test.getMeta,
-				ma)
+				fault.New(false))
 			test.assertErr(t, err)
 			test.assertB(t, b)
 
@@ -935,9 +937,11 @@ func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
 			defer flush()
 
 			mr := &mockRestorer{}
+			errs := fault.New(false)
 
-			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant)
+			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, errs)
 			assert.NoError(t, err)
+			assert.Empty(t, errs.Errs())
 
 			checkPaths(t, test.expected, mr.gotPaths)
 		})

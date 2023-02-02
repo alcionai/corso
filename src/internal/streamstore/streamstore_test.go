@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -51,15 +52,19 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 		})
 
 	deets := deetsBuilder.Details()
-
 	ss := New(kw, "tenant", path.ExchangeService)
+	errs := fault.New(false)
 
-	id, err := ss.WriteBackupDetails(ctx, deets)
+	id, err := ss.WriteBackupDetails(ctx, deets, errs)
 	require.NoError(t, err)
+	require.Empty(t, errs.Errs())
 	require.NotNil(t, id)
 
-	readDeets, err := ss.ReadBackupDetails(ctx, id)
+	errs = fault.New(false)
+
+	readDeets, err := ss.ReadBackupDetails(ctx, id, errs)
 	require.NoError(t, err)
+	require.Empty(t, errs.Errs())
 	require.NotNil(t, readDeets)
 
 	assert.Equal(t, len(deets.Entries), len(readDeets.Entries))
