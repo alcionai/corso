@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const currentBackupVersion = 1
+const CurrentBackupFormatVersion = 1
 
 // Backup represents the result of a backup operation
 type Backup struct {
@@ -72,7 +72,7 @@ func New(
 		Errors:          errs.Data(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
-		Version:         currentBackupVersion,
+		Version:         CurrentBackupFormatVersion,
 	}
 }
 

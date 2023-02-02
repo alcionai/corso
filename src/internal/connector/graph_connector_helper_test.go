@@ -172,6 +172,14 @@ type restoreBackupInfo struct {
 	resource    resource
 }
 
+type restoreBackupInfoMultiVersion struct {
+	name                string
+	service             path.ServiceType
+	collectionsLatest   []colInfo
+	collectionsPrevious []colInfo
+	resource            resource
+}
+
 func attachmentEqual(
 	expected models.Attachmentable,
 	got models.Attachmentable,
@@ -982,6 +990,52 @@ func collectionsForInfo(
 		}
 
 		collections = append(collections, c)
+		kopiaEntries += len(info.items)
+	}
+
+	return totalItems, kopiaEntries, collections, expectedData
+}
+
+func collectionsForInfoVersion0(
+	t *testing.T,
+	service path.ServiceType,
+	tenant, user string,
+	dest control.RestoreDestination,
+	allInfo []colInfo,
+) (int, int, []data.Collection, map[string]map[string][]byte) {
+	collections := make([]data.Collection, 0, len(allInfo))
+	expectedData := make(map[string]map[string][]byte, len(allInfo))
+	totalItems := 0
+	kopiaEntries := 0
+
+	for _, info := range allInfo {
+		pth := mustToDataLayerPath(
+			t,
+			service,
+			tenant,
+			user,
+			info.category,
+			info.pathElements,
+			false,
+		)
+		c := mockconnector.NewMockExchangeCollection(pth, len(info.items))
+		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
+
+		baseExpected := expectedData[baseDestPath.String()]
+		if baseExpected == nil {
+			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
+			baseExpected = expectedData[baseDestPath.String()]
+		}
+
+		for i := 0; i < len(info.items); i++ {
+			c.Names[i] = info.items[i].name
+			c.Data[i] = info.items[i].data
+
+			baseExpected[info.items[i].lookupKey] = info.items[i].data
+		}
+
+		collections = append(collections, c)
+		totalItems += len(info.items)
 		kopiaEntries += len(info.items)
 	}
 
