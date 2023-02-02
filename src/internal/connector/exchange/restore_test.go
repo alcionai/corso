@@ -176,11 +176,23 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			},
 		},
 		{
-			name:     "Test Mail: Item Attachment",
+			name:     "Test Mail: Event Item Attachment",
 			bytes:    mockconnector.GetMockMessageWithItemAttachmentEvent("Event Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:     "Test Mail: Mail Item Attachment",
+			bytes:    mockconnector.GetMockMessageWithItemAttachmentMessage("Message Item Attachment"),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "TestRestoreMailItemAttachMail: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
