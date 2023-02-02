@@ -653,7 +653,7 @@ func compareOneDriveItem(
 	name := item.UUID()
 
 	expectedData := expected[item.UUID()]
-	if !assert.NotNil(t, expectedData, "unexpected file with name %s", item.UUID) {
+	if !assert.NotNil(t, expectedData, "unexpected file with name %s", item.UUID()) {
 		return
 	}
 
