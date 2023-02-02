@@ -290,6 +290,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 	// First things first. Find out where all the information is
 	transform, ok := orig.(models.ItemAttachmentable)
 	supported := "#microsoft.graph.event"
+	messageType := "#microsoft.graph.message"
 
 	if !ok {
 		return nil, fmt.Errorf("transforming attachment to item attachment")
@@ -297,6 +298,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 
 	item := transform.GetItem()
 	itemType := item.GetOdataType()
+	fmt.Println(*itemType)
 
 	switch *itemType {
 	case supported:
@@ -310,8 +312,19 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 		transform.SetItem(newEvent)
 
 		return transform, nil
+	case messageType:
+		message := item.(models.Messageable)
+
+		msg, err := sanitizeMessage(message)
+		if err != nil {
+			return nil, err
+		}
+
+		transform.SetItem(msg)
+
+		return transform, nil
 	default:
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("ItemAttachment Type: %s not supported", *itemType)
 	}
 }
 
@@ -366,4 +379,39 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetAttachments(attachments)
 
 	return newEvent, nil
+}
+
+func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
+	newMessage := ToMessage(orig)
+	newMessage.SetInternetMessageHeaders(nil)
+
+	attachments, err := sanitizeAttachments(newMessage.GetAttachments())
+	if err != nil {
+		return nil, err
+	}
+
+	newMessage.SetAttachments(attachments)
+
+	return newMessage, nil
+}
+
+func sanitizeAttachments(attached []models.Attachmentable) ([]models.Attachmentable, error) {
+	attachments := make([]models.Attachmentable, len(attached))
+
+	for _, entry := range attached {
+		if entry.GetOdataType() != nil || *entry.GetOdataType() == "#microsoft.graph.itemAttachment" {
+			newAttachment, err := ToItemAttachment(entry)
+			if err != nil {
+				return nil, err
+			}
+
+			attachments = append(attachments, newAttachment)
+
+			continue
+		}
+
+		attachments = append(attachments, entry)
+	}
+
+	return attachments, nil
 }
