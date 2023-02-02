@@ -6,10 +6,11 @@ import (
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision      CollisionPolicy `json:"-"`
-	DisableMetrics bool            `json:"disableMetrics"`
-	FailFast       bool            `json:"failFast"`
-	ToggleFeatures Toggles         `json:"ToggleFeatures"`
+	Collision          CollisionPolicy `json:"-"`
+	DisableMetrics     bool            `json:"disableMetrics"`
+	FailFast           bool            `json:"failFast"`
+	RestorePermissions bool            `json:"restorePermissions"`
+	ToggleFeatures     Toggles         `json:"ToggleFeatures"`
 }
 
 // Defaults provides an Options with the default values set.

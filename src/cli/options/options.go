@@ -11,17 +11,10 @@ import (
 func Control() control.Options {
 	opt := control.Defaults()
 
-	if fastFail {
-		opt.FailFast = true
-	}
-
-	if noStats {
-		opt.DisableMetrics = true
-	}
-
-	if disableIncrementals {
-		opt.ToggleFeatures.DisableIncrementals = true
-	}
+	opt.FailFast = fastFail
+	opt.DisableMetrics = noStats
+	opt.RestorePermissions = restorePermissions
+	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
 
 	return opt
 }
@@ -31,8 +24,9 @@ func Control() control.Options {
 // ---------------------------------------------------------------------------
 
 var (
-	fastFail bool
-	noStats  bool
+	fastFail           bool
+	noStats            bool
+	restorePermissions bool
 )
 
 // AddOperationFlags adds command-local operation flags
@@ -47,6 +41,12 @@ func AddOperationFlags(cmd *cobra.Command) {
 func AddGlobalOperationFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	fs.BoolVar(&noStats, "no-stats", false, "disable anonymous usage statistics gathering")
+}
+
+// AddRestorePermissionsFlag adds OneDrive flag for restoring permissions
+func AddRestorePermissionsFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(&restorePermissions, "restore-permissions", false, "Restore permissions for files and folders")
 }
 
 // ---------------------------------------------------------------------------

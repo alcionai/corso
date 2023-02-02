@@ -193,7 +193,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.account,
 		op.Selectors,
 		op.Destination,
-		dcs)
+		op.Options,
+		dcs,
+	)
 	if err != nil {
 		err = errors.Wrap(err, "restoring service data")
 		opStats.writeErr = err

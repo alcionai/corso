@@ -231,7 +231,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(ctx, acct, sel, dest, nil)
+	deets, err := suite.connector.RestoreDataCollections(ctx, acct, sel, dest, control.Options{}, nil)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 
@@ -302,7 +302,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				suite.acct,
 				test.sel,
 				dest,
-				test.col)
+				control.Options{RestorePermissions: true},
+				test.col,
+			)
 			require.NoError(t, err)
 			assert.NotNil(t, deets)
 
@@ -349,6 +351,7 @@ func runRestoreBackupTest(
 	test restoreBackupInfo,
 	tenant string,
 	resourceOwners []string,
+	opts control.Options,
 ) {
 	var (
 		collections     []data.Collection
@@ -394,7 +397,9 @@ func runRestoreBackupTest(
 		acct,
 		restoreSel,
 		dest,
-		collections)
+		opts,
+		collections,
+	)
 	require.NoError(t, err)
 	assert.NotNil(t, deets)
 
@@ -431,14 +436,14 @@ func runRestoreBackupTest(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
+	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
 	require.NoError(t, err)
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs)
+	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
 
 	status = backupGC.AwaitStatus()
 	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
@@ -881,7 +886,14 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(t, suite.acct, test, suite.connector.tenant, []string{suite.user})
+			runRestoreBackupTest(
+				t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{RestorePermissions: true},
+			)
 		})
 	}
 }
@@ -990,7 +1002,14 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				)
 
 				restoreGC := loadConnector(ctx, t, test.resource)
-				deets, err := restoreGC.RestoreDataCollections(ctx, suite.acct, restoreSel, dest, collections)
+				deets, err := restoreGC.RestoreDataCollections(
+					ctx,
+					suite.acct,
+					restoreSel,
+					dest,
+					control.Options{RestorePermissions: true},
+					collections,
+				)
 				require.NoError(t, err)
 				require.NotNil(t, deets)
 
@@ -1011,14 +1030,14 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
+			dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
 			require.NoError(t, err)
 
 			t.Log("Backup enumeration complete")
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			skipped := checkCollections(t, allItems, allExpectedData, dcs)
+			skipped := checkCollections(t, allItems, allExpectedData, dcs, true)
 
 			status := backupGC.AwaitStatus()
 			assert.Equal(t, allItems+skipped, status.ObjectCount, "status.ObjectCount")
@@ -1267,7 +1286,69 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(t, suite.acct, test, suite.connector.tenant, []string{suite.user})
+			runRestoreBackupTest(t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{RestorePermissions: true},
+			)
+		})
+	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	table := []restoreBackupInfo{
+		{
+			name:     "FilePermissionsResote",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			runRestoreBackupTest(
+				t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{RestorePermissions: false},
+			)
 		})
 	}
 }

@@ -69,6 +69,7 @@ func RestoreCollections(
 				deets,
 				errUpdater,
 				map[string]string{},
+				false,
 			)
 		case path.ListsCategory:
 			metrics, canceled = RestoreCollection(
