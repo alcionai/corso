@@ -289,16 +289,17 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			// Fetch metadata for the file
 			// TODO(meain): refactor these multiple retry logic
 			for i := 1; i <= maxRetries; i++ {
-				if !oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
-					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-				} else {
+				if oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
 					// We are still writing the metadata file but with
 					// empty permissions as we are not sure how the
 					// restore will be called.
 					itemMeta = io.NopCloser(strings.NewReader("{}"))
 					itemMetaSize = 2
-					err = nil
+
+					break
 				}
+
+				itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
 
 				// retry on Timeout type errors, break otherwise.
 				if err == nil || graph.IsErrTimeout(err) == nil {
