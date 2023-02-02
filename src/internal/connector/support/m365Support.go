@@ -71,3 +71,14 @@ func CreateListFromBytes(bytes []byte) (models.Listable, error) {
 
 	return list, nil
 }
+
+func CreateAttachmentFromBytes(bytes []byte) (models.Attachmentable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateAttachmentFromDiscriminatorValue)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating m365 attachment object from provided bytes")
+	}
+
+	attach := parsable.(models.Attachmentable)
+
+	return attach, nil
+}

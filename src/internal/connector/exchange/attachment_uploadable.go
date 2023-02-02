@@ -38,6 +38,16 @@ func (mau *mailAttachmentUploader) getItemID() string {
 }
 
 func (mau *mailAttachmentUploader) uploadSmallAttachment(ctx context.Context, attach models.Attachmentable) error {
+	wtr := js.NewJsonSerializationWriter()
+	err := wtr.WriteObjectValue(attach)
+	if err != nil {
+		return err
+	}
+	byteArray, err := wtr.GetSerializedContent()
+	if err != nil {
+		return err
+	}
+
 	_, err := mau.service.Client().
 		UsersById(mau.userID).
 		MailFoldersById(mau.folderID).

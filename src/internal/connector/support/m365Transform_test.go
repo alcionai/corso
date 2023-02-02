@@ -1,8 +1,10 @@
 package support
 
 import (
+	"fmt"
 	"testing"
 
+	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +34,19 @@ func (suite *SupportTestSuite) TestToMessage() {
 	suite.NotEqual(message.GetId(), clone.GetId())
 }
 
+func (suite *SupportTestSuite) TestToM() {
+	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
+	message, err := CreateMessageFromBytes(bytes)
+	require.NoError(suite.T(), err)
+
+	clone := ToMessage(message)
+	suite.Equal(message.GetBccRecipients(), clone.GetBccRecipients())
+	suite.Equal(message.GetSubject(), clone.GetSubject())
+	suite.Equal(message.GetSender(), clone.GetSender())
+	suite.Equal(message.GetSentDateTime(), clone.GetSentDateTime())
+	suite.NotEqual(message.GetId(), clone.GetId())
+}
+
 func (suite *SupportTestSuite) TestToEventSimplified() {
 	t := suite.T()
 	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
@@ -40,6 +55,13 @@ func (suite *SupportTestSuite) TestToEventSimplified() {
 
 	attendees := event.GetAttendees()
 	newEvent := ToEventSimplified(event)
+	newEvent.SetIsOrganizer(nil)
+	wtr := js.NewJsonSerializationWriter()
+	err = wtr.WriteObjectValue("", newEvent)
+	require.NoError(t, err)
+	byteArray, err := wtr.GetSerializedContent()
+	require.NoError(t, err)
+	fmt.Printf("newEvent %+v\n", string(byteArray))
 
 	assert.Empty(t, newEvent.GetHideAttendees())
 	assert.Equal(t, *event.GetBody().GetContentType(), *newEvent.GetBody().GetContentType())
