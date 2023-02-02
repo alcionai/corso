@@ -575,6 +575,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				nil,
 				test.inputMan,
 				nil,
+				nil,
 				model.StableID(""),
 				true,
 			)
