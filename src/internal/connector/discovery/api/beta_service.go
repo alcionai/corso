@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 )
 
 // Service wraps BetaClient's functionality.
