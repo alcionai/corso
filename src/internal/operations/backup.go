@@ -40,6 +40,9 @@ type BackupOperation struct {
 	Version       string             `json:"version"`
 
 	account account.Account
+
+	// when true, this allows for incremental backups instead of full data pulls
+	incremental bool
 }
 
 // BackupResults aggregate the details of the result of the operation.
@@ -66,6 +69,7 @@ func NewBackupOperation(
 		Selectors:     selector,
 		Version:       "v0",
 		account:       acct,
+		incremental:   useIncrementalBackup(selector, opts),
 	}
 	if err := op.validate(); err != nil {
 		return BackupOperation{}, err
@@ -102,10 +106,36 @@ type detailsWriter interface {
 // ---------------------------------------------------------------------------
 
 // Run begins a synchronous backup operation.
-func (op *BackupOperation) Run(ctx context.Context) (err error) {
+func (op *BackupOperation) Run(ctx context.Context) error {
 	ctx, end := D.Span(ctx, "operations:backup:run")
-	defer end()
+	defer func() {
+		end()
+		// wait for the progress display to clean up
+		observe.Complete()
+	}()
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"resource_owner", op.ResourceOwner, // TODO: pii
+		"backup_id", op.Results.BackupID,
+		"service", op.Selectors.Service,
+		"incremental", op.incremental)
+
+	if err := op.do(ctx); err != nil {
+		logger.Ctx(ctx).
+			With("err", err).
+			Errorw("backup operation", clues.InErr(err).Slice()...)
+
+		return err
+	}
+
+	logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
+
+	return nil
+}
+
+func (op *BackupOperation) do(ctx context.Context) (err error) {
 	var (
 		opStats       backupStats
 		backupDetails *details.Builder
@@ -114,18 +144,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		startTime     = time.Now()
 		detailsStore  = streamstore.New(op.kopia, tenantID, op.Selectors.PathService())
 		reasons       = selectorToReasons(op.Selectors)
-		uib           = useIncrementalBackup(op.Selectors, op.Options)
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
-
-	ctx = clues.AddAll(
-		ctx,
-		"tenant_id", tenantID, // TODO: pii
-		"resource_owner", op.ResourceOwner, // TODO: pii
-		"backup_id", op.Results.BackupID,
-		"service", op.Selectors.Service,
-		"incremental", uib)
 
 	op.bus.Event(
 		ctx,
@@ -139,9 +160,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	// persist operation results to the model store on exit
 	defer func() {
-		// wait for the progress display to clean up
-		observe.Complete()
-
 		err = op.persistResults(startTime, &opStats)
 		if err != nil {
 			op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
@@ -165,7 +183,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.store,
 		reasons,
 		tenantID,
-		uib,
+		op.incremental,
 		op.Errors)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "collecting manifest heuristics"))
@@ -190,7 +208,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return opStats.readErr
 	}
 
-	ctx = clues.Add(ctx, "collections", len(cs))
+	ctx = clues.Add(ctx, "coll_count", len(cs))
 
 	opStats.k, backupDetails, toMerge, err = consumeBackupDataCollections(
 		ctx,
@@ -200,18 +218,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		mans,
 		cs,
 		op.Results.BackupID,
-		uib && canUseMetaData)
+		op.incremental && canUseMetaData)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "backing up service data"))
 		opStats.writeErr = op.Errors.Err()
 
 		return opStats.writeErr
 	}
-
-	logger.Ctx(ctx).Debugf(
-		"Backed up %d directories and %d files",
-		opStats.k.TotalDirectoryCount, opStats.k.TotalFileCount,
-	)
 
 	if err = mergeDetails(
 		ctx,
@@ -334,7 +347,7 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 		false,
 	)
 	if err != nil {
-		return nil, clues.Wrap(err, "building path").WithMap(clues.Values(ctx))
+		return nil, clues.Wrap(err, "building path").WithClues(ctx)
 	}
 
 	return p.ToBuilder().Dir(), nil
@@ -404,13 +417,9 @@ func consumeBackupDataCollections(
 
 		logger.Ctx(ctx).Infow(
 			"using base for backup",
-			"snapshot_id",
-			m.ID,
-			"services",
-			svcs,
-			"categories",
-			cats,
-		)
+			"snapshot_id", m.ID,
+			"services", svcs,
+			"categories", cats)
 	}
 
 	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
@@ -481,7 +490,7 @@ func mergeDetails(
 
 		bID, ok := man.GetTag(kopia.TagBackupID)
 		if !ok {
-			return clues.New("no backup ID in snapshot manifest").WithMap(clues.Values(mctx))
+			return clues.New("no backup ID in snapshot manifest").WithClues(mctx)
 		}
 
 		mctx = clues.Add(mctx, "manifest_backup_id", bID)
@@ -493,14 +502,14 @@ func mergeDetails(
 			detailsStore,
 		)
 		if err != nil {
-			return clues.New("fetching base details for backup").WithMap(clues.Values(mctx))
+			return clues.New("fetching base details for backup").WithClues(mctx)
 		}
 
 		for _, entry := range baseDeets.Items() {
 			rr, err := path.FromDataLayerPath(entry.RepoRef, true)
 			if err != nil {
 				return clues.New("parsing base item info path").
-					WithMap(clues.Values(mctx)).
+					WithClues(mctx).
 					With("repo_ref", entry.RepoRef) // todo: pii
 			}
 
@@ -524,7 +533,7 @@ func mergeDetails(
 			// Fixup paths in the item.
 			item := entry.ItemInfo
 			if err := details.UpdateItem(&item, newPath); err != nil {
-				return clues.New("updating item details").WithMap(clues.Values(mctx))
+				return clues.New("updating item details").WithClues(mctx)
 			}
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
@@ -550,7 +559,7 @@ func mergeDetails(
 
 	if addedEntries != len(shortRefsFromPrevBackup) {
 		return clues.New("incomplete migration of backup details").
-			WithMap(clues.Values(ctx)).
+			WithClues(ctx).
 			WithAll("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
 	}
 
@@ -603,12 +612,12 @@ func (op *BackupOperation) createBackupModels(
 	ctx = clues.Add(ctx, "snapshot_id", snapID)
 
 	if backupDetails == nil {
-		return clues.New("no backup details to record").WithMap(clues.Values(ctx))
+		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
 	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
 	if err != nil {
-		return clues.Wrap(err, "creating backupDetails model").WithMap(clues.Values(ctx))
+		return clues.Wrap(err, "creating backupDetails model").WithClues(ctx)
 	}
 
 	ctx = clues.Add(ctx, "details_id", detailsID)
@@ -622,7 +631,7 @@ func (op *BackupOperation) createBackupModels(
 	)
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
-		return clues.Wrap(err, "creating backup model").WithMap(clues.Values(ctx))
+		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
 
 	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)

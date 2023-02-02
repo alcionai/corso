@@ -12,11 +12,13 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -128,13 +130,18 @@ func (c Mail) GetItem(
 	var errs *multierror.Error
 
 	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
+		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := c.largeItem.
 				Client().
 				UsersById(user).
 				MessagesById(itemID).
 				Attachments().
-				Get(ctx, nil)
+				Get(ctx, options)
 			if err == nil {
 				mail.SetAttachments(attached.GetValue())
 				break
@@ -258,6 +265,11 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		deltaURL   string
 		resetDelta bool
 	)
+
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeMail,
+		"folder_id", directoryID)
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {

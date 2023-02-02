@@ -65,6 +65,9 @@ func getItemsAddedAndRemovedFromContainer(
 		deltaURL   string
 	)
 
+	itemCount := 0
+	page := 0
+
 	for {
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
@@ -83,7 +86,13 @@ func getItemsAddedAndRemovedFromContainer(
 			return nil, nil, "", err
 		}
 
-		logger.Ctx(ctx).Infow("Got page", "items", len(items))
+		itemCount += len(items)
+		page++
+
+		// Log every ~1000 items (the page size we use is 200)
+		if page%5 == 0 {
+			logger.Ctx(ctx).Infow("queried items", "count", itemCount)
+		}
 
 		// iterate through the items in the page
 		for _, item := range items {
@@ -116,6 +125,8 @@ func getItemsAddedAndRemovedFromContainer(
 
 		pager.setNext(nextLink)
 	}
+
+	logger.Ctx(ctx).Infow("completed enumeration", "count", itemCount)
 
 	return addedIDs, removedIDs, deltaURL, nil
 }

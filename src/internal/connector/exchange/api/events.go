@@ -12,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -106,7 +108,14 @@ func (c Events) GetItem(
 		return nil, nil, err
 	}
 
-	var errs *multierror.Error
+	var (
+		errs    *multierror.Error
+		options = &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
+	)
 
 	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
 		for count := 0; count < numberOfRetries; count++ {
@@ -115,7 +124,7 @@ func (c Events) GetItem(
 				UsersById(user).
 				EventsById(itemID).
 				Attachments().
-				Get(ctx, nil)
+				Get(ctx, options)
 			if err == nil {
 				event.SetAttachments(attached.GetValue())
 				break
@@ -270,6 +279,11 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		resetDelta bool
 		errs       *multierror.Error
 	)
+
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeEvent,
+		"calendar_id", calendarID)
 
 	if len(oldDelta) > 0 {
 		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())

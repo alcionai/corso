@@ -107,8 +107,33 @@ type restorer interface {
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	ctx, end := D.Span(ctx, "operations:restore:run")
-	defer end()
+	defer func() {
+		end()
+		// wait for the progress display to clean up
+		observe.Complete()
+	}()
 
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"backup_id", op.BackupID,
+		"service", op.Selectors.Service)
+
+	deets, err := op.do(ctx)
+	if err != nil {
+		logger.Ctx(ctx).
+			With("err", err).
+			Errorw("restore operation", clues.InErr(err).Slice()...)
+
+		return nil, err
+	}
+
+	logger.Ctx(ctx).Infow("completed restore", "results", op.Results)
+
+	return deets, nil
+}
+
+func (op *RestoreOperation) do(ctx context.Context) (restoreDetails *details.Details, err error) {
 	var (
 		opStats = restoreStats{
 			bytesRead: &stats.ByteCounter{},
@@ -118,9 +143,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	)
 
 	defer func() {
-		// wait for the progress display to clean up
-		observe.Complete()
-
 		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
 			return
@@ -128,12 +150,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}()
 
 	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
-
-	ctx = clues.AddAll(
-		ctx,
-		"tenant_id", op.account.ID(), // TODO: pii
-		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
 
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
@@ -166,7 +182,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}
 
 	ctx = clues.Add(ctx, "details_paths", len(paths))
-
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
@@ -180,8 +195,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}
 	kopiaComplete <- struct{}{}
 
-	ctx = clues.Add(ctx, "collections", len(dcs))
-
+	ctx = clues.Add(ctx, "coll_count", len(dcs))
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
