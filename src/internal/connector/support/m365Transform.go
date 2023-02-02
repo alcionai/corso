@@ -287,11 +287,10 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 // Supported Internal Items:
 // - Events
 func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error) {
-	// First things first. Find out where all the information is
 	transform, ok := orig.(models.ItemAttachmentable)
 	supported := "#microsoft.graph.event"
 
-	if !ok {
+	if !ok { // Shouldn't ever happen
 		return nil, fmt.Errorf("transforming attachment to item attachment")
 	}
 
@@ -311,10 +310,12 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 
 		return transform, nil
 	default:
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("exiting ToItemAttachment: %s not supported", *itemType)
 	}
 }
 
+// sanitizeEvent transfers data into event object and
+// removes unique IDs from the M365 object
 func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent := models.NewEvent()
 	newEvent.SetAttendees(orig.GetAttendees())
@@ -337,13 +338,13 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetType(orig.GetType())
 
 	// Sanitation
-	adtl := orig.GetAdditionalData()
-	adtl["isOrganizer"] = orig.GetIsOrganizer()
-	adtl["isDraft"] = orig.GetIsDraft()
+	// isDraft and isOrganizer *bool ptr's have to be removed completely
+	// from JSON in order for POST method to succeed.
+	// Current as of 2/2/2023
 
 	newEvent.SetIsOrganizer(nil)
 	newEvent.SetIsDraft(nil)
-	newEvent.SetAdditionalData(adtl)
+	newEvent.SetAdditionalData(orig.GetAdditionalData())
 
 	attached := orig.GetAttachments()
 	attachments := make([]models.Attachmentable, len(attached))
