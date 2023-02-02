@@ -1027,6 +1027,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(testFileName)[0],
 							time.Time{},
+							fs.OwnerInfo{},
 							io.NopCloser(bytes.NewReader(testFileData)),
 						),
 					},
@@ -1334,6 +1335,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(inboxFileName1)[0],
 							time.Time{},
+							fs.OwnerInfo{},
 							io.NopCloser(bytes.NewReader(inboxFileData1)),
 						),
 						virtualfs.NewStaticDirectory(
@@ -1342,11 +1344,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName1)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData)),
 								),
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName2)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData2)),
 								),
 							},
@@ -1357,6 +1361,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(workFileName1)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData3)),
 								),
 							},
@@ -2018,6 +2023,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData)),
 								),
 							},
@@ -2028,6 +2034,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName2)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData2)),
 								),
 							},
@@ -2043,6 +2050,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName3)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData3)),
 								),
 							},
@@ -2053,6 +2061,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName4)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(testFileData4)),
 								),
 							},
@@ -2201,6 +2210,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(inboxFileData1)),
 								),
 							},
@@ -2216,6 +2226,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(contactsFileData1)),
 								),
 							},
@@ -2255,6 +2266,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									// Wrap with a backup reader so it gets the version injected.
 									newBackupStreamReader(
 										serializationVersion,
@@ -2274,6 +2286,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(eventsFileName1)[0],
 									time.Time{},
+									fs.OwnerInfo{},
 									io.NopCloser(bytes.NewReader(eventsFileData1)),
 								),
 							},
