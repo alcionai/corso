@@ -129,8 +129,7 @@ case.
 For example, we would not recommend Glacier IR if you are constantly testing large restores or have heavy churn in your
 backups and limited retention.
 
-For most typical backup workloads (write mostly, read rarely), Glacier Instant Retrieval should work just fine and
-deliver the best price-performance ratio.
+For most typical workloads, Glacier Instant Retrieval should be a great fit for Corso given how it stores data within its repository.
 Unlike a naive backup solution, as mentioned above, Corso efficiently packs smaller backup items (e.g., multiple
 emails) into a larger object.
 This makes Corso’s backup data eligible for S3 Intelligent Tiering where infrequently accessed objects can be moved into
