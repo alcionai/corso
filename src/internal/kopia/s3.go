@@ -3,6 +3,7 @@ package kopia
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/blob/s3"
 
@@ -16,7 +17,7 @@ const (
 func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error) {
 	cfg, err := s.S3Config()
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	endpoint := defaultS3Endpoint
@@ -32,5 +33,10 @@ func s3BlobStorage(ctx context.Context, s storage.Storage) (blob.Storage, error)
 		DoNotVerifyTLS: cfg.DoNotVerifyTLS,
 	}
 
-	return s3.New(ctx, &opts, false)
+	store, err := s3.New(ctx, &opts, false)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return store, nil
 }

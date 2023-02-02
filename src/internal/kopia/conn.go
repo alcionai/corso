@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
@@ -17,7 +18,6 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -29,11 +29,9 @@ const (
 	defaultSchedulingInterval = time.Second * 0
 )
 
-const defaultConfigErrTmpl = "setting default repo config values"
-
 var (
-	errInit    = errors.New("initializing repo")
-	errConnect = errors.New("connecting repo")
+	ErrSettingDefaultConfig = errors.New("setting default repo config values")
+	ErrorRepoAlreadyExists  = errors.New("repo already exists")
 )
 
 // Having all fields set to 0 causes it to keep max-int versions of snapshots.
@@ -51,19 +49,6 @@ var (
 
 type snapshotLoader interface {
 	SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error)
-}
-
-type ErrorRepoAlreadyExists struct {
-	common.Err
-}
-
-func RepoAlreadyExistsError(e error) error {
-	return ErrorRepoAlreadyExists{*common.EncapsulateError(e)}
-}
-
-func IsRepoAlreadyExistsError(e error) bool {
-	var erae ErrorRepoAlreadyExists
-	return errors.As(e, &erae)
 }
 
 var (
@@ -87,22 +72,22 @@ func NewConn(s storage.Storage) *conn {
 func (w *conn) Initialize(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
-		return errors.Wrap(err, errInit.Error())
+		return errors.Wrap(err, "initializing storage")
 	}
 	defer bst.Close(ctx)
 
 	cfg, err := w.storage.CommonConfig()
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	// todo - issue #75: nil here should be a storage.NewRepoOptions()
 	if err = repo.Initialize(ctx, bst, nil, cfg.CorsoPassphrase); err != nil {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
-			return RepoAlreadyExistsError(err)
+			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
-		return errors.Wrap(err, errInit.Error())
+		return clues.Wrap(err, "initialzing repo").WithClues(ctx)
 	}
 
 	return w.commonConnect(
@@ -117,13 +102,13 @@ func (w *conn) Initialize(ctx context.Context) error {
 func (w *conn) Connect(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
-		return errors.Wrap(err, errInit.Error())
+		return errors.Wrap(err, "initializing storage")
 	}
 	defer bst.Close(ctx)
 
 	cfg, err := w.storage.CommonConfig()
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	return w.commonConnect(
@@ -162,14 +147,18 @@ func (w *conn) commonConnect(
 		password,
 		opts,
 	); err != nil {
-		return errors.Wrap(err, errConnect.Error())
+		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
 	}
 
 	if err := w.open(ctx, cfgFile, password); err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	return w.setDefaultConfigValues(ctx)
+	if err := w.setDefaultConfigValues(ctx); err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
+	return nil
 }
 
 func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, error) {
@@ -177,7 +166,7 @@ func blobStoreByProvider(ctx context.Context, s storage.Storage) (blob.Storage, 
 	case storage.ProviderS3:
 		return s3BlobStorage(ctx, s)
 	default:
-		return nil, errors.New("storage provider details are required")
+		return nil, clues.New("storage provider details are required").WithClues(ctx)
 	}
 }
 
@@ -204,7 +193,7 @@ func (w *conn) close(ctx context.Context) error {
 	err := w.Repository.Close(ctx)
 	w.Repository = nil
 
-	return errors.Wrap(err, "closing repository connection")
+	return clues.Wrap(err, "closing repository connection").WithClues(ctx)
 }
 
 func (w *conn) open(ctx context.Context, configPath, password string) error {
@@ -216,7 +205,7 @@ func (w *conn) open(ctx context.Context, configPath, password string) error {
 	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
 	rep, err := repo.Open(ctx, configPath, password, nil)
 	if err != nil {
-		return errors.Wrap(err, "opening repository connection")
+		return clues.Wrap(err, "opening repository connection").WithClues(ctx)
 	}
 
 	w.Repository = rep
@@ -229,7 +218,7 @@ func (w *conn) wrap() error {
 	defer w.mu.Unlock()
 
 	if w.refCount == 0 {
-		return errors.New("conn already closed")
+		return clues.New("conn already closed")
 	}
 
 	w.refCount++
@@ -240,12 +229,12 @@ func (w *conn) wrap() error {
 func (w *conn) setDefaultConfigValues(ctx context.Context) error {
 	p, err := w.getGlobalPolicyOrEmpty(ctx)
 	if err != nil {
-		return errors.Wrap(err, defaultConfigErrTmpl)
+		return clues.Stack(ErrSettingDefaultConfig, err)
 	}
 
 	changed, err := updateCompressionOnPolicy(defaultCompressor, p)
 	if err != nil {
-		return errors.Wrap(err, defaultConfigErrTmpl)
+		return clues.Stack(ErrSettingDefaultConfig, err)
 	}
 
 	if updateRetentionOnPolicy(defaultRetention, p) {
@@ -260,10 +249,11 @@ func (w *conn) setDefaultConfigValues(ctx context.Context) error {
 		return nil
 	}
 
-	return errors.Wrap(
-		w.writeGlobalPolicy(ctx, "UpdateGlobalPolicyWithDefaults", p),
-		"updating global policy with defaults",
-	)
+	if err := w.writeGlobalPolicy(ctx, "UpdateGlobalPolicyWithDefaults", p); err != nil {
+		return clues.Wrap(err, "updating global policy with defaults")
+	}
+
+	return nil
 }
 
 // Compression attempts to set the global compression policy for the kopia repo
@@ -273,7 +263,7 @@ func (w *conn) Compression(ctx context.Context, compressor string) error {
 	// compressor was given.
 	comp := compression.Name(compressor)
 	if err := checkCompressor(comp); err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	p, err := w.getGlobalPolicyOrEmpty(ctx)
@@ -283,17 +273,18 @@ func (w *conn) Compression(ctx context.Context, compressor string) error {
 
 	changed, err := updateCompressionOnPolicy(compressor, p)
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	if !changed {
 		return nil
 	}
 
-	return errors.Wrap(
-		w.writeGlobalPolicy(ctx, "UpdateGlobalCompressionPolicy", p),
-		"updating global compression policy",
-	)
+	if err := w.writeGlobalPolicy(ctx, "UpdateGlobalCompressionPolicy", p); err != nil {
+		return clues.Wrap(err, "updating global compression policy")
+	}
+
+	return nil
 }
 
 func updateCompressionOnPolicy(compressor string, p *policy.Policy) (bool, error) {
@@ -349,7 +340,7 @@ func (w *conn) getPolicyOrEmpty(ctx context.Context, si snapshot.SourceInfo) (*p
 			return &policy.Policy{}, nil
 		}
 
-		return nil, errors.Wrapf(err, "getting backup policy for %+v", si)
+		return nil, clues.Wrap(err, "getting backup policy").With("source_info", si).WithClues(ctx)
 	}
 
 	return p, nil
@@ -370,16 +361,22 @@ func (w *conn) writePolicy(
 	si snapshot.SourceInfo,
 	p *policy.Policy,
 ) error {
-	err := repo.WriteSession(
-		ctx,
-		w.Repository,
-		repo.WriteSessionOptions{Purpose: purpose},
-		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
-			return policy.SetPolicy(ctx, rw, si, p)
-		},
-	)
+	ctx = clues.Add(ctx, "source_info", si)
 
-	return errors.Wrapf(err, "updating policy for %+v", si)
+	writeOpts := repo.WriteSessionOptions{Purpose: purpose}
+	cb := func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+		if err := policy.SetPolicy(ctx, rw, si, p); err != nil {
+			return clues.Stack(err).WithClues(innerCtx)
+		}
+
+		return nil
+	}
+
+	if err := repo.WriteSession(ctx, w.Repository, writeOpts, cb); err != nil {
+		return clues.Wrap(err, "updating policy").WithClues(ctx)
+	}
+
+	return nil
 }
 
 func checkCompressor(compressor compression.Name) error {
@@ -389,14 +386,19 @@ func checkCompressor(compressor compression.Name) error {
 		}
 	}
 
-	return errors.Errorf("unknown compressor type %s", compressor)
+	return clues.Stack(clues.New("unknown compressor type"), clues.New(string(compressor)))
 }
 
 func (w *conn) LoadSnapshots(
 	ctx context.Context,
 	ids []manifest.ID,
 ) ([]*snapshot.Manifest, error) {
-	return snapshot.LoadSnapshots(ctx, w.Repository, ids)
+	mans, err := snapshot.LoadSnapshots(ctx, w.Repository, ids)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	return mans, nil
 }
 
 func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
