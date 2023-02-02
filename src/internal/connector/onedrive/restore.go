@@ -43,7 +43,7 @@ func getParentPermissions(
 		}
 
 		if len(onedrivePath.Folders) != 0 {
-			return nil, errors.Wrap(err, "unable to find parent permissions")
+			return nil, errors.Wrap(err, "unable to compute item permissions")
 		}
 
 		parentPerms = []UserPermission{}
