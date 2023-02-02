@@ -10,7 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault/mock"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
@@ -265,7 +265,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			errs := mock.NewAdder()
+			errs := fault.New(true)
 
 			output := test.selFunc().Reduce(ctx, allDetails, errs)
 			assert.ElementsMatch(t, test.expected, output.Entries)
