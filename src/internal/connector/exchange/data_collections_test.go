@@ -537,7 +537,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		},
 		{
 			name:     "Birthday Calendar",
-			expected: "Birthdays",
+			expected: calendarOthersFolder + "/Birthdays",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{calendarOthersFolder + "/Birthdays"},
 				selectors.PrefixMatch(),
