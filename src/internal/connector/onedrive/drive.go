@@ -193,7 +193,6 @@ func collectItems(
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = false
-		triedPrevDelta   = false
 	)
 
 	maps.Copy(newPaths, oldPaths)
@@ -205,10 +204,9 @@ func collectItems(
 	for {
 		page, err := pager.GetPage(ctx)
 
-		if !triedPrevDelta && graph.IsErrInvalidDelta(err) {
+		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
 
-			triedPrevDelta = true // TODO(meain): Do we need this check?
 			invalidPrevDelta = true
 
 			pager.SetNext("")
