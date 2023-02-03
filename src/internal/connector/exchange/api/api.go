@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -152,4 +153,27 @@ func HasAttachments(body models.ItemBodyable) bool {
 	content := *body.GetContent()
 
 	return strings.Contains(content, "src=\"cid:")
+}
+
+// Run a function with retries
+func runWithRetry(run func() error) error {
+	var err error
+
+	for i := 0; i < numberOfRetries; i++ {
+		err = run()
+		if err == nil {
+			return nil
+		}
+
+		// only retry on timeouts and 500-internal-errors.
+		if !(graph.IsErrTimeout(err) || graph.IsInternalServerError(err)) {
+			break
+		}
+
+		if i < numberOfRetries {
+			time.Sleep(time.Duration(3*(i+2)) * time.Second)
+		}
+	}
+
+	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
 }

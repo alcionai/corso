@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -58,7 +57,6 @@ type Collection struct {
 	// M365 IDs of the items of this collection
 	category      DataCategory
 	service       graph.Servicer
-	ctrl          control.Options
 	betaService   *api.BetaService
 	statusUpdater support.StatusUpdater
 }

@@ -56,6 +56,7 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	require.NoError(t, err, "creating microsoft graph service for exchange")
 
 	return graph.NewService(adapter)
+<<<<<<< HEAD
 }
 
 func createTestBetaService(t *testing.T, credentials account.M365Config) *api.BetaService {
@@ -67,6 +68,8 @@ func createTestBetaService(t *testing.T, credentials account.M365Config) *api.Be
 	require.NoError(t, err)
 
 	return api.NewBetaService(adapter)
+=======
+>>>>>>> main
 }
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {

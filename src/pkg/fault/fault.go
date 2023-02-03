@@ -87,16 +87,19 @@ func (e *Errors) Fail(err error) *Errors {
 // setErr handles setting errors.err.  Sync locking gets
 // handled upstream of this call.
 func (e *Errors) setErr(err error) *Errors {
-	if e.err != nil {
-		return e.addErr(err)
+	if e.err == nil {
+		e.err = err
+		return e
 	}
 
-	e.err = err
+	e.errs = append(e.errs, err)
 
 	return e
 }
 
-// TODO: introduce Adder interface
+type Adder interface {
+	Add(err error) *Errors
+}
 
 // Add appends the error to the slice of recoverable and
 // iterated errors (ie: errors.errs).  If failFast is true,

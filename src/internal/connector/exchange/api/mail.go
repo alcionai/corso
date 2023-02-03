@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -17,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -95,7 +97,14 @@ func (c Mail) GetContainerByID(
 		return nil, errors.Wrap(err, "options for mail folder")
 	}
 
-	return service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+	var resp graph.Container
+
+	err = runWithRetry(func() error {
+		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+		return err
+	})
+
+	return resp, err
 }
 
 // GetItem retrieves a Messageable item.  If the item contains an attachment, that
@@ -104,7 +113,16 @@ func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	var (
+		mail models.Messageable
+		err  error
+	)
+
+	err = runWithRetry(func() error {
+		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -112,13 +130,18 @@ func (c Mail) GetItem(
 	var errs *multierror.Error
 
 	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
+		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := c.largeItem.
 				Client().
 				UsersById(user).
 				MessagesById(itemID).
 				Attachments().
-				Get(ctx, nil)
+				Get(ctx, options)
 			if err == nil {
 				mail.SetAttachments(attached.GetValue())
 				break
@@ -154,6 +177,7 @@ func (c Mail) EnumerateContainers(
 	}
 
 	var (
+		resp    users.ItemMailFoldersDeltaResponseable
 		errs    *multierror.Error
 		builder = service.Client().
 			UsersById(userID).
@@ -162,7 +186,13 @@ func (c Mail) EnumerateContainers(
 	)
 
 	for {
-		resp, err := builder.Get(ctx, nil)
+		var err error
+
+		err = runWithRetry(func() error {
+			resp, err = builder.Get(ctx, nil)
+			return err
+		})
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -200,7 +230,17 @@ type mailPager struct {
 }
 
 func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+	var (
+		page api.DeltaPageLinker
+		err  error
+	)
+
+	err = runWithRetry(func() error {
+		page, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return page, err
 }
 
 func (p *mailPager) setNext(nextLink string) {
@@ -225,6 +265,11 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		deltaURL   string
 		resetDelta bool
 	)
+
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeMail,
+		"folder_id", directoryID)
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {

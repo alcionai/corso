@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -154,7 +155,9 @@ func collectLibraries(
 		updater.UpdateStatus,
 		ctrlOpts)
 
-	odcs, excludes, err := colls.Get(ctx)
+	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
+	// token-based incrementals.
+	odcs, excludes, err := colls.Get(ctx, nil)
 	if err != nil {
 		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
@@ -169,6 +172,7 @@ func collectPages(
 	creds account.M365Config,
 	serv graph.Servicer,
 	tenantID, siteID string,
+	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.Collection, error) {
@@ -184,13 +188,13 @@ func collectPages(
 
 	betaService := api.NewBetaService(adpt)
 
-	tuples, err := fetchPages(ctx, betaService, siteID)
+	tuples, err := sapi.FetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, tuple := range tuples {
-		dir, err := path.Builder{}.Append(tuple.name).
+		dir, err := path.Builder{}.Append(tuple.Name).
 			ToDataLayerSharePointPath(
 				tenantID,
 				siteID,
@@ -200,9 +204,9 @@ func collectPages(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, updater.UpdateStatus)
 		collection.betaService = betaService
-		collection.AddJob(tuple.id)
+		collection.AddJob(tuple.ID)
 
 		spcs = append(spcs, collection)
 	}
