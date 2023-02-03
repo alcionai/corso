@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add versions to backups so that we can understand/handle older backup formats
 
 ### Fixes
-- Handling more network failures with OneDrive
+- Added additional backoff-retry to all OneDrive queries.
 
 ### Known Issues
 
