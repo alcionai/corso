@@ -1,4 +1,4 @@
-package sharepoint
+package api
 
 import (
 	"testing"
@@ -44,13 +44,13 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 	t := suite.T()
 	service := createTestBetaService(t, suite.creds)
 
-	pgs, err := fetchPages(ctx, service, suite.siteID)
+	pgs, err := FetchPages(ctx, service, suite.siteID)
 	assert.NoError(t, err)
 	require.NotNil(t, pgs)
 	assert.NotZero(t, len(pgs))
 
 	for _, entry := range pgs {
-		t.Logf("id: %s\t name: %s\n", entry.id, entry.name)
+		t.Logf("id: %s\t name: %s\n", entry.ID, entry.Name)
 	}
 }
 
@@ -60,11 +60,11 @@ func (suite *SharePointPageSuite) TestGetSitePage() {
 
 	t := suite.T()
 	service := createTestBetaService(t, suite.creds)
-	tuples, err := fetchPages(ctx, service, suite.siteID)
+	tuples, err := FetchPages(ctx, service, suite.siteID)
 	require.NoError(t, err)
 	require.NotNil(t, tuples)
 
-	jobs := []string{tuples[0].id}
+	jobs := []string{tuples[0].ID}
 	pages, err := GetSitePage(ctx, service, suite.siteID, jobs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
