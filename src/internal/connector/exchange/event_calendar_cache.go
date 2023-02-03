@@ -61,7 +61,6 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 
 func (ecc *eventCalendarCache) PathInCache(p string) (string, bool) {
 	pb := path.Builder{}.Append(ecc.rootName, p)
-
 	return ecc.containerResolver.PathInCache(pb.String())
 }
 
