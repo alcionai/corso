@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -18,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
+	backoff "github.com/cenkalti/backoff/v4"
 )
 
 var errFolderNotFound = errors.New("folder not found")
@@ -70,41 +70,41 @@ func drives(
 		drives          = []models.Driveable{}
 	)
 
-	if !retry {
-		numberOfRetries = 0
+	getPageOperation := func() error {
+		page, err = pager.GetPage(ctx)
+		if err != nil {
+			// Various error handling. May return an error or perform a retry.
+			detailedError := support.ConnectorStackErrorTrace(err)
+			if strings.Contains(detailedError, userMysiteURLNotFound) ||
+				strings.Contains(detailedError, userMysiteNotFound) {
+				logger.Ctx(ctx).Infof("resource owner does not have a drive")
+				drives = make([]models.Driveable, 0)
+				return nil // no license or drives.
+			}
+			return errors.Wrapf(
+				err,
+				"failed to retrieve drives. details: %s",
+				detailedError,
+			)
+		}
+		return err
 	}
 
 	// Loop through all pages returned by Graph API.
 	for {
-		// Retry Loop for Drive retrieval. Request can timeout
-		for i := 0; i <= numberOfRetries; i++ {
-			page, err = pager.GetPage(ctx)
+
+		if !retry {
+			err = getPageOperation()
 			if err != nil {
-				// Various error handling. May return an error or perform a retry.
-				detailedError := support.ConnectorStackErrorTrace(err)
-				if strings.Contains(detailedError, userMysiteURLNotFound) ||
-					strings.Contains(detailedError, userMysiteNotFound) {
-					logger.Ctx(ctx).Infof("resource owner does not have a drive")
-					return make([]models.Driveable, 0), nil // no license or drives.
-				}
-
-				if strings.Contains(detailedError, contextDeadlineExceeded) && i < numberOfRetries {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
-					continue
-				}
-
-				return nil, errors.Wrapf(
-					err,
-					"failed to retrieve drives. details: %s",
-					detailedError,
-				)
+				return nil, errors.Wrap(err, "extracting drives from response")
 			}
-
-			// No error encountered, break the retry loop so we can extract results
-			// and see if there's another page to fetch.
-			break
+		} else {
+			exponentialBackoff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(numberOfRetries))
+			err = backoff.Retry(getPageOperation, exponentialBackoff)
+			if err != nil {
+				return nil, errors.Wrap(err, "extracting drives from response")
+			}
 		}
-
 		tmp, err := pager.ValuesIn(page)
 		if err != nil {
 			return nil, errors.Wrap(err, "extracting drives from response")
