@@ -7,7 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-const itmAttachment = "#microsoft.graph.itemAttachment"
+const itemAttachment = "#microsoft.graph.itemAttachment"
 
 // CloneMessageableFields places data from original data into new message object.
 // SingleLegacyValueProperty is not populated during this operation
@@ -350,7 +350,7 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	attachments := make([]models.Attachmentable, len(attached))
 
 	for _, ax := range attached {
-		if *ax.GetOdataType() == itmAttachment {
+		if *ax.GetOdataType() == itemAttachment {
 			newAttachment, err := ToItemAttachment(ax)
 			if err != nil {
 				return nil, err
