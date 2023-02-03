@@ -15,7 +15,7 @@ func Control() control.Options {
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
-	opt.ToggleFeatures.DisablePermissionsBackup = disablePermissionsBackup
+	opt.ToggleFeatures.EnablePermissionsBackup = enablePermissionsBackup
 
 	return opt
 }
@@ -48,6 +48,8 @@ func AddGlobalOperationFlags(cmd *cobra.Command) {
 func AddRestorePermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(&restorePermissions, "restore-permissions", false, "Restore permissions for files and folders")
+	// TODO: reveal this flag once backing up permissions becomes default
+	cobra.CheckErr(fs.MarkHidden("restore-permissions"))
 }
 
 // ---------------------------------------------------------------------------
@@ -55,8 +57,8 @@ func AddRestorePermissionsFlag(cmd *cobra.Command) {
 // ---------------------------------------------------------------------------
 
 var (
-	disableIncrementals      bool
-	disablePermissionsBackup bool
+	disableIncrementals     bool
+	enablePermissionsBackup bool
 )
 
 type exposeFeatureFlag func(*pflag.FlagSet)
@@ -83,15 +85,15 @@ func DisableIncrementals() func(*pflag.FlagSet) {
 	}
 }
 
-// Adds the hidden '--disable-permissions-backup' cli flag which, when
-// set, disables backing up permissions.
-func DisablePermissionsBackup() func(*pflag.FlagSet) {
+// Adds the hidden '--enable-permissions-backup' cli flag which, when
+// set, enables backing up permissions.
+func EnablePermissionsBackup() func(*pflag.FlagSet) {
 	return func(fs *pflag.FlagSet) {
 		fs.BoolVar(
-			&disablePermissionsBackup,
-			"disable-permissions-backup",
+			&enablePermissionsBackup,
+			"enable-permissions-backup",
 			false,
-			"Disable backing up item permissions for OneDrive")
-		cobra.CheckErr(fs.MarkHidden("disable-permissions-backup"))
+			"Enable backing up item permissions for OneDrive")
+		cobra.CheckErr(fs.MarkHidden("enable-permissions-backup"))
 	}
 }

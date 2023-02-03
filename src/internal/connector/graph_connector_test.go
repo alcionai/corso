@@ -238,7 +238,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		acct,
 		sel,
 		dest,
-		control.Options{},
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
 		nil,
 	)
 	assert.Error(t, err)
@@ -312,7 +315,10 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				suite.acct,
 				test.sel,
 				dest,
-				control.Options{RestorePermissions: true},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
 				test.col,
 			)
 			require.NoError(t, err)
@@ -448,7 +454,15 @@ func runRestoreBackupTest(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
+	dcs, excludes, err := backupGC.DataCollections(
+		ctx,
+		backupSel,
+		nil,
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
+	)
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -568,7 +582,15 @@ func runRestoreBackupTestVersion0(
 	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 
 	start = time.Now()
-	dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
+	dcs, excludes, err := backupGC.DataCollections(
+		ctx,
+		backupSel,
+		nil,
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
+	)
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -1026,7 +1048,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				test,
 				suite.connector.tenant,
 				[]string{suite.user},
-				control.Options{RestorePermissions: true},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
 			)
 		})
 	}
@@ -1275,7 +1300,10 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
 				test,
 				suite.connector.tenant,
 				[]string{suite.user},
-				control.Options{RestorePermissions: true},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
 			)
 		})
 	}
@@ -1391,7 +1419,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					suite.acct,
 					restoreSel,
 					dest,
-					control.Options{RestorePermissions: true},
+					control.Options{
+						RestorePermissions: true,
+						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					},
 					collections,
 				)
 				require.NoError(t, err)
@@ -1414,7 +1445,15 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
+			dcs, excludes, err := backupGC.DataCollections(
+				ctx,
+				backupSel,
+				nil,
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
 			require.NoError(t, err)
 			// No excludes yet because this isn't an incremental backup.
 			assert.Empty(t, excludes)
@@ -1446,7 +1485,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 
 	table := []restoreBackupInfo{
 		{
-			name:     "FilePermissionsResote",
+			name:     "FilePermissionsRestore",
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
@@ -1677,7 +1716,10 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 				test,
 				suite.connector.tenant,
 				[]string{suite.user},
-				control.Options{RestorePermissions: true},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
 			)
 		})
 	}
@@ -1697,7 +1739,7 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsBackupAndNoRestore()
 
 	table := []restoreBackupInfo{
 		{
-			name:     "FilePermissionsResote",
+			name:     "FilePermissionsRestore",
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
@@ -1733,7 +1775,10 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsBackupAndNoRestore()
 				test,
 				suite.connector.tenant,
 				[]string{suite.user},
-				control.Options{RestorePermissions: false},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
 			)
 		})
 	}
@@ -1769,6 +1814,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 		test,
 		suite.connector.tenant,
 		[]string{suite.user},
-		control.Options{RestorePermissions: true},
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
 	)
 }
