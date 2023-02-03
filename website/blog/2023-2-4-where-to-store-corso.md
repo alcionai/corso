@@ -16,7 +16,8 @@ that data go?
 Corso creates a repository to store your backups, and the default in our documentation is to send that data to AWS S3.
 It is possible however to back up to any object storage system that has an S3-compatible API. Let’s talk about some options.
 
-## **S3-Compatible Object Storage**
+<!-- truncate -->
+## S3-Compatible Object Storage
 
 A number of other cloud providers aren’t the 500-pound gorilla of AWS but still offer an S3-compatible API.
 Some of them include:
@@ -89,7 +90,8 @@ other Glacier variants.
 Glacier Instant Retrieval should provide the best price performance for a  backup workload as backup data blobs are
 typically written once, with occasional re-compacting, and read infrequently in the case of restore. One should note
 that recommendations such as these are always workload dependent and should be verified for your use case. For example,
-we would not recommend Glacier Instant Retrieval if you are constantly testing large restores or have heavy churn in your backups and
+we would not recommend Glacier Instant Retrieval if you are constantly testing large restores or have heavy
+churn in your backups and
 limited retention. However, for most typical backup workloads (write mostly, read rarely), Glacier Instant Retrieval
 should work just fine and deliver the best price-performance ratio. 
 
