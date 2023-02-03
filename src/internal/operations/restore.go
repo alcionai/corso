@@ -150,6 +150,12 @@ func (op *RestoreOperation) do(ctx context.Context) (restoreDetails *details.Det
 	)
 
 	defer func() {
+		// panic recovery here prevents additional errors in op.persistResults()
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+			return
+		}
+
 		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
 			return
