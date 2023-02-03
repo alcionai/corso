@@ -3,6 +3,8 @@ package operations
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
+	"sort"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -44,7 +46,7 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	stats.Errs
+	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 }
@@ -106,9 +108,40 @@ type restorer interface {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
-	ctx, end := D.Span(ctx, "operations:restore:run")
-	defer end()
+	defer func() {
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+		}
+	}()
 
+	ctx, end := D.Span(ctx, "operations:restore:run")
+	defer func() {
+		end()
+		// wait for the progress display to clean up
+		observe.Complete()
+	}()
+
+	ctx = clues.AddAll(
+		ctx,
+		"tenant_id", op.account.ID(), // TODO: pii
+		"backup_id", op.BackupID,
+		"service", op.Selectors.Service)
+
+	deets, err := op.do(ctx)
+	if err != nil {
+		logger.Ctx(ctx).
+			With("err", err).
+			Errorw("restore operation", clues.InErr(err).Slice()...)
+
+		return nil, err
+	}
+
+	logger.Ctx(ctx).Infow("completed restore", "results", op.Results)
+
+	return deets, nil
+}
+
+func (op *RestoreOperation) do(ctx context.Context) (restoreDetails *details.Details, err error) {
 	var (
 		opStats = restoreStats{
 			bytesRead: &stats.ByteCounter{},
@@ -118,8 +151,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	)
 
 	defer func() {
-		// wait for the progress display to clean up
-		observe.Complete()
+		// panic recovery here prevents additional errors in op.persistResults()
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+			return
+		}
 
 		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
@@ -128,12 +164,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}()
 
 	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
-
-	ctx = clues.AddAll(
-		ctx,
-		"tenant_id", op.account.ID(), // TODO: pii
-		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
 
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
@@ -166,7 +196,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}
 
 	ctx = clues.Add(ctx, "details_paths", len(paths))
-
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
@@ -180,8 +209,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	}
 	kopiaComplete <- struct{}{}
 
-	ctx = clues.Add(ctx, "collections", len(dcs))
-
+	ctx = clues.Add(ctx, "coll_count", len(dcs))
 	opStats.cs = dcs
 	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
@@ -197,10 +225,13 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	restoreDetails, err = gc.RestoreDataCollections(
 		ctx,
+		bup.Version,
 		op.account,
 		op.Selectors,
 		op.Destination,
-		dcs)
+		op.Options,
+		dcs,
+	)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "restoring service data")
 		return nil, opStats.writeErr
@@ -236,14 +267,20 @@ func (op *RestoreOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.BytesRead = opStats.bytesRead.NumBytes
+	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
+	op.Results.ResourceOwners = opStats.resourceCount
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("data restoration never completed")
+	}
+
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.BytesRead = opStats.bytesRead.NumBytes
-	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
-	op.Results.ResourceOwners = opStats.resourceCount
 
 	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
@@ -299,6 +336,17 @@ func formatDetailsForRestoration(
 
 		paths[i] = p
 	}
+
+	// TODO(meain): Move this to onedrive specific component, but as
+	// of now the paths can technically be from multiple services
+
+	// This sort is done primarily to order `.meta` files after `.data`
+	// files. This is only a necessity for OneDrive as we are storing
+	// metadata for files/folders in separate meta files and we the
+	// data to be restored before we can restore the metadata.
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].String() < paths[j].String()
+	})
 
 	if errs != nil {
 		return nil, errs

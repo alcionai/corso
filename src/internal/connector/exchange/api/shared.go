@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,9 @@ func getItemsAddedAndRemovedFromContainer(
 		deltaURL   string
 	)
 
+	itemCount := 0
+	page := 0
+
 	for {
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
@@ -80,6 +84,14 @@ func getItemsAddedAndRemovedFromContainer(
 		items, err := pager.valuesIn(resp)
 		if err != nil {
 			return nil, nil, "", err
+		}
+
+		itemCount += len(items)
+		page++
+
+		// Log every ~1000 items (the page size we use is 200)
+		if page%5 == 0 {
+			logger.Ctx(ctx).Infow("queried items", "count", itemCount)
 		}
 
 		// iterate through the items in the page
@@ -113,6 +125,8 @@ func getItemsAddedAndRemovedFromContainer(
 
 		pager.setNext(nextLink)
 	}
+
+	logger.Ctx(ctx).Infow("completed enumeration", "count", itemCount)
 
 	return addedIDs, removedIDs, deltaURL, nil
 }

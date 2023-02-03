@@ -17,6 +17,7 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
+	errCodeActivityLimitReached        = "activityLimitReached"
 	errCodeItemNotFound                = "ErrorItemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired"
@@ -31,8 +32,10 @@ var (
 	// normally the graph client will catch this for us, but in case we
 	// run our own client Do(), we need to translate it to a timeout type
 	// failure locally.
-	Err429TooManyRequests    = errors.New("429 too many requests")
-	Err503ServiceUnavailable = errors.New("503 Service Unavailable")
+	Err429TooManyRequests     = errors.New("429 too many requests")
+	Err503ServiceUnavailable  = errors.New("503 Service Unavailable")
+	Err504GatewayTimeout      = errors.New("504 Gateway Timeout")
+	Err500InternalServerError = errors.New("500 Internal Server Error")
 )
 
 // The folder or item was deleted between the time we identified
@@ -113,6 +116,10 @@ func IsErrThrottled(err error) bool {
 		return true
 	}
 
+	if hasErrorCode(err, errCodeActivityLimitReached) {
+		return true
+	}
+
 	e := ErrThrottled{}
 
 	return errors.As(err, &e)
@@ -135,21 +142,18 @@ func IsErrUnauthorized(err error) bool {
 	return errors.As(err, &e)
 }
 
-type ErrServiceUnavailable struct {
+type ErrInternalServerError struct {
 	common.Err
 }
 
-func IsSericeUnavailable(err error) bool {
-	if errors.Is(err, Err503ServiceUnavailable) {
+func IsInternalServerError(err error) bool {
+	if errors.Is(err, Err500InternalServerError) {
 		return true
 	}
 
-	e := ErrUnauthorized{}
-	if errors.As(err, &e) {
-		return true
-	}
+	e := ErrInternalServerError{}
 
-	return true
+	return errors.As(err, &e)
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
@@ -53,6 +54,16 @@ var (
 	}
 )
 
+const (
+	// headerKeyPrefer is used to set query preferences
+	headerKeyPrefer = "Prefer"
+	// maxPageSizeHeaderFmt is used to indicate max page size
+	// preferences
+	maxPageSizeHeaderFmt = "odata.maxpagesize=%d"
+	// deltaMaxPageSize is the max page size to use for delta queries
+	deltaMaxPageSize = 200
+)
+
 // -----------------------------------------------------------------------
 // exchange.Query Option Section
 // These functions can be used to filter a response on M365
@@ -71,8 +82,10 @@ func optionsForFolderMessagesDelta(
 	requestParameters := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
+
 	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
+		Headers:         buildDeltaRequestHeaders(),
 	}
 
 	return options, nil
@@ -218,6 +231,7 @@ func optionsForContactFoldersItemDelta(
 
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: requestParameters,
+		Headers:         buildDeltaRequestHeaders(),
 	}
 
 	return options, nil
@@ -274,4 +288,12 @@ func buildOptions(fields []string, allowed map[string]struct{}) ([]string, error
 	}
 
 	return append(returnedOptions, fields...), nil
+}
+
+// buildDeltaRequestHeaders returns the headers we add to delta page requests
+func buildDeltaRequestHeaders() *abstractions.RequestHeaders {
+	headers := abstractions.NewRequestHeaders()
+	headers.Add(headerKeyPrefer, fmt.Sprintf(maxPageSizeHeaderFmt, deltaMaxPageSize))
+
+	return headers
 }

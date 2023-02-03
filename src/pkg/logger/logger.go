@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/alcionai/corso/src/cli/print"
 )
 
 // Default location for writing logs, initialized in platform specific files
@@ -28,6 +30,8 @@ var (
 
 	DebugAPI       bool
 	readableOutput bool
+
+	LogFile string
 )
 
 type logLevel int
@@ -117,7 +121,9 @@ func PreloadLoggingFlags() (string, string) {
 	}
 
 	if logfile != "stdout" && logfile != "stderr" {
+		LogFile = logfile
 		logdir := filepath.Dir(logfile)
+		print.Info(context.Background(), "Logging to file: "+logfile)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
@@ -265,7 +271,7 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 		return singleton(levelOf(llFlag), defaultLogLocation())
 	}
 
-	return l.(*zap.SugaredLogger).With(clues.Slice(ctx)...)
+	return l.(*zap.SugaredLogger).With(clues.In(ctx).Slice()...)
 }
 
 // transforms the llevel flag value to a logLevel enum
