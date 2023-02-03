@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"time"
 
@@ -107,6 +108,12 @@ type restorer interface {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+		}
+	}()
+
 	ctx, end := D.Span(ctx, "operations:restore:run")
 	defer func() {
 		end()
@@ -253,14 +260,20 @@ func (op *RestoreOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.BytesRead = opStats.bytesRead.NumBytes
+	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
+	op.Results.ResourceOwners = opStats.resourceCount
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("data restoration never completed")
+	}
+
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.BytesRead = opStats.bytesRead.NumBytes
-	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
-	op.Results.ResourceOwners = opStats.resourceCount
 
 	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
