@@ -292,38 +292,38 @@ func TestOneDrivePermissionsFilter(t *testing.T) {
 	noPerm.SetGrantedToV2(nil) // eg: link shares
 
 	cases := []struct {
-		name   string
-		perms  []models.Permissionable
-		uperms []UserPermission
+		name              string
+		graphPermissions  []models.Permissionable
+		parsedPermissions []UserPermission
 	}{
 		{
-			name:   "no perms",
-			perms:  []models.Permissionable{},
-			uperms: []UserPermission{},
+			name:              "no perms",
+			graphPermissions:  []models.Permissionable{},
+			parsedPermissions: []UserPermission{},
 		},
 		{
-			name:   "no user bound to perms",
-			perms:  []models.Permissionable{noPerm},
-			uperms: []UserPermission{},
+			name:              "no user bound to perms",
+			graphPermissions:  []models.Permissionable{noPerm},
+			parsedPermissions: []UserPermission{},
 		},
 		{
-			name:   "user with read permissions",
-			perms:  []models.Permissionable{readPerm},
-			uperms: []UserPermission{readUperm},
+			name:              "user with read permissions",
+			graphPermissions:  []models.Permissionable{readPerm},
+			parsedPermissions: []UserPermission{readUperm},
 		},
 		{
-			name:   "user with read and write permissions",
-			perms:  []models.Permissionable{readWritePerm},
-			uperms: []UserPermission{readWriteUperm},
+			name:              "user with read and write permissions",
+			graphPermissions:  []models.Permissionable{readWritePerm},
+			parsedPermissions: []UserPermission{readWriteUperm},
 		},
 		{
-			name:   "multiple users with separate permissions",
-			perms:  []models.Permissionable{readPerm, readWritePerm},
-			uperms: []UserPermission{readUperm, readWriteUperm},
+			name:              "multiple users with separate permissions",
+			graphPermissions:  []models.Permissionable{readPerm, readWritePerm},
+			parsedPermissions: []UserPermission{readUperm, readWriteUperm},
 		},
 	}
 	for _, tc := range cases {
-		actual := filterUserPermissions(tc.perms)
-		assert.ElementsMatch(t, tc.uperms, actual)
+		actual := filterUserPermissions(tc.graphPermissions)
+		assert.ElementsMatch(t, tc.parsedPermissions, actual)
 	}
 }

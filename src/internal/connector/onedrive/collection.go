@@ -304,7 +304,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 
 				if err != nil {
-					errUpdater(*item.GetId(), err)
+					errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
 					return
 				}
 			}
