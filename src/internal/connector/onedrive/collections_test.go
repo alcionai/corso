@@ -1569,9 +1569,9 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				"",
 			)
 
-			require.ErrorIs(suite.T(), err, test.err)
-			require.Equal(suite.T(), test.deltaURL, delta.URL)
-			require.Equal(suite.T(), !test.prevDeltaSuccess, delta.Reset)
+			require.ErrorIs(suite.T(), err, test.err, "delta fetch err")
+			require.Equal(suite.T(), test.deltaURL, delta.URL, "delta url")
+			require.Equal(suite.T(), !test.prevDeltaSuccess, delta.Reset, "delta reset")
 		})
 	}
 }
