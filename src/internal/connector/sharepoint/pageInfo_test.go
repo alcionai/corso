@@ -5,26 +5,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 func (suite *SharePointInfoSuite) TestSharePointInfo_Pages() {
 	tests := []struct {
 		name         string
-		pageAndDeets func() (SitePageable, *details.SharePointInfo)
+		pageAndDeets func() (models.SitePageable, *details.SharePointInfo)
 	}{
 		{
 			name: "Empty Page",
-			pageAndDeets: func() (SitePageable, *details.SharePointInfo) {
+			pageAndDeets: func() (models.SitePageable, *details.SharePointInfo) {
 				deets := &details.SharePointInfo{ItemType: details.SharePointItem}
-				return NewSitePage(), deets
+				return models.NewSitePage(), deets
 			},
 		},
 		{
 			name: "Only Name",
-			pageAndDeets: func() (SitePageable, *details.SharePointInfo) {
+			pageAndDeets: func() (models.SitePageable, *details.SharePointInfo) {
 				title := "Blank Page"
-				sPage := NewSitePage()
+				sPage := models.NewSitePage()
 				sPage.SetTitle(&title)
 				deets := &details.SharePointInfo{
 					ItemType: details.SharePointItem,

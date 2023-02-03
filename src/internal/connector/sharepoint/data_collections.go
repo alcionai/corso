@@ -31,10 +31,10 @@ func DataCollections(
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
@@ -63,11 +63,11 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 
 		case path.LibrariesCategory:
-			spcs, err = collectLibraries(
+			spcs, _, err = collectLibraries(
 				ctx,
 				itemClient,
 				serv,
@@ -77,7 +77,7 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				return nil, support.WrapAndAppend(site, err, errs)
+				return nil, nil, support.WrapAndAppend(site, err, errs)
 			}
 		}
 
@@ -85,7 +85,7 @@ func DataCollections(
 		foldersComplete <- struct{}{}
 	}
 
-	return collections, errs
+	return collections, nil, errs
 }
 
 func collectLists(
@@ -134,7 +134,7 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	var (
 		collections = []data.Collection{}
 		errs        error
@@ -152,12 +152,14 @@ func collectLibraries(
 		updater.UpdateStatus,
 		ctrlOpts)
 
-	odcs, err := colls.Get(ctx)
+	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
+	// token-based incrementals.
+	odcs, excludes, err := colls.Get(ctx, nil)
 	if err != nil {
-		return nil, support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
 
-	return append(collections, odcs...), errs
+	return append(collections, odcs...), excludes, errs
 }
 
 type folderMatcher struct {

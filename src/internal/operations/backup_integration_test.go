@@ -153,6 +153,8 @@ func runAndCheckBackup(
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
+	assert.NoError(t, bo.Errors.Err(), "incremental non-recoverable error")
+	assert.Empty(t, bo.Errors.Errs(), "incremental recoverable/iteration errors")
 	assert.NoError(t, bo.Results.ReadErrors, "errors reading data")
 	assert.NoError(t, bo.Results.WriteErrors, "errors writing data")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
@@ -337,7 +339,15 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
-	deets, err := gc.RestoreDataCollections(ctx, acct, sel, dest, dataColls)
+	deets, err := gc.RestoreDataCollections(
+		ctx,
+		backup.Version,
+		acct,
+		sel,
+		dest,
+		control.Options{RestorePermissions: true},
+		dataColls,
+	)
 	require.NoError(t, err)
 
 	return deets
@@ -616,6 +626,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
 			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
 			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
+			assert.NoError(t, incBO.Errors.Err(), "incremental non-recoverable error")
+			assert.Empty(t, incBO.Errors.Errs(), "count incremental recoverable/iteration errors")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
 			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
@@ -632,6 +644,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	ctx, flush := tester.NewContext()
 	defer flush()
+
+	tester.LogTimeOfTest(suite.T())
 
 	var (
 		t          = suite.T()
@@ -803,7 +817,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		{
 			name: "move an email folder to a subfolder",
 			updateUserData: func(t *testing.T) {
-				// contacts cannot be sufoldered; this is an email-only change
+				// contacts and events cannot be sufoldered; this is an email-only change
 				toContainer := dataset[path.EmailCategory].dests[container1].containerID
 				fromContainer := dataset[path.EmailCategory].dests[container2].containerID
 
@@ -826,23 +840,22 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			updateUserData: func(t *testing.T) {
 				for category, d := range dataset {
 					containerID := d.dests[container2].containerID
-					cli := gc.Service.Client().UsersById(suite.user)
 
 					switch category {
 					case path.EmailCategory:
 						require.NoError(
 							t,
-							cli.MailFoldersById(containerID).Delete(ctx, nil),
+							ac.Mail().DeleteContainer(ctx, suite.user, containerID),
 							"deleting an email folder")
 					case path.ContactsCategory:
 						require.NoError(
 							t,
-							cli.ContactFoldersById(containerID).Delete(ctx, nil),
+							ac.Contacts().DeleteContainer(ctx, suite.user, containerID),
 							"deleting a contacts folder")
 					case path.EventsCategory:
 						require.NoError(
 							t,
-							cli.CalendarsById(containerID).Delete(ctx, nil),
+							ac.Events().DeleteContainer(ctx, suite.user, containerID),
 							"deleting a calendar")
 					}
 				}
@@ -923,19 +936,19 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NoError(t, err, "updating contact folder name")
 
 					case path.EventsCategory:
-						ccf := cli.CalendarsById(containerID)
+						cbi := cli.CalendarsById(containerID)
 
-						body, err := ccf.Get(ctx, nil)
+						body, err := cbi.Get(ctx, nil)
 						require.NoError(t, err, "getting calendar")
 
 						body.SetName(&containerRename)
-						_, err = ccf.Patch(ctx, body, nil)
+						_, err = cbi.Patch(ctx, body, nil)
 						require.NoError(t, err, "updating calendar name")
 					}
 				}
 			},
-			itemsRead:    0,
-			itemsWritten: 4,
+			itemsRead:    0, // containers are not counted as reads
+			itemsWritten: 4, // two items per category
 		},
 		{
 			name: "add a new item",
@@ -1038,6 +1051,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
 			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
 			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
+			assert.NoError(t, incBO.Errors.Err(), "incremental non-recoverable error")
+			assert.Empty(t, incBO.Errors.Errs(), "incremental recoverable/iteration errors")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
 			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
@@ -1066,7 +1081,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)

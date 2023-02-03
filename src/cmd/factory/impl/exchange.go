@@ -6,6 +6,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -67,6 +68,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 				subject, body, body,
 				now, now, now, now)
 		},
+		control.Options{},
 	)
 	if err != nil {
 		return Only(ctx, err)
@@ -107,6 +109,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 				User, subject, body, body,
 				now, now, false)
 		},
+		control.Options{},
 	)
 	if err != nil {
 		return Only(ctx, err)
@@ -152,6 +155,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 				"123-456-7890",
 			)
 		},
+		control.Options{},
 	)
 	if err != nil {
 		return Only(ctx, err)

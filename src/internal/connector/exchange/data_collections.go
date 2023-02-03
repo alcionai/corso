@@ -167,10 +167,10 @@ func DataCollections(
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.Collection, map[string]struct{}, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
+		return nil, nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
 	}
 
 	var (
@@ -181,7 +181,7 @@ func DataCollections(
 
 	cdps, err := parseMetadataCollections(ctx, metadata)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, scope := range eb.Scopes() {
@@ -196,13 +196,15 @@ func DataCollections(
 			ctrlOpts,
 			su)
 		if err != nil {
-			return nil, support.WrapAndAppend(user, err, errs)
+			return nil, nil, support.WrapAndAppend(user, err, errs)
 		}
 
 		collections = append(collections, dcs...)
 	}
 
-	return collections, errs
+	// Exchange does not require adding items to the global exclude list so always
+	// return nil.
+	return collections, nil, errs
 }
 
 func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
