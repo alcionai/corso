@@ -501,10 +501,11 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
 		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
-			name      string
-			pathFunc1 func(t *testing.T) path.Path
-			pathFunc2 func(t *testing.T) path.Path
-			category  path.CategoryType
+			name         string
+			pathFunc1    func(t *testing.T) path.Path
+			pathFunc2    func(t *testing.T) path.Path
+			category     path.CategoryType
+			folderPrefix string
 		}{
 			{
 				name:     "Mail Cache Test",
@@ -587,6 +588,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 					require.NoError(t, err)
 					return aPath
 				},
+				folderPrefix: calendarOthersFolder,
 			},
 		}
 	)
@@ -617,8 +619,9 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 			_, err = resolver.IDToPath(ctx, secondID)
 			require.NoError(t, err)
 
-			_, ok := resolver.PathInCache(folderName)
-			require.True(t, ok)
+			p := stdpath.Join(test.folderPrefix, folderName)
+			_, ok := resolver.PathInCache(p)
+			require.True(t, ok, "looking for path in cache: %s", p)
 		})
 	}
 }
