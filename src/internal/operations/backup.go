@@ -596,6 +596,11 @@ func (op *BackupOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.BytesRead = opStats.k.TotalHashedBytes
+	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
+	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.ResourceOwners = opStats.resourceCount
+
 	if opStats.gc == nil {
 		op.Status = Failed
 		return errors.New("data population never completed")
@@ -605,11 +610,7 @@ func (op *BackupOperation) persistResults(
 		op.Status = NoData
 	}
 
-	op.Results.BytesRead = opStats.k.TotalHashedBytes
-	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
-	op.Results.ItemsWritten = opStats.k.TotalFileCount
-	op.Results.ResourceOwners = opStats.resourceCount
 
 	return nil
 }
