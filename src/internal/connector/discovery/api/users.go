@@ -140,22 +140,19 @@ func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, err
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// Assume all services are enabled
 	// then filter down to only services the user has enabled
-	userInfo := newUserInfo()
-
-	// TODO: OneDrive
-
 	var (
-		err         error
-		internalErr error
+		err      error
+		userInfo = newUserInfo()
 	)
 
+	// TODO: OneDrive
 	err = graph.RunWithRetry(func() error {
-		_, internalErr = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
-		return internalErr
+		_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+		return err
 	})
 
 	if err != nil {
-		if !graph.IsErrExchangeMailFolderNotFound(internalErr) {
+		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			return nil, support.ConnectorStackErrorTraceWrap(err, "getting user's exchange mailfolders")
 		}
 

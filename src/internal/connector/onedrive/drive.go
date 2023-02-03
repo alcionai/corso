@@ -237,19 +237,18 @@ func getFolder(
 	builder := msdrive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
 	var (
-		foundItem   models.DriveItemable
-		err         error
-		internalErr error
+		foundItem models.DriveItemable
+		err       error
 	)
 
 	err = graph.RunWithRetry(func() error {
-		foundItem, internalErr = builder.Get(ctx, nil)
-		return internalErr
+		foundItem, err = builder.Get(ctx, nil)
+		return err
 	})
 
 	if err != nil {
 		var oDataError *odataerrors.ODataError
-		if errors.As(internalErr, &oDataError) &&
+		if errors.As(err, &oDataError) &&
 			oDataError.GetError() != nil &&
 			oDataError.GetError().GetCode() != nil &&
 			*oDataError.GetError().GetCode() == itemNotFoundErrorCode {
