@@ -167,6 +167,12 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 
 	// persist operation results to the model store on exit
 	defer func() {
+		// panic recovery here prevents additional errors in op.persistResults()
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+			return
+		}
+
 		err = op.persistResults(startTime, &opStats)
 		if err != nil {
 			op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
