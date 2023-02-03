@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When the same user has permissions to a file and the containing
   folder, we only restore folder level permissions for the user and no
   separate file only permission is restored.
+- Link shares are not restored
 
 ## [v0.2.0] (alpha) - 2023-1-29
 
