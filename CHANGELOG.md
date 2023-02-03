@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--restore-permissions` flag to toggle restoration of OneDrive permissions
 - Add versions to backups so that we can understand/handle older backup formats
 
+### Fixed
+- Fix bug when backing up a calendar that has the same name as the default calendar
+
 ### Known Issues
 
 - When the same user has permissions to a file and the containing
