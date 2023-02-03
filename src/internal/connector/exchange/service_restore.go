@@ -637,7 +637,11 @@ func establishEventsRestoreLocation(
 	user string,
 	isNewCache bool,
 ) (string, error) {
-	cached, ok := ecc.PathInCache(folders[0])
+	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
+	cached, ok := ecc.PathInCache(path.Builder{}.Append(
+		calendarOthersFolder,
+		folders[0],
+	).String())
 	if ok {
 		return cached, nil
 	}
