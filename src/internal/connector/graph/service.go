@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -22,6 +23,7 @@ import (
 
 const (
 	logGraphRequestsEnvKey = "LOG_GRAPH_REQUESTS"
+	numberOfRetries        = 3
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -293,4 +295,27 @@ func (handler *LoggingMiddleware) Intercept(
 	}
 
 	return resp, err
+}
+
+// Run a function with retries
+func RunWithRetry(run func() error) error {
+	var err error
+
+	for i := 0; i < numberOfRetries; i++ {
+		err = run()
+		if err == nil {
+			return nil
+		}
+
+		// only retry on timeouts and 500-internal-errors.
+		if !(IsErrTimeout(err) || IsInternalServerError(err)) {
+			break
+		}
+
+		if i < numberOfRetries {
+			time.Sleep(time.Duration(3*(i+2)) * time.Second)
+		}
+	}
+
+	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
 }
