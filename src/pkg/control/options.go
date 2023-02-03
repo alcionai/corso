@@ -6,10 +6,11 @@ import (
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision      CollisionPolicy `json:"-"`
-	DisableMetrics bool            `json:"disableMetrics"`
-	FailFast       bool            `json:"failFast"`
-	ToggleFeatures Toggles         `json:"ToggleFeatures"`
+	Collision          CollisionPolicy `json:"-"`
+	DisableMetrics     bool            `json:"disableMetrics"`
+	FailFast           bool            `json:"failFast"`
+	RestorePermissions bool            `json:"restorePermissions"`
+	ToggleFeatures     Toggles         `json:"ToggleFeatures"`
 }
 
 // Defaults provides an Options with the default values set.
@@ -74,4 +75,9 @@ type Toggles struct {
 	// DisableIncrementals prevents backups from using incremental lookups,
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+
+	// DisablePermissionsBackup is used to disable backups of item
+	// permissions. Permission metadata increases graph api call count,
+	// so disabling their retrieval when not needed is advised.
+	DisablePermissionsBackup bool `json:"disablePermissionsBackup,omitempty"`
 }

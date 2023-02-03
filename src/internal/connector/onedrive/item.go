@@ -1,7 +1,9 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,6 +39,7 @@ func getDriveItem(
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
+// TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
 	hc *http.Client,
 	item models.DriveItemable,
@@ -53,6 +56,25 @@ func sharePointItemReader(
 	return dii, resp.Body, nil
 }
 
+func oneDriveItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+) (io.ReadCloser, int, error) {
+	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+}
+
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
@@ -60,16 +82,25 @@ func oneDriveItemReader(
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	resp, err := downloadItem(hc, item)
-	if err != nil {
-		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+	var (
+		rc     io.ReadCloser
+		isFile = item.GetFile() != nil
+	)
+
+	if isFile {
+		resp, err := downloadItem(hc, item)
+		if err != nil {
+			return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+		}
+
+		rc = resp.Body
 	}
 
 	dii := details.ItemInfo{
 		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, resp.Body, nil
+	return dii, rc, nil
 }
 
 func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
@@ -147,6 +178,47 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		Size:      itemSize,
 		Owner:     email,
 	}
+}
+
+// oneDriveItemMetaInfo will fetch the meta information for a drive
+// item. As of now, it only adds the permissions applicable for a
+// onedrive item.
+func oneDriveItemMetaInfo(
+	ctx context.Context, service graph.Servicer,
+	driveID string, di models.DriveItemable,
+) (Metadata, error) {
+	itemID := di.GetId()
+
+	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
+	if err != nil {
+		return Metadata{}, errors.Wrapf(err, "failed to get item permissions %s", *itemID)
+	}
+
+	up := []UserPermission{}
+
+	for _, p := range perm.GetValue() {
+		roles := []string{}
+
+		for _, r := range p.GetRoles() {
+			// Skip if the only role available in owner
+			if r != "owner" {
+				roles = append(roles, r)
+			}
+		}
+
+		if len(roles) == 0 {
+			continue
+		}
+
+		up = append(up, UserPermission{
+			ID:         *p.GetId(),
+			Roles:      roles,
+			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
+			Expiration: p.GetExpirationDateTime(),
+		})
+	}
+
+	return Metadata{Permissions: up}, nil
 }
 
 // sharePointItemInfo will populate a details.SharePointInfo struct

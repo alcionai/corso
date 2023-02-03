@@ -59,14 +59,18 @@ func RestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, canceled = onedrive.RestoreCollection(
+			metrics, _, _, canceled = onedrive.RestoreCollection(
 				ctx,
 				service,
 				dc,
+				[]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
 				onedrive.OneDriveSource,
 				dest.ContainerName,
 				deets,
-				errUpdater)
+				errUpdater,
+				map[string]string{},
+				false,
+			)
 		case path.ListsCategory:
 			metrics, canceled = RestoreCollection(
 				ctx,

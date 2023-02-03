@@ -66,6 +66,7 @@ func CreateStatus(
 
 	hasErrors := err != nil
 	numErr := GetNumberOfErrors(err)
+
 	status := ConnectorOperationStatus{
 		lastOperation:     op,
 		ObjectCount:       cm.Objects,
