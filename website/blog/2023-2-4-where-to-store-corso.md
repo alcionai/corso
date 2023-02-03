@@ -47,7 +47,7 @@ here’s the single script that can run a non-production instance of MinIO withi
 and the AWS CLI as prerequisites) and get you started with Corso quickly:
 
 ```bash
-mkdir -p ~\s/minio/data
+mkdir -p $HOME/minio/data
 
 docker run \
    -p 9000:9000 \
@@ -68,8 +68,12 @@ export AWS_SECRET_ACCESS_KEY=CHANGEME123
 aws s3api create-bucket --bucket corso-backup --endpoint=http://127.0.0.1:9000
 ```
 
-To connect Corso to a local MinIO server with `[corso repo init](https://corsobackup.io/docs/cli/corso-repo-init-s3/)`
-you’ll want to pass the `--disable-tls` flag so that it will accept an `http` connection
+To connect Corso to a local MinIO server with [`corso repo init`](https://corsobackup.io/docs/cli/corso-repo-init-s3/)
+you’ll want to pass the `--disable-tls` flag so that it will accept an `http` connection. The full command would look like:
+
+```bash
+./corso repo init s3 --bucket corso-backup --disable-tls --endpoint 127.0.0.1:9000
+```
 
 ## Reducing Cost With S3 Storage Classes
 
