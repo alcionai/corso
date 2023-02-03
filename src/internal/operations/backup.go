@@ -167,6 +167,12 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 
 	// persist operation results to the model store on exit
 	defer func() {
+		// panic recovery here prevents additional errors in op.persistResults()
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+			return
+		}
+
 		err = op.persistResults(startTime, &opStats)
 		if err != nil {
 			op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
@@ -445,24 +451,22 @@ func consumeBackupDataCollections(
 		cs,
 		nil,
 		tags,
-		isIncremental,
-	)
+		isIncremental)
+	if err != nil {
+		if kopiaStats == nil {
+			return nil, nil, nil, err
+		}
+
+		return nil, nil, nil, errors.Wrapf(
+			err,
+			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
+	}
 
 	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
-		if err != nil {
-			err = errors.Wrapf(
-				err,
-				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-				kopiaStats.ErrorCount,
-				kopiaStats.IgnoredErrorCount,
-			)
-		} else {
-			err = errors.Errorf(
-				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-				kopiaStats.ErrorCount,
-				kopiaStats.IgnoredErrorCount,
-			)
-		}
+		err = errors.Errorf(
+			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
