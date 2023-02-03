@@ -93,7 +93,7 @@ that recommendations such as these are always workload dependent and should be v
 we would not recommend Glacier Instant Retrieval if you are constantly testing large restores or have heavy
 churn in your backups and
 limited retention. However, for most typical backup workloads (write mostly, read rarely), Glacier Instant Retrieval
-should work just fine and deliver the best price-performance ratio. 
+should work just fine and deliver the best price-performance ratio.
 
 You can configure your storage to use Glacier Instant Retrieval by adding a `.storageconfig` file to the root of your
 bucket. If you have configured Corso to store the repository in a sub-folder within your bucket by adding a
