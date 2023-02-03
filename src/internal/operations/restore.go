@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -106,6 +107,12 @@ type restorer interface {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+		}
+	}()
+
 	ctx, end := D.Span(ctx, "operations:restore:run")
 	defer func() {
 		end()
@@ -248,6 +255,11 @@ func (op *RestoreOperation) persistResults(
 			errors.New("errors prevented the operation from processing"),
 			opStats.readErr,
 			opStats.writeErr)
+	}
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("data restoration never completed")
 	}
 
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {

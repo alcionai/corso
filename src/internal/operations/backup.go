@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"runtime/debug"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -106,7 +107,13 @@ type detailsWriter interface {
 // ---------------------------------------------------------------------------
 
 // Run begins a synchronous backup operation.
-func (op *BackupOperation) Run(ctx context.Context) error {
+func (op *BackupOperation) Run(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+		}
+	}()
+
 	ctx, end := D.Span(ctx, "operations:backup:run")
 	defer func() {
 		end()
@@ -587,6 +594,11 @@ func (op *BackupOperation) persistResults(
 			errors.New("errors prevented the operation from processing"),
 			opStats.readErr,
 			opStats.writeErr)
+	}
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("data population never completed")
 	}
 
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
