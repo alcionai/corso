@@ -89,7 +89,7 @@ other Glacier variants.
 Glacier Instant Retrieval should provide the best price performance for a  backup workload as backup data blobs are
 typically written once, with occasional re-compacting, and read infrequently in the case of restore. One should note
 that recommendations such as these are always workload dependent and should be verified for your use case. For example,
-we would not recommend Glacier IR if you are constantly testing large restores or have heavy churn in your backups and
+we would not recommend Glacier Instant Retrieval if you are constantly testing large restores or have heavy churn in your backups and
 limited retention. However, for most typical backup workloads (write mostly, read rarely), Glacier Instant Retrieval
 should work just fine and deliver the best price-performance ratio. 
 
