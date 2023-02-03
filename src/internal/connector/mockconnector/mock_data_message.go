@@ -366,12 +366,8 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 	// 1. subject
 	// 2. alias
 	// 3. sender address
-	// 4. from alias
-	// 5. from address
-	// 6. toRecipients alias
-	// 7. toRecipients email address
-	// 8. organizer alias
-	// 9. organizer email address
+	// 4. from address
+	// 5. toRecipients email address
 	template := `{
 		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages(attachments())/$entity",
 		"@odata.etag": "W/\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK782\"",
@@ -384,7 +380,7 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 		"sentDateTime": "2023-02-02T21:38:24Z",
 		"hasAttachments": true,
 		"internetMessageId": "<SJ0PR17MB562287BE29A86751D6E77FE5C3D69@SJ0PR17MB5622.namprd17.prod.outlook.com>",
-		"subject": "%s",
+		"subject": "%[1]v",
 		"bodyPreview": "Dustin,\r\n\r\nI'm here to see if we are still able to discover our object.",
 		"importance": "normal",
 		"parentFolderId": "AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==",
@@ -402,21 +398,21 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 		},
 		"sender": {
 		  "emailAddress": {
-			"name": "%s",
-			"address": "%s"
+			"name": "%[2]s",
+			"address": "%[3]s"
 		  }
 		},
 		"from": {
 		  "emailAddress": {
-			"name": "%s",
-			"address": "%s"
+			"name": "%[2]s",
+			"address": "%[4]s"
 		  }
 		},
 		"toRecipients": [
 		  {
 			"emailAddress": {
-			  "name": "%s",
-			  "address": "%s"
+			  "name": "%[2]s",
+			  "address": "%[5]s"
 			}
 		  }
 		],
@@ -526,8 +522,8 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 					},
 					"organizer": {
 					  "emailAddress": {
-						"name": "%s",
-						"address": "%s"
+						"name": "Event Manager",
+						"address": "philonis@8qzvrj.onmicrosoft.com"
 					  }
 					}
 				  }
@@ -543,12 +539,9 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 		subject,
 		defaultAlias,
 		defaultMessageSender,
-		defaultAlias,
 		defaultMessageFrom,
-		defaultAlias,
 		defaultMessageTo,
-		defaultAlias,
-		defaultEventOrganizer)
+	)
 
 	return []byte(message)
 }
