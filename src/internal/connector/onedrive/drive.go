@@ -148,6 +148,7 @@ type itemCollector func(
 type itemPager interface {
 	GetPage(context.Context) (gapi.DeltaPageLinker, error)
 	SetNext(nextLink string)
+	Reset()
 	ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error)
 }
 
@@ -209,7 +210,7 @@ func collectItems(
 
 			invalidPrevDelta = true
 
-			pager.SetNext("")
+			pager.Reset()
 
 			continue
 		}

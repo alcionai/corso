@@ -1048,6 +1048,7 @@ func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
 }
 
 func (p *mockItemPager) SetNext(string) {}
+func (p *mockItemPager) Reset()         {}
 
 func (p *mockItemPager) ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error) {
 	idx := p.getIdx
