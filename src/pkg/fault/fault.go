@@ -87,11 +87,12 @@ func (e *Errors) Fail(err error) *Errors {
 // setErr handles setting errors.err.  Sync locking gets
 // handled upstream of this call.
 func (e *Errors) setErr(err error) *Errors {
-	if e.err != nil {
-		return e.addErr(err)
+	if e.err == nil {
+		e.err = err
+		return e
 	}
 
-	e.err = err
+	e.errs = append(e.errs, err)
 
 	return e
 }

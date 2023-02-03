@@ -3,6 +3,8 @@ package operations
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
+	"sort"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -106,6 +108,12 @@ type restorer interface {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+		}
+	}()
+
 	ctx, end := D.Span(ctx, "operations:restore:run")
 	defer func() {
 		end()
@@ -143,6 +151,12 @@ func (op *RestoreOperation) do(ctx context.Context) (restoreDetails *details.Det
 	)
 
 	defer func() {
+		// panic recovery here prevents additional errors in op.persistResults()
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+			return
+		}
+
 		err = op.persistResults(ctx, startTime, &opStats)
 		if err != nil {
 			return
@@ -211,10 +225,13 @@ func (op *RestoreOperation) do(ctx context.Context) (restoreDetails *details.Det
 
 	restoreDetails, err = gc.RestoreDataCollections(
 		ctx,
+		bup.Version,
 		op.account,
 		op.Selectors,
 		op.Destination,
-		dcs)
+		op.Options,
+		dcs,
+	)
 	if err != nil {
 		opStats.writeErr = errors.Wrap(err, "restoring service data")
 		return nil, opStats.writeErr
@@ -250,14 +267,20 @@ func (op *RestoreOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.BytesRead = opStats.bytesRead.NumBytes
+	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
+	op.Results.ResourceOwners = opStats.resourceCount
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("data restoration never completed")
+	}
+
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.BytesRead = opStats.bytesRead.NumBytes
-	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
-	op.Results.ResourceOwners = opStats.resourceCount
 
 	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
@@ -313,6 +336,17 @@ func formatDetailsForRestoration(
 
 		paths[i] = p
 	}
+
+	// TODO(meain): Move this to onedrive specific component, but as
+	// of now the paths can technically be from multiple services
+
+	// This sort is done primarily to order `.meta` files after `.data`
+	// files. This is only a necessity for OneDrive as we are storing
+	// metadata for files/folders in separate meta files and we the
+	// data to be restored before we can restore the metadata.
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].String() < paths[j].String()
+	})
 
 	if errs != nil {
 		return nil, errs

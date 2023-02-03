@@ -65,9 +65,15 @@ func uploadAttachment(
 
 		if err != nil {
 			// TODO: Update to support PII protection
+			name := ""
+			if prev.GetName() != nil {
+				name = *prev.GetName()
+			}
+
 			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
-				"attachment_name", *prev.GetName(),
+				"attachment_name", name,
 				"attachment_type", attachmentType,
+				"internal_item_type", getItemAttachmentItemType(prev),
 				"attachment_id", *prev.GetId(),
 			)
 
@@ -113,4 +119,20 @@ func uploadLargeAttachment(ctx context.Context, uploader attachmentUploadable,
 	}
 
 	return nil
+}
+
+func getItemAttachmentItemType(query models.Attachmentable) string {
+	empty := ""
+	attachment, ok := query.(models.ItemAttachmentable)
+
+	if !ok {
+		return empty
+	}
+
+	item := attachment.GetItem()
+	if item.GetOdataType() == nil {
+		return empty
+	}
+
+	return *item.GetOdataType()
 }
