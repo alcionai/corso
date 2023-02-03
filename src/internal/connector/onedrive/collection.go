@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,6 +35,10 @@ const (
 	// Max number of retries to get doc from M365
 	// Seems to timeout at times because of multiple requests
 	maxRetries = 4 // 1 + 3 retries
+
+	MetaFileSuffix    = ".meta"
+	DirMetaFileSuffix = ".dirmeta"
+	DataFileSuffix    = ".data"
 )
 
 var (
@@ -56,12 +61,13 @@ type Collection struct {
 	// M365 IDs of file items within this collection
 	driveItems map[string]models.DriveItemable
 	// M365 ID of the drive this collection was created from
-	driveID       string
-	source        driveSource
-	service       graph.Servicer
-	statusUpdater support.StatusUpdater
-	itemReader    itemReaderFunc
-	ctrl          control.Options
+	driveID        string
+	source         driveSource
+	service        graph.Servicer
+	statusUpdater  support.StatusUpdater
+	itemReader     itemReaderFunc
+	itemMetaReader itemMetaReaderFunc
+	ctrl           control.Options
 
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
@@ -72,6 +78,15 @@ type itemReaderFunc func(
 	hc *http.Client,
 	item models.DriveItemable,
 ) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
+
+// itemMetaReaderFunc returns a reader for the metadata of the
+// specified item
+type itemMetaReaderFunc func(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
 func NewCollection(
@@ -101,6 +116,7 @@ func NewCollection(
 		c.itemReader = sharePointItemReader
 	default:
 		c.itemReader = oneDriveItemReader
+		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
 	return c
@@ -138,6 +154,21 @@ func (oc Collection) DoNotMergeItems() bool {
 	return oc.doNotMergeItems
 }
 
+// FilePermission is used to store permissions of a specific user to a
+// OneDrive item.
+type UserPermission struct {
+	ID         string     `json:"id,omitempty"`
+	Roles      []string   `json:"role,omitempty"`
+	Email      string     `json:"email,omitempty"`
+	Expiration *time.Time `json:"expiration,omitempty"`
+}
+
+// ItemMeta contains metadata about the Item. It gets stored in a
+// separate file in kopia
+type Metadata struct {
+	Permissions []UserPermission `json:"permissions,omitempty"`
+}
+
 // Item represents a single item retrieved from OneDrive
 type Item struct {
 	id   string
@@ -173,18 +204,21 @@ func (od *Item) ModTime() time.Time {
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context) {
 	var (
-		errs      error
-		byteCount int64
-		itemsRead int64
-		wg        sync.WaitGroup
-		m         sync.Mutex
+		errs       error
+		byteCount  int64
+		itemsRead  int64
+		dirsRead   int64
+		itemsFound int64
+		dirsFound  int64
+		wg         sync.WaitGroup
+		m          sync.Mutex
 	)
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, err)
+		oc.reportAsCompleted(ctx, 0, 0, 0, err)
 		return
 	}
 
@@ -205,14 +239,9 @@ func (oc *Collection) populateItems(ctx context.Context) {
 		m.Unlock()
 	}
 
-	for id, item := range oc.driveItems {
+	for _, item := range oc.driveItems {
 		if oc.ctrl.FailFast && errs != nil {
 			break
-		}
-
-		if item == nil {
-			errUpdater(id, errors.New("nil item"))
-			continue
 		}
 
 		semaphoreCh <- struct{}{}
@@ -223,12 +252,62 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
+			// Read the item
 			var (
-				itemID   = *item.GetId()
-				itemName = *item.GetName()
-				itemSize = *item.GetSize()
-				itemInfo details.ItemInfo
+				itemID       = *item.GetId()
+				itemName     = *item.GetName()
+				itemSize     = *item.GetSize()
+				itemInfo     details.ItemInfo
+				itemMeta     io.ReadCloser
+				itemMetaSize int
+				metaSuffix   string
+				err          error
 			)
+
+			isFile := item.GetFile() != nil
+
+			if isFile {
+				atomic.AddInt64(&itemsFound, 1)
+
+				metaSuffix = MetaFileSuffix
+			} else {
+				atomic.AddInt64(&dirsFound, 1)
+
+				metaSuffix = DirMetaFileSuffix
+			}
+
+			if oc.source == OneDriveSource {
+				// Fetch metadata for the file
+				for i := 1; i <= maxRetries; i++ {
+					if oc.ctrl.ToggleFeatures.DisablePermissionsBackup {
+						// We are still writing the metadata file but with
+						// empty permissions as we are not sure how the
+						// restore will be called.
+						itemMeta = io.NopCloser(strings.NewReader("{}"))
+						itemMetaSize = 2
+
+						break
+					}
+
+					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+
+					// retry on Timeout type errors, break otherwise.
+					if err == nil ||
+						!graph.IsErrTimeout(err) ||
+						!graph.IsInternalServerError(err) {
+						break
+					}
+
+					if i < maxRetries {
+						time.Sleep(1 * time.Second)
+					}
+				}
+
+				if err != nil {
+					errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
+					return
+				}
+			}
 
 			switch oc.source {
 			case SharePointSource:
@@ -239,101 +318,127 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
-			// Construct a new lazy readCloser to feed to the collection consumer.
-			// This ensures that downloads won't be attempted unless that consumer
-			// attempts to read bytes.  Assumption is that kopia will check things
-			// like file modtimes before attempting to read.
-			itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-				// Read the item
-				var (
-					itemData io.ReadCloser
-					err      error
-				)
+			if isFile {
+				dataSuffix := ""
+				if oc.source == OneDriveSource {
+					dataSuffix = DataFileSuffix
+				}
 
-				for i := 1; i <= maxRetries; i++ {
-					_, itemData, err = oc.itemReader(oc.itemClient, item)
-					if err == nil {
-						break
-					}
+				// Construct a new lazy readCloser to feed to the collection consumer.
+				// This ensures that downloads won't be attempted unless that consumer
+				// attempts to read bytes.  Assumption is that kopia will check things
+				// like file modtimes before attempting to read.
+				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+					// Read the item
+					var (
+						itemData io.ReadCloser
+						err      error
+					)
 
-					if graph.IsErrUnauthorized(err) {
-						// assume unauthorized requests are a sign of an expired
-						// jwt token, and that we've overrun the available window
-						// to download the actual file.  Re-downloading the item
-						// will refresh that download url.
-						di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
-						if diErr != nil {
-							err = errors.Wrap(diErr, "retrieving expired item")
+					for i := 1; i <= maxRetries; i++ {
+						_, itemData, err = oc.itemReader(oc.itemClient, item)
+						if err == nil {
 							break
 						}
 
-						item = di
+						if graph.IsErrUnauthorized(err) {
+							// assume unauthorized requests are a sign of an expired
+							// jwt token, and that we've overrun the available window
+							// to download the actual file.  Re-downloading the item
+							// will refresh that download url.
+							di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+							if diErr != nil {
+								err = errors.Wrap(diErr, "retrieving expired item")
+								break
+							}
 
-						continue
+							item = di
 
-					} else if !graph.IsErrTimeout(err) &&
-						!graph.IsInternalServerError(err) {
-						// Don't retry for non-timeout, on-unauth, as
-						// we are already retrying it in the default
-						// retry middleware
-						break
+							continue
+
+						} else if !graph.IsErrTimeout(err) &&
+							!graph.IsInternalServerError(err) {
+							// Don't retry for non-timeout, on-unauth, as
+							// we are already retrying it in the default
+							// retry middleware
+							break
+						}
+
+						if i < maxRetries {
+							time.Sleep(1 * time.Second)
+						}
 					}
 
-					if i < maxRetries {
-						time.Sleep(1 * time.Second)
+					// check for errors following retries
+					if err != nil {
+						errUpdater(itemID, err)
+						return nil, err
 					}
+
+					// display/log the item download
+					progReader, closer := observe.ItemProgress(
+						ctx,
+						itemData,
+						observe.ItemBackupMsg,
+						observe.PII(itemName+dataSuffix),
+						itemSize,
+					)
+					go closer()
+
+					return progReader, nil
+				})
+
+				oc.data <- &Item{
+					id:   itemName + dataSuffix,
+					data: itemReader,
+					info: itemInfo,
 				}
+			}
 
-				// check for errors following retries
-				if err != nil {
-					errUpdater(itemID, err)
-					return nil, err
+			if oc.source == OneDriveSource {
+				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+					progReader, closer := observe.ItemProgress(
+						ctx, itemMeta, observe.ItemBackupMsg,
+						observe.PII(itemName+metaSuffix), int64(itemMetaSize))
+					go closer()
+					return progReader, nil
+				})
+
+				oc.data <- &Item{
+					id:   itemName + metaSuffix,
+					data: metaReader,
+					info: itemInfo,
 				}
+			}
 
-				// display/log the item download
-				progReader, closer := observe.ItemProgress(ctx, itemData, observe.ItemBackupMsg, observe.PII(itemName), itemSize)
-				go closer()
-
-				return progReader, nil
-			})
-
-			// This can cause inaccurate counts.  Right now it counts all the items
-			// we intend to read.  Errors within the lazy readCloser will create a
-			// conflict: an item is both successful and erroneous.  But the async
-			// control to fix that is more error-prone than helpful.
-			//
-			// TODO: transform this into a stats bus so that async control of stats
-			// aggregation is handled at the backup level, not at the item iteration
-			// level.
-			//
 			// Item read successfully, add to collection
-			atomic.AddInt64(&itemsRead, 1)
+			if isFile {
+				atomic.AddInt64(&itemsRead, 1)
+			} else {
+				atomic.AddInt64(&dirsRead, 1)
+			}
+
 			// byteCount iteration
 			atomic.AddInt64(&byteCount, itemSize)
 
-			oc.data <- &Item{
-				id:   itemName,
-				data: itemReader,
-				info: itemInfo,
-			}
 			folderProgress <- struct{}{}
 		}(item)
 	}
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsRead), byteCount, errs)
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, errs)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsRead int, byteCount int64, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, errs error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
-			Objects:    len(oc.driveItems), // items to read,
-			Successes:  itemsRead,          // items read successfully,
-			TotalBytes: byteCount,          // Number of bytes read in the operation,
+			Objects:    itemsFound, // items to read,
+			Successes:  itemsRead,  // items read successfully,
+			TotalBytes: byteCount,  // Number of bytes read in the operation,
 		},
 		errs,
 		oc.folderPath.Folder(), // Additional details
