@@ -341,7 +341,7 @@ func generateContainerOfItems(
 
 	deets, err := gc.RestoreDataCollections(
 		ctx,
-		backup.CurrentBackupFormatVersion,
+		backup.Version,
 		acct,
 		sel,
 		dest,

@@ -234,7 +234,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 
 	deets, err := suite.connector.RestoreDataCollections(
 		ctx,
-		backup.CurrentBackupFormatVersion,
+		backup.Version,
 		acct,
 		sel,
 		dest,
@@ -308,7 +308,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 			deets, err := suite.connector.RestoreDataCollections(
 				ctx,
-				backup.CurrentBackupFormatVersion,
+				backup.Version,
 				suite.acct,
 				test.sel,
 				dest,
@@ -403,7 +403,7 @@ func runRestoreBackupTest(
 	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
-		backup.CurrentBackupFormatVersion,
+		backup.Version,
 		acct,
 		restoreSel,
 		dest,
@@ -527,7 +527,8 @@ func runRestoreBackupTestVersion0(
 	require.NoError(t, err)
 	assert.NotNil(t, deets)
 
-	_ = restoreGC.AwaitStatus()
+	assert.NotNil(t, restoreGC.AwaitStatus())
+
 	runTime := time.Since(start)
 
 	t.Logf("Restore complete in %v\n", runTime)
@@ -565,7 +566,6 @@ func runRestoreBackupTestVersion0(
 
 	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
-	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
 	dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
@@ -1387,7 +1387,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 				deets, err := restoreGC.RestoreDataCollections(
 					ctx,
-					backup.CurrentBackupFormatVersion,
+					backup.Version,
 					suite.acct,
 					restoreSel,
 					dest,
