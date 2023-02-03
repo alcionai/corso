@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -267,7 +268,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
-				func(status *support.ConnectorOperationStatus) {})
+				func(status *support.ConnectorOperationStatus) {},
+				fault.New(true))
 			require.NoError(t, err)
 
 			for _, c := range collections {
@@ -334,7 +336,8 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
-				func(status *support.ConnectorOperationStatus) {})
+				func(status *support.ConnectorOperationStatus) {},
+				fault.New(true))
 			require.NoError(t, err)
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
@@ -364,7 +367,8 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				test.scope,
 				dps,
 				control.Options{},
-				func(status *support.ConnectorOperationStatus) {})
+				func(status *support.ConnectorOperationStatus) {},
+				fault.New(true))
 			require.NoError(t, err)
 
 			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
@@ -409,7 +413,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		sel.Scopes()[0],
 		DeltaPaths{},
 		control.Options{},
-		newStatusUpdater(t, &wg))
+		newStatusUpdater(t, &wg),
+		fault.New(true))
 	require.NoError(t, err)
 
 	wg.Add(len(collections))
@@ -476,7 +481,8 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
-				newStatusUpdater(t, &wg))
+				newStatusUpdater(t, &wg),
+				fault.New(true))
 			require.NoError(t, err)
 
 			wg.Add(len(edcs))
@@ -583,7 +589,8 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				test.scope,
 				DeltaPaths{},
 				control.Options{},
-				newStatusUpdater(t, &wg))
+				newStatusUpdater(t, &wg),
+				fault.New(true))
 			require.NoError(t, err)
 			require.Len(t, collections, 2)
 

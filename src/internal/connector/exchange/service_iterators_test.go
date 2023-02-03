@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -304,7 +305,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				test.scope,
 				dps,
 				control.Options{FailFast: test.failFast},
-			)
+				fault.New(true))
 			test.expectErr(t, err)
 
 			// collection assertions
@@ -457,7 +458,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				allScope,
 				dps,
 				control.Options{FailFast: true},
-			)
+				fault.New(true))
 			require.NoError(t, err)
 
 			// collection assertions
@@ -809,7 +810,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				allScope,
 				test.dps,
 				control.Options{},
-			)
+				fault.New(true))
 			assert.NoError(t, err)
 
 			metadatas := 0
