@@ -553,6 +553,7 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 		defaultMessageTo,
 		defaultAlias,
 		defaultEventOrganizer,
+		defaultMessageFrom,
 	)
 
 	return []byte(message)
