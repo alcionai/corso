@@ -390,7 +390,6 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 		"isReadReceiptRequested": false,
 		"isRead": false,
 		"isDraft": false,
-		"webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%%2B7BwB8wYc0thTTTYl3RpEYIUq%%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%%2BAADFfThSAAA%3D&exvsurl=1&viewmodel=ReadMessageItem",
 		"inferenceClassification": "focused",
 		"body": {
 		  "contentType": "html",
@@ -451,7 +450,6 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 			  "isReadReceiptRequested": false,
 			  "isRead": true,
 			  "isDraft": false,
-			  "webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%%2B7BwB8wYc0thTTTYl3RpEYIUq%%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%%2BAADFfThSAAABEgAQAIyAgT1ZccRCjKKyF7VZ3dA%3D&exvsurl=1&viewmodel=ItemAttachment",
 			  "body": {
 				"contentType": "html",
 				"content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><metahttp-equiv=\"Content-Type\"content=\"text html;charset=\"utf-8&quot;\"><styletype=\"text css?style=\"display:none\"><!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n--><bodydir=\"ltr\"><divclass=\"elementToProof\"style=\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\"></head><body>Lookingtodothis&nbsp; <div></div></body></html>"
