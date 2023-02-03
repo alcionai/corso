@@ -80,7 +80,7 @@ func drives(
 			page, err = pager.GetPage(ctx)
 			if err != nil {
 				// Various error handling. May return an error or perform a retry.
-				detailedError := support.ConnectorStackErrorTrace(err)
+				detailedError := err.Error()
 				if strings.Contains(detailedError, userMysiteURLNotFound) ||
 					strings.Contains(detailedError, userMysiteNotFound) {
 					logger.Ctx(ctx).Infof("resource owner does not have a drive")
