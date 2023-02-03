@@ -158,7 +158,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.do(
 		ctx,
 		&opStats,
-		deets,
 		detailsStore)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
@@ -203,13 +202,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 func (op *BackupOperation) do(
 	ctx context.Context,
 	opStats *backupStats,
-	deets *details.Builder,
 	detailsStore detailsReader,
 ) error {
 	var (
 		toMerge  map[string]path.Path
 		tenantID = op.account.ID()
 		reasons  = selectorToReasons(op.Selectors)
+		deets    *details.Builder
 	)
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
@@ -253,14 +252,14 @@ func (op *BackupOperation) do(
 		return errors.Wrap(err, "persisting collection backups")
 	}
 
-	if err = mergeDetails(
+	err = mergeDetails(
 		ctx,
 		op.store,
 		detailsStore,
 		mans,
 		toMerge,
-		deets,
-	); err != nil {
+		deets)
+	if err != nil {
 		return errors.Wrap(err, "merging details")
 	}
 
