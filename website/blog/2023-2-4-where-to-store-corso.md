@@ -22,7 +22,6 @@ A number of other cloud providers aren’t the 500-pound gorilla of AWS but stil
 Some of them include:
 
 - Google Cloud: One of the largest cloud providers in the world, Google offers
-
 [an S3-compatible API](https://cloud.google.com/storage/docs/interoperability) on top of its Google Cloud Storage (GCS) offering.
 - Backblaze: Known for its deep analysis of hard drive failure statistics, Backblaze offers an S3-compatible API for its
 B2 Cloud Storage product. They also make the bold claim of costing [significantly less than AWS S3](https://www.backblaze.com/b2/cloud-storage-pricing.html)
