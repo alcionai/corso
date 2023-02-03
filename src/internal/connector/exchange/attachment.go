@@ -3,7 +3,6 @@ package exchange
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -61,23 +60,21 @@ func uploadAttachment(
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
 		prev := attachment
-		attachment, err = support.ToItemAttachment(attachment)
 
+		attachment, err = support.ToItemAttachment(attachment)
 		if err != nil {
-			// TODO: Update to support PII protection
 			name := ""
 			if prev.GetName() != nil {
 				name = *prev.GetName()
 			}
 
+			// TODO: Update to support PII protection
 			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
 				"attachment_name", name,
 				"attachment_type", attachmentType,
 				"internal_item_type", getItemAttachmentItemType(prev),
 				"attachment_id", *prev.GetId(),
 			)
-
-			fmt.Println("Error returned: " + err.Error())
 
 			return nil
 		}
