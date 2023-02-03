@@ -22,14 +22,13 @@ A number of other cloud providers aren’t the 500-pound gorilla of AWS but stil
 Some of them include:
 
 - Google Cloud: One of the largest cloud providers in the world, Google offers
-
 [an S3-compatible API](https://cloud.google.com/storage/docs/interoperability) on top of its Google Cloud Storage (GCS) offering.
 - Backblaze: Known for its deep analysis of hard drive failure statistics, Backblaze offers an S3-compatible API for its
 B2 Cloud Storage product. They also make the bold claim of costing [significantly less than AWS S3](https://www.backblaze.com/b2/cloud-storage-pricing.html)
 (I haven’t evaluated these claims) but Glacier is still cheaper (see below for more details)
 - HPE: HPE Greenlake offers S3 compatibility and claims superior performance over S3. If you want to get a sense of how
 ‘Enterprise’ HPE is, the best writeup I could find of their offerings is [available only as a PDF](https://www.hpe.com/us/en/collaterals/collateral.a50006216.Create-value-from-data-2C-at-scale-E2-80-93-HPE-GreenLake-for-Scality-solution-brief.html).
-- Wasabi: Another very popular offering, Wasabi has very good integration with existing AWS components at a reduced
+- Wasabi: Another popular offering, Wasabi has great integration with existing AWS components at a reduced
 cost but watch out for the minimum monthly storage charge and the minimum storage duration policy!
 
 This is an incomplete list, but any S3-compliant storage with immediate retrieval is expected to work with Corso today.
@@ -38,7 +37,7 @@ This is an incomplete list, but any S3-compliant storage with immediate retrieva
 
 In my own testing, I use [MinIO](https://min.io/) to create a local S3 server and bucket. This has some great advantages
 including extremely low latency for testing. Unless you have a significant hardware and software investment to ensure
-reliable storage and compute infrastructure, you probably do not want to rely on a simple MinIO setup as your primary
+reliable storage and compute infrastructure, you probably don't want to rely on a MinIO setup as your primary
 backup location, but it’s a great way to do a zero-cost test backup that you totally control.
 
 While there are a number of in-depth tutorials on how to use
@@ -95,7 +94,7 @@ limited retention. However, for most typical backup workloads (write mostly, rea
 should work just fine and deliver the best price-performance ratio. 
 
 You can configure your storage to use Glacier Instant Retrieval by adding a `.storageconfig` file to the root of your
-bucket. If you have configured Corso to store the repository in a subfolder within your bucket by adding a
+bucket. If you have configured Corso to store the repository in a sub-folder within your bucket by adding a
 `prefix = '[folder name]'` configuration, the `.storageconfig` should go within that folder in the bucket.
 
 Here’s an example:
@@ -109,7 +108,7 @@ Here’s an example:
 }
 ```
 
-The `"prefix": "p"` parameter is unrelated to the subfolder `prefix` setting mentioned above. It simply tells Corso to
+The `"prefix": "p"` parameter is unrelated to the subfolder `prefix` setting mentioned above. It tells Corso to
 use the selected storage class for data blobs (named with a `p` prefix). By default, all other objects including
 metadata and indices will use the standard storage tier.
 
