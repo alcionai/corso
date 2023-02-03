@@ -29,6 +29,11 @@ const (
 	// Microsoft recommends 5-10MB buffers
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
 	copyBufferSize = 5 * 1024 * 1024
+
+	// versionWithDataAndMetaFiles is the corso backup format version
+	// in which we split from storing just the data to storing both
+	// the data and metadata in two files.
+	versionWithDataAndMetaFiles = 1
 )
 
 func getParentPermissions(
@@ -55,6 +60,7 @@ func getParentPermissions(
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
+	backupVersion int,
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	opts control.Options,
@@ -101,6 +107,7 @@ func RestoreCollections(
 
 		metrics, folderPerms, permissionIDMappings, canceled = RestoreCollection(
 			ctx,
+			backupVersion,
 			service,
 			dc,
 			parentPerms,
@@ -139,6 +146,7 @@ func RestoreCollections(
 // - the context cancellation state (true if the context is canceled)
 func RestoreCollection(
 	ctx context.Context,
+	backupVersion int,
 	service graph.Servicer,
 	dc data.Collection,
 	parentPerms []UserPermission,
@@ -211,7 +219,7 @@ func RestoreCollection(
 				continue
 			}
 
-			if source == OneDriveSource {
+			if source == OneDriveSource && backupVersion >= versionWithDataAndMetaFiles {
 				name := itemData.UUID()
 				if strings.HasSuffix(name, DataFileSuffix) {
 					metrics.Objects++

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Increase page size preference for delta requests for Exchange to reduce number of roundtrips
 - OneDrive file/folder permissions can now be backed up and restored
 - Add `--restore-permissions` flag to toggle restoration of OneDrive permissions
+- Add versions to backups so that we can understand/handle older backup formats
 
 ### Known Issues
 

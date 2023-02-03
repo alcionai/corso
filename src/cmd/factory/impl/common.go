@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -91,7 +92,7 @@ func generateAndRestoreItems(
 
 	Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return gc.RestoreDataCollections(ctx, acct, sel, dest, opts, dataColls)
+	return gc.RestoreDataCollections(ctx, backup.Version, acct, sel, dest, opts, dataColls)
 }
 
 // ------------------------------------------------------------------------------------------
