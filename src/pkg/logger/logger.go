@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/cli/print"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/alcionai/corso/src/cli/print"
 )
 
 // Default location for writing logs, initialized in platform specific files
