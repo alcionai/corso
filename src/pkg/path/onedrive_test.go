@@ -57,3 +57,63 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 		})
 	}
 }
+
+func (suite *OneDrivePathSuite) TestOneDriveResourcePath_ShortRef() {
+	path1 := "/tenant/" + path.OneDriveService.String() + "/user/" + path.FilesCategory.String() + "/drive-id/root:/item1"
+	path2 := "/tenant/" + path.OneDriveService.String() + "/user/" + path.FilesCategory.String() + "/drive-id/root:/item2"
+	itemName1 := "foo.txt"
+	itemName2 := "bar.txt"
+
+	table := []struct {
+		name        string
+		path1       string
+		itemName1   string
+		path2       string
+		itemName2   string
+		compareFunc assert.ComparisonAssertionFunc
+	}{
+		{
+			name:        "SamePath_SameName",
+			path1:       path1,
+			itemName1:   itemName1,
+			path2:       path1,
+			itemName2:   itemName1,
+			compareFunc: assert.Equal,
+		},
+		{
+			name:        "DifferentPath_SameName",
+			path1:       path1,
+			itemName1:   itemName1,
+			path2:       path2,
+			itemName2:   itemName1,
+			compareFunc: assert.NotEqual,
+		},
+		{
+			name:        "SamePath_DifferentName",
+			path1:       path1,
+			itemName1:   itemName1,
+			path2:       path1,
+			itemName2:   itemName2,
+			compareFunc: assert.NotEqual,
+		},
+		{
+			name:        "DifferentPath_DifferentName",
+			path1:       path1,
+			itemName1:   itemName1,
+			path2:       path2,
+			itemName2:   itemName2,
+			compareFunc: assert.NotEqual,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p1, err := path.OneDriveResourcePath(test.itemName1, test.path1, true)
+			require.NoError(t, err)
+
+			p2, err := path.OneDriveResourcePath(test.itemName2, test.path2, true)
+			require.NoError(t, err)
+
+			test.compareFunc(t, p1.ShortRef(), p2.ShortRef())
+		})
+	}
+}
