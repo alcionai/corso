@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"runtime/debug"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -106,7 +107,13 @@ type detailsWriter interface {
 // ---------------------------------------------------------------------------
 
 // Run begins a synchronous backup operation.
-func (op *BackupOperation) Run(ctx context.Context) error {
+func (op *BackupOperation) Run(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+		}
+	}()
+
 	ctx, end := D.Span(ctx, "operations:backup:run")
 	defer func() {
 		end()
@@ -189,6 +196,8 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 		op.Errors.Fail(errors.Wrap(err, "collecting manifest heuristics"))
 		opStats.readErr = op.Errors.Err()
 
+		logger.Ctx(ctx).With("err", err).Errorw("producing manifests and metadata", clues.InErr(err).Slice()...)
+
 		return opStats.readErr
 	}
 
@@ -197,6 +206,8 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 		op.Errors.Fail(errors.Wrap(err, "connecting to m365"))
 		opStats.readErr = op.Errors.Err()
 
+		logger.Ctx(ctx).With("err", err).Errorw("connectng to m365", clues.InErr(err).Slice()...)
+
 		return opStats.readErr
 	}
 
@@ -204,6 +215,8 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "retrieving data to backup"))
 		opStats.readErr = op.Errors.Err()
+
+		logger.Ctx(ctx).With("err", err).Errorw("producing backup data collections", clues.InErr(err).Slice()...)
 
 		return opStats.readErr
 	}
@@ -223,6 +236,8 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 		op.Errors.Fail(errors.Wrap(err, "backing up service data"))
 		opStats.writeErr = op.Errors.Err()
 
+		logger.Ctx(ctx).With("err", err).Errorw("persisting collection backups", clues.InErr(err).Slice()...)
+
 		return opStats.writeErr
 	}
 
@@ -236,6 +251,8 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	); err != nil {
 		op.Errors.Fail(errors.Wrap(err, "merging backup details"))
 		opStats.writeErr = op.Errors.Err()
+
+		logger.Ctx(ctx).With("err", err).Errorw("merging details", clues.InErr(err).Slice()...)
 
 		return opStats.writeErr
 	}
@@ -589,15 +606,21 @@ func (op *BackupOperation) persistResults(
 			opStats.writeErr)
 	}
 
+	op.Results.BytesRead = opStats.k.TotalHashedBytes
+	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
+	op.Results.ItemsWritten = opStats.k.TotalFileCount
+	op.Results.ResourceOwners = opStats.resourceCount
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("data population never completed")
+	}
+
 	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.BytesRead = opStats.k.TotalHashedBytes
-	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsRead = opStats.gc.Successful
-	op.Results.ItemsWritten = opStats.k.TotalFileCount
-	op.Results.ResourceOwners = opStats.resourceCount
 
 	return nil
 }

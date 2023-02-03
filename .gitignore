@@ -20,6 +20,9 @@
 .corso_test.toml
 .corso.toml
 
+# Logging
+.corso.log
+
 # Build directories
 /bin
 /docker/bin
