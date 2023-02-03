@@ -17,6 +17,7 @@ type eventCalendarCache struct {
 	enumer containersEnumerator
 	getter containerGetter
 	userID string
+	rootID string
 }
 
 // init ensures that the structure's fields are initialized.
@@ -48,6 +49,10 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 	if err := ecc.addFolder(temp); err != nil {
 		return errors.Wrap(err, "initializing calendar resolver")
 	}
+
+	// Save the ID of the root container so we can build a hierarchy when
+	// populating the resolver.
+	ecc.rootID = *f.GetId()
 
 	return nil
 }
