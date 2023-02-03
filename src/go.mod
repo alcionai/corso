@@ -7,6 +7,7 @@ require (
 	github.com/alcionai/clues v0.0.0-20230131232239-cee86233b005
 	github.com/aws/aws-sdk-go v1.44.192
 	github.com/aws/aws-xray-sdk-go v1.8.0
+	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
@@ -37,7 +38,6 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/dnaeon/go-vcr v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
