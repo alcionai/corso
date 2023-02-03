@@ -66,7 +66,7 @@ func drives(
 		err             error
 		page            gapi.PageLinker
 		numberOfRetries = getDrivesRetries
-		drives          = []models.Driveable{}
+		drives          = make([]models.Driveable, 0)
 	)
 
 	getPageOperation := func() error {
@@ -77,21 +77,22 @@ func drives(
 			if strings.Contains(detailedError, userMysiteURLNotFound) ||
 				strings.Contains(detailedError, userMysiteNotFound) {
 				logger.Ctx(ctx).Infof("resource owner does not have a drive")
-				drives = make([]models.Driveable, 0)
+
 				return nil // no license or drives.
 			}
+
 			return errors.Wrapf(
 				err,
 				"failed to retrieve drives. details: %s",
 				detailedError,
 			)
 		}
+
 		return err
 	}
 
 	// Loop through all pages returned by Graph API.
 	for {
-
 		if !retry {
 			err = getPageOperation()
 			if err != nil {
@@ -104,6 +105,7 @@ func drives(
 				return nil, errors.Wrap(err, "extracting drives from response")
 			}
 		}
+
 		tmp, err := pager.ValuesIn(page)
 		if err != nil {
 			return nil, errors.Wrap(err, "extracting drives from response")
