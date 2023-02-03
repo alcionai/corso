@@ -14,10 +14,11 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	enumer containersEnumerator
-	getter containerGetter
-	userID string
-	rootID string
+	enumer   containersEnumerator
+	getter   containerGetter
+	userID   string
+	rootID   string
+	rootName string
 }
 
 // init ensures that the structure's fields are initialized.
@@ -53,8 +54,15 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 	// Save the ID of the root container so we can build a hierarchy when
 	// populating the resolver.
 	ecc.rootID = *f.GetId()
+	ecc.rootName = *f.GetDisplayName()
 
 	return nil
+}
+
+func (ecc *eventCalendarCache) PathInCache(p string) (string, bool) {
+	pb := path.Builder{}.Append(ecc.rootName, p)
+
+	return ecc.containerResolver.PathInCache(pb.String())
 }
 
 // Populate utility function for populating eventCalendarCache.
@@ -87,6 +95,16 @@ func (ecc *eventCalendarCache) Populate(
 	}
 
 	return nil
+}
+
+type containerWithParent struct {
+	graph.Container
+	parentID *string
+}
+
+//revive:disable-next-line:var-naming
+func (c containerWithParent) GetParentFolderId() *string {
+	return c.parentID
 }
 
 // AddToCache adds container to map in field 'cache'
