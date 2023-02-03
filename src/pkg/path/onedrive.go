@@ -1,6 +1,7 @@
 package path
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 )
 
@@ -37,4 +38,28 @@ func GetDriveFolderPath(p Path) (string, error) {
 	}
 
 	return Builder{}.Append(drivePath.Folders...).String(), nil
+}
+
+func OneDriveResourcePath(itemName, itemPath string, isItem bool) (Path, error) {
+	p, err := FromDataLayerPath(itemPath, isItem)
+	if err != nil {
+		return nil, clues.Wrap(err, "building OneDrive path")
+	}
+
+	return &oneDriveResourcePath{
+		Path:     p,
+		itemName: itemName,
+	}, nil
+}
+
+type oneDriveResourcePath struct {
+	Path
+	itemName string
+}
+
+// ShortRef returns a hash of the contents of the path plus the itemName. This
+// ensures the returned string is updated even if the path doesn't change but
+// the item has been renamed in an external service.
+func (p oneDriveResourcePath) ShortRef() string {
+	return p.ToBuilder().Append(p.itemName).ShortRef()
 }
