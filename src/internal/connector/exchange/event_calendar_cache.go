@@ -14,10 +14,11 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	enumer containersEnumerator
-	getter containerGetter
-	userID string
-	rootID string
+	enumer   containersEnumerator
+	getter   containerGetter
+	userID   string
+	rootID   string
+	rootName string
 }
 
 // init ensures that the structure's fields are initialized.
@@ -53,8 +54,15 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 	// Save the ID of the root container so we can build a hierarchy when
 	// populating the resolver.
 	ecc.rootID = *f.GetId()
+	ecc.rootName = *f.GetDisplayName()
 
 	return nil
+}
+
+func (ecc *eventCalendarCache) PathInCache(p string) (string, bool) {
+	pb := path.Builder{}.Append(ecc.rootName, p)
+
+	return ecc.containerResolver.PathInCache(pb.String())
 }
 
 // Populate utility function for populating eventCalendarCache.
@@ -86,6 +94,16 @@ func (ecc *eventCalendarCache) Populate(
 	return nil
 }
 
+type containerWithParent struct {
+	graph.Container
+	parentID *string
+}
+
+//revive:disable-next-line:var-naming
+func (c containerWithParent) GetParentFolderId() *string {
+	return c.parentID
+}
+
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
@@ -93,7 +111,13 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return errors.Wrap(err, "validating container")
 	}
 
-	temp := graph.NewCacheFolder(f, path.Builder{}.Append(*f.GetDisplayName()))
+	root := &ecc.rootID
+	if len(*root) == 0 {
+		root = nil
+	}
+
+	withParent := containerWithParent{Container: f, parentID: root}
+	temp := graph.NewCacheFolder(withParent, nil)
 
 	if err := ecc.addFolder(temp); err != nil {
 		return errors.Wrap(err, "adding container")
