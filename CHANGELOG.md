@@ -28,9 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add versions to backups so that we can understand/handle older backup formats
 
 ### Fixed
-- Backing up a calendar that has the same name as the default calendar
+
 - Added additional backoff-retry to all OneDrive queries.
 - Users with `null` userType values are no longer excluded from user queries.
+- Fix bug when backing up a calendar that has the same name as the default calendar
 
 ### Known Issues
 
