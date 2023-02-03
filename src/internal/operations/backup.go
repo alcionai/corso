@@ -445,24 +445,22 @@ func consumeBackupDataCollections(
 		cs,
 		nil,
 		tags,
-		isIncremental,
-	)
+		isIncremental)
+	if err != nil {
+		if kopiaStats == nil {
+			return nil, nil, nil, err
+		}
+
+		return nil, nil, nil, errors.Wrapf(
+			err,
+			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
+	}
 
 	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
-		if err != nil {
-			err = errors.Wrapf(
-				err,
-				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-				kopiaStats.ErrorCount,
-				kopiaStats.IgnoredErrorCount,
-			)
-		} else {
-			err = errors.Errorf(
-				"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-				kopiaStats.ErrorCount,
-				kopiaStats.IgnoredErrorCount,
-			)
-		}
+		err = errors.Errorf(
+			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
+			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
