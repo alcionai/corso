@@ -374,7 +374,7 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 	// 9. toRecipients email address
 	// 10. organizer alias
 	// 11. organizer email address
-	message := `{
+	template := `{
 		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages(attachments())/$entity",
 		"@odata.etag": "W/\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK782\"",
 		"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAA=",
@@ -539,6 +539,21 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 		  }
 		]
 	  }`
+
+	message := fmt.Sprintf(
+		template,
+		subject,
+		defaultAlias,
+		defaultMessageSender,
+		defaultAlias,
+		defaultMessageFrom,
+		defaultAlias,
+		defaultMessageTo,
+		defaultAlias,
+		defaultMessageTo,
+		defaultAlias,
+		defaultEventOrganizer,
+	)
 
 	return []byte(message)
 }
