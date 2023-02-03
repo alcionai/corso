@@ -112,7 +112,10 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		if r := recover(); r != nil {
 			err = clues.Wrap(r.(error), "panic recovery").
 				WithClues(ctx).
-				With("stacktrace", debug.Stack())
+				With("stacktrace", string(debug.Stack()))
+			logger.Ctx(ctx).
+				With("err", err).
+				Errorw("backup panic", clues.InErr(err).Slice()...)
 		}
 	}()
 
@@ -129,10 +132,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	var (
 		opStats      backupStats
-		deets        *details.Builder
 		startTime    = time.Now()
 		detailsStore = streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
+
+	op.Results.BackupID = model.StableID(uuid.NewString())
 
 	ctx = clues.AddAll(
 		ctx,
@@ -155,10 +159,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	err = op.do(
+	deets, err := op.do(
 		ctx,
 		&opStats,
-		detailsStore)
+		detailsStore,
+		op.Results.BackupID)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.Ctx(ctx).
@@ -184,6 +189,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		ctx,
 		detailsStore,
 		opStats.k.SnapshotID,
+		op.Results.BackupID,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup"))
@@ -203,54 +209,51 @@ func (op *BackupOperation) do(
 	ctx context.Context,
 	opStats *backupStats,
 	detailsStore detailsReader,
-) error {
-	var (
-		toMerge  map[string]path.Path
-		tenantID = op.account.ID()
-		reasons  = selectorToReasons(op.Selectors)
-		deets    *details.Builder
-	)
+	backupID model.StableID,
+) (*details.Builder, error) {
+	reasons := selectorToReasons(op.Selectors)
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
-	op.Results.BackupID = model.StableID(uuid.NewString())
 
 	mans, mdColls, canUseMetaData, err := produceManifestsAndMetadata(
 		ctx,
 		op.kopia,
 		op.store,
 		reasons,
-		tenantID,
+		op.account.ID(),
 		op.incremental,
 		op.Errors)
 	if err != nil {
-		return errors.Wrap(err, "producing manifests and metadata")
+		return nil, errors.Wrap(err, "producing manifests and metadata")
 	}
 
 	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
-		return errors.Wrap(err, "connectng to m365")
+		return nil, errors.Wrap(err, "connectng to m365")
 	}
 
 	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
 	if err != nil {
-		return errors.Wrap(err, "producing backup data collections")
+		return nil, errors.Wrap(err, "producing backup data collections")
 	}
 
 	ctx = clues.Add(ctx, "coll_count", len(cs))
 
-	opStats.k, deets, toMerge, err = consumeBackupDataCollections(
+	writeStats, deets, toMerge, err := consumeBackupDataCollections(
 		ctx,
 		op.kopia,
-		tenantID,
+		op.account.ID(),
 		reasons,
 		mans,
 		cs,
-		op.Results.BackupID,
+		backupID,
 		op.incremental && canUseMetaData)
 	if err != nil {
-		return errors.Wrap(err, "persisting collection backups")
+		return nil, errors.Wrap(err, "persisting collection backups")
 	}
+
+	opStats.k = writeStats
 
 	err = mergeDetails(
 		ctx,
@@ -260,18 +263,18 @@ func (op *BackupOperation) do(
 		toMerge,
 		deets)
 	if err != nil {
-		return errors.Wrap(err, "merging details")
+		return nil, errors.Wrap(err, "merging details")
 	}
 
 	opStats.gc = gc.AwaitStatus()
 	// TODO(keepers): remove when fault.Errors handles all iterable error aggregation.
 	if opStats.gc.ErrorCount > 0 {
-		return opStats.gc.Err
+		return nil, opStats.gc.Err
 	}
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
-	return nil
+	return deets, nil
 }
 
 // checker to see if conditions are correct for incremental backup behavior such as
@@ -514,8 +517,7 @@ func mergeDetails(
 			ctx,
 			model.StableID(bID),
 			ms,
-			detailsStore,
-		)
+			detailsStore)
 		if err != nil {
 			return clues.New("fetching base details for backup").WithClues(mctx)
 		}
@@ -560,8 +562,7 @@ func mergeDetails(
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
 				itemUpdated,
-				item,
-			)
+				item)
 
 			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
 			deets.AddFoldersForItem(folders, item, itemUpdated)
@@ -628,6 +629,7 @@ func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
 	detailsStore detailsWriter,
 	snapID string,
+	backupID model.StableID,
 	backupDetails *details.Details,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID)
@@ -644,7 +646,7 @@ func (op *BackupOperation) createBackupModels(
 	ctx = clues.Add(ctx, "details_id", detailsID)
 	b := backup.New(
 		snapID, detailsID, op.Status.String(),
-		op.Results.BackupID,
+		backupID,
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,

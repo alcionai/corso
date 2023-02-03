@@ -112,7 +112,10 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		if r := recover(); r != nil {
 			err = clues.Wrap(r.(error), "panic recovery").
 				WithClues(ctx).
-				With("stacktrace", debug.Stack())
+				With("stacktrace", string(debug.Stack()))
+			logger.Ctx(ctx).
+				With("err", err).
+				Errorw("backup panic", clues.InErr(err).Slice()...)
 		}
 	}()
 
