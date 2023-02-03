@@ -110,7 +110,10 @@ type detailsWriter interface {
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
+			temp := r.(error)
+			err = errors.Wrapf(temp, "panic recovery: stack trace: %s", string(debug.Stack()))
+			// TODO rkeepers use clues for error
+			// err = clues.Wrap(r.(error), "panic recovery").WithClues(ctx).With("stacktrace", debug.Stack())
 		}
 	}()
 
