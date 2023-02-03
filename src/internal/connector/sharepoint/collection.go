@@ -9,6 +9,7 @@ import (
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -46,6 +47,7 @@ type Collection struct {
 	jobs []string
 	// M365 IDs of the items of this collection
 	service       graph.Servicer
+	betaService   *api.BetaService
 	statusUpdater support.StatusUpdater
 }
 

@@ -49,9 +49,7 @@ func (suite *SharePointSuite) TestLoadList() {
 	defer flush()
 
 	t := suite.T()
-	service, err := createTestService(suite.creds)
-	require.NoError(t, err)
-
+	service := createTestService(t, suite.creds)
 	tuples, err := preFetchLists(ctx, service, "root")
 	require.NoError(t, err)
 
