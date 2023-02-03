@@ -350,7 +350,7 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	attachments := make([]models.Attachmentable, len(attached))
 
 	for _, ax := range attached {
-		if *ax.GetOdataType() == "#microsoft.graph.itemAttachment" {
+		if *ax.GetOdataType() == itmAttachment {
 			newAttachment, err := ToItemAttachment(ax)
 			if err != nil {
 				return nil, err
