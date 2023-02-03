@@ -1500,7 +1500,6 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 		name             string
 		items            []deltaPagerResult
 		deltaURL         string
-		prevDelta        string
 		prevDeltaSuccess bool
 		err              error
 	}{
@@ -1525,7 +1524,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 			name:     "invalid prev delta",
 			deltaURL: delta,
 			items: []deltaPagerResult{
-				{nextLink: &next, err: deltaError},
+				{err: deltaError},
 				{deltaLink: &delta}, // works on retry
 			},
 			prevDeltaSuccess: false,
@@ -1534,7 +1533,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 			name: "fail a normal delta query",
 			items: []deltaPagerResult{
 				{nextLink: &next},
-				{nextLink: &next, err: assert.AnError},
+				{err: assert.AnError},
 			},
 			prevDeltaSuccess: true,
 			err:              assert.AnError,
