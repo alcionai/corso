@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -76,6 +77,15 @@ func TestOneDriveUnitSuite(t *testing.T) {
 	suite.Run(t, new(OneDriveUnitSuite))
 }
 
+func odErr(code string) *odataerrors.ODataError {
+	odErr := &odataerrors.ODataError{}
+	merr := odataerrors.MainError{}
+	merr.SetCode(&code)
+	odErr.SetError(&merr)
+
+	return odErr
+}
+
 func (suite *OneDriveUnitSuite) TestDrives() {
 	numDriveResults := 4
 	emptyLink := ""
@@ -84,26 +94,18 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 	// These errors won't be the "correct" format when compared to what graph
 	// returns, but they're close enough to have the same info when the inner
 	// details are extracted via support package.
-	tmp := userMysiteURLNotFound
-	tmpMySiteURLNotFound := odataerrors.NewMainError()
-	tmpMySiteURLNotFound.SetMessage(&tmp)
-
-	mySiteURLNotFound := odataerrors.NewODataError()
-	mySiteURLNotFound.SetError(tmpMySiteURLNotFound)
-
-	tmp2 := userMysiteNotFound
-	tmpMySiteNotFound := odataerrors.NewMainError()
-	tmpMySiteNotFound.SetMessage(&tmp2)
-
-	mySiteNotFound := odataerrors.NewODataError()
-	mySiteNotFound.SetError(tmpMySiteNotFound)
-
-	tmp3 := contextDeadlineExceeded
-	tmpDeadlineExceeded := odataerrors.NewMainError()
-	tmpDeadlineExceeded.SetMessage(&tmp3)
-
-	deadlineExceeded := odataerrors.NewODataError()
-	deadlineExceeded.SetError(tmpDeadlineExceeded)
+	mySiteURLNotFound := support.ConnectorStackErrorTraceWrap(
+		odErr(userMysiteURLNotFound),
+		"maximum retries or unretryable",
+	)
+	mySiteNotFound := support.ConnectorStackErrorTraceWrap(
+		odErr(userMysiteNotFound),
+		"maximum retries or unretryable",
+	)
+	deadlineExceeded := support.ConnectorStackErrorTraceWrap(
+		odErr(contextDeadlineExceeded),
+		"maximum retries or unretryable",
+	)
 
 	resultDrives := make([]models.Driveable, 0, numDriveResults)
 
