@@ -15,6 +15,7 @@ func Control() control.Options {
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
+	opt.ToggleFeatures.DisablePermissionsBackup = disablePermissionsBackup
 
 	return opt
 }
@@ -53,7 +54,10 @@ func AddRestorePermissionsFlag(cmd *cobra.Command) {
 // Feature Flags
 // ---------------------------------------------------------------------------
 
-var disableIncrementals bool
+var (
+	disableIncrementals      bool
+	disablePermissionsBackup bool
+)
 
 type exposeFeatureFlag func(*pflag.FlagSet)
 
@@ -76,5 +80,18 @@ func DisableIncrementals() func(*pflag.FlagSet) {
 			false,
 			"Disable incremental data retrieval in backups.")
 		cobra.CheckErr(fs.MarkHidden("disable-incrementals"))
+	}
+}
+
+// Adds the hidden '--disable-permissions-backup' cli flag which, when
+// set, disables backing up permissions.
+func DisablePermissionsBackup() func(*pflag.FlagSet) {
+	return func(fs *pflag.FlagSet) {
+		fs.BoolVar(
+			&disablePermissionsBackup,
+			"disable-permissions-backup",
+			false,
+			"Disable backing up item permissions for OneDrive")
+		cobra.CheckErr(fs.MarkHidden("disable-permissions-backup"))
 	}
 }

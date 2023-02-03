@@ -57,7 +57,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: Completed,
 			expectErr:    assert.NoError,
 			stats: restoreStats{
-				started:       true,
 				resourceCount: 1,
 				bytesRead: &stats.ByteCounter{
 					NumBytes: 42,
@@ -73,7 +72,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: Failed,
 			expectErr:    assert.Error,
 			stats: restoreStats{
-				started:   false,
+				readErr:   assert.AnError,
 				bytesRead: &stats.ByteCounter{},
 				gc:        &support.ConnectorOperationStatus{},
 			},
@@ -82,7 +81,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectStatus: NoData,
 			expectErr:    assert.NoError,
 			stats: restoreStats{
-				started:   true,
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.Collection{},
 				gc:        &support.ConnectorOperationStatus{},
@@ -106,10 +104,10 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
 			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
+			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
 			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
@@ -295,8 +293,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
 	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-	assert.Zero(t, ro.Results.ReadErrors, "errors while reading restore data")
-	assert.Zero(t, ro.Results.WriteErrors, "errors while writing restore data")
+	assert.NoError(t, ro.Errors.Err(), "non-recoverable error")
+	assert.Empty(t, ro.Errors.Errs(), "recoverable errors")
+	assert.NoError(t, ro.Results.ReadErrors, "errors while reading restore data")
+	assert.NoError(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")

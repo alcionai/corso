@@ -160,7 +160,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
-	suite.connector = loadConnector(ctx, suite.T(), Users)
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	suite.user = tester.M365UserID(suite.T())
 	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
@@ -385,12 +385,11 @@ func runRestoreBackupTest(
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
 		dest.ContainerName,
-		resourceOwners,
-	)
+		resourceOwners)
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, test.resource)
+	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
@@ -406,8 +405,10 @@ func runRestoreBackupTest(
 	status := restoreGC.AwaitStatus()
 	runTime := time.Since(start)
 
-	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.NoError(t, status.Err, "restored status.Err")
+	assert.Zero(t, status.ErrorCount, "restored status.ErrorCount")
+	assert.Equal(t, totalItems, status.ObjectCount, "restored status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "restored status.Successful")
 	assert.Len(
 		t,
 		deets.Entries,
@@ -431,13 +432,15 @@ func runRestoreBackupTest(
 		})
 	}
 
-	backupGC := loadConnector(ctx, t, test.resource)
+	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
+	dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
 	require.NoError(t, err)
+	// No excludes yet because this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
@@ -446,8 +449,13 @@ func runRestoreBackupTest(
 	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
 
 	status = backupGC.AwaitStatus()
-	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
+
+	assert.NoError(t, status.Err, "backup status.Err")
+	assert.Zero(t, status.ErrorCount, "backup status.ErrorCount")
+	assert.Equalf(t, totalItems+skipped, status.ObjectCount,
+		"backup status.ObjectCount; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Successful,
+		"backup status.Successful; wanted %d items + %d skipped", totalItems, skipped)
 }
 
 func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
@@ -1001,7 +1009,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest.ContainerName,
 				)
 
-				restoreGC := loadConnector(ctx, t, test.resource)
+				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 				deets, err := restoreGC.RestoreDataCollections(
 					ctx,
 					suite.acct,
@@ -1026,12 +1034,14 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Run a backup and compare its output with what we put in.
 
-			backupGC := loadConnector(ctx, t, test.resource)
+			backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
+			dcs, excludes, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{RestorePermissions: true})
 			require.NoError(t, err)
+			// No excludes yet because this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			t.Log("Backup enumeration complete")
 
@@ -1351,4 +1361,38 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsBackupAndNoRestore()
 			)
 		})
 	}
+}
+
+// TODO: this should only be run during smoke tests, not part of the standard CI.
+// That's why it's set aside instead of being included in the other test set.
+func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
+	subjectText := "Test message for restore with large attachment"
+
+	test := restoreBackupInfo{
+		name:     "EmailsWithLargeAttachments",
+		service:  path.ExchangeService,
+		resource: Users,
+		collections: []colInfo{
+			{
+				pathElements: []string{"Inbox"},
+				category:     path.EmailCategory,
+				items: []itemInfo{
+					{
+						name:      "35mbAttachment",
+						data:      mockconnector.GetMockMessageWithSizedAttachment(subjectText, 35),
+						lookupKey: subjectText,
+					},
+				},
+			},
+		},
+	}
+
+	runRestoreBackupTest(
+		suite.T(),
+		suite.acct,
+		test,
+		suite.connector.tenant,
+		[]string{suite.user},
+		control.Options{RestorePermissions: true},
+	)
 }

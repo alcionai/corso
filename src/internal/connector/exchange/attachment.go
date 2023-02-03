@@ -53,6 +53,17 @@ func uploadAttachment(
 		return nil
 	}
 
+	// item Attachments to be skipped until the completion of Issue #2353
+	if attachmentType == models.ITEM_ATTACHMENTTYPE {
+		logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
+			"attachment_name", *attachment.GetName(), // TODO: Update to support PII protection
+			"attachment_type", attachmentType,
+			"attachment_id", *attachment.GetId(),
+		)
+
+		return nil
+	}
+
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
 	if attachmentType != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
 		err := uploader.uploadSmallAttachment(ctx, attachment)

@@ -6,7 +6,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -14,14 +16,9 @@ import (
 // ---------------------------------------------------------------------------
 
 type itemPager interface {
-	getPage(context.Context) (pageLinker, error)
+	getPage(context.Context) (api.DeltaPageLinker, error)
 	setNext(string)
-	valuesIn(pageLinker) ([]getIDAndAddtler, error)
-}
-
-type pageLinker interface {
-	GetOdataDeltaLink() *string
-	GetOdataNextLink() *string
+	valuesIn(api.DeltaPageLinker) ([]getIDAndAddtler, error)
 }
 
 type getIDAndAddtler interface {
@@ -68,15 +65,14 @@ func getItemsAddedAndRemovedFromContainer(
 		deltaURL   string
 	)
 
+	itemCount := 0
+	page := 0
+
 	for {
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
 		if err != nil {
-			if err := graph.IsErrDeletedInFlight(err); err != nil {
-				return nil, nil, deltaURL, err
-			}
-
-			if err := graph.IsErrInvalidDelta(err); err != nil {
+			if graph.IsErrDeletedInFlight(err) || graph.IsErrInvalidDelta(err) {
 				return nil, nil, deltaURL, err
 			}
 
@@ -88,6 +84,14 @@ func getItemsAddedAndRemovedFromContainer(
 		items, err := pager.valuesIn(resp)
 		if err != nil {
 			return nil, nil, "", err
+		}
+
+		itemCount += len(items)
+		page++
+
+		// Log every ~1000 items (the page size we use is 200)
+		if page%5 == 0 {
+			logger.Ctx(ctx).Infow("queried items", "count", itemCount)
 		}
 
 		// iterate through the items in the page
@@ -102,25 +106,27 @@ func getItemsAddedAndRemovedFromContainer(
 			}
 		}
 
+		nextLink, delta := api.NextAndDeltaLink(resp)
+
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will
 		// produce a deltaLink instead (if supported), which we'll use on
 		// the next backup to only get the changes since this run.
-		delta := resp.GetOdataDeltaLink()
-		if delta != nil && len(*delta) > 0 {
-			deltaURL = *delta
+		if len(delta) > 0 {
+			deltaURL = delta
 		}
 
 		// the nextLink is our page cursor within this query.
 		// if we have more data to retrieve, we'll have a
 		// nextLink instead of a deltaLink.
-		nextLink := resp.GetOdataNextLink()
-		if nextLink == nil || len(*nextLink) == 0 {
+		if len(nextLink) == 0 {
 			break
 		}
 
-		pager.setNext(*nextLink)
+		pager.setNext(nextLink)
 	}
+
+	logger.Ctx(ctx).Infow("completed enumeration", "count", itemCount)
 
 	return addedIDs, removedIDs, deltaURL, nil
 }

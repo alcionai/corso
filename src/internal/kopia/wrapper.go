@@ -119,6 +119,7 @@ func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.Collection,
+	globalExcludeSet map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
 ) (*BackupStats, *details.Builder, map[string]path.Path, error) {
@@ -129,7 +130,7 @@ func (w Wrapper) BackupCollections(
 	ctx, end := D.Span(ctx, "kopia:backupCollections")
 	defer end()
 
-	if len(collections) == 0 {
+	if len(collections) == 0 && len(globalExcludeSet) == 0 {
 		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
@@ -147,7 +148,14 @@ func (w Wrapper) BackupCollections(
 		base = previousSnapshots
 	}
 
-	dirTree, err := inflateDirTree(ctx, w.c, base, collections, progress)
+	dirTree, err := inflateDirTree(
+		ctx,
+		w.c,
+		base,
+		collections,
+		globalExcludeSet,
+		progress,
+	)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
