@@ -70,6 +70,7 @@ func uploadAttachment(
 
 			// TODO: Update to support PII protection
 			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
+				"err", err,
 				"attachment_name", name,
 				"attachment_type", attachmentType,
 				"internal_item_type", getItemAttachmentItemType(prev),
