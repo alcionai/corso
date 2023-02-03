@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 	"time"
 
@@ -110,7 +111,16 @@ type detailsWriter interface {
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = clues.Wrap(r.(error), "panic recovery").
+			var rerr error
+			if re, ok := r.(error); ok {
+				rerr = re
+			} else if re, ok := r.(string); ok {
+				rerr = clues.New(re)
+			} else {
+				rerr = clues.New(fmt.Sprintf("%v", r))
+			}
+
+			err = clues.Wrap(rerr, "panic recovery").
 				WithClues(ctx).
 				With("stacktrace", string(debug.Stack()))
 			logger.Ctx(ctx).
