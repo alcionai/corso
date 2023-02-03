@@ -195,6 +195,7 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "collecting manifest heuristics"))
 		opStats.readErr = op.Errors.Err()
+
 		logger.Ctx(ctx).With("err", err).Errorw("producing manifests and metadata", clues.InErr(err).Slice()...)
 
 		return opStats.readErr
@@ -204,6 +205,7 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "connecting to m365"))
 		opStats.readErr = op.Errors.Err()
+
 		logger.Ctx(ctx).With("err", err).Errorw("connectng to m365", clues.InErr(err).Slice()...)
 
 		return opStats.readErr
@@ -213,6 +215,7 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "retrieving data to backup"))
 		opStats.readErr = op.Errors.Err()
+
 		logger.Ctx(ctx).With("err", err).Errorw("producing backup data collections", clues.InErr(err).Slice()...)
 
 		return opStats.readErr
@@ -232,6 +235,7 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "backing up service data"))
 		opStats.writeErr = op.Errors.Err()
+
 		logger.Ctx(ctx).With("err", err).Errorw("persisting collection backups", clues.InErr(err).Slice()...)
 
 		return opStats.writeErr
@@ -247,6 +251,7 @@ func (op *BackupOperation) do(ctx context.Context) (err error) {
 	); err != nil {
 		op.Errors.Fail(errors.Wrap(err, "merging backup details"))
 		opStats.writeErr = op.Errors.Err()
+
 		logger.Ctx(ctx).With("err", err).Errorw("merging details", clues.InErr(err).Slice()...)
 
 		return opStats.writeErr
