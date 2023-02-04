@@ -67,6 +67,12 @@ type Collections struct {
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
+	drivePagerFunc func(
+		source driveSource,
+		servicer graph.Servicer,
+		resourceOwner string,
+		fields []string,
+	) (drivePager, error)
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
@@ -89,16 +95,17 @@ func NewCollections(
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		itemClient:    itemClient,
-		tenant:        tenant,
-		resourceOwner: resourceOwner,
-		source:        source,
-		matcher:       matcher,
-		CollectionMap: map[string]data.Collection{},
-		itemPagerFunc: defaultItemPager,
-		service:       service,
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		itemClient:     itemClient,
+		tenant:         tenant,
+		resourceOwner:  resourceOwner,
+		source:         source,
+		matcher:        matcher,
+		CollectionMap:  map[string]data.Collection{},
+		drivePagerFunc: PagerForSource,
+		itemPagerFunc:  defaultItemPager,
+		service:        service,
+		statusUpdater:  statusUpdater,
+		ctrl:           ctrlOpts,
 	}
 }
 
@@ -180,7 +187,15 @@ func deserializeMetadata(
 
 		// Go through and remove partial results (i.e. path mapping but no delta URL
 		// or vice-versa).
-		for k := range prevDeltas {
+		for k, v := range prevDeltas {
+			// Remove entries with an empty delta token as it's not useful.
+			if len(v) == 0 {
+				delete(prevDeltas, k)
+				delete(prevFolders, k)
+			}
+
+			// Remove entries without a folders map as we can't tell kopia the
+			// hierarchy changes.
 			if _, ok := prevFolders[k]; !ok {
 				delete(prevDeltas, k)
 			}
@@ -242,7 +257,7 @@ func (c *Collections) Get(
 	}
 
 	// Enumerate drives for the specified resourceOwner
-	pager, err := PagerForSource(c.source, c.service, c.resourceOwner, nil)
+	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -287,17 +302,21 @@ func (c *Collections) Get(
 			return nil, nil, err
 		}
 
+		// It's alright to have an empty folders map (i.e. no folders found) but not
+		// an empty delta token. This is because when deserializing the metadata we
+		// remove entries for which there is no corresponding delta token/folder. If
+		// we leave empty delta tokens then we may end up setting the State field
+		// for collections when not actually getting delta results.
 		if len(delta) > 0 {
 			deltaURLs[driveID] = delta
 		}
 
-		if len(paths) > 0 {
-			folderPaths[driveID] = map[string]string{}
-
-			for id, p := range paths {
-				folderPaths[driveID][id] = p
-			}
-		}
+		// Avoid the edge case where there's no paths but we do have a valid delta
+		// token. We can accomplish this by adding an empty paths map for this
+		// drive. If we don't have this then the next backup won't use the delta
+		// token because it thinks the folder paths weren't persisted.
+		folderPaths[driveID] = map[string]string{}
+		maps.Copy(folderPaths[driveID], paths)
 
 		maps.Copy(excludedItems, excluded)
 	}
@@ -411,6 +430,12 @@ func (c *Collections) UpdateCollections(
 			// already created and partially populated.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
+			if c.source != OneDriveSource {
+				continue
+			}
+
+			fallthrough
+
 		case item.GetFile() != nil:
 			if item.GetDeleted() != nil {
 				excluded[*item.GetId()] = struct{}{}
@@ -426,6 +451,7 @@ func (c *Collections) UpdateCollections(
 			// the exclude list.
 
 			col, found := c.CollectionMap[collectionPath.String()]
+
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
@@ -440,13 +466,17 @@ func (c *Collections) UpdateCollections(
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++
-				c.NumItems++
 			}
 
 			collection := col.(*Collection)
 			collection.Add(item)
-			c.NumFiles++
+
 			c.NumItems++
+			if item.GetFile() != nil {
+				// This is necessary as we have a fallthrough for
+				// folders and packages
+				c.NumFiles++
+			}
 
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())

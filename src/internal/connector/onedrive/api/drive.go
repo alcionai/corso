@@ -61,7 +61,17 @@ func NewItemPager(
 }
 
 func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+	var (
+		resp api.DeltaPageLinker
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (p *driveItemPager) SetNext(link string) {
@@ -99,7 +109,17 @@ func NewUserDrivePager(
 }
 
 func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+	var (
+		resp api.PageLinker
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (p *userDrivePager) SetNext(link string) {
@@ -137,7 +157,17 @@ func NewSiteDrivePager(
 }
 
 func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+	var (
+		resp api.PageLinker
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (p *siteDrivePager) SetNext(link string) {

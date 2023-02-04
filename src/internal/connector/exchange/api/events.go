@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -12,7 +13,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
@@ -77,7 +77,7 @@ func (c Events) GetContainerByID(
 
 	var cal models.Calendarable
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 		return err
 	})
@@ -99,7 +99,7 @@ func (c Events) GetItem(
 		err   error
 	)
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 		return err
 	})
@@ -108,7 +108,14 @@ func (c Events) GetItem(
 		return nil, nil, err
 	}
 
-	var errs *multierror.Error
+	var (
+		errs    *multierror.Error
+		options = &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
+	)
 
 	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
 		for count := 0; count < numberOfRetries; count++ {
@@ -117,7 +124,7 @@ func (c Events) GetItem(
 				UsersById(user).
 				EventsById(itemID).
 				Attachments().
-				Get(ctx, nil)
+				Get(ctx, options)
 			if err == nil {
 				event.SetAttachments(attached.GetValue())
 				break
@@ -147,7 +154,7 @@ func (c Client) GetAllCalendarNamesForUser(
 
 	var resp models.CalendarCollectionResponseable
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
 		return err
 	})
@@ -186,7 +193,7 @@ func (c Events) EnumerateContainers(
 	for {
 		var err error
 
-		err = runWithRetry(func() error {
+		err = graph.RunWithRetry(func() error {
 			resp, err = builder.Get(ctx, ofc)
 			return err
 		})
@@ -243,7 +250,7 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		resp, err = p.builder.Get(ctx, p.options)
 		return err
 	})

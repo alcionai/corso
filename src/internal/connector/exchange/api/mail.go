@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -12,7 +13,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -99,7 +99,7 @@ func (c Mail) GetContainerByID(
 
 	var resp graph.Container
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 		return err
 	})
@@ -118,7 +118,7 @@ func (c Mail) GetItem(
 		err  error
 	)
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 		return err
 	})
@@ -130,13 +130,18 @@ func (c Mail) GetItem(
 	var errs *multierror.Error
 
 	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
+		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
 		for count := 0; count < numberOfRetries; count++ {
 			attached, err := c.largeItem.
 				Client().
 				UsersById(user).
 				MessagesById(itemID).
 				Attachments().
-				Get(ctx, nil)
+				Get(ctx, options)
 			if err == nil {
 				mail.SetAttachments(attached.GetValue())
 				break
@@ -183,7 +188,7 @@ func (c Mail) EnumerateContainers(
 	for {
 		var err error
 
-		err = runWithRetry(func() error {
+		err = graph.RunWithRetry(func() error {
 			resp, err = builder.Get(ctx, nil)
 			return err
 		})
@@ -230,7 +235,7 @@ func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		page, err = p.builder.Get(ctx, p.options)
 		return err
 	})

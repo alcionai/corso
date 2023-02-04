@@ -6,11 +6,14 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -160,6 +163,55 @@ func collectLibraries(
 	}
 
 	return append(collections, odcs...), excludes, errs
+}
+
+// collectPages constructs a sharepoint Collections struct and Get()s the associated
+// M365 IDs for the associated Pages
+func collectPages(
+	ctx context.Context,
+	creds account.M365Config,
+	serv graph.Servicer,
+	tenantID, siteID string,
+	scope selectors.SharePointScope,
+	updater statusUpdater,
+	ctrlOpts control.Options,
+) ([]data.Collection, error) {
+	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Pages collections")
+
+	spcs := make([]data.Collection, 0)
+
+	// make the betaClient
+	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return nil, errors.Wrap(err, "adapter for betaservice not created")
+	}
+
+	betaService := api.NewBetaService(adpt)
+
+	tuples, err := sapi.FetchPages(ctx, betaService, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tuple := range tuples {
+		dir, err := path.Builder{}.Append(tuple.Name).
+			ToDataLayerSharePointPath(
+				tenantID,
+				siteID,
+				path.PagesCategory,
+				false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+		}
+
+		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection.betaService = betaService
+		collection.AddJob(tuple.ID)
+
+		spcs = append(spcs, collection)
+	}
+
+	return spcs, nil
 }
 
 type folderMatcher struct {
