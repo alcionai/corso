@@ -18,6 +18,12 @@ type BetaClientSuite struct {
 }
 
 func TestBetaClientSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+	)
+
 	suite.Run(t, new(BetaClientSuite))
 }
 
