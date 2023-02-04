@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -37,14 +36,7 @@ func (suite *SharePointPageSuite) SetupSuite() {
 
 	suite.creds = m365
 
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret,
-	)
-	require.NoError(t, err)
-
-	suite.service = discover.NewBetaService(adpt)
+	suite.service = createTestBetaService(t, suite.creds)
 }
 
 func TestSharePointPageSuite(t *testing.T) {
