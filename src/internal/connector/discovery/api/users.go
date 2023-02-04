@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	absser "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -59,13 +60,21 @@ const (
 // https://stackoverflow.com/questions/64044266/error-message-unsupported-or-invalid-query-filter-clause-specified-for-property
 //
 //nolint:lll
-var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType eq 'Member'"
+var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
+
+// I can't believe I have to do this.
+var t = true
 
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
+	headers := absser.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
+
 	return &users.UsersRequestBuilderGetRequestConfiguration{
+		Headers: headers,
 		QueryParameters: &users.UsersRequestBuilderGetQueryParameters{
 			Select: []string{userSelectID, userSelectPrincipalName, userSelectDisplayName},
 			Filter: fs,
+			Count:  &t,
 		},
 	}
 }
