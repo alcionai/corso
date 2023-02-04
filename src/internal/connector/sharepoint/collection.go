@@ -106,6 +106,15 @@ type Item struct {
 	deleted bool
 }
 
+func (i Item) NewItem(name string, d io.ReadCloser) *Item {
+	item := &Item{
+		id:   name,
+		data: d,
+	}
+
+	return item
+}
+
 func (sd *Item) UUID() string {
 	return sd.id
 }
