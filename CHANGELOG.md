@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Backing up a calendar that has the same name as the default calendar
+- Added additional backoff-retry to all OneDrive queries.
 
 ### Known Issues
 
