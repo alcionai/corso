@@ -176,11 +176,23 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			},
 		},
 		{
-			name:     "Test Mail: Item Attachment",
+			name:     "Test Mail: Item Attachment_Event",
 			bytes:    mockconnector.GetMockMessageWithItemAttachmentEvent("Event Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
-				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
+				folderName := "TestRestoreEventItemAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{ // Restore will upload the Message without uploading the attachment
+			name:     "Test Mail: Item Attachment_NestedEvent",
+			bytes:    mockconnector.GetMockMessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "TestRestoreNestedEventItemAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
