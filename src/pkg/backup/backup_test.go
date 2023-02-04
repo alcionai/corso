@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -40,6 +41,9 @@ func stubBackup(t time.Time) backup.Backup {
 		DetailsID:    "details",
 		Status:       "status",
 		Selector:     sel.Selector,
+		Errors: fault.ErrorsData{
+			Errs: []error{errors.New("read"), errors.New("write")},
+		},
 		Errs: stats.Errs{
 			ReadErrors:  errors.New("1"),
 			WriteErrors: errors.New("1"),

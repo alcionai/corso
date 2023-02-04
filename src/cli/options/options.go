@@ -11,17 +11,11 @@ import (
 func Control() control.Options {
 	opt := control.Defaults()
 
-	if fastFail {
-		opt.FailFast = true
-	}
-
-	if noStats {
-		opt.DisableMetrics = true
-	}
-
-	if disableIncrementals {
-		opt.ToggleFeatures.DisableIncrementals = true
-	}
+	opt.FailFast = fastFail
+	opt.DisableMetrics = noStats
+	opt.RestorePermissions = restorePermissions
+	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
+	opt.ToggleFeatures.EnablePermissionsBackup = enablePermissionsBackup
 
 	return opt
 }
@@ -31,8 +25,9 @@ func Control() control.Options {
 // ---------------------------------------------------------------------------
 
 var (
-	fastFail bool
-	noStats  bool
+	fastFail           bool
+	noStats            bool
+	restorePermissions bool
 )
 
 // AddOperationFlags adds command-local operation flags
@@ -49,11 +44,22 @@ func AddGlobalOperationFlags(cmd *cobra.Command) {
 	fs.BoolVar(&noStats, "no-stats", false, "disable anonymous usage statistics gathering")
 }
 
+// AddRestorePermissionsFlag adds OneDrive flag for restoring permissions
+func AddRestorePermissionsFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(&restorePermissions, "restore-permissions", false, "Restore permissions for files and folders")
+	// TODO: reveal this flag once backing up permissions becomes default
+	cobra.CheckErr(fs.MarkHidden("restore-permissions"))
+}
+
 // ---------------------------------------------------------------------------
 // Feature Flags
 // ---------------------------------------------------------------------------
 
-var disableIncrementals bool
+var (
+	disableIncrementals     bool
+	enablePermissionsBackup bool
+)
 
 type exposeFeatureFlag func(*pflag.FlagSet)
 
@@ -76,5 +82,18 @@ func DisableIncrementals() func(*pflag.FlagSet) {
 			false,
 			"Disable incremental data retrieval in backups.")
 		cobra.CheckErr(fs.MarkHidden("disable-incrementals"))
+	}
+}
+
+// Adds the hidden '--enable-permissions-backup' cli flag which, when
+// set, enables backing up permissions.
+func EnablePermissionsBackup() func(*pflag.FlagSet) {
+	return func(fs *pflag.FlagSet) {
+		fs.BoolVar(
+			&enablePermissionsBackup,
+			"enable-permissions-backup",
+			false,
+			"Enable backing up item permissions for OneDrive")
+		cobra.CheckErr(fs.MarkHidden("enable-permissions-backup"))
 	}
 }

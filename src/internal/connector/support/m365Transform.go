@@ -1,10 +1,13 @@
 package support
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
+
+const itemAttachment = "#microsoft.graph.itemAttachment"
 
 // CloneMessageableFields places data from original data into new message object.
 // SingleLegacyValueProperty is not populated during this operation
@@ -277,4 +280,91 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetValidation(orig.GetValidation())
 
 	return newColumn
+}
+
+// ToItemAttachment transforms internal item, OutlookItemables, into
+// objects that are able to be uploaded into M365.
+// Supported Internal Items:
+// - Events
+func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error) {
+	transform, ok := orig.(models.ItemAttachmentable)
+	supported := "#microsoft.graph.event"
+
+	if !ok { // Shouldn't ever happen
+		return nil, fmt.Errorf("transforming attachment to item attachment")
+	}
+
+	item := transform.GetItem()
+	itemType := item.GetOdataType()
+
+	switch *itemType {
+	case supported:
+		event := item.(models.Eventable)
+
+		newEvent, err := sanitizeEvent(event)
+		if err != nil {
+			return nil, err
+		}
+
+		transform.SetItem(newEvent)
+
+		return transform, nil
+	default:
+		return nil, fmt.Errorf("exiting ToItemAttachment: %s not supported", *itemType)
+	}
+}
+
+// sanitizeEvent transfers data into event object and
+// removes unique IDs from the M365 object
+func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
+	newEvent := models.NewEvent()
+	newEvent.SetAttendees(orig.GetAttendees())
+	newEvent.SetBody(orig.GetBody())
+	newEvent.SetBodyPreview(orig.GetBodyPreview())
+	newEvent.SetCalendar(orig.GetCalendar())
+	newEvent.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newEvent.SetEnd(orig.GetEnd())
+	newEvent.SetHasAttachments(orig.GetHasAttachments())
+	newEvent.SetHideAttendees(orig.GetHideAttendees())
+	newEvent.SetImportance(orig.GetImportance())
+	newEvent.SetIsAllDay(orig.GetIsAllDay())
+	newEvent.SetIsOnlineMeeting(orig.GetIsOnlineMeeting())
+	newEvent.SetLocation(orig.GetLocation())
+	newEvent.SetLocations(orig.GetLocations())
+	newEvent.SetSensitivity(orig.GetSensitivity())
+	newEvent.SetReminderMinutesBeforeStart(orig.GetReminderMinutesBeforeStart())
+	newEvent.SetStart(orig.GetStart())
+	newEvent.SetSubject(orig.GetSubject())
+	newEvent.SetType(orig.GetType())
+
+	// Sanitation
+	// isDraft and isOrganizer *bool ptr's have to be removed completely
+	// from JSON in order for POST method to succeed.
+	// Current as of 2/2/2023
+
+	newEvent.SetIsOrganizer(nil)
+	newEvent.SetIsDraft(nil)
+	newEvent.SetAdditionalData(orig.GetAdditionalData())
+
+	attached := orig.GetAttachments()
+	attachments := make([]models.Attachmentable, len(attached))
+
+	for _, ax := range attached {
+		if *ax.GetOdataType() == itemAttachment {
+			newAttachment, err := ToItemAttachment(ax)
+			if err != nil {
+				return nil, err
+			}
+
+			attachments = append(attachments, newAttachment)
+
+			continue
+		}
+
+		attachments = append(attachments, ax)
+	}
+
+	newEvent.SetAttachments(attachments)
+
+	return newEvent, nil
 }
