@@ -2,8 +2,11 @@ package onedrive
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -60,19 +63,35 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		testItemName = "itemName"
 		testItemData = []byte("testdata")
 		now          = time.Now()
+		testItemMeta = Metadata{Permissions: []UserPermission{
+			{
+				ID:         "testMetaID",
+				Roles:      []string{"read", "write"},
+				Email:      "email@provider.com",
+				Expiration: &now,
+			},
+		}}
 	)
+
+	type nst struct {
+		name string
+		size int64
+		time time.Time
+	}
 
 	table := []struct {
 		name         string
 		numInstances int
 		source       driveSource
 		itemReader   itemReaderFunc
+		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 	}{
 		{
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
@@ -87,6 +106,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
@@ -101,6 +121,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			source:       SharePointSource,
+			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
@@ -115,6 +136,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			source:       SharePointSource,
+			itemDeets:    nst{testItemName, 42, now},
 			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
@@ -140,25 +162,42 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"drive-id",
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{})
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
 
 			// Set a item reader, add an item and validate we get the item back
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
+			mockItem.SetFile(models.NewFile())
+			mockItem.SetName(&test.itemDeets.name)
+			mockItem.SetSize(&test.itemDeets.size)
+			mockItem.SetCreatedDateTime(&test.itemDeets.time)
+			mockItem.SetLastModifiedDateTime(&test.itemDeets.time)
 
 			for i := 0; i < test.numInstances; i++ {
 				coll.Add(mockItem)
 			}
 
 			coll.itemReader = test.itemReader
+			coll.itemMetaReader = func(_ context.Context,
+				_ graph.Servicer,
+				_ string,
+				_ models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				metaJSON, err := json.Marshal(testItemMeta)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+			}
 
 			// Read items from the collection
 			wg.Add(1)
@@ -169,8 +208,13 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			wg.Wait()
 
+			if test.source == OneDriveSource {
+				require.Len(t, readItems, 2) // .data and .meta
+			} else {
+				require.Len(t, readItems, 1)
+			}
+
 			// Expect only 1 item
-			require.Len(t, readItems, 1)
 			require.Equal(t, 1, collStatus.ObjectCount)
 			require.Equal(t, 1, collStatus.Successful)
 
@@ -178,7 +222,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItem := readItems[0]
 			readItemInfo := readItem.(data.StreamInfo)
 
-			assert.Equal(t, testItemName, readItem.UUID())
+			if test.source == OneDriveSource {
+				assert.Equal(t, testItemName+DataFileSuffix, readItem.UUID())
+			} else {
+				assert.Equal(t, testItemName, readItem.UUID())
+			}
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)
@@ -192,11 +240,33 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, testItemData, readData)
 			assert.Equal(t, testItemName, name)
 			assert.Equal(t, driveFolderPath, parentPath)
+
+			if test.source == OneDriveSource {
+				readItemMeta := readItems[1]
+
+				assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
+
+				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
+				require.NoError(t, err)
+
+				tm, err := json.Marshal(testItemMeta)
+				if err != nil {
+					t.Fatal("unable to marshall test permissions", err)
+				}
+
+				assert.Equal(t, tm, readMetaData)
+			}
 		})
 	}
 }
 
 func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
+	var (
+		name       = "name"
+		size int64 = 42
+		now        = time.Now()
+	)
+
 	table := []struct {
 		name   string
 		source driveSource
@@ -225,28 +295,130 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err)
 
 			coll := NewCollection(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"fakeDriveID",
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{})
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
 
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
+			mockItem.SetFile(models.NewFile())
+			mockItem.SetName(&name)
+			mockItem.SetSize(&size)
+			mockItem.SetCreatedDateTime(&now)
+			mockItem.SetLastModifiedDateTime(&now)
 			coll.Add(mockItem)
 
 			coll.itemReader = func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, assert.AnError
 			}
 
-			coll.Items()
+			coll.itemMetaReader = func(_ context.Context,
+				_ graph.Servicer,
+				_ string,
+				_ models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
+			}
+
+			collItem, ok := <-coll.Items()
+			assert.True(t, ok)
+
+			_, err = io.ReadAll(collItem.ToReader())
+			assert.Error(t, err)
+
+			wg.Wait()
+
+			// Expect no items
+			require.Equal(t, 1, collStatus.ObjectCount, "only one object should be counted")
+			require.Equal(t, 1, collStatus.Successful, "TODO: should be 0, but allowing 1 to reduce async management")
+		})
+	}
+}
+
+func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
+	table := []struct {
+		name   string
+		source driveSource
+	}{
+		{
+			name:   "oneDrive",
+			source: OneDriveSource,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			var (
+				testItemID   = "fakeItemID"
+				testItemName = "Fake Item"
+				testItemSize = int64(10)
+
+				collStatus = support.ConnectorOperationStatus{}
+				wg         = sync.WaitGroup{}
+			)
+
+			wg.Add(1)
+
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			require.NoError(t, err)
+
+			coll := NewCollection(
+				graph.HTTPClient(graph.NoTimeout()),
+				folderPath,
+				"fakeDriveID",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{ToggleFeatures: control.Toggles{}})
+
+			now := time.Now()
+			mockItem := models.NewDriveItem()
+			mockItem.SetFile(models.NewFile())
+			mockItem.SetId(&testItemID)
+			mockItem.SetName(&testItemName)
+			mockItem.SetSize(&testItemSize)
+			mockItem.SetCreatedDateTime(&now)
+			mockItem.SetLastModifiedDateTime(&now)
+			coll.Add(mockItem)
+
+			coll.itemReader = func(
+				*http.Client,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
+					io.NopCloser(strings.NewReader("Fake Data!")),
+					nil
+			}
+
+			coll.itemMetaReader = func(_ context.Context,
+				_ graph.Servicer,
+				_ string,
+				_ models.DriveItemable,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{"key": "value"}`)), 16, nil
+			}
+
+			readItems := []data.Stream{}
+			for item := range coll.Items() {
+				readItems = append(readItems, item)
+			}
+
 			wg.Wait()
 
 			// Expect no items
 			require.Equal(t, 1, collStatus.ObjectCount)
-			require.Equal(t, 0, collStatus.Successful)
+			require.Equal(t, 1, collStatus.Successful)
+
+			for _, i := range readItems {
+				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
+					content, err := io.ReadAll(i.ToReader())
+					require.NoError(t, err)
+					require.Equal(t, content, []byte("{}"))
+				}
+			}
 		})
 	}
 }

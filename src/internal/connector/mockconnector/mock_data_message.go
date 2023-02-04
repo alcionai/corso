@@ -155,6 +155,41 @@ func GetMockMessageWith(
 	return []byte(message)
 }
 
+// GetMockMessageWithDirectAttachment returns a message an attachment that contains n MB of data.
+// Max limit on N is 35 (imposed by exchange) .
+// Serialized with: kiota-serialization-json-go v0.7.1
+func GetMockMessageWithSizedAttachment(subject string, n int) []byte {
+	// I know we said 35, but after base64encoding, 24mb of base content
+	// bloats up to 34mb (35 baloons to 49).  So we have to restrict n
+	// appropriately.
+	if n > 24 {
+		n = 24
+	}
+
+	//nolint:lll
+	messageFmt := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAA=\"," +
+		"\"@odata.type\":\"#microsoft.graph.message\",\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFQ\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\",\"categories\":[]," +
+		"\"changeKey\":\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFQ\",\"createdDateTime\":\"2022-09-29T17:39:06Z\",\"lastModifiedDateTime\":\"2022-09-29T17:39:08Z\"," +
+		"\"attachments\":[{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAABEgAQANMmZLFhjWJJj4X9mj8piqg=\",\"@odata.type\":\"#microsoft.graph.fileAttachment\",\"@odata.mediaContentType\":\"application/octet-stream\"," +
+		"\"contentType\":\"application/octet-stream\",\"isInline\":false,\"lastModifiedDateTime\":\"2022-09-29T17:39:06Z\",\"name\":\"database.db\",\"size\":%d," +
+		"\"contentBytes\":\"%s\"}]," +
+		"\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>\\r\\n<meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\"><style type=\\\"text/css\\\" style=\\\"display:none\\\">\\r\\n<!--\\r\\np\\r\\n\\t{margin-top:0;\\r\\n\\tmargin-bottom:0}\\r\\n-->\\r\\n</style></head><body dir=\\\"ltr\\\"><div class=\\\"elementToProof\\\" style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\"><span class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Lidia,</span> <div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">I hope this message finds you well. I am researching a database construct for next quarter's review. SkyNet will<span class=\\\"ContentPasted0\\\">&nbsp;</span><span data-ogsb=\\\"rgb(255, 255, 0)\\\" class=\\\"ContentPasted0\\\" style=\\\"margin:0px; background-color:rgb(255,255,0)!important\\\">not</span><span class=\\\"ContentPasted0\\\">&nbsp;</span>be able to match our database process speeds if we utilize the formulae that are included.&nbsp;</div><div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Please give me your thoughts on the implementation.</div><div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Best,</div><div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><span class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Dustin</span><br></div></body></html>\",\"contentType\":\"html\",\"@odata.type\":\"#microsoft.graph.itemBody\"}," +
+		"\"bodyPreview\":\"Lidia,\\r\\n\\r\\nI hope this message finds you well. I am researching a database construct for next quarter's review. SkyNet will not be able to match our database process speeds if we utilize the formulae that are included.\\r\\n\\r\\nPlease give me your thoughts on th\",\"ccRecipients\":[]," +
+		"\"conversationId\":\"AAQkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAQANPFOcy_BapBghezTzIIldI=\",\"conversationIndex\":\"AQHY1Cpb08U5zL4FqkGCF7NPMgiV0g==\",\"flag\":{\"flagStatus\":\"notFlagged\",\"@odata.type\":\"#microsoft.graph.followupFlag\"}," +
+		"\"from\":{\"emailAddress\":{\"address\":\"dustina@8qzvrj.onmicrosoft.com\",\"name\":\"Dustin Abbot\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"},\"hasAttachments\":true,\"importance\":\"normal\",\"inferenceClassification\":\"focused\"," +
+		"\"internetMessageId\":\"<SJ0PR17MB56220C509D0006B8CC8FD952C3579@SJ0PR17MB5622.namprd17.prod.outlook.com>\",\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":false,\"isReadReceiptRequested\":false," +
+		"\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAAA=\",\"receivedDateTime\":\"2022-09-29T17:39:07Z\",\"replyTo\":[],\"sender\":{\"emailAddress\":{\"address\":\"dustina@8qzvrj.onmicrosoft.com\",\"name\":\"Dustin Abbot\"," +
+		"\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"},\"sentDateTime\":\"2022-09-29T17:39:02Z\"," +
+		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"LidiaH@8qzvrj.onmicrosoft.com\",\"name\":\"Lidia Holloway\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"}]," +
+		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
+
+	attachmentSize := n * 1024 * 1024 // n MB
+	attachmentBytes := make([]byte, attachmentSize)
+
+	// Attachment content bytes are base64 encoded
+	return []byte(fmt.Sprintf(messageFmt, attachmentSize, base64.StdEncoding.EncodeToString([]byte(attachmentBytes))))
+}
+
 // GetMockMessageWithDirectAttachment returns a message with inline attachment
 // Serialized with: kiota-serialization-json-go v0.7.1
 func GetMockMessageWithDirectAttachment(subject string) []byte {
@@ -228,28 +263,7 @@ func GetMockMessageWithDirectAttachment(subject string) []byte {
 // used in GetMockMessageWithDirectAttachment
 // Serialized with: kiota-serialization-json-go v0.7.1
 func GetMockMessageWithLargeAttachment(subject string) []byte {
-	//nolint:lll
-	messageFmt := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAA=\"," +
-		"\"@odata.type\":\"#microsoft.graph.message\",\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFQ\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\",\"categories\":[]," +
-		"\"changeKey\":\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFQ\",\"createdDateTime\":\"2022-09-29T17:39:06Z\",\"lastModifiedDateTime\":\"2022-09-29T17:39:08Z\"," +
-		"\"attachments\":[{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAABEgAQANMmZLFhjWJJj4X9mj8piqg=\",\"@odata.type\":\"#microsoft.graph.fileAttachment\",\"@odata.mediaContentType\":\"application/octet-stream\"," +
-		"\"contentType\":\"application/octet-stream\",\"isInline\":false,\"lastModifiedDateTime\":\"2022-09-29T17:39:06Z\",\"name\":\"database.db\",\"size\":%d," +
-		"\"contentBytes\":\"%s\"}]," +
-		"\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>\\r\\n<meta http-equiv=\\\"Content-Type\\\" content=\\\"text/html; charset=utf-8\\\"><style type=\\\"text/css\\\" style=\\\"display:none\\\">\\r\\n<!--\\r\\np\\r\\n\\t{margin-top:0;\\r\\n\\tmargin-bottom:0}\\r\\n-->\\r\\n</style></head><body dir=\\\"ltr\\\"><div class=\\\"elementToProof\\\" style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\\\"><span class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Lidia,</span> <div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">I hope this message finds you well. I am researching a database construct for next quarter's review. SkyNet will<span class=\\\"ContentPasted0\\\">&nbsp;</span><span data-ogsb=\\\"rgb(255, 255, 0)\\\" class=\\\"ContentPasted0\\\" style=\\\"margin:0px; background-color:rgb(255,255,0)!important\\\">not</span><span class=\\\"ContentPasted0\\\">&nbsp;</span>be able to match our database process speeds if we utilize the formulae that are included.&nbsp;</div><div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Please give me your thoughts on the implementation.</div><div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><div class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Best,</div><div class=\\\"x_elementToProof\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\"><br class=\\\"ContentPasted0\\\"></div><span class=\\\"x_elementToProof ContentPasted0\\\" data-ogsc=\\\"rgb(0, 0, 0)\\\" data-ogsb=\\\"rgb(255, 255, 255)\\\" style=\\\"font-size:12pt; margin:0px; color:rgb(0,0,0)!important; background-color:rgb(255,255,255)!important\\\">Dustin</span><br></div></body></html>\",\"contentType\":\"html\",\"@odata.type\":\"#microsoft.graph.itemBody\"}," +
-		"\"bodyPreview\":\"Lidia,\\r\\n\\r\\nI hope this message finds you well. I am researching a database construct for next quarter's review. SkyNet will not be able to match our database process speeds if we utilize the formulae that are included.\\r\\n\\r\\nPlease give me your thoughts on th\",\"ccRecipients\":[]," +
-		"\"conversationId\":\"AAQkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAQANPFOcy_BapBghezTzIIldI=\",\"conversationIndex\":\"AQHY1Cpb08U5zL4FqkGCF7NPMgiV0g==\",\"flag\":{\"flagStatus\":\"notFlagged\",\"@odata.type\":\"#microsoft.graph.followupFlag\"}," +
-		"\"from\":{\"emailAddress\":{\"address\":\"dustina@8qzvrj.onmicrosoft.com\",\"name\":\"Dustin Abbot\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"},\"hasAttachments\":true,\"importance\":\"normal\",\"inferenceClassification\":\"focused\"," +
-		"\"internetMessageId\":\"<SJ0PR17MB56220C509D0006B8CC8FD952C3579@SJ0PR17MB5622.namprd17.prod.outlook.com>\",\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":false,\"isReadReceiptRequested\":false," +
-		"\"parentFolderId\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAAA=\",\"receivedDateTime\":\"2022-09-29T17:39:07Z\",\"replyTo\":[],\"sender\":{\"emailAddress\":{\"address\":\"dustina@8qzvrj.onmicrosoft.com\",\"name\":\"Dustin Abbot\"," +
-		"\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"},\"sentDateTime\":\"2022-09-29T17:39:02Z\"," +
-		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"LidiaH@8qzvrj.onmicrosoft.com\",\"name\":\"Lidia Holloway\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"}]," +
-		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqeAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
-
-	attachmentSize := 3 * 1024 * 1024 // 3 MB
-	attachmentBytes := make([]byte, attachmentSize)
-
-	// Attachment content bytes are base64 encoded
-	return []byte(fmt.Sprintf(messageFmt, attachmentSize, base64.StdEncoding.EncodeToString([]byte(attachmentBytes))))
+	return GetMockMessageWithSizedAttachment(subject, 3)
 }
 
 // GetMessageWithOneDriveAttachment returns a message with an OneDrive attachment represented in bytes
@@ -319,6 +333,215 @@ func GetMockEventMessageRequest(subject string) []byte {
 		"\"from\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"Dustin Abbot\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"},\"hasAttachments\":false,\"importance\":\"normal\",\"inferenceClassification\":\"focused\",\"internetMessageId\":\"<SJ0PR17MB56221D8549729E3AFC63EFA1C33B9@SJ0PR17MB5622.namprd17.prod.outlook.com>\",\"isDraft\":false,\"isRead\":true,\"isReadReceiptRequested\":false,\"parentFolderId\":\"AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBCQAAAA==\",\"receivedDateTime\":\"2022-11-04T19:50:01Z\"," +
 		"\"replyTo\":[],\"sender\":{\"emailAddress\":{\"address\":\"" + defaultMessageSender + "\",\"name\":\"" + defaultAlias + "\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"},\"sentDateTime\":\"2022-11-04T19:50:00Z\"," +
 		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"" + defaultMessageTo + "\",\"name\":\"" + defaultAlias + "\",\"@odata.type\":\"#microsoft.graph.emailAddress\"},\"@odata.type\":\"#microsoft.graph.recipient\"}],\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEJAAB8wYc0thTTTYl3RpEYIUq%2BAACL5VwSAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\",\"endDateTime\":{\"dateTime\":\"2022-11-26T16:30:00.0000000\",\"@odata.type\":\"#microsoft.graph.dateTimeTimeZone\",\"timeZone\":\"UTC\"},\"isAllDay\":false,\"isDelegated\":false,\"isOutOfDate\":false,\"meetingMessageType\":\"meetingRequest\",\"startDateTime\":{\"dateTime\":\"2022-11-26T16:00:00.0000000\",\"@odata.type\":\"#microsoft.graph.dateTimeTimeZone\",\"timeZone\":\"UTC\"},\"type\":\"singleInstance\",\"meetingRequestType\":\"newMeetingRequest\",\"responseRequested\":true}"
+
+	return []byte(message)
+}
+
+func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
+	//nolint:lll
+	message := "{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAA=\",\"@odata.type\":\"#microsoft.graph.message\"," +
+		"\"@odata.etag\":\"W/\\\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('dustina%408qzvrj.onmicrosoft.com')/messages/$entity\",\"categories\":[]," +
+		"\"changeKey\":\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\",\"createdDateTime\":\"2023-02-01T13:48:43Z\",\"lastModifiedDateTime\":\"2023-02-01T18:27:03Z\"," +
+		"\"attachments\":[{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAABEgAQAKHxTL6mNCZPo71dbwrfKYM=\"," +
+		"\"@odata.type\":\"#microsoft.graph.itemAttachment\",\"isInline\":false,\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"name\":\"Holidayevent\",\"size\":2059,\"item\":{\"id\":\"\",\"@odata.type\":\"#microsoft.graph.event\"," +
+		"\"createdDateTime\":\"2023-02-01T13:52:56Z\",\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"body\":{\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"></head><body>Let'slookforfunding!</body></html>\"," +
+		"\"contentType\":\"html\"},\"end\":{\"dateTime\":\"2016-12-02T19:00:00.0000000Z\",\"timeZone\":\"UTC\"}," +
+		"\"hasAttachments\":false,\"isAllDay\":false,\"isCancelled\":false,\"isDraft\":true,\"isOnlineMeeting\":false,\"isOrganizer\":true,\"isReminderOn\":false,\"organizer\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"" + defaultAlias + "\"}}," +
+		"\"originalEndTimeZone\":\"tzone://Microsoft/Utc\",\"originalStartTimeZone\":\"tzone://Microsoft/Utc\",\"reminderMinutesBeforeStart\":0,\"responseRequested\":true,\"start\":{\"dateTime\":\"2016-12-02T18:00:00.0000000Z\",\"timeZone\":\"UTC\"}," +
+		"\"subject\":\"Discussgiftsforchildren\",\"type\":\"singleInstance\"}}],\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"><styletype=\\\"text/css\\\"style=\\\"display:none\\\">\\r\\n<!--\\r\\np\\r\\n\\t{margin-top:0;\\r\\n\\tmargin-bottom:0}\\r\\n-->\\r\\n</style></head><bodydir=\\\"ltr\\\"><divclass=\\\"elementToProof\\\"style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\\\">Lookingtodothis </div></body></html>\",\"contentType\":\"html\"}," +
+		"\"bodyPreview\":\"Lookingtodothis\",\"ccRecipients\":[],\"conversationId\":\"AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQADGvj5ACBMdGpESX4xSOxCo=\",\"conversationIndex\":\"AQHZNkPmMa+PkAIEx0akRJfjFI7EKg==\",\"flag\":{\"flagStatus\":\"notFlagged\"}," +
+		"\"from\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"" + defaultAlias + "\"}},\"hasAttachments\":true,\"importance\":\"normal\",\"inferenceClassification\":\"focused\"," +
+		"\"internetMessageId\":\"<SJ0PR17MB56220B4F6A443386A11D5154C3D19@SJ0PR17MB5622.namprd17.prod.outlook.com>\",\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":true,\"isReadReceiptRequested\":false," +
+		"\"parentFolderId\":\"AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==\",\"receivedDateTime\":\"2023-02-01T13:48:47Z\",\"replyTo\":[]," +
+		"\"sender\":{\"emailAddress\":{\"address\":\"" + defaultMessageSender + "\",\"name\":\"" + defaultAlias + "\"}},\"sentDateTime\":\"2023-02-01T13:48:46Z\"," +
+		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"" + defaultMessageTo + "\",\"name\":\"" + defaultAlias + "\"}}]," +
+		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%2BAADFfThMAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
+
+	return []byte(message)
+}
+
+func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
+	//nolint:lll
+	// Order of fields:
+	// 1. subject
+	// 2. alias
+	// 3. sender address
+	// 4. from address
+	// 5. toRecipients email address
+	template := `{
+		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages(attachments())/$entity",
+		"@odata.etag": "W/\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK782\"",
+		"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAA=",
+		"createdDateTime": "2023-02-02T21:38:27Z",
+		"lastModifiedDateTime": "2023-02-02T22:42:49Z",
+		"changeKey": "CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK782",
+		"categories": [],
+		"receivedDateTime": "2023-02-02T21:38:27Z",
+		"sentDateTime": "2023-02-02T21:38:24Z",
+		"hasAttachments": true,
+		"internetMessageId": "<SJ0PR17MB562287BE29A86751D6E77FE5C3D69@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+		"subject": "%[1]v",
+		"bodyPreview": "Dustin,\r\n\r\nI'm here to see if we are still able to discover our object.",
+		"importance": "normal",
+		"parentFolderId": "AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==",
+		"conversationId": "AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAB13OyMdkNJJqEaIrGi3Yjc=",
+		"conversationIndex": "AQHZN06dHXc7Ix2Q0kmoRoisaLdiNw==",
+		"isDeliveryReceiptRequested": false,
+		"isReadReceiptRequested": false,
+		"isRead": false,
+		"isDraft": false,
+		"webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzTruncated",
+		"inferenceClassification": "focused",
+		"body": {
+		  "contentType": "html",
+		  "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Dustin,</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">I'm here to see if we are still able to discover our object.&nbsp;</div></body></html>"
+		},
+		"sender": {
+		  "emailAddress": {
+			"name": "%[2]s",
+			"address": "%[3]s"
+		  }
+		},
+		"from": {
+		  "emailAddress": {
+			"name": "%[2]s",
+			"address": "%[4]s"
+		  }
+		},
+		"toRecipients": [
+		  {
+			"emailAddress": {
+			  "name": "%[2]s",
+			  "address": "%[5]s"
+			}
+		  }
+		],
+		"ccRecipients": [],
+		"bccRecipients": [],
+		"replyTo": [],
+		"flag": {
+		  "flagStatus": "notFlagged"
+		},
+		"attachments": [
+		  {
+			"@odata.type": "#microsoft.graph.itemAttachment",
+			"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAABEgAQAIyAgT1ZccRCjKKyF7VZ3dA=",
+			"lastModifiedDateTime": "2023-02-02T21:38:27Z",
+			"name": "Mail Item Attachment",
+			"contentType": null,
+			"size": 5362,
+			"isInline": false,
+			"item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('')/$ref",
+			"item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('')",
+			"item": {
+			  "@odata.type": "#microsoft.graph.message",
+			  "id": "",
+			  "createdDateTime": "2023-02-02T21:38:27Z",
+			  "lastModifiedDateTime": "2023-02-02T21:38:27Z",
+			  "receivedDateTime": "2023-02-01T13:48:47Z",
+			  "sentDateTime": "2023-02-01T13:48:46Z",
+			  "hasAttachments": true,
+			  "internetMessageId": "<SJ0PR17MB56220B4F6A443386A11D5154C3D19@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+			  "subject": "Mail Item Attachment",
+			  "bodyPreview": "Lookingtodothis",
+			  "importance": "normal",
+			  "conversationId": "AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAMNK0NU7Kx5GhAaHdzhfSRU=",
+			  "conversationIndex": "AQHZN02pw0rQ1TsrHkaEBod3OF9JFQ==",
+			  "isDeliveryReceiptRequested": false,
+			  "isReadReceiptRequested": false,
+			  "isRead": true,
+			  "isDraft": false,
+			  "webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGQ1NzViZTdhLTEwMTM",
+			  "body": {
+				"contentType": "html",
+				"content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><metahttp-equiv=\"Content-Type\"content=\"text html;charset=\"utf-8&quot;\"><styletype=\"text css?style=\"display:none\"><!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n--><bodydir=\"ltr\"><divclass=\"elementToProof\"style=\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\"></head><body>Lookingtodothis&nbsp; <div></div></body></html>"
+			  },
+			  "sender": {
+				"emailAddress": {
+				  "name": "A Stranger",
+				  "address": "foobar@8qzvrj.onmicrosoft.com"
+				}
+			  },
+			  "from": {
+				"emailAddress": {
+				  "name": "A Stranger",
+				  "address": "foobar@8qzvrj.onmicrosoft.com"
+				}
+			  },
+			  "toRecipients": [
+				{
+				  "emailAddress": {
+					"name": "Direct Report",
+					"address":  "notAvailable@8qzvrj.onmicrosoft.com"
+				  }
+				}
+			  ],
+			  "flag": {
+				"flagStatus": "notFlagged"
+			  },
+			  "attachments": [
+				{
+				  "@odata.type": "#microsoft.graph.itemAttachment",
+				  "id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAACEgAQAIyAgT1ZccRCjKKyF7VZ3dASABAAuYCb3N2YZ02RpJrZPzCBFQ==",
+				  "lastModifiedDateTime": "2023-02-02T21:38:27Z",
+				  "name": "Holidayevent",
+				  "contentType": null,
+				  "size": 2331,
+				  "isInline": false,
+				  "item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/events('')/$ref",
+				  "item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/events('')",
+				  "item": {
+					"@odata.type": "#microsoft.graph.event",
+					"id": "",
+					"createdDateTime": "2023-02-02T21:38:27Z",
+					"lastModifiedDateTime": "2023-02-02T21:38:27Z",
+					"originalStartTimeZone": "tzone://Microsoft/Utc",
+					"originalEndTimeZone": "tzone://Microsoft/Utc",
+					"reminderMinutesBeforeStart": 0,
+					"isReminderOn": false,
+					"hasAttachments": false,
+					"subject": "Discuss Gifts for Children",
+					"isAllDay": false,
+					"isCancelled": false,
+					"isOrganizer": true,
+					"responseRequested": true,
+					"type": "singleInstance",
+					"isOnlineMeeting": false,
+					"isDraft": true,
+					"body": {
+					  "contentType": "html",
+					  "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><metahttp-equiv=\"Content-Type\"content=\"text html;charset=\"utf-8&quot;\"></head><body>Let'slookforfunding! </body></html>"
+					},
+					"start": {
+					  "dateTime": "2016-12-02T18:00:00.0000000Z",
+					  "timeZone": "UTC"
+					},
+					"end": {
+					  "dateTime": "2016-12-02T19:00:00.0000000Z",
+					  "timeZone": "UTC"
+					},
+					"organizer": {
+					  "emailAddress": {
+						"name": "Event Manager",
+						"address": "philonis@8qzvrj.onmicrosoft.com"
+					  }
+					}
+				  }
+				}
+			  ]
+			}
+		  }
+		]
+	  }`
+
+	message := fmt.Sprintf(
+		template,
+		subject,
+		defaultAlias,
+		defaultMessageSender,
+		defaultMessageFrom,
+		defaultMessageTo,
+	)
 
 	return []byte(message)
 }

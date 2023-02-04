@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -50,6 +51,7 @@ func generateAndRestoreItems(
 	tenantID, userID, destFldr string,
 	howMany int,
 	dbf dataBuilderFunc,
+	opts control.Options,
 ) (*details.Details, error) {
 	items := make([]item, 0, howMany)
 
@@ -74,7 +76,7 @@ func generateAndRestoreItems(
 		items:        items,
 	}}
 
-	// TODO: fit the desination to the containers
+	// TODO: fit the destination to the containers
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 
@@ -90,7 +92,7 @@ func generateAndRestoreItems(
 
 	Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return gc.RestoreDataCollections(ctx, acct, sel, dest, dataColls)
+	return gc.RestoreDataCollections(ctx, backup.Version, acct, sel, dest, opts, dataColls)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -112,7 +114,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.LargeItemClient(), acct, connector.Users)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
 	if err != nil {
 		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}

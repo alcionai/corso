@@ -8,6 +8,7 @@ import (
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -75,7 +76,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	suite.user = tester.SecondaryM365UserID(t)
 
-	odDrives, err := drives(ctx, suite, suite.user, OneDriveSource)
+	pager, err := PagerForSource(OneDriveSource, suite, suite.user, nil)
+	require.NoError(t, err)
+
+	odDrives, err := drives(ctx, pager, true)
 	require.NoError(t, err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
@@ -112,7 +116,17 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 		return nil
 	}
-	_, _, _, err := collectItems(ctx, suite, suite.userDriveID, "General", itemCollector)
+	_, _, _, err := collectItems(
+		ctx,
+		defaultItemPager(
+			suite,
+			suite.userDriveID,
+			"",
+		),
+		suite.userDriveID,
+		"General",
+		itemCollector,
+	)
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file
@@ -125,8 +139,8 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	)
 
 	// Read data for the file
+	itemInfo, itemData, err := oneDriveItemReader(graph.HTTPClient(graph.NoTimeout()), driveItem)
 
-	itemInfo, itemData, err := oneDriveItemReader(graph.LargeItemClient(), driveItem)
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)
@@ -242,5 +256,74 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "")
 			require.NoError(suite.T(), err)
 		})
+	}
+}
+
+func getPermsUperms(permID, userID string, scopes []string) (models.Permissionable, UserPermission) {
+	identity := models.NewIdentity()
+	identity.SetAdditionalData(map[string]any{"email": &userID})
+
+	sharepointIdentity := models.NewSharePointIdentitySet()
+	sharepointIdentity.SetUser(identity)
+
+	perm := models.NewPermission()
+	perm.SetId(&permID)
+	perm.SetRoles([]string{"read"})
+	perm.SetGrantedToV2(sharepointIdentity)
+
+	uperm := UserPermission{
+		ID:    permID,
+		Roles: []string{"read"},
+		Email: userID,
+	}
+
+	return perm, uperm
+}
+
+func TestOneDrivePermissionsFilter(t *testing.T) {
+	permID := "fakePermId"
+	userID := "fakeuser@provider.com"
+	userID2 := "fakeuser2@provider.com"
+
+	readPerm, readUperm := getPermsUperms(permID, userID, []string{"read"})
+	readWritePerm, readWriteUperm := getPermsUperms(permID, userID2, []string{"read", "write"})
+
+	noPerm, _ := getPermsUperms(permID, userID, []string{"read"})
+	noPerm.SetGrantedToV2(nil) // eg: link shares
+
+	cases := []struct {
+		name              string
+		graphPermissions  []models.Permissionable
+		parsedPermissions []UserPermission
+	}{
+		{
+			name:              "no perms",
+			graphPermissions:  []models.Permissionable{},
+			parsedPermissions: []UserPermission{},
+		},
+		{
+			name:              "no user bound to perms",
+			graphPermissions:  []models.Permissionable{noPerm},
+			parsedPermissions: []UserPermission{},
+		},
+		{
+			name:              "user with read permissions",
+			graphPermissions:  []models.Permissionable{readPerm},
+			parsedPermissions: []UserPermission{readUperm},
+		},
+		{
+			name:              "user with read and write permissions",
+			graphPermissions:  []models.Permissionable{readWritePerm},
+			parsedPermissions: []UserPermission{readWriteUperm},
+		},
+		{
+			name:              "multiple users with separate permissions",
+			graphPermissions:  []models.Permissionable{readPerm, readWritePerm},
+			parsedPermissions: []UserPermission{readUperm, readWriteUperm},
+		},
+	}
+	for _, tc := range cases {
+		actual := filterUserPermissions(tc.graphPermissions)
+		assert.ElementsMatch(t, tc.parsedPermissions, actual)
 	}
 }

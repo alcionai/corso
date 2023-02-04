@@ -7,18 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (alpha)
 
+### Added
+
+- Document Corso's fault-tolerance and restartability features
+- Add retries on timeouts and status code 500 for Exchange
+- Increase page size preference for delta requests for Exchange to reduce number of roundtrips
+- OneDrive file/folder permissions can now be backed up and restored
+- Add `--restore-permissions` flag to toggle restoration of OneDrive permissions
+- Add versions to backups so that we can understand/handle older backup formats
+
+### Fixed
+- Backing up a calendar that has the same name as the default calendar
+- Added additional backoff-retry to all OneDrive queries.
+- Users with `null` userType values are no longer excluded from user queries.
+
+### Known Issues
+
+- When the same user has permissions to a file and the containing
+  folder, we only restore folder level permissions for the user and no
+  separate file only permission is restored.
+- Link shares are not restored
+
+## [v0.2.0] (alpha) - 2023-1-29
+
 ### Fixed
 
 - Check if the user specified for an exchange backup operation has a mailbox.
 
 ### Changed
-
-- msgraph-beta-sdk-go replaces msgraph-sdk-go for new features. This can lead to long build times. 
+- Item.Attachments are disabled from being restored for the patching of ([#2353](https://github.com/alcionai/corso/issues/2353))
+- BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk` 
 - Handle case where user's drive has not been initialized
 - Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))
 - Guest and External users (for cloud accounts) and non-on-premise users (for systems that use on-prem AD syncs) are now excluded from backup and restore operations.
 - Remove the M365 license guid check in OneDrive backup which wasn't reliable.
-
+- Reduced extra socket consumption while downloading multiple drive files.
+- Extended timeout boundaries for exchange attachment downloads, reducing risk of cancellation on large files.
+- Identify all drives associated with a user or SharePoint site instead of just the results on the first page returned by Graph API.
 
 ## [v0.1.0] (alpha) - 2023-01-13
 
@@ -131,7 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/alcionai/corso/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/alcionai/corso/compare/v0.0.4...v0.1.0
 [v0.0.4]: https://github.com/alcionai/corso/compare/v0.0.3...v0.0.4
 [v0.0.3]: https://github.com/alcionai/corso/compare/v0.0.2...v0.0.3

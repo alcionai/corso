@@ -77,7 +77,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				site,
 				testBaseDrivePath,
 			),
-			expectedItemCount:      2,
+			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 		},
@@ -92,7 +92,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 			newPaths := map[string]string{}
 			excluded := map[string]struct{}{}
 			c := onedrive.NewCollections(
-				graph.LargeItemClient(),
+				graph.HTTPClient(graph.NoTimeout()),
 				tenant,
 				site,
 				onedrive.SharePointSource,

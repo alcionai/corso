@@ -1,7 +1,9 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,21 +27,26 @@ const (
 	downloadURLKey = "@microsoft.graph.downloadUrl"
 )
 
+// generic drive item getter
+func getDriveItem(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	return srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+}
+
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
+// TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
-
-	resp, err := hc.Get(*url)
+	resp, err := downloadItem(hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, err
+		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
@@ -49,6 +56,25 @@ func sharePointItemReader(
 	return dii, resp.Body, nil
 }
 
+func oneDriveItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+) (io.ReadCloser, int, error) {
+	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+}
+
 // oneDriveItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
@@ -56,31 +82,69 @@ func oneDriveItemReader(
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
-	if !ok {
-		return details.ItemInfo{}, nil, fmt.Errorf("failed to get url for %s", *item.GetName())
-	}
+	var (
+		rc     io.ReadCloser
+		isFile = item.GetFile() != nil
+	)
 
-	req, err := http.NewRequest(http.MethodGet, *url, nil)
-	if err != nil {
-		return details.ItemInfo{}, nil, err
-	}
+	if isFile {
+		resp, err := downloadItem(hc, item)
+		if err != nil {
+			return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+		}
 
-	// Decorate the traffic
-	//nolint:lll
-	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
-	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
-
-	resp, err := hc.Do(req)
-	if err != nil {
-		return details.ItemInfo{}, nil, err
+		rc = resp.Body
 	}
 
 	dii := details.ItemInfo{
 		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
 	}
 
-	return dii, resp.Body, nil
+	return dii, rc, nil
+}
+
+func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
+	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
+	if !ok {
+		return nil, fmt.Errorf("extracting file url: file %s", *item.GetId())
+	}
+
+	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "new request")
+	}
+
+	//nolint:lll
+	// Decorate the traffic
+	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
+	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
+
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if (resp.StatusCode / 100) == 2 {
+		return resp, nil
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return resp, graph.Err429TooManyRequests
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return resp, graph.Err401Unauthorized
+	}
+
+	if resp.StatusCode == http.StatusInternalServerError {
+		return resp, graph.Err500InternalServerError
+	}
+
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		return resp, graph.Err503ServiceUnavailable
+	}
+
+	return resp, errors.New("non-2xx http response: " + resp.Status)
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
@@ -114,6 +178,59 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		Size:      itemSize,
 		Owner:     email,
 	}
+}
+
+// oneDriveItemMetaInfo will fetch the meta information for a drive
+// item. As of now, it only adds the permissions applicable for a
+// onedrive item.
+func oneDriveItemMetaInfo(
+	ctx context.Context, service graph.Servicer,
+	driveID string, di models.DriveItemable,
+) (Metadata, error) {
+	itemID := di.GetId()
+
+	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
+	if err != nil {
+		return Metadata{}, err
+	}
+
+	uperms := filterUserPermissions(perm.GetValue())
+
+	return Metadata{Permissions: uperms}, nil
+}
+
+func filterUserPermissions(perms []models.Permissionable) []UserPermission {
+	up := []UserPermission{}
+
+	for _, p := range perms {
+		if p.GetGrantedToV2() == nil {
+			// For link shares, we get permissions without a user
+			// specified
+			continue
+		}
+
+		roles := []string{}
+
+		for _, r := range p.GetRoles() {
+			// Skip if the only role available in owner
+			if r != "owner" {
+				roles = append(roles, r)
+			}
+		}
+
+		if len(roles) == 0 {
+			continue
+		}
+
+		up = append(up, UserPermission{
+			ID:         *p.GetId(),
+			Roles:      roles,
+			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
+			Expiration: p.GetExpirationDateTime(),
+		})
+	}
+
+	return up
 }
 
 // sharePointItemInfo will populate a details.SharePointInfo struct

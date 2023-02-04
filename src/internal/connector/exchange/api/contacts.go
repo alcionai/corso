@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -13,8 +14,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -47,9 +50,8 @@ func (c Contacts) CreateContactFolder(
 	return c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 }
 
-// DeleteContactFolder deletes the ContactFolder associated with the M365 ID if permissions are valid.
-// Errors returned if the function call was not successful.
-func (c Contacts) DeleteContactFolder(
+// DeleteContainer deletes the ContactFolder associated with the M365 ID if permissions are valid.
+func (c Contacts) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
@@ -61,7 +63,16 @@ func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+	var (
+		cont models.Contactable
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,7 +92,14 @@ func (c Contacts) GetAllContactFolderNamesForUser(
 		return nil, err
 	}
 
-	return c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
+	var resp models.ContactFolderCollectionResponseable
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (c Contacts) GetContainerByID(
@@ -93,10 +111,14 @@ func (c Contacts) GetContainerByID(
 		return nil, errors.Wrap(err, "options for contact folder")
 	}
 
-	return c.stable.Client().
-		UsersById(userID).
-		ContactFoldersById(dirID).
-		Get(ctx, ofcf)
+	var resp models.ContactFolderable
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
+		return err
+	})
+
+	return resp, err
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -117,6 +139,7 @@ func (c Contacts) EnumerateContainers(
 
 	var (
 		errs   *multierror.Error
+		resp   models.ContactFolderCollectionResponseable
 		fields = []string{"displayName", "parentFolderId"}
 	)
 
@@ -131,7 +154,11 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		resp, err := builder.Get(ctx, ofcf)
+		err = graph.RunWithRetry(func() error {
+			resp, err = builder.Get(ctx, ofcf)
+			return err
+		})
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -173,15 +200,25 @@ type contactPager struct {
 	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *contactPager) getPage(ctx context.Context) (pageLinker, error) {
-	return p.builder.Get(ctx, p.options)
+func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+	var (
+		resp api.DeltaPageLinker
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
+	return resp, err
 }
 
 func (p *contactPager) setNext(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *contactPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *contactPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Contactable](pl)
 }
 
@@ -199,6 +236,11 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		resetDelta bool
 	)
 
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeContact,
+		"folder_id", directoryID)
+
 	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
 		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
@@ -215,7 +257,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
+		if !graph.IsErrInvalidDelta(err) {
 			return nil, nil, DeltaUpdate{}, err
 		}
 

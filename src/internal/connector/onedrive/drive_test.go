@@ -1,20 +1,324 @@
 package onedrive
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+type mockPageLinker struct {
+	link *string
+}
+
+func (pl *mockPageLinker) GetOdataNextLink() *string {
+	return pl.link
+}
+
+type pagerResult struct {
+	drives   []models.Driveable
+	nextLink *string
+	err      error
+}
+
+type mockDrivePager struct {
+	toReturn []pagerResult
+	getIdx   int
+}
+
+func (p *mockDrivePager) GetPage(context.Context) (api.PageLinker, error) {
+	if len(p.toReturn) <= p.getIdx {
+		return nil, assert.AnError
+	}
+
+	idx := p.getIdx
+	p.getIdx++
+
+	return &mockPageLinker{p.toReturn[idx].nextLink}, p.toReturn[idx].err
+}
+
+func (p *mockDrivePager) SetNext(string) {}
+
+func (p *mockDrivePager) ValuesIn(api.PageLinker) ([]models.Driveable, error) {
+	idx := p.getIdx
+	if idx > 0 {
+		// Return values lag by one since we increment in GetPage().
+		idx--
+	}
+
+	if len(p.toReturn) <= idx {
+		return nil, assert.AnError
+	}
+
+	return p.toReturn[idx].drives, nil
+}
+
+// Unit tests
+type OneDriveUnitSuite struct {
+	suite.Suite
+}
+
+func TestOneDriveUnitSuite(t *testing.T) {
+	suite.Run(t, new(OneDriveUnitSuite))
+}
+
+func odErr(code string) *odataerrors.ODataError {
+	odErr := &odataerrors.ODataError{}
+	merr := odataerrors.MainError{}
+	merr.SetCode(&code)
+	odErr.SetError(&merr)
+
+	return odErr
+}
+
+func (suite *OneDriveUnitSuite) TestDrives() {
+	numDriveResults := 4
+	emptyLink := ""
+	link := "foo"
+
+	// These errors won't be the "correct" format when compared to what graph
+	// returns, but they're close enough to have the same info when the inner
+	// details are extracted via support package.
+	mySiteURLNotFound := support.ConnectorStackErrorTraceWrap(
+		odErr(userMysiteURLNotFound),
+		"maximum retries or unretryable",
+	)
+	mySiteNotFound := support.ConnectorStackErrorTraceWrap(
+		odErr(userMysiteNotFound),
+		"maximum retries or unretryable",
+	)
+	deadlineExceeded := support.ConnectorStackErrorTraceWrap(
+		odErr(contextDeadlineExceeded),
+		"maximum retries or unretryable",
+	)
+
+	resultDrives := make([]models.Driveable, 0, numDriveResults)
+
+	for i := 0; i < numDriveResults; i++ {
+		d := models.NewDrive()
+		id := uuid.NewString()
+		d.SetId(&id)
+
+		resultDrives = append(resultDrives, d)
+	}
+
+	tooManyRetries := make([]pagerResult, 0, getDrivesRetries+1)
+
+	for i := 0; i < getDrivesRetries+1; i++ {
+		tooManyRetries = append(tooManyRetries, pagerResult{
+			err: deadlineExceeded,
+		})
+	}
+
+	table := []struct {
+		name            string
+		pagerResults    []pagerResult
+		retry           bool
+		expectedErr     assert.ErrorAssertionFunc
+		expectedResults []models.Driveable
+	}{
+		{
+			name: "AllOneResultNilNextLink",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives,
+					nextLink: nil,
+					err:      nil,
+				},
+			},
+			retry:           false,
+			expectedErr:     assert.NoError,
+			expectedResults: resultDrives,
+		},
+		{
+			name: "AllOneResultEmptyNextLink",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives,
+					nextLink: &emptyLink,
+					err:      nil,
+				},
+			},
+			retry:           false,
+			expectedErr:     assert.NoError,
+			expectedResults: resultDrives,
+		},
+		{
+			name: "SplitResultsNilNextLink",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives[:numDriveResults/2],
+					nextLink: &link,
+					err:      nil,
+				},
+				{
+					drives:   resultDrives[numDriveResults/2:],
+					nextLink: nil,
+					err:      nil,
+				},
+			},
+			retry:           false,
+			expectedErr:     assert.NoError,
+			expectedResults: resultDrives,
+		},
+		{
+			name: "SplitResultsEmptyNextLink",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives[:numDriveResults/2],
+					nextLink: &link,
+					err:      nil,
+				},
+				{
+					drives:   resultDrives[numDriveResults/2:],
+					nextLink: &emptyLink,
+					err:      nil,
+				},
+			},
+			retry:           false,
+			expectedErr:     assert.NoError,
+			expectedResults: resultDrives,
+		},
+		{
+			name: "NonRetryableError",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives,
+					nextLink: &link,
+					err:      nil,
+				},
+				{
+					drives:   nil,
+					nextLink: nil,
+					err:      assert.AnError,
+				},
+			},
+			retry:           true,
+			expectedErr:     assert.Error,
+			expectedResults: nil,
+		},
+		{
+			name: "SiteURLNotFound",
+			pagerResults: []pagerResult{
+				{
+					drives:   nil,
+					nextLink: nil,
+					err:      mySiteURLNotFound,
+				},
+			},
+			retry:           true,
+			expectedErr:     assert.NoError,
+			expectedResults: nil,
+		},
+		{
+			name: "SiteNotFound",
+			pagerResults: []pagerResult{
+				{
+					drives:   nil,
+					nextLink: nil,
+					err:      mySiteNotFound,
+				},
+			},
+			retry:           true,
+			expectedErr:     assert.NoError,
+			expectedResults: nil,
+		},
+		{
+			name: "SplitResultsContextTimeoutWithRetries",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives[:numDriveResults/2],
+					nextLink: &link,
+					err:      nil,
+				},
+				{
+					drives:   nil,
+					nextLink: nil,
+					err:      deadlineExceeded,
+				},
+				{
+					drives:   resultDrives[numDriveResults/2:],
+					nextLink: &emptyLink,
+					err:      nil,
+				},
+			},
+			retry:           true,
+			expectedErr:     assert.NoError,
+			expectedResults: resultDrives,
+		},
+		{
+			name: "SplitResultsContextTimeoutNoRetries",
+			pagerResults: []pagerResult{
+				{
+					drives:   resultDrives[:numDriveResults/2],
+					nextLink: &link,
+					err:      nil,
+				},
+				{
+					drives:   nil,
+					nextLink: nil,
+					err:      deadlineExceeded,
+				},
+				{
+					drives:   resultDrives[numDriveResults/2:],
+					nextLink: &emptyLink,
+					err:      nil,
+				},
+			},
+			retry:           false,
+			expectedErr:     assert.Error,
+			expectedResults: nil,
+		},
+		{
+			name: "TooManyRetries",
+			pagerResults: append(
+				[]pagerResult{
+					{
+						drives:   resultDrives[:numDriveResults/2],
+						nextLink: &link,
+						err:      nil,
+					},
+				},
+				tooManyRetries...,
+			),
+			retry:           true,
+			expectedErr:     assert.Error,
+			expectedResults: nil,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			pager := &mockDrivePager{
+				toReturn: test.pagerResults,
+			}
+
+			drives, err := drives(ctx, pager, test.retry)
+			test.expectedErr(t, err)
+
+			assert.ElementsMatch(t, test.expectedResults, drives)
+		})
+	}
+}
+
+// Integration tests
 
 type OneDriveSuite struct {
 	suite.Suite
@@ -44,7 +348,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderElements := []string{folderName1}
 	gs := loadTestService(t)
 
-	drives, err := drives(ctx, gs, suite.userID, OneDriveSource)
+	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
+	require.NoError(t, err)
+
+	drives, err := drives(ctx, pager, true)
 	require.NoError(t, err)
 	require.NotEmpty(t, drives)
 
@@ -89,7 +396,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			allFolders, err := GetAllFolders(ctx, gs, suite.userID, test.prefix)
+			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
+			require.NoError(t, err)
+
+			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix)
 			require.NoError(t, err)
 
 			foundFolderIDs := []string{}
@@ -146,17 +456,19 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			scope := selectors.
 				NewOneDriveBackup([]string{test.user}).
 				AllData()[0]
-			odcs, err := NewCollections(
-				graph.LargeItemClient(),
+			odcs, excludes, err := NewCollections(
+				graph.HTTPClient(graph.NoTimeout()),
 				creds.AzureTenantID,
 				test.user,
 				OneDriveSource,
 				testFolderMatcher{scope},
 				service,
 				service.updateStatus,
-				control.Options{},
-			).Get(ctx)
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+			).Get(ctx, nil)
 			assert.NoError(t, err)
+			// Don't expect excludes as this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			for _, entry := range odcs {
 				assert.NotEmpty(t, entry.FullPath())

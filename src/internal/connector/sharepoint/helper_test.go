@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -29,6 +29,9 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
+func (ms *MockGraphService) UpdateStatus(*support.ConnectorOperationStatus) {
+}
+
 // ---------------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------------
@@ -42,17 +45,6 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	require.NoError(t, err, "creating microsoft graph service for exchange")
 
 	return graph.NewService(adapter)
-}
-
-func createTestBetaService(t *testing.T, credentials account.M365Config) *betasdk.Service {
-	adapter, err := graph.CreateAdapter(
-		credentials.AzureTenantID,
-		credentials.AzureClientID,
-		credentials.AzureClientSecret,
-	)
-	require.NoError(t, err)
-
-	return betasdk.NewService(adapter)
 }
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {

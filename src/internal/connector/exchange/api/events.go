@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -14,10 +15,12 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -49,9 +52,9 @@ func (c Events) CreateCalendar(
 	return c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 }
 
-// DeleteCalendar removes calendar from user's M365 account
+// DeleteContainer removes a calendar from user's M365 account
 // Reference: https://docs.microsoft.com/en-us/graph/api/calendar-delete?view=graph-rest-1.0&tabs=go
-func (c Events) DeleteCalendar(
+func (c Events) DeleteContainer(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
@@ -72,7 +75,13 @@ func (c Events) GetContainerByID(
 		return nil, errors.Wrap(err, "options for event calendar")
 	}
 
-	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+	var cal models.Calendarable
+
+	err = graph.RunWithRetry(func() error {
+		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +94,53 @@ func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	evt, err := c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	var (
+		event models.Eventable
+		err   error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return evt, EventInfo(evt), nil
+	var (
+		errs    *multierror.Error
+		options = &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
+	)
+
+	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
+		for count := 0; count < numberOfRetries; count++ {
+			attached, err := c.largeItem.
+				Client().
+				UsersById(user).
+				EventsById(itemID).
+				Attachments().
+				Get(ctx, options)
+			if err == nil {
+				event.SetAttachments(attached.GetValue())
+				break
+			}
+
+			logger.Ctx(ctx).Debugw("retrying event attachment download", "err", err)
+			errs = multierror.Append(errs, err)
+		}
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("event attachment download exceeded maximum retries", "err", errs)
+			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "download event attachment"), nil)
+		}
+	}
+
+	return event, EventInfo(event), nil
 }
 
 func (c Client) GetAllCalendarNamesForUser(
@@ -102,7 +152,14 @@ func (c Client) GetAllCalendarNamesForUser(
 		return nil, err
 	}
 
-	return c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
+	var resp models.CalendarCollectionResponseable
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
+		return err
+	})
+
+	return resp, err
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -121,7 +178,10 @@ func (c Events) EnumerateContainers(
 		return err
 	}
 
-	var errs *multierror.Error
+	var (
+		resp models.CalendarCollectionResponseable
+		errs *multierror.Error
+	)
 
 	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
@@ -131,7 +191,13 @@ func (c Events) EnumerateContainers(
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		resp, err := builder.Get(ctx, ofc)
+		var err error
+
+		err = graph.RunWithRetry(func() error {
+			resp, err = builder.Get(ctx, ofc)
+			return err
+		})
+
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -178,8 +244,17 @@ type eventPager struct {
 	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *eventPager) getPage(ctx context.Context) (pageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
+func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
+	var (
+		resp api.DeltaPageLinker
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = p.builder.Get(ctx, p.options)
+		return err
+	})
+
 	return resp, err
 }
 
@@ -187,7 +262,7 @@ func (p *eventPager) setNext(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventPager) valuesIn(pl pageLinker) ([]getIDAndAddtler, error) {
+func (p *eventPager) valuesIn(pl api.DeltaPageLinker) ([]getIDAndAddtler, error) {
 	return toValues[models.Eventable](pl)
 }
 
@@ -205,6 +280,11 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		errs       *multierror.Error
 	)
 
+	ctx = clues.AddAll(
+		ctx,
+		"category", selectors.ExchangeEvent,
+		"calendar_id", calendarID)
+
 	if len(oldDelta) > 0 {
 		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
 		pgr := &eventPager{service, builder, nil}
@@ -216,7 +296,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
-		if graph.IsErrInvalidDelta(err) == nil {
+		if !graph.IsErrInvalidDelta(err) {
 			return nil, nil, DeltaUpdate{}, err
 		}
 
@@ -249,8 +329,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 // Serialization
 // ---------------------------------------------------------------------------
 
-// Serialize retrieves attachment data identified by the event item, and then
-// serializes it into a byte slice.
+// Serialize transforms the event into a byte slice.
 func (c Events) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,
@@ -267,31 +346,6 @@ func (c Events) Serialize(
 	)
 
 	defer writer.Close()
-
-	if *event.GetHasAttachments() || support.HasAttachments(event.GetBody()) {
-		// getting all the attachments might take a couple attempts due to filesize
-		var retriesErr error
-
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := c.stable.
-				Client().
-				UsersById(user).
-				EventsById(itemID).
-				Attachments().
-				Get(ctx, nil)
-			retriesErr = err
-
-			if err == nil {
-				event.SetAttachments(attached.GetValue())
-				break
-			}
-		}
-
-		if retriesErr != nil {
-			logger.Ctx(ctx).Debug("exceeded maximum retries")
-			return nil, support.WrapAndAppend(itemID, errors.Wrap(retriesErr, "attachment failed"), nil)
-		}
-	}
 
 	if err = writer.WriteObjectValue("", event); err != nil {
 		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))

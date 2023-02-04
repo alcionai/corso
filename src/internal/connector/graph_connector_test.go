@@ -2,6 +2,8 @@ package connector
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -15,10 +17,12 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -135,9 +139,10 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 
 type GraphConnectorIntegrationSuite struct {
 	suite.Suite
-	connector *GraphConnector
-	user      string
-	acct      account.Account
+	connector     *GraphConnector
+	user          string
+	secondaryUser string
+	acct          account.Account
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
@@ -156,8 +161,9 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 
 	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.LargeItemClient(), Users)
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	suite.user = tester.M365UserID(suite.T())
+	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
@@ -226,7 +232,18 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(ctx, acct, sel, dest, nil)
+	deets, err := suite.connector.RestoreDataCollections(
+		ctx,
+		backup.Version,
+		acct,
+		sel,
+		dest,
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
+		nil,
+	)
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 
@@ -294,10 +311,16 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 			deets, err := suite.connector.RestoreDataCollections(
 				ctx,
+				backup.Version,
 				suite.acct,
 				test.sel,
 				dest,
-				test.col)
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+				test.col,
+			)
 			require.NoError(t, err)
 			assert.NotNil(t, deets)
 
@@ -344,11 +367,13 @@ func runRestoreBackupTest(
 	test restoreBackupInfo,
 	tenant string,
 	resourceOwners []string,
+	opts control.Options,
 ) {
 	var (
-		collections  []data.Collection
-		expectedData = map[string]map[string][]byte{}
-		totalItems   = 0
+		collections     []data.Collection
+		expectedData    = map[string]map[string][]byte{}
+		totalItems      = 0
+		totalKopiaItems = 0
 		// Get a dest per test so they're independent.
 		dest = tester.DefaultTestRestoreDestination()
 	)
@@ -357,7 +382,7 @@ func runRestoreBackupTest(
 	defer flush()
 
 	for _, owner := range resourceOwners {
-		numItems, ownerCollections, userExpectedData := collectionsForInfo(
+		numItems, kopiaItems, ownerCollections, userExpectedData := collectionsForInfo(
 			t,
 			test.service,
 			tenant,
@@ -368,6 +393,7 @@ func runRestoreBackupTest(
 
 		collections = append(collections, ownerCollections...)
 		totalItems += numItems
+		totalKopiaItems += kopiaItems
 
 		maps.Copy(expectedData, userExpectedData)
 	}
@@ -375,27 +401,31 @@ func runRestoreBackupTest(
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
 		dest.ContainerName,
-		resourceOwners,
-	)
+		resourceOwners)
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
+		backup.Version,
 		acct,
 		restoreSel,
 		dest,
-		collections)
+		opts,
+		collections,
+	)
 	require.NoError(t, err)
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
 	runTime := time.Since(start)
 
-	assert.Equal(t, totalItems, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "status.Successful")
+	assert.NoError(t, status.Err, "restored status.Err")
+	assert.Zero(t, status.ErrorCount, "restored status.ErrorCount")
+	assert.Equal(t, totalItems, status.ObjectCount, "restored status.ObjectCount")
+	assert.Equal(t, totalItems, status.Successful, "restored status.Successful")
 	assert.Len(
 		t,
 		deets.Entries,
@@ -419,23 +449,175 @@ func runRestoreBackupTest(
 		})
 	}
 
-	backupGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start = time.Now()
-	dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
+	dcs, excludes, err := backupGC.DataCollections(
+		ctx,
+		backupSel,
+		nil,
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
+	)
 	require.NoError(t, err)
+	// No excludes yet because this isn't an incremental backup.
+	assert.Empty(t, excludes)
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	skipped := checkCollections(t, totalItems, expectedData, dcs)
+	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
 
 	status = backupGC.AwaitStatus()
+
+	assert.NoError(t, status.Err, "backup status.Err")
+	assert.Zero(t, status.ErrorCount, "backup status.ErrorCount")
+	assert.Equalf(t, totalItems+skipped, status.ObjectCount,
+		"backup status.ObjectCount; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Successful,
+		"backup status.Successful; wanted %d items + %d skipped", totalItems, skipped)
+}
+
+// runRestoreBackupTestVersion0 restores with data from an older
+// version of the backup and check the restored data against the
+// something that would be in the form of a newer backup.
+func runRestoreBackupTestVersion0(
+	t *testing.T,
+	acct account.Account,
+	test restoreBackupInfoMultiVersion,
+	tenant string,
+	resourceOwners []string,
+	opts control.Options,
+) {
+	var (
+		collections     []data.Collection
+		expectedData    = map[string]map[string][]byte{}
+		totalItems      = 0
+		totalKopiaItems = 0
+		// Get a dest per test so they're independent.
+		dest = tester.DefaultTestRestoreDestination()
+	)
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	for _, owner := range resourceOwners {
+		_, _, ownerCollections, _ := collectionsForInfoVersion0(
+			t,
+			test.service,
+			tenant,
+			owner,
+			dest,
+			test.collectionsPrevious,
+		)
+
+		collections = append(collections, ownerCollections...)
+	}
+
+	t.Logf(
+		"Restoring collections to %s for resourceOwners(s) %v\n",
+		dest.ContainerName,
+		resourceOwners,
+	)
+
+	start := time.Now()
+
+	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
+	deets, err := restoreGC.RestoreDataCollections(
+		ctx,
+		0, // The OG version ;)
+		acct,
+		restoreSel,
+		dest,
+		opts,
+		collections,
+	)
+	require.NoError(t, err)
+	assert.NotNil(t, deets)
+
+	assert.NotNil(t, restoreGC.AwaitStatus())
+
+	runTime := time.Since(start)
+
+	t.Logf("Restore complete in %v\n", runTime)
+
+	// Run a backup and compare its output with what we put in.
+	for _, owner := range resourceOwners {
+		numItems, kopiaItems, _, userExpectedData := collectionsForInfo(
+			t,
+			test.service,
+			tenant,
+			owner,
+			dest,
+			test.collectionsLatest,
+		)
+
+		totalItems += numItems
+		totalKopiaItems += kopiaItems
+
+		maps.Copy(expectedData, userExpectedData)
+	}
+
+	cats := make(map[path.CategoryType]struct{}, len(test.collectionsLatest))
+	for _, c := range test.collectionsLatest {
+		cats[c.category] = struct{}{}
+	}
+
+	expectedDests := make([]destAndCats, 0, len(resourceOwners))
+	for _, ro := range resourceOwners {
+		expectedDests = append(expectedDests, destAndCats{
+			resourceOwner: ro,
+			dest:          dest.ContainerName,
+			cats:          cats,
+		})
+	}
+
+	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
+
+	start = time.Now()
+	dcs, excludes, err := backupGC.DataCollections(
+		ctx,
+		backupSel,
+		nil,
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
+	)
+	require.NoError(t, err)
+	// No excludes yet because this isn't an incremental backup.
+	assert.Empty(t, excludes)
+
+	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
+
+	// Pull the data prior to waiting for the status as otherwise it will
+	// deadlock.
+	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
+
+	status := backupGC.AwaitStatus()
 	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
 	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
+}
+
+func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
+	id := base64.StdEncoding.EncodeToString([]byte(user + strings.Join(roles, "+")))
+	testMeta := onedrive.Metadata{Permissions: []onedrive.UserPermission{
+		{ID: id, Roles: roles, Email: user},
+	}}
+
+	testMetaJSON, err := json.Marshal(testMeta)
+	if err != nil {
+		t.Fatal("unable to marshall test permissions", err)
+	}
+
+	return testMetaJSON
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
@@ -556,7 +738,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 			},
 		},
 		{
-			name:     "MultipleContactsMutlipleFolders",
+			name:     "MultipleContactsMultipleFolders",
 			service:  path.ExchangeService,
 			resource: Users,
 			collections: []colInfo{
@@ -683,6 +865,226 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					category: path.FilesCategory,
 					items: []itemInfo{
 						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "folder-a" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("b", 65)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("c", 129)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "folder-a" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("d", 257)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 257)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "OneDriveFoldersAndFilesWithMetadata",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			runRestoreBackupTest(
+				t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
+	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	table := []restoreBackupInfoMultiVersion{
+		{
+			name:     "OneDriveMultipleFoldersAndFiles",
+			service:  path.OneDriveService,
+			resource: Users,
+
+			collectionsPrevious: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
 							name:      "test-file.txt",
 							data:      []byte(strings.Repeat("a", 33)),
 							lookupKey: "test-file.txt",
@@ -757,12 +1159,152 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					},
 				},
 			},
+
+			collectionsLatest: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "folder-a" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("b", 65)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("c", 129)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "folder-a" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"folder-a",
+						"b",
+						"folder-a",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("d", 257)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 257)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
 		},
 	}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(t, suite.acct, test, suite.connector.tenant, []string{suite.user})
+			runRestoreBackupTestVersion0(
+				t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
 		})
 	}
 }
@@ -849,7 +1391,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 				})
 
-				totalItems, collections, expectedData := collectionsForInfo(
+				totalItems, _, collections, expectedData := collectionsForInfo(
 					t,
 					test.service,
 					suite.connector.tenant,
@@ -870,8 +1412,19 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest.ContainerName,
 				)
 
-				restoreGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
-				deets, err := restoreGC.RestoreDataCollections(ctx, suite.acct, restoreSel, dest, collections)
+				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+				deets, err := restoreGC.RestoreDataCollections(
+					ctx,
+					backup.Version,
+					suite.acct,
+					restoreSel,
+					dest,
+					control.Options{
+						RestorePermissions: true,
+						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					},
+					collections,
+				)
 				require.NoError(t, err)
 				require.NotNil(t, deets)
 
@@ -888,22 +1441,382 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Run a backup and compare its output with what we put in.
 
-			backupGC := loadConnector(ctx, t, graph.LargeItemClient(), test.resource)
+			backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, err := backupGC.DataCollections(ctx, backupSel, nil, control.Options{})
+			dcs, excludes, err := backupGC.DataCollections(
+				ctx,
+				backupSel,
+				nil,
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
 			require.NoError(t, err)
+			// No excludes yet because this isn't an incremental backup.
+			assert.Empty(t, excludes)
 
 			t.Log("Backup enumeration complete")
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			skipped := checkCollections(t, allItems, allExpectedData, dcs)
+			skipped := checkCollections(t, allItems, allExpectedData, dcs, true)
 
 			status := backupGC.AwaitStatus()
 			assert.Equal(t, allItems+skipped, status.ObjectCount, "status.ObjectCount")
 			assert.Equal(t, allItems+skipped, status.Successful, "status.Successful")
 		})
 	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	table := []restoreBackupInfo{
+		{
+			name:     "FilePermissionsRestore",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name:     "FileInsideFolderPermissionsRestore",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name:     "FileAndFolderPermissionsResote",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name:     "FileAndFolderSeparatePermissionsResote",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name:     "FolderAndNoChildPermissionsResote",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "b" + onedrive.DirMetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+				},
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+						"b",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("e", 66)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			runRestoreBackupTest(t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
+	}
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestPermissionsBackupAndNoRestore() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	table := []restoreBackupInfo{
+		{
+			name:     "FilePermissionsRestore",
+			service:  path.OneDriveService,
+			resource: Users,
+			collections: []colInfo{
+				{
+					pathElements: []string{
+						"drives",
+						driveID,
+						"root:",
+					},
+					category: path.FilesCategory,
+					items: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.DataFileSuffix,
+							data:      []byte(strings.Repeat("a", 33)),
+							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
+						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			runRestoreBackupTest(
+				t,
+				suite.acct,
+				test,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
+	}
+}
+
+// TODO: this should only be run during smoke tests, not part of the standard CI.
+// That's why it's set aside instead of being included in the other test set.
+func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttachment() {
+	subjectText := "Test message for restore with large attachment"
+
+	test := restoreBackupInfo{
+		name:     "EmailsWithLargeAttachments",
+		service:  path.ExchangeService,
+		resource: Users,
+		collections: []colInfo{
+			{
+				pathElements: []string{"Inbox"},
+				category:     path.EmailCategory,
+				items: []itemInfo{
+					{
+						name:      "35mbAttachment",
+						data:      mockconnector.GetMockMessageWithSizedAttachment(subjectText, 35),
+						lookupKey: subjectText,
+					},
+				},
+			},
+		},
+	}
+
+	runRestoreBackupTest(
+		suite.T(),
+		suite.acct,
+		test,
+		suite.connector.tenant,
+		[]string{suite.user},
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+		},
+	)
 }

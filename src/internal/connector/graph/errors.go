@@ -17,6 +17,7 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
+	errCodeActivityLimitReached        = "activityLimitReached"
 	errCodeItemNotFound                = "ErrorItemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired"
@@ -26,27 +27,34 @@ const (
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
+var (
+	Err401Unauthorized = errors.New("401 unauthorized")
+	// normally the graph client will catch this for us, but in case we
+	// run our own client Do(), we need to translate it to a timeout type
+	// failure locally.
+	Err429TooManyRequests     = errors.New("429 too many requests")
+	Err503ServiceUnavailable  = errors.New("503 Service Unavailable")
+	Err504GatewayTimeout      = errors.New("504 Gateway Timeout")
+	Err500InternalServerError = errors.New("500 Internal Server Error")
+)
+
 // The folder or item was deleted between the time we identified
 // it and when we tried to fetch data for it.
 type ErrDeletedInFlight struct {
 	common.Err
 }
 
-func IsErrDeletedInFlight(err error) error {
-	if asDeletedInFlight(err) {
-		return err
+func IsErrDeletedInFlight(err error) bool {
+	e := ErrDeletedInFlight{}
+	if errors.As(err, &e) {
+		return true
 	}
 
 	if hasErrorCode(err, errCodeItemNotFound, errCodeSyncFolderNotFound) {
-		return ErrDeletedInFlight{*common.EncapsulateError(err)}
+		return true
 	}
 
-	return nil
-}
-
-func asDeletedInFlight(err error) bool {
-	e := ErrDeletedInFlight{}
-	return errors.As(err, &e)
+	return false
 }
 
 // Delta tokens can be desycned or expired.  In either case, the token
@@ -56,21 +64,17 @@ type ErrInvalidDelta struct {
 	common.Err
 }
 
-func IsErrInvalidDelta(err error) error {
-	if asInvalidDelta(err) {
-		return err
+func IsErrInvalidDelta(err error) bool {
+	e := ErrInvalidDelta{}
+	if errors.As(err, &e) {
+		return true
 	}
 
 	if hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) {
-		return ErrInvalidDelta{*common.EncapsulateError(err)}
+		return true
 	}
 
-	return nil
-}
-
-func asInvalidDelta(err error) bool {
-	e := ErrInvalidDelta{}
-	return errors.As(err, &e)
+	return false
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
@@ -85,20 +89,70 @@ type ErrTimeout struct {
 	common.Err
 }
 
-func IsErrTimeout(err error) error {
-	if asTimeout(err) {
-		return err
+func IsErrTimeout(err error) bool {
+	e := ErrTimeout{}
+	if errors.As(err, &e) {
+		return true
 	}
 
-	if isTimeoutErr(err) {
-		return ErrTimeout{*common.EncapsulateError(err)}
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+		return true
 	}
 
-	return nil
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	default:
+		return false
+	}
 }
 
-func asTimeout(err error) bool {
-	e := ErrTimeout{}
+type ErrThrottled struct {
+	common.Err
+}
+
+func IsErrThrottled(err error) bool {
+	if errors.Is(err, Err429TooManyRequests) {
+		return true
+	}
+
+	if hasErrorCode(err, errCodeActivityLimitReached) {
+		return true
+	}
+
+	e := ErrThrottled{}
+
+	return errors.As(err, &e)
+}
+
+type ErrUnauthorized struct {
+	common.Err
+}
+
+func IsErrUnauthorized(err error) bool {
+	// TODO: refine this investigation.  We don't currently know if
+	// a specific item download url expired, or if the full connection
+	// auth expired.
+	if errors.Is(err, Err401Unauthorized) {
+		return true
+	}
+
+	e := ErrUnauthorized{}
+
+	return errors.As(err, &e)
+}
+
+type ErrInternalServerError struct {
+	common.Err
+}
+
+func IsInternalServerError(err error) bool {
+	if errors.Is(err, Err500InternalServerError) {
+		return true
+	}
+
+	e := ErrInternalServerError{}
+
 	return errors.As(err, &e)
 }
 
@@ -121,21 +175,4 @@ func hasErrorCode(err error, codes ...string) bool {
 	}
 
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
-}
-
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
-		return true
-	}
-
-	switch err := err.(type) {
-	case *url.Error:
-		return err.Timeout()
-	default:
-		return false
-	}
 }

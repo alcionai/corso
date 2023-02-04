@@ -189,23 +189,32 @@ func RestoreMailMessage(
 	// 1st: No transmission
 	// 2nd: Send Date
 	// 3rd: Recv Date
+	svlep := make([]models.SingleValueLegacyExtendedPropertyable, 0)
 	sv1 := models.NewSingleValueLegacyExtendedProperty()
 	sv1.SetId(&valueID)
 	sv1.SetValue(&enableValue)
+	svlep = append(svlep, sv1)
 
-	sv2 := models.NewSingleValueLegacyExtendedProperty()
-	sendPropertyValue := common.FormatLegacyTime(*clone.GetSentDateTime())
-	sendPropertyTag := MailSendDateTimeOverrideProperty
-	sv2.SetId(&sendPropertyTag)
-	sv2.SetValue(&sendPropertyValue)
+	if clone.GetSentDateTime() != nil {
+		sv2 := models.NewSingleValueLegacyExtendedProperty()
+		sendPropertyValue := common.FormatLegacyTime(*clone.GetSentDateTime())
+		sendPropertyTag := MailSendDateTimeOverrideProperty
+		sv2.SetId(&sendPropertyTag)
+		sv2.SetValue(&sendPropertyValue)
 
-	sv3 := models.NewSingleValueLegacyExtendedProperty()
-	recvPropertyValue := common.FormatLegacyTime(*clone.GetReceivedDateTime())
-	recvPropertyTag := MailReceiveDateTimeOverriveProperty
-	sv3.SetId(&recvPropertyTag)
-	sv3.SetValue(&recvPropertyValue)
+		svlep = append(svlep, sv2)
+	}
 
-	svlep := []models.SingleValueLegacyExtendedPropertyable{sv1, sv2, sv3}
+	if clone.GetReceivedDateTime() != nil {
+		sv3 := models.NewSingleValueLegacyExtendedProperty()
+		recvPropertyValue := common.FormatLegacyTime(*clone.GetReceivedDateTime())
+		recvPropertyTag := MailReceiveDateTimeOverriveProperty
+		sv3.SetId(&recvPropertyTag)
+		sv3.SetValue(&recvPropertyValue)
+
+		svlep = append(svlep, sv3)
+	}
+
 	clone.SetSingleValueExtendedProperties(svlep)
 
 	// Switch workflow based on collision policy
@@ -248,10 +257,9 @@ func SendMailToBackStore(
 		errs     error
 	)
 
-	if *message.GetHasAttachments() {
-		attached = message.GetAttachments()
-		message.SetAttachments([]models.Attachmentable{})
-	}
+	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
+	attached = message.GetAttachments()
+	message.SetAttachments([]models.Attachmentable{})
 
 	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
@@ -374,7 +382,11 @@ func restoreCollection(
 		user      = directory.ResourceOwner()
 	)
 
-	colProgress, closer := observe.CollectionProgress(ctx, user, category.String(), directory.Folder())
+	colProgress, closer := observe.CollectionProgress(
+		ctx,
+		category.String(),
+		observe.PII(user),
+		observe.PII(directory.Folder()))
 	defer closer()
 	defer close(colProgress)
 
@@ -633,7 +645,11 @@ func establishEventsRestoreLocation(
 	user string,
 	isNewCache bool,
 ) (string, error) {
-	cached, ok := ecc.PathInCache(folders[0])
+	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
+	cached, ok := ecc.PathInCache(path.Builder{}.Append(
+		calendarOthersFolder,
+		folders[0],
+	).String())
 	if ok {
 		return cached, nil
 	}
