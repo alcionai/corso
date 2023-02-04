@@ -14,7 +14,7 @@ We all know that Corso is a free and open-source tool for creating backups of yo
 that data go?
 
 Corso creates a repository to store your backups, and the default in our documentation is to send that data to AWS S3.
-It is possible however to back up to any object storage system that has an S3-compatible API. Let’s talk about some options.
+It's possible however to back up to any object storage system that has an S3-compatible API. Let’s talk about some options.
 
 <!-- truncate -->
 ## S3-Compatible Object Storage

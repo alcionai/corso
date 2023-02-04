@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -12,7 +13,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -68,7 +68,7 @@ func (c Contacts) GetItem(
 		err  error
 	)
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 		return err
 	})
@@ -94,7 +94,7 @@ func (c Contacts) GetAllContactFolderNamesForUser(
 
 	var resp models.ContactFolderCollectionResponseable
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
 		return err
 	})
@@ -113,7 +113,7 @@ func (c Contacts) GetContainerByID(
 
 	var resp models.ContactFolderable
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 		return err
 	})
@@ -154,7 +154,7 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		err = runWithRetry(func() error {
+		err = graph.RunWithRetry(func() error {
 			resp, err = builder.Get(ctx, ofcf)
 			return err
 		})
@@ -206,7 +206,7 @@ func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error)
 		err  error
 	)
 
-	err = runWithRetry(func() error {
+	err = graph.RunWithRetry(func() error {
 		resp, err = p.builder.Get(ctx, p.options)
 		return err
 	})

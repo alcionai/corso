@@ -73,6 +73,8 @@ func (suite *FaultErrorsUnitSuite) TestErr() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
+			require.NoError(t, n.Err())
+			require.Empty(t, n.Errs())
 
 			e := n.Fail(test.fail)
 			require.NotNil(t, e)
@@ -90,6 +92,8 @@ func (suite *FaultErrorsUnitSuite) TestFail() {
 
 	n := fault.New(false)
 	require.NotNil(t, n)
+	require.NoError(t, n.Err())
+	require.Empty(t, n.Errs())
 
 	n.Fail(assert.AnError)
 	assert.Error(t, n.Err())
