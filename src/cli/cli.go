@@ -6,7 +6,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
@@ -48,6 +50,13 @@ func preRun(cc *cobra.Command, args []string) error {
 	// currently only tracking flag names to avoid pii leakage.
 	for f := range flags {
 		flagSl = append(flagSl, f)
+	}
+
+	avoidTheseCommands := []string{
+		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
+	}
+	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
+		print.Info(cc.Context(), "Logging to file: "+logger.LogFile)
 	}
 
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())
@@ -121,6 +130,9 @@ func Handle() {
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
+		logger.Ctx(ctx).
+			With("err", err).
+			Errorw("cli execution", clues.InErr(err).Slice()...)
 		os.Exit(1)
 	}
 }

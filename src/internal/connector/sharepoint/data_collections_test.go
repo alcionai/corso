@@ -77,7 +77,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				site,
 				testBaseDrivePath,
 			),
-			expectedItemCount:      2,
+			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 		},

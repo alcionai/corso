@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -29,21 +29,22 @@ func (ms *MockGraphService) Adapter() *msgraphsdk.GraphRequestAdapter {
 	return nil
 }
 
+func (ms *MockGraphService) UpdateStatus(*support.ConnectorOperationStatus) {
+}
+
 // ---------------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------------
 
-func createTestService(credentials account.M365Config) (*graph.Service, error) {
+func createTestService(t *testing.T, credentials account.M365Config) *graph.Service {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
 		credentials.AzureClientSecret,
 	)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
-	}
+	require.NoError(t, err, "creating microsoft graph service for exchange")
 
-	return graph.NewService(adapter), nil
+	return graph.NewService(adapter)
 }
 
 func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []string {

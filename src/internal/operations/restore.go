@@ -3,6 +3,8 @@ package operations
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
+	"sort"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -106,28 +108,45 @@ type restorer interface {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
-	ctx, end := D.Span(ctx, "operations:restore:run")
-	defer end()
+	defer func() {
+		if r := recover(); r != nil {
+			var rerr error
+			if re, ok := r.(error); ok {
+				rerr = re
+			} else if re, ok := r.(string); ok {
+				rerr = clues.New(re)
+			} else {
+				rerr = clues.New(fmt.Sprintf("%v", r))
+			}
+
+			err = clues.Wrap(rerr, "panic recovery").
+				WithClues(ctx).
+				With("stacktrace", string(debug.Stack()))
+			logger.Ctx(ctx).
+				With("err", err).
+				Errorw("backup panic", clues.InErr(err).Slice()...)
+		}
+	}()
 
 	var (
 		opStats = restoreStats{
 			bytesRead: &stats.ByteCounter{},
 			restoreID: uuid.NewString(),
 		}
-		startTime = time.Now()
+		start        = time.Now()
+		detailsStore = streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
+	// -----
+	// Setup
+	// -----
+
+	ctx, end := D.Span(ctx, "operations:restore:run")
 	defer func() {
+		end()
 		// wait for the progress display to clean up
 		observe.Complete()
-
-		err = op.persistResults(ctx, startTime, &opStats)
-		if err != nil {
-			return
-		}
 	}()
-
-	detailsStore := streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
 
 	ctx = clues.AddAll(
 		ctx,
@@ -135,6 +154,43 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service)
 
+	// -----
+	// Execution
+	// -----
+
+	deets, err := op.do(ctx, &opStats, detailsStore, start)
+	if err != nil {
+		// No return here!  We continue down to persistResults, even in case of failure.
+		logger.Ctx(ctx).
+			With("err", err).
+			Errorw("doing restore", clues.InErr(err).Slice()...)
+		op.Errors.Fail(errors.Wrap(err, "doing restore"))
+		opStats.readErr = op.Errors.Err()
+	}
+
+	// -----
+	// Persistence
+	// -----
+
+	err = op.persistResults(ctx, start, &opStats)
+	if err != nil {
+		op.Errors.Fail(errors.Wrap(err, "persisting restore results"))
+		opStats.writeErr = op.Errors.Err()
+
+		return nil, op.Errors.Err()
+	}
+
+	logger.Ctx(ctx).Infow("completed restore", "results", op.Results)
+
+	return deets, nil
+}
+
+func (op *RestoreOperation) do(
+	ctx context.Context,
+	opStats *restoreStats,
+	detailsStore detailsReader,
+	start time.Time,
+) (*details.Details, error) {
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -142,30 +198,28 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		detailsStore,
 	)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "restore")
-		return nil, opStats.readErr
+		return nil, errors.Wrap(err, "getting backup and details")
 	}
 
-	ctx = clues.Add(ctx, "resource_owner", bup.Selector.DiscreteOwner)
+	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets)
+	if err != nil {
+		return nil, errors.Wrap(err, "formatting paths from details")
+	}
+
+	ctx = clues.AddAll(
+		ctx,
+		"resource_owner", bup.Selector.DiscreteOwner,
+		"details_paths", len(paths))
 
 	op.bus.Event(
 		ctx,
 		events.RestoreStart,
 		map[string]any{
-			events.StartTime:        startTime,
+			events.StartTime:        start,
 			events.BackupID:         op.BackupID,
 			events.BackupCreateTime: bup.CreationTime,
 			events.RestoreID:        opStats.restoreID,
-		},
-	)
-
-	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets)
-	if err != nil {
-		opStats.readErr = err
-		return nil, err
-	}
-
-	ctx = clues.Add(ctx, "details_paths", len(paths))
+		})
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
 
@@ -175,39 +229,45 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "retrieving service data")
-		return nil, opStats.readErr
+		return nil, errors.Wrap(err, "retrieving collections from repository")
 	}
+
 	kopiaComplete <- struct{}{}
 
-	ctx = clues.Add(ctx, "collections", len(dcs))
+	ctx = clues.Add(ctx, "coll_count", len(dcs))
 
+	// should always be 1, since backups are 1:1 with resourceOwners.
+	opStats.resourceCount = 1
 	opStats.cs = dcs
-	opStats.resourceCount = len(data.ResourceOwnerSet(dcs))
 
 	gc, err := connectToM365(ctx, op.Selectors, op.account)
 	if err != nil {
-		opStats.readErr = errors.Wrap(err, "connecting to M365")
-		return nil, opStats.readErr
+		return nil, errors.Wrap(err, "connecting to M365")
 	}
 
 	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
 	defer closer()
 	defer close(restoreComplete)
 
-	restoreDetails, err = gc.RestoreDataCollections(
+	restoreDetails, err := gc.RestoreDataCollections(
 		ctx,
+		bup.Version,
 		op.account,
 		op.Selectors,
 		op.Destination,
+		op.Options,
 		dcs)
 	if err != nil {
-		opStats.writeErr = errors.Wrap(err, "restoring service data")
-		return nil, opStats.writeErr
+		return nil, errors.Wrap(err, "restoring collections")
 	}
+
 	restoreComplete <- struct{}{}
 
 	opStats.gc = gc.AwaitStatus()
+	// TODO(keepers): remove when fault.Errors handles all iterable error aggregation.
+	if opStats.gc.ErrorCount > 0 {
+		return nil, opStats.gc.Err
+	}
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
@@ -236,14 +296,20 @@ func (op *RestoreOperation) persistResults(
 			opStats.writeErr)
 	}
 
-	if opStats.readErr == nil && opStats.writeErr == nil && opStats.gc.Successful == 0 {
+	op.Results.BytesRead = opStats.bytesRead.NumBytes
+	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
+	op.Results.ResourceOwners = opStats.resourceCount
+
+	if opStats.gc == nil {
+		op.Status = Failed
+		return errors.New("restoration never completed")
+	}
+
+	if opStats.gc.Successful == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.BytesRead = opStats.bytesRead.NumBytes
-	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ItemsWritten = opStats.gc.Successful
-	op.Results.ResourceOwners = opStats.resourceCount
 
 	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
@@ -299,6 +365,17 @@ func formatDetailsForRestoration(
 
 		paths[i] = p
 	}
+
+	// TODO(meain): Move this to onedrive specific component, but as
+	// of now the paths can technically be from multiple services
+
+	// This sort is done primarily to order `.meta` files after `.data`
+	// files. This is only a necessity for OneDrive as we are storing
+	// metadata for files/folders in separate meta files and we the
+	// data to be restored before we can restore the metadata.
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].String() < paths[j].String()
+	})
 
 	if errs != nil {
 		return nil, errs

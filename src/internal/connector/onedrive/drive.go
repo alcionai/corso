@@ -7,7 +7,6 @@ import (
 	"time"
 
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
@@ -81,7 +80,7 @@ func drives(
 			page, err = pager.GetPage(ctx)
 			if err != nil {
 				// Various error handling. May return an error or perform a retry.
-				detailedError := support.ConnectorStackErrorTrace(err)
+				detailedError := err.Error()
 				if strings.Contains(detailedError, userMysiteURLNotFound) ||
 					strings.Contains(detailedError, userMysiteNotFound) {
 					logger.Ctx(ctx).Infof("resource owner does not have a drive")
@@ -135,11 +134,42 @@ type itemCollector func(
 	excluded map[string]struct{},
 ) error
 
+type itemPager interface {
+	GetPage(context.Context) (gapi.DeltaPageLinker, error)
+	SetNext(nextLink string)
+	ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error)
+}
+
+func defaultItemPager(
+	servicer graph.Servicer,
+	driveID, link string,
+) itemPager {
+	return api.NewItemPager(
+		servicer,
+		driveID,
+		link,
+		[]string{
+			"content.downloadUrl",
+			"createdBy",
+			"createdDateTime",
+			"file",
+			"folder",
+			"id",
+			"lastModifiedDateTime",
+			"name",
+			"package",
+			"parentReference",
+			"root",
+			"size",
+		},
+	)
+}
+
 // collectItems will enumerate all items in the specified drive and hand them to the
 // provided `collector` method
 func collectItems(
 	ctx context.Context,
-	service graph.Servicer,
+	pager itemPager,
 	driveID, driveName string,
 	collector itemCollector,
 ) (string, map[string]string, map[string]struct{}, error) {
@@ -154,34 +184,8 @@ func collectItems(
 
 	maps.Copy(newPaths, oldPaths)
 
-	// TODO: Specify a timestamp in the delta query
-	// https://docs.microsoft.com/en-us/graph/api/driveitem-delta?
-	// view=graph-rest-1.0&tabs=http#example-4-retrieving-delta-results-using-a-timestamp
-	builder := service.Client().DrivesById(driveID).Root().Delta()
-	pageCount := int32(999) // max we can do is 999
-	requestFields := []string{
-		"content.downloadUrl",
-		"createdBy",
-		"createdDateTime",
-		"file",
-		"folder",
-		"id",
-		"lastModifiedDateTime",
-		"name",
-		"package",
-		"parentReference",
-		"root",
-		"size",
-	}
-	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
-			Top:    &pageCount,
-			Select: requestFields,
-		},
-	}
-
 	for {
-		r, err := builder.Get(ctx, requestConfig)
+		page, err := pager.GetPage(ctx)
 		if err != nil {
 			return "", nil, nil, errors.Wrapf(
 				err,
@@ -190,23 +194,29 @@ func collectItems(
 			)
 		}
 
-		err = collector(ctx, driveID, driveName, r.GetValue(), oldPaths, newPaths, excluded)
+		vals, err := pager.ValuesIn(page)
+		if err != nil {
+			return "", nil, nil, errors.Wrap(err, "extracting items from response")
+		}
+
+		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded)
 		if err != nil {
 			return "", nil, nil, err
 		}
 
-		if r.GetOdataDeltaLink() != nil && len(*r.GetOdataDeltaLink()) > 0 {
-			newDeltaURL = *r.GetOdataDeltaLink()
+		nextLink, deltaLink := gapi.NextAndDeltaLink(page)
+
+		if len(deltaLink) > 0 {
+			newDeltaURL = deltaLink
 		}
 
 		// Check if there are more items
-		nextLink := r.GetOdataNextLink()
-		if nextLink == nil {
+		if len(nextLink) == 0 {
 			break
 		}
 
-		logger.Ctx(ctx).Debugf("Found %s nextLink", *nextLink)
-		builder = msdrives.NewItemRootDeltaRequestBuilder(*nextLink, service.Adapter())
+		logger.Ctx(ctx).Debugw("Found nextLink", "link", nextLink)
+		pager.SetNext(nextLink)
 	}
 
 	return newDeltaURL, newPaths, excluded, nil
@@ -226,7 +236,16 @@ func getFolder(
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
 	builder := msdrive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
-	foundItem, err := builder.Get(ctx, nil)
+	var (
+		foundItem models.DriveItemable
+		err       error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		foundItem, err = builder.Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		var oDataError *odataerrors.ODataError
 		if errors.As(err, &oDataError) &&
@@ -318,7 +337,11 @@ func GetAllFolders(
 	for _, d := range drives {
 		_, _, _, err = collectItems(
 			ctx,
-			gs,
+			defaultItemPager(
+				gs,
+				*d.GetId(),
+				"",
+			),
 			*d.GetId(),
 			*d.GetName(),
 			func(
