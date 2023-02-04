@@ -3,10 +3,13 @@ package support
 import (
 	"testing"
 
+	kioser "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 )
 
@@ -17,6 +20,11 @@ type DataSupportSuite struct {
 func TestDataSupportSuite(t *testing.T) {
 	suite.Run(t, new(DataSupportSuite))
 }
+
+var (
+	empty   = "Empty Bytes"
+	invalid = "Invalid Bytes"
+)
 
 // TestCreateMessageFromBytes verifies approved mockdata bytes can
 // be successfully transformed into M365 Message data.
@@ -59,13 +67,13 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Bytes",
+			name:       empty,
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
 		},
 		{
-			name:       "Invalid Bytes",
+			name:       invalid,
 			byteArray:  []byte("A random sentence doesn't make an object"),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -94,13 +102,13 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Byes",
+			name:       empty,
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
 		},
 		{
-			name:       "Invalid Bytes",
+			name:       invalid,
 			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -132,13 +140,13 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 		isNil      assert.ValueAssertionFunc
 	}{
 		{
-			name:       "Empty Byes",
+			name:       empty,
 			byteArray:  make([]byte, 0),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
 		},
 		{
-			name:       "Invalid Bytes",
+			name:       invalid,
 			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
 			checkError: assert.Error,
 			isNil:      assert.Nil,
@@ -156,6 +164,114 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 			result, err := CreateListFromBytes(test.byteArray)
 			test.checkError(t, err)
 			test.isNil(t, result)
+		})
+	}
+}
+
+func (suite *DataSupportSuite) TestCreatePageFromBytes() {
+	tests := []struct {
+		name       string
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+		getBytes   func(t *testing.T) []byte
+	}{
+		{
+			empty,
+			assert.Error,
+			assert.Nil,
+			func(t *testing.T) []byte {
+				return make([]byte, 0)
+			},
+		},
+		{
+			invalid,
+			assert.Error,
+			assert.Nil,
+			func(t *testing.T) []byte {
+				return []byte("snarf")
+			},
+		},
+		{
+			"Valid Page",
+			assert.NoError,
+			assert.NotNil,
+			func(t *testing.T) []byte {
+				pg := bmodels.NewSitePage()
+				title := "Tested"
+				pg.SetTitle(&title)
+				pg.SetName(&title)
+				pg.SetWebUrl(&title)
+
+				writer := kioser.NewJsonSerializationWriter()
+				err := pg.Serialize(writer)
+				require.NoError(t, err)
+
+				byteArray, err := writer.GetSerializedContent()
+				require.NoError(t, err)
+
+				return byteArray
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result, err := CreatePageFromBytes(test.getBytes(t))
+			test.checkError(t, err)
+			test.isNil(t, result)
+		})
+	}
+}
+
+func (suite *DataSupportSuite) TestHasAttachments() {
+	tests := []struct {
+		name          string
+		hasAttachment assert.BoolAssertionFunc
+		getBodyable   func(t *testing.T) models.ItemBodyable
+	}{
+		{
+			name:          "Mock w/out attachment",
+			hasAttachment: assert.False,
+			getBodyable: func(t *testing.T) models.ItemBodyable {
+				byteArray := mockconnector.GetMockMessageWithBodyBytes(
+					"Test",
+					"This is testing",
+					"This is testing",
+				)
+				message, err := CreateMessageFromBytes(byteArray)
+				require.NoError(t, err)
+				return message.GetBody()
+			},
+		},
+		{
+			name:          "Mock w/ inline attachment",
+			hasAttachment: assert.True,
+			getBodyable: func(t *testing.T) models.ItemBodyable {
+				byteArray := mockconnector.GetMessageWithOneDriveAttachment("Test legacy")
+				message, err := CreateMessageFromBytes(byteArray)
+				require.NoError(t, err)
+				return message.GetBody()
+			},
+		},
+		{
+			name:          "Edge Case",
+			hasAttachment: assert.True,
+			getBodyable: func(t *testing.T) models.ItemBodyable {
+				//nolint:lll
+				content := "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Happy New Year,</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">In accordance with TPS report guidelines, there have been questions about how to address our activities SharePoint Cover page. Do you believe this is the best picture?&nbsp;</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><img class=\"FluidPluginCopy ContentPasted0 w-2070 h-1380\" size=\"5854817\" data-outlook-trace=\"F:1|T:1\" src=\"cid:85f4faa3-9851-40c7-ba0a-e63dce1185f9\" style=\"max-width:100%\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Let me know if this meets our culture requirements.</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Warm Regards,</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Dustin</div></body></html>"
+				body := models.NewItemBody()
+				body.SetContent(&content)
+				cat := models.HTML_BODYTYPE
+				body.SetContentType(&cat)
+				return body
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.T().Run(test.name, func(t *testing.T) {
+			found := HasAttachments(test.getBodyable(t))
+			test.hasAttachment(t, found)
 		})
 	}
 }
