@@ -59,6 +59,11 @@ const (
 // require more fine-tuned controls in the future.
 // https://stackoverflow.com/questions/64044266/error-message-unsupported-or-invalid-query-filter-clause-specified-for-property
 //
+// ne 'Guest' ensures we don't filter out users where userType = null, which can happen
+// for user accounts created prior to 2014.  In order to use the `ne` comparator, we
+// MUST include $count=true and the ConsistencyLevel: eventual header.
+// https://stackoverflow.com/questions/49340485/how-to-filter-users-by-usertype-null
+//
 //nolint:lll
 var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
 
