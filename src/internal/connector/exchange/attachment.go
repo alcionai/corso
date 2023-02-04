@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -44,13 +45,40 @@ func uploadAttachment(
 	attachment models.Attachmentable,
 ) error {
 	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
-	attachmentType := attachmentType(attachment)
 
+	var (
+		attachmentType = attachmentType(attachment)
+		err            error
+	)
 	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
 	if attachmentType == models.REFERENCE_ATTACHMENTTYPE &&
 		attachment.GetIsInline() != nil && *attachment.GetIsInline() {
 		logger.Ctx(ctx).Debugf("skip uploading inline reference attachment: ", *attachment.GetName())
 		return nil
+	}
+
+	// item Attachments to be skipped until the completion of Issue #2353
+	if attachmentType == models.ITEM_ATTACHMENTTYPE {
+		prev := attachment
+
+		attachment, err = support.ToItemAttachment(attachment)
+		if err != nil {
+			name := ""
+			if prev.GetName() != nil {
+				name = *prev.GetName()
+			}
+
+			// TODO: Update to support PII protection
+			logger.Ctx(ctx).Infow("item attachment uploads are not supported ",
+				"err", err,
+				"attachment_name", name,
+				"attachment_type", attachmentType,
+				"internal_item_type", getItemAttachmentItemType(prev),
+				"attachment_id", *prev.GetId(),
+			)
+
+			return nil
+		}
 	}
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
@@ -89,4 +117,20 @@ func uploadLargeAttachment(ctx context.Context, uploader attachmentUploadable,
 	}
 
 	return nil
+}
+
+func getItemAttachmentItemType(query models.Attachmentable) string {
+	empty := ""
+	attachment, ok := query.(models.ItemAttachmentable)
+
+	if !ok {
+		return empty
+	}
+
+	item := attachment.GetItem()
+	if item.GetOdataType() == nil {
+		return empty
+	}
+
+	return *item.GetOdataType()
 }
