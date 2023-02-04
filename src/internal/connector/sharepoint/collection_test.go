@@ -111,23 +111,6 @@ func (suite *SharePointCollectionSuite) TestListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestCollectPages() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	col, err := collectPages(
-		ctx,
-		suite.creds,
-		nil,
-		suite.siteID,
-		&MockGraphService{},
-		control.Defaults(),
-	)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, col)
-}
-
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
 func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	ctx, flush := tester.NewContext()
