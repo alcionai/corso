@@ -77,7 +77,13 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 		return nil, err
 	}
 
-	resp, err := service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
+	var resp models.UserCollectionResponseable
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
+		return err
+	})
+
 	if err != nil {
 		return nil, support.ConnectorStackErrorTraceWrap(err, "getting all users")
 	}
@@ -114,22 +120,37 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 }
 
 func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {
-	user, err := c.stable.Client().UsersById(userID).Get(ctx, nil)
+	var (
+		resp models.Userable
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, support.ConnectorStackErrorTraceWrap(err, "getting user by id")
 	}
 
-	return user, nil
+	return resp, err
 }
 
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// Assume all services are enabled
 	// then filter down to only services the user has enabled
-	userInfo := newUserInfo()
+	var (
+		err      error
+		userInfo = newUserInfo()
+	)
 
 	// TODO: OneDrive
+	err = graph.RunWithRetry(func() error {
+		_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+		return err
+	})
 
-	_, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			return nil, support.ConnectorStackErrorTraceWrap(err, "getting user's exchange mailfolders")
