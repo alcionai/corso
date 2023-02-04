@@ -129,7 +129,9 @@ directory within the container.
 
 ## Log Files
 
+Corso generates a unique log file named with its timestamp for every invocation.
 The default location of Corso's log file is shown below but the location can be overridden by using the `--log-file` flag.
+The log file will be appended to if multiple Corso invocations are pointed to the same file.
 You can also use `stdout` or `stderr` as the `--log-file` location to redirect the logs to "stdout" and "stderr" respectively.
 
 <Tabs groupId="os">

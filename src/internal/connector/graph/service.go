@@ -149,7 +149,7 @@ func HTTPClient(opts ...option) *http.Client {
 	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
 	middlewares = append(middlewares, &LoggingMiddleware{})
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Second * 90
+	httpClient.Timeout = time.Minute * 3
 
 	(&clientConfig{}).
 		populate(opts...).
@@ -250,7 +250,6 @@ func (handler *LoggingMiddleware) Intercept(
 			respDump, _ := httputil.DumpResponse(resp, false)
 
 			metadata := []any{
-				"idx", middlewareIndex,
 				"method", req.Method,
 				"status", resp.Status,
 				"statusCode", resp.StatusCode,
@@ -273,7 +272,6 @@ func (handler *LoggingMiddleware) Intercept(
 		respDump, _ := httputil.DumpResponse(resp, true)
 
 		metadata := []any{
-			"idx", middlewareIndex,
 			"method", req.Method,
 			"status", resp.Status,
 			"statusCode", resp.StatusCode,

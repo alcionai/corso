@@ -1,4 +1,4 @@
-package sharepoint
+package api
 
 import (
 	"context"
@@ -33,11 +33,11 @@ func GetSitePages(
 }
 
 // fetchPages utility function to return the tuple of item
-func fetchPages(ctx context.Context, bs *api.BetaService, siteID string) ([]listTuple, error) {
+func FetchPages(ctx context.Context, bs *api.BetaService, siteID string) ([]Tuple, error) {
 	var (
 		builder    = bs.Client().SitesById(siteID).Pages()
 		opts       = fetchPageOptions()
-		pageTuples = make([]listTuple, 0)
+		pageTuples = make([]Tuple, 0)
 	)
 
 	for {
@@ -48,10 +48,10 @@ func fetchPages(ctx context.Context, bs *api.BetaService, siteID string) ([]list
 
 		for _, entry := range resp.GetValue() {
 			pid := *entry.GetId()
-			temp := listTuple{id: pid, name: pid}
+			temp := Tuple{pid, pid}
 
 			if entry.GetName() != nil {
-				temp.name = *entry.GetName()
+				temp.Name = *entry.GetName()
 			}
 
 			pageTuples = append(pageTuples, temp)

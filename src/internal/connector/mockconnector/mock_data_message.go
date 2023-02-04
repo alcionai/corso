@@ -336,3 +336,212 @@ func GetMockEventMessageRequest(subject string) []byte {
 
 	return []byte(message)
 }
+
+func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
+	//nolint:lll
+	message := "{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAA=\",\"@odata.type\":\"#microsoft.graph.message\"," +
+		"\"@odata.etag\":\"W/\\\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('dustina%408qzvrj.onmicrosoft.com')/messages/$entity\",\"categories\":[]," +
+		"\"changeKey\":\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK3BH\",\"createdDateTime\":\"2023-02-01T13:48:43Z\",\"lastModifiedDateTime\":\"2023-02-01T18:27:03Z\"," +
+		"\"attachments\":[{\"id\":\"AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThMAAABEgAQAKHxTL6mNCZPo71dbwrfKYM=\"," +
+		"\"@odata.type\":\"#microsoft.graph.itemAttachment\",\"isInline\":false,\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"name\":\"Holidayevent\",\"size\":2059,\"item\":{\"id\":\"\",\"@odata.type\":\"#microsoft.graph.event\"," +
+		"\"createdDateTime\":\"2023-02-01T13:52:56Z\",\"lastModifiedDateTime\":\"2023-02-01T13:52:56Z\",\"body\":{\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"></head><body>Let'slookforfunding!</body></html>\"," +
+		"\"contentType\":\"html\"},\"end\":{\"dateTime\":\"2016-12-02T19:00:00.0000000Z\",\"timeZone\":\"UTC\"}," +
+		"\"hasAttachments\":false,\"isAllDay\":false,\"isCancelled\":false,\"isDraft\":true,\"isOnlineMeeting\":false,\"isOrganizer\":true,\"isReminderOn\":false,\"organizer\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"" + defaultAlias + "\"}}," +
+		"\"originalEndTimeZone\":\"tzone://Microsoft/Utc\",\"originalStartTimeZone\":\"tzone://Microsoft/Utc\",\"reminderMinutesBeforeStart\":0,\"responseRequested\":true,\"start\":{\"dateTime\":\"2016-12-02T18:00:00.0000000Z\",\"timeZone\":\"UTC\"}," +
+		"\"subject\":\"Discussgiftsforchildren\",\"type\":\"singleInstance\"}}],\"bccRecipients\":[],\"body\":{\"content\":\"<html><head>\\r\\n<metahttp-equiv=\\\"Content-Type\\\"content=\\\"text/html;charset=utf-8\\\"><styletype=\\\"text/css\\\"style=\\\"display:none\\\">\\r\\n<!--\\r\\np\\r\\n\\t{margin-top:0;\\r\\n\\tmargin-bottom:0}\\r\\n-->\\r\\n</style></head><bodydir=\\\"ltr\\\"><divclass=\\\"elementToProof\\\"style=\\\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\\\">Lookingtodothis </div></body></html>\",\"contentType\":\"html\"}," +
+		"\"bodyPreview\":\"Lookingtodothis\",\"ccRecipients\":[],\"conversationId\":\"AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQADGvj5ACBMdGpESX4xSOxCo=\",\"conversationIndex\":\"AQHZNkPmMa+PkAIEx0akRJfjFI7EKg==\",\"flag\":{\"flagStatus\":\"notFlagged\"}," +
+		"\"from\":{\"emailAddress\":{\"address\":\"" + defaultMessageFrom + "\",\"name\":\"" + defaultAlias + "\"}},\"hasAttachments\":true,\"importance\":\"normal\",\"inferenceClassification\":\"focused\"," +
+		"\"internetMessageId\":\"<SJ0PR17MB56220B4F6A443386A11D5154C3D19@SJ0PR17MB5622.namprd17.prod.outlook.com>\",\"isDeliveryReceiptRequested\":false,\"isDraft\":false,\"isRead\":true,\"isReadReceiptRequested\":false," +
+		"\"parentFolderId\":\"AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==\",\"receivedDateTime\":\"2023-02-01T13:48:47Z\",\"replyTo\":[]," +
+		"\"sender\":{\"emailAddress\":{\"address\":\"" + defaultMessageSender + "\",\"name\":\"" + defaultAlias + "\"}},\"sentDateTime\":\"2023-02-01T13:48:46Z\"," +
+		"\"subject\":\"" + subject + "\",\"toRecipients\":[{\"emailAddress\":{\"address\":\"" + defaultMessageTo + "\",\"name\":\"" + defaultAlias + "\"}}]," +
+		"\"webLink\":\"https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%2BAADFfThMAAA%3D&exvsurl=1&viewmodel=ReadMessageItem\"}"
+
+	return []byte(message)
+}
+
+func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
+	//nolint:lll
+	// Order of fields:
+	// 1. subject
+	// 2. alias
+	// 3. sender address
+	// 4. from address
+	// 5. toRecipients email address
+	template := `{
+		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages(attachments())/$entity",
+		"@odata.etag": "W/\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK782\"",
+		"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAA=",
+		"createdDateTime": "2023-02-02T21:38:27Z",
+		"lastModifiedDateTime": "2023-02-02T22:42:49Z",
+		"changeKey": "CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADFK782",
+		"categories": [],
+		"receivedDateTime": "2023-02-02T21:38:27Z",
+		"sentDateTime": "2023-02-02T21:38:24Z",
+		"hasAttachments": true,
+		"internetMessageId": "<SJ0PR17MB562287BE29A86751D6E77FE5C3D69@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+		"subject": "%[1]v",
+		"bodyPreview": "Dustin,\r\n\r\nI'm here to see if we are still able to discover our object.",
+		"importance": "normal",
+		"parentFolderId": "AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==",
+		"conversationId": "AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAB13OyMdkNJJqEaIrGi3Yjc=",
+		"conversationIndex": "AQHZN06dHXc7Ix2Q0kmoRoisaLdiNw==",
+		"isDeliveryReceiptRequested": false,
+		"isReadReceiptRequested": false,
+		"isRead": false,
+		"isDraft": false,
+		"webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzTruncated",
+		"inferenceClassification": "focused",
+		"body": {
+		  "contentType": "html",
+		  "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Dustin,</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">I'm here to see if we are still able to discover our object.&nbsp;</div></body></html>"
+		},
+		"sender": {
+		  "emailAddress": {
+			"name": "%[2]s",
+			"address": "%[3]s"
+		  }
+		},
+		"from": {
+		  "emailAddress": {
+			"name": "%[2]s",
+			"address": "%[4]s"
+		  }
+		},
+		"toRecipients": [
+		  {
+			"emailAddress": {
+			  "name": "%[2]s",
+			  "address": "%[5]s"
+			}
+		  }
+		],
+		"ccRecipients": [],
+		"bccRecipients": [],
+		"replyTo": [],
+		"flag": {
+		  "flagStatus": "notFlagged"
+		},
+		"attachments": [
+		  {
+			"@odata.type": "#microsoft.graph.itemAttachment",
+			"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAABEgAQAIyAgT1ZccRCjKKyF7VZ3dA=",
+			"lastModifiedDateTime": "2023-02-02T21:38:27Z",
+			"name": "Mail Item Attachment",
+			"contentType": null,
+			"size": 5362,
+			"isInline": false,
+			"item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('')/$ref",
+			"item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('')",
+			"item": {
+			  "@odata.type": "#microsoft.graph.message",
+			  "id": "",
+			  "createdDateTime": "2023-02-02T21:38:27Z",
+			  "lastModifiedDateTime": "2023-02-02T21:38:27Z",
+			  "receivedDateTime": "2023-02-01T13:48:47Z",
+			  "sentDateTime": "2023-02-01T13:48:46Z",
+			  "hasAttachments": true,
+			  "internetMessageId": "<SJ0PR17MB56220B4F6A443386A11D5154C3D19@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+			  "subject": "Mail Item Attachment",
+			  "bodyPreview": "Lookingtodothis",
+			  "importance": "normal",
+			  "conversationId": "AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAMNK0NU7Kx5GhAaHdzhfSRU=",
+			  "conversationIndex": "AQHZN02pw0rQ1TsrHkaEBod3OF9JFQ==",
+			  "isDeliveryReceiptRequested": false,
+			  "isReadReceiptRequested": false,
+			  "isRead": true,
+			  "isDraft": false,
+			  "webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGQ1NzViZTdhLTEwMTM",
+			  "body": {
+				"contentType": "html",
+				"content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><metahttp-equiv=\"Content-Type\"content=\"text html;charset=\"utf-8&quot;\"><styletype=\"text css?style=\"display:none\"><!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n--><bodydir=\"ltr\"><divclass=\"elementToProof\"style=\"font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12pt;color:rgb(0,0,0);background-color:rgb(255,255,255)\"></head><body>Lookingtodothis&nbsp; <div></div></body></html>"
+			  },
+			  "sender": {
+				"emailAddress": {
+				  "name": "A Stranger",
+				  "address": "foobar@8qzvrj.onmicrosoft.com"
+				}
+			  },
+			  "from": {
+				"emailAddress": {
+				  "name": "A Stranger",
+				  "address": "foobar@8qzvrj.onmicrosoft.com"
+				}
+			  },
+			  "toRecipients": [
+				{
+				  "emailAddress": {
+					"name": "Direct Report",
+					"address":  "notAvailable@8qzvrj.onmicrosoft.com"
+				  }
+				}
+			  ],
+			  "flag": {
+				"flagStatus": "notFlagged"
+			  },
+			  "attachments": [
+				{
+				  "@odata.type": "#microsoft.graph.itemAttachment",
+				  "id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADFfThSAAACEgAQAIyAgT1ZccRCjKKyF7VZ3dASABAAuYCb3N2YZ02RpJrZPzCBFQ==",
+				  "lastModifiedDateTime": "2023-02-02T21:38:27Z",
+				  "name": "Holidayevent",
+				  "contentType": null,
+				  "size": 2331,
+				  "isInline": false,
+				  "item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/events('')/$ref",
+				  "item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/events('')",
+				  "item": {
+					"@odata.type": "#microsoft.graph.event",
+					"id": "",
+					"createdDateTime": "2023-02-02T21:38:27Z",
+					"lastModifiedDateTime": "2023-02-02T21:38:27Z",
+					"originalStartTimeZone": "tzone://Microsoft/Utc",
+					"originalEndTimeZone": "tzone://Microsoft/Utc",
+					"reminderMinutesBeforeStart": 0,
+					"isReminderOn": false,
+					"hasAttachments": false,
+					"subject": "Discuss Gifts for Children",
+					"isAllDay": false,
+					"isCancelled": false,
+					"isOrganizer": true,
+					"responseRequested": true,
+					"type": "singleInstance",
+					"isOnlineMeeting": false,
+					"isDraft": true,
+					"body": {
+					  "contentType": "html",
+					  "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><metahttp-equiv=\"Content-Type\"content=\"text html;charset=\"utf-8&quot;\"></head><body>Let'slookforfunding! </body></html>"
+					},
+					"start": {
+					  "dateTime": "2016-12-02T18:00:00.0000000Z",
+					  "timeZone": "UTC"
+					},
+					"end": {
+					  "dateTime": "2016-12-02T19:00:00.0000000Z",
+					  "timeZone": "UTC"
+					},
+					"organizer": {
+					  "emailAddress": {
+						"name": "Event Manager",
+						"address": "philonis@8qzvrj.onmicrosoft.com"
+					  }
+					}
+				  }
+				}
+			  ]
+			}
+		  }
+		]
+	  }`
+
+	message := fmt.Sprintf(
+		template,
+		subject,
+		defaultAlias,
+		defaultMessageSender,
+		defaultMessageFrom,
+		defaultMessageTo,
+	)
+
+	return []byte(message)
+}

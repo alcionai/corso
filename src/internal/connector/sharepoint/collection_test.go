@@ -17,12 +17,27 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type SharePointCollectionSuite struct {
 	suite.Suite
+	siteID string
+	creds  account.M365Config
+}
+
+func (suite *SharePointCollectionSuite) SetupSuite() {
+	t := suite.T()
+	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
+
+	suite.siteID = tester.M365SiteID(t)
+	a := tester.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err)
+
+	suite.creds = m365
 }
 
 func TestSharePointCollectionSuite(t *testing.T) {
@@ -96,49 +111,21 @@ func (suite *SharePointCollectionSuite) TestListCollection() {
 	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
-func (suite *SharePointCollectionSuite) TestPageCollection() {
+func (suite *SharePointCollectionSuite) TestCollectPages() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	t := suite.T()
-	count := 0
-	siteID := tester.M365SiteID(t)
-	a := tester.NewM365Account(t)
-	account, err := a.M365Config()
-	require.NoError(t, err)
-
-	service := createTestBetaService(t, account)
-
-	tuples, err := fetchPages(ctx, service, siteID)
-	require.NoError(t, err)
-	require.NotEmpty(t, tuples)
-
-	dir, err := path.Builder{}.Append("directory").
-		ToDataLayerSharePointPath(
-			"tenant",
-			siteID,
-			path.PagesCategory,
-			false,
-		)
-	require.NoError(t, err)
-
-	col := NewCollection(dir, nil, Pages, nil, control.Defaults())
-	col.jobs = []string{tuples[0].id}
-	col.betaService = service
-
-	streamChannel := col.Items()
-
-	// Verify that each message can be restored
-	for stream := range streamChannel {
-		buf := &bytes.Buffer{}
-
-		read, err := buf.ReadFrom(stream.ToReader())
-		assert.NoError(t, err)
-		assert.NotZero(t, read)
-		count++
-	}
-
-	assert.Equal(t, count, 1)
+	col, err := collectPages(
+		ctx,
+		suite.creds,
+		nil,
+		suite.siteID,
+		&MockGraphService{},
+		control.Defaults(),
+	)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, col)
 }
 
 // TestRestoreListCollection verifies Graph Restore API for the List Collection
@@ -147,12 +134,8 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	defer flush()
 
 	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	a := tester.NewM365Account(t)
-	account, err := a.M365Config()
-	require.NoError(t, err)
 
-	service := createTestService(t, account)
+	service := createTestService(t, suite.creds)
 	listing := mockconnector.GetMockListDefault("Mock List")
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
@@ -167,13 +150,13 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
-	deets, err := restoreListItem(ctx, service, listData, siteID, destName)
+	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
 	assert.NoError(t, err)
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
 
 	// Clean-Up
 	var (
-		builder  = service.Client().SitesById(siteID).Lists()
+		builder  = service.Client().SitesById(suite.siteID).Lists()
 		isFound  bool
 		deleteID string
 	)
@@ -200,7 +183,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	}
 
 	if isFound {
-		err := DeleteList(ctx, service, siteID, deleteID)
+		err := DeleteList(ctx, service, suite.siteID, deleteID)
 		assert.NoError(t, err)
 	}
 }
@@ -212,23 +195,18 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	defer flush()
 
 	t := suite.T()
-	a := tester.NewM365Account(t)
-	account, err := a.M365Config()
-	require.NoError(t, err)
 
-	service := createTestService(t, account)
+	service := createTestService(t, suite.creds)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
-	siteID := tester.M365SiteID(t)
-
-	folderID, err := createRestoreFolders(ctx, service, siteID, []string{rootFolder})
+	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
 	assert.NoError(t, err)
 	t.Log("FolderID: " + folderID)
 
-	_, err = createRestoreFolders(ctx, service, siteID, []string{rootFolder, "Tsao"})
+	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
 	assert.NoError(t, err)
 
 	// CleanUp
-	siteDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
+	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)
 	require.NoError(t, err)
 
 	driveID := *siteDrive.GetId()

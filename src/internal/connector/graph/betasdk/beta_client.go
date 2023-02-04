@@ -1,13 +1,14 @@
 package betasdk
 
 import (
-	i1a3c1a5501c5e41b7fd169f2d4c768dce9b096ac28fb5431bf02afcc57295411 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	absser "github.com/microsoft/kiota-abstractions-go"
 	kioser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kform "github.com/microsoft/kiota-serialization-form-go"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	ktext "github.com/microsoft/kiota-serialization-text-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+
+	i1a3c1a5501c5e41b7fd169f2d4c768dce9b096ac28fb5431bf02afcc57295411 "github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 )
 
 // BetaClient the main entry point of the SDK, exposes the configuration and the fluent API.

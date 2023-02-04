@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Document Corso's fault-tolerance and restartability features
+- Add retries on timeouts and status code 500 for Exchange
+- Increase page size preference for delta requests for Exchange to reduce number of roundtrips
+- OneDrive file/folder permissions can now be backed up and restored
+- Add `--restore-permissions` flag to toggle restoration of OneDrive permissions
+- Add versions to backups so that we can understand/handle older backup formats
+
+### Known Issues
+
+- When the same user has permissions to a file and the containing
+  folder, we only restore folder level permissions for the user and no
+  separate file only permission is restored.
+- Link shares are not restored
 
 ## [v0.2.0] (alpha) - 2023-1-29
 
@@ -18,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Check if the user specified for an exchange backup operation has a mailbox.
 
 ### Changed
-
+- Item.Attachments are disabled from being restored for the patching of ([#2353](https://github.com/alcionai/corso/issues/2353))
 - BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk` 
 - Handle case where user's drive has not been initialized
 - Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))

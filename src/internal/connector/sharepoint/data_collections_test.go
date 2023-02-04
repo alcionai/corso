@@ -79,7 +79,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				site,
 				testBaseDrivePath,
 			),
-			expectedItemCount:      2,
+			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 		},
@@ -153,14 +153,20 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	a := tester.NewM365Account(t)
 	account, err := a.M365Config()
 	require.NoError(t, err)
-	serv := createTestService(t, account)
 	updateFunc := func(*support.ConnectorOperationStatus) {
 		t.Log("Updater Called ")
 	}
 
 	updater := &MockUpdater{UpdateState: updateFunc}
 
-	col, err := collectPages(ctx, account, serv, siteID, updater, control.Options{})
+	col, err := collectPages(
+		ctx,
+		account,
+		nil,
+		siteID,
+		updater,
+		control.Options{},
+	)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, col)
 }

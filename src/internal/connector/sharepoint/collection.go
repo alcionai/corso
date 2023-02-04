@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -270,7 +271,7 @@ func (sc *Collection) retrievePages(
 		return metrics, fmt.Errorf("beta service not found in collection")
 	}
 
-	pages, err := GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
+	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
 		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
 	}
