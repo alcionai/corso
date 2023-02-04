@@ -116,51 +116,12 @@ func (suite *SharePointCollectionSuite) TestCollectPages() {
 	defer flush()
 
 	t := suite.T()
-	count := 0
-	siteID := tester.M365SiteID(t)
-	a := tester.NewM365Account(t)
-	account, err := a.M365Config()
-	require.NoError(t, err)
-
-	service := api.createTestBetaService(t, account)
-
-	tuples, err := fetchPages(ctx, service, siteID)
-	require.NoError(t, err)
-	require.NotEmpty(t, tuples)
-
-	dir, err := path.Builder{}.Append("directory").
-		ToDataLayerSharePointPath(
-			"tenant",
-			siteID,
-			path.PagesCategory,
-			false,
-		)
-	require.NoError(t, err)
-
-	col := NewCollection(dir, nil, Pages, nil)
-	col.jobs = []string{tuples[0].id}
-	col.betaService = service
-
-	streamChannel := col.Items()
-
-	// Verify that each message can be restored
-	for stream := range streamChannel {
-		buf := &bytes.Buffer{}
-
-		read, err := buf.ReadFrom(stream.ToReader())
-		assert.NoError(t, err)
-		assert.NotZero(t, read)
-		count++
-	}
-
-	assert.Equal(t, count, 1)
 	col, err := collectPages(
 		ctx,
 		suite.creds,
 		nil,
 		account.AzureTenantID,
 		suite.siteID,
-		nil,
 		&MockGraphService{},
 		control.Defaults(),
 	)
