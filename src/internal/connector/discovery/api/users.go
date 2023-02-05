@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	absser "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -58,14 +59,27 @@ const (
 // require more fine-tuned controls in the future.
 // https://stackoverflow.com/questions/64044266/error-message-unsupported-or-invalid-query-filter-clause-specified-for-property
 //
+// ne 'Guest' ensures we don't filter out users where userType = null, which can happen
+// for user accounts created prior to 2014.  In order to use the `ne` comparator, we
+// MUST include $count=true and the ConsistencyLevel: eventual header.
+// https://stackoverflow.com/questions/49340485/how-to-filter-users-by-usertype-null
+//
 //nolint:lll
-var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType eq 'Member'"
+var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
+
+// I can't believe I have to do this.
+var t = true
 
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
+	headers := absser.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
+
 	return &users.UsersRequestBuilderGetRequestConfiguration{
+		Headers: headers,
 		QueryParameters: &users.UsersRequestBuilderGetQueryParameters{
 			Select: []string{userSelectID, userSelectPrincipalName, userSelectDisplayName},
 			Filter: fs,
+			Count:  &t,
 		},
 	}
 }
@@ -77,7 +91,13 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 		return nil, err
 	}
 
-	resp, err := service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
+	var resp models.UserCollectionResponseable
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
+		return err
+	})
+
 	if err != nil {
 		return nil, support.ConnectorStackErrorTraceWrap(err, "getting all users")
 	}
@@ -114,22 +134,37 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 }
 
 func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {
-	user, err := c.stable.Client().UsersById(userID).Get(ctx, nil)
+	var (
+		resp models.Userable
+		err  error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		return nil, support.ConnectorStackErrorTraceWrap(err, "getting user by id")
 	}
 
-	return user, nil
+	return resp, err
 }
 
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// Assume all services are enabled
 	// then filter down to only services the user has enabled
-	userInfo := newUserInfo()
+	var (
+		err      error
+		userInfo = newUserInfo()
+	)
 
 	// TODO: OneDrive
+	err = graph.RunWithRetry(func() error {
+		_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+		return err
+	})
 
-	_, err := c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
 			return nil, support.ConnectorStackErrorTraceWrap(err, "getting user's exchange mailfolders")

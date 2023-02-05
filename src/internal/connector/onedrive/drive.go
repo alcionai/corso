@@ -91,7 +91,7 @@ func drives(
 			page, err = pager.GetPage(ctx)
 			if err != nil {
 				// Various error handling. May return an error or perform a retry.
-				detailedError := support.ConnectorStackErrorTrace(err)
+				detailedError := err.Error()
 				if strings.Contains(detailedError, userMysiteURLNotFound) ||
 					strings.Contains(detailedError, userMysiteNotFound) {
 					logger.Ctx(ctx).Infof("resource owner does not have a drive")
@@ -266,7 +266,16 @@ func getFolder(
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
 	builder := msdrive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
-	foundItem, err := builder.Get(ctx, nil)
+	var (
+		foundItem models.DriveItemable
+		err       error
+	)
+
+	err = graph.RunWithRetry(func() error {
+		foundItem, err = builder.Get(ctx, nil)
+		return err
+	})
+
 	if err != nil {
 		var oDataError *odataerrors.ODataError
 		if errors.As(err, &oDataError) &&

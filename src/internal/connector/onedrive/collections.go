@@ -433,6 +433,12 @@ func (c *Collections) UpdateCollections(
 			// already created and partially populated.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
+			if c.source != OneDriveSource {
+				continue
+			}
+
+			fallthrough
+
 		case item.GetFile() != nil:
 			if item.GetDeleted() != nil {
 				excluded[*item.GetId()] = struct{}{}
@@ -448,6 +454,7 @@ func (c *Collections) UpdateCollections(
 			// the exclude list.
 
 			col, found := c.CollectionMap[collectionPath.String()]
+
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
@@ -462,13 +469,17 @@ func (c *Collections) UpdateCollections(
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++
-				c.NumItems++
 			}
 
 			collection := col.(*Collection)
 			collection.Add(item)
-			c.NumFiles++
+
 			c.NumItems++
+			if item.GetFile() != nil {
+				// This is necessary as we have a fallthrough for
+				// folders and packages
+				c.NumFiles++
+			}
 
 		default:
 			return errors.Errorf("item type not supported. item name : %s", *item.GetName())
