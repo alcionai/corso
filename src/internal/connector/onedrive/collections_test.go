@@ -646,6 +646,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				tt.inputFolderMap,
 				outputFolderMap,
 				excludes,
+				false,
 			)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
@@ -1133,6 +1134,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		expectedDeltaURLs   map[string]string
 		expectedFolderPaths map[string]map[string]string
 		expectedDelList     map[string]struct{}
+		doNotMergeItems     bool
 	}{
 		{
 			name:   "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
@@ -1344,6 +1346,42 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedFolderPaths: nil,
 			expectedDelList:     nil,
 		},
+		{
+			name:   "OneDrive_OneItemPage_DeltaError",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						err: getDeltaError(),
+					},
+					{
+						items: []models.DriveItemable{
+							driveItem("file", "file", testBaseDrivePath, true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedCollections: map[string][]string{
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath,
+				)[0]: {"file"},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				// We need an empty map here so deserializing metadata knows the delta
+				// token for this drive is valid.
+				driveID1: {},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: true,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -1423,6 +1461,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				}
 
 				assert.ElementsMatch(t, test.expectedCollections[folderPath], itemIDs)
+				assert.Equal(t, test.doNotMergeItems, baseCol.DoNotMergeItems(), "DoNotMergeItems")
 			}
 
 			assert.Equal(t, test.expectedDelList, delList)
@@ -1483,16 +1522,20 @@ func delItem(
 	return item
 }
 
-func (suite *OneDriveCollectionsSuite) TestCollectItems() {
-	next := "next"
-	delta := "delta"
-
+func getDeltaError() error {
 	syncStateNotFound := "SyncStateNotFound" // TODO(meain): export graph.errCodeSyncStateNotFound
 	me := odataerrors.NewMainError()
 	me.SetCode(&syncStateNotFound)
 
 	deltaError := odataerrors.NewODataError()
 	deltaError.SetError(me)
+
+	return deltaError
+}
+
+func (suite *OneDriveCollectionsSuite) TestCollectItems() {
+	next := "next"
+	delta := "delta"
 
 	table := []struct {
 		name             string
@@ -1522,7 +1565,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 			name:     "invalid prev delta",
 			deltaURL: delta,
 			items: []deltaPagerResult{
-				{err: deltaError},
+				{err: getDeltaError()},
 				{deltaLink: &delta}, // works on retry
 			},
 			prevDeltaSuccess: false,
@@ -1553,6 +1596,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				oldPaths map[string]string,
 				newPaths map[string]string,
 				excluded map[string]struct{},
+				doNotMergeItems bool,
 			) error {
 				return nil
 			}
