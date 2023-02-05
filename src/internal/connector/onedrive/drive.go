@@ -143,6 +143,7 @@ type itemCollector func(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	validPrevDelta bool,
 ) error
 
 type itemPager interface {
@@ -228,7 +229,7 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
 		}
 
-		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded)
+		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded, invalidPrevDelta)
 		if err != nil {
 			return DeltaUpdate{}, nil, nil, err
 		}
@@ -380,6 +381,7 @@ func GetAllFolders(
 				oldPaths map[string]string,
 				newPaths map[string]string,
 				excluded map[string]struct{},
+				doNotMergeItems bool,
 			) error {
 				for _, item := range items {
 					// Skip the root item.

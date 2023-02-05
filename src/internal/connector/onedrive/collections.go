@@ -374,6 +374,7 @@ func (c *Collections) UpdateCollections(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	invalidPrevDelta bool,
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -465,7 +466,9 @@ func (c *Collections) UpdateCollections(
 					c.service,
 					c.statusUpdater,
 					c.source,
-					c.ctrl)
+					c.ctrl,
+					invalidPrevDelta,
+				)
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++
