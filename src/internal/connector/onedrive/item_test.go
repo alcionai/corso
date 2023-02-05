@@ -126,6 +126,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.userDriveID,
 		"General",
 		itemCollector,
+		"",
 	)
 	require.NoError(suite.T(), err)
 
