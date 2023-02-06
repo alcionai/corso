@@ -294,6 +294,11 @@ func (op *BackupOperation) do(
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
+	// TODO(meain): remove this once we stabilize delta incrementals for OneDrive
+	if sel.Service == selectors.ServiceOneDrive {
+		return opts.ToggleFeatures.EnableOneDriveDeltaIncrementals
+	}
+
 	// Delta-based incrementals currently only supported for Exchange
 	if sel.Service != selectors.ServiceExchange {
 		return false
