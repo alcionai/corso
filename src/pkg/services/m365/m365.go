@@ -99,7 +99,7 @@ func SiteIDs(ctx context.Context, acct account.Account) ([]string, error) {
 // parseUser extracts information from `models.Userable` we care about
 func parseUser(item models.Userable) (*User, error) {
 	if item.GetUserPrincipalName() == nil {
-		return nil, clues.New("userable missing principal name").
+		return nil, clues.New("user missing principal name").
 			With("user_id", *item.GetId()) // TODO: pii
 	}
 
