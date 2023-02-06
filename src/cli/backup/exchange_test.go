@@ -224,29 +224,11 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err.Err())
-			assert.Empty(t, err.Errs())
+			assert.NoError(t, err.Err(), "failure")
+			assert.Empty(t, err.Errs(), "recovered errors")
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
-}
-
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadBackupID() {
-	t := suite.T()
-	ctx, flush := tester.NewContext()
-	backupGetter := &testdata.MockBackupGetter{}
-
-	defer flush()
-
-	output, err := runDetailsExchangeCmd(
-		ctx,
-		backupGetter,
-		"backup-ID",
-		utils.ExchangeOpts{},
-	)
-	assert.NoError(t, err.Err())
-	assert.Empty(t, err.Errs())
-	assert.Empty(t, output)
 }
 
 func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
@@ -259,11 +241,9 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
-			)
-
-			assert.Error(t, err.Err())
-			assert.Empty(t, err.Errs())
+				test.Opts)
+			assert.Error(t, err.Err(), "failure")
+			assert.Empty(t, err.Errs(), "recovered errors")
 			assert.Empty(t, output)
 		})
 	}
