@@ -405,17 +405,12 @@ func (c *Collections) UpdateCollections(
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
+			prevColPath, ok := oldPaths[*item.GetId()]
+
+			// TODO(meain): Should we have a check here validating
+			// if the delete showed up only when the delta was
+			// valid?
 			if item.GetDeleted() != nil {
-				// Nested folders also return deleted delta results so we don't have to
-				// worry about doing a prefix search in the map to remove the subtree of
-				// the deleted folder/package.
-				delete(newPaths, *item.GetId())
-
-				// TODO(meain): Should we have a check here validating
-				// if the delete showed up only when the delta was
-				// valid?
-
-				prevColPath, ok := oldPaths[*item.GetId()]
 				if !ok {
 					// It is possible that an item was created and
 					// deleted between two delta invocations. In
@@ -424,11 +419,10 @@ func (c *Collections) UpdateCollections(
 					continue
 				}
 
-				_, found := c.CollectionMap[prevColPath]
-				if found {
-					logger.Ctx(ctx).Errorw("items found in deleted collection", "error", err)
-					return err
-				}
+				// Nested folders also return deleted delta results so we don't have to
+				// worry about doing a prefix search in the map to remove the subtree of
+				// the deleted folder/package.
+				delete(newPaths, *item.GetId())
 
 				prevPath, err := path.FromDataLayerPath(prevColPath, true) // FIXME(meain): converting string to path
 				if err != nil {
@@ -449,8 +443,9 @@ func (c *Collections) UpdateCollections(
 				)
 
 				c.CollectionMap[prevColPath] = col
+				c.NumContainers++
 
-				break // TODO(meain): Why is this break here?
+				break
 			}
 
 			// Deletions of folders are handled in this case so we may as well start
@@ -471,6 +466,46 @@ func (c *Collections) UpdateCollections(
 			// already created and partially populated.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
+			if ok {
+				// If we find prev path, that implies these are
+				// moved/renames folders and not new ones
+				prevPath, err := path.FromDataLayerPath(prevColPath, true) // FIXME(meain): converting string to path
+				if err != nil {
+					logger.Ctx(ctx).Errorw("invalid prev path for item", "error", err)
+					return err
+				}
+
+				col, found := c.CollectionMap[folderPath.String()]
+				if !found {
+					col := NewCollection(
+						c.itemClient,
+						folderPath,
+						prevPath,
+						driveID,
+						c.service,
+						c.statusUpdater,
+						c.source,
+						c.ctrl,
+						invalidPrevDelta,
+					)
+					c.CollectionMap[folderPath.String()] = col
+					c.NumContainers++
+				} else {
+					// If we have previously created a collection when
+					// we encountered a file, this gives us a change
+					// to mark the container as moved or not moved
+					// instead of new.
+					ccol, ok := col.(*Collection)
+					if !ok {
+						logger.Ctx(ctx).Errorw("unable to cast onedrive collection", "error", err)
+						return err
+					}
+
+					ccol.SetPreviousPath(prevPath)
+					c.CollectionMap[folderPath.String()] = ccol
+				}
+			}
+
 			if c.source != OneDriveSource {
 				continue
 			}
@@ -478,8 +513,15 @@ func (c *Collections) UpdateCollections(
 			fallthrough
 
 		case item.GetFile() != nil:
-			if item.GetDeleted() != nil {
+			if !invalidPrevDelta && item.GetFile() != nil {
+				// Always add a file to the excluded list. If it was
+				// deleted, we want to avoid it. If it was
+				// renamed/moved/modified, we still have to drop the
+				// original one and repull the new one.
 				excluded[*item.GetId()] = struct{}{}
+			}
+
+			if item.GetDeleted() != nil {
 				// Exchange counts items streamed through it which includes deletions so
 				// add that here too.
 				c.NumFiles++
@@ -488,16 +530,19 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
-			// the exclude list.
-
 			col, found := c.CollectionMap[collectionPath.String()]
-
 			if !found {
+				var prevPath path.Path
+				// TODO(meain): better check for root
+				if strings.HasSuffix(collectionPath.Folder(), "root:") && !invalidPrevDelta {
+					// Root collection is always added with not moved flag
+					prevPath = collectionPath
+				}
+
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
-					nil, // Empty prevPath for new items
+					prevPath,
 					driveID,
 					c.service,
 					c.statusUpdater,

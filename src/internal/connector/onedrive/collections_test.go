@@ -103,18 +103,21 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	)
 
 	tests := []struct {
-		testCase                       string
-		items                          []models.DriveItemable
-		inputFolderMap                 map[string]string
-		scope                          selectors.OneDriveScope
-		expect                         assert.ErrorAssertionFunc
-		expectedCollectionPaths        []string
-		expectedDeletedCollectionPaths []string
-		expectedItemCount              int
-		expectedContainerCount         int
-		expectedFileCount              int
-		expectedMetadataPaths          map[string]string
-		expectedExcludes               map[string]struct{}
+		testCase                        string
+		items                           []models.DriveItemable
+		inputFolderMap                  map[string]string
+		scope                           selectors.OneDriveScope
+		expect                          assert.ErrorAssertionFunc
+		expectedCollectionPaths         []string
+		expectedMovedCollectionPaths    []string
+		expectedNotMovedCollectionPaths []string
+		expectedDeletedCollectionPaths  []string
+		expectedItemCount               int
+		expectedContainerCount          int
+		expectedFileCount               int
+		expectedMetadataPaths           map[string]string
+		expectedExcludes                map[string]struct{}
+		validPrevDelta                  bool
 	}{
 		{
 			testCase: "Invalid item",
@@ -367,15 +370,16 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
+			expectedNotMovedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
 				user,
 				testBaseDrivePath,
+				testBaseDrivePath+"/folder",
 			),
 			expectedItemCount:      1,
 			expectedFileCount:      0,
-			expectedContainerCount: 1,
+			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -391,6 +395,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				)[0],
 			},
 			expectedExcludes: map[string]struct{}{},
+			validPrevDelta:   true,
 		},
 		{
 			testCase: "moved folder tree",
@@ -413,7 +418,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
+			expectedMovedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/folder",
+			),
+			expectedNotMovedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
 				user,
@@ -421,7 +432,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			),
 			expectedItemCount:      1,
 			expectedFileCount:      0,
-			expectedContainerCount: 1,
+			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -437,6 +448,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				)[0],
 			},
 			expectedExcludes: map[string]struct{}{},
+			validPrevDelta:   true,
 		},
 		{
 			testCase: "moved folder tree and subfolder 1",
@@ -460,15 +472,22 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
+			expectedNotMovedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
 				user,
 				testBaseDrivePath,
 			),
+			expectedMovedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/folder",
+				testBaseDrivePath+"/subfolder",
+			),
 			expectedItemCount:      2,
 			expectedFileCount:      0,
-			expectedContainerCount: 1,
+			expectedContainerCount: 3,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -484,6 +503,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				)[0],
 			},
 			expectedExcludes: map[string]struct{}{},
+			validPrevDelta:   true,
 		},
 		{
 			testCase: "moved folder tree and subfolder 2",
@@ -507,15 +527,22 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
+			expectedNotMovedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
 				user,
 				testBaseDrivePath,
 			),
+			expectedMovedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/folder",
+				testBaseDrivePath+"/subfolder",
+			),
 			expectedItemCount:      2,
 			expectedFileCount:      0,
-			expectedContainerCount: 1,
+			expectedContainerCount: 3,
 			expectedMetadataPaths: map[string]string{
 				"folder": expectedPathAsSlice(
 					suite.T(),
@@ -531,6 +558,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				)[0],
 			},
 			expectedExcludes: map[string]struct{}{},
+			validPrevDelta:   true,
 		},
 		{
 			testCase: "deleted folder and package",
@@ -564,9 +592,10 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			),
 			expectedItemCount:      0,
 			expectedFileCount:      0,
-			expectedContainerCount: 0,
+			expectedContainerCount: 2,
 			expectedMetadataPaths:  map[string]string{},
 			expectedExcludes:       map[string]struct{}{},
+			validPrevDelta:         true,
 		},
 		{
 			testCase: "delete folder tree move subfolder",
@@ -590,11 +619,17 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
-			expectedCollectionPaths: expectedPathAsSlice(
+			expectedNotMovedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
 				user,
 				testBaseDrivePath,
+			),
+			expectedMovedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/subfolder",
 			),
 			expectedDeletedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
@@ -604,7 +639,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			),
 			expectedItemCount:      1,
 			expectedFileCount:      0,
-			expectedContainerCount: 1,
+			expectedContainerCount: 3,
 			expectedMetadataPaths: map[string]string{
 				"subfolder": expectedPathAsSlice(
 					suite.T(),
@@ -614,6 +649,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				)[0],
 			},
 			expectedExcludes: map[string]struct{}{},
+			validPrevDelta:   true,
 		},
 		{
 			testCase: "delete file",
@@ -631,6 +667,30 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedExcludes: map[string]struct{}{
 				"item": {},
 			},
+			validPrevDelta: true,
+		},
+		{
+			testCase: "moved/renamed file",
+			items: []models.DriveItemable{
+				driveItem("file", "file", testBaseDrivePath, true, false, false),
+			},
+			inputFolderMap: map[string]string{},
+			scope:          anyFolder,
+			expect:         assert.NoError,
+			expectedNotMovedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath,
+			),
+			expectedItemCount:      1,
+			expectedFileCount:      1,
+			expectedContainerCount: 1,
+			expectedMetadataPaths:  map[string]string{},
+			expectedExcludes: map[string]struct{}{
+				"file": {},
+			},
+			validPrevDelta: true,
 		},
 	}
 
@@ -664,24 +724,37 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				tt.inputFolderMap,
 				outputFolderMap,
 				excludes,
-				false,
+				!tt.validPrevDelta,
 			)
 			tt.expect(t, err)
-			assert.Equal(t, len(tt.expectedCollectionPaths)+len(tt.expectedDeletedCollectionPaths), len(c.CollectionMap), "collection paths")
+			assert.Equal(t,
+				len(tt.expectedCollectionPaths)+
+					len(tt.expectedMovedCollectionPaths)+
+					len(tt.expectedNotMovedCollectionPaths)+
+					len(tt.expectedDeletedCollectionPaths),
+				len(c.CollectionMap), "collection paths")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 			for _, collPath := range tt.expectedCollectionPaths {
-				assert.Contains(t, c.CollectionMap, collPath, "collection items")
-				assert.NotEqual(t, c.CollectionMap[collPath].State(), data.DeletedState, "not deleted collection")
+				assert.Contains(t, c.CollectionMap, collPath, "collection items new")
+				assert.Equal(t, data.NewState, c.CollectionMap[collPath].State(), "collection state new "+collPath)
+			}
+			for _, collPath := range tt.expectedMovedCollectionPaths {
+				assert.Contains(t, c.CollectionMap, collPath, "collection items moved")
+				assert.Equal(t, data.MovedState, c.CollectionMap[collPath].State(), "collection state moved "+collPath)
+			}
+			for _, collPath := range tt.expectedNotMovedCollectionPaths {
+				assert.Contains(t, c.CollectionMap, collPath, "collection items not moved")
+				assert.Equal(t, data.NotMovedState, c.CollectionMap[collPath].State(), "collection state not moved "+collPath)
 			}
 			for _, collPath := range tt.expectedDeletedCollectionPaths {
-				assert.Contains(t, c.CollectionMap, collPath, "deleted collection items")
-				assert.Equal(t, c.CollectionMap[collPath].State(), data.DeletedState, "deleted collection")
+				assert.Contains(t, c.CollectionMap, collPath, "collection items deleted")
+				assert.Equal(t, data.DeletedState, c.CollectionMap[collPath].State(), "collection state deleted "+collPath)
 			}
 
-			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap)
-			assert.Equal(t, tt.expectedExcludes, excludes)
+			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap, "expected metadata paths")
+			assert.Equal(t, tt.expectedExcludes, excludes, "excludes list")
 		})
 	}
 }

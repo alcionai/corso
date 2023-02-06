@@ -136,7 +136,9 @@ func NewCollection(
 }
 
 // Figures out the state of a collection using prev and current path
-// FIXME(meain): Same as exchange_data_collection.go:stateOf
+// This is similar to the one in exchange, but instead of checking the
+// equivalence of folders, it checks it for the actual item.
+// TODO(meain): Why is exchange checking folders?
 func stateOf(prev, curr path.Path) data.CollectionState {
 	if curr == nil || len(curr.String()) == 0 {
 		return data.DeletedState
@@ -146,7 +148,7 @@ func stateOf(prev, curr path.Path) data.CollectionState {
 		return data.NewState
 	}
 
-	if curr.Folder() != prev.Folder() {
+	if curr.String() != prev.String() {
 		return data.MovedState
 	}
 
@@ -169,10 +171,13 @@ func (oc *Collection) FullPath() path.Path {
 	return oc.folderPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
-// and new folder hierarchies.
 func (oc Collection) PreviousPath() path.Path {
-	return nil
+	return oc.prevPath
+}
+
+func (oc *Collection) SetPreviousPath(prevPath path.Path) {
+	oc.prevPath = prevPath
+	oc.state = stateOf(prevPath, oc.folderPath)
 }
 
 // TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
