@@ -411,9 +411,46 @@ func (c *Collections) UpdateCollections(
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
 
-				// TODO(ashmrtn): Create a collection with state Deleted.
+				// TODO(meain): Should we have a check here validating
+				// if the delete showed up only when the delta was
+				// valid?
 
-				break
+				prevColPath, ok := oldPaths[*item.GetId()]
+				if !ok {
+					// It is possible that an item was created and
+					// deleted between two delta invocations. In
+					// that case, it will only produce a single
+					// delete entry in the delta response.
+					continue
+				}
+
+				_, found := c.CollectionMap[prevColPath]
+				if found {
+					logger.Ctx(ctx).Errorw("items found in deleted collection", "error", err)
+					return err
+				}
+
+				prevPath, err := path.FromDataLayerPath(prevColPath, true) // FIXME(meain): converting string to path
+				if err != nil {
+					logger.Ctx(ctx).Errorw("invalid path for deleted item", "error", err)
+					return err
+				}
+
+				col := NewCollection(
+					c.itemClient,
+					nil,
+					prevPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+					c.source,
+					c.ctrl,
+					invalidPrevDelta,
+				)
+
+				c.CollectionMap[prevColPath] = col
+
+				break // TODO(meain): Why is this break here?
 			}
 
 			// Deletions of folders are handled in this case so we may as well start
@@ -457,11 +494,10 @@ func (c *Collections) UpdateCollections(
 			col, found := c.CollectionMap[collectionPath.String()]
 
 			if !found {
-				// TODO(ashmrtn): Compare old and new path and set collection state
-				// accordingly.
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
+					nil, // Empty prevPath for new items
 					driveID,
 					c.service,
 					c.statusUpdater,

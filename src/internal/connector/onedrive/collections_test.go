@@ -103,17 +103,18 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	)
 
 	tests := []struct {
-		testCase                string
-		items                   []models.DriveItemable
-		inputFolderMap          map[string]string
-		scope                   selectors.OneDriveScope
-		expect                  assert.ErrorAssertionFunc
-		expectedCollectionPaths []string
-		expectedItemCount       int
-		expectedContainerCount  int
-		expectedFileCount       int
-		expectedMetadataPaths   map[string]string
-		expectedExcludes        map[string]struct{}
+		testCase                       string
+		items                          []models.DriveItemable
+		inputFolderMap                 map[string]string
+		scope                          selectors.OneDriveScope
+		expect                         assert.ErrorAssertionFunc
+		expectedCollectionPaths        []string
+		expectedDeletedCollectionPaths []string
+		expectedItemCount              int
+		expectedContainerCount         int
+		expectedFileCount              int
+		expectedMetadataPaths          map[string]string
+		expectedExcludes               map[string]struct{}
 	}{
 		{
 			testCase: "Invalid item",
@@ -554,11 +555,18 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:                   anyFolder,
 			expect:                  assert.NoError,
 			expectedCollectionPaths: []string{},
-			expectedItemCount:       0,
-			expectedFileCount:       0,
-			expectedContainerCount:  0,
-			expectedMetadataPaths:   map[string]string{},
-			expectedExcludes:        map[string]struct{}{},
+			expectedDeletedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/folder",
+				testBaseDrivePath+"/package",
+			),
+			expectedItemCount:      0,
+			expectedFileCount:      0,
+			expectedContainerCount: 0,
+			expectedMetadataPaths:  map[string]string{},
+			expectedExcludes:       map[string]struct{}{},
 		},
 		{
 			testCase: "delete folder tree move subfolder",
@@ -587,6 +595,12 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				tenant,
 				user,
 				testBaseDrivePath,
+			),
+			expectedDeletedCollectionPaths: expectedPathAsSlice(
+				suite.T(),
+				tenant,
+				user,
+				testBaseDrivePath+"/folder",
 			),
 			expectedItemCount:      1,
 			expectedFileCount:      0,
@@ -636,7 +650,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				testFolderMatcher{tt.scope},
 				&MockGraphService{},
 				nil,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
+				control.Options{
+					ToggleFeatures: control.Toggles{
+						EnablePermissionsBackup: true,
+					},
+				})
 
 			err := c.UpdateCollections(
 				ctx,
@@ -649,12 +667,17 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				false,
 			)
 			tt.expect(t, err)
-			assert.Equal(t, len(tt.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
+			assert.Equal(t, len(tt.expectedCollectionPaths)+len(tt.expectedDeletedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 			for _, collPath := range tt.expectedCollectionPaths {
-				assert.Contains(t, c.CollectionMap, collPath)
+				assert.Contains(t, c.CollectionMap, collPath, "collection items")
+				assert.NotEqual(t, c.CollectionMap[collPath].State(), data.DeletedState, "not deleted collection")
+			}
+			for _, collPath := range tt.expectedDeletedCollectionPaths {
+				assert.Contains(t, c.CollectionMap, collPath, "deleted collection items")
+				assert.Equal(t, c.CollectionMap[collPath].State(), data.DeletedState, "deleted collection")
 			}
 
 			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap)
