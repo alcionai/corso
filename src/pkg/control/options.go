@@ -80,4 +80,10 @@ type Toggles struct {
 	// permissions. Permission metadata increases graph api call count,
 	// so disabling their retrieval when not needed is advised.
 	EnablePermissionsBackup bool `json:"enablePermissionsBackup,omitempty"`
+
+	// EnableOneDriveDeltaIncrementals is used to enable OneDrive
+	// delta incrementals. It is set to false by default as OneDrive
+	// delta incrementals is still in development. This flag works
+	// independent of DisableIncrementals.
+	EnableOneDriveDeltaIncrementals bool `json:"enableOneDriveDeltaIncrementals,omitempty"`
 }

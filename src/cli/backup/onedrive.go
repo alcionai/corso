@@ -80,6 +80,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
 		options.AddFeatureToggle(cmd, options.EnablePermissionsBackup())
+		options.AddFeatureToggle(cmd, options.EnableOneDriveDeltaIncrementals())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples

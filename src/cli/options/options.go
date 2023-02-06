@@ -16,6 +16,7 @@ func Control() control.Options {
 	opt.RestorePermissions = restorePermissions
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
 	opt.ToggleFeatures.EnablePermissionsBackup = enablePermissionsBackup
+	opt.ToggleFeatures.EnableOneDriveDeltaIncrementals = enableOneDriveDeltaIncrentals
 
 	return opt
 }
@@ -57,8 +58,9 @@ func AddRestorePermissionsFlag(cmd *cobra.Command) {
 // ---------------------------------------------------------------------------
 
 var (
-	disableIncrementals     bool
-	enablePermissionsBackup bool
+	disableIncrementals           bool
+	enablePermissionsBackup       bool
+	enableOneDriveDeltaIncrentals bool
 )
 
 type exposeFeatureFlag func(*pflag.FlagSet)
@@ -95,5 +97,18 @@ func EnablePermissionsBackup() func(*pflag.FlagSet) {
 			false,
 			"Enable backing up item permissions for OneDrive")
 		cobra.CheckErr(fs.MarkHidden("enable-permissions-backup"))
+	}
+}
+
+// Adds the hidden '--enable-onedrive-delta-incrementals' cli flag which, when
+// set, enables delta incrementals for OneDrive.
+func EnableOneDriveDeltaIncrementals() func(*pflag.FlagSet) {
+	return func(fs *pflag.FlagSet) {
+		fs.BoolVar(
+			&enableOneDriveDeltaIncrentals,
+			"enable-onedrive-delta-incrementals",
+			false,
+			"Enables delta based incrementals for OneDrive")
+		cobra.CheckErr(fs.MarkHidden("enable-onedrive-delta-incrementals"))
 	}
 }
