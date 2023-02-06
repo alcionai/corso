@@ -285,6 +285,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	ds, err := ro.Run(ctx)
 
 	require.NoError(t, err, "restoreOp.Run()")
+	require.Empty(t, ro.Errors.Errs(), "restoreOp.Run() recoverable errors")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	require.NotNil(t, ds, "restored details")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
