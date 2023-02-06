@@ -6,7 +6,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func NewUnitSuite(t *testing.T) *UnitSuite {
+func NewUnitSuite(t *testing.T, envSets [][]string) *UnitSuite {
+	MustGetEnvSets(t, envSets...)
 	return new(UnitSuite)
 }
 
@@ -14,7 +15,11 @@ type UnitSuite struct {
 	suite.Suite
 }
 
-func NewIntegrationSuite(t *testing.T, includeGroups ...string) *IntegrationSuite {
+func NewIntegrationSuite(
+	t *testing.T,
+	envSets [][]string,
+	includeGroups ...string,
+) *IntegrationSuite {
 	RunOnAny(
 		t,
 		append(
@@ -22,6 +27,8 @@ func NewIntegrationSuite(t *testing.T, includeGroups ...string) *IntegrationSuit
 			includeGroups...,
 		)...,
 	)
+
+	MustGetEnvSets(t, envSets...)
 
 	return new(IntegrationSuite)
 }

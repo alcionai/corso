@@ -27,7 +27,7 @@ type DisconnectedGraphConnectorSuite struct {
 
 func TestDisconnectedGraphSuite(t *testing.T) {
 	s := &DisconnectedGraphConnectorSuite{
-		UnitSuite: tester.NewUnitSuite(t),
+		UnitSuite: tester.NewUnitSuite(t, nil),
 	}
 
 	tester.LogTimeOfTest(t)
