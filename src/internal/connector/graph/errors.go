@@ -25,6 +25,10 @@ const (
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
+	tooManyRequests                    = 429
+	serviceUnavailable                 = 503
+	gatewayTimeout                     = 504
+	internalServerError                = 500
 )
 
 var (

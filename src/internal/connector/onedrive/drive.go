@@ -270,10 +270,7 @@ func getFolder(
 		err       error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		foundItem, err = builder.Get(ctx, nil)
-		return err
-	})
+	foundItem, err = builder.Get(ctx, nil)
 
 	if err != nil {
 		var oDataError *odataerrors.ODataError

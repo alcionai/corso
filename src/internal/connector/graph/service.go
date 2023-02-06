@@ -2,19 +2,27 @@ package graph
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	abs "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -22,8 +30,13 @@ import (
 )
 
 const (
-	logGraphRequestsEnvKey = "LOG_GRAPH_REQUESTS"
-	numberOfRetries        = 3
+	logGraphRequestsEnvKey  = "LOG_GRAPH_REQUESTS"
+	numberOfRetries         = 3
+	retryAttemptHeader      = "Retry-Attempt"
+	retryAfterHeader        = "Retry-After"
+	defaultMaxRetries       = 3
+	defaultDelaySeconds     = 3
+	absoluteMaxDelaySeconds = 180
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -148,8 +161,7 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 // can utilize it on a per-download basis.
 func HTTPClient(opts ...option) *http.Client {
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
-	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
-	middlewares = append(middlewares, &LoggingMiddleware{})
+	middlewares := GetMiddlewaresWithOptions(&clientOptions)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = time.Minute * 3
 
@@ -158,6 +170,40 @@ func HTTPClient(opts ...option) *http.Client {
 		apply(httpClient)
 
 	return httpClient
+}
+
+// GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
+func GetMiddlewares() []khttp.Middleware {
+	return []khttp.Middleware{
+		// khttp.NewRetryHandler(),
+		khttp.NewRedirectHandler(),
+		khttp.NewCompressionHandler(),
+		khttp.NewParametersNameDecodingHandler(),
+		khttp.NewUserAgentHandler(),
+		&LoggingMiddleware{},
+		&RetryHandler{
+			// add RetryHandlerOptions to provide custom operation like - MaxRetries and DelaySeconds
+			options: RetryHandlerOptions{ShouldRetry: func(delay time.Duration,
+				executionCount int, request *http.Request, response *http.Response,
+			) bool {
+				return true
+			}},
+		},
+	}
+}
+
+// GetDefaultMiddlewaresWithOptions creates a default slice of middleware for the Graph Client.
+func GetMiddlewaresWithOptions(options *msgraphgocore.GraphClientOptions) []khttp.Middleware {
+	kiotaMiddlewares := GetMiddlewares()
+	graphMiddlewares := []khttp.Middleware{
+		msgraphgocore.NewGraphTelemetryHandler(options),
+	}
+	graphMiddlewaresLen := len(graphMiddlewares)
+	resultMiddlewares := make([]khttp.Middleware, len(kiotaMiddlewares)+graphMiddlewaresLen)
+	copy(resultMiddlewares, graphMiddlewares)
+	copy(resultMiddlewares[graphMiddlewaresLen:], kiotaMiddlewares)
+
+	return resultMiddlewares
 }
 
 // ---------------------------------------------------------------------------
@@ -318,4 +364,182 @@ func RunWithRetry(run func() error) error {
 	}
 
 	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
+}
+
+// RetryHandler handles transient HTTP responses and retries the request given the retry options
+type RetryHandler struct {
+	// default options to use when evaluating the response
+	options RetryHandlerOptions
+}
+
+type RetryHandlerOptions struct {
+	// Callback to determine if the request should be retried
+	ShouldRetry func(delay time.Duration, executionCount int, request *http.Request, response *http.Response) bool
+	// The maximum number of times a request can be retried
+	MaxRetries int
+	// The delay in seconds between retries
+	DelaySeconds int
+}
+
+type retryHandlerOptionsInt interface {
+	abs.RequestOption
+	GetShouldRetry() func(delay time.Duration, executionCount int,
+		request *http.Request, response *http.Response) bool
+	GetDelaySeconds() int
+	GetMaxRetries() int
+}
+
+var retryKeyValue = abs.RequestOptionKey{
+	Key: "RetryHandler",
+}
+
+// GetKey returns the key value to be used when the option is added to the request context
+func (options *RetryHandlerOptions) GetKey() abs.RequestOptionKey {
+	return retryKeyValue
+}
+
+// GetShouldRetry returns the should retry callback function which evaluates the response for retrial
+func (options *RetryHandlerOptions) GetShouldRetry() func(delay time.Duration,
+	executionCount int, request *http.Request, response *http.Response) bool {
+	return options.ShouldRetry
+}
+
+// GetDelaySeconds returns the delays in seconds between retries
+func (options *RetryHandlerOptions) GetDelaySeconds() int {
+	if options.DelaySeconds < 1 {
+		return defaultDelaySeconds
+	}
+
+	return options.DelaySeconds
+}
+
+// GetMaxRetries returns the maximum number of times a request can be retried
+func (options *RetryHandlerOptions) GetMaxRetries() int {
+	if options.MaxRetries < 1 {
+		return defaultMaxRetries
+	}
+
+	return options.MaxRetries
+}
+
+// Intercept implements the interface and evaluates whether to retry a failed request.
+func (middleware RetryHandler) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	obsOptions := khttp.GetObservabilityOptionsFromRequest(req)
+	ctx := req.Context()
+
+	var (
+		span              trace.Span
+		observabilityName string
+	)
+
+	if obsOptions != nil {
+		observabilityName = obsOptions.GetTracerInstrumentationName()
+		ctx, span = otel.GetTracerProvider().Tracer(observabilityName).Start(ctx, "RetryHandler_Intercept")
+		span.SetAttributes(attribute.Bool("com.microsoft.kiota.handler.retry.enable", true))
+
+		defer span.End()
+
+		req = req.WithContext(ctx)
+	}
+
+	response, err := pipeline.Next(req, middlewareIndex)
+	if err != nil {
+		return response, err
+	}
+
+	reqOption, ok := req.Context().Value(retryKeyValue).(retryHandlerOptionsInt)
+	if !ok {
+		reqOption = &middleware.options
+	}
+
+	return middleware.retryRequest(ctx, pipeline,
+		middlewareIndex, reqOption, req, response, 0, 0, observabilityName)
+}
+
+func (middleware RetryHandler) retryRequest(ctx context.Context,
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	options retryHandlerOptionsInt,
+	req *http.Request,
+	resp *http.Response,
+	executionCount int,
+	cumulativeDelay time.Duration,
+	observabilityName string,
+) (*http.Response, error) {
+	if middleware.isRetriableErrorCode(resp.StatusCode) &&
+		middleware.isRetriableRequest(req) &&
+		executionCount < options.GetMaxRetries() &&
+		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second &&
+		options.GetShouldRetry()(cumulativeDelay, executionCount, req, resp) {
+		executionCount++
+		delay := middleware.getRetryDelay(req, resp, options, executionCount)
+		cumulativeDelay += delay
+
+		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
+
+		if req.Body != nil {
+			s, ok := req.Body.(io.Seeker)
+			if ok {
+				_, err := s.Seek(0, io.SeekStart)
+				if err != nil {
+					return &http.Response{}, err
+				}
+			}
+		}
+
+		if observabilityName != "" {
+			ctx, span := otel.GetTracerProvider().Tracer(observabilityName).
+				Start(ctx, "RetryHandler_Intercept - attempt "+fmt.Sprint(executionCount))
+			span.SetAttributes(attribute.Int("http.retry_count", executionCount),
+				attribute.Int("http.status_code", resp.StatusCode),
+			)
+
+			defer span.End()
+
+			req = req.WithContext(ctx)
+		}
+
+		time.Sleep(delay)
+
+		response, err := pipeline.Next(req, middlewareIndex)
+		if err != nil {
+			return response, err
+		}
+
+		return middleware.retryRequest(ctx, pipeline,
+			middlewareIndex, options, req, response, executionCount, cumulativeDelay, observabilityName)
+	}
+
+	return resp, nil
+}
+
+func (middleware RetryHandler) isRetriableErrorCode(code int) bool {
+	return code == tooManyRequests || code == serviceUnavailable || code == gatewayTimeout || code == internalServerError
+}
+
+func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
+	isBodiedMethod := req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH"
+	if isBodiedMethod && req.Body != nil {
+		return req.ContentLength != -1
+	}
+
+	return true
+}
+
+func (middleware RetryHandler) getRetryDelay(req *http.Request,
+	resp *http.Response, options retryHandlerOptionsInt, executionCount int,
+) time.Duration {
+	retryAfter := resp.Header.Get(retryAfterHeader)
+	if retryAfter != "" {
+		retryAfterDelay, err := strconv.ParseFloat(retryAfter, 64)
+		if err == nil {
+			return time.Duration(retryAfterDelay) * time.Second
+		}
+	} // TODO parse the header if it's a date
+
+	return time.Duration(math.Pow(float64(options.GetDelaySeconds()), float64(executionCount))) * time.Second
 }
