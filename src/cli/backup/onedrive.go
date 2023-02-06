@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -362,9 +363,10 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
-	if err != nil {
-		return Only(ctx, err)
+	ds, errs := runDetailsOneDriveCmd(ctx, r, backupID, opts)
+	if errs.Err() != nil {
+		// TODO: log/display iterated errors
+		return Only(ctx, errs.Err())
 	}
 
 	if len(ds.Entries) == 0 {
@@ -378,29 +380,33 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 }
 
 // runDetailsOneDriveCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Err() == nil.
 func runDetailsOneDriveCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
 	backupID string,
 	opts utils.OneDriveOpts,
-) (*details.Details, error) {
+) (*details.Details, *fault.Errors) {
+	errs := fault.New(false)
+
 	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
-		return nil, err
+		return nil, errs.Fail(err)
 	}
 
 	d, _, err := r.BackupDetails(ctx, backupID)
 	if err != nil {
 		if errors.Is(err, kopia.ErrNotFound) {
-			return nil, errors.Errorf("no backup exists with the id %s", backupID)
+			return nil, errs.Fail(errors.Errorf("no backup exists with the id %s", backupID))
 		}
 
-		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
+		return nil, errs.Fail(errors.Wrap(err, "Failed to get backup details in the repository"))
 	}
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	return sel.Reduce(ctx, d), nil
+	return sel.Reduce(ctx, d, errs), errs
 }
 
 // `corso backup delete onedrive [<flag>...]`
