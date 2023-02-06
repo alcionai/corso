@@ -359,7 +359,7 @@ func formatDetailsForRestoration(
 		if err != nil {
 			errs.Add(clues.
 				Wrap(err, "parsing details path after reduction").
-				WithMap(clues.Values(ctx)).
+				WithMap(clues.In(ctx)).
 				With("path", fdsPaths[i]))
 
 			continue
@@ -380,7 +380,7 @@ func formatDetailsForRestoration(
 	})
 
 	if errs != nil {
-		return nil, errs
+		return nil, err
 	}
 
 	return paths, nil
