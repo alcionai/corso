@@ -25,10 +25,15 @@ var err error
 
 // ExampleSeed showcases seeding a logger into the context.
 func Example_seed() {
-	// Anyone who needs to track Corso logging (including Corso itself)
-	// must seed a logger in the context.
+	// Before logging, a logger instance first needs to get seeded into
+	// the context.  Seeding only needs to be done once.  For example
+	// Corso's CLI layer seeds the logger in the cli initialization.
 	ctx := context.Background()
 	ctx, log := logger.Seed(ctx, loglevel, logfile)
+
+	// SDK consumers who configure their own zap logger can Set their logger
+	// into the context directly, instead of Seeding a new one.
+	ctx = logger.Set(ctx, log)
 
 	// logs should always be flushed before exiting whichever func
 	// seeded the logger.
