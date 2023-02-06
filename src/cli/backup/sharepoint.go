@@ -483,7 +483,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ds, errs := runDetailsSharePointCmd(ctx, r, backupID, opts)
-	if err != nil {
+	if errs.Err() != nil {
 		// TODO: log/display iterated errors
 		return Only(ctx, errs.Err())
 	}
@@ -499,6 +499,8 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 }
 
 // runDetailsSharePointCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Err() == nil.
 func runDetailsSharePointCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -523,5 +525,5 @@ func runDetailsSharePointCmd(
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	return sel.Reduce(ctx, d, errs), nil
+	return sel.Reduce(ctx, d, errs), errs
 }

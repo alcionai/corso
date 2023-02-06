@@ -53,7 +53,7 @@ func Example_newSelector() {
 		bSel.ToOneDriveBackup()
 	}
 
-	// Output: OneDrive service is not Exchange: wrong selector service type
+	// Output: wrong selector service type: OneDrive is not Exchange
 }
 
 // ExampleIncludeFoldersAndItems demonstrates how to select for granular data.

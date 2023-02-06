@@ -364,7 +364,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ds, errs := runDetailsOneDriveCmd(ctx, r, backupID, opts)
-	if errs != nil {
+	if errs.Err() != nil {
 		// TODO: log/display iterated errors
 		return Only(ctx, errs.Err())
 	}
@@ -380,6 +380,8 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 }
 
 // runDetailsOneDriveCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Err() == nil.
 func runDetailsOneDriveCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -404,7 +406,7 @@ func runDetailsOneDriveCmd(
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	return sel.Reduce(ctx, d, errs), nil
+	return sel.Reduce(ctx, d, errs), errs
 }
 
 // `corso backup delete onedrive [<flag>...]`

@@ -223,8 +223,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
-			)
+				test.Opts)
 			assert.NoError(t, err.Err())
 			assert.Empty(t, err.Errs())
 			assert.ElementsMatch(t, test.Expected, output.Entries)

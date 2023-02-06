@@ -472,7 +472,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	ds, errs := runDetailsExchangeCmd(ctx, r, backupID, opts)
-	if errs != nil {
+	if errs.Err() != nil {
 		// TODO: log/display iterated errors
 		return Only(ctx, errs.Err())
 	}
@@ -488,6 +488,8 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 }
 
 // runDetailsExchangeCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Err() == nil.
 func runDetailsExchangeCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -512,7 +514,7 @@ func runDetailsExchangeCmd(
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	return sel.Reduce(ctx, d, errs), nil
+	return sel.Reduce(ctx, d, errs), errs
 }
 
 // ------------------------------------------------------------------------------------------------
