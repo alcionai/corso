@@ -11,7 +11,10 @@ import (
 )
 
 const (
-	CorsoLoadTests                                = "CORSO_LOAD_TESTS"
+	CorsoLoadTests = "CORSO_LOAD_TESTS"
+	// Run only integration tests.
+	CorsoIntegrationTests = "CORSO_INTEGRATION_TESTS"
+	// Run all tests, unit and integration.
 	CorsoCITests                                  = "CORSO_CI_TESTS"
 	CorsoCLIBackupTests                           = "CORSO_COMMAND_LINE_BACKUP_TESTS"
 	CorsoCLIConfigTests                           = "CORSO_COMMAND_LINE_CONFIG_TESTS"
@@ -52,7 +55,22 @@ func RunOnAny(t *testing.T, tests ...string) {
 
 	if l == 0 {
 		t.Skipf(
-			"one or more env vars mus be flagged to run this test: %v",
+			"one or more env vars must be flagged to run this test: %v",
+			strings.Join(tests, ", "))
+	}
+}
+
+// dontRunOn takes in a list of env variable names and skips running tests if
+// any of them are set.
+func dontRunOn(t *testing.T, tests ...string) {
+	var l int
+	for _, test := range tests {
+		l += len(os.Getenv(test))
+	}
+
+	if l > 0 {
+		t.Skipf(
+			"one or more env vars excluding these tests are flagged: %v",
 			strings.Join(tests, ", "))
 	}
 }
