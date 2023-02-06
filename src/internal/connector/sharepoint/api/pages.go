@@ -163,15 +163,18 @@ func RestoreSitePage(
 		return dii, sendErr
 	}
 
+	pageID = *restoredPage.GetId()
 	// Publish page to make visible
 	// See https://learn.microsoft.com/en-us/graph/api/sitepage-publish?view=graph-rest-beta
 	if restoredPage.GetWebUrl() == nil {
-		return dii, fmt.Errorf("creating page %s incomplete. Field  `webURL` not populated", *restoredPage.GetId())
+		return dii, fmt.Errorf("creating page %s incomplete. Field  `webURL` not populated", pageID)
 	}
 
 	err = service.Client().
 		SitesById(siteID).
-		PagesById(*restoredPage.GetId()).Publish().Post(ctx, nil)
+		PagesById(pageID).
+		Publish().
+		Post(ctx, nil)
 	if err != nil {
 		return dii, support.ConnectorStackErrorTraceWrap(
 			err,
