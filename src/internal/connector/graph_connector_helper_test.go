@@ -698,7 +698,7 @@ func compareOneDriveItem(
 
 	// FIXME(meain): The permissions before and after might not be in the same order.
 	for i, p := range expectedMeta.Permissions {
-		assert.Equal(t, p.Email, itemMeta.Permissions[i].Email)
+		assert.Equal(t, strings.ToLower(p.Email), strings.ToLower(itemMeta.Permissions[i].Email))
 		assert.Equal(t, p.Roles, itemMeta.Permissions[i].Roles)
 		assert.Equal(t, p.Expiration, itemMeta.Permissions[i].Expiration)
 	}
