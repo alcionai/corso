@@ -35,6 +35,17 @@ const (
 	contextDeadlineExceeded = "context deadline exceeded"
 )
 
+// DeltaUpdate holds the results of a current delta token.  It normally
+// gets produced when aggregating the addition and removal of items in
+// a delta-queriable folder.
+// FIXME: This is same as exchange.api.DeltaUpdate
+type DeltaUpdate struct {
+	// the deltaLink itself
+	URL string
+	// true if the old delta was marked as invalid
+	Reset bool
+}
+
 type drivePager interface {
 	GetPage(context.Context) (gapi.PageLinker, error)
 	SetNext(nextLink string)
@@ -172,22 +183,41 @@ func collectItems(
 	pager itemPager,
 	driveID, driveName string,
 	collector itemCollector,
-) (string, map[string]string, map[string]struct{}, error) {
+	prevDelta string,
+) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
 	var (
 		newDeltaURL = ""
 		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
 		// take in previous paths.
-		oldPaths = map[string]string{}
-		newPaths = map[string]string{}
-		excluded = map[string]struct{}{}
+		oldPaths         = map[string]string{}
+		newPaths         = map[string]string{}
+		excluded         = map[string]struct{}{}
+		invalidPrevDelta = false
+		triedPrevDelta   = false
 	)
 
 	maps.Copy(newPaths, oldPaths)
 
+	if len(prevDelta) != 0 {
+		pager.SetNext(prevDelta)
+	}
+
 	for {
 		page, err := pager.GetPage(ctx)
+
+		if !triedPrevDelta && graph.IsErrInvalidDelta(err) {
+			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
+
+			triedPrevDelta = true // TODO(meain): Do we need this check?
+			invalidPrevDelta = true
+
+			pager.SetNext("")
+
+			continue
+		}
+
 		if err != nil {
-			return "", nil, nil, errors.Wrapf(
+			return DeltaUpdate{}, nil, nil, errors.Wrapf(
 				err,
 				"failed to query drive items. details: %s",
 				support.ConnectorStackErrorTrace(err),
@@ -196,12 +226,12 @@ func collectItems(
 
 		vals, err := pager.ValuesIn(page)
 		if err != nil {
-			return "", nil, nil, errors.Wrap(err, "extracting items from response")
+			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
 		}
 
 		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded)
 		if err != nil {
-			return "", nil, nil, err
+			return DeltaUpdate{}, nil, nil, err
 		}
 
 		nextLink, deltaLink := gapi.NextAndDeltaLink(page)
@@ -219,7 +249,7 @@ func collectItems(
 		pager.SetNext(nextLink)
 	}
 
-	return newDeltaURL, newPaths, excluded, nil
+	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil
 }
 
 // getFolder will lookup the specified folder name under `parentFolderID`
@@ -379,6 +409,7 @@ func GetAllFolders(
 
 				return nil
 			},
+			"",
 		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting items for drive %s", *d.GetName())
