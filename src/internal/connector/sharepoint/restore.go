@@ -9,12 +9,14 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -38,6 +40,7 @@ import (
 func RestoreCollections(
 	ctx context.Context,
 	backupVersion int,
+	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	dcs []data.Collection,
@@ -86,7 +89,7 @@ func RestoreCollections(
 		case path.PagesCategory:
 			metrics, canceled = RestorePageCollection(
 				ctx,
-				service,
+				creds,
 				dc,
 				dest.ContainerName,
 				deets,
@@ -287,7 +290,7 @@ func RestoreListCollection(
 // - the context cancellation station. True iff context is canceled.
 func RestorePageCollection(
 	ctx context.Context,
-	service graph.Servicer,
+	creds account.M365Config,
 	dc data.Collection,
 	restoreContainerName string,
 	deets *details.Builder,
@@ -300,6 +303,13 @@ func RestorePageCollection(
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
 	)
+
+	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return metrics, false
+	}
+
+	service := discover.NewBetaService(adpt)
 
 	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
 	siteID := directory.ResourceOwner()
