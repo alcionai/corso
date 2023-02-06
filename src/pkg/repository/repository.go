@@ -89,13 +89,17 @@ func Initialize(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(ctx, "acct_provider", acct.Provider, "storage_provider", s.Provider)
+	ctx = clues.AddAll(
+		ctx,
+		"acct_provider", acct.Provider.String(),
+		"acct_id", acct.ID(), // TODO: pii
+		"storage_provider", s.Provider.String())
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if kopia.IsRepoAlreadyExistsError(err) {
-			return nil, ErrorRepoAlreadyExists
+			return nil, clues.Stack(ErrorRepoAlreadyExists).WithClues(ctx)
 		}
 
 		return nil, errors.Wrap(err, "initializing kopia")
@@ -153,7 +157,11 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(ctx, "acct_provider", acct.Provider, "storage_provider", s.Provider)
+	ctx = clues.AddAll(
+		ctx,
+		"acct_provider", acct.Provider.String(),
+		"acct_id", acct.ID(), // TODO: pii
+		"storage_provider", s.Provider.String())
 
 	// Close/Reset the progress bar. This ensures callers don't have to worry about
 	// their output getting clobbered (#1720)
@@ -210,12 +218,12 @@ func Connect(
 
 func (r *repository) Close(ctx context.Context) error {
 	if err := r.Bus.Close(); err != nil {
-		logger.Ctx(ctx).Debugw("closing the event bus", "err", err)
+		logger.Ctx(ctx).With("err", err).Debugw("closing the event bus", clues.In(ctx).Slice()...)
 	}
 
 	if r.dataLayer != nil {
 		if err := r.dataLayer.Close(ctx); err != nil {
-			logger.Ctx(ctx).Debugw("closing Datalayer", "err", err)
+			logger.Ctx(ctx).With("err", err).Debugw("closing Datalayer", clues.In(ctx).Slice()...)
 		}
 
 		r.dataLayer = nil
@@ -223,7 +231,7 @@ func (r *repository) Close(ctx context.Context) error {
 
 	if r.modelStore != nil {
 		if err := r.modelStore.Close(ctx); err != nil {
-			logger.Ctx(ctx).Debugw("closing modelStore", "err", err)
+			logger.Ctx(ctx).With("err", err).Debugw("closing modelStore", clues.In(ctx).Slice()...)
 		}
 
 		r.modelStore = nil
