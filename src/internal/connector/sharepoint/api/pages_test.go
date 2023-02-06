@@ -35,7 +35,6 @@ func (suite *SharePointPageSuite) SetupSuite() {
 	require.NoError(t, err)
 
 	suite.creds = m365
-
 	suite.service = createTestBetaService(t, suite.creds)
 }
 
