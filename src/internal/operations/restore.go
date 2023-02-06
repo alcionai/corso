@@ -342,7 +342,7 @@ func formatDetailsForRestoration(
 	ctx context.Context,
 	sel selectors.Selector,
 	deets *details.Details,
-	errs fault.Adder,
+	errs *fault.Errors,
 ) ([]path.Path, error) {
 	fds, err := sel.Reduce(ctx, deets)
 	if err != nil {
@@ -355,6 +355,10 @@ func formatDetailsForRestoration(
 	)
 
 	for i := range fdsPaths {
+		if errs.Errs() != nil {
+			return nil, errs.Err()
+		}
+
 		p, err := path.FromDataLayerPath(fdsPaths[i], true)
 		if err != nil {
 			errs.Add(clues.
@@ -379,9 +383,5 @@ func formatDetailsForRestoration(
 		return paths[i].String() < paths[j].String()
 	})
 
-	if errs != nil {
-		return nil, err
-	}
-
-	return paths, nil
+	return paths, errs.Err()
 }
