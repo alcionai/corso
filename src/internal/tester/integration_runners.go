@@ -60,21 +60,6 @@ func RunOnAny(t *testing.T, tests ...string) {
 	}
 }
 
-// dontRunOn takes in a list of env variable names and skips running tests if
-// any of them are set.
-func dontRunOn(t *testing.T, tests ...string) {
-	var l int
-	for _, test := range tests {
-		l += len(os.Getenv(test))
-	}
-
-	if l > 0 {
-		t.Skipf(
-			"one or more env vars excluding these tests are flagged: %v",
-			strings.Join(tests, ", "))
-	}
-}
-
 // LogTimeOfTest logs the test name and the time that it was run.
 func LogTimeOfTest(t *testing.T) string {
 	now := time.Now().UTC().Format(time.RFC3339Nano)

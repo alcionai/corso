@@ -6,15 +6,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func NewUnitSuite(t *testing.T, excludeGroups ...string) *UnitSuite {
-	dontRunOn(
-		t,
-		append(
-			[]string{CorsoIntegrationTests},
-			excludeGroups...,
-		)...,
-	)
-
+func NewUnitSuite(t *testing.T) *UnitSuite {
 	return new(UnitSuite)
 }
 
