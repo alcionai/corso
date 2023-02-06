@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -61,7 +62,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				bytesRead: &stats.ByteCounter{
 					NumBytes: 42,
 				},
-				cs: []data.Collection{&exchange.Collection{}},
+				cs: []data.RestoreCollection{&mockconnector.MockExchangeDataCollection{}},
 				gc: &support.ConnectorOperationStatus{
 					ObjectCount: 1,
 					Successful:  1,
@@ -82,7 +83,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectErr:    assert.NoError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
-				cs:        []data.Collection{},
+				cs:        []data.RestoreCollection{},
 				gc:        &support.ConnectorOperationStatus{},
 			},
 		},

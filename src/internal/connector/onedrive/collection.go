@@ -42,10 +42,10 @@ const (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Item{}
-	_ data.StreamInfo    = &Item{}
-	_ data.StreamModTime = &Item{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Item{}
+	_ data.StreamInfo       = &Item{}
+	_ data.StreamModTime    = &Item{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365

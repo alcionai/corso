@@ -254,7 +254,7 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 func collectionEntries(
 	ctx context.Context,
 	cb func(context.Context, fs.Entry) error,
-	streamedEnts data.Collection,
+	streamedEnts data.BackupCollection,
 	progress *corsoProgress,
 ) (map[string]struct{}, *multierror.Error) {
 	if streamedEnts == nil {
@@ -442,7 +442,7 @@ func getStreamItemFunc(
 	curPath path.Path,
 	prevPath path.Path,
 	staticEnts []fs.Entry,
-	streamedEnts data.Collection,
+	streamedEnts data.BackupCollection,
 	baseDir fs.Directory,
 	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
@@ -540,7 +540,7 @@ type treeMap struct {
 	childDirs map[string]*treeMap
 	// Reference to data pulled from the external service. Contains only items in
 	// this directory. Does not contain references to subdirectories.
-	collection data.Collection
+	collection data.BackupCollection
 	// Reference to directory in base snapshot. The referenced directory itself
 	// may contain files and subdirectories, but the subdirectories should
 	// eventually be added when walking the base snapshot to build the hierarchy,
@@ -617,7 +617,7 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 
 func inflateCollectionTree(
 	ctx context.Context,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 ) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that have been moved or renamed.
@@ -911,13 +911,13 @@ func inflateBaseTree(
 // exclude from base directories when uploading the snapshot. As items in *all*
 // base directories will be checked for in every base directory, this assumes
 // that items in the bases are unique. Deletions of directories or subtrees
-// should be represented as changes in the status of a Collection, not an entry
-// in the globalExcludeSet.
+// should be represented as changes in the status of a BackupCollection, not an
+// entry in the globalExcludeSet.
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {

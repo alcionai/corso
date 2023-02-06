@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	_ data.Collection = &MetadataCollection{}
-	_ data.Stream     = &MetadataItem{}
+	_ data.BackupCollection = &MetadataCollection{}
+	_ data.Stream           = &MetadataItem{}
 )
 
 // MetadataCollection in a simple collection that assumes all items to be
@@ -67,7 +67,7 @@ func MakeMetadataCollection(
 	cat path.CategoryType,
 	metadata []MetadataCollectionEntry,
 	statusUpdater support.StatusUpdater,
-) (data.Collection, error) {
+) (data.BackupCollection, error) {
 	if len(metadata) == 0 {
 		return nil, nil
 	}
