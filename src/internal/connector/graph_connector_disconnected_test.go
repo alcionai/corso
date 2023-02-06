@@ -22,12 +22,16 @@ import (
 // Disconnected Test Section
 // ---------------------------------------------------------------
 type DisconnectedGraphConnectorSuite struct {
-	suite.Suite
+	*tester.UnitSuite
 }
 
 func TestDisconnectedGraphSuite(t *testing.T) {
+	s := &DisconnectedGraphConnectorSuite{
+		UnitSuite: tester.NewUnitSuite(t),
+	}
+
 	tester.LogTimeOfTest(t)
-	suite.Run(t, new(DisconnectedGraphConnectorSuite))
+	suite.Run(t, s)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
