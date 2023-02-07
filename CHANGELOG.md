@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Known Issues
-- Item.Attachments panic during serialization when the item's attachment field is not nil. ([Kiota-61](https://github.com/microsoft/kiota-serialization-json-go/issues/61))
+- Nested attachments are currently not restored due to an issue [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
 
 ## [v0.3.0] (alpha) - 2023-2-07
 
