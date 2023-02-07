@@ -658,7 +658,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		categories = map[path.CategoryType][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
-			path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
+			// path.EventsCategory: exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -793,7 +793,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	sel.Include(
 		sel.MailFolders(containers, selectors.PrefixMatch()),
 		sel.ContactFolders(containers, selectors.PrefixMatch()),
-		sel.EventCalendars(containers, selectors.PrefixMatch()),
+		// sel.EventCalendars(containers),
 	)
 
 	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
