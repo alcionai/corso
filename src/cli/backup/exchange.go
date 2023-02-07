@@ -323,16 +323,16 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
+func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {
 	sel := selectors.NewExchangeBackup(userIDs)
 
-	if len(data) == 0 {
+	if len(cats) == 0 {
 		sel.Include(sel.ContactFolders(selectors.Any()))
 		sel.Include(sel.MailFolders(selectors.Any()))
 		sel.Include(sel.EventCalendars(selectors.Any()))
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		switch d {
 		case dataContacts:
 			sel.Include(sel.ContactFolders(selectors.Any()))
@@ -346,12 +346,12 @@ func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBa
 	return sel
 }
 
-func validateExchangeBackupCreateFlags(userIDs, data []string) error {
+func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
 		return errors.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
 			return errors.New(
 				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)

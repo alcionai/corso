@@ -266,7 +266,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateSharePointBackupCreateFlags(sites, weburls, data []string) error {
+func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	if len(sites) == 0 && len(weburls) == 0 {
 		return errors.New(
 			"requires one or more --" +
@@ -276,7 +276,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, data []string) error {
 		)
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		if d != dataLibraries && d != dataPages {
 			return errors.New(
 				d + " is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
@@ -290,7 +290,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, data []string) error {
 // TODO: users might specify a data type, this only supports AllData().
 func sharePointBackupCreateSelectors(
 	ctx context.Context,
-	sites, weburls, data []string,
+	sites, weburls, cats []string,
 	gc *connector.GraphConnector,
 ) (*selectors.SharePointBackup, error) {
 	if len(sites) == 0 && len(weburls) == 0 {
@@ -321,13 +321,13 @@ func sharePointBackupCreateSelectors(
 	}
 
 	sel := selectors.NewSharePointBackup(union)
-	if len(data) == 0 {
+	if len(cats) == 0 {
 		sel.Include(sel.AllData())
 
 		return sel, nil
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		switch d {
 		case dataLibraries:
 			sel.Include(sel.Libraries(selectors.Any()))

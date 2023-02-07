@@ -302,7 +302,7 @@ func (ms *ModelStore) Get(
 	ctx context.Context,
 	s model.Schema,
 	id model.StableID,
-	data model.Model,
+	m model.Model,
 ) error {
 	if !s.Valid() {
 		return errors.WithStack(errUnrecognizedSchema)
@@ -313,7 +313,7 @@ func (ms *ModelStore) Get(
 		return err
 	}
 
-	return transmuteErr(ms.GetWithModelStoreID(ctx, s, modelID, data))
+	return transmuteErr(ms.GetWithModelStoreID(ctx, s, modelID, m))
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
@@ -323,7 +323,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
 	s model.Schema,
 	id manifest.ID,
-	data model.Model,
+	m model.Model,
 ) error {
 	if !s.Valid() {
 		return errors.WithStack(errUnrecognizedSchema)
@@ -333,7 +333,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 		return errors.WithStack(errNoModelStoreID)
 	}
 
-	metadata, err := ms.c.GetManifest(ctx, id, data)
+	metadata, err := ms.c.GetManifest(ctx, id, m)
 	if err != nil {
 		return errors.Wrap(transmuteErr(err), "getting model data")
 	}
@@ -343,7 +343,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 	}
 
 	return errors.Wrap(
-		ms.populateBaseModelFromMetadata(data.Base(), metadata),
+		ms.populateBaseModelFromMetadata(m.Base(), metadata),
 		"getting model by ID",
 	)
 }
