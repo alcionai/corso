@@ -1065,7 +1065,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			mdr := mockDetailsReader{entries: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
 			deets := details.Builder{}
-			errs := fault.New(false)
 
 			err := mergeDetails(
 				ctx,
@@ -1074,10 +1073,8 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
 				&deets,
-				errs)
-
+				fault.New(true))
 			test.errCheck(t, err)
-			assert.Empty(t, errs.Errs)
 			if err != nil {
 				return
 			}
