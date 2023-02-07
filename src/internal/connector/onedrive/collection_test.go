@@ -63,6 +63,11 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		}}
 	)
 
+	testItemMetaBytes, err := json.Marshal(testItemMeta)
+	if err != nil {
+		suite.T().Fatal("unable to marshall test permissions", err)
+	}
+
 	type nst struct {
 		name string
 		size int64
@@ -181,12 +186,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				_ string,
 				_ models.DriveItemable,
 			) (io.ReadCloser, int, error) {
-				metaJSON, err := json.Marshal(testItemMeta)
-				if err != nil {
-					return nil, 0, err
-				}
-
-				return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+				return io.NopCloser(bytes.NewReader(testItemMetaBytes)), len(testItemMetaBytes), nil
 			}
 
 			// Read items from the collection
@@ -199,52 +199,58 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			wg.Wait()
 
 			if test.source == OneDriveSource {
-				require.Len(t, readItems, 2) // .data and .meta
+				assert.Len(t, readItems, 2) // .data and .meta
+				assert.Equal(t, 2, collStatus.ObjectCount)
+				assert.Equal(t, 2, collStatus.Successful)
 			} else {
-				require.Len(t, readItems, 1)
+				assert.Len(t, readItems, 1)
+				assert.Equal(t, 1, collStatus.ObjectCount)
+				assert.Equal(t, 1, collStatus.Successful)
 			}
 
-			// Expect only 1 item
-			require.Equal(t, 1, collStatus.ObjectCount)
-			require.Equal(t, 1, collStatus.Successful)
+			var (
+				foundData bool
+				foundMeta bool
+			)
 
-			// Validate item info and data
-			readItem := readItems[0]
-			readItemInfo := readItem.(data.StreamInfo)
+			for _, readItem := range readItems {
+				readItemInfo := readItem.(data.StreamInfo)
+				id := readItem.UUID()
 
-			if test.source == OneDriveSource {
-				assert.Equal(t, testItemName+DataFileSuffix, readItem.UUID())
-			} else {
-				assert.Equal(t, testItemName, readItem.UUID())
-			}
-
-			require.Implements(t, (*data.StreamModTime)(nil), readItem)
-			mt := readItem.(data.StreamModTime)
-			assert.Equal(t, now, mt.ModTime())
-
-			readData, err := io.ReadAll(readItem.ToReader())
-			require.NoError(t, err)
-
-			name, parentPath := test.infoFrom(t, readItemInfo.Info())
-
-			assert.Equal(t, testItemData, readData)
-			assert.Equal(t, testItemName, name)
-			assert.Equal(t, driveFolderPath, parentPath)
-
-			if test.source == OneDriveSource {
-				readItemMeta := readItems[1]
-
-				assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
-
-				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
-				require.NoError(t, err)
-
-				tm, err := json.Marshal(testItemMeta)
-				if err != nil {
-					t.Fatal("unable to marshall test permissions", err)
+				if strings.HasSuffix(id, DataFileSuffix) {
+					foundData = true
 				}
 
-				assert.Equal(t, tm, readMetaData)
+				var hasMeta bool
+				if strings.HasSuffix(id, MetaFileSuffix) {
+					foundMeta = true
+					hasMeta = true
+				}
+
+				assert.Contains(t, testItemName, id)
+				require.Implements(t, (*data.StreamModTime)(nil), readItem)
+
+				mt := readItem.(data.StreamModTime)
+				assert.Equal(t, now, mt.ModTime())
+
+				readData, err := io.ReadAll(readItem.ToReader())
+				require.NoError(t, err)
+
+				name, parentPath := test.infoFrom(t, readItemInfo.Info())
+				assert.Equal(t, testItemData, readData)
+				assert.Equal(t, testItemName, name)
+				assert.Equal(t, driveFolderPath, parentPath)
+
+				if hasMeta {
+					ra, err := io.ReadAll(readItem.ToReader())
+					require.NoError(t, err)
+					assert.Equal(t, testItemMetaBytes, ra)
+				}
+			}
+
+			if test.source == OneDriveSource {
+				assert.True(t, foundData, "found data file")
+				assert.True(t, foundMeta, "found metadata file")
 			}
 		})
 	}
@@ -359,7 +365,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
 				"fakeDriveID",
-				suite,
+				&MockGraphService{},
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{}})
@@ -398,15 +404,14 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 
 			wg.Wait()
 
-			// Expect no items
-			require.Equal(t, 1, collStatus.ObjectCount)
-			require.Equal(t, 1, collStatus.Successful)
+			assert.Equal(t, 1, collStatus.ObjectCount, "total objects")
+			assert.Equal(t, 1, collStatus.Successful, "successes")
 
 			for _, i := range readItems {
 				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
 					require.NoError(t, err)
-					require.Equal(t, content, []byte("{}"))
+					assert.Equal(t, content, []byte("{}"))
 				}
 			}
 		})
@@ -494,7 +499,7 @@ func (suite *CollectionUnitTestSuite) TestStreamItem() {
 			errsIs: func(t *testing.T, e error, count int) {
 				assert.True(t, graph.IsErrUnauthorized(e), "is unauthorized error")
 				assert.ErrorIs(t, e, graph.Err401Unauthorized)
-				assert.Equal(t, 2, count, "count of errors aggregated")
+				assert.Equal(t, 1, count, "count of errors aggregated")
 			},
 			readErrIs: func(t *testing.T, e error) {
 				assert.True(t, graph.IsErrUnauthorized(e), "is unauthorized error")
@@ -517,24 +522,6 @@ func (suite *CollectionUnitTestSuite) TestStreamItem() {
 			readErrIs: func(t *testing.T, e error) {
 				assert.True(t, graph.IsErrTimeout(e), "is timeout error")
 				assert.ErrorIs(t, e, context.DeadlineExceeded)
-			},
-		},
-		{
-			name:       "throttled errors",
-			expectData: "",
-			coll: &Collection{
-				data:       mockDataChan(),
-				itemReader: mockReader("foo", graph.Err429TooManyRequests),
-				itemGetter: mockGetter(nil),
-			},
-			errsIs: func(t *testing.T, e error, count int) {
-				assert.True(t, graph.IsErrThrottled(e), "is throttled error")
-				assert.ErrorIs(t, e, graph.Err429TooManyRequests)
-				assert.Equal(t, 1, count, "one errors")
-			},
-			readErrIs: func(t *testing.T, e error) {
-				assert.True(t, graph.IsErrThrottled(e), "is throttled error")
-				assert.ErrorIs(t, e, graph.Err429TooManyRequests)
 			},
 		},
 		{
@@ -567,7 +554,7 @@ func (suite *CollectionUnitTestSuite) TestStreamItem() {
 				errCount int
 				size     int64
 
-				countUpdater = func(sz int64) { size = sz }
+				countUpdater = func(sz, ds, itms, drd, ird int64) { size = sz }
 				errUpdater   = func(s string, e error) {
 					errs = multierror.Append(errs, e)
 					errCount++

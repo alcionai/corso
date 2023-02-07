@@ -23,7 +23,7 @@ import (
 
 const (
 	logGraphRequestsEnvKey = "LOG_GRAPH_REQUESTS"
-	numberOfRetries        = 3
+	numberOfRetries        = 1
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -313,7 +313,7 @@ func RunWithRetry(run func() error) error {
 		}
 
 		if i < numberOfRetries {
-			time.Sleep(time.Duration(3*(i+2)) * time.Second)
+			time.Sleep(time.Duration(0*(i+2)) * time.Second)
 		}
 	}
 
