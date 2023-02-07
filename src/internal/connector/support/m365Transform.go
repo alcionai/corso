@@ -403,8 +403,14 @@ func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
 	// if err != nil {
 	// 	return nil, err
 	// }
-
 	message.SetAttachments(nil)
+
+	// The following fields are set to nil to
+	// not interfere with M365 guard checks.
+	message.SetHasAttachments(nil)
+	message.SetParentFolderId(nil)
+	message.SetInternetMessageHeaders(nil)
+	message.SetIsDraft(nil)
 
 	return message, nil
 }
