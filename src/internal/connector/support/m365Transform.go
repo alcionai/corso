@@ -360,7 +360,9 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetCalendar(orig.GetCalendar())
 	newEvent.SetCreatedDateTime(orig.GetCreatedDateTime())
 	newEvent.SetEnd(orig.GetEnd())
-	newEvent.SetHasAttachments(orig.GetHasAttachments())
+	// TODO: dadams39 Nested attachments not supported
+	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
+	newEvent.SetHasAttachments(nil)
 	newEvent.SetHideAttendees(orig.GetHideAttendees())
 	newEvent.SetImportance(orig.GetImportance())
 	newEvent.SetIsAllDay(orig.GetIsAllDay())
@@ -395,12 +397,14 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
 	message := ToMessage(orig)
 
-	attachments, err := sanitizeAttachments(message.GetAttachments())
-	if err != nil {
-		return nil, err
-	}
+	// TODO (dadam39): re-apply nested attachments for itemAttachments
+	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
+	// attachments, err := sanitizeAttachments(message.GetAttachments())
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	message.SetAttachments(attachments)
+	message.SetAttachments(nil)
 
 	return message, nil
 }
