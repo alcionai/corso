@@ -86,7 +86,7 @@ type Path interface {
 	Category() CategoryType
 	Tenant() string
 	ResourceOwner() string
-	Folder() string
+	Folder(bool) string
 	Folders() []string
 	Item() string
 	// PopFront returns a Builder object with the first element (left-side)

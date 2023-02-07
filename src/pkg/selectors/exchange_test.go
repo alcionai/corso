@@ -1682,17 +1682,17 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 
 	contactPath := stubPath(t, "user", []string{"cfolder", "contactitem"}, path.ContactsCategory)
 	contactMap := map[categorizer]string{
-		ExchangeContactFolder: contactPath.Folder(),
+		ExchangeContactFolder: contactPath.Folder(false),
 		ExchangeContact:       contactPath.Item(),
 	}
 	eventPath := stubPath(t, "user", []string{"ecalendar", "eventitem"}, path.EventsCategory)
 	eventMap := map[categorizer]string{
-		ExchangeEventCalendar: eventPath.Folder(),
+		ExchangeEventCalendar: eventPath.Folder(false),
 		ExchangeEvent:         eventPath.Item(),
 	}
 	mailPath := stubPath(t, "user", []string{"mfolder", "mailitem"}, path.EmailCategory)
 	mailMap := map[categorizer]string{
-		ExchangeMailFolder: mailPath.Folder(),
+		ExchangeMailFolder: mailPath.Folder(false),
 		ExchangeMail:       mailPath.Item(),
 	}
 
