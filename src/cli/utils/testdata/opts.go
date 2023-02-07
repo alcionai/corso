@@ -517,7 +517,7 @@ func (bg *MockBackupGetter) BackupDetails(
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Errors) {
 	if bg == nil {
-		return testdata.GetDetailsSet(), nil, nil
+		return testdata.GetDetailsSet(), nil, fault.New(true)
 	}
 
 	return nil, nil, fault.New(false).Fail(errors.New("unexpected call to mock"))

@@ -209,13 +209,12 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 
 	for _, test := range testdata.SharePointOptionDetailLookups {
 		suite.T().Run(test.Name, func(t *testing.T) {
-			output, errs := runDetailsSharePointCmd(
+			output, err := runDetailsSharePointCmd(
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, errs.Err())
-			assert.Empty(t, errs.Errs())
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -227,13 +226,12 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 
 	for _, test := range testdata.BadSharePointOptionsFormats {
 		suite.T().Run(test.Name, func(t *testing.T) {
-			output, errs := runDetailsSharePointCmd(
+			output, err := runDetailsSharePointCmd(
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, errs.Err())
-			assert.Empty(t, errs.Errs())
+			assert.Error(t, err)
 			assert.Empty(t, output)
 		})
 	}
