@@ -70,8 +70,15 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), test.acct(t), Users, fault.New(true))
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			gc, err := NewGraphConnector(
+				ctx,
+				graph.HTTPClient(graph.NoTimeout()),
+				test.acct(t),
+				Users,
+				fault.New(true))
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+" failed")
 		})
