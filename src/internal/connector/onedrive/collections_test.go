@@ -1048,6 +1048,7 @@ func (p *mockItemPager) GetPage(context.Context) (gapi.DeltaPageLinker, error) {
 }
 
 func (p *mockItemPager) SetNext(string) {}
+func (p *mockItemPager) Reset()         {}
 
 func (p *mockItemPager) ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error) {
 	idx := p.getIdx
@@ -1497,7 +1498,6 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 		name             string
 		items            []deltaPagerResult
 		deltaURL         string
-		prevDelta        string
 		prevDeltaSuccess bool
 		err              error
 	}{
@@ -1522,7 +1522,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 			name:     "invalid prev delta",
 			deltaURL: delta,
 			items: []deltaPagerResult{
-				{nextLink: &next, err: deltaError},
+				{err: deltaError},
 				{deltaLink: &delta}, // works on retry
 			},
 			prevDeltaSuccess: false,
@@ -1531,7 +1531,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 			name: "fail a normal delta query",
 			items: []deltaPagerResult{
 				{nextLink: &next},
-				{nextLink: &next, err: assert.AnError},
+				{err: assert.AnError},
 			},
 			prevDeltaSuccess: true,
 			err:              assert.AnError,
@@ -1566,9 +1566,9 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				"",
 			)
 
-			require.ErrorIs(suite.T(), err, test.err)
-			require.Equal(suite.T(), test.deltaURL, delta.URL)
-			require.Equal(suite.T(), !test.prevDeltaSuccess, delta.Reset)
+			require.ErrorIs(suite.T(), err, test.err, "delta fetch err")
+			require.Equal(suite.T(), test.deltaURL, delta.URL, "delta url")
+			require.Equal(suite.T(), !test.prevDeltaSuccess, delta.Reset, "delta reset")
 		})
 	}
 }
