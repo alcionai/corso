@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -52,7 +53,7 @@ func Example_newSelector() {
 		bSel.ToOneDriveBackup()
 	}
 
-	// Output: OneDrive service is not Exchange: wrong selector service type
+	// Output: wrong selector service type: OneDrive is not Exchange
 }
 
 // ExampleIncludeFoldersAndItems demonstrates how to select for granular data.
@@ -141,10 +142,11 @@ func Example_reduceDetails() {
 	ser := selectors.NewExchangeRestore(
 		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
 	)
+	errAgg := fault.New(false)
 
 	// The Reduce() call is where our constructed selectors are applied to the data
 	// from a previous backup record.
-	filteredDetails := ser.Reduce(ctxBG, exampleDetails)
+	filteredDetails := ser.Reduce(ctxBG, exampleDetails, errAgg)
 
 	// We haven't added any scopes to our selector yet, so none of the data is retained.
 	fmt.Println("Before adding scopes:", len(filteredDetails.Entries))
@@ -153,7 +155,7 @@ func Example_reduceDetails() {
 	ser.Filter(ser.MailSubject("the answer to life"))
 
 	// Now that we've selected our data, we should find a result.
-	filteredDetails = ser.Reduce(ctxBG, exampleDetails)
+	filteredDetails = ser.Reduce(ctxBG, exampleDetails, errAgg)
 	fmt.Println("After adding scopes:", len(filteredDetails.Entries))
 
 	// Output: Before adding scopes: 0

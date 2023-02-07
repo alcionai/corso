@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -555,7 +556,11 @@ func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
 
 // Reduce filters the entries in a details struct to only those that match the
 // inclusions, filters, and exclusions in the selector.
-func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+func (s sharePoint) Reduce(
+	ctx context.Context,
+	deets *details.Details,
+	errs fault.Adder,
+) *details.Details {
 	return reduce[SharePointScope](
 		ctx,
 		deets,
@@ -565,7 +570,7 @@ func (s sharePoint) Reduce(ctx context.Context, deets *details.Details) *details
 			path.ListsCategory:     SharePointListItem,
 			path.PagesCategory:     SharePointPage,
 		},
-	)
+		errs)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an sharePointInfo

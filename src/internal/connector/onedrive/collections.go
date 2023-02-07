@@ -359,7 +359,7 @@ func (c *Collections) Get(
 	}
 
 	// TODO(ashmrtn): Track and return the set of items to exclude.
-	return collections, nil, nil
+	return collections, excludedItems, nil
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections

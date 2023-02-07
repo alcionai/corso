@@ -3,6 +3,7 @@ package credentials
 import (
 	"os"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +49,7 @@ func (c AWS) Validate() error {
 
 	for k, v := range check {
 		if len(v) == 0 {
-			return errors.Wrap(errMissingRequired, k)
+			return clues.Stack(errMissingRequired, errors.New(k))
 		}
 	}
 

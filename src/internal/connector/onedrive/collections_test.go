@@ -1388,7 +1388,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			c.itemPagerFunc = itemPagerFunc
 
 			// TODO(ashmrtn): Allow passing previous metadata.
-			cols, _, err := c.Get(ctx, nil)
+			cols, delList, err := c.Get(ctx, nil)
 			test.errCheck(t, err)
 
 			if err != nil {
@@ -1425,9 +1425,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				assert.ElementsMatch(t, test.expectedCollections[folderPath], itemIDs)
 			}
 
-			// TODO(ashmrtn): Uncomment this when we begin return the set of items to
-			// remove from the upcoming backup.
-			// assert.Equal(t, test.expectedDelList, delList)
+			assert.Equal(t, test.expectedDelList, delList)
 		})
 	}
 }
