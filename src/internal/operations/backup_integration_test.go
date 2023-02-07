@@ -387,10 +387,10 @@ func buildCollections(
 	tenant, user string,
 	dest control.RestoreDestination,
 	colls []incrementalCollection,
-) []data.Collection {
+) []data.RestoreCollection {
 	t.Helper()
 
-	collections := make([]data.Collection, 0, len(colls))
+	collections := make([]data.RestoreCollection, 0, len(colls))
 
 	for _, c := range colls {
 		pth := toDataLayerPath(

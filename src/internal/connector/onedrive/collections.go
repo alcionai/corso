@@ -61,9 +61,9 @@ type Collections struct {
 
 	ctrl control.Options
 
-	// collectionMap allows lookup of the data.Collection
+	// collectionMap allows lookup of the data.BackupCollection
 	// for a OneDrive folder
-	CollectionMap map[string]data.Collection
+	CollectionMap map[string]data.BackupCollection
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
@@ -100,7 +100,7 @@ func NewCollections(
 		resourceOwner:  resourceOwner,
 		source:         source,
 		matcher:        matcher,
-		CollectionMap:  map[string]data.Collection{},
+		CollectionMap:  map[string]data.BackupCollection{},
 		drivePagerFunc: PagerForSource,
 		itemPagerFunc:  defaultItemPager,
 		service:        service,
@@ -111,7 +111,7 @@ func NewCollections(
 
 func deserializeMetadata(
 	ctx context.Context,
-	cols []data.Collection,
+	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, error) {
 	logger.Ctx(ctx).Infow(
 		"deserialzing previous backup metadata",
@@ -249,8 +249,8 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 // be excluded from the upcoming backup.
 func (c *Collections) Get(
 	ctx context.Context,
-	prevMetadata []data.Collection,
-) ([]data.Collection, map[string]struct{}, error) {
+	prevMetadata []data.RestoreCollection,
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	prevDeltas, _, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, nil, err
@@ -327,7 +327,7 @@ func (c *Collections) Get(
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
 
 	// Add an extra for the metadata collection.
-	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)
+	collections := make([]data.BackupCollection, 0, len(c.CollectionMap)+1)
 	for _, coll := range c.CollectionMap {
 		collections = append(collections, coll)
 	}

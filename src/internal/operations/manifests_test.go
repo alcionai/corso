@@ -49,9 +49,8 @@ func (mg mockGetDetailsIDer) GetDetailsIDFromBackupID(
 }
 
 type mockColl struct {
-	id    string // for comparisons
-	p     path.Path
-	prevP path.Path
+	id string // for comparisons
+	p  path.Path
 }
 
 func (mc mockColl) Items() <-chan data.Stream {
@@ -60,18 +59,6 @@ func (mc mockColl) Items() <-chan data.Stream {
 
 func (mc mockColl) FullPath() path.Path {
 	return mc.p
-}
-
-func (mc mockColl) PreviousPath() path.Path {
-	return mc.prevP
-}
-
-func (mc mockColl) State() data.CollectionState {
-	return data.NewState
-}
-
-func (mc mockColl) DoNotMergeItems() bool {
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -447,7 +434,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		getMeta       bool
 		assertErr     assert.ErrorAssertionFunc
 		assertB       assert.BoolAssertionFunc
-		expectDCS     []data.Collection
+		expectDCS     []data.RestoreCollection
 		expectNilMans bool
 	}{
 		{
@@ -550,7 +537,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "man missing backup id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
 					"id": {mockColl{id: "id_coll"}},
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
@@ -577,7 +564,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "one complete, one incomplete",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
 					"id":        {mockColl{id: "id_coll"}},
 					"incmpl_id": {mockColl{id: "incmpl_id_coll"}},
 				}},
@@ -591,12 +578,12 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{mockColl{id: "id_coll"}},
+			expectDCS: []data.RestoreCollection{mockColl{id: "id_coll"}},
 		},
 		{
 			name: "single valid man",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
 					"id": {mockColl{id: "id_coll"}},
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
@@ -606,12 +593,12 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{mockColl{id: "id_coll"}},
+			expectDCS: []data.RestoreCollection{mockColl{id: "id_coll"}},
 		},
 		{
 			name: "multiple valid mans",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
 					"mail":    {mockColl{id: "mail_coll"}},
 					"contact": {mockColl{id: "contact_coll"}},
 				}},
@@ -625,7 +612,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{
+			expectDCS: []data.RestoreCollection{
 				mockColl{id: "mail_coll"},
 				mockColl{id: "contact_coll"},
 			},

@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	_ data.Collection = &kopiaDataCollection{}
-	_ data.Stream     = &kopiaDataStream{}
+	_ data.RestoreCollection = &kopiaDataCollection{}
+	_ data.Stream            = &kopiaDataStream{}
 )
 
 type kopiaDataCollection struct {
@@ -33,18 +33,6 @@ func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
 
 func (kdc kopiaDataCollection) FullPath() path.Path {
 	return kdc.path
-}
-
-func (kdc kopiaDataCollection) PreviousPath() path.Path {
-	return nil
-}
-
-func (kdc kopiaDataCollection) State() data.CollectionState {
-	return data.NewState
-}
-
-func (kdc kopiaDataCollection) DoNotMergeItems() bool {
-	return false
 }
 
 type kopiaDataStream struct {

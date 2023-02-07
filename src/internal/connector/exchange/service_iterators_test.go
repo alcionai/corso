@@ -280,7 +280,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			collections := map[string]data.Collection{}
+			collections := map[string]data.BackupCollection{}
 
 			err := filterContainersAndFillCollections(
 				ctx,
@@ -433,7 +433,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				resolver = newMockResolver(container1)
 			)
 
-			collections := map[string]data.Collection{}
+			collections := map[string]data.BackupCollection{}
 
 			err := filterContainersAndFillCollections(
 				ctx,
@@ -785,7 +785,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			collections := map[string]data.Collection{}
+			collections := map[string]data.BackupCollection{}
 
 			err := filterContainersAndFillCollections(
 				ctx,

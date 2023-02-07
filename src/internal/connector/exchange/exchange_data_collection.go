@@ -24,10 +24,10 @@ import (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Stream{}
-	_ data.StreamInfo    = &Stream{}
-	_ data.StreamModTime = &Stream{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Stream{}
+	_ data.StreamInfo       = &Stream{}
+	_ data.StreamModTime    = &Stream{}
 )
 
 const (

@@ -64,7 +64,7 @@ func RestoreCollections(
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	opts control.Options,
-	dcs []data.Collection,
+	dcs []data.RestoreCollection,
 	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -148,7 +148,7 @@ func RestoreCollection(
 	ctx context.Context,
 	backupVersion int,
 	service graph.Servicer,
-	dc data.Collection,
+	dc data.RestoreCollection,
 	parentPerms []UserPermission,
 	source driveSource,
 	restoreContainerName string,
