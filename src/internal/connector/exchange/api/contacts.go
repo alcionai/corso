@@ -169,10 +169,8 @@ func (c Contacts) EnumerateContainers(
 				continue
 			}
 
-			temp := graph.NewCacheFolder(fold, nil)
-
-			err = fn(temp)
-			if err != nil {
+			temp := graph.NewCacheFolder(fold, nil, nil)
+			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}

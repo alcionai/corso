@@ -86,44 +86,62 @@ func PopulateExchangeContainerResolver(
 }
 
 // Returns true if the container passes the scope comparison and should be included.
-// Also returns the path representing the directory.
+// Returns:
+// - the path representing the directory as it should be stored in the repository.
+// - the human-readable path using display names.
+// - true if the path passes the scope comparison.
 func includeContainer(
 	qp graph.QueryParams,
 	c graph.CachedContainer,
 	scope selectors.ExchangeScope,
-) (path.Path, bool) {
+) (path.Path, path.Path, bool) {
 	var (
 		category  = scope.Category().PathType()
 		directory string
 		pb        = c.Path()
+		loc       = c.Location()
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {
-		pb = c.Path().Append(DefaultContactFolder)
+		pb = pb.Append(DefaultContactFolder)
+		loc = loc.Append(DefaultContactFolder)
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
 		category,
-		false,
-	)
+		false)
 	// Containers without a path (e.g. Root mail folder) always err here.
 	if err != nil {
-		return nil, false
+		return nil, nil, false
+	}
+
+	locPath, err := pb.ToDataLayerExchangePathForCategory(
+		qp.Credentials.AzureTenantID,
+		qp.ResourceOwner,
+		category,
+		false)
+	// Containers without a path (e.g. Root mail folder) always err here.
+	if err != nil {
+		return nil, nil, false
 	}
 
 	directory = pb.String()
 
+	var ok bool
+
 	switch category {
 	case path.EmailCategory:
-		return dirPath, scope.Matches(selectors.ExchangeMailFolder, directory)
+		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
 	case path.ContactsCategory:
-		return dirPath, scope.Matches(selectors.ExchangeContactFolder, directory)
+		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
 	case path.EventsCategory:
-		return dirPath, scope.Matches(selectors.ExchangeEventCalendar, directory)
+		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
-		return dirPath, false
+		return nil, nil, false
 	}
+
+	return dirPath, locPath, ok
 }
