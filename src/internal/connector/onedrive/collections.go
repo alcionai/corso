@@ -406,6 +406,7 @@ func (c *Collections) UpdateCollections(
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
 			var prevPath path.Path
+
 			prevColPath, ok := oldPaths[*item.GetId()]
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevColPath, false)
@@ -526,10 +527,16 @@ func (c *Collections) UpdateCollections(
 
 			col, found := c.CollectionMap[collectionPath.String()]
 			if !found {
+				oneDrivePath, err := path.ToOneDrivePath(collectionPath)
+				if err != nil {
+					return errors.Wrap(err, "invalid path for backup")
+				}
+
 				var prevPath path.Path
-				// TODO(meain): better check for root
-				if strings.HasSuffix(collectionPath.Folder(), "root:") && !invalidPrevDelta {
-					// Root collection is always added with not moved flag
+				if len(oneDrivePath.Folders) == 0 && !invalidPrevDelta {
+					// TODO(meain): Switch to storing root metadata in
+					// the backup so that we don't have to specially
+					// check for root in all the items
 					prevPath = collectionPath
 				}
 
