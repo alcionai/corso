@@ -509,7 +509,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		string(stats.SnapshotID),
 		[]path.Path{failedPath},
 		&ic,
-	)
+		fault.New(true))
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
@@ -844,7 +844,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				excluded,
 				tags,
 				true,
-			)
+				fault.New(true))
 			require.NoError(t, err)
 			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)
 			assert.Equal(t, test.expectedUncachedItems, stats.UncachedFileCount)
@@ -864,7 +864,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					suite.files[suite.testPath1.String()][0].itemPath,
 				},
 				&ic,
-			)
+				fault.New(true))
 			test.restoreCheck(t, err)
 		})
 	}

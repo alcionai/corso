@@ -64,7 +64,7 @@ func (mr *mockRestorer) RestoreMultipleItems(
 	paths []path.Path,
 	bc kopia.ByteCounter,
 	errs *fault.Errors,
-) ([]data.Collection, error) {
+) ([]data.RestoreCollection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
 	if mr.onRestore != nil {

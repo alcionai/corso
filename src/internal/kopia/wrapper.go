@@ -291,8 +291,11 @@ func (w Wrapper) getSnapshotRoot(
 	}
 
 	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, man)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting root directory").WithClues(ctx)
+	}
 
-	return rootDirEntry, clues.Wrap(err, "getting root directory").WithClues(ctx)
+	return rootDirEntry, nil
 }
 
 // getItemStream looks up the item at the given path starting from snapshotRoot.
