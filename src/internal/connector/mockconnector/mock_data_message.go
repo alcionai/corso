@@ -3,6 +3,12 @@ package mockconnector
 import (
 	"encoding/base64"
 	"fmt"
+	"testing"
+
+	js "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -681,4 +687,47 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 	)
 
 	return []byte(message)
+}
+
+func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, subject string) []byte {
+	base := GetMockMessageBytes(subject)
+	message, err := hydrateMessage(base)
+	require.NoError(t, err)
+
+	nestedMessage, err := hydrateMessage(nested)
+	require.NoError(t, err)
+
+	iaNode := models.NewItemAttachment()
+	attachmentSize := int32(len(nested))
+	iaNode.SetSize(&attachmentSize)
+
+	internalName := "Nested Message"
+	iaNode.SetName(&internalName)
+	iaNode.SetItem(nestedMessage)
+	message.SetAttachments([]models.Attachmentable{iaNode})
+
+	wtr := js.NewJsonSerializationWriter()
+	err = wtr.WriteObjectValue("", message)
+	require.NoError(t, err)
+
+	byteArray, err := wtr.GetSerializedContent()
+	require.NoError(t, err)
+
+	return byteArray
+}
+
+func hydrateMessage(byteArray []byte) (models.Messageable, error) {
+	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
+	if err != nil {
+		return nil, errors.Wrap(err, "deserializing bytes into base m365 object")
+	}
+
+	anObject, err := parseNode.GetObjectValue(models.CreateMessageFromDiscriminatorValue)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing m365 object factory")
+	}
+
+	message := anObject.(models.Messageable)
+
+	return message, nil
 }
