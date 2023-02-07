@@ -2,11 +2,9 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
-	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -294,17 +292,6 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			defer flush()
 
 			destination := test.destination(t, ctx)
-			wtr := kioser.NewJsonSerializationWriter()
-			message, err := support.CreateMessageFromBytes(test.bytes)
-			require.NoError(t, err)
-
-			err = wtr.WriteObjectValue("", message)
-			require.NoError(t, err)
-			byteArray, err := wtr.GetSerializedContent()
-			require.NoError(t, err)
-
-			fmt.Printf("Prior to Object: %s\n", string(byteArray))
-
 			info, err := RestoreExchangeObject(
 				ctx,
 				test.bytes,
