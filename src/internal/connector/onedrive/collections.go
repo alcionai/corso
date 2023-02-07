@@ -405,11 +405,16 @@ func (c *Collections) UpdateCollections(
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
+			var prevPath path.Path
 			prevColPath, ok := oldPaths[*item.GetId()]
+			if ok {
+				prevPath, err = path.FromDataLayerPath(prevColPath, false)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("invalid path for deleted item", "error", err)
+					return err
+				}
+			}
 
-			// TODO(meain): Should we have a check here validating
-			// if the delete showed up only when the delta was
-			// valid?
 			if item.GetDeleted() != nil {
 				if !ok {
 					// It is possible that an item was created and
@@ -423,12 +428,6 @@ func (c *Collections) UpdateCollections(
 				// worry about doing a prefix search in the map to remove the subtree of
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
-
-				prevPath, err := path.FromDataLayerPath(prevColPath, true) // FIXME(meain): converting string to path
-				if err != nil {
-					logger.Ctx(ctx).Errorw("invalid path for deleted item", "error", err)
-					return err
-				}
 
 				col := NewCollection(
 					c.itemClient,
@@ -466,17 +465,12 @@ func (c *Collections) UpdateCollections(
 			// already created and partially populated.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
-			if ok {
-				// If we find prev path, that implies these are
-				// moved/renames folders and not new ones
-				prevPath, err := path.FromDataLayerPath(prevColPath, true) // FIXME(meain): converting string to path
-				if err != nil {
-					logger.Ctx(ctx).Errorw("invalid prev path for item", "error", err)
-					return err
-				}
-
-				col, found := c.CollectionMap[folderPath.String()]
-				if !found {
+			col, found := c.CollectionMap[folderPath.String()]
+			if !found {
+				// Skipping new folders here as for non empty folders
+				// we will end up creating a folder in the next case
+				// statement and we are not backing up empty folders.
+				if prevPath != nil {
 					col := NewCollection(
 						c.itemClient,
 						folderPath,
@@ -490,20 +484,20 @@ func (c *Collections) UpdateCollections(
 					)
 					c.CollectionMap[folderPath.String()] = col
 					c.NumContainers++
-				} else {
-					// If we have previously created a collection when
-					// we encountered a file, this gives us a change
-					// to mark the container as moved or not moved
-					// instead of new.
-					ccol, ok := col.(*Collection)
-					if !ok {
-						logger.Ctx(ctx).Errorw("unable to cast onedrive collection", "error", err)
-						return err
-					}
-
-					ccol.SetPreviousPath(prevPath)
-					c.CollectionMap[folderPath.String()] = ccol
 				}
+			} else {
+				// If we have previously created a collection when
+				// we encountered a file, this gives us a change
+				// to mark the container as moved or not moved
+				// instead of new.
+				ccol, ok := col.(*Collection)
+				if !ok {
+					logger.Ctx(ctx).Errorw("unable to cast onedrive collection", "error", err)
+					return err
+				}
+
+				ccol.SetPreviousPath(prevPath)
+				c.CollectionMap[folderPath.String()] = ccol
 			}
 
 			if c.source != OneDriveSource {
