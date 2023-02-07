@@ -276,6 +276,7 @@ func RestoreListCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				"", // TODO: implement locationRef
 				true,
 				itemInfo)
 
@@ -355,6 +356,7 @@ func RestorePageCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				"", // TODO: implement locationRef
 				true,
 				itemInfo,
 			)
