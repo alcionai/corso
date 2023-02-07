@@ -359,7 +359,7 @@ func (c *Collections) Get(
 	}
 
 	// TODO(ashmrtn): Track and return the set of items to exclude.
-	return collections, nil, nil
+	return collections, excludedItems, nil
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
@@ -374,6 +374,7 @@ func (c *Collections) UpdateCollections(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	invalidPrevDelta bool,
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -465,7 +466,9 @@ func (c *Collections) UpdateCollections(
 					c.service,
 					c.statusUpdater,
 					c.source,
-					c.ctrl)
+					c.ctrl,
+					invalidPrevDelta,
+				)
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++

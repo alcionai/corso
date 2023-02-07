@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 	analytics "github.com/rudderlabs/analytics-go"
 
 	"github.com/alcionai/corso/src/internal/version"
@@ -93,7 +93,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 			})
 
 		if err != nil {
-			return Bus{}, errors.Wrap(err, "configuring event bus")
+			return Bus{}, clues.Wrap(err, "configuring event bus").WithClues(ctx)
 		}
 	}
 

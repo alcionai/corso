@@ -56,10 +56,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 )
-
-const templateErrPathParsing = "parsing resource path from %s"
 
 const (
 	escapeCharacter = '\\'
@@ -73,7 +72,10 @@ var charactersToEscape = map[rune]struct{}{
 	escapeCharacter: {},
 }
 
-var errMissingSegment = errors.New("missing required path element")
+var (
+	errMissingSegment = errors.New("missing required path element")
+	errParsingPath    = errors.New("parsing resource path")
+)
 
 // For now, adding generic functions to pull information from segments.
 // Resources that don't have the requested information should return an empty
@@ -252,11 +254,11 @@ func (pb Builder) join(start, end int) string {
 
 func verifyInputValues(tenant, resourceOwner string) error {
 	if len(tenant) == 0 {
-		return errors.Wrap(errMissingSegment, "tenant")
+		return clues.Stack(errMissingSegment, errors.New("tenant"))
 	}
 
 	if len(resourceOwner) == 0 {
-		return errors.Wrap(errMissingSegment, "resourceOwner")
+		return clues.Stack(errMissingSegment, errors.New("resourceOwner"))
 	}
 
 	return nil
@@ -418,17 +420,17 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 	p = TrimTrailingSlash(p)
 	// If p was just the path separator then it will be empty now.
 	if len(p) == 0 {
-		return nil, errors.Errorf("logically empty path given: %s", p)
+		return nil, clues.New("logically empty path given").With("path_string", p)
 	}
 
 	// Turn into a Builder to reuse code that ignores empty elements.
 	pb, err := Builder{}.UnescapeAndAppend(Split(p)...)
 	if err != nil {
-		return nil, errors.Wrapf(err, templateErrPathParsing, p)
+		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}
 
 	if len(pb.elements) < 5 {
-		return nil, errors.Errorf("path has too few segments: %s", p)
+		return nil, clues.New("path has too few segments").With("path_string", p)
 	}
 
 	service, category, err := validateServiceAndCategoryStrings(
@@ -436,7 +438,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		pb.elements[3],
 	)
 	if err != nil {
-		return nil, errors.Wrapf(err, templateErrPathParsing, p)
+		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}
 
 	return &dataLayerResourcePath{
@@ -519,8 +521,8 @@ func validateEscapedElement(element string) error {
 			prevWasEscape = false
 
 			if _, ok := charactersToEscape[c]; !ok {
-				return errors.Errorf(
-					"bad escape sequence in path: '%c%c'", escapeCharacter, c)
+				return clues.New("bad escape sequence in path").
+					With("escape_sequence", fmt.Sprintf("'%c%c'", escapeCharacter, c))
 			}
 
 		case false:
@@ -530,7 +532,7 @@ func validateEscapedElement(element string) error {
 			}
 
 			if _, ok := charactersToEscape[c]; ok {
-				return errors.Errorf("unescaped '%c' in path", c)
+				return clues.New("unescaped character in path").With("character", c)
 			}
 		}
 	}
