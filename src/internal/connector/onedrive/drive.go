@@ -143,11 +143,13 @@ type itemCollector func(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	validPrevDelta bool,
 ) error
 
 type itemPager interface {
 	GetPage(context.Context) (gapi.DeltaPageLinker, error)
 	SetNext(nextLink string)
+	Reset()
 	ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, error)
 }
 
@@ -193,7 +195,6 @@ func collectItems(
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = false
-		triedPrevDelta   = false
 	)
 
 	maps.Copy(newPaths, oldPaths)
@@ -205,13 +206,12 @@ func collectItems(
 	for {
 		page, err := pager.GetPage(ctx)
 
-		if !triedPrevDelta && graph.IsErrInvalidDelta(err) {
+		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
 
-			triedPrevDelta = true // TODO(meain): Do we need this check?
 			invalidPrevDelta = true
 
-			pager.SetNext("")
+			pager.Reset()
 
 			continue
 		}
@@ -229,7 +229,7 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
 		}
 
-		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded)
+		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded, invalidPrevDelta)
 		if err != nil {
 			return DeltaUpdate{}, nil, nil, err
 		}
@@ -381,6 +381,7 @@ func GetAllFolders(
 				oldPaths map[string]string,
 				newPaths map[string]string,
 				excluded map[string]struct{},
+				doNotMergeItems bool,
 			) error {
 				for _, item := range items {
 					// Skip the root item.
