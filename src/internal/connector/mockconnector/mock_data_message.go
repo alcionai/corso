@@ -424,7 +424,7 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 		},
 		"attachments": [
 			{
-				"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADKo35SAAA%3D')/attachments(microsoft.graph.itemAttachment/item())/$entity",
+				"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#/attachments(microsoft.graph.itemAttachment/item())/$entity",
 				"@odata.type": "#microsoft.graph.itemAttachment",
 				"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADKo35SAAABEgAQABv3spWM8g5IriSvYJe5kO8=",
 				"lastModifiedDateTime": "2023-02-06T20:03:40Z",
