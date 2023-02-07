@@ -3,11 +3,12 @@ package support
 import (
 	"strings"
 
-	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+
+	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 )
 
 // CreateFromBytes helper function to initialize m365 object form bytes.
