@@ -283,6 +283,13 @@ func SendMailToBackStore(
 
 	for _, attachment := range attached {
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
+			if *attachment.GetOdataType() == "#microsoft.graph.itemAttachment" {
+				logger.Ctx(ctx).Info(
+					"item attachment upload not supported by M365 server. skipping upload")
+
+				continue
+			}
+
 			errs = support.WrapAndAppend(
 				fmt.Sprintf("uploading attachment for message %s: %s",
 					id, support.ConnectorStackErrorTrace(err)),
