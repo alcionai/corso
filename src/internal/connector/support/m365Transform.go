@@ -307,8 +307,8 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 //nolint:lll
 const (
 	itemAttachment = "#microsoft.graph.itemAttachment"
-	eventIA        = "#microsoft.graph.event"
-	mailIA         = "#microsoft.graph.message"
+	eventItemType  = "#microsoft.graph.event"
+	mailItemType   = "#microsoft.graph.message"
 )
 
 // ToItemAttachment transforms internal item, OutlookItemables, into
@@ -323,7 +323,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 	itemType := item.GetOdataType()
 
 	switch *itemType {
-	case eventIA:
+	case eventItemType:
 		event := item.(models.Eventable)
 
 		newEvent, err := sanitizeEvent(event)
@@ -334,7 +334,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 		transform.SetItem(newEvent)
 
 		return transform, nil
-	case mailIA:
+	case mailItemType:
 		message := item.(models.Messageable)
 
 		newMessage, err := sanitizeMessage(message)
