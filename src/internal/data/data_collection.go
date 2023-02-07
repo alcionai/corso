@@ -68,6 +68,10 @@ type BackupCollection interface {
 // RestoreCollection is an extension of Collection that is used during restores.
 type RestoreCollection interface {
 	Collection
+	// Fetch retrieves an item with the given name from the Collection if it
+	// exists. Items retrieved with Fetch may still appear in the channel returned
+	// by Items().
+	Fetch(ctx context.Context, name string) (Stream, error)
 }
 
 // NotFoundRestoreCollection is a wrapper for a Collection that returns
