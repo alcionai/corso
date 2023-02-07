@@ -344,7 +344,7 @@ func RestoreExchangeDataCollections(
 			userCaches = directoryCaches[userID]
 		}
 
-		containerID, err := CreateContainerDestinaion(
+		containerID, err := CreateContainerDestination(
 			ctx,
 			creds,
 			dc.FullPath(),
@@ -447,10 +447,16 @@ func restoreCollection(
 				continue
 			}
 
+			// var locationRef string
+			// if category == path.ContactsCategory {
+			// 	locationRef = itemPath.Folder()
+			// }
+
 			deets.Add(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				"", // TODO: locationRef
 				true,
 				details.ItemInfo{
 					Exchange: info,
@@ -461,12 +467,12 @@ func restoreCollection(
 	}
 }
 
-// CreateContainerDestinaion builds the destination into the container
+// CreateContainerDestination builds the destination into the container
 // at the provided path.  As a precondition, the destination cannot
 // already exist.  If it does then an error is returned.  The provided
 // containerResolver is updated with the new destination.
 // @ returns the container ID of the new destination container.
-func CreateContainerDestinaion(
+func CreateContainerDestination(
 	ctx context.Context,
 	creds account.M365Config,
 	directory path.Path,
