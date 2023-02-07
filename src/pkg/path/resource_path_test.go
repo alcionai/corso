@@ -172,7 +172,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 			)
 			require.NoError(t, err)
 
-			assert.Empty(t, p.Folder())
+			assert.Empty(t, p.Folder(false))
 			assert.Empty(t, p.Folders())
 			assert.Equal(t, item, p.Item())
 		})
@@ -391,7 +391,7 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					assert.Equal(t, path.ExchangeService, p.Service())
 					assert.Equal(t, test.category, p.Category())
 					assert.Equal(t, testUser, p.ResourceOwner())
-					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder())
+					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder(false))
 					assert.Equal(t, m.expectedFolders, p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
 				})
@@ -465,7 +465,7 @@ func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 			assert.Equal(
 				t,
 				strings.Join(m.expectedFolders, "/"),
-				suite.paths[m.isItem].Folder(),
+				suite.paths[m.isItem].Folder(false),
 			)
 		})
 	}
@@ -525,7 +525,7 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 						return
 					}
 
-					assert.Equal(t, test.expectedFolder, newPath.Folder())
+					assert.Equal(t, test.expectedFolder, newPath.Folder(false))
 					assert.Equal(t, test.expectedItem, newPath.Item())
 				})
 			}

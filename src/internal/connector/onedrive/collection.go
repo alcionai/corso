@@ -432,7 +432,7 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRe
 			TotalBytes: byteCount,  // Number of bytes read in the operation,
 		},
 		errs,
-		oc.folderPath.Folder(), // Additional details
+		oc.folderPath.Folder(false), // Additional details
 	)
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	oc.statusUpdater(status)

@@ -272,8 +272,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 					continue
 				}
 
-				require.NotEmpty(t, c.FullPath().Folder())
-				folder := c.FullPath().Folder()
+				require.NotEmpty(t, c.FullPath().Folder(false))
+				folder := c.FullPath().Folder(false)
 
 				delete(test.folderNames, folder)
 			}
@@ -503,7 +503,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 					continue
 				}
 
-				assert.Equal(t, edc.FullPath().Folder(), DefaultContactFolder)
+				assert.Equal(t, edc.FullPath().Folder(false), DefaultContactFolder)
 				assert.NotZero(t, count)
 			}
 
@@ -567,9 +567,9 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 				if edc.FullPath().Service() != path.ExchangeMetadataService {
 					isMetadata = true
-					assert.Equal(t, test.expected, edc.FullPath().Folder())
+					assert.Equal(t, test.expected, edc.FullPath().Folder(false))
 				} else {
-					assert.Equal(t, "", edc.FullPath().Folder())
+					assert.Equal(t, "", edc.FullPath().Folder(false))
 				}
 
 				for item := range edc.Items() {
