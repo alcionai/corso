@@ -595,7 +595,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			folderID, err := CreateContainerDestinaion(
+			folderID, err := CreateContainerDestination(
 				ctx,
 				m365,
 				test.pathFunc1(t),
@@ -608,7 +608,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 			_, err = resolver.IDToPath(ctx, folderID)
 			assert.NoError(t, err)
 
-			secondID, err := CreateContainerDestinaion(
+			secondID, err := CreateContainerDestination(
 				ctx,
 				m365,
 				test.pathFunc2(t),
