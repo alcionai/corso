@@ -6,12 +6,17 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func NewUnitSuite(t *testing.T, envSets [][]string) *UnitSuite {
-	MustGetEnvSets(t, envSets...)
-	return new(UnitSuite)
+type Suite interface {
+	suite.TestingSuite
+	Run(name string, subtest func()) bool
 }
 
-type UnitSuite struct {
+func NewUnitSuite(t *testing.T, envSets [][]string) *unitSuite {
+	MustGetEnvSets(t, envSets...)
+	return new(unitSuite)
+}
+
+type unitSuite struct {
 	suite.Suite
 }
 
@@ -19,20 +24,20 @@ func NewIntegrationSuite(
 	t *testing.T,
 	envSets [][]string,
 	includeGroups ...string,
-) *IntegrationSuite {
+) *integrationSuite {
 	RunOnAny(
 		t,
 		append(
-			[]string{CorsoCITests, CorsoIntegrationTests},
+			[]string{CorsoCITests},
 			includeGroups...,
 		)...,
 	)
 
 	MustGetEnvSets(t, envSets...)
 
-	return new(IntegrationSuite)
+	return new(integrationSuite)
 }
 
-type IntegrationSuite struct {
+type integrationSuite struct {
 	suite.Suite
 }
