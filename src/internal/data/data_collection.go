@@ -92,7 +92,7 @@ type Stream interface {
 	Deleted() bool
 }
 
-// Locationer provides a LocationPath describing the path with Display Names
+// LocationPather provides a LocationPath describing the path with Display Names
 // instead of canonical IDs
 type LocationPather interface {
 	LocationPath() path.Path
