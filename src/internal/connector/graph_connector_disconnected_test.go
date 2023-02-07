@@ -22,12 +22,12 @@ import (
 // Disconnected Test Section
 // ---------------------------------------------------------------
 type DisconnectedGraphConnectorSuite struct {
-	*tester.UnitSuite
+	tester.Suite
 }
 
 func TestDisconnectedGraphSuite(t *testing.T) {
 	s := &DisconnectedGraphConnectorSuite{
-		UnitSuite: tester.NewUnitSuite(t, nil),
+		Suite: tester.NewUnitSuite(t, nil),
 	}
 
 	tester.LogTimeOfTest(t)
@@ -112,13 +112,16 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	go statusTestTask(&gc, 4, 1, 1)
 
 	gc.AwaitStatus()
-	suite.NotEmpty(gc.PrintableStatus())
+
+	t := suite.T()
+
+	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	suite.Equal(8, gc.Status().ObjectCount)
+	assert.Equal(t, 8, gc.Status().ObjectCount)
 	// Expect 2 success
-	suite.Equal(2, gc.Status().Successful)
+	assert.Equal(t, 2, gc.Status().Successful)
 	// Expect 2 folders
-	suite.Equal(2, gc.Status().FolderCount)
+	assert.Equal(t, 2, gc.Status().FolderCount)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
