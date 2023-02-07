@@ -122,10 +122,11 @@ func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
 }
 
 type itemDetails struct {
-	info     *details.ItemInfo
-	repoPath path.Path
-	prevPath path.Path
-	cached   bool
+	info         *details.ItemInfo
+	repoPath     path.Path
+	prevPath     path.Path
+	locationPath path.Path
+	cached       bool
 }
 
 type corsoProgress struct {
@@ -186,20 +187,24 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	parent := d.repoPath.ToBuilder().Dir()
 
+	var locationFolders string
+	if d.locationPath != nil {
+		locationFolders = d.locationPath.Folder()
+	}
+
 	cp.deets.Add(
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
+		locationFolders,
 		!d.cached,
-		*d.info,
-	)
+		*d.info)
 
-	folders := details.FolderEntriesForPath(parent)
+	folders := details.FolderEntriesForPath(parent, d.locationPath.ToBuilder())
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
-		!d.cached,
-	)
+		!d.cached)
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
@@ -309,6 +314,12 @@ func collectionEntries(
 				continue
 			}
 
+			var locationPath path.Path
+
+			if lp, ok := e.(data.LocationPather); ok {
+				locationPath = lp.LocationPath()
+			}
+
 			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
 
 			if e.Deleted() {
@@ -330,7 +341,11 @@ func collectionEntries(
 				// previous snapshot then we should populate prevPath here and leave
 				// info nil.
 				itemInfo := ei.Info()
-				d := &itemDetails{info: &itemInfo, repoPath: itemPath}
+				d := &itemDetails{
+					info:         &itemInfo,
+					repoPath:     itemPath,
+					locationPath: locationPath,
+				}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 			}
 

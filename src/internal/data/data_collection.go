@@ -92,6 +92,12 @@ type Stream interface {
 	Deleted() bool
 }
 
+// Locationer provides a LocationPath describing the path with Display Names
+// instead of canonical IDs
+type LocationPather interface {
+	LocationPath() path.Path
+}
+
 // StreamInfo is used to provide service specific
 // information about the Stream
 type StreamInfo interface {

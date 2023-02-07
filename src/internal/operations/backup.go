@@ -573,10 +573,11 @@ func mergeDetails(
 				newPath.String(),
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
+				"", // TODO Location Ref,
 				itemUpdated,
 				item)
 
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), nil)
 			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when
