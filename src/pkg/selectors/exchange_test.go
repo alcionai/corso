@@ -1264,6 +1264,233 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 	}
 }
 
+func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
+	var (
+		contact         = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "id5/id6", "cid")
+		contactLocation = "conts/my_cont"
+		event           = stubRepoRef(path.ExchangeService, path.EventsCategory, "uid", "id1/id2", "eid")
+		eventLocation   = "cal/my_cal"
+		mail            = stubRepoRef(path.ExchangeService, path.EmailCategory, "uid", "id3/id4", "mid")
+		mailLocation    = "inbx/my_mail"
+	)
+
+	makeDeets := func(refs ...string) *details.Details {
+		deets := &details.Details{
+			DetailsModel: details.DetailsModel{
+				Entries: []details.DetailsEntry{},
+			},
+		}
+
+		for _, r := range refs {
+			var (
+				location string
+				itype    = details.UnknownType
+			)
+
+			switch r {
+			case contact:
+				itype = details.ExchangeContact
+				location = contactLocation
+			case event:
+				itype = details.ExchangeEvent
+				location = eventLocation
+			case mail:
+				itype = details.ExchangeMail
+				location = mailLocation
+			}
+
+			deets.Entries = append(deets.Entries, details.DetailsEntry{
+				RepoRef:     r,
+				LocationRef: location,
+				ItemInfo: details.ItemInfo{
+					Exchange: &details.ExchangeInfo{
+						ItemType: itype,
+					},
+				},
+			})
+		}
+
+		return deets
+	}
+
+	arr := func(s ...string) []string {
+		return s
+	}
+
+	table := []struct {
+		name         string
+		deets        *details.Details
+		makeSelector func() *ExchangeRestore
+		expect       []string
+	}{
+		{
+			"no refs",
+			makeDeets(),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				return er
+			},
+			[]string{},
+		},
+		{
+			"contact only",
+			makeDeets(contact),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				return er
+			},
+			arr(contact),
+		},
+		{
+			"event only",
+			makeDeets(event),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				return er
+			},
+			arr(event),
+		},
+		{
+			"mail only",
+			makeDeets(mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				return er
+			},
+			arr(mail),
+		},
+		{
+			"all",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				return er
+			},
+			arr(contact, event, mail),
+		},
+		{
+			"only match contact",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore([]string{"uid"})
+				er.Include(er.Contacts([]string{contactLocation}, []string{"cid"}))
+				return er
+			},
+			arr(contact),
+		},
+		{
+			"only match event",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore([]string{"uid"})
+				er.Include(er.Events([]string{eventLocation}, []string{"eid"}))
+				return er
+			},
+			arr(event),
+		},
+		{
+			"only match mail",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore([]string{"uid"})
+				er.Include(er.Mails([]string{mailLocation}, []string{"mid"}))
+				return er
+			},
+			arr(mail),
+		},
+		{
+			"exclude contact",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				er.Exclude(er.Contacts([]string{contactLocation}, []string{"cid"}))
+				return er
+			},
+			arr(event, mail),
+		},
+		{
+			"exclude event",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				er.Exclude(er.Events([]string{eventLocation}, []string{"eid"}))
+				return er
+			},
+			arr(contact, mail),
+		},
+		{
+			"exclude mail",
+			makeDeets(contact, event, mail),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				er.Exclude(er.Mails([]string{mailLocation}, []string{"mid"}))
+				return er
+			},
+			arr(contact, event),
+		},
+		{
+			"filter on mail subject",
+			func() *details.Details {
+				ds := makeDeets(mail)
+				for i := range ds.Entries {
+					ds.Entries[i].Exchange.Subject = "has a subject"
+				}
+				return ds
+			}(),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				er.Filter(er.MailSubject("subj"))
+				return er
+			},
+			arr(mail),
+		},
+		{
+			"filter on mail subject multiple input categories",
+			func() *details.Details {
+				mds := makeDeets(mail)
+				for i := range mds.Entries {
+					mds.Entries[i].Exchange.Subject = "has a subject"
+				}
+
+				ds := makeDeets(contact, event)
+				ds.Entries = append(ds.Entries, mds.Entries...)
+
+				return ds
+			}(),
+			func() *ExchangeRestore {
+				er := NewExchangeRestore(Any())
+				er.Include(er.AllData())
+				er.Filter(er.MailSubject("subj"))
+				return er
+			},
+			arr(mail),
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			errs := mock.NewAdder()
+
+			sel := test.makeSelector()
+			results := sel.Reduce(ctx, test.deets, errs)
+			paths := results.Paths()
+			assert.Equal(t, test.expect, paths)
+			assert.Empty(t, errs.Errs)
+		})
+	}
+}
+
 func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 	var (
 		es       = NewExchangeRestore(Any())
