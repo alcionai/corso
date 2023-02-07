@@ -1289,7 +1289,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				// token for this drive is valid.
 				driveID1: {},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]struct{}{
+				"file": {},
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors",
@@ -1318,7 +1320,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath,
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]struct{}{
+				"file": {},
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_EmptyDelta_NoErrors",
@@ -1341,7 +1345,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			expectedDeltaURLs:   map[string]string{},
 			expectedFolderPaths: map[string]map[string]string{},
-			expectedDelList:     map[string]struct{}{},
+			expectedDelList: map[string]struct{}{
+				"file": {},
+			},
 		},
 		{
 			name:   "OneDrive_TwoItemPages_NoErrors",
@@ -1377,7 +1383,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath,
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]struct{}{
+				"file":  {},
+				"file2": {},
+			},
 		},
 		{
 			name: "TwoDrives_OneItemPageEach_NoErrors",
@@ -1398,8 +1407,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID2: {
 					{
 						items: []models.DriveItemable{
-							driveItem("folder", "folder", driveBasePath2, false, true, false),
-							driveItem("file", "file", driveBasePath2+"/folder", true, false, false),
+							driveItem("folder2", "folder", driveBasePath2, false, true, false),
+							driveItem("file2", "file", driveBasePath2+"/folder", true, false, false),
 						},
 						deltaLink: &delta2,
 					},
@@ -1408,9 +1417,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			errCheck: assert.NoError,
 			expectedCollections: map[string][]string{
 				folderPath:      {"file"},
-				folderPath2:     {"file"},
+				folderPath2:     {"file2"},
 				rootFolderPath:  {"folder"},
-				rootFolderPath2: {"folder"},
+				rootFolderPath2: {"folder2"},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1421,10 +1430,13 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath,
 				},
 				driveID2: {
-					"folder": folderPath2,
+					"folder2": folderPath2,
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]struct{}{
+				"file":  {},
+				"file2": {},
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_Errors",
@@ -1539,7 +1551,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					},
 					{
 						items: []models.DriveItemable{
-							driveItem("file", "file", testBaseDrivePath+"/folder", true, false, false),
+							driveItem("file2", "file2", testBaseDrivePath+"/folder", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1558,7 +1570,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					tenant,
 					user,
 					testBaseDrivePath+"/folder",
-				)[0]: {"file"},
+				)[0]: {"file2"},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1568,7 +1580,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				// token for this drive is valid.
 				driveID1: {},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]struct{}{
+				"file":  {},
+				"file2": {},
+			},
 			doNotMergeItems: false,
 		},
 	}
