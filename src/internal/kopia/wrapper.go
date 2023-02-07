@@ -317,7 +317,7 @@ func getItemStream(
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "entry not found") {
-			err = errors.Wrap(ErrNotFound, err.Error())
+			err = errors.Wrap(data.ErrNotFound, err.Error())
 		}
 
 		return nil, errors.Wrap(err, "getting nested object handle")

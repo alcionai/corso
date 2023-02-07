@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -372,7 +372,7 @@ func listSharePointCmd(cmd *cobra.Command, args []string) error {
 	if len(backupID) > 0 {
 		b, err := r.Backup(ctx, model.StableID(backupID))
 		if err != nil {
-			if errors.Is(err, kopia.ErrNotFound) {
+			if errors.Is(err, data.ErrNotFound) {
 				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
 			}
 
@@ -513,7 +513,7 @@ func runDetailsSharePointCmd(
 	d, _, errs := r.BackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
 	if errs.Err() != nil {
-		if errors.Is(errs.Err(), kopia.ErrNotFound) {
+		if errors.Is(errs.Err(), data.ErrNotFound) {
 			return nil, errors.Errorf("no backup exists with the id %s", backupID)
 		}
 

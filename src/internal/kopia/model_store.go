@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 )
 
@@ -20,7 +21,6 @@ const (
 )
 
 var (
-	ErrNotFound           = errors.New("not found")
 	errNoModelStoreID     = errors.New("model has no ModelStoreID")
 	errNoStableID         = errors.New("model has no StableID")
 	errBadTagKey          = errors.New("tag key overlaps with required key")
@@ -281,7 +281,7 @@ func (ms *ModelStore) getModelStoreID(
 	}
 
 	if len(metadata) == 0 {
-		return "", errors.Wrap(ErrNotFound, "getting ModelStoreID")
+		return "", errors.Wrap(data.ErrNotFound, "getting ModelStoreID")
 	}
 
 	if len(metadata) != 1 {
@@ -457,7 +457,7 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 
 	latest, err := ms.getModelStoreID(ctx, s, id)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, data.ErrNotFound) {
 			return nil
 		}
 
@@ -490,7 +490,7 @@ func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID
 func transmuteErr(err error) error {
 	switch {
 	case errors.Is(err, manifest.ErrNotFound):
-		return ErrNotFound
+		return data.ErrNotFound
 	default:
 		return err
 	}
