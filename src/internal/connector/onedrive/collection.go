@@ -97,17 +97,19 @@ func NewCollection(
 	statusUpdater support.StatusUpdater,
 	source driveSource,
 	ctrlOpts control.Options,
+	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
-		itemClient:    itemClient,
-		folderPath:    folderPath,
-		driveItems:    map[string]models.DriveItemable{},
-		driveID:       driveID,
-		source:        source,
-		service:       service,
-		data:          make(chan data.Stream, collectionChannelBufferSize),
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		itemClient:      itemClient,
+		folderPath:      folderPath,
+		driveItems:      map[string]models.DriveItemable{},
+		driveID:         driveID,
+		source:          source,
+		service:         service,
+		data:            make(chan data.Stream, collectionChannelBufferSize),
+		statusUpdater:   statusUpdater,
+		ctrl:            ctrlOpts,
+		doNotMergeItems: doNotMergeItems,
 	}
 
 	// Allows tests to set a mock populator

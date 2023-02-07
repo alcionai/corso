@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
@@ -509,7 +509,7 @@ func (i SharePointInfo) Values() []string {
 func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
 	newParent, err := path.GetDriveFolderPath(newPath)
 	if err != nil {
-		return errors.Wrapf(err, "making sharepoint path from %s", newPath)
+		return clues.Wrap(err, "making sharePoint path").With("path", newPath)
 	}
 
 	i.ParentPath = newParent
@@ -551,7 +551,7 @@ func (i OneDriveInfo) Values() []string {
 func (i *OneDriveInfo) UpdateParentPath(newPath path.Path) error {
 	newParent, err := path.GetDriveFolderPath(newPath)
 	if err != nil {
-		return errors.Wrapf(err, "making drive path from %s", newPath)
+		return clues.Wrap(err, "making oneDrive path").With("path", newPath)
 	}
 
 	i.ParentPath = newParent

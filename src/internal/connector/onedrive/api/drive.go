@@ -30,6 +30,7 @@ const pageSize = int32(999)
 
 type driveItemPager struct {
 	gs      graph.Servicer
+	driveID string
 	builder *msdrives.ItemRootDeltaRequestBuilder
 	options *msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration
 }
@@ -49,6 +50,7 @@ func NewItemPager(
 
 	res := &driveItemPager{
 		gs:      gs,
+		driveID: driveID,
 		options: requestConfig,
 		builder: gs.Client().DrivesById(driveID).Root().Delta(),
 	}
@@ -76,6 +78,10 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 
 func (p *driveItemPager) SetNext(link string) {
 	p.builder = msdrives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
+}
+
+func (p *driveItemPager) Reset() {
+	p.builder = p.gs.Client().DrivesById(p.driveID).Root().Delta()
 }
 
 func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable, error) {
