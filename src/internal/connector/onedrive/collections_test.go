@@ -1382,6 +1382,99 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedDelList: map[string]struct{}{},
 			doNotMergeItems: true,
 		},
+		{
+			name:   "OneDrive_MultipleCollections_DeltaError",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						err: getDeltaError(),
+					},
+					{
+						items: []models.DriveItemable{
+							driveItem("file", "file", testBaseDrivePath, true, false, false),
+						},
+						nextLink: &next,
+					},
+					{
+						items: []models.DriveItemable{
+							driveItem("file", "file", testBaseDrivePath+"/folder", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedCollections: map[string][]string{
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath,
+				)[0]: {"file"},
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0]: {"file"},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				// We need an empty map here so deserializing metadata knows the delta
+				// token for this drive is valid.
+				driveID1: {},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: true,
+		},
+		{
+			name:   "OneDrive_MultipleCollections_NoDeltaError",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveItem("file", "file", testBaseDrivePath, true, false, false),
+						},
+						nextLink: &next,
+					},
+					{
+						items: []models.DriveItemable{
+							driveItem("file", "file", testBaseDrivePath+"/folder", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedCollections: map[string][]string{
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath,
+				)[0]: {"file"},
+				expectedPathAsSlice(
+					suite.T(),
+					tenant,
+					user,
+					testBaseDrivePath+"/folder",
+				)[0]: {"file"},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				// We need an empty map here so deserializing metadata knows the delta
+				// token for this drive is valid.
+				driveID1: {},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: false,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
