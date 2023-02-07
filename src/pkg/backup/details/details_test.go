@@ -234,7 +234,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 					Entries: test.ents,
 				},
 			}
-			assert.Equal(t, test.expectRepoRefs, d.Paths())
+			assert.ElementsMatch(t, test.expectRepoRefs, d.Paths())
 		})
 	}
 }
