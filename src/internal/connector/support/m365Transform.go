@@ -7,7 +7,11 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-const itemAttachment = "#microsoft.graph.itemAttachment"
+//==========================================================
+// m365Transform.go contains utility functions that
+// either add, modify, or remove fields from M365
+// objects for interacton with M365 services
+//=========================================================
 
 // CloneMessageableFields places data from original data into new message object.
 // SingleLegacyValueProperty is not populated during this operation
@@ -282,14 +286,35 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	return newColumn
 }
 
+// ===============================================================================================
+// Sanitization section
+// Set of functions that support ItemAttachemtable object restoration.
+// These attachments can be nested as well as possess one of the other
+// reference types. To ensure proper upload, each interior`item` requires
+// that certain fields be modified.
+// ItemAttachment:
+// https://learn.microsoft.com/en-us/graph/api/resources/itemattachment?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/exchange/client-developer/exchange-web-services/attachments-and-ews-in-exchange
+// https://learn.microsoft.com/en-us/exchange/client-developer/exchange-web-services/folders-and-items-in-ews-in-exchange
+// ===============================================================================================
+// M365 Models possess a field, OData.Type which indicate
+// the represent the intended model in string format.
+// The constants listed here identify the supported itemAttachments
+// currently supported for Restore operations.
+// itemAttachments
+// support ODataType values
+//
+//nolint:lll
+const (
+	itemAttachment = "#microsoft.graph.itemAttachment"
+	eventIA        = "#microsoft.graph.event"
+	mailIA         = "#microsoft.graph.message"
+)
+
 // ToItemAttachment transforms internal item, OutlookItemables, into
 // objects that are able to be uploaded into M365.
-// Supported Internal Items:
-// - Events
 func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error) {
 	transform, ok := orig.(models.ItemAttachmentable)
-	supported := "#microsoft.graph.event"
-
 	if !ok { // Shouldn't ever happen
 		return nil, fmt.Errorf("transforming attachment to item attachment")
 	}
@@ -298,7 +323,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 	itemType := item.GetOdataType()
 
 	switch *itemType {
-	case supported:
+	case eventIA:
 		event := item.(models.Eventable)
 
 		newEvent, err := sanitizeEvent(event)
@@ -307,6 +332,17 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 		}
 
 		transform.SetItem(newEvent)
+
+		return transform, nil
+	case mailIA:
+		message := item.(models.Messageable)
+
+		newMessage, err := sanitizeMessage(message)
+		if err != nil {
+			return nil, err
+		}
+
+		transform.SetItem(newMessage)
 
 		return transform, nil
 	default:
@@ -337,7 +373,7 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetSubject(orig.GetSubject())
 	newEvent.SetType(orig.GetType())
 
-	// Sanitation
+	// Sanitation NOTE
 	// isDraft and isOrganizer *bool ptr's have to be removed completely
 	// from JSON in order for POST method to succeed.
 	// Current as of 2/2/2023
@@ -346,7 +382,30 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetIsDraft(nil)
 	newEvent.SetAdditionalData(orig.GetAdditionalData())
 
-	attached := orig.GetAttachments()
+	attachments, err := sanitizeAttachments(orig.GetAttachments())
+	if err != nil {
+		return nil, err
+	}
+
+	newEvent.SetAttachments(attachments)
+
+	return newEvent, nil
+}
+
+func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
+	message := ToMessage(orig)
+
+	attachments, err := sanitizeAttachments(message.GetAttachments())
+	if err != nil {
+		return nil, err
+	}
+
+	message.SetAttachments(attachments)
+
+	return message, nil
+}
+
+func sanitizeAttachments(attached []models.Attachmentable) ([]models.Attachmentable, error) {
 	attachments := make([]models.Attachmentable, len(attached))
 
 	for _, ax := range attached {
@@ -364,7 +423,5 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 		attachments = append(attachments, ax)
 	}
 
-	newEvent.SetAttachments(attachments)
-
-	return newEvent, nil
+	return attachments, nil
 }
