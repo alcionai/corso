@@ -362,6 +362,12 @@ func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
 
 func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 	//nolint:lll
+	// Order of fields:
+	// 1. subject
+	// 2. alias
+	// 3. sender address
+	// 4. from address
+	// 5. toRecipients email address
 	template := `{
 		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages(attachments())/$entity",
 		"@odata.etag": "W/\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADKTqr3\"",
@@ -374,7 +380,7 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 		"sentDateTime": "2023-02-06T20:03:37Z",
 		"hasAttachments": true,
 		"internetMessageId": "<SJ0PR17MB5622C17321AE356F5202A857C3DA9@SJ0PR17MB5622.namprd17.prod.outlook.com>",
-		"subject": "Simple Item Mail",
+		"subject": "%[1]s",
 		"bodyPreview": "Nested Items are not encapsulated in a trivial manner. Review the findings.\r\n\r\nBest,\r\n\r\nYour Test Case",
 		"importance": "normal",
 		"parentFolderId": "AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==",
@@ -384,7 +390,7 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 		"isReadReceiptRequested": false,
 		"isRead": false,
 		"isDraft": false,
-		"webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%2BAADKo35SAAA%3D&exvsurl=1&viewmodel=ReadMessageItem",
+		"webLink": "https://outlook.office365.com/owal=ReadMessageItem",
 		"inferenceClassification": "focused",
 		"body": {
 			"contentType": "html",
@@ -392,21 +398,21 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 		},
 		"sender": {
 			"emailAddress": {
-				"name": "Dustin Abbot",
-				"address": "dustina@8qzvrj.onmicrosoft.com"
+				"name": "%[2]s",
+				"address": "%[3]s"
 			}
 		},
 		"from": {
 			"emailAddress": {
-				"name": "Dustin Abbot",
-				"address": "dustina@8qzvrj.onmicrosoft.com"
+				"name": "%[2]s",
+				"address": "%[4]s"
 			}
 		},
 		"toRecipients": [
 			{
 				"emailAddress": {
-					"name": "Dustin Abbot",
-					"address": "dustina@8qzvrj.onmicrosoft.com"
+					"name": "%[2]s",
+					"address": "%[5]s"
 				}
 			}
 		],
@@ -446,28 +452,28 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 					"isReadReceiptRequested": false,
 					"isRead": true,
 					"isDraft": false,
-					"webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8%2B7BwB8wYc0thTTTYl3RpEYIUq%2BAAAAAAEMAAB8wYc0thTTTYl3RpEYIUq%2BAADKo35SAAABEgAQABv3spWM8g5IriSvYJe5kO8%3D&exvsurl=1&viewmodel=ItemAttachment",
+					"webLink": "https://outlook.office365.com/owa/?AttachmentItemID=Aviewmodel=ItemAttachment",
 					"body": {
 						"contentType": "html",
 						"content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><meta name=\"Generator\" content=\"Microsoft Word 15 (filtered medium)\"><style><!--@font-face{font-family:\"Cambria Math\"}@font-face{font-family:Calibri}p.MsoNormal, li.MsoNormal, div.MsoNormal{margin:0in;font-size:11.0pt;font-family:\"Calibri\",sans-serif}span.EmailStyle17{font-family:\"Calibri\",sans-serif;color:windowtext}.MsoChpDefault{font-family:\"Calibri\",sans-serif}@page WordSection1{margin:1.0in 1.0in 1.0in 1.0in}div.WordSection1{}--></style></head><body lang=\"EN-US\" link=\"#0563C1\" vlink=\"#954F72\" style=\"word-wrap:break-word\"><div class=\"WordSection1\"><p class=\"MsoNormal\">I've been going through with the changing of messages. It shouldn't have the same calls, right? Call Me? </p><p class=\"MsoNormal\">&nbsp;</p><p class=\"MsoNormal\">We want to be able to send multiple messages and we want to be able to respond and do other things that make sense for our users. In this case. Let’s consider a Mailbox</p></div></body></html>"
 					},
 					"sender": {
 						"emailAddress": {
-							"name": "Lidia Holloway",
-							"address": "LidiaH@8qzvrj.onmicrosoft.com"
+							"name": "%[2]s",
+							"address": "%[3]s"
 						}
 					},
 					"from": {
 						"emailAddress": {
-							"name": "Lidia Holloway",
-							"address": "LidiaH@8qzvrj.onmicrosoft.com"
+							"name": "%[2]s",
+							"address": "%[4]s"
 						}
 					},
 					"toRecipients": [
 						{
 							"emailAddress": {
-								"name": "Dustin Abbot",
-								"address": "dustina@8qzvrj.onmicrosoft.com"
+								"name": "Direct Report",
+								"address":  "notAvailable@8qzvrj.onmicrosoft.com"
 							}
 						}
 					],
@@ -479,7 +485,16 @@ func GetMockMessageWithItemAttachmentMail(subject string) []byte {
 		]
 	}`
 
-	return []byte(template)
+	message := fmt.Sprintf(
+		template,
+		subject,
+		defaultAlias,
+		defaultMessageSender,
+		defaultMessageFrom,
+		defaultMessageTo,
+	)
+
+	return []byte(message)
 }
 
 func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
