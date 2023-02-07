@@ -5,10 +5,11 @@ import (
 
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -286,6 +287,7 @@ func reduce[T scopeT, C categoryT](
 	deets *details.Details,
 	s Selector,
 	dataCategories map[path.CategoryType]C,
+	errs fault.Adder,
 ) *details.Details {
 	ctx, end := D.Span(ctx, "selectors:reduce")
 	defer end()
@@ -311,7 +313,7 @@ func reduce[T scopeT, C categoryT](
 	for _, ent := range deets.Items() {
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
-			logger.Ctx(ctx).Debugw("transforming repoRef to path", "err", err)
+			errs.Add(clues.Wrap(err, "transforming repoRef to path").WithClues(ctx))
 			continue
 		}
 

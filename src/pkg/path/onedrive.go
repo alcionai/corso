@@ -20,7 +20,7 @@ func ToOneDrivePath(p Path) (*DrivePath, error) {
 	if len(folders) < 3 {
 		return nil, clues.
 			New("folder path doesn't match expected format for OneDrive items").
-			With("folders", p.Folder())
+			With("path_folders", p.Folder())
 	}
 
 	return &DrivePath{DriveID: folders[1], Folders: folders[3:]}, nil
