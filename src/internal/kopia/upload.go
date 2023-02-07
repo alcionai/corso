@@ -200,7 +200,12 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		!d.cached,
 		*d.info)
 
-	folders := details.FolderEntriesForPath(parent, d.locationPath.ToBuilder())
+	var locPB *path.Builder
+	if d.locationPath != nil {
+		locPB = d.locationPath.ToBuilder()
+	}
+
+	folders := details.FolderEntriesForPath(parent, locPB)
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
