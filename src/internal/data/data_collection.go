@@ -86,38 +86,3 @@ type StreamSize interface {
 type StreamModTime interface {
 	ModTime() time.Time
 }
-
-// ------------------------------------------------------------------------------------------------
-// functionality
-// ------------------------------------------------------------------------------------------------
-
-// ResourceOwnerSet extracts the set of unique resource owners from the
-// slice of Collections.
-func ResourceOwnerSet(cs []Collection) []string {
-	rs := map[string]struct{}{}
-
-	for _, c := range cs {
-		fp := c.FullPath()
-		if fp == nil {
-			// Deleted collections have their full path set to nil but the previous
-			// path will be populated.
-			fp = c.PreviousPath()
-		}
-
-		if fp == nil {
-			// This should not happen, but keep us from hitting a nil pointer
-			// exception if it does somehow occur. Statistics will be off though.
-			continue
-		}
-
-		rs[fp.ResourceOwner()] = struct{}{}
-	}
-
-	rss := make([]string, 0, len(rs))
-
-	for k := range rs {
-		rss = append(rss, k)
-	}
-
-	return rss
-}
