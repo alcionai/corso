@@ -2,9 +2,11 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -187,6 +189,18 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				return *folder.GetId()
 			},
 		},
+		{
+			name:     "Test Mail: Item Attachment_Mail",
+			bytes:    mockconnector.GetMockMessageWithItemAttachmentMail("Mail Item Attachment"),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
 		{ // Restore will upload the Message without uploading the attachment
 			name:     "Test Mail: Item Attachment_NestedEvent",
 			bytes:    mockconnector.GetMockMessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
@@ -280,6 +294,17 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			defer flush()
 
 			destination := test.destination(t, ctx)
+			wtr := kioser.NewJsonSerializationWriter()
+			message, err := support.CreateMessageFromBytes(test.bytes)
+			require.NoError(t, err)
+
+			err = wtr.WriteObjectValue("", message)
+			require.NoError(t, err)
+			byteArray, err := wtr.GetSerializedContent()
+			require.NoError(t, err)
+
+			fmt.Printf("Prior to Object: %s\n", string(byteArray))
+
 			info, err := RestoreExchangeObject(
 				ctx,
 				test.bytes,
@@ -291,6 +316,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			)
 			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 			assert.NotNil(t, info, "item info was not populated")
+			assert.NotNil(t, deleters)
 			assert.NoError(t, deleters[test.category].DeleteContainer(ctx, userID, destination))
 		})
 	}
