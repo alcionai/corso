@@ -46,8 +46,8 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 
 	temp := graph.NewCacheFolder(
 		f,
-		path.Builder{}.Append(container), // storage path
-		path.Builder{}.Append(container)) // display location
+		path.Builder{}.Append(*f.GetId()), // storage path
+		path.Builder{}.Append(*f.GetDisplayName())) // display location
 	if err := ecc.addFolder(temp); err != nil {
 		return errors.Wrap(err, "initializing calendar resolver")
 	}

@@ -211,8 +211,8 @@ func (c Events) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(
 				cd,
-				path.Builder{}.Append(*cd.GetDisplayName()),
-				path.Builder{}.Append(*cd.GetDisplayName()))
+				path.Builder{}.Append(*cd.GetId()), // storage path
+				path.Builder{}.Append(*cd.GetDisplayName())) // display location
 			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
