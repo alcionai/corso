@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -94,6 +95,46 @@ func (suite *SharePointCollectionSuite) TestListCollection() {
 		id:   testName,
 		data: io.NopCloser(bytes.NewReader(byteArray)),
 		info: sharePointListInfo(listing, int64(len(byteArray))),
+	}
+
+	readItems := []data.Stream{}
+
+	for item := range col.Items() {
+		readItems = append(readItems, item)
+	}
+
+	require.Equal(t, len(readItems), 1)
+	item := readItems[0]
+	shareInfo, ok := item.(data.StreamInfo)
+	require.True(t, ok)
+	require.NotNil(t, shareInfo.Info())
+	require.NotNil(t, shareInfo.Info().SharePoint)
+	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
+}
+
+// TestPagesCollection tests basic functionality to create
+// SharePoint collection and to use the data stream channel.
+func (suite *SharePointCollectionSuite) TestPagesCollection() {
+	t := suite.T()
+
+	testName := "Pages Collection Test"
+	byteArray := mockconnector.GetMockPage(testName)
+	page, err := support.CreatePageFromBytes(byteArray)
+	require.NoError(t, err)
+
+	dir, err := path.Builder{}.Append("directory").
+		ToDataLayerSharePointPath(
+			"some",
+			"user",
+			path.PagesCategory,
+			false)
+	require.NoError(t, err)
+
+	col := NewCollection(dir, nil, List, nil)
+	col.data <- &Item{
+		id:   testName,
+		data: io.NopCloser(bytes.NewReader(byteArray)),
+		info: api.PageInfo(page, int64(len(byteArray))),
 	}
 
 	readItems := []data.Stream{}
