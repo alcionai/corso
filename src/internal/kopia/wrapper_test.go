@@ -944,6 +944,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				fault.New(true))
 			test.expectedErr(t, err)
 
+			if err != nil {
+				return
+			}
+
 			assert.Len(t, result, test.expectedCollections)
 			assert.Less(t, int64(0), ic.i)
 			testForFiles(t, expected, result)
