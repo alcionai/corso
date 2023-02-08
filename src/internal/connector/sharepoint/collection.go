@@ -183,7 +183,7 @@ func (sc *Collection) populate(ctx context.Context) {
 	)
 
 	defer func() {
-		sc.finishPopulation(ctx, metrics.attempts, metrics.success, int64(metrics.success), errs)
+		sc.finishPopulation(ctx, metrics.attempts, metrics.success, int64(metrics.totalBytes), errs)
 	}()
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
@@ -195,7 +195,6 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, metrics.attempts, metrics.success, metrics.totalBytes, errs)
 	}()
 
 	// Switch retrieval function based on category
@@ -319,7 +318,7 @@ func (sc *Collection) retrievePages(
 		}
 	}
 
-	return numMetrics{}, nil
+	return metrics, nil
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
