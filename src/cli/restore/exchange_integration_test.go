@@ -110,8 +110,10 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 		// sanity check, ensure we can find the backup and its details immediately
 		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
 		require.NoError(t, err, "retrieving recent backup by ID")
-		_, _, err = suite.repo.BackupDetails(ctx, string(bop.Results.BackupID))
-		require.NoError(t, err, "retrieving recent backup details by ID")
+
+		_, _, errs := suite.repo.BackupDetails(ctx, string(bop.Results.BackupID))
+		require.NoError(t, errs.Err(), "retrieving recent backup details by ID")
+		require.Empty(t, errs.Errs(), "retrieving recent backup details by ID")
 	}
 }
 

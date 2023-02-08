@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	_ data.Stream     = &MockListData{}
-	_ data.Collection = &MockListCollection{}
+	_ data.Stream           = &MockListData{}
+	_ data.BackupCollection = &MockListCollection{}
 )
 
 type MockListCollection struct {

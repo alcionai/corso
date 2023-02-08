@@ -214,8 +214,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err.Err())
-			assert.Empty(t, err.Errs())
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -232,8 +231,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err.Err())
-			assert.Empty(t, err.Errs())
+			assert.Error(t, err)
 			assert.Empty(t, output)
 		})
 	}

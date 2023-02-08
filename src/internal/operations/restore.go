@@ -88,7 +88,7 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []data.Collection
+	cs                []data.RestoreCollection
 	gc                *support.ConnectorOperationStatus
 	bytesRead         *stats.ByteCounter
 	resourceCount     int
@@ -104,7 +104,7 @@ type restorer interface {
 		snapshotID string,
 		paths []path.Path,
 		bc kopia.ByteCounter,
-	) ([]data.Collection, error)
+	) ([]data.RestoreCollection, error)
 }
 
 // Run begins a synchronous restore operation.

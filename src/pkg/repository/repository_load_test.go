@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -241,17 +242,18 @@ func runBackupDetailsLoadTest(
 
 	t.Run("backup_details_"+name, func(t *testing.T) {
 		var (
-			err    error
+			errs   *fault.Errors
 			b      *backup.Backup
 			ds     *details.Details
 			labels = pprof.Labels("details_load_test", name)
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			ds, b, err = r.BackupDetails(ctx, backupID)
+			ds, b, errs = r.BackupDetails(ctx, backupID)
 		})
 
-		require.NoError(t, err, "retrieving details in backup "+backupID)
+		require.NoError(t, errs.Err(), "retrieving details in backup "+backupID)
+		require.Empty(t, errs.Errs(), "retrieving details in backup "+backupID)
 		require.NotNil(t, ds, "backup details must exist")
 		require.NotNil(t, b, "backup must exist")
 
