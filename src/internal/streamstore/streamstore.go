@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -46,6 +47,7 @@ const (
 func (ss *streamStore) WriteBackupDetails(
 	ctx context.Context,
 	backupDetails *details.Details,
+	errs *fault.Errors,
 ) (string, error) {
 	// construct the path of the container for the `details` item
 	p, err := path.Builder{}.
@@ -79,7 +81,8 @@ func (ss *streamStore) WriteBackupDetails(
 		[]data.BackupCollection{dc},
 		nil,
 		nil,
-		false)
+		false,
+		errs)
 	if err != nil {
 		return "", errors.Wrap(err, "storing details in repository")
 	}
@@ -92,6 +95,7 @@ func (ss *streamStore) WriteBackupDetails(
 func (ss *streamStore) ReadBackupDetails(
 	ctx context.Context,
 	detailsID string,
+	errs *fault.Errors,
 ) (*details.Details, error) {
 	// construct the path for the `details` item
 	detailsPath, err := path.Builder{}.
@@ -108,7 +112,7 @@ func (ss *streamStore) ReadBackupDetails(
 
 	var bc stats.ByteCounter
 
-	dcs, err := ss.kw.RestoreMultipleItems(ctx, detailsID, []path.Path{detailsPath}, &bc)
+	dcs, err := ss.kw.RestoreMultipleItems(ctx, detailsID, []path.Path{detailsPath}, &bc, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving backup details data")
 	}
