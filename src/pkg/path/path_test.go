@@ -480,13 +480,87 @@ func (suite *PathUnitSuite) TestFromStringErrors() {
 	}
 }
 
+func (suite *PathUnitSuite) TestFolder() {
+	table := []struct {
+		name         string
+		p            func(t *testing.T) Path
+		escape       bool
+		expectFolder string
+		expectSplit  []string
+	}{
+		{
+			name: "clean path",
+			p: func(t *testing.T) Path {
+				p, err := Builder{}.
+					Append("a", "b", "c").
+					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+				require.NoError(t, err)
+
+				return p
+			},
+			expectFolder: "a/b/c",
+			expectSplit:  []string{"a", "b", "c"},
+		},
+		{
+			name: "clean path escaped",
+			p: func(t *testing.T) Path {
+				p, err := Builder{}.
+					Append("a", "b", "c").
+					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+				require.NoError(t, err)
+
+				return p
+			},
+			escape:       true,
+			expectFolder: "a/b/c",
+			expectSplit:  []string{"a", "b", "c"},
+		},
+		{
+			name: "escapable path",
+			p: func(t *testing.T) Path {
+				p, err := Builder{}.
+					Append("a/", "b", "c").
+					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+				require.NoError(t, err)
+
+				return p
+			},
+			expectFolder: "a//b/c",
+			expectSplit:  []string{"a", "b", "c"},
+		},
+		{
+			name: "escapable path escaped",
+			p: func(t *testing.T) Path {
+				p, err := Builder{}.
+					Append("a/", "b", "c").
+					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+				require.NoError(t, err)
+
+				return p
+			},
+			escape:       true,
+			expectFolder: "a\\//b/c",
+			expectSplit:  []string{"a\\/", "b", "c"},
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			p := test.p(t)
+			result := p.Folder(test.escape)
+			assert.Equal(t, test.expectFolder, result)
+			assert.Equal(t, test.expectSplit, Split(result))
+		})
+	}
+}
+
 func (suite *PathUnitSuite) TestFromString() {
 	const (
-		testTenant   = "tenant"
-		testUser     = "user"
-		testElement1 = "folder"
-		testElement2 = "folder2"
-		testElement3 = "other"
+		testTenant         = "tenant"
+		testUser           = "user"
+		testElement1       = "folder/"
+		testElementTrimmed = "folder"
+		testElement2       = "folder2"
+		testElement3       = "other"
 	)
 
 	isItem := []struct {
@@ -509,9 +583,13 @@ func (suite *PathUnitSuite) TestFromString() {
 		// Expected result for Folder() if path is marked as a folder.
 		expectedFolder string
 		// Expected result for Item() if path is marked as an item.
-		expectedItem string
+		// Expected result for Split(Folder()) if path is marked as a folder.
+		expectedSplit []string
+		expectedItem  string
 		// Expected result for Folder() if path is marked as an item.
 		expectedItemFolder string
+		// Expected result for Split(Folder()) if path is marked as an item.
+		expectedItemSplit []string
 	}{
 		{
 			name: "BasicPath",
@@ -525,16 +603,25 @@ func (suite *PathUnitSuite) TestFromString() {
 			),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
-				testElement1,
+				testElementTrimmed,
 				testElement2,
 				testElement3,
 			),
+			expectedSplit: []string{
+				testElementTrimmed,
+				testElement2,
+				testElement3,
+			},
 			expectedItem: testElement3,
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
-				testElement1,
+				testElementTrimmed,
 				testElement2,
 			),
+			expectedItemSplit: []string{
+				testElementTrimmed,
+				testElement2,
+			},
 		},
 		{
 			name: "PathWithEmptyElements",
@@ -542,22 +629,31 @@ func (suite *PathUnitSuite) TestFromString() {
 				"/%s//%%s//%s//%%s//%s///%s//%s//",
 				testTenant,
 				testUser,
-				testElement1,
+				testElementTrimmed,
 				testElement2,
 				testElement3,
 			),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
-				testElement1,
+				testElementTrimmed,
 				testElement2,
 				testElement3,
 			),
+			expectedSplit: []string{
+				testElementTrimmed,
+				testElement2,
+				testElement3,
+			},
 			expectedItem: testElement3,
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
-				testElement1,
+				testElementTrimmed,
 				testElement2,
 			),
+			expectedItemSplit: []string{
+				testElementTrimmed,
+				testElement2,
+			},
 		},
 	}
 
@@ -572,16 +668,25 @@ func (suite *PathUnitSuite) TestFromString() {
 							p, err := FromDataLayerPath(testPath, item.isItem)
 							require.NoError(t, err)
 
-							assert.Equal(t, service, p.Service())
-							assert.Equal(t, cat, p.Category())
-							assert.Equal(t, testTenant, p.Tenant())
-							assert.Equal(t, testUser, p.ResourceOwner())
+							assert.Equal(t, service, p.Service(), "service")
+							assert.Equal(t, cat, p.Category(), "category")
+							assert.Equal(t, testTenant, p.Tenant(), "tenant")
+							assert.Equal(t, testUser, p.ResourceOwner(), "resource owner")
 
-							if !item.isItem {
-								assert.Equal(t, test.expectedFolder, p.Folder())
+							fld := p.Folder(false)
+							escfld := p.Folder(true)
+
+							if item.isItem {
+								assert.Equal(t, test.expectedItemFolder, fld, "item folder")
+								assert.Equal(t, test.expectedItemSplit, Split(fld), "item split")
+								assert.Equal(t, test.expectedItemFolder, escfld, "escaped item folder")
+								assert.Equal(t, test.expectedItemSplit, Split(escfld), "escaped item split")
+								assert.Equal(t, test.expectedItem, p.Item(), "item")
 							} else {
-								assert.Equal(t, test.expectedItemFolder, p.Folder())
-								assert.Equal(t, test.expectedItem, p.Item())
+								assert.Equal(t, test.expectedFolder, fld, "dir folder")
+								assert.Equal(t, test.expectedSplit, Split(fld), "dir split")
+								assert.Equal(t, test.expectedFolder, escfld, "escaped dir folder")
+								assert.Equal(t, test.expectedSplit, Split(escfld), "escaped dir split")
 							}
 						})
 					}
