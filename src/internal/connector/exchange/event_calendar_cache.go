@@ -90,8 +90,9 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return errors.Wrap(err, "validating container")
 	}
 
-	temp := graph.NewCacheFolder(f,
-		path.Builder{}.Append(*f.GetId()),          // storage path
+	temp := graph.NewCacheFolder(
+		f,
+		path.Builder{}.Append(*f.GetId()), // storage path
 		path.Builder{}.Append(*f.GetDisplayName())) // display location
 
 	if err := ecc.addFolder(temp); err != nil {
