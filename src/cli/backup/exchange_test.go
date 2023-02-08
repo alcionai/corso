@@ -224,8 +224,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err.Err(), "failure")
-			assert.Empty(t, err.Errs(), "recovered errors")
+			assert.NoError(t, err, "failure")
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -242,8 +241,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err.Err(), "failure")
-			assert.Empty(t, err.Errs(), "recovered errors")
+			assert.Error(t, err, "failure")
 			assert.Empty(t, output)
 		})
 	}

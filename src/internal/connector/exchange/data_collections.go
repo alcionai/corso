@@ -63,7 +63,7 @@ type DeltaPath struct {
 // and path lookup maps.
 func parseMetadataCollections(
 	ctx context.Context,
-	colls []data.Collection,
+	colls []data.RestoreCollection,
 ) (CatDeltaPaths, error) {
 	// cdp stores metadata
 	cdp := CatDeltaPaths{
@@ -163,11 +163,11 @@ func parseMetadataCollections(
 func DataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	metadata []data.Collection,
+	metadata []data.RestoreCollection,
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
@@ -175,7 +175,7 @@ func DataCollections(
 
 	var (
 		user        = selector.DiscreteOwner
-		collections = []data.Collection{}
+		collections = []data.BackupCollection{}
 		errs        error
 	)
 
@@ -231,10 +231,10 @@ func createCollections(
 	dps DeltaPaths,
 	ctrlOpts control.Options,
 	su support.StatusUpdater,
-) ([]data.Collection, error) {
+) ([]data.BackupCollection, error) {
 	var (
 		errs           *multierror.Error
-		allCollections = make([]data.Collection, 0)
+		allCollections = make([]data.BackupCollection, 0)
 		ac             = api.Client{Credentials: creds}
 		category       = scope.Category().PathType()
 	)
@@ -245,7 +245,7 @@ func createCollections(
 	}
 
 	// Create collection of ExchangeDataCollection
-	collections := make(map[string]data.Collection)
+	collections := make(map[string]data.BackupCollection)
 
 	qp := graph.QueryParams{
 		Category:      category,

@@ -38,10 +38,10 @@ const (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Item{}
-	_ data.StreamInfo    = &Item{}
-	_ data.StreamModTime = &Item{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Item{}
+	_ data.StreamInfo       = &Item{}
+	_ data.StreamModTime    = &Item{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -93,17 +93,19 @@ func NewCollection(
 	statusUpdater support.StatusUpdater,
 	source driveSource,
 	ctrlOpts control.Options,
+	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
-		itemClient:    itemClient,
-		folderPath:    folderPath,
-		driveItems:    map[string]models.DriveItemable{},
-		driveID:       driveID,
-		source:        source,
-		service:       service,
-		data:          make(chan data.Stream, collectionChannelBufferSize),
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		itemClient:      itemClient,
+		folderPath:      folderPath,
+		driveItems:      map[string]models.DriveItemable{},
+		driveID:         driveID,
+		source:          source,
+		service:         service,
+		data:            make(chan data.Stream, collectionChannelBufferSize),
+		statusUpdater:   statusUpdater,
+		ctrl:            ctrlOpts,
+		doNotMergeItems: doNotMergeItems,
 	}
 
 	// Allows tests to set a mock populator
@@ -283,11 +285,11 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					itemMetaSize = 2
 				} else {
 					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-				}
-
-				if err != nil {
-					errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
-					return
+          
+					if err != nil {
+						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
+						return
+					}
 				}
 			}
 

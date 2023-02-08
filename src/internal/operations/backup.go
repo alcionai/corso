@@ -308,9 +308,9 @@ func produceBackupDataCollections(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	sel selectors.Selector,
-	metadata []data.Collection,
+	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-) ([]data.Collection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
 		complete <- struct{}{}
@@ -331,7 +331,7 @@ type backuper interface {
 	BackupCollections(
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
-		cs []data.Collection,
+		cs []data.BackupCollection,
 		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
@@ -389,7 +389,7 @@ func consumeBackupDataCollections(
 	tenantID string,
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
-	cs []data.Collection,
+	cs []data.BackupCollection,
 	excludes map[string]struct{},
 	backupID model.StableID,
 	isIncremental bool,
