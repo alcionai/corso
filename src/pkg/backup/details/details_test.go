@@ -713,7 +713,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			item := test.input
-			err := UpdateItem(&item, test.repoPath, test.locPath)
+			err := UpdateItem(&item, test.repoPath)
 			test.errCheck(t, err)
 
 			if err != nil {

@@ -614,6 +614,21 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			},
 			true,
 		)
+		locationPath1 = makePath(
+			suite.T(),
+			[]string{
+				tenant,
+				path.OneDriveService.String(),
+				ro,
+				path.FilesCategory.String(),
+				"drives",
+				"drive-id",
+				"root:",
+				"work-display-name",
+				"item1",
+			},
+			true,
+		)
 		itemPath2 = makePath(
 			suite.T(),
 			[]string{
@@ -629,6 +644,21 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			},
 			true,
 		)
+		locationPath2 = makePath(
+			suite.T(),
+			[]string{
+				tenant,
+				path.OneDriveService.String(),
+				ro,
+				path.FilesCategory.String(),
+				"drives",
+				"drive-id",
+				"root:",
+				"personal-display-name",
+				"item2",
+			},
+			true,
+		)
 		itemPath3 = makePath(
 			suite.T(),
 			[]string{
@@ -637,6 +667,18 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				ro,
 				path.EmailCategory.String(),
 				"personal",
+				"item3",
+			},
+			true,
+		)
+		locationPath3 = makePath(
+			suite.T(),
+			[]string{
+				tenant,
+				path.ExchangeService.String(),
+				ro,
+				path.EmailCategory.String(),
+				"personal-display-name",
 				"item3",
 			},
 			true,
@@ -699,7 +741,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -717,7 +759,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -743,11 +785,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 				itemPath2.ShortRef(): {
 					Repo:     itemPath2,
-					Location: itemPath2,
+					Location: locationPath2,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -777,7 +819,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -813,7 +855,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath2,
-					Location: itemPath2,
+					Location: locationPath2,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -902,7 +944,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -920,14 +962,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
 		{
@@ -963,7 +1005,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			},
 		},
 		{
-			name: "ItemMergedExtraItemsInBase",
+			name: "ItemMergedSameLocation",
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
@@ -986,7 +1028,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
 							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
-							*makeDetailsEntry(suite.T(), itemPath2, itemPath2, 84, false),
 						},
 					},
 				},
@@ -994,6 +1035,40 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+			},
+		},
+		{
+			name: "ItemMergedExtraItemsInBase",
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: locationPath1,
+				},
+			},
+			inputMans: []*kopia.ManifestEntry{
+				{
+					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Reasons: []kopia.Reason{
+						pathReason1,
+					},
+				},
+			},
+			populatedModels: map[model.StableID]backup.Backup{
+				backup1.ID: backup1,
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.DetailsEntry{
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath2, locationPath2, 84, false),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.DetailsEntry{
+				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
 		{
@@ -1001,7 +1076,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath2,
-					Location: itemPath2,
+					Location: locationPath2,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -1019,14 +1094,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath2, itemPath2, 42, true),
+				makeDetailsEntry(suite.T(), itemPath2, locationPath2, 42, true),
 			},
 		},
 		{
@@ -1034,11 +1109,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 				itemPath3.ShortRef(): {
 					Repo:     itemPath3,
-					Location: itemPath3,
+					Location: locationPath3,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -1063,7 +1138,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -1071,17 +1146,17 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
 							// This entry should not be picked due to a mismatch on Reasons.
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 84, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 84, false),
 							// This item should be picked.
-							*makeDetailsEntry(suite.T(), itemPath3, itemPath3, 37, false),
+							*makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
-				makeDetailsEntry(suite.T(), itemPath3, itemPath3, 37, false),
+				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
 			},
 		},
 		{
@@ -1089,7 +1164,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -1114,7 +1189,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -1122,14 +1197,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
 							// This entry should not be picked due to being incomplete.
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 84, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 84, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
 	}
@@ -1152,6 +1227,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				&deets,
 				fault.New(true))
 			test.errCheck(t, err)
+
 			if err != nil {
 				return
 			}

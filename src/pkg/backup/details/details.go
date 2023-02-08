@@ -143,6 +143,8 @@ func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	for len(parent.Elements()) > 0 {
 		nextParent := parent.Dir()
 
+		// TODO: We may have future cases where the storage hierarchy
+		// doesn't match the location hierarchy.
 		var lr string
 		if lfs != nil {
 			lr = lfs.String()
@@ -364,7 +366,7 @@ const (
 	FolderItem ItemType = iota + 300
 )
 
-func UpdateItem(item *ItemInfo, repoPath, locPath path.Path) error {
+func UpdateItem(item *ItemInfo, repoPath path.Path) error {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
 	var updatePath func(path.Path) error
@@ -378,17 +380,7 @@ func UpdateItem(item *ItemInfo, repoPath, locPath path.Path) error {
 		return nil
 	}
 
-	if err := updatePath(repoPath); err != nil {
-		return err
-	}
-
-	if locPath != nil {
-		if err := updatePath(locPath); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return updatePath(repoPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
