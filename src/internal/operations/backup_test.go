@@ -89,8 +89,7 @@ type mockBackuper struct {
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
 		tags map[string]string,
-		buildTreeWithBase bool,
-	)
+		buildTreeWithBase bool)
 }
 
 func (mbu mockBackuper) BackupCollections(
@@ -101,7 +100,7 @@ func (mbu mockBackuper) BackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Errors,
-) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
 	}
@@ -249,9 +248,10 @@ func makeFolderEntry(
 	t.Helper()
 
 	return &details.DetailsEntry{
-		RepoRef:   pb.String(),
-		ShortRef:  pb.ShortRef(),
-		ParentRef: pb.Dir().ShortRef(),
+		RepoRef:     pb.String(),
+		ShortRef:    pb.ShortRef(),
+		ParentRef:   pb.Dir().ShortRef(),
+		LocationRef: pb.PopFront().PopFront().PopFront().PopFront().Dir().String(),
 		ItemInfo: details.ItemInfo{
 			Folder: &details.FolderInfo{
 				ItemType:    details.FolderItem,
@@ -283,11 +283,12 @@ func makeDetailsEntry(
 	t.Helper()
 
 	res := &details.DetailsEntry{
-		RepoRef:   p.String(),
-		ShortRef:  p.ShortRef(),
-		ParentRef: p.ToBuilder().Dir().ShortRef(),
-		ItemInfo:  details.ItemInfo{},
-		Updated:   updated,
+		RepoRef:     p.String(),
+		ShortRef:    p.ShortRef(),
+		ParentRef:   p.ToBuilder().Dir().ShortRef(),
+		LocationRef: p.PopFront().PopFront().PopFront().PopFront().Dir().String(),
+		ItemInfo:    details.ItemInfo{},
+		Updated:     updated,
 	}
 
 	switch p.Service() {
@@ -669,7 +670,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		populatedModels              map[model.StableID]backup.Backup
 		populatedDetails             map[string]*details.Details
 		inputMans                    []*kopia.ManifestEntry
-		inputShortRefsFromPrevBackup map[string]path.Path
+		inputShortRefsFromPrevBackup map[string]kopia.PrevRefs
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.DetailsEntry
@@ -682,15 +683,18 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name:                         "EmptyShortRefsFromPrevBackup",
-			inputShortRefsFromPrevBackup: map[string]path.Path{},
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{},
 			errCheck:                     assert.NoError,
 			// Use empty slice so we don't error out on nil != empty.
 			expectedEntries: []*details.DetailsEntry{},
 		},
 		{
 			name: "BackupIDNotFound",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -704,8 +708,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "DetailsIDNotFound",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -727,9 +734,15 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "BaseMissingItems",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
-				itemPath2.ShortRef(): itemPath2,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
+				itemPath2.ShortRef(): {
+					Repo:     itemPath2,
+					Location: itemPath2,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -755,8 +768,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "TooManyItems",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -788,8 +804,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "BadBaseRepoRef",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath2,
+					Location: itemPath2,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -834,19 +853,21 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "BadOneDrivePath",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): makePath(
-					suite.T(),
-					[]string{
-						itemPath1.Tenant(),
-						path.OneDriveService.String(),
-						itemPath1.ResourceOwner(),
-						path.FilesCategory.String(),
-						"personal",
-						"item1",
-					},
-					true,
-				),
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo: makePath(
+						suite.T(),
+						[]string{
+							itemPath1.Tenant(),
+							path.OneDriveService.String(),
+							itemPath1.ResourceOwner(),
+							path.FilesCategory.String(),
+							"personal",
+							"item1",
+						},
+						true,
+					),
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -872,8 +893,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "ItemMerged",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -902,8 +926,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "ItemMergedExtraItemsInBase",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -933,8 +960,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "ItemMoved",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath2,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath2,
+					Location: itemPath2,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -963,9 +993,15 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "MultipleBases",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
-				itemPath3.ShortRef(): itemPath3,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
+				itemPath3.ShortRef(): {
+					Repo:     itemPath3,
+					Location: itemPath3,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -1012,8 +1048,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 		},
 		{
 			name: "SomeBasesIncomplete",
-			inputShortRefsFromPrevBackup: map[string]path.Path{
-				itemPath1.ShortRef(): itemPath1,
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo:     itemPath1,
+					Location: itemPath1,
+				},
 			},
 			inputMans: []*kopia.ManifestEntry{
 				{
@@ -1119,8 +1158,11 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 			Category:      itemPath1.Category(),
 		}
 
-		inputToMerge = map[string]path.Path{
-			itemPath1.ShortRef(): itemPath1,
+		inputToMerge = map[string]kopia.PrevRefs{
+			itemPath1.ShortRef(): {
+				Repo:     itemPath1,
+				Location: itemPath1,
+			},
 		}
 
 		inputMans = []*kopia.ManifestEntry{

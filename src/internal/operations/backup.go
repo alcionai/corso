@@ -339,7 +339,7 @@ type backuper interface {
 		tags map[string]string,
 		buildTreeWithBase bool,
 		errs *fault.Errors,
-	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
+	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
 }
 
 func selectorToReasons(sel selectors.Selector) []kopia.Reason {
@@ -398,7 +398,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Errors,
-) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
 		complete <- struct{}{}
@@ -504,7 +504,7 @@ func mergeDetails(
 	ms *store.Wrapper,
 	detailsStore detailsReader,
 	mans []*kopia.ManifestEntry,
-	shortRefsFromPrevBackup map[string]path.Path,
+	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
 	deets *details.Builder,
 	errs *fault.Errors,
 ) error {
@@ -560,28 +560,39 @@ func mergeDetails(
 				continue
 			}
 
-			newPath := shortRefsFromPrevBackup[rr.ShortRef()]
-			if newPath == nil {
+			prev, ok := shortRefsFromPrevBackup[rr.ShortRef()]
+			if !ok {
 				// This entry was not sourced from a base snapshot or cached from a
 				// previous backup, skip it.
 				continue
 			}
 
+			newPath := prev.Repo
+			newLoc := prev.Location
+
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, newPath); err != nil {
+			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
 				return clues.New("updating item details").WithClues(mctx)
 			}
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
-			itemUpdated := newPath.String() != rr.String()
+			var (
+				itemUpdated = newPath.String() != rr.String()
+				newLocStr   string
+			)
+
+			if newLoc != nil {
+				newLocStr = newLoc.Folder()
+				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
+			}
 
 			deets.Add(
 				newPath.String(),
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
-				"", // TODO Location Ref,
+				newLocStr,
 				itemUpdated,
 				item)
 

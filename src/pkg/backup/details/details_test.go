@@ -601,7 +601,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	table := []struct {
 		name         string
 		input        ItemInfo
-		newPath      path.Path
+		repoPath     path.Path
+		locPath      path.Path
 		errCheck     assert.ErrorAssertionFunc
 		expectedItem ItemInfo
 	}{
@@ -655,7 +656,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  newOneDrivePath,
+			repoPath: newOneDrivePath,
+			locPath:  newOneDrivePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				OneDrive: &OneDriveInfo{
@@ -672,7 +674,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  newOneDrivePath,
+			repoPath: newOneDrivePath,
+			locPath:  newOneDrivePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
@@ -689,7 +692,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  badOneDrivePath,
+			repoPath: badOneDrivePath,
+			locPath:  badOneDrivePath,
 			errCheck: assert.Error,
 		},
 		{
@@ -700,7 +704,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  badOneDrivePath,
+			repoPath: badOneDrivePath,
+			locPath:  badOneDrivePath,
 			errCheck: assert.Error,
 		},
 	}
@@ -708,7 +713,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			item := test.input
-			err := UpdateItem(&item, test.newPath)
+			err := UpdateItem(&item, test.repoPath, test.locPath)
 			test.errCheck(t, err)
 
 			if err != nil {
