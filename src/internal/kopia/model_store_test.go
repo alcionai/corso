@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -360,9 +361,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	t := suite.T()
 
-	assert.ErrorIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), ErrNotFound)
+	assert.ErrorIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), data.ErrNotFound)
 	assert.ErrorIs(
-		t, suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil), ErrNotFound)
+		t, suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil), data.ErrNotFound)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGetOfTypeBadVersion() {
@@ -630,7 +631,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			}
 
 			err = m.GetWithModelStoreID(ctx, theModelType, oldModelID, nil)
-			assert.ErrorIs(t, err, ErrNotFound)
+			assert.ErrorIs(t, err, data.ErrNotFound)
 		})
 	}
 }
@@ -691,7 +692,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 
 	returned := &fooModel{}
 	err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
-	assert.ErrorIs(t, err, ErrNotFound)
+	assert.ErrorIs(t, err, data.ErrNotFound)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
@@ -775,7 +776,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	assert.ErrorIs(t, err, assert.AnError)
 
 	err = m.GetWithModelStoreID(ctx, theModelType, newID, nil)
-	assert.ErrorIs(t, err, ErrNotFound)
+	assert.ErrorIs(t, err, data.ErrNotFound)
 
 	returned := &fooModel{}
 	require.NoError(

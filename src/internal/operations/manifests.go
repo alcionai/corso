@@ -97,7 +97,7 @@ func produceManifestsAndMetadata(
 		if err != nil {
 			// if no backup exists for any of the complete manifests, we want
 			// to fall back to a complete backup.
-			if errors.Is(err, kopia.ErrNotFound) {
+			if errors.Is(err, data.ErrNotFound) {
 				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
 				return ms, nil, false, nil
 			}
@@ -118,7 +118,7 @@ func produceManifestsAndMetadata(
 		}
 
 		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID)
-		if err != nil && !errors.Is(err, kopia.ErrNotFound) {
+		if err != nil && !errors.Is(err, data.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.

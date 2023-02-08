@@ -500,7 +500,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, err, ErrNotFound, "errored file is restorable")
+	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable")
 }
 
 type backedupFile struct {

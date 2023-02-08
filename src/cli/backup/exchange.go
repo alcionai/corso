@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -323,16 +323,16 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
+func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {
 	sel := selectors.NewExchangeBackup(userIDs)
 
-	if len(data) == 0 {
+	if len(cats) == 0 {
 		sel.Include(sel.ContactFolders(selectors.Any()))
 		sel.Include(sel.MailFolders(selectors.Any()))
 		sel.Include(sel.EventCalendars(selectors.Any()))
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		switch d {
 		case dataContacts:
 			sel.Include(sel.ContactFolders(selectors.Any()))
@@ -346,12 +346,12 @@ func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBa
 	return sel
 }
 
-func validateExchangeBackupCreateFlags(userIDs, data []string) error {
+func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
 		return errors.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
 			return errors.New(
 				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
@@ -394,7 +394,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	if len(backupID) > 0 {
 		b, err := r.Backup(ctx, model.StableID(backupID))
 		if err != nil {
-			if errors.Is(err, kopia.ErrNotFound) {
+			if errors.Is(err, data.ErrNotFound) {
 				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
 			}
 
@@ -502,7 +502,7 @@ func runDetailsExchangeCmd(
 	d, _, errs := r.BackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
 	if errs.Err() != nil {
-		if errors.Is(errs.Err(), kopia.ErrNotFound) {
+		if errors.Is(errs.Err(), data.ErrNotFound) {
 			return nil, errors.Errorf("No backup exists with the id %s", backupID)
 		}
 
