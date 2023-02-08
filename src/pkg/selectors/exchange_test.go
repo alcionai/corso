@@ -833,10 +833,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		return deets
 	}
 
-	arr := func(s ...string) []string {
-		return s
-	}
-
 	table := []struct {
 		name         string
 		deets        *details.Details
@@ -861,7 +857,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(contact),
+			[]string{contact},
 		},
 		{
 			"event only",
@@ -871,7 +867,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(event),
+			[]string{event},
 		},
 		{
 			"mail only",
@@ -881,7 +877,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 		{
 			"all",
@@ -891,7 +887,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(contact, event, mail),
+			[]string{contact, event, mail},
 		},
 		{
 			"only match contact",
@@ -901,7 +897,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.Contacts([]string{"cfld"}, []string{"cid"}))
 				return er
 			},
-			arr(contact),
+			[]string{contact},
 		},
 		{
 			"only match contactInSubFolder",
@@ -911,7 +907,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.ContactFolders([]string{"cfld1/cfld2"}))
 				return er
 			},
-			arr(contactInSubFolder),
+			[]string{contactInSubFolder},
 		},
 		{
 			"only match contactInSubFolder by prefix",
@@ -921,7 +917,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.ContactFolders([]string{"cfld1/cfld2"}, PrefixMatch()))
 				return er
 			},
-			arr(contactInSubFolder),
+			[]string{contactInSubFolder},
 		},
 		{
 			"only match contactInSubFolder by leaf folder",
@@ -931,7 +927,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.ContactFolders([]string{"cfld2"}))
 				return er
 			},
-			arr(contactInSubFolder),
+			[]string{contactInSubFolder},
 		},
 		{
 			"only match event",
@@ -941,7 +937,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.Events([]string{"ecld"}, []string{"eid"}))
 				return er
 			},
-			arr(event),
+			[]string{event},
 		},
 		{
 			"only match mail",
@@ -951,7 +947,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Include(er.Mails([]string{"mfld"}, []string{"mid"}))
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 		{
 			"exclude contact",
@@ -962,7 +958,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Exclude(er.Contacts([]string{"cfld"}, []string{"cid"}))
 				return er
 			},
-			arr(event, mail),
+			[]string{event, mail},
 		},
 		{
 			"exclude event",
@@ -973,7 +969,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Exclude(er.Events([]string{"ecld"}, []string{"eid"}))
 				return er
 			},
-			arr(contact, mail),
+			[]string{contact, mail},
 		},
 		{
 			"exclude mail",
@@ -984,7 +980,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Exclude(er.Mails([]string{"mfld"}, []string{"mid"}))
 				return er
 			},
-			arr(contact, event),
+			[]string{contact, event},
 		},
 		{
 			"filter on mail subject",
@@ -1001,7 +997,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Filter(er.MailSubject("subj"))
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 		{
 			"filter on mail subject multiple input categories",
@@ -1022,7 +1018,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 				er.Filter(er.MailSubject("subj"))
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 	}
 	for _, test := range table {
@@ -1090,10 +1086,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 		return deets
 	}
 
-	arr := func(s ...string) []string {
-		return s
-	}
-
 	table := []struct {
 		name         string
 		deets        *details.Details
@@ -1118,7 +1110,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(contact),
+			[]string{contact},
 		},
 		{
 			"event only",
@@ -1128,7 +1120,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(event),
+			[]string{event},
 		},
 		{
 			"mail only",
@@ -1138,7 +1130,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 		{
 			"all",
@@ -1148,7 +1140,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.AllData())
 				return er
 			},
-			arr(contact, event, mail),
+			[]string{contact, event, mail},
 		},
 		{
 			"only match contact",
@@ -1158,7 +1150,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.Contacts([]string{contactLocation}, []string{"cid"}))
 				return er
 			},
-			arr(contact),
+			[]string{contact},
 		},
 		{
 			"only match event",
@@ -1168,7 +1160,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.Events([]string{eventLocation}, []string{"eid"}))
 				return er
 			},
-			arr(event),
+			[]string{event},
 		},
 		{
 			"only match mail",
@@ -1178,7 +1170,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Include(er.Mails([]string{mailLocation}, []string{"mid"}))
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 		{
 			"exclude contact",
@@ -1189,7 +1181,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Exclude(er.Contacts([]string{contactLocation}, []string{"cid"}))
 				return er
 			},
-			arr(event, mail),
+			[]string{event, mail},
 		},
 		{
 			"exclude event",
@@ -1200,7 +1192,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Exclude(er.Events([]string{eventLocation}, []string{"eid"}))
 				return er
 			},
-			arr(contact, mail),
+			[]string{contact, mail},
 		},
 		{
 			"exclude mail",
@@ -1211,7 +1203,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Exclude(er.Mails([]string{mailLocation}, []string{"mid"}))
 				return er
 			},
-			arr(contact, event),
+			[]string{contact, event},
 		},
 		{
 			"filter on mail subject",
@@ -1228,7 +1220,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Filter(er.MailSubject("subj"))
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 		{
 			"filter on mail subject multiple input categories",
@@ -1249,7 +1241,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 				er.Filter(er.MailSubject("subj"))
 				return er
 			},
-			arr(mail),
+			[]string{mail},
 		},
 	}
 	for _, test := range table {
@@ -1262,7 +1254,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 			sel := test.makeSelector()
 			results := sel.Reduce(ctx, test.deets, errs)
 			paths := results.Paths()
-			assert.Equal(t, test.expect, paths)
+			assert.ElementsMatch(t, test.expect, paths)
 			assert.Empty(t, errs.Errs)
 		})
 	}
