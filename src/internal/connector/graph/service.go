@@ -2,17 +2,12 @@ package graph
 
 import (
 	"context"
-	"io"
-	"math"
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/alcionai/corso/src/internal/connector/support"
-	abs "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -334,51 +329,6 @@ func (handler *LoggingMiddleware) Intercept(
 	return resp, err
 }
 
-// Run a function with retries
-func RunWithRetry(run func() error) error {
-	var err error
-
-	for i := 0; i < numberOfRetries; i++ {
-		err = run()
-		if err == nil {
-			return nil
-		}
-
-		// only retry on timeouts and 500-internal-errors.
-		if !(IsErrTimeout(err) || IsInternalServerError(err)) {
-			break
-		}
-
-		if i < numberOfRetries {
-			time.Sleep(time.Duration(3*(i+2)) * time.Second)
-		}
-	}
-
-	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
-}
-
-// RetryHandler handles transient HTTP responses and retries the request given the retry options
-type RetryHandler struct {
-	// default options to use when evaluating the response
-	options RetryHandlerOptions
-}
-
-type RetryHandlerOptions struct {
-	// The maximum number of times a request can be retried
-	MaxRetries int
-	// The delay in seconds between retries
-	DelaySeconds int
-}
-
-var retryKeyValue = abs.RequestOptionKey{
-	Key: "RetryHandler",
-}
-
-// GetKey returns the key value to be used when the option is added to the request context
-func (options *RetryHandlerOptions) GetKey() abs.RequestOptionKey {
-	return retryKeyValue
-}
-
 // Intercept implements the interface and evaluates whether to retry a failed request.
 func (middleware RetryHandler) Intercept(
 	pipeline khttp.Pipeline,
@@ -387,10 +337,8 @@ func (middleware RetryHandler) Intercept(
 ) (*http.Response, error) {
 	ctx := req.Context()
 
-	var observabilityName string
-
 	response, err := pipeline.Next(req, middlewareIndex)
-	if err != nil {
+	if err != nil && !IsErrTimeout(err) {
 		return response, err
 	}
 
@@ -399,90 +347,5 @@ func (middleware RetryHandler) Intercept(
 		reqOption = middleware.options
 	}
 
-	return middleware.retryRequest(ctx, pipeline, middlewareIndex, reqOption, req, response, 0, 0, observabilityName)
-}
-
-func (middleware RetryHandler) retryRequest(
-	ctx context.Context,
-	pipeline khttp.Pipeline,
-	middlewareIndex int,
-	options RetryHandlerOptions,
-	req *http.Request,
-	resp *http.Response,
-	executionCount int,
-	cumulativeDelay time.Duration,
-	observabilityName string,
-) (*http.Response, error) {
-	if options.MaxRetries < 1 {
-		options.MaxRetries = defaultMaxRetries
-	}
-
-	if middleware.isRetriableErrorCode(resp.StatusCode) &&
-		middleware.isRetriableRequest(req) &&
-		executionCount < options.MaxRetries &&
-		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second {
-		executionCount++
-		delay := middleware.getRetryDelay(req, resp, options, executionCount)
-		cumulativeDelay += delay
-
-		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
-
-		if req.Body != nil {
-			s, ok := req.Body.(io.Seeker)
-			if ok {
-				_, err := s.Seek(0, io.SeekStart)
-				if err != nil {
-					return &http.Response{}, err
-				}
-			}
-		}
-
-		time.Sleep(delay)
-
-		response, err := pipeline.Next(req, middlewareIndex)
-		if err != nil {
-			return response, err
-		}
-
-		return middleware.retryRequest(ctx, pipeline,
-			middlewareIndex, options, req, response, executionCount, cumulativeDelay, observabilityName)
-	}
-
-	return resp, nil
-}
-
-func (middleware RetryHandler) isRetriableErrorCode(code int) bool {
-	return code == http.StatusTooManyRequests ||
-		code == http.StatusServiceUnavailable ||
-		code == http.StatusGatewayTimeout ||
-		code == http.StatusInternalServerError
-}
-
-func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
-	isBodiedMethod := req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH"
-	if isBodiedMethod && req.Body != nil {
-		return req.ContentLength != -1
-	}
-
-	return true
-}
-
-func (middleware RetryHandler) getRetryDelay(req *http.Request,
-	resp *http.Response,
-	options RetryHandlerOptions,
-	executionCount int,
-) time.Duration {
-	if options.DelaySeconds < 1 {
-		options.DelaySeconds = defaultDelaySeconds
-	}
-
-	retryAfter := resp.Header.Get(retryAfterHeader)
-	if retryAfter != "" {
-		retryAfterDelay, err := strconv.ParseFloat(retryAfter, 64)
-		if err == nil {
-			return time.Duration(retryAfterDelay) * time.Second
-		}
-	} // TODO parse the header if it's a date
-
-	return time.Duration(math.Pow(float64(options.DelaySeconds), float64(executionCount))) * time.Second
+	return middleware.retryRequest(ctx, pipeline, middlewareIndex, reqOption, req, response, 0, 0, err)
 }
