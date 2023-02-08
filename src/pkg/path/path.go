@@ -255,11 +255,6 @@ func (pb Builder) Elements() []string {
 	return append([]string{}, pb.elements...)
 }
 
-//nolint:unused
-func (pb Builder) join(start, end int) string {
-	return join(pb.elements[start:end])
-}
-
 func verifyInputValues(tenant, resourceOwner string) error {
 	if len(tenant) == 0 {
 		return clues.Stack(errMissingSegment, errors.New("tenant"))
