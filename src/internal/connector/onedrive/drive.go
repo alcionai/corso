@@ -194,15 +194,13 @@ func collectItems(
 		oldPaths         = map[string]string{}
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
-		invalidPrevDelta = false
+		invalidPrevDelta = len(prevDelta) == 0
 	)
 
 	maps.Copy(newPaths, oldPaths)
 
-	if len(prevDelta) != 0 {
+	if !invalidPrevDelta {
 		pager.SetNext(prevDelta)
-	} else {
-		invalidPrevDelta = true
 	}
 
 	for {

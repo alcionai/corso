@@ -417,7 +417,7 @@ func (c *Collections) UpdateCollections(
 			}
 
 			if item.GetDeleted() != nil {
-				if !ok {
+				if prevPath == nil {
 					// It is possible that an item was created and
 					// deleted between two delta invocations. In
 					// that case, it will only produce a single

@@ -1629,8 +1629,33 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
-			// TODO(ashmrtn): Allow passing previous metadata.
-			cols, delList, err := c.Get(ctx, nil)
+			mc, err := graph.MakeMetadataCollection(
+				tenant,
+				user,
+				path.OneDriveService,
+				path.FilesCategory,
+				[]graph.MetadataCollectionEntry{
+					graph.NewMetadataEntry(
+						graph.DeltaURLsFileName,
+						map[string]string{
+							driveID1: "prev-delta",
+							driveID2: "prev-delta",
+						},
+					),
+					graph.NewMetadataEntry(
+						graph.PreviousPathFileName,
+						map[string]map[string]string{
+							driveID1: {},
+							driveID2: {},
+						},
+					),
+				},
+				func(*support.ConnectorOperationStatus) {},
+			)
+			assert.NoError(t, err, "creating metadata collection")
+
+			prevMetadata := []data.RestoreCollection{mc}
+			cols, delList, err := c.Get(ctx, prevMetadata)
 			test.errCheck(t, err)
 
 			if err != nil {
