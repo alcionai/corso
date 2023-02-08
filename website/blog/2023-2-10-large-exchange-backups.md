@@ -10,7 +10,6 @@ image: ./images/heavy-mover.jpg
 
 ![heavy earth mover By Lowcarb23 - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=114344394](./images/heavy-mover.jpg)
 
-
 Over the last few months it’s been amazing sharing Corso with more and more users. One pleasant surprise has been users
 who are operating in large, often multi-tenant deployments of Microsoft 365 who want to use Corso to back up all their
 data. In our discussions on the [Corso User Discord](https://discord.gg/Gd63GRFvcb), we’ve found some best practices for
@@ -24,7 +23,7 @@ Our recent work has included support for incremental backups, which you’ll def
 
 Fundamentally Corso is a client of the Microsoft Graph API, which like all large object API’s, isn’t 100% predictable.
 In the event of a failed backup, Corso will often have stored multiple objects in the course of a backup. These stored
-objects will often prevent your re-download and re-uploading of objets, meaning your next backup isn’t starting from
+objects will often prevent your re-download and re-uploading of objects, meaning your next backup isn’t starting from
 zero. A second attempt is likely to run faster with a better chance of completing successfully.
 
 1. Batch your users
@@ -44,7 +43,7 @@ absolutely batch up your users, as all future backups to the same repository wil
 1. Use multiple repositories for different tenants
 
 If you’re a managed service provider or otherwise running a multi-tennant architecture, you should use multiple separate
-repositories with Corso. There are two ways to pursue this:
+repositories with Corso. Two ways to pursue this:
 
 - point to separate buckets
 - place other repositories in subfolders of the same bucket with the `prefix` option
@@ -52,5 +51,5 @@ repositories with Corso. There are two ways to pursue this:
 In both cases, the best way to keep these settings tidy is by using multiple `.corso.toml` configuration files. Use the
 `-config-file` option to point to separate config files
 
-Corso is under very active development, and we expect our support for this type of use case to improve rapidly.
+Corso is under active development, and we expect our support for this type of use case to improve rapidly.
 If you have feedback for us please do [join our discord](https://discord.gg/Gd63GRFvcb) and talk directly with the team!
