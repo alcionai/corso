@@ -19,7 +19,7 @@ import (
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
 // Returns error if error experienced during the call
-func GetSitePage(
+func GetSitePages(
 	ctx context.Context,
 	serv *discover.BetaService,
 	siteID string,
