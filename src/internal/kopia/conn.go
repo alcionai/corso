@@ -193,7 +193,11 @@ func (w *conn) close(ctx context.Context) error {
 	err := w.Repository.Close(ctx)
 	w.Repository = nil
 
-	return clues.Wrap(err, "closing repository connection").WithClues(ctx)
+	if err != nil {
+		return clues.Wrap(err, "closing repository connection").WithClues(ctx)
+	}
+
+	return nil
 }
 
 func (w *conn) open(ctx context.Context, configPath, password string) error {
