@@ -190,7 +190,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	var locationFolders string
 	if d.locationPath != nil {
-		locationFolders = d.locationPath.Folder()
+		locationFolders = d.locationPath.Folder(true)
 	}
 
 	cp.deets.Add(

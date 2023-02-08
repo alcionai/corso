@@ -167,7 +167,7 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 			TotalBytes: totalBytes,
 		},
 		errs,
-		sc.fullPath.Folder())
+		sc.fullPath.Folder(false))
 	logger.Ctx(ctx).Debug(status.String())
 
 	if sc.statusUpdater != nil {
@@ -191,7 +191,7 @@ func (sc *Collection) populate(ctx context.Context) {
 		ctx,
 		sc.fullPath.Category().String(),
 		observe.Safe("name"),
-		observe.PII(sc.fullPath.Folder()))
+		observe.PII(sc.fullPath.Folder(false)))
 	go closer()
 
 	defer func() {

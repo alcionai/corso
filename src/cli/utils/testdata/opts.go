@@ -137,14 +137,14 @@ var (
 			Name:     "EmailsFolderPrefixMatch",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder()},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder(false)},
 			},
 		},
 		{
 			Name:     "EmailsFolderPrefixMatchTrailingSlash",
 			Expected: testdata.ExchangeEmailItems,
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder() + "/"},
+				EmailFolder: []string{testdata.ExchangeEmailInboxPath.Folder(false) + "/"},
 			},
 		},
 		{
@@ -154,7 +154,7 @@ var (
 				testdata.ExchangeEmailItems[2],
 			},
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder()},
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder(false)},
 			},
 		},
 		{
@@ -164,7 +164,7 @@ var (
 				testdata.ExchangeEmailItems[2],
 			},
 			Opts: utils.ExchangeOpts{
-				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder() + "/"},
+				EmailFolder: []string{testdata.ExchangeEmailBasePath2.Folder(false) + "/"},
 			},
 		},
 		{
