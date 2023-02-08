@@ -122,7 +122,7 @@ func includeContainer(
 		return nil, nil, false
 	}
 
-	directory = dirPath.Folder()
+	directory = dirPath.Folder(false)
 
 	if loc != nil {
 		locPath, err = loc.ToDataLayerExchangePathForCategory(
@@ -135,7 +135,7 @@ func includeContainer(
 			return nil, nil, false
 		}
 
-		directory = locPath.Folder()
+		directory = locPath.Folder(false)
 	}
 
 	var ok bool

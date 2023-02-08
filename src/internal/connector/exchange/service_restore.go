@@ -398,7 +398,7 @@ func restoreCollection(
 		ctx,
 		category.String(),
 		observe.PII(user),
-		observe.PII(directory.Folder()))
+		observe.PII(directory.Folder(false)))
 	defer closer()
 	defer close(colProgress)
 
@@ -447,7 +447,7 @@ func restoreCollection(
 
 			// var locationRef string
 			// if category == path.ContactsCategory {
-			// 	locationRef = itemPath.Folder()
+			// 	locationRef = itemPath.Folder(false)
 			// }
 
 			deets.Add(
