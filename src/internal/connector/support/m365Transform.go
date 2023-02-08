@@ -350,6 +350,28 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 	}
 }
 
+// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
+// func sanitizeAttachments(attached []models.Attachmentable) ([]models.Attachmentable, error) {
+// 	attachments := make([]models.Attachmentable, len(attached))
+
+// 	for _, ax := range attached {
+// 		if *ax.GetOdataType() == itemAttachment {
+// 			newAttachment, err := ToItemAttachment(ax)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+
+// 			attachments = append(attachments, newAttachment)
+
+// 			continue
+// 		}
+
+// 		attachments = append(attachments, ax)
+// 	}
+
+// 	return attachments, nil
+// }
+
 // sanitizeEvent transfers data into event object and
 // removes unique IDs from the M365 object
 func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
@@ -414,25 +436,4 @@ func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
 	message.SetIsDraft(nil)
 
 	return message, nil
-}
-
-func sanitizeAttachments(attached []models.Attachmentable) ([]models.Attachmentable, error) {
-	attachments := make([]models.Attachmentable, len(attached))
-
-	for _, ax := range attached {
-		if *ax.GetOdataType() == itemAttachment {
-			newAttachment, err := ToItemAttachment(ax)
-			if err != nil {
-				return nil, err
-			}
-
-			attachments = append(attachments, newAttachment)
-
-			continue
-		}
-
-		attachments = append(attachments, ax)
-	}
-
-	return attachments, nil
 }
