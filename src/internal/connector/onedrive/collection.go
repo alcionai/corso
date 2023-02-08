@@ -32,10 +32,6 @@ const (
 	// TODO: Tune this later along with collectionChannelBufferSize
 	urlPrefetchChannelBufferSize = 5
 
-	// Max number of retries to get doc from M365
-	// Seems to timeout at times because of multiple requests
-	maxRetries = 4 // 1 + 3 retries
-
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
 	DataFileSuffix    = ".data"
@@ -278,7 +274,6 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			if oc.source == OneDriveSource {
 				// Fetch metadata for the file
-
 				if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
 					// We are still writing the metadata file but with
 					// empty permissions as we don't have a way to

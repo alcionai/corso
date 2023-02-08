@@ -207,7 +207,9 @@ func GetMiddlewares(options RetryHandlerOptions) []khttp.Middleware {
 }
 
 // GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions, retryoptions RetryHandlerOptions) []khttp.Middleware {
+func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
+	retryoptions RetryHandlerOptions,
+) []khttp.Middleware {
 	kiotaMiddlewares := GetMiddlewares(retryoptions)
 	graphMiddlewares := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
