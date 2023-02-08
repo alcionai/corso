@@ -213,12 +213,8 @@ func (rp dataLayerResourcePath) Folder(escape bool) string {
 		return join(fs)
 	}
 
-	for i := range fs {
-		f := fs[i]
-		fs[i] = escapeElement(f)
-	}
-
-	return join(fs)
+	// builder.String() will escape all individual elements.
+	return Builder{}.Append(fs...).String()
 }
 
 // Folders returns the individual folder elements embedded in the
