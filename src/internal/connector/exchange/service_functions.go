@@ -105,7 +105,10 @@ func includeContainer(
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {
 		pb = pb.Append(DefaultContactFolder)
-		loc = loc.Append(DefaultContactFolder)
+
+		if loc != nil {
+			loc = loc.Append(DefaultContactFolder)
+		}
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
@@ -118,14 +121,18 @@ func includeContainer(
 		return nil, nil, false
 	}
 
-	locPath, err := pb.ToDataLayerExchangePathForCategory(
-		qp.Credentials.AzureTenantID,
-		qp.ResourceOwner,
-		category,
-		false)
-	// Containers without a path (e.g. Root mail folder) always err here.
-	if err != nil {
-		return nil, nil, false
+	var locPath path.Path
+
+	if loc != nil {
+		locPath, err = loc.ToDataLayerExchangePathForCategory(
+			qp.Credentials.AzureTenantID,
+			qp.ResourceOwner,
+			category,
+			false)
+		// Containers without a path (e.g. Root mail folder) always err here.
+		if err != nil {
+			return nil, nil, false
+		}
 	}
 
 	directory = locPath.Folder()
