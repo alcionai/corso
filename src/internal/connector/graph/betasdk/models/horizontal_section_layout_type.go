@@ -21,6 +21,7 @@ const (
 func (i HorizontalSectionLayoutType) String() string {
 	return []string{"none", "oneColumn", "twoColumns", "threeColumns", "oneThirdLeftColumn", "oneThirdRightColumn", "fullWidth", "unknownFutureValue"}[i]
 }
+
 func ParseHorizontalSectionLayoutType(v string) (interface{}, error) {
 	result := NONE_HORIZONTALSECTIONLAYOUTTYPE
 	switch v {
@@ -45,6 +46,7 @@ func ParseHorizontalSectionLayoutType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializeHorizontalSectionLayoutType(values []HorizontalSectionLayoutType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {

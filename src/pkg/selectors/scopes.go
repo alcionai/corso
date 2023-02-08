@@ -3,9 +3,9 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"

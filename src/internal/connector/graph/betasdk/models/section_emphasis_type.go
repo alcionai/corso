@@ -18,6 +18,7 @@ const (
 func (i SectionEmphasisType) String() string {
 	return []string{"none", "neutral", "soft", "strong", "unknownFutureValue"}[i]
 }
+
 func ParseSectionEmphasisType(v string) (interface{}, error) {
 	result := NONE_SECTIONEMPHASISTYPE
 	switch v {
@@ -36,6 +37,7 @@ func ParseSectionEmphasisType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializeSectionEmphasisType(values []SectionEmphasisType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {

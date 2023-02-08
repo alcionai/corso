@@ -18,6 +18,7 @@ const (
 func (i TitleAreaLayoutType) String() string {
 	return []string{"imageAndTitle", "plain", "colorBlock", "overlap", "unknownFutureValue"}[i]
 }
+
 func ParseTitleAreaLayoutType(v string) (interface{}, error) {
 	result := IMAGEANDTITLE_TITLEAREALAYOUTTYPE
 	switch v {
@@ -36,6 +37,7 @@ func ParseTitleAreaLayoutType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializeTitleAreaLayoutType(values []TitleAreaLayoutType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
