@@ -29,8 +29,10 @@ func (cfc *contactFolderCache) populateContactRoot(
 		return support.ConnectorStackErrorTraceWrap(err, "fetching root folder")
 	}
 
-	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
-
+	temp := graph.NewCacheFolder(
+		f,
+		path.Builder{}.Append(baseContainerPath...), // storage path
+		path.Builder{}.Append(baseContainerPath...)) // display location
 	if err := cfc.addFolder(temp); err != nil {
 		return errors.Wrap(err, "adding resolver dir")
 	}

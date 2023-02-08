@@ -70,7 +70,7 @@ func filterContainersAndFillCollections(
 		cID := *c.GetId()
 		delete(tombstones, cID)
 
-		currPath, ok := includeContainer(qp, c, scope)
+		currPath, locPath, ok := includeContainer(qp, c, scope)
 		// Only create a collection if the path matches the scope.
 		if !ok {
 			continue
@@ -110,10 +110,15 @@ func filterContainersAndFillCollections(
 			deltaURLs[cID] = newDelta.URL
 		}
 
+		if qp.Category != path.EventsCategory {
+			locPath = nil
+		}
+
 		edc := NewCollection(
 			qp.ResourceOwner,
 			currPath,
 			prevPath,
+			locPath,
 			scope.Category().PathType(),
 			ibt,
 			statusUpdater,
@@ -167,6 +172,7 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner,
 			nil, // marks the collection as deleted
 			prevPath,
+			nil, // tombstones don't need a location
 			scope.Category().PathType(),
 			ibt,
 			statusUpdater,

@@ -127,28 +127,36 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 		Append("bar").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
 	require.NoError(suite.T(), err)
+	locP, err := path.Builder{}.
+		Append("human-readable").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name   string
 		prev   path.Path
 		curr   path.Path
+		loc    path.Path
 		expect data.CollectionState
 	}{
 		{
 			name:   "new",
 			curr:   fooP,
+			loc:    locP,
 			expect: data.NewState,
 		},
 		{
 			name:   "not moved",
 			prev:   fooP,
 			curr:   fooP,
+			loc:    locP,
 			expect: data.NotMovedState,
 		},
 		{
 			name:   "moved",
 			prev:   fooP,
 			curr:   barP,
+			loc:    locP,
 			expect: data.MovedState,
 		},
 		{
@@ -161,12 +169,15 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			c := NewCollection(
 				"u",
-				test.curr, test.prev,
+				test.curr, test.prev, test.loc,
 				0,
 				&mockItemer{}, nil,
 				control.Options{},
 				false)
-			assert.Equal(t, test.expect, c.State())
+			assert.Equal(t, test.expect, c.State(), "collection state")
+			assert.Equal(t, test.curr, c.fullPath, "full path")
+			assert.Equal(t, test.prev, c.prevPath, "prev path")
+			assert.Equal(t, test.loc, c.locationPath, "location path")
 		})
 	}
 }
