@@ -98,8 +98,8 @@ func Initialize(
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
-		if kopia.IsRepoAlreadyExistsError(err) {
-			return nil, clues.Stack(ErrorRepoAlreadyExists).WithClues(ctx)
+		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
+			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
 		return nil, errors.Wrap(err, "initializing kopia")
