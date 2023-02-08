@@ -51,14 +51,16 @@ type containerResolver struct {
 func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
+	useIDInPath bool,
 ) (*path.Builder, error) {
-	return cr.idToPath(ctx, folderID, 0)
+	return cr.idToPath(ctx, folderID, 0, useIDInPath)
 }
 
 func (cr *containerResolver) idToPath(
 	ctx context.Context,
 	folderID string,
 	depth int,
+	useIDInPath bool,
 ) (*path.Builder, error) {
 	if depth >= maxIterations {
 		return nil, errors.New("path contains cycle or is too tall")
@@ -74,13 +76,21 @@ func (cr *containerResolver) idToPath(
 		return p, nil
 	}
 
-	parentPath, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1)
+	parentPath, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1, useIDInPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving parent folder")
 	}
 
-	fullPath := parentPath.Append(*c.GetDisplayName())
+	toAppend := *c.GetDisplayName()
+	if useIDInPath {
+		toAppend = *c.GetId()
+	}
+
+	fullPath := parentPath.Append(toAppend)
+	locPath := parentPath.Append(*c.GetDisplayName())
+
 	c.SetPath(fullPath)
+	c.SetLocation(locPath)
 
 	return fullPath, nil
 }
@@ -141,7 +151,11 @@ func (cr *containerResolver) Items() []graph.CachedContainer {
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (cr *containerResolver) AddToCache(ctx context.Context, f graph.Container) error {
+func (cr *containerResolver) AddToCache(
+	ctx context.Context,
+	f graph.Container,
+	useIDInPath bool,
+) error {
 	temp := graph.CacheFolder{
 		Container: f,
 	}
@@ -152,7 +166,7 @@ func (cr *containerResolver) AddToCache(ctx context.Context, f graph.Container) 
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := cr.IDToPath(ctx, *f.GetId())
+	_, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 	if err != nil {
 		return errors.Wrap(err, "adding cache entry")
 	}
@@ -160,12 +174,12 @@ func (cr *containerResolver) AddToCache(ctx context.Context, f graph.Container) 
 	return nil
 }
 
-func (cr *containerResolver) populatePaths(ctx context.Context) error {
+func (cr *containerResolver) populatePaths(ctx context.Context, useIDInPath bool) error {
 	var errs *multierror.Error
 
 	// Populate all folder paths.
 	for _, f := range cr.Items() {
-		_, err := cr.IDToPath(ctx, *f.GetId())
+		_, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "populating path"))
 		}

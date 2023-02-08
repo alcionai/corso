@@ -94,7 +94,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))
 
-			p, err := mfc.IDToPath(ctx, testFolderID)
+			p, err := mfc.IDToPath(ctx, testFolderID, false)
 			require.NoError(t, err)
 			t.Logf("Path: %s\n", p.String())
 

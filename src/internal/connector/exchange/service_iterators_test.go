@@ -76,10 +76,10 @@ func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
 
-func (m mockResolver) AddToCache(context.Context, graph.Container) error       { return nil }
-func (m mockResolver) IDToPath(context.Context, string) (*path.Builder, error) { return nil, nil }
-func (m mockResolver) PathInCache(string) (string, bool)                       { return "", false }
-func (m mockResolver) Populate(context.Context, string, ...string) error       { return nil }
+func (m mockResolver) AddToCache(context.Context, graph.Container, bool) error       { return nil }
+func (m mockResolver) IDToPath(context.Context, string, bool) (*path.Builder, error) { return nil, nil }
+func (m mockResolver) PathInCache(string) (string, bool)                             { return "", false }
+func (m mockResolver) Populate(context.Context, string, ...string) error             { return nil }
 
 // ---------------------------------------------------------------------------
 // tests
