@@ -251,11 +251,8 @@ func checkMetadataFilesExist(
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			errs := fault.New(false)
-
-			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, errs)
+			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, fault.New(true))
 			assert.NoError(t, err)
-			assert.Empty(t, errs.Errs())
 
 			for _, col := range cols {
 				itemNames := []string{}

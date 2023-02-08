@@ -227,11 +227,8 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				Reasons:  test.reasons,
 			}
 
-			errs := fault.New(false)
-
-			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, errs)
+			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr)
-			assert.Empty(t, errs.Errs())
 		})
 	}
 }
@@ -648,7 +645,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				test.reasons,
 				tid,
 				test.getMeta,
-				fault.New(false))
+				fault.New(true))
 			test.assertErr(t, err)
 			test.assertB(t, b)
 
@@ -937,11 +934,9 @@ func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
 			defer flush()
 
 			mr := &mockRestorer{}
-			errs := fault.New(false)
 
-			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, errs)
+			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
 			assert.NoError(t, err)
-			assert.Empty(t, errs.Errs())
 
 			checkPaths(t, test.expected, mr.gotPaths)
 		})

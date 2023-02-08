@@ -53,18 +53,13 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 
 	deets := deetsBuilder.Details()
 	ss := New(kw, "tenant", path.ExchangeService)
-	errs := fault.New(false)
 
-	id, err := ss.WriteBackupDetails(ctx, deets, errs)
+	id, err := ss.WriteBackupDetails(ctx, deets, fault.New(true))
 	require.NoError(t, err)
-	require.Empty(t, errs.Errs())
 	require.NotNil(t, id)
 
-	errs = fault.New(false)
-
-	readDeets, err := ss.ReadBackupDetails(ctx, id, errs)
+	readDeets, err := ss.ReadBackupDetails(ctx, id, fault.New(true))
 	require.NoError(t, err)
-	require.Empty(t, errs.Errs())
 	require.NotNil(t, readDeets)
 
 	assert.Equal(t, len(deets.Entries), len(readDeets.Entries))

@@ -582,7 +582,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				nil,
 				model.StableID(""),
 				true,
-				fault.New(false))
+				fault.New(true))
 		})
 	}
 }
@@ -1171,7 +1171,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 	mdr := mockDetailsReader{entries: populatedDetails}
 	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
 	deets := details.Builder{}
-	errs := fault.New(false)
 
 	err := mergeDetails(
 		ctx,
@@ -1180,8 +1179,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		inputMans,
 		inputToMerge,
 		&deets,
-		errs)
+		fault.New(true))
 	assert.NoError(t, err)
-	assert.Empty(t, errs.Errs())
 	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
 }
