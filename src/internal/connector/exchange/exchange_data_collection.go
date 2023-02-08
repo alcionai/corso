@@ -131,7 +131,7 @@ func stateOf(prev, curr path.Path) data.CollectionState {
 		return data.NewState
 	}
 
-	if curr.Folder() != prev.Folder() {
+	if curr.Folder(false) != prev.Folder(false) {
 		return data.MovedState
 	}
 
@@ -200,7 +200,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 			ctx,
 			col.fullPath.Category().String(),
 			observe.PII(user),
-			observe.PII(col.fullPath.Folder()))
+			observe.PII(col.fullPath.Folder(false)))
 
 		go closer()
 
@@ -359,7 +359,7 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 			TotalBytes: totalBytes,
 		},
 		errs,
-		col.fullPath.Folder())
+		col.fullPath.Folder(false))
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	col.statusUpdater(status)
 }
