@@ -68,88 +68,103 @@ func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestListCollection() {
+func (suite *SharePointCollectionSuite) TestCollection_Items() {
 	t := suite.T()
+	tenant := "some"
+	user := "user"
+	dirRoot := "directory"
+	tables := []struct {
+		name, itemName string
+		category       DataCategory
+		getDir         func(t *testing.T) path.Path
+		getItem        func(t *testing.T, itemName string) *Item
+	}{
+		{
+			name:     "List",
+			itemName: "MockListing",
+			category: List,
+			getDir: func(t *testing.T) path.Path {
+				dir, err := path.Builder{}.Append(dirRoot).
+					ToDataLayerSharePointPath(
+						tenant,
+						user,
+						path.ListsCategory,
+						false)
+				require.NoError(t, err)
 
-	ow := kioser.NewJsonSerializationWriter()
-	listing := mockconnector.GetMockListDefault("Mock List")
-	testName := "MockListing"
-	listing.SetDisplayName(&testName)
+				return dir
+			},
+			getItem: func(t *testing.T, name string) *Item {
+				ow := kioser.NewJsonSerializationWriter()
+				listing := mockconnector.GetMockListDefault(name)
+				listing.SetDisplayName(&name)
 
-	err := ow.WriteObjectValue("", listing)
-	require.NoError(t, err)
+				err := ow.WriteObjectValue("", listing)
+				require.NoError(t, err)
 
-	byteArray, err := ow.GetSerializedContent()
-	require.NoError(t, err)
+				byteArray, err := ow.GetSerializedContent()
+				require.NoError(t, err)
 
-	dir, err := path.Builder{}.Append("directory").
-		ToDataLayerSharePointPath(
-			"some",
-			"user",
-			path.ListsCategory,
-			false)
-	require.NoError(t, err)
+				data := &Item{
+					id:   name,
+					data: io.NopCloser(bytes.NewReader(byteArray)),
+					info: sharePointListInfo(listing, int64(len(byteArray))),
+				}
 
-	col := NewCollection(dir, nil, List, nil)
-	col.data <- &Item{
-		id:   testName,
-		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: sharePointListInfo(listing, int64(len(byteArray))),
+				return data
+			},
+		},
+		{
+			name:     "Pages",
+			itemName: "MockPages",
+			category: Pages,
+			getDir: func(t *testing.T) path.Path {
+				dir, err := path.Builder{}.Append(dirRoot).
+					ToDataLayerSharePointPath(
+						tenant,
+						user,
+						path.PagesCategory,
+						false)
+				require.NoError(t, err)
+
+				return dir
+			},
+			getItem: func(t *testing.T, itemName string) *Item {
+				byteArray := mockconnector.GetMockPage(itemName)
+				page, err := support.CreatePageFromBytes(byteArray)
+				require.NoError(t, err)
+
+				data := &Item{
+					id:   itemName,
+					data: io.NopCloser(bytes.NewReader(byteArray)),
+					info: api.PageInfo(page, int64(len(byteArray))),
+				}
+
+				return data
+			},
+		},
 	}
 
-	readItems := []data.Stream{}
+	for _, test := range tables {
+		t.Run(test.name, func(t *testing.T) {
+			col := NewCollection(test.getDir(t), nil, test.category, nil)
+			col.data <- test.getItem(t, test.itemName)
 
-	for item := range col.Items() {
-		readItems = append(readItems, item)
+			readItems := []data.Stream{}
+
+			for item := range col.Items() {
+				readItems = append(readItems, item)
+			}
+
+			require.Equal(t, len(readItems), 1)
+			item := readItems[0]
+			shareInfo, ok := item.(data.StreamInfo)
+			require.True(t, ok)
+			require.NotNil(t, shareInfo.Info())
+			require.NotNil(t, shareInfo.Info().SharePoint)
+			assert.Equal(t, test.itemName, shareInfo.Info().SharePoint.ItemName)
+		})
 	}
-
-	require.Equal(t, len(readItems), 1)
-	item := readItems[0]
-	shareInfo, ok := item.(data.StreamInfo)
-	require.True(t, ok)
-	require.NotNil(t, shareInfo.Info())
-	require.NotNil(t, shareInfo.Info().SharePoint)
-	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
-}
-
-// TestPagesCollection tests basic functionality to create
-// SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestPagesCollection() {
-	t := suite.T()
-
-	testName := "Pages Collection Test"
-	byteArray := mockconnector.GetMockPage(testName)
-	page, err := support.CreatePageFromBytes(byteArray)
-	require.NoError(t, err)
-
-	dir, err := path.Builder{}.Append("directory").
-		ToDataLayerSharePointPath(
-			"some",
-			"user",
-			path.PagesCategory,
-			false)
-	require.NoError(t, err)
-
-	col := NewCollection(dir, nil, List, nil)
-	col.data <- &Item{
-		id:   testName,
-		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: api.PageInfo(page, int64(len(byteArray))),
-	}
-
-	readItems := []data.Stream{}
-
-	for item := range col.Items() {
-		readItems = append(readItems, item)
-	}
-
-	require.Equal(t, len(readItems), 1)
-	item := readItems[0]
-	shareInfo, ok := item.(data.StreamInfo)
-	require.True(t, ok)
-	require.NotNil(t, shareInfo.Info())
-	require.NotNil(t, shareInfo.Info().SharePoint)
-	assert.Equal(t, testName, shareInfo.Info().SharePoint.ItemName)
 }
 
 func (suite *SharePointCollectionSuite) TestCollectPages() {
