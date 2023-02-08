@@ -397,7 +397,7 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 func sanitizeMessage(orig models.Messageable) (models.Messageable, error) {
 	message := ToMessage(orig)
 
-	// TODO (dadam39): re-apply nested attachments for itemAttachments
+	// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
 	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
 	// attachments, err := sanitizeAttachments(message.GetAttachments())
 	// if err != nil {
