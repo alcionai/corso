@@ -201,6 +201,8 @@ func collectItems(
 
 	if len(prevDelta) != 0 {
 		pager.SetNext(prevDelta)
+	} else {
+		invalidPrevDelta = true
 	}
 
 	for {
