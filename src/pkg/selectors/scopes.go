@@ -321,9 +321,13 @@ func reduce[T scopeT, C categoryT](
 		// of the repoRef folders, so that scopes can match against the display names
 		// instead of container IDs.
 		if len(ent.LocationRef) > 0 {
-			pb, err := path.Builder{}.
-				Append(path.Split(ent.LocationRef)...).
-				Append(repoPath.Item()).
+			pb, err := path.Builder{}.SplitUnescapeAppend(ent.LocationRef)
+			if err != nil {
+				errs.Add(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
+				continue
+			}
+
+			lp, err := pb.Append(repoPath.Item()).
 				ToDataLayerPath(
 					repoPath.Tenant(),
 					repoPath.ResourceOwner(),
@@ -335,7 +339,7 @@ func reduce[T scopeT, C categoryT](
 				continue
 			}
 
-			repoPath = pb
+			repoPath = lp
 		}
 
 		// first check, every entry needs to match the selector's resource owners.
