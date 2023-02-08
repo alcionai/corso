@@ -86,7 +86,7 @@ type Path interface {
 	Category() CategoryType
 	Tenant() string
 	ResourceOwner() string
-	Folder() string
+	Folder(bool) string
 	Folders() []string
 	Item() string
 	// PopFront returns a Builder object with the first element (left-side)
@@ -253,11 +253,6 @@ func (pb Builder) ShortRef() string {
 // elements in the future.
 func (pb Builder) Elements() []string {
 	return append([]string{}, pb.elements...)
-}
-
-//nolint:unused
-func (pb Builder) join(start, end int) string {
-	return join(pb.elements[start:end])
 }
 
 func verifyInputValues(tenant, resourceOwner string) error {
