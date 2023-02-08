@@ -179,7 +179,6 @@ func collectLibraries(
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
 // M365 IDs for the associated Pages.
-// TODO: Credentials necessary to create separate HTTP client
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
