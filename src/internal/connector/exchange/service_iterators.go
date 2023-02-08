@@ -25,14 +25,14 @@ type addedAndRemovedItemIDsGetter interface {
 
 // filterContainersAndFillCollections is a utility function
 // that places the M365 object ids belonging to specific directories
-// into a Collection. Messages outside of those directories are omitted.
+// into a BackupCollection. Messages outside of those directories are omitted.
 // @param collection is filled with during this function.
 // Supports all exchange applications: Contacts, Events, and Mail
 func filterContainersAndFillCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
 	getter addedAndRemovedItemIDsGetter,
-	collections map[string]data.Collection,
+	collections map[string]data.BackupCollection,
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,

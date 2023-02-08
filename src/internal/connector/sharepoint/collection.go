@@ -35,10 +35,10 @@ const (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Item{}
-	_ data.StreamInfo    = &Item{}
-	_ data.StreamModTime = &Item{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Item{}
+	_ data.StreamInfo       = &Item{}
+	_ data.StreamModTime    = &Item{}
 )
 
 type numMetrics struct {
@@ -195,6 +195,7 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
+		sc.finishPopulation(ctx, metrics.attempts, metrics.success, metrics.totalBytes, errs)
 	}()
 
 	// Switch retrieval function based on category

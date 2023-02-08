@@ -34,9 +34,9 @@ import (
 func (gc *GraphConnector) DataCollections(
 	ctx context.Context,
 	sels selectors.Selector,
-	metadata []data.Collection,
+	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-) ([]data.Collection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
@@ -51,7 +51,7 @@ func (gc *GraphConnector) DataCollections(
 	}
 
 	if !serviceEnabled {
-		return []data.Collection{}, nil, nil
+		return []data.BackupCollection{}, nil, nil
 	}
 
 	switch sels.Service {
@@ -182,9 +182,9 @@ func (fm odFolderMatcher) Matches(dir string) bool {
 func (gc *GraphConnector) OneDriveDataCollections(
 	ctx context.Context,
 	selector selectors.Selector,
-	metadata []data.Collection,
+	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-) ([]data.Collection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
@@ -192,7 +192,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 
 	var (
 		user        = selector.DiscreteOwner
-		collections = []data.Collection{}
+		collections = []data.BackupCollection{}
 		allExcludes = map[string]struct{}{}
 		errs        error
 	)

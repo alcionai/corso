@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -308,9 +308,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
-	bups, err := r.Backups(ctx, bIDs)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
+	bups, ferrs := r.Backups(ctx, bIDs)
+	// TODO: print/log recoverable errors
+	if ferrs.Err() != nil {
+		return Only(ctx, errors.Wrap(ferrs.Err(), "Unable to retrieve backup results from storage"))
 	}
 
 	backup.PrintAll(ctx, bups)
@@ -322,16 +323,16 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBackup {
+func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {
 	sel := selectors.NewExchangeBackup(userIDs)
 
-	if len(data) == 0 {
+	if len(cats) == 0 {
 		sel.Include(sel.ContactFolders(selectors.Any()))
 		sel.Include(sel.MailFolders(selectors.Any()))
 		sel.Include(sel.EventCalendars(selectors.Any()))
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		switch d {
 		case dataContacts:
 			sel.Include(sel.ContactFolders(selectors.Any()))
@@ -345,12 +346,12 @@ func exchangeBackupCreateSelectors(userIDs, data []string) *selectors.ExchangeBa
 	return sel
 }
 
-func validateExchangeBackupCreateFlags(userIDs, data []string) error {
+func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
 		return errors.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
-	for _, d := range data {
+	for _, d := range cats {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
 			return errors.New(
 				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
@@ -393,7 +394,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	if len(backupID) > 0 {
 		b, err := r.Backup(ctx, model.StableID(backupID))
 		if err != nil {
-			if errors.Is(err, kopia.ErrNotFound) {
+			if errors.Is(err, data.ErrNotFound) {
 				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
 			}
 
@@ -486,6 +487,8 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 }
 
 // runDetailsExchangeCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Err() == nil.
 func runDetailsExchangeCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -496,19 +499,20 @@ func runDetailsExchangeCmd(
 		return nil, err
 	}
 
-	d, _, err := r.BackupDetails(ctx, backupID)
-	if err != nil {
-		if errors.Is(err, kopia.ErrNotFound) {
+	d, _, errs := r.BackupDetails(ctx, backupID)
+	// TODO: log/track recoverable errors
+	if errs.Err() != nil {
+		if errors.Is(errs.Err(), data.ErrNotFound) {
 			return nil, errors.Errorf("No backup exists with the id %s", backupID)
 		}
 
-		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
+		return nil, errors.Wrap(errs.Err(), "Failed to get backup details in the repository")
 	}
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	return sel.Reduce(ctx, d), nil
+	return sel.Reduce(ctx, d, errs), nil
 }
 
 // ------------------------------------------------------------------------------------------------

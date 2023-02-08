@@ -118,7 +118,7 @@ type IncrementalBase struct {
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 	globalExcludeSet map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
@@ -317,7 +317,7 @@ func getItemStream(
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "entry not found") {
-			err = errors.Wrap(ErrNotFound, err.Error())
+			err = errors.Wrap(data.ErrNotFound, err.Error())
 		}
 
 		return nil, errors.Wrap(err, "getting nested object handle")
@@ -368,7 +368,7 @@ func (w Wrapper) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bcounter ByteCounter,
-) ([]data.Collection, error) {
+) ([]data.RestoreCollection, error) {
 	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
 	defer end()
 
@@ -409,7 +409,7 @@ func (w Wrapper) RestoreMultipleItems(
 		c.streams = append(c.streams, ds)
 	}
 
-	res := make([]data.Collection, 0, len(cols))
+	res := make([]data.RestoreCollection, 0, len(cols))
 	for _, c := range cols {
 		res = append(res, c)
 	}

@@ -35,7 +35,7 @@ func DataCollections(
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
@@ -43,7 +43,7 @@ func DataCollections(
 
 	var (
 		site        = b.DiscreteOwner
-		collections = []data.Collection{}
+		collections = []data.BackupCollection{}
 		errs        error
 	)
 
@@ -55,7 +55,7 @@ func DataCollections(
 		defer closer()
 		defer close(foldersComplete)
 
-		var spcs []data.Collection
+		var spcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
 		case path.ListsCategory:
@@ -109,10 +109,10 @@ func collectLists(
 	tenantID, siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
 
-	spcs := make([]data.Collection, 0)
+	spcs := make([]data.BackupCollection, 0)
 
 	tuples, err := preFetchLists(ctx, serv, siteID)
 	if err != nil {
@@ -149,9 +149,9 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	var (
-		collections = []data.Collection{}
+		collections = []data.BackupCollection{}
 		errs        error
 	)
 
@@ -187,10 +187,10 @@ func collectPages(
 	siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Pages collections")
 
-	spcs := make([]data.Collection, 0)
+	spcs := make([]data.BackupCollection, 0)
 
 	// make the betaClient
 	// Need to receive From DataCollection Call

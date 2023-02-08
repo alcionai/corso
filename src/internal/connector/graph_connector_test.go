@@ -257,7 +257,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := tester.DefaultTestRestoreDestination()
 	table := []struct {
 		name string
-		col  []data.Collection
+		col  []data.RestoreCollection
 		sel  selectors.Selector
 	}{
 		{
@@ -269,7 +269,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "ExchangeEmpty",
-			col:  []data.Collection{},
+			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceExchange,
 			},
@@ -283,7 +283,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "OneDriveEmpty",
-			col:  []data.Collection{},
+			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceOneDrive,
 			},
@@ -297,7 +297,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "SharePointEmpty",
-			col:  []data.Collection{},
+			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceSharePoint,
 			},
@@ -370,7 +370,7 @@ func runRestoreBackupTest(
 	opts control.Options,
 ) {
 	var (
-		collections     []data.Collection
+		collections     []data.RestoreCollection
 		expectedData    = map[string]map[string][]byte{}
 		totalItems      = 0
 		totalKopiaItems = 0
@@ -495,7 +495,7 @@ func runRestoreBackupTestVersion0(
 	opts control.Options,
 ) {
 	var (
-		collections     []data.Collection
+		collections     []data.RestoreCollection
 		expectedData    = map[string]map[string][]byte{}
 		totalItems      = 0
 		totalKopiaItems = 0

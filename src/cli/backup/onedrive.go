@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -231,9 +231,10 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		bIDs = append(bIDs, bo.Results.BackupID)
 	}
 
-	bups, err := r.Backups(ctx, bIDs)
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Unable to retrieve backup results from storage"))
+	bups, ferrs := r.Backups(ctx, bIDs)
+	// TODO: print/log recoverable errors
+	if ferrs.Err() != nil {
+		return Only(ctx, errors.Wrap(ferrs.Err(), "Unable to retrieve backup results from storage"))
 	}
 
 	backup.PrintAll(ctx, bups)
@@ -293,7 +294,7 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 	if len(backupID) > 0 {
 		b, err := r.Backup(ctx, model.StableID(backupID))
 		if err != nil {
-			if errors.Is(err, kopia.ErrNotFound) {
+			if errors.Is(err, data.ErrNotFound) {
 				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
 			}
 
@@ -378,6 +379,8 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 }
 
 // runDetailsOneDriveCmd actually performs the lookup in backup details.
+// the fault.Errors return is always non-nil.  Callers should check if
+// errs.Err() == nil.
 func runDetailsOneDriveCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -388,19 +391,20 @@ func runDetailsOneDriveCmd(
 		return nil, err
 	}
 
-	d, _, err := r.BackupDetails(ctx, backupID)
-	if err != nil {
-		if errors.Is(err, kopia.ErrNotFound) {
+	d, _, errs := r.BackupDetails(ctx, backupID)
+	// TODO: log/track recoverable errors
+	if errs.Err() != nil {
+		if errors.Is(errs.Err(), data.ErrNotFound) {
 			return nil, errors.Errorf("no backup exists with the id %s", backupID)
 		}
 
-		return nil, errors.Wrap(err, "Failed to get backup details in the repository")
+		return nil, errors.Wrap(errs.Err(), "Failed to get backup details in the repository")
 	}
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	return sel.Reduce(ctx, d), nil
+	return sel.Reduce(ctx, d, errs), nil
 }
 
 // `corso backup delete onedrive [<flag>...]`

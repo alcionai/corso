@@ -52,7 +52,7 @@ var (
 func testForFiles(
 	t *testing.T,
 	expected map[string][]byte,
-	collections []data.Collection,
+	collections []data.RestoreCollection,
 ) {
 	t.Helper()
 
@@ -196,7 +196,7 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
-	collections := []data.Collection{
+	collections := []data.BackupCollection{
 		mockconnector.NewMockExchangeCollection(
 			suite.testPath1,
 			5,
@@ -353,7 +353,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	stats, _, _, err := w.BackupCollections(
 		ctx,
 		nil,
-		[]data.Collection{dc1, dc2},
+		[]data.BackupCollection{dc1, dc2},
 		nil,
 		tags,
 		true,
@@ -382,6 +382,41 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	testForFiles(t, expected, result)
 }
 
+type mockBackupCollection struct {
+	path    path.Path
+	streams []data.Stream
+}
+
+func (c *mockBackupCollection) Items() <-chan data.Stream {
+	res := make(chan data.Stream)
+
+	go func() {
+		defer close(res)
+
+		for _, s := range c.streams {
+			res <- s
+		}
+	}()
+
+	return res
+}
+
+func (c mockBackupCollection) FullPath() path.Path {
+	return c.path
+}
+
+func (c mockBackupCollection) PreviousPath() path.Path {
+	return nil
+}
+
+func (c mockBackupCollection) State() data.CollectionState {
+	return data.NewState
+}
+
+func (c mockBackupCollection) DoNotMergeItems() bool {
+	return false
+}
+
 func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	t := suite.T()
 
@@ -396,8 +431,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		tags[k] = ""
 	}
 
-	collections := []data.Collection{
-		&kopiaDataCollection{
+	collections := []data.BackupCollection{
+		&mockBackupCollection{
 			path: suite.testPath1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
@@ -410,7 +445,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 				},
 			},
 		},
-		&kopiaDataCollection{
+		&mockBackupCollection{
 			path: suite.testPath2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
@@ -465,7 +500,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, err, ErrNotFound, "errored file is restorable")
+	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable")
 }
 
 type backedupFile struct {
@@ -477,7 +512,7 @@ type backedupFile struct {
 func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() {
 	table := []struct {
 		name        string
-		collections []data.Collection
+		collections []data.BackupCollection
 	}{
 		{
 			name:        "NilCollections",
@@ -485,7 +520,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 		},
 		{
 			name:        "EmptyCollections",
-			collections: []data.Collection{},
+			collections: []data.BackupCollection{},
 		},
 	}
 
@@ -624,10 +659,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	suite.w = &Wrapper{c}
 
-	collections := []data.Collection{}
+	collections := []data.BackupCollection{}
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
-		collection := &kopiaDataCollection{path: parent}
+		collection := &mockBackupCollection{path: parent}
 
 		for _, item := range suite.files[parent.String()] {
 			collection.streams = append(
@@ -723,7 +758,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		excludeItem           bool
 		expectedCachedItems   int
 		expectedUncachedItems int
-		cols                  func() []data.Collection
+		cols                  func() []data.BackupCollection
 		backupIDCheck         require.ValueAssertionFunc
 		restoreCheck          assert.ErrorAssertionFunc
 	}{
@@ -732,7 +767,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			excludeItem:           true,
 			expectedCachedItems:   len(suite.filesByPath) - 1,
 			expectedUncachedItems: 0,
-			cols: func() []data.Collection {
+			cols: func() []data.BackupCollection {
 				return nil
 			},
 			backupIDCheck: require.NotEmpty,
@@ -743,7 +778,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			// No snapshot should be made since there were no changes.
 			expectedCachedItems:   0,
 			expectedUncachedItems: 0,
-			cols: func() []data.Collection {
+			cols: func() []data.BackupCollection {
 				return nil
 			},
 			// Backup doesn't run.
@@ -753,14 +788,14 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			name:                  "NoExcludeItemWithChanges",
 			expectedCachedItems:   len(suite.filesByPath),
 			expectedUncachedItems: 1,
-			cols: func() []data.Collection {
+			cols: func() []data.BackupCollection {
 				c := mockconnector.NewMockExchangeCollection(
 					suite.testPath1,
 					1,
 				)
 				c.ColState = data.NotMovedState
 
-				return []data.Collection{c}
+				return []data.BackupCollection{c}
 			},
 			backupIDCheck: require.NotEmpty,
 			restoreCheck:  assert.NoError,
