@@ -52,7 +52,7 @@ func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
 	useIDInPath bool,
-) (*path.Builder, error) {
+) (*path.Builder, *path.Builder, error) {
 	return cr.idToPath(ctx, folderID, 0, useIDInPath)
 }
 
@@ -61,24 +61,24 @@ func (cr *containerResolver) idToPath(
 	folderID string,
 	depth int,
 	useIDInPath bool,
-) (*path.Builder, error) {
+) (*path.Builder, *path.Builder, error) {
 	if depth >= maxIterations {
-		return nil, errors.New("path contains cycle or is too tall")
+		return nil, nil, errors.New("path contains cycle or is too tall")
 	}
 
 	c, ok := cr.cache[folderID]
 	if !ok {
-		return nil, errors.Errorf("folder %s not cached", folderID)
+		return nil, nil, errors.Errorf("folder %s not cached", folderID)
 	}
 
 	p := c.Path()
 	if p != nil {
-		return p, nil
+		return p, c.Location(), nil
 	}
 
-	parentPath, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1, useIDInPath)
+	parentPath, parentLoc, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1, useIDInPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving parent folder")
+		return nil, nil, errors.Wrap(err, "retrieving parent folder")
 	}
 
 	toAppend := *c.GetDisplayName()
@@ -87,12 +87,12 @@ func (cr *containerResolver) idToPath(
 	}
 
 	fullPath := parentPath.Append(toAppend)
-	locPath := parentPath.Append(*c.GetDisplayName())
+	locPath := parentLoc.Append(*c.GetDisplayName())
 
 	c.SetPath(fullPath)
 	c.SetLocation(locPath)
 
-	return fullPath, nil
+	return fullPath, locPath, nil
 }
 
 // PathInCache utility function to return m365ID of folder if the path.Folders
@@ -166,7 +166,7 @@ func (cr *containerResolver) AddToCache(
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
+	_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 	if err != nil {
 		return errors.Wrap(err, "adding cache entry")
 	}
@@ -179,7 +179,7 @@ func (cr *containerResolver) populatePaths(ctx context.Context, useIDInPath bool
 
 	// Populate all folder paths.
 	for _, f := range cr.Items() {
-		_, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
+		_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "populating path"))
 		}

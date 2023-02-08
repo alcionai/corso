@@ -106,7 +106,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := ecc.IDToPath(ctx, *f.GetId(), true)
+	_, _, err := ecc.IDToPath(ctx, *f.GetId(), true)
 	if err != nil {
 		return errors.Wrap(err, "setting path to container id")
 	}

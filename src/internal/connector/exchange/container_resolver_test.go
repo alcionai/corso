@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"fmt"
 	stdpath "path"
 	"testing"
 
@@ -241,12 +242,13 @@ func newMockCachedContainer(name string) *mockCachedContainer {
 }
 
 type mockCachedContainer struct {
-	id           string
-	parentID     string
-	displayName  string
-	l            *path.Builder
-	p            *path.Builder
-	expectedPath string
+	id               string
+	parentID         string
+	displayName      string
+	l                *path.Builder
+	p                *path.Builder
+	expectedPath     string
+	expectedLocation string
 }
 
 //nolint:revive
@@ -264,17 +266,23 @@ func resolverWithContainers(numContainers int) (*containerResolver, []*mockCache
 	containers := make([]*mockCachedContainer, 0, numContainers)
 
 	for i := 0; i < numContainers; i++ {
-		containers = append(containers, newMockCachedContainer("a"))
+		containers = append(containers, newMockCachedContainer(fmt.Sprintf("%d", i)))
 	}
 
 	// Base case for the recursive lookup.
 	containers[0].p = path.Builder{}.Append(containers[0].displayName)
+	containers[0].l = path.Builder{}.Append(containers[0].displayName)
 	containers[0].expectedPath = containers[0].displayName
+	containers[0].expectedLocation = containers[0].displayName
 
 	for i := 1; i < len(containers); i++ {
 		containers[i].parentID = containers[i-1].id
 		containers[i].expectedPath = stdpath.Join(
 			containers[i-1].expectedPath,
+			containers[i].displayName,
+		)
+		containers[i].expectedLocation = stdpath.Join(
+			containers[i-1].expectedLocation,
 			containers[i].displayName,
 		)
 	}
@@ -333,7 +341,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			resolver, containers := resolverWithContainers(test.numContainers)
-			_, err := resolver.IDToPath(ctx, containers[len(containers)-1].id, false)
+			_, _, err := resolver.IDToPath(ctx, containers[len(containers)-1].id, false)
 			test.check(t, err)
 		})
 	}
@@ -368,10 +376,10 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 
 	for _, c := range suite.allContainers {
 		suite.T().Run(*c.GetDisplayName(), func(t *testing.T) {
-			p, err := suite.fc.IDToPath(ctx, c.id, false)
+			p, l, err := suite.fc.IDToPath(ctx, c.id, false)
 			require.NoError(t, err)
-
 			assert.Equal(t, c.expectedPath, p.String())
+			assert.Equal(t, c.expectedLocation, l.String())
 		})
 	}
 }
@@ -383,17 +391,17 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths()
 	t := suite.T()
 	c := suite.allContainers[len(suite.allContainers)-1]
 
-	p, err := suite.fc.IDToPath(ctx, c.id, false)
+	p, l, err := suite.fc.IDToPath(ctx, c.id, false)
 	require.NoError(t, err)
-
 	assert.Equal(t, c.expectedPath, p.String())
+	assert.Equal(t, c.expectedLocation, l.String())
 
 	c.parentID = "foo"
 
-	p, err = suite.fc.IDToPath(ctx, c.id, false)
+	p, l, err = suite.fc.IDToPath(ctx, c.id, false)
 	require.NoError(t, err)
-
 	assert.Equal(t, c.expectedPath, p.String())
+	assert.Equal(t, c.expectedLocation, l.String())
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentNotFound() {
@@ -406,7 +414,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentN
 
 	delete(suite.fc.cache, almostLast.id)
 
-	_, err := suite.fc.IDToPath(ctx, last.id, false)
+	_, _, err := suite.fc.IDToPath(ctx, last.id, false)
 	assert.Error(t, err)
 }
 
@@ -416,7 +424,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsNotFoun
 
 	t := suite.T()
 
-	_, err := suite.fc.IDToPath(ctx, "foo", false)
+	_, _, err := suite.fc.IDToPath(ctx, "foo", false)
 	assert.Error(t, err)
 }
 
@@ -424,20 +432,22 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-
-	last := suite.allContainers[len(suite.allContainers)-1]
-
-	m := newMockCachedContainer("testAddFolder")
+	var (
+		t    = suite.T()
+		last = suite.allContainers[len(suite.allContainers)-1]
+		m    = newMockCachedContainer("testAddFolder")
+	)
 
 	m.parentID = last.id
 	m.expectedPath = stdpath.Join(last.expectedPath, m.displayName)
+	m.expectedLocation = stdpath.Join(last.expectedPath, m.displayName)
 
 	require.NoError(t, suite.fc.AddToCache(ctx, m, false))
 
-	p, err := suite.fc.IDToPath(ctx, m.id, false)
+	p, l, err := suite.fc.IDToPath(ctx, m.id, false)
 	require.NoError(t, err)
 	assert.Equal(t, m.expectedPath, p.String())
+	assert.Equal(t, m.expectedLocation, l.String())
 }
 
 // ---------------------------------------------------------------------------
@@ -598,7 +608,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 
 			resolver := directoryCaches[test.category]
 
-			_, err = resolver.IDToPath(ctx, folderID, false)
+			_, _, err = resolver.IDToPath(ctx, folderID, false)
 			assert.NoError(t, err)
 
 			secondID, err := CreateContainerDestination(
@@ -609,7 +619,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				directoryCaches)
 			require.NoError(t, err)
 
-			_, err = resolver.IDToPath(ctx, secondID, false)
+			_, _, err = resolver.IDToPath(ctx, secondID, false)
 			require.NoError(t, err)
 
 			p := stdpath.Join(test.folderPrefix, folderName)

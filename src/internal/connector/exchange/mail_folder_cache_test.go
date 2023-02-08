@@ -18,10 +18,11 @@ const (
 	// top-level folders right now.
 	//nolint:lll
 	testFolderID = "AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAABl7AqpAAA="
-
 	//nolint:lll
 	topFolderID = "AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEIAAA="
+	//nolint:lll
 	// Full folder path for the folder above.
+	expectedIDPath     = "AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAEIAAA=/subFolder/subsubfolder"
 	expectedFolderPath = "toplevel/subFolder/subsubfolder"
 )
 
@@ -94,9 +95,10 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))
 
-			p, err := mfc.IDToPath(ctx, testFolderID, false)
+			p, l, err := mfc.IDToPath(ctx, testFolderID, true)
 			require.NoError(t, err)
 			t.Logf("Path: %s\n", p.String())
+			t.Logf("Location: %s\n", l.String())
 
 			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
 			assert.Equal(t, expectedPath, p.String())
