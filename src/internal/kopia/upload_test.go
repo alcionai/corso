@@ -683,7 +683,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 
 	progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-	collections := []data.Collection{
+	collections := []data.BackupCollection{
 		mockconnector.NewMockExchangeCollection(
 			suite.testPath,
 			expectedFileCount[user1Encoded],
@@ -759,11 +759,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 	//           - 42 separate files
 	table := []struct {
 		name   string
-		layout []data.Collection
+		layout []data.BackupCollection
 	}{
 		{
 			name: "SubdirFirst",
-			layout: []data.Collection{
+			layout: []data.BackupCollection{
 				mockconnector.NewMockExchangeCollection(
 					p2,
 					5,
@@ -776,7 +776,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		},
 		{
 			name: "SubdirLast",
-			layout: []data.Collection{
+			layout: []data.BackupCollection{
 				mockconnector.NewMockExchangeCollection(
 					suite.testPath,
 					42,
@@ -845,7 +845,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 
 	table := []struct {
 		name   string
-		layout []data.Collection
+		layout []data.BackupCollection
 	}{
 		{
 			"MultipleRoots",
@@ -862,7 +862,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 			//       - emails
 			//         - Inbox
 			//           - 42 separate files
-			[]data.Collection{
+			[]data.BackupCollection{
 				mockconnector.NewMockExchangeCollection(
 					suite.testPath,
 					5,
@@ -875,7 +875,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		},
 		{
 			"NoCollectionPath",
-			[]data.Collection{
+			[]data.BackupCollection{
 				mockconnector.NewMockExchangeCollection(
 					nil,
 					5,
@@ -973,7 +973,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 
 			progress := &corsoProgress{pending: map[string]*itemDetails{}}
 
-			cols := []data.Collection{}
+			cols := []data.BackupCollection{}
 			for _, s := range test.states {
 				prevPath := dirPath
 				nowPath := dirPath
@@ -1037,17 +1037,17 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 
 	table := []struct {
 		name             string
-		inputCollections func() []data.Collection
+		inputCollections func() []data.BackupCollection
 		expected         *expectedNode
 	}{
 		{
 			name: "SkipsDeletedItems",
-			inputCollections: func() []data.Collection {
+			inputCollections: func() []data.BackupCollection {
 				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
 				mc.Names[0] = testFileName
 				mc.DeletedItems[0] = true
 
-				return []data.Collection{mc}
+				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1066,13 +1066,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		},
 		{
 			name: "AddsNewItems",
-			inputCollections: func() []data.Collection {
+			inputCollections: func() []data.BackupCollection {
 				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
 				mc.Names[0] = testFileName2
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
 
-				return []data.Collection{mc}
+				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1101,13 +1101,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		},
 		{
 			name: "SkipsUpdatedItems",
-			inputCollections: func() []data.Collection {
+			inputCollections: func() []data.BackupCollection {
 				mc := mockconnector.NewMockExchangeCollection(dirPath, 1)
 				mc.Names[0] = testFileName
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
 
-				return []data.Collection{mc}
+				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1132,7 +1132,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		},
 		{
 			name: "DeleteAndNew",
-			inputCollections: func() []data.Collection {
+			inputCollections: func() []data.BackupCollection {
 				mc1 := mockconnector.NewMockExchangeCollection(dirPath, 0)
 				mc1.ColState = data.DeletedState
 				mc1.PrevPath = dirPath
@@ -1142,7 +1142,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				mc2.Names[0] = testFileName2
 				mc2.Data[0] = testFileData2
 
-				return []data.Collection{mc1, mc2}
+				return []data.BackupCollection{mc1, mc2}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1167,7 +1167,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		},
 		{
 			name: "MovedAndNew",
-			inputCollections: func() []data.Collection {
+			inputCollections: func() []data.BackupCollection {
 				mc1 := mockconnector.NewMockExchangeCollection(dirPath2, 0)
 				mc1.ColState = data.MovedState
 				mc1.PrevPath = dirPath
@@ -1177,7 +1177,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				mc2.Names[0] = testFileName2
 				mc2.Data[0] = testFileData2
 
-				return []data.Collection{mc1, mc2}
+				return []data.BackupCollection{mc1, mc2}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1211,13 +1211,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		},
 		{
 			name: "NewDoesntMerge",
-			inputCollections: func() []data.Collection {
+			inputCollections: func() []data.BackupCollection {
 				mc1 := mockconnector.NewMockExchangeCollection(dirPath, 1)
 				mc1.ColState = data.NewState
 				mc1.Names[0] = testFileName2
 				mc1.Data[0] = testFileData2
 
-				return []data.Collection{mc1}
+				return []data.BackupCollection{mc1}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1369,13 +1369,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 	table := []struct {
 		name             string
-		inputCollections func(t *testing.T) []data.Collection
+		inputCollections func(t *testing.T) []data.BackupCollection
 		inputExcludes    map[string]struct{}
 		expected         *expectedNode
 	}{
 		{
 			name: "GlobalExcludeSet",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			inputExcludes: map[string]struct{}{
@@ -1417,7 +1417,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "MovesSubtree",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
@@ -1428,7 +1428,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				mc.PrevPath = inboxPath
 				mc.ColState = data.MovedState
 
-				return []data.Collection{mc}
+				return []data.BackupCollection{mc}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1474,7 +1474,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "MovesChildAfterAncestorMove",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newInboxPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
@@ -1494,7 +1494,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				work.PrevPath = workPath
 				work.ColState = data.MovedState
 
-				return []data.Collection{inbox, work}
+				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1540,7 +1540,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "MovesChildAfterAncestorDelete",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newWorkPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
@@ -1555,7 +1555,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				work.PrevPath = workPath
 				work.ColState = data.MovedState
 
-				return []data.Collection{inbox, work}
+				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1579,7 +1579,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "ReplaceDeletedDirectory",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				personal := mockconnector.NewMockExchangeCollection(personalPath, 0)
 				personal.PrevPath = personalPath
 				personal.ColState = data.DeletedState
@@ -1588,7 +1588,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				work.PrevPath = workPath
 				work.ColState = data.MovedState
 
-				return []data.Collection{personal, work}
+				return []data.BackupCollection{personal, work}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1620,7 +1620,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "ReplaceDeletedDirectoryWithNew",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				personal := mockconnector.NewMockExchangeCollection(personalPath, 0)
 				personal.PrevPath = personalPath
 				personal.ColState = data.DeletedState
@@ -1630,7 +1630,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				newCol.Names[0] = workFileName2
 				newCol.Data[0] = workFileData2
 
-				return []data.Collection{personal, newCol}
+				return []data.BackupCollection{personal, newCol}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1671,7 +1671,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "ReplaceMovedDirectory",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir},
@@ -1686,7 +1686,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				work.PrevPath = workPath
 				work.ColState = data.MovedState
 
-				return []data.Collection{personal, work}
+				return []data.BackupCollection{personal, work}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1729,7 +1729,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "MoveDirectoryAndMergeItems",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newPersonalPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, workDir},
@@ -1744,7 +1744,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				personal.Names[1] = testFileName4
 				personal.Data[1] = testFileData4
 
-				return []data.Collection{personal}
+				return []data.BackupCollection{personal}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1793,7 +1793,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "MoveParentDeleteFileNoMergeSubtreeMerge",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newInboxPath := makePath(
 					t,
 					[]string{testTenant, service, testUser, category, personalDir},
@@ -1824,7 +1824,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				work.Names[0] = testFileName6
 				work.Data[0] = testFileData6
 
-				return []data.Collection{inbox, work}
+				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -1876,7 +1876,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		},
 		{
 			name: "NoMoveParentDeleteFileNoMergeSubtreeMerge",
-			inputCollections: func(t *testing.T) []data.Collection {
+			inputCollections: func(t *testing.T) []data.BackupCollection {
 				inbox := mockconnector.NewMockExchangeCollection(inboxPath, 1)
 				inbox.PrevPath = inboxPath
 				inbox.ColState = data.NotMovedState
@@ -1892,7 +1892,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				work.Names[0] = testFileName6
 				work.Data[0] = testFileData6
 
-				return []data.Collection{inbox, work}
+				return []data.BackupCollection{inbox, work}
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
@@ -2105,7 +2105,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 		snapshotRoot: getBaseSnapshot(),
 	}
 
-	collections := []data.Collection{mc}
+	collections := []data.BackupCollection{mc}
 
 	// Returned directory structure should look like:
 	// - a-tenant
@@ -2361,7 +2361,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 		},
 	}
 
-	collections := []data.Collection{mc}
+	collections := []data.BackupCollection{mc}
 
 	dirTree, err := inflateDirTree(
 		ctx,

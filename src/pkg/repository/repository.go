@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/events"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -31,12 +31,12 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
+	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
-	) (*details.Details, *backup.Backup, error)
+	) (*details.Details, *backup.Backup, *fault.Errors)
 }
 
 type Repository interface {
@@ -282,23 +282,23 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
-func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
+func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors) {
 	var (
-		errs *multierror.Error
 		bups []*backup.Backup
+		errs = fault.New(false)
 		sw   = store.NewKopiaStore(r.modelStore)
 	)
 
 	for _, id := range ids {
 		b, err := sw.GetBackup(ctx, id)
 		if err != nil {
-			errs = multierror.Append(errs, err)
+			errs.Add(clues.Stack(err).With("backup_id", id))
 		}
 
 		bups = append(bups, b)
 	}
 
-	return bups, errs.ErrorOrNil()
+	return bups, errs
 }
 
 // backups lists backups in a repository
@@ -308,12 +308,16 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 }
 
 // BackupDetails returns the specified backup details object
-func (r repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
+func (r repository) BackupDetails(
+	ctx context.Context,
+	backupID string,
+) (*details.Details, *backup.Backup, *fault.Errors) {
 	sw := store.NewKopiaStore(r.modelStore)
+	errs := fault.New(false)
 
 	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errs.Fail(err)
 	}
 
 	deets, err := streamstore.New(
@@ -321,10 +325,10 @@ func (r repository) BackupDetails(ctx context.Context, backupID string) (*detail
 		r.Account.ID(),
 		b.Selector.PathService()).ReadBackupDetails(ctx, dID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errs.Fail(err)
 	}
 
-	return deets, b, nil
+	return deets, b, errs
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.

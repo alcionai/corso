@@ -168,7 +168,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				true)
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
 
@@ -301,7 +302,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				true)
 
 			mockItem := models.NewDriveItem()
 			mockItem.SetId(&testItemID)
@@ -372,7 +374,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{}})
+				control.Options{ToggleFeatures: control.Toggles{}},
+				true)
 
 			now := time.Now()
 			mockItem := models.NewDriveItem()

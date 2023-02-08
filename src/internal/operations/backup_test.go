@@ -36,20 +36,20 @@ import (
 
 type mockRestorer struct {
 	gotPaths  []path.Path
-	colls     []data.Collection
-	collsByID map[string][]data.Collection // snapshotID: []Collection
+	colls     []data.RestoreCollection
+	collsByID map[string][]data.RestoreCollection // snapshotID: []RestoreCollection
 	err       error
 	onRestore restoreFunc
 }
 
-type restoreFunc func(id string, ps []path.Path) ([]data.Collection, error)
+type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
 
 func (mr *mockRestorer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
 ) {
-	mr.onRestore = func(id string, ps []path.Path) ([]data.Collection, error) {
+	mr.onRestore = func(id string, ps []path.Path) ([]data.RestoreCollection, error) {
 		assert.Equal(t, oid, id, "manifest id")
 		checkPaths(t, ops, ps)
 
@@ -62,7 +62,7 @@ func (mr *mockRestorer) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bc kopia.ByteCounter,
-) ([]data.Collection, error) {
+) ([]data.RestoreCollection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
 	if mr.onRestore != nil {
@@ -85,7 +85,7 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 type mockBackuper struct {
 	checkFunc func(
 		bases []kopia.IncrementalBase,
-		cs []data.Collection,
+		cs []data.BackupCollection,
 		tags map[string]string,
 		buildTreeWithBase bool,
 	)
@@ -94,7 +94,7 @@ type mockBackuper struct {
 func (mbu mockBackuper) BackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
-	cs []data.Collection,
+	cs []data.BackupCollection,
 	excluded map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
@@ -559,7 +559,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			mbu := &mockBackuper{
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
-					cs []data.Collection,
+					cs []data.BackupCollection,
 					tags map[string]string,
 					buildTreeWithBase bool,
 				) {

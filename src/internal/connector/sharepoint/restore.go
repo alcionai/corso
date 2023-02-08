@@ -30,7 +30,7 @@ import (
 // -- Switch:
 // ---- Libraries restored via the same workflow as oneDrive
 // ---- Lists call RestoreCollection()
-// ----> for each data.Stream within  Collection.Items()
+// ----> for each data.Stream within  RestoreCollection.Items()
 // ----> restoreListItems() is called
 // Restored List can be found in the Site's `Site content` page
 // Restored Libraries can be found within the Site's `Pages` page
@@ -43,7 +43,7 @@ func RestoreCollections(
 	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
-	dcs []data.Collection,
+	dcs []data.RestoreCollection,
 	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -219,7 +219,7 @@ func restoreListItem(
 func RestoreListCollection(
 	ctx context.Context,
 	service graph.Servicer,
-	dc data.Collection,
+	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
@@ -291,7 +291,7 @@ func RestoreListCollection(
 func RestorePageCollection(
 	ctx context.Context,
 	creds account.M365Config,
-	dc data.Collection,
+	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
