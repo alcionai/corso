@@ -30,10 +30,10 @@ const (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Item{}
-	_ data.StreamInfo    = &Item{}
-	_ data.StreamModTime = &Item{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Item{}
+	_ data.StreamInfo       = &Item{}
+	_ data.StreamModTime    = &Item{}
 )
 
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported

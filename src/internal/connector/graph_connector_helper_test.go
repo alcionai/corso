@@ -740,7 +740,7 @@ func compareItem(
 func checkHasCollections(
 	t *testing.T,
 	expected map[string]map[string][]byte,
-	got []data.Collection,
+	got []data.BackupCollection,
 ) {
 	t.Helper()
 
@@ -762,10 +762,10 @@ func checkCollections(
 	t *testing.T,
 	expectedItems int,
 	expected map[string]map[string][]byte,
-	got []data.Collection,
+	got []data.BackupCollection,
 	restorePermissions bool,
 ) int {
-	collectionsWithItems := []data.Collection{}
+	collectionsWithItems := []data.BackupCollection{}
 
 	skipped := 0
 	gotItems := 0
@@ -950,8 +950,8 @@ func collectionsForInfo(
 	tenant, user string,
 	dest control.RestoreDestination,
 	allInfo []colInfo,
-) (int, int, []data.Collection, map[string]map[string][]byte) {
-	collections := make([]data.Collection, 0, len(allInfo))
+) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
+	collections := make([]data.RestoreCollection, 0, len(allInfo))
 	expectedData := make(map[string]map[string][]byte, len(allInfo))
 	totalItems := 0
 	kopiaEntries := 0
@@ -1002,8 +1002,8 @@ func collectionsForInfoVersion0(
 	tenant, user string,
 	dest control.RestoreDestination,
 	allInfo []colInfo,
-) (int, int, []data.Collection, map[string]map[string][]byte) {
-	collections := make([]data.Collection, 0, len(allInfo))
+) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
+	collections := make([]data.RestoreCollection, 0, len(allInfo))
 	expectedData := make(map[string]map[string][]byte, len(allInfo))
 	totalItems := 0
 	kopiaEntries := 0

@@ -76,7 +76,7 @@ func (ss *streamStore) WriteBackupDetails(
 	backupStats, _, _, err := ss.kw.BackupCollections(
 		ctx,
 		nil,
-		[]data.Collection{dc},
+		[]data.BackupCollection{dc},
 		nil,
 		nil,
 		false)
@@ -164,7 +164,7 @@ func (ss *streamStore) DeleteBackupDetails(
 	return nil
 }
 
-// streamCollection is a data.Collection used to persist
+// streamCollection is a data.BackupCollection used to persist
 // a single data stream
 type streamCollection struct {
 	// folderPath indicates what level in the hierarchy this collection

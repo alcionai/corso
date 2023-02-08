@@ -983,7 +983,7 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			cols := []data.Collection{}
+			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
 				mc, err := graph.MakeMetadataCollection(
@@ -1529,7 +1529,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			for _, baseCol := range cols {
 				folderPath := baseCol.FullPath().String()
 				if folderPath == metadataPath.String() {
-					deltas, paths, err := deserializeMetadata(ctx, []data.Collection{baseCol})
+					deltas, paths, err := deserializeMetadata(ctx, []data.RestoreCollection{baseCol})
 					if !assert.NoError(t, err, "deserializing metadata") {
 						continue
 					}
