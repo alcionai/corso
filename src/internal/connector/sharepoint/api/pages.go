@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -25,16 +26,50 @@ func GetSitePages(
 	siteID string,
 	pages []string,
 ) ([]models.SitePageable, error) {
-	col := make([]models.SitePageable, 0)
-	opts := retrieveSitePageOptions()
+	var (
+		col         = make([]models.SitePageable, 0)
+		semaphoreCh = make(chan struct{}, fetchChannelSize)
+		opts        = retrieveSitePageOptions()
+		errs        error
+		wg          sync.WaitGroup
+		m           sync.Mutex
+	)
+
+	defer close(semaphoreCh)
+
+	errUpdater := func(id string, err error) {
+		m.Lock()
+		errs = support.WrapAndAppend(id, err, errs)
+		m.Unlock()
+	}
+	updatePages := func(page models.SitePageable) {
+		m.Lock()
+		col = append(col, page)
+		m.Unlock()
+	}
 
 	for _, entry := range pages {
-		page, err := serv.Client().SitesById(siteID).PagesById(entry).Get(ctx, opts)
-		if err != nil {
-			return nil, support.ConnectorStackErrorTraceWrap(err, "fetching page: "+entry)
-		}
+		semaphoreCh <- struct{}{}
 
-		col = append(col, page)
+		wg.Add(1)
+
+		go func(pageID string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			page, err := serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
+			if err != nil {
+				errUpdater(pageID, errors.Wrap(err, support.ConnectorStackErrorTrace(err)+" fetching page"))
+			} else {
+				updatePages(page)
+			}
+		}(entry)
+	}
+
+	wg.Wait()
+
+	if errs != nil {
+		return nil, errs
 	}
 
 	return col, nil
