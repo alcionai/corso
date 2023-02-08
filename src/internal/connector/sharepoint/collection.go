@@ -28,6 +28,7 @@ type DataCategory int
 //go:generate stringer -type=DataCategory
 const (
 	collectionChannelBufferSize              = 50
+	fetchChannelSize                         = 5
 	Unknown                     DataCategory = iota
 	List
 	Drive
