@@ -278,30 +278,16 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			if oc.source == OneDriveSource {
 				// Fetch metadata for the file
-				for i := 1; i <= maxRetries; i++ {
-					if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
-						// We are still writing the metadata file but with
-						// empty permissions as we don't have a way to
-						// signify that the permissions was explicitly
-						// not added.
-						itemMeta = io.NopCloser(strings.NewReader("{}"))
-						itemMetaSize = 2
 
-						break
-					}
-
+				if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
+					// We are still writing the metadata file but with
+					// empty permissions as we don't have a way to
+					// signify that the permissions was explicitly
+					// not added.
+					itemMeta = io.NopCloser(strings.NewReader("{}"))
+					itemMetaSize = 2
+				} else {
 					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-
-					// retry on Timeout type errors, break otherwise.
-					if err == nil ||
-						!graph.IsErrTimeout(err) ||
-						!graph.IsInternalServerError(err) {
-						break
-					}
-
-					if i < maxRetries {
-						time.Sleep(1 * time.Second)
-					}
 				}
 
 				if err != nil {
@@ -336,38 +322,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						err      error
 					)
 
-					for i := 1; i <= maxRetries; i++ {
-						_, itemData, err = oc.itemReader(oc.itemClient, item)
-						if err == nil {
-							break
+					_, itemData, err = oc.itemReader(oc.itemClient, item)
+
+					if err != nil && graph.IsErrUnauthorized(err) {
+						// assume unauthorized requests are a sign of an expired
+						// jwt token, and that we've overrun the available window
+						// to download the actual file.  Re-downloading the item
+						// will refresh that download url.
+						di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+						if diErr != nil {
+							err = errors.Wrap(diErr, "retrieving expired item")
 						}
-
-						if graph.IsErrUnauthorized(err) {
-							// assume unauthorized requests are a sign of an expired
-							// jwt token, and that we've overrun the available window
-							// to download the actual file.  Re-downloading the item
-							// will refresh that download url.
-							di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
-							if diErr != nil {
-								err = errors.Wrap(diErr, "retrieving expired item")
-								break
-							}
-
-							item = di
-
-							continue
-
-						} else if !graph.IsErrTimeout(err) &&
-							!graph.IsInternalServerError(err) {
-							// Don't retry for non-timeout, on-unauth, as
-							// we are already retrying it in the default
-							// retry middleware
-							break
-						}
-
-						if i < maxRetries {
-							time.Sleep(1 * time.Second)
-						}
+						item = di
 					}
 
 					// check for errors following retries
