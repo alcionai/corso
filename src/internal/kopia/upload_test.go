@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -456,6 +457,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 						UploadProgress: &snapshotfs.NullUploadProgress{},
 						deets:          bd,
 						pending:        map[string]*itemDetails{},
+						errs:           fault.New(true),
 					}
 
 					ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -503,6 +505,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
+		errs:           fault.New(true),
 	}
 
 	for k, v := range cachedItems {
@@ -518,7 +521,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 
 	assert.Empty(t, cp.pending)
 	assert.Empty(t, bd.Details().Entries)
-	assert.Error(t, cp.errs.ErrorOrNil())
+	assert.Error(t, cp.errs.Err())
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
@@ -533,6 +536,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
 		toMerge:        map[string]path.Path{},
+		errs:           fault.New(true),
 	}
 
 	deets := &itemDetails{info: &details.ItemInfo{}, repoPath: suite.targetFilePath}
@@ -605,6 +609,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
 		toMerge:        map[string]path.Path{},
+		errs:           fault.New(true),
 	}
 
 	deets := &itemDetails{
@@ -629,6 +634,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 				UploadProgress: &snapshotfs.NullUploadProgress{},
 				deets:          bd,
 				pending:        map[string]*itemDetails{},
+				errs:           fault.New(true),
 			}
 
 			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -681,7 +687,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 		user2Encoded: 42,
 	}
 
-	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		errs:    fault.New(true),
+	}
 
 	collections := []data.BackupCollection{
 		mockconnector.NewMockExchangeCollection(
@@ -791,7 +800,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			progress := &corsoProgress{
+				pending: map[string]*itemDetails{},
+				errs:    fault.New(true),
+			}
 
 			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
 			require.NoError(t, err)
@@ -971,7 +983,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			progress := &corsoProgress{
+				pending: map[string]*itemDetails{},
+				errs:    fault.New(true),
+			}
 
 			cols := []data.BackupCollection{}
 			for _, s := range test.states {
@@ -1249,7 +1264,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			progress := &corsoProgress{
+				pending: map[string]*itemDetails{},
+				errs:    fault.New(true),
+			}
 			msw := &mockSnapshotWalker{
 				snapshotRoot: getBaseSnapshot(),
 			}
@@ -1951,7 +1969,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			progress := &corsoProgress{pending: map[string]*itemDetails{}}
+			progress := &corsoProgress{
+				pending: map[string]*itemDetails{},
+				errs:    fault.New(true),
+			}
 			msw := &mockSnapshotWalker{
 				snapshotRoot: getBaseSnapshot(),
 			}
@@ -2097,7 +2118,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 		},
 	)
 
-	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		errs:    fault.New(true),
+	}
 	mc := mockconnector.NewMockExchangeCollection(suite.testPath, 1)
 	mc.PrevPath = mc.FullPath()
 	mc.ColState = data.DeletedState
@@ -2346,7 +2370,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 		},
 	)
 
-	progress := &corsoProgress{pending: map[string]*itemDetails{}}
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		errs:    fault.New(true),
+	}
 
 	mc := mockconnector.NewMockExchangeCollection(inboxPath, 1)
 	mc.PrevPath = mc.FullPath()

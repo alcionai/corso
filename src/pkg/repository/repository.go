@@ -323,7 +323,8 @@ func (r repository) BackupDetails(
 	deets, err := streamstore.New(
 		r.dataLayer,
 		r.Account.ID(),
-		b.Selector.PathService()).ReadBackupDetails(ctx, dID)
+		b.Selector.PathService(),
+	).ReadBackupDetails(ctx, dID, errs)
 	if err != nil {
 		return nil, nil, errs.Fail(err)
 	}

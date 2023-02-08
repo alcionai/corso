@@ -45,7 +45,7 @@ func produceManifestsAndMetadata(
 	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
-	errs fault.Adder,
+	errs *fault.Errors,
 ) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
 		metadataFiles = graph.AllMetadataFileNames()
@@ -117,7 +117,7 @@ func produceManifestsAndMetadata(
 			return ms, nil, false, nil
 		}
 
-		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID)
+		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, errs)
 		if err != nil && !errors.Is(err, data.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -183,6 +183,7 @@ func collectMetadata(
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
+	errs *fault.Errors,
 ) ([]data.RestoreCollection, error) {
 	paths := []path.Path{}
 
@@ -206,7 +207,7 @@ func collectMetadata(
 		}
 	}
 
-	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil)
+	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil, errs)
 	if err != nil {
 		// Restore is best-effort and we want to keep it that way since we want to
 		// return as much metadata as we can to reduce the work we'll need to do.

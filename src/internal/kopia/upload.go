@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
@@ -25,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -137,7 +139,7 @@ type corsoProgress struct {
 	toMerge    map[string]path.Path
 	mu         sync.RWMutex
 	totalBytes int64
-	errs       *multierror.Error
+	errs       *fault.Errors
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -167,11 +169,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.info == nil {
 		if d.prevPath == nil {
-			cp.errs = multierror.Append(cp.errs, errors.Errorf(
-				"item sourced from previous backup with no previous path. Service: %s, Category: %s",
-				d.repoPath.Service().String(),
-				d.repoPath.Category().String(),
-			))
+			cp.errs.Add(clues.New("item sourced from previous backup with no previous path").
+				WithAll(
+					"service", d.repoPath.Service().String(),
+					"category", d.repoPath.Category().String(),
+				))
 
 			return
 		}
