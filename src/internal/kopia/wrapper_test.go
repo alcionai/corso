@@ -903,7 +903,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				suite.testPath1,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 2,
+			expectedCollections: 0,
 			expectedErr:         assert.Error,
 		},
 		{
@@ -913,7 +913,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				doesntExist,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 2,
+			expectedCollections: 0,
 			expectedErr:         assert.Error,
 		},
 	}
