@@ -3,18 +3,22 @@ package sharepoint
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"time"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -27,6 +31,7 @@ const (
 	Unknown                     DataCategory = iota
 	List
 	Drive
+	Pages
 )
 
 var (
@@ -35,6 +40,12 @@ var (
 	_ data.StreamInfo       = &Item{}
 	_ data.StreamModTime    = &Item{}
 )
+
+type numMetrics struct {
+	attempts   int
+	success    int
+	totalBytes int64
+}
 
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
 // by the oneDrive.Collection as the calls are identical for populating the Collection
@@ -46,7 +57,9 @@ type Collection struct {
 	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
 	jobs []string
 	// M365 IDs of the items of this collection
+	category      DataCategory
 	service       graph.Servicer
+	ctrl          control.Options
 	betaService   *api.BetaService
 	statusUpdater support.StatusUpdater
 }
@@ -55,6 +68,7 @@ type Collection struct {
 func NewCollection(
 	folderPath path.Path,
 	service graph.Servicer,
+	category DataCategory,
 	statusUpdater support.StatusUpdater,
 ) *Collection {
 	c := &Collection{
@@ -63,6 +77,7 @@ func NewCollection(
 		data:          make(chan data.Stream, collectionChannelBufferSize),
 		service:       service,
 		statusUpdater: statusUpdater,
+		category:      category,
 	}
 
 	return c
@@ -160,10 +175,9 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 // populate utility function to retrieve data from back store for a given collection
 func (sc *Collection) populate(ctx context.Context) {
 	var (
-		objects, success        int
-		totalBytes, arrayLength int64
-		errs                    error
-		writer                  = kw.NewJsonSerializationWriter()
+		metrics numMetrics
+		errs    error
+		writer  = kw.NewJsonSerializationWriter()
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
@@ -176,25 +190,50 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, objects, success, totalBytes, errs)
+		sc.finishPopulation(ctx, metrics.attempts, metrics.success, metrics.totalBytes, errs)
 	}()
 
-	// Retrieve list data from M365
+	// Switch retrieval function based on category
+	switch sc.category {
+	case List:
+		metrics, errs = sc.retrieveLists(ctx, writer, colProgress)
+	case Pages:
+		metrics, errs = sc.retrievePages(ctx, writer, colProgress)
+	}
+}
+
+// retrieveLists utility function for collection that downloads and serializes
+// models.Listable objects based on M365 IDs from the jobs field.
+func (sc *Collection) retrieveLists(
+	ctx context.Context,
+	wtr *kw.JsonSerializationWriter,
+	progress chan<- struct{},
+) (numMetrics, error) {
+	var (
+		errs    error
+		metrics numMetrics
+	)
+
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
-		errs = support.WrapAndAppend(sc.fullPath.ResourceOwner(), err, errs)
+		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
 	}
 
-	objects += len(lists)
-	// Write Data and Send
+	metrics.attempts += len(lists)
+	// For each models.Listable, object is serialized and the metrics are collected.
+	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
-		byteArray, err := serializeListContent(writer, lst)
+		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
 			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
+			if sc.ctrl.FailFast {
+				return metrics, errs
+			}
+
 			continue
 		}
 
-		arrayLength = int64(len(byteArray))
+		arrayLength := int64(len(byteArray))
 
 		if arrayLength > 0 {
 			t := time.Now()
@@ -202,9 +241,9 @@ func (sc *Collection) populate(ctx context.Context) {
 				t = *t1
 			}
 
-			totalBytes += arrayLength
+			metrics.totalBytes += arrayLength
 
-			success++
+			metrics.success++
 			sc.data <- &Item{
 				id:      *lst.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
@@ -212,15 +251,76 @@ func (sc *Collection) populate(ctx context.Context) {
 				modTime: t,
 			}
 
-			colProgress <- struct{}{}
+			progress <- struct{}{}
 		}
 	}
+
+	return metrics, nil
 }
 
-func serializeListContent(writer *kw.JsonSerializationWriter, lst models.Listable) ([]byte, error) {
+func (sc *Collection) retrievePages(
+	ctx context.Context,
+	wtr *kw.JsonSerializationWriter,
+	progress chan<- struct{},
+) (numMetrics, error) {
+	var (
+		errs    error
+		metrics numMetrics
+	)
+
+	betaService := sc.betaService
+	if betaService == nil {
+		return metrics, fmt.Errorf("beta service not found in collection")
+	}
+
+	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
+	if err != nil {
+		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
+	}
+
+	metrics.attempts = len(pages)
+	// For each models.Pageable, object is serialize and the metrics are collected and returned.
+	// Pageable objects are not supported in v1.0 of msgraph at this time.
+	// TODO: Verify Parsable interface supported with modified-Pageable
+	for _, pg := range pages {
+		byteArray, err := serializeContent(wtr, pg)
+		if err != nil {
+			errs = support.WrapAndAppend(*pg.GetId(), err, errs)
+			if sc.ctrl.FailFast {
+				return metrics, errs
+			}
+
+			continue
+		}
+
+		arrayLength := int64(len(byteArray))
+
+		if arrayLength > 0 {
+			t := time.Now()
+			if t1 := pg.GetLastModifiedDateTime(); t1 != nil {
+				t = *t1
+			}
+
+			metrics.totalBytes += arrayLength
+			metrics.success++
+			sc.data <- &Item{
+				id:      *pg.GetId(),
+				data:    io.NopCloser(bytes.NewReader(byteArray)),
+				info:    sharePointPageInfo(pg, arrayLength),
+				modTime: t,
+			}
+
+			progress <- struct{}{}
+		}
+	}
+
+	return numMetrics{}, nil
+}
+
+func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
 	defer writer.Close()
 
-	err := writer.WriteObjectValue("", lst)
+	err := writer.WriteObjectValue("", obj)
 	if err != nil {
 		return nil, err
 	}

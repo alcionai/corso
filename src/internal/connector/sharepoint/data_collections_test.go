@@ -5,10 +5,12 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -127,4 +129,46 @@ func driveItem(name string, path string, isFile bool) models.DriveItemable {
 	}
 
 	return item
+}
+
+type SharePointPagesSuite struct {
+	suite.Suite
+}
+
+func TestSharePointPagesSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorSharePointTests)
+	suite.Run(t, new(SharePointPagesSuite))
+}
+
+func (suite *SharePointPagesSuite) TestCollectPages() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+	siteID := tester.M365SiteID(t)
+	a := tester.NewM365Account(t)
+	account, err := a.M365Config()
+	require.NoError(t, err)
+
+	updateFunc := func(*support.ConnectorOperationStatus) {
+		t.Log("Updater Called ")
+	}
+
+	updater := &MockUpdater{UpdateState: updateFunc}
+
+	col, err := collectPages(
+		ctx,
+		account,
+		nil,
+		account.AzureTenantID,
+		siteID,
+		updater,
+		control.Options{},
+	)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, col)
 }

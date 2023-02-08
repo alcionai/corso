@@ -118,7 +118,7 @@ func collectLists(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, List, updater.UpdateStatus)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
@@ -172,7 +172,6 @@ func collectPages(
 	creds account.M365Config,
 	serv graph.Servicer,
 	tenantID, siteID string,
-	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
@@ -204,7 +203,7 @@ func collectPages(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus)
 		collection.betaService = betaService
 		collection.AddJob(tuple.ID)
 
