@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	absser "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -58,14 +59,27 @@ const (
 // require more fine-tuned controls in the future.
 // https://stackoverflow.com/questions/64044266/error-message-unsupported-or-invalid-query-filter-clause-specified-for-property
 //
+// ne 'Guest' ensures we don't filter out users where userType = null, which can happen
+// for user accounts created prior to 2014.  In order to use the `ne` comparator, we
+// MUST include $count=true and the ConsistencyLevel: eventual header.
+// https://stackoverflow.com/questions/49340485/how-to-filter-users-by-usertype-null
+//
 //nolint:lll
-var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType eq 'Member'"
+var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
+
+// I can't believe I have to do this.
+var t = true
 
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
+	headers := absser.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
+
 	return &users.UsersRequestBuilderGetRequestConfiguration{
+		Headers: headers,
 		QueryParameters: &users.UsersRequestBuilderGetQueryParameters{
 			Select: []string{userSelectID, userSelectPrincipalName, userSelectDisplayName},
 			Filter: fs,
+			Count:  &t,
 		},
 	}
 }

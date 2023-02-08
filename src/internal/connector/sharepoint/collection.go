@@ -123,6 +123,15 @@ type Item struct {
 	deleted bool
 }
 
+func NewItem(name string, d io.ReadCloser) *Item {
+	item := &Item{
+		id:   name,
+		data: d,
+	}
+
+	return item
+}
+
 func (sd *Item) UUID() string {
 	return sd.id
 }
@@ -191,11 +200,8 @@ func (sc *Collection) populate(ctx context.Context) {
 	// Switch retrieval function based on category
 	switch sc.category {
 	case List:
-		// do the thing
-		// ctx, service, writer
 		metrics, errs = sc.retrieveLists(ctx, writer, colProgress)
 	case Pages:
-		// do the other thing
 		metrics, errs = sc.retrievePages(ctx, writer, colProgress)
 	}
 }
