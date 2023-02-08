@@ -68,6 +68,7 @@ func uploadAttachment(
 				name = *prev.GetName()
 			}
 
+			// TODO: (rkeepers) Update to support PII protection
 			msg := "item attachment restore not supported for this type. skipping upload."
 			logger.Ctx(ctx).Infow(msg,
 				"err", err,
