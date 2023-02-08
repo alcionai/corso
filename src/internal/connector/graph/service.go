@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -16,7 +15,6 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -28,7 +26,7 @@ const (
 	retryAttemptHeader      = "Retry-Attempt"
 	retryAfterHeader        = "Retry-After"
 	defaultMaxRetries       = 3
-	defaultDelaySeconds     = 1
+	defaultDelaySeconds     = 3
 	absoluteMaxDelaySeconds = 180
 )
 
@@ -111,7 +109,6 @@ func (c *clientConfig) applyMiddlewareConfig(retryoptions *RetryHandlerOptions) 
 	if c.retry.NoRetry {
 		retryoptions = &RetryHandlerOptions{NoRetry: true}
 	} else {
-		fmt.Println("trying to apply middleware config")
 		if c.retry.MaxRetries > 0 {
 			retryoptions.MaxRetries = c.retry.MaxRetries
 		}

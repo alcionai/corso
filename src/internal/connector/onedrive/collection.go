@@ -285,7 +285,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					itemMetaSize = 2
 				} else {
 					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-          
+
 					if err != nil {
 						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
 						return
