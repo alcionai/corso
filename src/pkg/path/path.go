@@ -140,6 +140,14 @@ func (pb Builder) UnescapeAndAppend(elements ...string) (*Builder, error) {
 	return res, nil
 }
 
+// SplitUnescapeAppend takes in an escaped string representing a directory
+// path, splits the string, and appends it to the current builder.
+func (pb Builder) SplitUnescapeAppend(s string) (*Builder, error) {
+	elems := Split(TrimTrailingSlash(s))
+
+	return pb.UnescapeAndAppend(elems...)
+}
+
 // Append creates a copy of this Builder and adds the given elements them to the
 // end of the new Builder. Elements are added in the order they are passed.
 func (pb Builder) Append(elements ...string) *Builder {
