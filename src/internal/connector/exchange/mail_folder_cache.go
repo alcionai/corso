@@ -53,7 +53,9 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 			directory = DefaultMailFolder
 		}
 
-		temp := graph.NewCacheFolder(f, path.Builder{}.Append(directory))
+		temp := graph.NewCacheFolder(f,
+			path.Builder{}.Append(directory), // storage path
+			path.Builder{}.Append(directory)) // display location
 		if err := mc.addFolder(temp); err != nil {
 			return errors.Wrap(err, "adding resolver dir")
 		}
