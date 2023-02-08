@@ -106,7 +106,6 @@ func includeContainer(
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {
 		pb = pb.Append(DefaultContactFolder)
-
 		if loc != nil {
 			loc = loc.Append(DefaultContactFolder)
 		}

@@ -349,10 +349,11 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				"tenant",
 				"site",
 				test.sc.PathType(),
-				true,
-			)
+				true)
 			require.NoError(t, err)
-			assert.Equal(t, test.expected, test.sc.pathValues(itemPath))
+			r, l := test.sc.pathValues(itemPath, itemPath)
+			assert.Equal(t, test.expected, r)
+			assert.Equal(t, test.expected, l)
 		})
 	}
 }
