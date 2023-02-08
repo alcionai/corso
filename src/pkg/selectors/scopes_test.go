@@ -290,6 +290,50 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	}
 }
 
+func (suite *SelectorScopesSuite) TestReduce_locationRef() {
+	deets := func() details.Details {
+		return details.Details{
+			DetailsModel: details.DetailsModel{
+				Entries: []details.DetailsEntry{
+					{
+						RepoRef: stubRepoRef(
+							pathServiceStub,
+							pathCatStub,
+							rootCatStub.String(),
+							"stub",
+							leafCatStub.String(),
+						),
+						LocationRef: "a/b/c//defg",
+					},
+				},
+			},
+		}
+	}
+	dataCats := map[path.CategoryType]mockCategorizer{
+		pathCatStub: rootCatStub,
+	}
+
+	for _, test := range reduceTestTable {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			errs := mock.NewAdder()
+
+			ds := deets()
+			result := reduce[mockScope](
+				ctx,
+				&ds,
+				test.sel().Selector,
+				dataCats,
+				errs)
+			require.NotNil(t, result)
+			require.Empty(t, errs.Errs, "iteration errors")
+			assert.Len(t, result.Entries, test.expectLen)
+		})
+	}
+}
+
 func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
