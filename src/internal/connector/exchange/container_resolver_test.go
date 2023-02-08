@@ -26,16 +26,19 @@ type mockContainer struct {
 	displayName *string
 	parentID    *string
 	p           *path.Builder
+	l           *path.Builder
 }
 
 //nolint:revive
 func (m mockContainer) GetId() *string { return m.id }
 
 //nolint:revive
-func (m mockContainer) GetParentFolderId() *string { return m.parentID }
-func (m mockContainer) GetDisplayName() *string    { return m.displayName }
-func (m mockContainer) Path() *path.Builder        { return m.p }
-func (m mockContainer) SetPath(p *path.Builder)    {}
+func (m mockContainer) GetParentFolderId() *string  { return m.parentID }
+func (m mockContainer) GetDisplayName() *string     { return m.displayName }
+func (m mockContainer) Location() *path.Builder     { return m.l }
+func (m mockContainer) SetLocation(p *path.Builder) {}
+func (m mockContainer) Path() *path.Builder         { return m.p }
+func (m mockContainer) SetPath(p *path.Builder)     {}
 
 func strPtr(s string) *string {
 	return &s
@@ -168,7 +171,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 					parentID:    nil,
 				},
 				nil,
-			),
+				nil),
 			check: assert.Error,
 		},
 		{
@@ -180,7 +183,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 					parentID:    nil,
 				},
 				path.Builder{}.Append("foo"),
-			),
+				path.Builder{}.Append("loc")),
 			check: assert.NoError,
 		},
 		{
@@ -192,7 +195,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 					parentID:    &testParentID,
 				},
 				path.Builder{}.Append("foo"),
-			),
+				path.Builder{}.Append("loc")),
 			check: assert.Error,
 		},
 		{
@@ -204,7 +207,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 					parentID:    &testParentID,
 				},
 				path.Builder{}.Append("foo"),
-			),
+				path.Builder{}.Append("loc")),
 			check: assert.Error,
 		},
 		{
@@ -216,7 +219,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 					parentID:    &testParentID,
 				},
 				nil,
-			),
+				nil),
 			check: assert.NoError,
 		},
 	}
@@ -241,31 +244,21 @@ type mockCachedContainer struct {
 	id           string
 	parentID     string
 	displayName  string
+	l            *path.Builder
 	p            *path.Builder
 	expectedPath string
 }
 
 //nolint:revive
-func (m mockCachedContainer) GetId() *string {
-	return &m.id
-}
+func (m mockCachedContainer) GetId() *string { return &m.id }
 
 //nolint:revive
-func (m mockCachedContainer) GetParentFolderId() *string {
-	return &m.parentID
-}
-
-func (m mockCachedContainer) GetDisplayName() *string {
-	return &m.displayName
-}
-
-func (m mockCachedContainer) Path() *path.Builder {
-	return m.p
-}
-
-func (m *mockCachedContainer) SetPath(newPath *path.Builder) {
-	m.p = newPath
-}
+func (m mockCachedContainer) GetParentFolderId() *string        { return &m.parentID }
+func (m mockCachedContainer) GetDisplayName() *string           { return &m.displayName }
+func (m mockCachedContainer) Location() *path.Builder           { return m.l }
+func (m *mockCachedContainer) SetLocation(newLoc *path.Builder) { m.l = newLoc }
+func (m mockCachedContainer) Path() *path.Builder               { return m.p }
+func (m *mockCachedContainer) SetPath(newPath *path.Builder)    { m.p = newPath }
 
 func resolverWithContainers(numContainers int) (*containerResolver, []*mockCachedContainer) {
 	containers := make([]*mockCachedContainer, 0, numContainers)
