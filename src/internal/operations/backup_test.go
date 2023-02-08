@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -62,6 +63,7 @@ func (mr *mockRestorer) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bc kopia.ByteCounter,
+	errs *fault.Errors,
 ) ([]data.RestoreCollection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
@@ -98,6 +100,7 @@ func (mbu mockBackuper) BackupCollections(
 	excluded map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
+	errs *fault.Errors,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
@@ -115,6 +118,7 @@ type mockDetailsReader struct {
 func (mdr mockDetailsReader) ReadBackupDetails(
 	ctx context.Context,
 	detailsID string,
+	errs *fault.Errors,
 ) (*details.Details, error) {
 	r := mdr.entries[detailsID]
 
@@ -578,7 +582,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				nil,
 				model.StableID(""),
 				true,
-			)
+				fault.New(true))
 		})
 	}
 }
@@ -1060,7 +1064,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 
 			mdr := mockDetailsReader{entries: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
-
 			deets := details.Builder{}
 
 			err := mergeDetails(
@@ -1070,8 +1073,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
 				&deets,
-			)
-
+				fault.New(true))
 			test.errCheck(t, err)
 			if err != nil {
 				return
@@ -1168,7 +1170,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 
 	mdr := mockDetailsReader{entries: populatedDetails}
 	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
-
 	deets := details.Builder{}
 
 	err := mergeDetails(
@@ -1178,8 +1179,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		inputMans,
 		inputToMerge,
 		&deets,
-	)
-
+		fault.New(true))
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
 }

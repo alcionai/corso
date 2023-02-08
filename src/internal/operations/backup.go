@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -100,7 +101,7 @@ type backupStats struct {
 }
 
 type detailsWriter interface {
-	WriteBackupDetails(context.Context, *details.Details) (string, error)
+	WriteBackupDetails(context.Context, *details.Details, *fault.Errors) (string, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -259,7 +260,8 @@ func (op *BackupOperation) do(
 		cs,
 		excludes,
 		backupID,
-		op.incremental && canUseMetaData)
+		op.incremental && canUseMetaData,
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "persisting collection backups")
 	}
@@ -272,7 +274,8 @@ func (op *BackupOperation) do(
 		detailsStore,
 		mans,
 		toMerge,
-		deets)
+		deets,
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "merging details")
 	}
@@ -335,6 +338,7 @@ type backuper interface {
 		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
+		errs *fault.Errors,
 	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
 }
 
@@ -393,6 +397,7 @@ func consumeBackupDataCollections(
 	excludes map[string]struct{},
 	backupID model.StableID,
 	isIncremental bool,
+	errs *fault.Errors,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
@@ -460,7 +465,8 @@ func consumeBackupDataCollections(
 		// OneDrive replace this with `excludes`.
 		nil,
 		tags,
-		isIncremental)
+		isIncremental,
+		errs)
 	if err != nil {
 		if kopiaStats == nil {
 			return nil, nil, nil, err
@@ -500,6 +506,7 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	shortRefsFromPrevBackup map[string]path.Path,
 	deets *details.Builder,
+	errs *fault.Errors,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to
 	// merge.
@@ -529,7 +536,8 @@ func mergeDetails(
 			ctx,
 			model.StableID(bID),
 			ms,
-			detailsStore)
+			detailsStore,
+			errs)
 		if err != nil {
 			return clues.New("fetching base details for backup").WithClues(mctx)
 		}
@@ -650,7 +658,7 @@ func (op *BackupOperation) createBackupModels(
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
-	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails)
+	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails, op.Errors)
 	if err != nil {
 		return clues.Wrap(err, "creating backupDetails model").WithClues(ctx)
 	}
