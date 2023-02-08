@@ -104,6 +104,7 @@ type restorer interface {
 		snapshotID string,
 		paths []path.Path,
 		bc kopia.ByteCounter,
+		errs *fault.Errors,
 	) ([]data.RestoreCollection, error)
 }
 
@@ -197,7 +198,7 @@ func (op *RestoreOperation) do(
 		op.BackupID,
 		op.store,
 		detailsStore,
-	)
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting backup and details")
 	}
@@ -228,7 +229,7 @@ func (op *RestoreOperation) do(
 	defer closer()
 	defer close(kopiaComplete)
 
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving collections from repository")
 	}
