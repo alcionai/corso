@@ -119,7 +119,7 @@ func NewCollection(
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
-		state:           stateOf(prevPath, folderPath),
+		state:           data.StateOf(prevPath, folderPath),
 		doNotMergeItems: doNotMergeItems,
 	}
 
@@ -133,26 +133,6 @@ func NewCollection(
 	}
 
 	return c
-}
-
-// Figures out the state of a collection using prev and current path
-// This is similar to the one in exchange, but instead of checking the
-// equivalence of folders, it checks it for the actual item.
-// TODO(meain): Why is exchange checking folders?
-func stateOf(prev, curr path.Path) data.CollectionState {
-	if curr == nil || len(curr.String()) == 0 {
-		return data.DeletedState
-	}
-
-	if prev == nil || len(prev.String()) == 0 {
-		return data.NewState
-	}
-
-	if curr.String() != prev.String() {
-		return data.MovedState
-	}
-
-	return data.NotMovedState
 }
 
 // Adds an itemID to the collection
@@ -177,11 +157,9 @@ func (oc Collection) PreviousPath() path.Path {
 
 func (oc *Collection) SetPreviousPath(prevPath path.Path) {
 	oc.prevPath = prevPath
-	oc.state = stateOf(prevPath, oc.folderPath)
+	oc.state = data.StateOf(prevPath, oc.folderPath)
 }
 
-// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
-// hierarchies.
 func (oc Collection) State() data.CollectionState {
 	return oc.state
 }

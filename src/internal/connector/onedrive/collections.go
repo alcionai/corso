@@ -488,7 +488,7 @@ func (c *Collections) UpdateCollections(
 				}
 			} else {
 				// If we have previously created a collection when
-				// we encountered a file, this gives us a change
+				// we encountered a file, this gives us a chance
 				// to mark the container as moved or not moved
 				// instead of new.
 				ccol, ok := col.(*Collection)
