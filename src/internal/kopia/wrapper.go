@@ -102,7 +102,11 @@ func (w *Wrapper) Close(ctx context.Context) error {
 	err := w.c.Close(ctx)
 	w.c = nil
 
-	return clues.Wrap(err, "closing Wrapper").WithClues(ctx)
+	if err != nil {
+		return clues.Wrap(err, "closing Wrapper").WithClues(ctx)
+	}
+
+	return nil
 }
 
 type IncrementalBase struct {
