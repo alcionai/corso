@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -26,7 +27,7 @@ const (
 	retryAttemptHeader      = "Retry-Attempt"
 	retryAfterHeader        = "Retry-After"
 	defaultMaxRetries       = 3
-	defaultDelaySeconds     = 3
+	defaultDelaySeconds     = 1
 	absoluteMaxDelaySeconds = 180
 )
 
@@ -90,6 +91,7 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 
 type clientConfig struct {
 	noTimeout bool
+	retry     RetryHandlerOptions
 }
 
 type option func(*clientConfig)
@@ -101,6 +103,21 @@ func (c *clientConfig) populate(opts ...option) *clientConfig {
 	}
 
 	return c
+}
+
+// apply updates the http.Client with the expected options.
+func (c *clientConfig) applyMiddlewareConfig(retryoptions *RetryHandlerOptions) {
+	if c.retry.NoRetry {
+		retryoptions = &RetryHandlerOptions{NoRetry: true}
+	} else {
+		fmt.Println("trying to apply middleware config")
+		if c.retry.MaxRetries > 0 {
+			retryoptions.MaxRetries = c.retry.MaxRetries
+		}
+		if c.retry.DelaySeconds > 0 {
+			retryoptions.DelaySeconds = c.retry.DelaySeconds
+		}
+	}
 }
 
 // apply updates the http.Client with the expected options.
@@ -117,6 +134,15 @@ func (c *clientConfig) apply(hc *http.Client) {
 func NoTimeout() option {
 	return func(c *clientConfig) {
 		c.noTimeout = true
+	}
+}
+
+// RetryRequest sets configuration of MaxRetries and delay seconds for retry middleware
+func RetryOptions(retryOptions RetryHandlerOptions) option {
+	return func(c *clientConfig) {
+		c.retry.NoRetry = retryOptions.NoRetry
+		c.retry.MaxRetries = retryOptions.MaxRetries
+		c.retry.DelaySeconds = retryOptions.DelaySeconds
 	}
 }
 
@@ -152,23 +178,25 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 // can utilize it on a per-download basis.
 func HTTPClient(opts ...option) *http.Client {
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
-	middlewares := GetKiotaMiddlewares(&clientOptions)
+	clientconfig := (&clientConfig{}).populate(opts...)
+	retryoptions := RetryHandlerOptions{}
+	clientconfig.applyMiddlewareConfig(&retryoptions)
+	middlewares := GetKiotaMiddlewares(&clientOptions, retryoptions)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = time.Minute * 3
 
-	(&clientConfig{}).
-		populate(opts...).
-		apply(httpClient)
+	clientconfig.apply(httpClient)
 
 	return httpClient
 }
 
 // GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
-func GetMiddlewares() []khttp.Middleware {
+func GetMiddlewares(options RetryHandlerOptions) []khttp.Middleware {
 	return []khttp.Middleware{
 		// khttp.NewRetryHandler(),
 		&RetryHandler{
 			// add RetryHandlerOptions to provide custom operation like - MaxRetries and DelaySeconds
+			options: options,
 		},
 		khttp.NewRedirectHandler(),
 		khttp.NewCompressionHandler(),
@@ -179,8 +207,8 @@ func GetMiddlewares() []khttp.Middleware {
 }
 
 // GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions) []khttp.Middleware {
-	kiotaMiddlewares := GetMiddlewares()
+func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions, retryoptions RetryHandlerOptions) []khttp.Middleware {
+	kiotaMiddlewares := GetMiddlewares(retryoptions)
 	graphMiddlewares := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
 	}

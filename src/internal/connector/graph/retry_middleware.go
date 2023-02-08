@@ -23,6 +23,8 @@ type RetryHandler struct {
 }
 
 type RetryHandlerOptions struct {
+	// request never retried if flag set to true
+	NoRetry bool
 	// The maximum number of times a request can be retried
 	MaxRetries int
 	// The delay in seconds between retries
@@ -56,6 +58,7 @@ func (middleware RetryHandler) retryRequest(
 	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
 		executionCount < options.MaxRetries &&
+		!options.NoRetry &&
 		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second {
 		executionCount++
 		delay := middleware.getRetryDelay(req, resp, options, executionCount)

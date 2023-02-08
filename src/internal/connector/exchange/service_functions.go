@@ -20,6 +20,7 @@ func createService(credentials account.M365Config) (*graph.Service, error) {
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
 		credentials.AzureClientSecret,
+		graph.RetryOptions(graph.RetryHandlerOptions{MaxRetries: 3}),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
