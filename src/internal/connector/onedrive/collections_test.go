@@ -1190,6 +1190,12 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		user,
 		testBaseDrivePath+"/folder",
 	)[0]
+	folder2Path := expectedPathAsSlice(
+		suite.T(),
+		tenant,
+		user,
+		testBaseDrivePath+"/folder2",
+	)[0]
 
 	empty := ""
 	next := "next"
@@ -1320,6 +1326,38 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedFolderPaths: map[string]map[string]string{
 				driveID1: {
 					"folder": folderPath,
+				},
+			},
+			expectedDelList: map[string]struct{}{
+				"file": {},
+			},
+		},
+		{
+			name:   "OneDrive_FolderRenameWithinDelta_NoErrors",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+							driveItem("file", "file", testBaseDrivePath+"/folder", true, false, false),
+							driveItem("folder", "folder2", testBaseDrivePath, false, true, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedCollections: map[string][]string{
+				folderPath:     {"file"},
+				rootFolderPath: {"folder"},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"folder": folder2Path,
 				},
 			},
 			expectedDelList: map[string]struct{}{
