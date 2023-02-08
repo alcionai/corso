@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -202,13 +203,13 @@ func (c Events) EnumerateContainers(
 		}
 
 		for _, cal := range resp.GetValue() {
-			cd := CalendarDisplayable{Calendarable: cal, parentID: &baseDirID}
+			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}
 
-			temp := graph.NewCacheFolder(cd, nil)
+			temp := graph.NewCacheFolder(cd, path.Builder{}.Append(*cd.GetDisplayName()))
 
 			err = fn(temp)
 			if err != nil {
@@ -368,7 +369,6 @@ func (c Events) Serialize(
 // Therefore, that value will always return nil.
 type CalendarDisplayable struct {
 	models.Calendarable
-	parentID *string
 }
 
 // GetDisplayName returns the *string of the models.Calendable
@@ -383,7 +383,7 @@ func (c CalendarDisplayable) GetDisplayName() *string {
 //
 //nolint:revive
 func (c CalendarDisplayable) GetParentFolderId() *string {
-	return c.parentID
+	return nil
 }
 
 func EventInfo(evt models.Eventable) *details.ExchangeInfo {
