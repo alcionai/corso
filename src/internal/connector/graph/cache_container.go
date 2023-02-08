@@ -12,6 +12,12 @@ import (
 // reuse logic in IDToPath.
 type CachedContainer interface {
 	Container
+	// Location contains either the display names for the dirs (if this is a calendar)
+	// or nil
+	Location() *path.Builder
+	SetLocation(*path.Builder)
+	// Path contains either the ids for the dirs (if this is a calendar)
+	// or the display names for the dirs
 	Path() *path.Builder
 	SetPath(*path.Builder)
 }
@@ -45,13 +51,15 @@ var _ CachedContainer = &CacheFolder{}
 
 type CacheFolder struct {
 	Container
+	l *path.Builder
 	p *path.Builder
 }
 
 // NewCacheFolder public constructor for struct
-func NewCacheFolder(c Container, pb *path.Builder) CacheFolder {
+func NewCacheFolder(c Container, pb, lpb *path.Builder) CacheFolder {
 	cf := CacheFolder{
 		Container: c,
+		l:         lpb,
 		p:         pb,
 	}
 
@@ -61,6 +69,14 @@ func NewCacheFolder(c Container, pb *path.Builder) CacheFolder {
 // =========================================
 // Required Functions to satisfy interfaces
 // =========================================
+
+func (cf CacheFolder) Location() *path.Builder {
+	return cf.l
+}
+
+func (cf *CacheFolder) SetLocation(newLocation *path.Builder) {
+	cf.l = newLocation
+}
 
 func (cf CacheFolder) Path() *path.Builder {
 	return cf.p
