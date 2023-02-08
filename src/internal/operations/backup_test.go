@@ -277,16 +277,22 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 func makeDetailsEntry(
 	t *testing.T,
 	p path.Path,
+	l path.Path,
 	size int,
 	updated bool,
 ) *details.DetailsEntry {
 	t.Helper()
 
+	var lr string
+	if l != nil {
+		lr = l.PopFront().PopFront().PopFront().PopFront().Dir().String()
+	}
+
 	res := &details.DetailsEntry{
 		RepoRef:     p.String(),
 		ShortRef:    p.ShortRef(),
 		ParentRef:   p.ToBuilder().Dir().ShortRef(),
-		LocationRef: p.PopFront().PopFront().PopFront().PopFront().Dir().String(),
+		LocationRef: lr,
 		ItemInfo:    details.ItemInfo{},
 		Updated:     updated,
 	}
@@ -759,7 +765,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
@@ -795,7 +801,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
@@ -884,7 +890,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
@@ -914,14 +920,46 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+			},
+		},
+		{
+			name: "ItemMergedNoLocation",
+			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
+				itemPath1.ShortRef(): {
+					Repo: itemPath1,
+				},
+			},
+			inputMans: []*kopia.ManifestEntry{
+				{
+					Manifest: makeManifest(suite.T(), backup1.ID, ""),
+					Reasons: []kopia.Reason{
+						pathReason1,
+					},
+				},
+			},
+			populatedModels: map[model.StableID]backup.Backup{
+				backup1.ID: backup1,
+			},
+			populatedDetails: map[string]*details.Details{
+				backup1.DetailsID: {
+					DetailsModel: details.DetailsModel{
+						Entries: []details.DetailsEntry{
+							*makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
+						},
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			expectedEntries: []*details.DetailsEntry{
+				makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
 			},
 		},
 		{
@@ -947,15 +985,15 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
-							*makeDetailsEntry(suite.T(), itemPath2, 84, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath2, itemPath2, 84, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 			},
 		},
 		{
@@ -981,14 +1019,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath2, 42, true),
+				makeDetailsEntry(suite.T(), itemPath2, itemPath2, 42, true),
 			},
 		},
 		{
@@ -1025,7 +1063,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
@@ -1033,17 +1071,17 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
 							// This entry should not be picked due to a mismatch on Reasons.
-							*makeDetailsEntry(suite.T(), itemPath1, 84, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 84, false),
 							// This item should be picked.
-							*makeDetailsEntry(suite.T(), itemPath3, 37, false),
+							*makeDetailsEntry(suite.T(), itemPath3, itemPath3, 37, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, 42, false),
-				makeDetailsEntry(suite.T(), itemPath3, 37, false),
+				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath3, itemPath3, 37, false),
 			},
 		},
 		{
@@ -1076,7 +1114,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 						},
 					},
 				},
@@ -1084,14 +1122,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
 							// This entry should not be picked due to being incomplete.
-							*makeDetailsEntry(suite.T(), itemPath1, 84, false),
+							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 84, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 			},
 		},
 	}
@@ -1179,7 +1217,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		}
 
 		itemSize    = 42
-		itemDetails = makeDetailsEntry(t, itemPath1, itemSize, false)
+		itemDetails = makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
 
 		populatedDetails = map[string]*details.Details{
 			backup1.DetailsID: {
