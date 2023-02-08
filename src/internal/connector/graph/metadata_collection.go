@@ -151,7 +151,7 @@ func (md MetadataCollection) Items() <-chan data.Stream {
 					TotalBytes: totalBytes,
 				},
 				nil,
-				md.fullPath.Folder(),
+				md.fullPath.Folder(false),
 			)
 
 			md.statusUpdater(status)
