@@ -12,8 +12,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -114,6 +116,70 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 	}
 	suite.Equal(name, edc.user)
 	suite.Equal(fullPath, edc.FullPath())
+}
+
+func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
+	fooP, err := path.Builder{}.
+		Append("foo").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
+	barP, err := path.Builder{}.
+		Append("bar").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
+	locP, err := path.Builder{}.
+		Append("human-readable").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
+
+	table := []struct {
+		name   string
+		prev   path.Path
+		curr   path.Path
+		loc    path.Path
+		expect data.CollectionState
+	}{
+		{
+			name:   "new",
+			curr:   fooP,
+			loc:    locP,
+			expect: data.NewState,
+		},
+		{
+			name:   "not moved",
+			prev:   fooP,
+			curr:   fooP,
+			loc:    locP,
+			expect: data.NotMovedState,
+		},
+		{
+			name:   "moved",
+			prev:   fooP,
+			curr:   barP,
+			loc:    locP,
+			expect: data.MovedState,
+		},
+		{
+			name:   "deleted",
+			prev:   fooP,
+			expect: data.DeletedState,
+		},
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			c := NewCollection(
+				"u",
+				test.curr, test.prev, test.loc,
+				0,
+				&mockItemer{}, nil,
+				control.Options{},
+				false)
+			assert.Equal(t, test.expect, c.State(), "collection state")
+			assert.Equal(t, test.curr, c.fullPath, "full path")
+			assert.Equal(t, test.prev, c.prevPath, "prev path")
+			assert.Equal(t, test.loc, c.locationPath, "location path")
+		})
+	}
 }
 
 func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {

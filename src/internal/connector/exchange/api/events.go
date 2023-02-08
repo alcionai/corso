@@ -209,10 +209,11 @@ func (c Events) EnumerateContainers(
 				continue
 			}
 
-			temp := graph.NewCacheFolder(cd, path.Builder{}.Append(*cd.GetDisplayName()))
-
-			err = fn(temp)
-			if err != nil {
+			temp := graph.NewCacheFolder(
+				cd,
+				path.Builder{}.Append(*cd.GetDisplayName()),
+				path.Builder{}.Append(*cd.GetDisplayName()))
+			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}

@@ -317,6 +317,27 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
+		// if the details entry has a locationRef specified, use those folders in place
+		// of the repoRef folders, so that scopes can match against the display names
+		// instead of container IDs.
+		if len(ent.LocationRef) > 0 {
+			pb, err := path.Builder{}.
+				Append(path.Split(ent.LocationRef)...).
+				Append(repoPath.Item()).
+				ToDataLayerPath(
+					repoPath.Tenant(),
+					repoPath.ResourceOwner(),
+					repoPath.Service(),
+					repoPath.Category(),
+					true)
+			if err != nil {
+				errs.Add(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
+				continue
+			}
+
+			repoPath = pb
+		}
+
 		// first check, every entry needs to match the selector's resource owners.
 		if !matchesResourceOwner.Compare(repoPath.ResourceOwner()) {
 			continue
