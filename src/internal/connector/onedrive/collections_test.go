@@ -1765,12 +1765,14 @@ func getDeltaError() error {
 func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 	next := "next"
 	delta := "delta"
+	prevDelta := "prev-delta"
 
 	table := []struct {
 		name             string
 		items            []deltaPagerResult
 		deltaURL         string
 		prevDeltaSuccess bool
+		prevDelta        string
 		err              error
 	}{
 		{
@@ -1780,6 +1782,16 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{deltaLink: &delta},
 			},
 			prevDeltaSuccess: true,
+			prevDelta:        prevDelta,
+		},
+		{
+			name:     "empty prev delta",
+			deltaURL: delta,
+			items: []deltaPagerResult{
+				{deltaLink: &delta},
+			},
+			prevDeltaSuccess: false,
+			prevDelta:        "",
 		},
 		{
 			name:     "next then delta",
@@ -1789,6 +1801,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{deltaLink: &delta},
 			},
 			prevDeltaSuccess: true,
+			prevDelta:        prevDelta,
 		},
 		{
 			name:     "invalid prev delta",
@@ -1797,6 +1810,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{err: getDeltaError()},
 				{deltaLink: &delta}, // works on retry
 			},
+			prevDelta:        prevDelta,
 			prevDeltaSuccess: false,
 		},
 		{
@@ -1805,6 +1819,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{nextLink: &next},
 				{err: assert.AnError},
 			},
+			prevDelta:        prevDelta,
 			prevDeltaSuccess: true,
 			err:              assert.AnError,
 		},
@@ -1836,7 +1851,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				"",
 				"General",
 				collectorFunc,
-				"",
+				test.prevDelta,
 			)
 
 			require.ErrorIs(suite.T(), err, test.err, "delta fetch err")
