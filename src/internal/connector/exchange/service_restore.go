@@ -283,6 +283,20 @@ func SendMailToBackStore(
 
 	for _, attachment := range attached {
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
+			if attachment.GetOdataType() != nil &&
+				*attachment.GetOdataType() == "#microsoft.graph.itemAttachment" {
+				var name string
+				if attachment.GetName() != nil {
+					name = *attachment.GetName()
+				}
+
+				logger.Ctx(ctx).Infow(
+					"item attachment upload not successful. content not accepted by M365 server",
+					"Attachment Name", name)
+
+				continue
+			}
+
 			errs = support.WrapAndAppend(
 				fmt.Sprintf("uploading attachment for message %s: %s",
 					id, support.ConnectorStackErrorTrace(err)),
@@ -297,7 +311,7 @@ func SendMailToBackStore(
 	return errs
 }
 
-// RestoreExchangeDataCollections restores M365 objects in data.Collection to MSFT
+// RestoreExchangeDataCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.
 // @param dest:  container destination to M365
 func RestoreExchangeDataCollections(
@@ -305,7 +319,7 @@ func RestoreExchangeDataCollections(
 	creds account.M365Config,
 	gs graph.Servicer,
 	dest control.RestoreDestination,
-	dcs []data.Collection,
+	dcs []data.RestoreCollection,
 	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -364,7 +378,7 @@ func RestoreExchangeDataCollections(
 func restoreCollection(
 	ctx context.Context,
 	gs graph.Servicer,
-	dc data.Collection,
+	dc data.RestoreCollection,
 	folderID string,
 	policy control.CollisionPolicy,
 	deets *details.Builder,

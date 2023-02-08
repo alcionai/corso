@@ -271,7 +271,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	selector selectors.Selector,
 	dest control.RestoreDestination,
 	opts control.Options,
-	dcs []data.Collection,
+	dcs []data.RestoreCollection,
 ) (*details.Details, error) {
 	ctx, end := D.Span(ctx, "connector:restore")
 	defer end()

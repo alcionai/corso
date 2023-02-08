@@ -46,10 +46,10 @@ func produceManifestsAndMetadata(
 	tenantID string,
 	getMetadata bool,
 	errs fault.Adder,
-) ([]*kopia.ManifestEntry, []data.Collection, bool, error) {
+) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
 		metadataFiles = graph.AllMetadataFileNames()
-		collections   []data.Collection
+		collections   []data.RestoreCollection
 	)
 
 	ms, err := mr.FetchPrevSnapshotManifests(
@@ -183,7 +183,7 @@ func collectMetadata(
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
-) ([]data.Collection, error) {
+) ([]data.RestoreCollection, error) {
 	paths := []path.Path{}
 
 	for _, fn := range fileNames {

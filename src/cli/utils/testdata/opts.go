@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -497,8 +498,11 @@ func (MockBackupGetter) Backup(
 	return nil, errors.New("unexpected call to mock")
 }
 
-func (MockBackupGetter) Backups(context.Context, []model.StableID) ([]*backup.Backup, error) {
-	return nil, errors.New("unexpected call to mock")
+func (MockBackupGetter) Backups(
+	context.Context,
+	[]model.StableID,
+) ([]*backup.Backup, *fault.Errors) {
+	return nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
 }
 
 func (MockBackupGetter) BackupsByTag(
@@ -511,10 +515,10 @@ func (MockBackupGetter) BackupsByTag(
 func (bg *MockBackupGetter) BackupDetails(
 	ctx context.Context,
 	backupID string,
-) (*details.Details, *backup.Backup, error) {
+) (*details.Details, *backup.Backup, *fault.Errors) {
 	if bg == nil {
-		return testdata.GetDetailsSet(), nil, nil
+		return testdata.GetDetailsSet(), nil, fault.New(true)
 	}
 
-	return nil, nil, errors.New("unexpected call to mock")
+	return nil, nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
 }

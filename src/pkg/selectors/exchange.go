@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -704,7 +705,11 @@ func (s ExchangeScope) setDefaults() {
 
 // Reduce filters the entries in a details struct to only those that match the
 // inclusions, filters, and exclusions in the selector.
-func (s exchange) Reduce(ctx context.Context, deets *details.Details) *details.Details {
+func (s exchange) Reduce(
+	ctx context.Context,
+	deets *details.Details,
+	errs fault.Adder,
+) *details.Details {
 	return reduce[ExchangeScope](
 		ctx,
 		deets,
@@ -714,7 +719,7 @@ func (s exchange) Reduce(ctx context.Context, deets *details.Details) *details.D
 			path.EventsCategory:   ExchangeEvent,
 			path.EmailCategory:    ExchangeMail,
 		},
-	)
+		errs)
 }
 
 // matchesInfo handles the standard behavior when comparing a scope and an ExchangeFilter

@@ -213,10 +213,8 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
-			)
+				test.Opts)
 			assert.NoError(t, err)
-
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -232,9 +230,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
-			)
-
+				test.Opts)
 			assert.Error(t, err)
 			assert.Empty(t, output)
 		})

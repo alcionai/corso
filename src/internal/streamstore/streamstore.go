@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -52,17 +53,16 @@ func (ss *streamStore) WriteBackupDetails(
 			ss.tenant,
 			collectionPurposeDetails,
 			ss.service,
-			false,
-		)
+			false)
 	if err != nil {
-		return "", err
+		return "", clues.Stack(err).WithClues(ctx)
 	}
 
 	// TODO: We could use an io.Pipe here to avoid a double copy but that
 	// makes error handling a bit complicated
 	dbytes, err := json.Marshal(backupDetails)
 	if err != nil {
-		return "", errors.Wrap(err, "marshalling backup details")
+		return "", clues.Wrap(err, "marshalling backup details").WithClues(ctx)
 	}
 
 	dc := &streamCollection{
@@ -76,13 +76,12 @@ func (ss *streamStore) WriteBackupDetails(
 	backupStats, _, _, err := ss.kw.BackupCollections(
 		ctx,
 		nil,
-		[]data.Collection{dc},
+		[]data.BackupCollection{dc},
 		nil,
 		nil,
-		false,
-	)
+		false)
 	if err != nil {
-		return "", nil
+		return "", errors.Wrap(err, "storing details in repository")
 	}
 
 	return backupStats.SnapshotID, nil
@@ -104,7 +103,7 @@ func (ss *streamStore) ReadBackupDetails(
 			true,
 		)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	var bc stats.ByteCounter
@@ -116,7 +115,9 @@ func (ss *streamStore) ReadBackupDetails(
 
 	// Expect only 1 data collection
 	if len(dcs) != 1 {
-		return nil, errors.Errorf("expected 1 details data collection: %d", len(dcs))
+		return nil, clues.New("greater than 1 details data collection found").
+			WithClues(ctx).
+			With("collection_count", len(dcs))
 	}
 
 	dc := dcs[0]
@@ -129,12 +130,12 @@ func (ss *streamStore) ReadBackupDetails(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("context cancelled waiting for backup details data")
+			return nil, clues.New("context cancelled waiting for backup details data").WithClues(ctx)
 
 		case itemData, ok := <-items:
 			if !ok {
 				if !found {
-					return nil, errors.New("no backup details found")
+					return nil, clues.New("no backup details found").WithClues(ctx)
 				}
 
 				return &d, nil
@@ -142,7 +143,7 @@ func (ss *streamStore) ReadBackupDetails(
 
 			err := json.NewDecoder(itemData.ToReader()).Decode(&d)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to decode details data from repository")
+				return nil, clues.Wrap(err, "decoding details data").WithClues(ctx)
 			}
 
 			found = true
@@ -157,13 +158,13 @@ func (ss *streamStore) DeleteBackupDetails(
 ) error {
 	err := ss.kw.DeleteSnapshot(ctx, detailsID)
 	if err != nil {
-		return errors.Wrap(err, "deleting backup details failed")
+		return errors.Wrap(err, "deleting backup details")
 	}
 
 	return nil
 }
 
-// streamCollection is a data.Collection used to persist
+// streamCollection is a data.BackupCollection used to persist
 // a single data stream
 type streamCollection struct {
 	// folderPath indicates what level in the hierarchy this collection

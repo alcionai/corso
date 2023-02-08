@@ -34,6 +34,14 @@ type mockOper struct {
 func newOperation() mockOper          { return mockOper{fault.New(true)} }
 func (m mockOper) Run() *fault.Errors { return m.Errors }
 
+type mockDepenedency struct{}
+
+func (md mockDepenedency) do() error {
+	return errors.New("caught one")
+}
+
+var dependency = mockDepenedency{}
+
 // ---------------------------------------------------------------------------
 // examples
 // ---------------------------------------------------------------------------
@@ -288,4 +296,44 @@ func Example_errors_e2e() {
 		// handle each recoverable error
 		fmt.Println("recoverable err occurred", err)
 	}
+}
+
+// ExampleErrorsErr showcases when to return err or nil vs errs.Err()
+func Example_errors_err() {
+	// The general rule of thumb is to always handle the error directly
+	// by returning err, or nil, or any variety of extension (wrap,
+	// stack, clues, etc).
+	fn := func() error {
+		if err := dependency.do(); err != nil {
+			return errors.Wrap(err, "direct")
+		}
+
+		return nil
+	}
+	if err := fn(); err != nil {
+		fmt.Println(err)
+	}
+
+	// The exception is if you're handling recoverable errors.  Those
+	// funcs should always return errs.Err(), in case a recoverable
+	// error happened on the last round of iteration.
+	fn2 := func(todo []string, errs *fault.Errors) error {
+		for range todo {
+			if errs.Err() != nil {
+				return errs.Err()
+			}
+
+			if err := dependency.do(); err != nil {
+				errs.Add(errors.Wrap(err, "recoverable"))
+			}
+		}
+
+		return errs.Err()
+	}
+	if err := fn2([]string{"a"}, fault.New(true)); err != nil {
+		fmt.Println(err)
+	}
+
+	// Output: direct: caught one
+	// recoverable: caught one
 }

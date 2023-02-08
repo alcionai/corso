@@ -27,10 +27,13 @@ type MockExchangeDataCollection struct {
 }
 
 var (
-	_ data.Collection = &MockExchangeDataCollection{}
-	_ data.Stream     = &MockExchangeData{}
-	_ data.StreamInfo = &MockExchangeData{}
-	_ data.StreamSize = &MockExchangeData{}
+	// Needs to implement both backup and restore interfaces so we can use it in
+	// integration tests.
+	_ data.BackupCollection  = &MockExchangeDataCollection{}
+	_ data.RestoreCollection = &MockExchangeDataCollection{}
+	_ data.Stream            = &MockExchangeData{}
+	_ data.StreamInfo        = &MockExchangeData{}
+	_ data.StreamSize        = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of

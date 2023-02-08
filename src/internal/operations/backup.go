@@ -243,7 +243,7 @@ func (op *BackupOperation) do(
 		return nil, errors.Wrap(err, "connectng to m365")
 	}
 
-	cs, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
+	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
 	if err != nil {
 		return nil, errors.Wrap(err, "producing backup data collections")
 	}
@@ -257,6 +257,7 @@ func (op *BackupOperation) do(
 		reasons,
 		mans,
 		cs,
+		excludes,
 		backupID,
 		op.incremental && canUseMetaData)
 	if err != nil {
@@ -307,9 +308,9 @@ func produceBackupDataCollections(
 	ctx context.Context,
 	gc *connector.GraphConnector,
 	sel selectors.Selector,
-	metadata []data.Collection,
+	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-) ([]data.Collection, error) {
+) ([]data.BackupCollection, map[string]struct{}, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
 		complete <- struct{}{}
@@ -317,11 +318,9 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	// TODO(ashmrtn): When we're ready to wire up the global exclude list return
-	// all values.
-	cols, _, errs := gc.DataCollections(ctx, sel, metadata, ctrlOpts)
+	cols, excludes, errs := gc.DataCollections(ctx, sel, metadata, ctrlOpts)
 
-	return cols, errs
+	return cols, excludes, errs
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +331,7 @@ type backuper interface {
 	BackupCollections(
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
-		cs []data.Collection,
+		cs []data.BackupCollection,
 		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
@@ -390,7 +389,8 @@ func consumeBackupDataCollections(
 	tenantID string,
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
-	cs []data.Collection,
+	cs []data.BackupCollection,
+	excludes map[string]struct{},
 	backupID model.StableID,
 	isIncremental bool,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
@@ -456,6 +456,8 @@ func consumeBackupDataCollections(
 		ctx,
 		bases,
 		cs,
+		// TODO(ashmrtn): When we're ready to enable incremental backups for
+		// OneDrive replace this with `excludes`.
 		nil,
 		tags,
 		isIncremental)
