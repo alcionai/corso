@@ -167,10 +167,12 @@ func (ms *ModelStore) Put(
 			}
 
 			return nil
-		},
-	)
+		})
+	if err != nil {
+		return clues.Wrap(err, "putting model").WithClues(ctx)
+	}
 
-	return clues.Wrap(err, "putting model").WithClues(ctx)
+	return nil
 }
 
 func stripHiddenTags(tags map[string]string) {
