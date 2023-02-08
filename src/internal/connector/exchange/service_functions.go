@@ -96,8 +96,9 @@ func includeContainer(
 	scope selectors.ExchangeScope,
 ) (path.Path, path.Path, bool) {
 	var (
-		category  = scope.Category().PathType()
 		directory string
+		locPath   path.Path
+		category  = scope.Category().PathType()
 		pb        = c.Path()
 		loc       = c.Location()
 	)
@@ -121,7 +122,7 @@ func includeContainer(
 		return nil, nil, false
 	}
 
-	var locPath path.Path
+	directory = dirPath.Folder()
 
 	if loc != nil {
 		locPath, err = loc.ToDataLayerExchangePathForCategory(
@@ -133,9 +134,9 @@ func includeContainer(
 		if err != nil {
 			return nil, nil, false
 		}
-	}
 
-	directory = locPath.Folder()
+		directory = locPath.Folder()
+	}
 
 	var ok bool
 
