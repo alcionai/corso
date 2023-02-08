@@ -443,7 +443,7 @@ func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
 	}
 
 	return map[categorizer]string{
-		folderCat: p.Folder(),
+		folderCat: p.Folder(false),
 		itemCat:   p.Item(),
 	}
 }
