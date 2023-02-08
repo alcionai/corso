@@ -12,6 +12,10 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 )
 
+// ---------------------------------------------------------------------------
+// Client Middleware
+// ---------------------------------------------------------------------------
+
 // RetryHandler handles transient HTTP responses and retries the request given the retry options
 type RetryHandler struct {
 	// default options to use when evaluating the response
