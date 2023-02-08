@@ -989,7 +989,9 @@ func collectionsForInfo(
 			}
 		}
 
-		collections = append(collections, c)
+		collections = append(collections, data.NotFoundRestoreCollection{
+			Collection: c,
+		})
 		kopiaEntries += len(info.items)
 	}
 
@@ -1034,7 +1036,9 @@ func collectionsForInfoVersion0(
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 		}
 
-		collections = append(collections, c)
+		collections = append(collections, data.NotFoundRestoreCollection{
+			Collection: c,
+		})
 		totalItems += len(info.items)
 		kopiaEntries += len(info.items)
 	}

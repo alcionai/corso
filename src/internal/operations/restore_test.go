@@ -62,7 +62,11 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				bytesRead: &stats.ByteCounter{
 					NumBytes: 42,
 				},
-				cs: []data.RestoreCollection{&mockconnector.MockExchangeDataCollection{}},
+				cs: []data.RestoreCollection{
+					data.NotFoundRestoreCollection{
+						Collection: &mockconnector.MockExchangeDataCollection{},
+					},
+				},
 				gc: &support.ConnectorOperationStatus{
 					ObjectCount: 1,
 					Successful:  1,
