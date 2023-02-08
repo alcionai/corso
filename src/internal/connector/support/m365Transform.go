@@ -384,12 +384,13 @@ func sanitizeEvent(orig models.Eventable) (models.Eventable, error) {
 	newEvent.SetIsDraft(nil)
 	newEvent.SetAdditionalData(orig.GetAdditionalData())
 
-	attachments, err := sanitizeAttachments(orig.GetAttachments())
-	if err != nil {
-		return nil, err
-	}
-
-	newEvent.SetAttachments(attachments)
+	// TODO #2428 (dadam39): re-apply nested attachments for itemAttachments
+	// Upstream: https://github.com/microsoft/kiota-serialization-json-go/issues/61
+	// attachments, err := sanitizeAttachments(message.GetAttachments())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	newEvent.SetAttachments(nil)
 
 	return newEvent, nil
 }
