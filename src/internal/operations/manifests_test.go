@@ -435,7 +435,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		getMeta       bool
 		assertErr     assert.ErrorAssertionFunc
 		assertB       assert.BoolAssertionFunc
-		expectDCS     []data.RestoreCollection
+		expectDCS     []mockColl
 		expectNilMans bool
 	}{
 		{
@@ -539,7 +539,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "man missing backup id",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id": {mockColl{id: "id_coll"}},
+					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
@@ -566,8 +566,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			name: "one complete, one incomplete",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id":        {mockColl{id: "id_coll"}},
-					"incmpl_id": {mockColl{id: "incmpl_id_coll"}},
+					"id":        {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+					"incmpl_id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "id", "", "bid"),
@@ -579,13 +579,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.RestoreCollection{mockColl{id: "id_coll"}},
+			expectDCS: []mockColl{{id: "id_coll"}},
 		},
 		{
 			name: "single valid man",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id": {mockColl{id: "id_coll"}},
+					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
@@ -594,14 +594,14 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.RestoreCollection{mockColl{id: "id_coll"}},
+			expectDCS: []mockColl{{id: "id_coll"}},
 		},
 		{
 			name: "multiple valid mans",
 			mr: mockManifestRestorer{
 				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"mail":    {mockColl{id: "mail_coll"}},
-					"contact": {mockColl{id: "contact_coll"}},
+					"mail":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
+					"contact": {data.NotFoundRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "mail", "", "bid"),
@@ -613,9 +613,9 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.RestoreCollection{
-				mockColl{id: "mail_coll"},
-				mockColl{id: "contact_coll"},
+			expectDCS: []mockColl{
+				{id: "mail_coll"},
+				{id: "contact_coll"},
 			},
 		},
 		{
@@ -658,16 +658,33 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			expect, got := []string{}, []string{}
 
 			for _, dc := range test.expectDCS {
-				mc, ok := dc.(mockColl)
-				assert.True(t, ok)
-
-				expect = append(expect, mc.id)
+				expect = append(expect, dc.id)
 			}
 
 			for _, dc := range dcs {
-				mc, ok := dc.(mockColl)
-				assert.True(t, ok)
+				if !assert.IsTypef(
+					t,
+					data.NotFoundRestoreCollection{},
+					dc,
+					"unexpected type returned [%T]",
+					dc,
+				) {
+					continue
+				}
 
+				tmp := dc.(data.NotFoundRestoreCollection)
+
+				if !assert.IsTypef(
+					t,
+					mockColl{},
+					tmp.Collection,
+					"unexpected type returned [%T]",
+					tmp.Collection,
+				) {
+					continue
+				}
+
+				mc := tmp.Collection.(mockColl)
 				got = append(got, mc.id)
 			}
 

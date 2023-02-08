@@ -174,7 +174,9 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			)
 			require.NoError(t, err)
 
-			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{coll})
+			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+				data.NotFoundRestoreCollection{Collection: coll},
+			})
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
@@ -345,7 +347,9 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
-			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{metadata})
+			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+				data.NotFoundRestoreCollection{Collection: metadata},
+			})
 			require.NoError(t, err)
 
 			dps := cdps[test.scope.Category().PathType()]

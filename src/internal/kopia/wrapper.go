@@ -412,13 +412,19 @@ func (w Wrapper) RestoreMultipleItems(
 
 		c, ok := cols[parentPath.ShortRef()]
 		if !ok {
-			cols[parentPath.ShortRef()] = &kopiaDataCollection{path: parentPath}
+			cols[parentPath.ShortRef()] = &kopiaDataCollection{
+				path:         parentPath,
+				snapshotRoot: snapshotRoot,
+				counter:      bcounter,
+			}
 			c = cols[parentPath.ShortRef()]
 		}
 
 		c.streams = append(c.streams, ds)
 	}
 
+	// Can't use the maps package to extract the values because we need to convert
+	// from *kopiaDataCollection to data.RestoreCollection too.
 	res := make([]data.RestoreCollection, 0, len(cols))
 	for _, c := range cols {
 		res = append(res, c)
