@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -164,6 +165,10 @@ type colInfo struct {
 	pathElements []string
 	category     path.CategoryType
 	items        []itemInfo
+	// auxItems are items that can be retrieved with Fetch but won't be returned
+	// by Items(). These files do not directly participate in comparisosn at the
+	// end of a test.
+	auxItems []itemInfo
 }
 
 type restoreBackupInfo struct {
@@ -968,6 +973,25 @@ func backupOutputPathFromRestore(
 	)
 }
 
+// TODO(ashmrtn): Make this an actual mock class that can be used in other
+// packages.
+type mockRestoreCollection struct {
+	data.Collection
+	auxItems map[string]data.Stream
+}
+
+func (rc mockRestoreCollection) Fetch(
+	ctx context.Context,
+	name string,
+) (data.Stream, error) {
+	res := rc.auxItems[name]
+	if res == nil {
+		return nil, data.ErrNotFound
+	}
+
+	return res, nil
+}
+
 func collectionsForInfo(
 	t *testing.T,
 	service path.ServiceType,
@@ -990,7 +1014,7 @@ func collectionsForInfo(
 			info.pathElements,
 			false,
 		)
-		c := mockconnector.NewMockExchangeCollection(pth, len(info.items))
+		mc := mockconnector.NewMockExchangeCollection(pth, len(info.items))
 		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
 
 		baseExpected := expectedData[baseDestPath.String()]
@@ -1000,8 +1024,8 @@ func collectionsForInfo(
 		}
 
 		for i := 0; i < len(info.items); i++ {
-			c.Names[i] = info.items[i].name
-			c.Data[i] = info.items[i].data
+			mc.Names[i] = info.items[i].name
+			mc.Data[i] = info.items[i].data
 
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
@@ -1013,9 +1037,16 @@ func collectionsForInfo(
 			}
 		}
 
-		collections = append(collections, data.NotFoundRestoreCollection{
-			Collection: c,
-		})
+		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
+
+		for _, aux := range info.auxItems {
+			c.auxItems[aux.name] = &mockconnector.MockExchangeData{
+				ID:     aux.name,
+				Reader: io.NopCloser(bytes.NewReader(aux.data)),
+			}
+		}
+
+		collections = append(collections, c)
 		kopiaEntries += len(info.items)
 	}
 
