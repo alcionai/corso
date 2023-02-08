@@ -128,7 +128,7 @@ func includeContainer(
 		return nil, nil, false
 	}
 
-	directory = pb.String()
+	directory = locPath.Folder()
 
 	var ok bool
 

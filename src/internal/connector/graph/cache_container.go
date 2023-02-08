@@ -12,11 +12,11 @@ import (
 // reuse logic in IDToPath.
 type CachedContainer interface {
 	Container
-	// location contains either the display names for the dirs (if this is a calendar)
+	// Location contains either the display names for the dirs (if this is a calendar)
 	// or nil
 	Location() *path.Builder
 	SetLocation(*path.Builder)
-	// location contains either the ids for the dirs (if this is a calendar)
+	// Path contains either the ids for the dirs (if this is a calendar)
 	// or the display names for the dirs
 	Path() *path.Builder
 	SetPath(*path.Builder)

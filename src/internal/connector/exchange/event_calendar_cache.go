@@ -44,7 +44,8 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 		return errors.Wrap(err, "fetching calendar "+support.ConnectorStackErrorTrace(err))
 	}
 
-	temp := graph.NewCacheFolder(f,
+	temp := graph.NewCacheFolder(
+		f,
 		path.Builder{}.Append(container), // storage path
 		path.Builder{}.Append(container)) // display location
 	if err := ecc.addFolder(temp); err != nil {
@@ -93,7 +94,8 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return errors.Wrap(err, "validating container")
 	}
 
-	temp := graph.NewCacheFolder(f,
+	temp := graph.NewCacheFolder(
+		f,
 		path.Builder{}.Append(calendarOthersFolder, *f.GetDisplayName()), // storage path
 		path.Builder{}.Append(calendarOthersFolder, *f.GetDisplayName())) // display location
 
