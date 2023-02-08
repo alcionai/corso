@@ -283,7 +283,8 @@ func SendMailToBackStore(
 
 	for _, attachment := range attached {
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
-			if *attachment.GetOdataType() == "#microsoft.graph.itemAttachment" {
+			if attachment.GetOdataType() != nil &&
+				*attachment.GetOdataType() == "#microsoft.graph.itemAttachment" {
 				var name string
 				if attachment.GetName() != nil {
 					name = *attachment.GetName()
