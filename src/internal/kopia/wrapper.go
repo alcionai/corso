@@ -118,7 +118,7 @@ type IncrementalBase struct {
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 	globalExcludeSet map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
@@ -368,7 +368,7 @@ func (w Wrapper) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bcounter ByteCounter,
-) ([]data.Collection, error) {
+) ([]data.RestoreCollection, error) {
 	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
 	defer end()
 
@@ -409,7 +409,7 @@ func (w Wrapper) RestoreMultipleItems(
 		c.streams = append(c.streams, ds)
 	}
 
-	res := make([]data.Collection, 0, len(cols))
+	res := make([]data.RestoreCollection, 0, len(cols))
 	for _, c := range cols {
 		res = append(res, c)
 	}

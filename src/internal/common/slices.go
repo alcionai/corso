@@ -1,5 +1,6 @@
 package common
 
+// TODO: can be replaced with slices.Contains()
 func ContainsString(super []string, sub string) bool {
 	for _, s := range super {
 		if s == sub {

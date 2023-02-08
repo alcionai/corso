@@ -152,8 +152,8 @@ func buildCollections(
 	tenant, user string,
 	dest control.RestoreDestination,
 	colls []collection,
-) ([]data.Collection, error) {
-	collections := make([]data.Collection, 0, len(colls))
+) ([]data.RestoreCollection, error) {
+	collections := make([]data.RestoreCollection, 0, len(colls))
 
 	for _, c := range colls {
 		pth, err := toDataLayerPath(

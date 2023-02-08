@@ -21,8 +21,8 @@ const (
 	DeletedState
 )
 
-// A Collection represents a compilation of data from the
-// same type application (e.g. mail)
+// A Collection represents the set of data within a single logical location
+// denoted by FullPath.
 type Collection interface {
 	// Items returns a channel from which items in the collection can be read.
 	// Each returned struct contains the next item in the collection
@@ -30,10 +30,13 @@ type Collection interface {
 	// an unrecoverable error caused an early termination in the sender.
 	Items() <-chan Stream
 	// FullPath returns a path struct that acts as a metadata tag for this
-	// DataCollection. Returned items should be ordered from most generic to least
-	// generic. For example, a DataCollection for emails from a specific user
-	// would be {"<tenant id>", "exchange", "<user ID>", "emails"}.
+	// Collection.
 	FullPath() path.Path
+}
+
+// BackupCollection is an extension of Collection that is used during backups.
+type BackupCollection interface {
+	Collection
 	// PreviousPath returns the path.Path this collection used to reside at
 	// (according to the M365 ID for the container) if the collection was moved or
 	// renamed. Returns nil if the collection is new.
@@ -56,6 +59,11 @@ type Collection interface {
 	// re-discover all data in the container.  This flag only affects the path of the
 	// collection, and does not cascade to subfolders.
 	DoNotMergeItems() bool
+}
+
+// RestoreCollection is an extension of Collection that is used during restores.
+type RestoreCollection interface {
+	Collection
 }
 
 // Stream represents a single item within a Collection
@@ -85,39 +93,4 @@ type StreamSize interface {
 // StreamModTime is used to provide the modified time of the stream's data.
 type StreamModTime interface {
 	ModTime() time.Time
-}
-
-// ------------------------------------------------------------------------------------------------
-// functionality
-// ------------------------------------------------------------------------------------------------
-
-// ResourceOwnerSet extracts the set of unique resource owners from the
-// slice of Collections.
-func ResourceOwnerSet(cs []Collection) []string {
-	rs := map[string]struct{}{}
-
-	for _, c := range cs {
-		fp := c.FullPath()
-		if fp == nil {
-			// Deleted collections have their full path set to nil but the previous
-			// path will be populated.
-			fp = c.PreviousPath()
-		}
-
-		if fp == nil {
-			// This should not happen, but keep us from hitting a nil pointer
-			// exception if it does somehow occur. Statistics will be off though.
-			continue
-		}
-
-		rs[fp.ResourceOwner()] = struct{}{}
-	}
-
-	rss := make([]string, 0, len(rs))
-
-	for k := range rs {
-		rss = append(rss, k)
-	}
-
-	return rss
 }

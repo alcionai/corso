@@ -13,5 +13,5 @@ func NewAdder() *Adder {
 
 func (ma *Adder) Add(err error) *fault.Errors {
 	ma.Errs = append(ma.Errs, err)
-	return fault.New(false)
+	return fault.New(true)
 }

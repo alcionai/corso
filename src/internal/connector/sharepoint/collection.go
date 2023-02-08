@@ -30,10 +30,10 @@ const (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Item{}
-	_ data.StreamInfo    = &Item{}
-	_ data.StreamModTime = &Item{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Item{}
+	_ data.StreamInfo       = &Item{}
+	_ data.StreamModTime    = &Item{}
 )
 
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
@@ -104,6 +104,15 @@ type Item struct {
 
 	// true if the item was marked by graph as deleted.
 	deleted bool
+}
+
+func NewItem(name string, d io.ReadCloser) *Item {
+	item := &Item{
+		id:   name,
+		data: d,
+	}
+
+	return item
 }
 
 func (sd *Item) UUID() string {

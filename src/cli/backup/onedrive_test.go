@@ -98,10 +98,8 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
-			)
+				test.Opts)
 			assert.NoError(t, err)
-
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -117,9 +115,7 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 				ctx,
 				test.BackupGetter,
 				"backup-ID",
-				test.Opts,
-			)
-
+				test.Opts)
 			assert.Error(t, err)
 			assert.Empty(t, output)
 		})
