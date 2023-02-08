@@ -373,6 +373,7 @@ func (c *Collections) UpdateCollections(
 	items []models.DriveItemable,
 	oldPaths map[string]string,
 	newPaths map[string]string,
+	visitedPaths map[string]string,
 	excluded map[string]struct{},
 	invalidPrevDelta bool,
 ) error {
@@ -405,7 +406,11 @@ func (c *Collections) UpdateCollections(
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
-			var prevPath path.Path
+			var (
+				prevPath path.Path
+				col      data.BackupCollection
+				found    bool
+			)
 
 			prevColPath, ok := oldPaths[*item.GetId()]
 			if ok {
@@ -466,7 +471,11 @@ func (c *Collections) UpdateCollections(
 			// already created and partially populated.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
-			col, found := c.CollectionMap[folderPath.String()]
+			pth, pok := visitedPaths[*item.GetId()]
+			if pok {
+				col, found = c.CollectionMap[pth]
+			}
+
 			if !found {
 				// Skipping new folders here as for non empty folders
 				// we will end up creating a folder in the next case
@@ -491,15 +500,18 @@ func (c *Collections) UpdateCollections(
 				// we encountered a file, this gives us a chance
 				// to mark the container as moved or not moved
 				// instead of new.
-				ccol, ok := col.(*Collection)
+				ocol, ok := col.(*Collection)
 				if !ok {
 					logger.Ctx(ctx).Errorw("unable to cast onedrive collection", "error", err)
 					return err
 				}
 
-				ccol.SetPreviousPath(prevPath)
-				c.CollectionMap[folderPath.String()] = ccol
+				delete(c.CollectionMap, pth)
+				ocol.SetPreviousPath(prevPath)
+				c.CollectionMap[folderPath.String()] = ocol
 			}
+
+			visitedPaths[*item.GetId()] = folderPath.String()
 
 			if c.source != OneDriveSource {
 				continue

@@ -142,6 +142,7 @@ type itemCollector func(
 	driveItems []models.DriveItemable,
 	oldPaths map[string]string,
 	newPaths map[string]string,
+	visitedPaths map[string]string,
 	excluded map[string]struct{},
 	validPrevDelta bool,
 ) error
@@ -193,6 +194,7 @@ func collectItems(
 		// take in previous paths.
 		oldPaths         = map[string]string{}
 		newPaths         = map[string]string{}
+		visitedPaths     = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = len(prevDelta) == 0
 	)
@@ -229,7 +231,7 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
 		}
 
-		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded, invalidPrevDelta)
+		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, visitedPaths, excluded, invalidPrevDelta)
 		if err != nil {
 			return DeltaUpdate{}, nil, nil, err
 		}
@@ -380,6 +382,7 @@ func GetAllFolders(
 				items []models.DriveItemable,
 				oldPaths map[string]string,
 				newPaths map[string]string,
+				visitedPaths map[string]string,
 				excluded map[string]struct{},
 				doNotMergeItems bool,
 			) error {

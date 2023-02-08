@@ -700,6 +700,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			defer flush()
 
 			excludes := map[string]struct{}{}
+			visitedPaths := map[string]string{}
 			outputFolderMap := map[string]string{}
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 			c := NewCollections(
@@ -723,6 +724,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				tt.items,
 				tt.inputFolderMap,
 				outputFolderMap,
+				visitedPaths,
 				excludes,
 				!tt.validPrevDelta,
 			)
@@ -1839,6 +1841,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				driveItems []models.DriveItemable,
 				oldPaths map[string]string,
 				newPaths map[string]string,
+				visitedPaths map[string]string,
 				excluded map[string]struct{},
 				doNotMergeItems bool,
 			) error {

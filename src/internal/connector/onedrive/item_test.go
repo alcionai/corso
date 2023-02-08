@@ -105,6 +105,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		items []models.DriveItemable,
 		oldPaths map[string]string,
 		newPaths map[string]string,
+		visitedPaths map[string]string,
 		excluded map[string]struct{},
 		doNotMergeItems bool,
 	) error {

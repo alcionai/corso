@@ -90,6 +90,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 
 			paths := map[string]string{}
 			newPaths := map[string]string{}
+			visitedPaths := map[string]string{}
 			excluded := map[string]struct{}{}
 			c := onedrive.NewCollections(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -100,7 +101,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, excluded, true)
+			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, visitedPaths, excluded, true)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
