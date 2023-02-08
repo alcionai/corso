@@ -343,6 +343,7 @@ type scopeConfig struct {
 	usePathFilter   bool
 	usePrefixFilter bool
 	useSuffixFilter bool
+	useEqualsFilter bool
 }
 
 type option func(*scopeConfig)
@@ -368,6 +369,15 @@ func PrefixMatch() option {
 func SuffixMatch() option {
 	return func(sc *scopeConfig) {
 		sc.useSuffixFilter = true
+	}
+}
+
+// ExactMatch ensures the selector uses an Equals comparator, instead
+// of contains.  Will not override a default Any() or None()
+// comparator.
+func ExactMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useEqualsFilter = true
 	}
 }
 
@@ -433,6 +443,10 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 	}
 
 	if sc.usePathFilter {
+		if sc.useEqualsFilter {
+			return filters.PathEquals(s)
+		}
+
 		if sc.usePrefixFilter {
 			return filters.PathPrefix(s)
 		}
