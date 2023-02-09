@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -30,7 +31,7 @@ func GetSitePages(
 		col         = make([]models.SitePageable, 0)
 		semaphoreCh = make(chan struct{}, fetchChannelSize)
 		opts        = retrieveSitePageOptions()
-		errs        error
+		err, errs   error
 		wg          sync.WaitGroup
 		m           sync.Mutex
 	)
@@ -57,7 +58,12 @@ func GetSitePages(
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			page, err := serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
+			var page models.SitePageable
+
+			err = graph.RunWithRetry(func() error {
+				page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
+				return err
+			})
 			if err != nil {
 				errUpdater(pageID, errors.Wrap(err, support.ConnectorStackErrorTrace(err)+" fetching page"))
 			} else {
@@ -81,10 +87,15 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 		builder    = bs.Client().SitesById(siteID).Pages()
 		opts       = fetchPageOptions()
 		pageTuples = make([]Tuple, 0)
+		resp       models.SitePageCollectionResponseable
+		err        error
 	)
 
 	for {
-		resp, err := builder.Get(ctx, opts)
+		err = graph.RunWithRetry(func() error {
+			resp, err = builder.Get(ctx, opts)
+			return err
+		})
 		if err != nil {
 			return nil, support.ConnectorStackErrorTraceWrap(err, "failed fetching site page")
 		}
