@@ -143,25 +143,6 @@ func (c Events) GetItem(
 	return event, EventInfo(event), nil
 }
 
-func (c Client) GetAllCalendarNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForCalendars([]string{"name", "owner"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.CalendarCollectionResponseable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
-		return err
-	})
-
-	return resp, err
-}
-
 // EnumerateContainers iterates through all of the users current
 // calendars, converting each to a graph.CacheFolder, and
 // calling fn(cf) on each one.  If fn(cf) errors, the error is
