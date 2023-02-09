@@ -186,11 +186,15 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	parent := d.repoPath.ToBuilder().Dir()
+	var (
+		locationFolders string
+		locPB           *path.Builder
+		parent          = d.repoPath.ToBuilder().Dir()
+	)
 
-	var locationFolders string
 	if d.locationPath != nil {
 		locationFolders = d.locationPath.Folder(true)
+		locPB = d.locationPath.ToBuilder()
 	}
 
 	cp.deets.Add(
@@ -200,11 +204,6 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		locationFolders,
 		!d.cached,
 		*d.info)
-
-	var locPB *path.Builder
-	if d.locationPath != nil {
-		locPB = d.locationPath.ToBuilder()
-	}
 
 	folders := details.FolderEntriesForPath(parent, locPB)
 	cp.deets.AddFoldersForItem(
