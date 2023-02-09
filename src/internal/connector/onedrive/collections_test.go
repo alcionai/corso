@@ -679,6 +679,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 
+			assert.Equal(t, tt.expectedCollectionIDs, c.CollectionOrdering)
 			for _, collPath := range tt.expectedCollectionIDs {
 				assert.Contains(t, c.CollectionMap, collPath)
 			}

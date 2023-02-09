@@ -61,9 +61,10 @@ type Collections struct {
 
 	ctrl control.Options
 
-	// collectionMap allows lookup of the data.BackupCollection
+	// CollectionMap allows lookup of the data.BackupCollection
 	// for a OneDrive folder
-	CollectionMap map[string]data.BackupCollection
+	CollectionMap      map[string]data.BackupCollection
+	CollectionOrdering []string
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
@@ -245,6 +246,22 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 	return nil
 }
 
+func (c *Collections) updateCollection(id string, col data.BackupCollection) {
+	c.CollectionMap[id] = col
+
+	nco := []string{}
+
+	for _, i := range c.CollectionOrdering {
+		if i == id {
+			continue
+		}
+
+		nco = append(nco, i)
+	}
+
+	c.CollectionOrdering = append(nco, id)
+}
+
 // Retrieves drive data as set of `data.Collections` and a set of item names to
 // be excluded from the upcoming backup.
 func (c *Collections) Get(
@@ -328,8 +345,8 @@ func (c *Collections) Get(
 
 	// Add an extra for the metadata collection.
 	collections := make([]data.BackupCollection, 0, len(c.CollectionMap)+1)
-	for _, coll := range c.CollectionMap {
-		collections = append(collections, coll)
+	for _, cid := range c.CollectionOrdering {
+		collections = append(collections, c.CollectionMap[cid])
 	}
 
 	service, category := c.source.toPathServiceCat()
@@ -500,7 +517,7 @@ func (c *Collections) UpdateCollections(
 					invalidPrevDelta,
 				)
 
-				c.CollectionMap[collectionID] = col
+				c.updateCollection(collectionID, col)
 				c.NumContainers++
 			}
 
