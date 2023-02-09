@@ -71,12 +71,7 @@ func (ecc *eventCalendarCache) Populate(
 		ctx,
 		ecc.userID,
 		"",
-		func(cf graph.CacheFolder) error {
-			cf.SetPath(path.Builder{}.Append(calendarOthersFolder, *cf.GetDisplayName()))
-			cf.SetLocation(path.Builder{}.Append(calendarOthersFolder, *cf.GetDisplayName()))
-			return ecc.addFolder(cf)
-		},
-	)
+		ecc.addFolder)
 	if err != nil {
 		return errors.Wrap(err, "enumerating containers")
 	}
@@ -95,10 +90,9 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		return errors.Wrap(err, "validating container")
 	}
 
-	temp := graph.NewCacheFolder(
-		f,
-		path.Builder{}.Append(calendarOthersFolder, *f.GetId()),          // storage path
-		path.Builder{}.Append(calendarOthersFolder, *f.GetDisplayName())) // display location
+	temp := graph.NewCacheFolder(f,
+		path.Builder{}.Append(*f.GetId()),          // storage path
+		path.Builder{}.Append(*f.GetDisplayName())) // display location
 
 	if err := ecc.addFolder(temp); err != nil {
 		return errors.Wrap(err, "adding container")
