@@ -46,15 +46,6 @@ func newContainerResolver() *containerResolver {
 
 type containerResolver struct {
 	cache map[string]graph.CachedContainer
-	// newAdditions is a map of displayName: ID tuples.
-	// Since we don't know the ID of newly added containers until
-	// they've been generated via graph api, we don't have an easy
-	// way of mapping destination names onto CachedContainers.
-	// This map should get updated on every call to AddToCache, and
-	// can be accessed via the AddedIDs func, so that we avoid
-	// FolderAlreadyExists errors for types that store IDs instead
-	// of display names in their path.
-	newAdditions map[string]string
 }
 
 func (cr *containerResolver) IDToPath(
@@ -172,15 +163,7 @@ func (cr *containerResolver) AddToCache(
 	temp := graph.CacheFolder{
 		Container: f,
 	}
-
-	if len(cr.newAdditions) == 0 {
-		cr.newAdditions = map[string]string{}
-	}
-
-	cr.newAdditions[*f.GetDisplayName()] = *f.GetId()
-
 	if err := cr.addFolder(temp); err != nil {
-		delete(cr.newAdditions, *f.GetDisplayName())
 		return errors.Wrap(err, "adding cache folder")
 	}
 
@@ -188,18 +171,16 @@ func (cr *containerResolver) AddToCache(
 	// when they're made.
 	_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 	if err != nil {
-		delete(cr.newAdditions, *f.GetDisplayName())
 		return errors.Wrap(err, "adding cache entry")
 	}
 
 	return nil
 }
 
-// DestinationNameToID returns the ID of the destination container.  Dest is
-// assumed to be a display name.  The ID is only populated if the destination
-// was added using `AddToCache()`.  Returns an empty string if not found.
+// DestinationNameToID returns an empty string.  This is only supported by exchange
+// calendars at this time.
 func (cr *containerResolver) DestinationNameToID(dest string) string {
-	return cr.newAdditions[dest]
+	return ""
 }
 
 func (cr *containerResolver) populatePaths(ctx context.Context, useIDInPath bool) error {

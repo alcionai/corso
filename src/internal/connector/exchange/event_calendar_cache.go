@@ -14,9 +14,10 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	enumer containersEnumerator
-	getter containerGetter
-	userID string
+	enumer       containersEnumerator
+	getter       containerGetter
+	userID       string
+	newAdditions map[string]string
 }
 
 // init ensures that the structure's fields are initialized.

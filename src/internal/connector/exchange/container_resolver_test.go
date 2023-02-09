@@ -490,7 +490,8 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 
 	require.Empty(t, suite.fc.DestinationNameToID(dest), "destination not yet added to cache")
 	require.NoError(t, suite.fc.AddToCache(ctx, m, false))
-	require.NotEmpty(t, suite.fc.DestinationNameToID(dest), "destination id from cache")
+	require.Empty(t, suite.fc.DestinationNameToID(dest),
+		"destination id from cache, still empty, because this is not a calendar")
 
 	p, l, err := suite.fc.IDToPath(ctx, m.id, false)
 	require.NoError(t, err)
