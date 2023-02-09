@@ -16,6 +16,7 @@ const (
 func (i TitleAreaTextAlignmentType) String() string {
 	return []string{"left", "center", "unknownFutureValue"}[i]
 }
+
 func ParseTitleAreaTextAlignmentType(v string) (interface{}, error) {
 	result := LEFT_TITLEAREATEXTALIGNMENTTYPE
 	switch v {
@@ -30,6 +31,7 @@ func ParseTitleAreaTextAlignmentType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializeTitleAreaTextAlignmentType(values []TitleAreaTextAlignmentType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
