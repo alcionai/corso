@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -154,20 +153,13 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	updateFunc := func(*support.ConnectorOperationStatus) {
-		t.Log("Updater Called ")
-	}
-
-	updater := &MockUpdater{UpdateState: updateFunc}
-
 	col, err := collectPages(
 		ctx,
 		account,
 		nil,
-		account.AzureTenantID,
 		siteID,
-		updater,
-		control.Options{},
+		&MockGraphService{},
+		control.Defaults(),
 	)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, col)
