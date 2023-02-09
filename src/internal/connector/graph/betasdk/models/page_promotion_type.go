@@ -17,6 +17,7 @@ const (
 func (i PagePromotionType) String() string {
 	return []string{"microsoftReserved", "page", "newsPost", "unknownFutureValue"}[i]
 }
+
 func ParsePagePromotionType(v string) (interface{}, error) {
 	result := MICROSOFTRESERVED_PAGEPROMOTIONTYPE
 	switch v {
@@ -33,6 +34,7 @@ func ParsePagePromotionType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializePagePromotionType(values []PagePromotionType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
