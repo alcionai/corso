@@ -262,7 +262,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 		OneDriveItem:   "file",
 	}
 
-	assert.Equal(t, expected, OneDriveItem.pathValues(filePath))
+	r, l := OneDriveItem.pathValues(filePath, filePath)
+	assert.Equal(t, expected, r)
+	assert.Equal(t, expected, l)
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {

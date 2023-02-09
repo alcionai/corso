@@ -705,13 +705,16 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	const (
 		usr  = "userID"
+		fID1 = "mf_id_1"
 		fld1 = "mailFolder"
+		fID2 = "mf_id_2"
 		fld2 = "subFolder"
 		mail = "mailID"
 	)
 
 	var (
-		pth   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
+		repo  = stubPath(suite.T(), usr, []string{fID1, fID2, mail}, path.EmailCategory)
+		loc   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
 		short = "thisisahashofsomekind"
 		es    = NewExchangeRestore(Any())
 	)
@@ -726,13 +729,18 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		{"all folders", es.MailFolders(Any()), "", assert.True},
 		{"no folders", es.MailFolders(None()), "", assert.False},
 		{"matching folder", es.MailFolders([]string{fld1}), "", assert.True},
+		{"matching folder id", es.MailFolders([]string{fID1}), "", assert.True},
 		{"incomplete matching folder", es.MailFolders([]string{"mail"}), "", assert.False},
+		{"incomplete matching folder ID", es.MailFolders([]string{"mf_id"}), "", assert.False},
 		{"non-matching folder", es.MailFolders([]string{"smarf"}), "", assert.False},
 		{"non-matching folder substring", es.MailFolders([]string{fld1 + "_suffix"}), "", assert.False},
+		{"non-matching folder id substring", es.MailFolders([]string{fID1 + "_suffix"}), "", assert.False},
 		{"matching folder prefix", es.MailFolders([]string{fld1}, PrefixMatch()), "", assert.True},
+		{"matching folder ID prefix", es.MailFolders([]string{fID1}, PrefixMatch()), "", assert.True},
 		{"incomplete folder prefix", es.MailFolders([]string{"mail"}, PrefixMatch()), "", assert.False},
 		{"matching folder substring", es.MailFolders([]string{"Folder"}), "", assert.False},
 		{"one of multiple folders", es.MailFolders([]string{"smarf", fld2}), "", assert.True},
+		{"one of multiple folders by ID", es.MailFolders([]string{"smarf", fID2}), "", assert.True},
 		{"all mail", es.Mails(Any(), Any()), "", assert.True},
 		{"no mail", es.Mails(Any(), None()), "", assert.False},
 		{"matching mail", es.Mails(Any(), []string{mail}), "", assert.True},
@@ -746,8 +754,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			scopes := setScopesToDefault(test.scope)
 			var aMatch bool
 			for _, scope := range scopes {
-				pv := ExchangeMail.pathValues(pth)
-				if matchesPathValues(scope, ExchangeMail, pv, short) {
+				repoVals, locVals := ExchangeMail.pathValues(repo, loc)
+				if matchesPathValues(scope, ExchangeMail, repoVals, short) {
+					aMatch = true
+					break
+				}
+				if matchesPathValues(scope, ExchangeMail, locVals, short) {
 					aMatch = true
 					break
 				}
@@ -1351,9 +1363,12 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			repoVals, locVals := cat.pathValues(pth, pth)
+
 			result := passes(
 				cat,
-				cat.pathValues(pth),
+				repoVals,
+				locVals,
 				entry,
 				test.excludes,
 				test.filters,
@@ -1481,7 +1496,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 	}
 	for _, test := range table {
 		suite.T().Run(string(test.cat), func(t *testing.T) {
-			assert.Equal(t, test.cat.pathValues(test.path), test.expect)
+			r, l := test.cat.pathValues(test.path, test.path)
+			assert.Equal(t, test.expect, r)
+			assert.Equal(t, test.expect, l)
 		})
 	}
 }

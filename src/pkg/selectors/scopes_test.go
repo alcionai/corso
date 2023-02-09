@@ -353,7 +353,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 func (suite *SelectorScopesSuite) TestPasses() {
 	cat := rootCatStub
 	pth := stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
-	pathVals := cat.pathValues(pth)
+	repoVals, locVals := cat.pathValues(pth, pth)
 	entry := details.DetailsEntry{}
 
 	for _, test := range reduceTestTable {
@@ -364,7 +364,8 @@ func (suite *SelectorScopesSuite) TestPasses() {
 			incl := toMockScope(sel.Includes)
 			result := passes(
 				cat,
-				pathVals,
+				repoVals,
+				locVals,
 				entry,
 				excl, filt, incl)
 			test.expectPasses(t, result)
