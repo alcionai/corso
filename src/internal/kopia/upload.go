@@ -136,7 +136,7 @@ type corsoProgress struct {
 	deets   *details.Builder
 	// toMerge represents items that we don't have in-memory item info for. The
 	// item info for these items should be sourced from a base snapshot later on.
-	toMerge    map[string]path.Path
+	toMerge    map[string]PrevRefs
 	mu         sync.RWMutex
 	totalBytes int64
 	errs       *fault.Errors
@@ -181,7 +181,10 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		cp.toMerge[d.prevPath.ShortRef()] = d.repoPath
+		cp.toMerge[d.prevPath.ShortRef()] = PrevRefs{
+			Repo:     d.repoPath,
+			Location: d.locationPath,
+		}
 
 		return
 	}
