@@ -8,28 +8,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgraph_errors "github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
-
-	"github.com/alcionai/corso/src/internal/common"
 )
-
-// GraphConnector has two types of errors that are exported
-// RecoverableGCError is a query error that can be overcome with time
-type RecoverableGCError struct {
-	common.Err
-}
-
-func SetRecoverableError(e error) error {
-	return RecoverableGCError{*common.EncapsulateError(e)}
-}
-
-// NonRecoverableGCError is a permanent query error
-type NonRecoverableGCError struct {
-	common.Err
-}
-
-func SetNonRecoverableError(e error) error {
-	return NonRecoverableGCError{*common.EncapsulateError(e)}
-}
 
 // WrapErrorAndAppend helper function used to attach identifying information to an error
 // and return it as a mulitierror
@@ -101,7 +80,7 @@ func ConnectorStackErrorTraceWrap(e error, prefix string) error {
 	return errors.Wrap(e, prefix)
 }
 
-// ConnectorStackErrorTracew is a helper function that extracts
+// ConnectorStackErrorTrace is a helper function that extracts
 // the stack trace for oDataErrors, if the error has one.
 func ConnectorStackErrorTrace(e error) string {
 	eMessage := ""

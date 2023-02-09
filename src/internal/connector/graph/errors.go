@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"os"
 
@@ -175,4 +176,51 @@ func hasErrorCode(err error, codes ...string) bool {
 	}
 
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
+}
+
+// ErrData is a helper function that extracts ODataError metadata from
+// the error.  If the error is not an ODataError type, returns an empty
+// slice.  The returned value is guaranteed to be an even-length pairing
+// of key, value tuples.
+func ErrData(e error) []any {
+	result := make([]any, 0)
+
+	if e == nil {
+		return result
+	}
+
+	odErr, ok := e.(odataerrors.ODataErrorable)
+	if !ok {
+		return result
+	}
+
+	// Get MainError
+	mainErr := odErr.GetError()
+
+	result = appendIf(result, "odataerror_code", mainErr.GetCode())
+	result = appendIf(result, "odataerror_message", mainErr.GetMessage())
+	result = appendIf(result, "odataerror_target", mainErr.GetTarget())
+
+	for i, d := range mainErr.GetDetails() {
+		pfx := fmt.Sprintf("odataerror_details_%d_", i)
+		result = appendIf(result, pfx+"code", d.GetCode())
+		result = appendIf(result, pfx+"message", d.GetMessage())
+		result = appendIf(result, pfx+"target", d.GetTarget())
+	}
+
+	inner := mainErr.GetInnererror()
+	if inner != nil {
+		result = appendIf(result, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
+		result = appendIf(result, "odataerror_inner_req_id", inner.GetRequestId())
+	}
+
+	return result
+}
+
+func appendIf(a []any, k string, v *string) []any {
+	if v == nil {
+		return a
+	}
+
+	return append(a, k, *v)
 }
