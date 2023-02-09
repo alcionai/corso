@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -527,13 +528,19 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 	users := []string{suite.user}
 
+	ac, err := api.NewClient(acct)
+	require.NoError(suite.T(), err, "creating client")
+
+	cal, err := ac.Events().GetContainerByID(ctx, suite.user, DefaultCalendar)
+	require.NoError(suite.T(), err)
+
 	tests := []struct {
 		name, expected string
 		scope          selectors.ExchangeScope
 	}{
 		{
 			name:     "Default Event Calendar",
-			expected: DefaultCalendar,
+			expected: *cal.GetId(),
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{DefaultCalendar},
 				selectors.PrefixMatch(),
