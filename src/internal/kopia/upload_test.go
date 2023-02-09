@@ -535,7 +535,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
-		toMerge:        map[string]path.Path{},
+		toMerge:        map[string]PrevRefs{},
 		errs:           fault.New(true),
 	}
 
@@ -598,30 +598,34 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		true,
 	)
 
-	expectedToMerge := map[string]path.Path{
-		prevPath.ShortRef(): suite.targetFilePath,
+	expectedToMerge := map[string]PrevRefs{
+		prevPath.ShortRef(): {
+			Repo:     suite.targetFilePath,
+			Location: suite.targetFilePath,
+		},
 	}
 
 	// Setup stuff.
-	bd := &details.Builder{}
+	db := &details.Builder{}
 	cp := corsoProgress{
 		UploadProgress: &snapshotfs.NullUploadProgress{},
-		deets:          bd,
+		deets:          db,
 		pending:        map[string]*itemDetails{},
-		toMerge:        map[string]path.Path{},
+		toMerge:        map[string]PrevRefs{},
 		errs:           fault.New(true),
 	}
 
 	deets := &itemDetails{
-		info:     nil,
-		repoPath: suite.targetFilePath,
-		prevPath: prevPath,
+		info:         nil,
+		repoPath:     suite.targetFilePath,
+		prevPath:     prevPath,
+		locationPath: suite.targetFilePath,
 	}
+
 	cp.put(suite.targetFileName, deets)
 	require.Len(t, cp.pending, 1)
 
 	cp.FinishedFile(suite.targetFileName, nil)
-
 	assert.Equal(t, expectedToMerge, cp.toMerge)
 	assert.Empty(t, cp.deets)
 }
