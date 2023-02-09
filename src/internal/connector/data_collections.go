@@ -92,7 +92,7 @@ func (gc *GraphConnector) DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
-			gc.credentials.AzureTenantID,
+			gc.credentials,
 			gc.Service,
 			gc,
 			ctrlOpts)

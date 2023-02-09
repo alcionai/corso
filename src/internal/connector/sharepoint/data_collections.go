@@ -30,7 +30,7 @@ func DataCollections(
 	ctx context.Context,
 	itemClient *http.Client,
 	selector selectors.Selector,
-	tenantID string,
+	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
@@ -61,7 +61,7 @@ func DataCollections(
 			spcs, err = collectLists(
 				ctx,
 				serv,
-				tenantID,
+				creds.AzureTenantID,
 				site,
 				su,
 				ctrlOpts)
@@ -74,9 +74,20 @@ func DataCollections(
 				ctx,
 				itemClient,
 				serv,
-				tenantID,
+				creds.AzureTenantID,
 				site,
 				scope,
+				su,
+				ctrlOpts)
+			if err != nil {
+				return nil, nil, support.WrapAndAppend(site, err, errs)
+			}
+		case path.PagesCategory:
+			spcs, err = collectPages(
+				ctx,
+				creds,
+				serv,
+				site,
 				su,
 				ctrlOpts)
 			if err != nil {
@@ -118,7 +129,7 @@ func collectLists(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, List, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
 		collection.AddJob(tuple.id)
 
 		spcs = append(spcs, collection)
@@ -166,12 +177,12 @@ func collectLibraries(
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
-// M365 IDs for the associated Pages
+// M365 IDs for the associated Pages.
 func collectPages(
 	ctx context.Context,
 	creds account.M365Config,
 	serv graph.Servicer,
-	tenantID, siteID string,
+	siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
 ) ([]data.BackupCollection, error) {
@@ -180,9 +191,10 @@ func collectPages(
 	spcs := make([]data.BackupCollection, 0)
 
 	// make the betaClient
+	// Need to receive From DataCollection Call
 	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 	if err != nil {
-		return nil, errors.Wrap(err, "adapter for betaservice not created")
+		return nil, errors.New("unable to create adapter w/ env credentials")
 	}
 
 	betaService := api.NewBetaService(adpt)
@@ -195,7 +207,7 @@ func collectPages(
 	for _, tuple := range tuples {
 		dir, err := path.Builder{}.Append(tuple.Name).
 			ToDataLayerSharePointPath(
-				tenantID,
+				creds.AzureTenantID,
 				siteID,
 				path.PagesCategory,
 				false)
@@ -203,7 +215,7 @@ func collectPages(
 			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
 		}
 
-		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus)
+		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
 		collection.betaService = betaService
 		collection.AddJob(tuple.ID)
 
