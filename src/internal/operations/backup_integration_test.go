@@ -347,8 +347,7 @@ func generateContainerOfItems(
 		sel,
 		dest,
 		control.Options{RestorePermissions: true},
-		dataColls,
-	)
+		dataColls)
 	require.NoError(t, err)
 
 	return deets

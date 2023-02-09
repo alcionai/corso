@@ -178,23 +178,6 @@ func hasErrorCode(err error, codes ...string) bool {
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
 }
 
-// isTimeoutErr is used to determine if the Graph error returned is
-// because of Timeout. This is used to restrict retries to just
-// timeouts as other errors are handled within a middleware in the
-// client.
-func isTimeoutErr(err error) bool {
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
-		return true
-	}
-
-	switch err := err.(type) {
-	case *url.Error:
-		return err.Timeout()
-	default:
-		return false
-	}
-}
-
 // ErrData is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns an empty
 // slice.  The returned value is guaranteed to be an even-length pairing

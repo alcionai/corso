@@ -234,10 +234,12 @@ func (gc *GraphConnector) OneDriveDataCollections(
 // SideEffect: gc.status is updated at the completion of operation
 func (gc *GraphConnector) RestoreDataCollections(
 	ctx context.Context,
+	backupVersion int,
 	acct account.Account,
 	selector selectors.Selector,
 	dest control.RestoreDestination,
-	dcs []data.Collection,
+	opts control.Options,
+	dcs []data.RestoreCollection,
 ) (*details.Details, error) {
 	ctx, end := D.Span(ctx, "connector:restore")
 	defer end()
@@ -257,9 +259,9 @@ func (gc *GraphConnector) RestoreDataCollections(
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
+		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, gc.Service, dest, dcs, deets)
+		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets)
 	default:
 		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
 	}
