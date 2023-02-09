@@ -320,7 +320,7 @@ func RunWithRetry(run func() error) error {
 	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
 }
 
-// UnwrapStringPointer helper method for unwrapping strings
+// UnWrapStringPointer helper method for unwrapping strings
 // Microsoft Graph saves many variables as string pointers.
 // Function will safely check if the point is nil prior to
 // dereferencing the pointer. If the pointer is nil,
