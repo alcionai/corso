@@ -73,6 +73,7 @@ func (ecc *eventCalendarCache) Populate(
 		"",
 		func(cf graph.CacheFolder) error {
 			cf.SetPath(path.Builder{}.Append(calendarOthersFolder, *cf.GetDisplayName()))
+			cf.SetLocation(path.Builder{}.Append(calendarOthersFolder, *cf.GetDisplayName()))
 			return ecc.addFolder(cf)
 		},
 	)
@@ -80,7 +81,7 @@ func (ecc *eventCalendarCache) Populate(
 		return errors.Wrap(err, "enumerating containers")
 	}
 
-	if err := ecc.populatePaths(ctx); err != nil {
+	if err := ecc.populatePaths(ctx, true); err != nil {
 		return errors.Wrap(err, "establishing calendar paths")
 	}
 
@@ -89,7 +90,7 @@ func (ecc *eventCalendarCache) Populate(
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
+func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container, useIDInPath bool) error {
 	if err := checkIDAndName(f); err != nil {
 		return errors.Wrap(err, "validating container")
 	}
@@ -105,7 +106,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := ecc.IDToPath(ctx, *f.GetId())
+	_, _, err := ecc.IDToPath(ctx, *f.GetId(), true)
 	if err != nil {
 		return errors.Wrap(err, "setting path to container id")
 	}
