@@ -40,9 +40,12 @@ type ErrorsData struct {
 // New constructs a new error with default values in place.
 func New(failFast bool) *Errors {
 	return &Errors{
-		mu:       &sync.Mutex{},
-		errs:     []error{},
-		failFast: failFast,
+		mu:   &sync.Mutex{},
+		errs: []error{},
+		// TODO: respect the failfast input.  But while we're
+		// in transition towards fault support, and not completely
+		// checking errs, it's better for us to catch everything.
+		failFast: true,
 	}
 }
 
