@@ -2,7 +2,6 @@ package sharepoint
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -195,7 +194,7 @@ func collectPages(
 	// Need to receive From DataCollection Call
 	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create adapter w/ env credentials")
+		return nil, errors.New("unable to create adapter w/ env credentials")
 	}
 
 	betaService := api.NewBetaService(adpt)
