@@ -107,13 +107,13 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 		return "", false
 	}
 
-	for _, contain := range cr.cache {
-		if contain.Path() == nil {
+	for _, cc := range cr.cache {
+		if cc.Path() == nil {
 			continue
 		}
 
-		if contain.Path().String() == pathString {
-			return *contain.GetId(), true
+		if cc.Path().String() == pathString {
+			return *cc.GetId(), true
 		}
 	}
 

@@ -1,11 +1,38 @@
 package graph
 
 import (
+	"context"
+
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// Idable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of an ID.
+type Idable interface {
+	GetId() *string
+}
+
+// Descendable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a "parent folder".
+type Descendable interface {
+	Idable
+	GetParentFolderId() *string
+}
+
+// Displayable represents objects that implement msgraph-sdk-go/models.entityable
+// and have the concept of a display name.
+type Displayable interface {
+	Idable
+	GetDisplayName() *string
+}
+
+type Container interface {
+	Descendable
+	Displayable
+}
 
 // CachedContainer is used for local unit tests but also makes it so that this
 // code can be broken into generic- and service-specific chunks later on to
@@ -22,25 +49,31 @@ type CachedContainer interface {
 	SetPath(*path.Builder)
 }
 
-// checkRequiredValues is a helper function to ensure that
-// all the pointers are set prior to being called.
-func CheckRequiredValues(c Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
-	}
+// ContainerResolver houses functions for getting information about containers
+// from remote APIs (i.e. resolve folder paths with Graph API). Resolvers may
+// cache information about containers.
+type ContainerResolver interface {
+	// IDToPath takes an m365 container ID and converts it to a hierarchical path
+	// to that container. The path has a similar format to paths on the local
+	// file system.
+	IDToPath(ctx context.Context, m365ID string, useIDInPath bool) (*path.Builder, *path.Builder, error)
 
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
-	}
+	// Populate performs initialization steps for the resolver
+	// @param ctx is necessary param for Graph API tracing
+	// @param baseFolderID represents the M365ID base that the resolver will
+	// conclude its search. Default input is "".
+	Populate(ctx context.Context, baseFolderID string, baseContainerPather ...string) error
 
-	ptr = c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
-	}
+	// PathInCache performs a look up of a path reprensentation
+	// and returns the m365ID of directory iff the pathString
+	// matches the path of a container within the cache.
+	// @returns bool represents if m365ID was found.
+	PathInCache(pathString string) (string, bool)
 
-	return nil
+	AddToCache(ctx context.Context, m365Container Container, useIDInPath bool) error
+
+	// Items returns the containers in the cache.
+	Items() []CachedContainer
 }
 
 // ======================================
@@ -123,4 +156,29 @@ func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable 
 		Calendarable: calendar,
 		parentID:     parentID,
 	}
+}
+
+// =========================================
+// helper funcs
+// =========================================
+
+// checkRequiredValues is a helper function to ensure that
+// all the pointers are set prior to being called.
+func CheckRequiredValues(c Container) error {
+	idPtr := c.GetId()
+	if idPtr == nil || len(*idPtr) == 0 {
+		return errors.New("folder without ID")
+	}
+
+	ptr := c.GetDisplayName()
+	if ptr == nil || len(*ptr) == 0 {
+		return errors.Errorf("folder %s without display name", *idPtr)
+	}
+
+	ptr = c.GetParentFolderId()
+	if ptr == nil || len(*ptr) == 0 {
+		return errors.Errorf("folder %s without parent ID", *idPtr)
+	}
+
+	return nil
 }

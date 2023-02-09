@@ -560,27 +560,29 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				name:     "Mail Cache Test",
 				category: path.EmailCategory,
 				pathFunc1: func(t *testing.T) path.Path {
-					pth, err := path.Builder{}.Append("Griffindor").
-						Append("Croix").ToDataLayerExchangePathForCategory(
-						suite.credentials.AzureTenantID,
-						user,
-						path.EmailCategory,
-						false,
-					)
-
+					pth, err := path.Builder{}.
+						Append("Griffindor").
+						Append("Croix").
+						ToDataLayerExchangePathForCategory(
+							suite.credentials.AzureTenantID,
+							user,
+							path.EmailCategory,
+							false)
 					require.NoError(t, err)
+
 					return pth
 				},
 				pathFunc2: func(t *testing.T) path.Path {
-					pth, err := path.Builder{}.Append("Griffindor").
-						Append("Felicius").ToDataLayerExchangePathForCategory(
-						suite.credentials.AzureTenantID,
-						user,
-						path.EmailCategory,
-						false,
-					)
-
+					pth, err := path.Builder{}.
+						Append("Griffindor").
+						Append("Felicius").
+						ToDataLayerExchangePathForCategory(
+							suite.credentials.AzureTenantID,
+							user,
+							path.EmailCategory,
+							false)
 					require.NoError(t, err)
+
 					return pth
 				},
 			},
@@ -588,27 +590,27 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				name:     "Contact Cache Test",
 				category: path.ContactsCategory,
 				pathFunc1: func(t *testing.T) path.Path {
-					aPath, err := path.Builder{}.Append("HufflePuff").
+					aPath, err := path.Builder{}.
+						Append("HufflePuff").
 						ToDataLayerExchangePathForCategory(
 							suite.credentials.AzureTenantID,
 							user,
 							path.ContactsCategory,
-							false,
-						)
-
+							false)
 					require.NoError(t, err)
+
 					return aPath
 				},
 				pathFunc2: func(t *testing.T) path.Path {
-					aPath, err := path.Builder{}.Append("Ravenclaw").
+					aPath, err := path.Builder{}.
+						Append("Ravenclaw").
 						ToDataLayerExchangePathForCategory(
 							suite.credentials.AzureTenantID,
 							user,
 							path.ContactsCategory,
-							false,
-						)
-
+							false)
 					require.NoError(t, err)
+
 					return aPath
 				},
 			},
@@ -617,25 +619,27 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				category:     path.EventsCategory,
 				useIDForPath: true,
 				pathFunc1: func(t *testing.T) path.Path {
-					aPath, err := path.Builder{}.Append("Durmstrang").
+					aPath, err := path.Builder{}.
+						Append("Durmstrang").
 						ToDataLayerExchangePathForCategory(
 							suite.credentials.AzureTenantID,
 							user,
 							path.EventsCategory,
-							false,
-						)
+							false)
 					require.NoError(t, err)
+
 					return aPath
 				},
 				pathFunc2: func(t *testing.T) path.Path {
-					aPath, err := path.Builder{}.Append("Beauxbatons").
+					aPath, err := path.Builder{}.
+						Append("Beauxbatons").
 						ToDataLayerExchangePathForCategory(
 							suite.credentials.AzureTenantID,
 							user,
 							path.EventsCategory,
-							false,
-						)
+							false)
 					require.NoError(t, err)
+
 					return aPath
 				},
 				folderPrefix: calendarOthersFolder,
@@ -658,18 +662,23 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 			_, _, err = resolver.IDToPath(ctx, folderID, test.useIDForPath)
 			assert.NoError(t, err)
 
+			parentContainer := folderName
+			if test.useIDForPath {
+				parentContainer = folderID
+			}
+
 			secondID, err := CreateContainerDestination(
 				ctx,
 				m365,
 				test.pathFunc2(t),
-				folderName,
+				parentContainer,
 				directoryCaches)
 			require.NoError(t, err)
 
 			_, _, err = resolver.IDToPath(ctx, secondID, test.useIDForPath)
 			require.NoError(t, err)
 
-			p := stdpath.Join(test.folderPrefix, folderName)
+			p := stdpath.Join(test.folderPrefix, parentContainer)
 			_, ok := resolver.PathInCache(p)
 			require.True(t, ok, "looking for path in cache: %s", p)
 		})
