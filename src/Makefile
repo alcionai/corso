@@ -15,6 +15,11 @@ lint: check-lint-version
 	golangci-lint run
 	staticcheck ./...
 
+fmt:
+	gofumpt -w .
+	goimports -w .
+	gci write --skip-generated -s 'standard,default,prefix(github.com/alcionai/corso)' .
+
 check-lint-version: check-lint
 	@if [ "$(LINT_VERSION)" != "$(WANTED_LINT_VERSION)" ]; then \
 		echo >&2 $(BAD_LINT_MSG); \

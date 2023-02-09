@@ -3,9 +3,9 @@ package api_test
 import (
 	"testing"
 
-	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/stretchr/testify/require"
 
+	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 )

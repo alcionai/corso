@@ -16,6 +16,7 @@ const (
 func (i SiteAccessType) String() string {
 	return []string{"block", "full", "limited"}[i]
 }
+
 func ParseSiteAccessType(v string) (interface{}, error) {
 	result := BLOCK_SITEACCESSTYPE
 	switch v {
@@ -30,6 +31,7 @@ func ParseSiteAccessType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializeSiteAccessType(values []SiteAccessType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
