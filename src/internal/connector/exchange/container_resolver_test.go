@@ -642,7 +642,6 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 
 					return aPath
 				},
-				folderPrefix: calendarOthersFolder,
 			},
 		}
 	)
