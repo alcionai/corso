@@ -531,8 +531,24 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	ac, err := api.NewClient(acct)
 	require.NoError(suite.T(), err, "creating client")
 
-	cal, err := ac.Events().GetContainerByID(ctx, suite.user, DefaultCalendar)
-	require.NoError(suite.T(), err)
+	var (
+		calID  string
+		bdayID string
+	)
+
+	fn := func(gcf graph.CacheFolder) error {
+		if *gcf.GetDisplayName() == DefaultCalendar {
+			calID = *gcf.GetId()
+		}
+
+		if *gcf.GetDisplayName() == "Birthdays" {
+			bdayID = *gcf.GetId()
+		}
+
+		return nil
+	}
+
+	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn))
 
 	tests := []struct {
 		name, expected string
@@ -540,7 +556,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	}{
 		{
 			name:     "Default Event Calendar",
-			expected: *cal.GetId(),
+			expected: calID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{DefaultCalendar},
 				selectors.PrefixMatch(),
@@ -548,9 +564,9 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		},
 		{
 			name:     "Birthday Calendar",
-			expected: calendarOthersFolder + "/Birthdays",
+			expected: bdayID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				[]string{calendarOthersFolder + "/Birthdays"},
+				[]string{"Birthdays"},
 				selectors.PrefixMatch(),
 			)[0],
 		},
