@@ -10,11 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Support for item.Attachment:Mail restore
+- Errors from duplicate names in Exchange Calendars
+
+### Breaking Change: Exchange Calendar Storage
+Exchange Calendars storage entries now construct theirs paths using container IDs instead of display names.  This fixes cases where duplicate display names caused system failures.  The migration conflicts with existing calendar backups, producing the following problems:
+
+1. On the following backups, all Calendars and Calendar Events will produce duplicate storage entries.
+2. Attempting to restore multiple duplicate storage entries (ex, from an untargeted restore command like: `corso restore exchange --backup id`) will cause errors due to duplicate item collisions.
+
+To avoid these issues, we recommend running a backup with the flag --disable-incrementals.  Ex:
+```
+corso backup exchange --user '*' --data events --disable-incrementals
+```
+This will force Corso to refresh the entire backup, preventing the creation of duplicate entries.
 
 ### Changed
 
 ### Known Issues
 - Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
+- Breaking changes to Exchange Calendar backups.
 
 ## [v0.3.0] (alpha) - 2023-2-07
 
