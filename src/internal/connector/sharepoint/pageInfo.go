@@ -24,6 +24,7 @@ func sharePointPageInfo(page models.SitePageable, root string, size int64) *deta
 		if len(root) > 0 {
 			prefix = root + "/"
 		}
+
 		webURL = prefix + *page.GetWebUrl()
 	}
 
