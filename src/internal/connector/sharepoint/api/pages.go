@@ -17,6 +17,8 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	msmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
+	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
 )
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
@@ -79,6 +81,22 @@ func GetSitePages(
 	}
 
 	return col, nil
+}
+
+func GetSiteLite(ctx context.Context, gs graph.Servicer, siteID string) (msmodels.Siteable, error) {
+	// resp *sites.SiteItemRequestBuilderresp *sites.SiteItemRequestBuilde
+	options := &mssites.SiteItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &mssites.SiteItemRequestBuilderGetQueryParameters{
+			Select: []string{"webUrl"},
+		},
+	}
+
+	resp, err := gs.Client().SitesById(siteID).Get(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // fetchPages utility function to return the tuple of item
