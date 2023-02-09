@@ -261,8 +261,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
+	errs := fault.New(true)
 
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {

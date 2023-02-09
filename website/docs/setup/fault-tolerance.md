@@ -23,7 +23,7 @@ succeed in the face of transient or temporary failures.
 The Graph API can, for internal reasons, exhibit extended periods of
 failures for particular Graph objects. In this scenario, bounded retries
 will be ineffective. Unless invoked with the
-fail fast option, Corso will skip over these failing objects. For
+on-error recover option, Corso will skip over these failing objects. For
 backups, it will move forward with backing up other objects belonging
 to the user and, for restores, it will continue with trying to restore
 any remaining objects. If a multi-user backed is in progress (via `*`

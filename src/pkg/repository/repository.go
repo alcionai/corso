@@ -301,7 +301,7 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors) {
 	var (
 		bups []*backup.Backup
-		errs = fault.New(false)
+		errs = fault.New(true)
 		sw   = store.NewKopiaStore(r.modelStore)
 	)
 
@@ -329,7 +329,7 @@ func (r repository) BackupDetails(
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Errors) {
 	sw := store.NewKopiaStore(r.modelStore)
-	errs := fault.New(false)
+	errs := fault.New(true)
 
 	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
 	if err != nil {

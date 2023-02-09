@@ -1,6 +1,8 @@
 package options
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -11,7 +13,7 @@ import (
 func Control() control.Options {
 	opt := control.Defaults()
 
-	opt.FailFast = fastFail
+	opt.FailFast = strings.ToLower(onError) != "recover"
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
@@ -25,7 +27,7 @@ func Control() control.Options {
 // ---------------------------------------------------------------------------
 
 var (
-	fastFail           bool
+	onError            string
 	noStats            bool
 	restorePermissions bool
 )
@@ -33,9 +35,10 @@ var (
 // AddOperationFlags adds command-local operation flags
 func AddOperationFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.BoolVar(&fastFail, "fast-fail", false, "stop processing immediately if any error occurs")
-	// TODO: reveal this flag when fail-fast support is implemented
-	cobra.CheckErr(fs.MarkHidden("fast-fail"))
+	fs.StringVar(
+		&onError, "on-error",
+		"fail",
+		"Configure how Corso handles recoverable errors.  Accepts 'fail' (default) or 'recover'.")
 }
 
 // AddGlobalOperationFlags adds the global operations flag set.

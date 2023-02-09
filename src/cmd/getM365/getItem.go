@@ -182,8 +182,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, account.M365Config, 
 		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "finding m365 account details"))
 	}
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
+	errs := fault.New(true)
 
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
