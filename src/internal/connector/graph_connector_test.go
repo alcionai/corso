@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -125,9 +126,15 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			//nolint
-			result, err := gc.UnionSiteIDsAndWebURLs(context.Background(), test.ids, test.urls)
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			errs := fault.New(true)
+
+			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, errs)
 			assert.NoError(t, err)
+			assert.NoError(t, errs.Err())
+			assert.Empty(t, errs.Errs())
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
@@ -204,18 +211,24 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	t := suite.T()
+
 	service, err := newConnector.createService()
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	newConnector.Service = service
+	assert.Equal(t, 0, len(newConnector.Sites))
 
-	suite.Equal(0, len(newConnector.Sites))
-	err = newConnector.setTenantSites(ctx)
-	suite.NoError(err)
-	suite.Less(0, len(newConnector.Sites))
+	errs := fault.New(true)
+
+	err = newConnector.setTenantSites(ctx, errs)
+	assert.NoError(t, err)
+	assert.NoError(t, errs.Err())
+	assert.Empty(t, errs.Errs())
+	assert.Less(t, 0, len(newConnector.Sites))
 
 	for _, site := range newConnector.Sites {
-		suite.NotContains("sharepoint.com/personal/", site)
+		assert.NotContains(t, "sharepoint.com/personal/", site)
 	}
 }
 

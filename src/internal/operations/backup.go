@@ -239,7 +239,7 @@ func (op *BackupOperation) do(
 		return nil, errors.Wrap(err, "producing manifests and metadata")
 	}
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account)
+	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "connectng to m365")
 	}
