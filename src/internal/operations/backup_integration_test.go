@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -250,7 +251,7 @@ func checkMetadataFilesExist(
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil)
+			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, fault.New(true))
 			assert.NoError(t, err)
 
 			for _, col := range cols {
@@ -346,8 +347,7 @@ func generateContainerOfItems(
 		sel,
 		dest,
 		control.Options{RestorePermissions: true},
-		dataColls,
-	)
+		dataColls)
 	require.NoError(t, err)
 
 	return deets
@@ -409,7 +409,7 @@ func buildCollections(
 			mc.Data[i] = c.items[i].data
 		}
 
-		collections = append(collections, mc)
+		collections = append(collections, data.NotFoundRestoreCollection{Collection: mc})
 	}
 
 	return collections

@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -269,7 +270,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				tags,
 				true,
-			)
+				fault.New(true))
 			assert.NoError(t, err)
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
@@ -357,7 +358,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		tags,
 		true,
-	)
+		fault.New(true))
 	require.NoError(t, err)
 
 	require.NoError(t, k.Compression(ctx, "gzip"))
@@ -374,8 +375,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 			fp1,
 			fp2,
 		},
-		nil)
-
+		nil,
+		fault.New(true))
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(result))
 
@@ -475,7 +476,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		tags,
 		true,
-	)
+		fault.New(true))
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, stats.ErrorCount)
@@ -496,11 +497,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		string(stats.SnapshotID),
 		[]path.Path{failedPath},
 		&ic,
-	)
+		fault.New(true))
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, err, ErrNotFound, "errored file is restorable")
+	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable")
 }
 
 type backedupFile struct {
@@ -536,7 +537,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				nil,
 				true,
-			)
+				fault.New(true))
 			require.NoError(t, err)
 
 			assert.Equal(t, BackupStats{}, *s)
@@ -695,7 +696,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		nil,
 		tags,
 		false,
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, expectedFiles)
@@ -825,7 +826,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				excluded,
 				tags,
 				true,
-			)
+				fault.New(true))
 			require.NoError(t, err)
 			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)
 			assert.Equal(t, test.expectedUncachedItems, stats.UncachedFileCount)
@@ -845,7 +846,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					suite.files[suite.testPath1.String()][0].itemPath,
 				},
 				&ic,
-			)
+				fault.New(true))
 			test.restoreCheck(t, err)
 		})
 	}
@@ -902,7 +903,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				suite.testPath1,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 2,
+			expectedCollections: 0,
 			expectedErr:         assert.Error,
 		},
 		{
@@ -912,7 +913,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				doesntExist,
 				suite.files[suite.testPath2.String()][0].itemPath,
 			},
-			expectedCollections: 2,
+			expectedCollections: 0,
 			expectedErr:         assert.Error,
 		},
 	}
@@ -939,8 +940,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				suite.ctx,
 				string(suite.snapshotID),
 				test.inputPaths,
-				&ic)
+				&ic,
+				fault.New(true))
 			test.expectedErr(t, err)
+
+			if err != nil {
+				return
+			}
 
 			assert.Len(t, result, test.expectedCollections)
 			assert.Less(t, int64(0), ic.i)
@@ -981,7 +987,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 				suite.ctx,
 				test.snapshotID,
 				test.paths,
-				nil)
+				nil,
+				fault.New(true))
 			assert.Error(t, err)
 			assert.Empty(t, c)
 		})
@@ -1001,7 +1008,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 		suite.ctx,
 		string(suite.snapshotID),
 		[]path.Path{itemPath},
-		&ic)
+		&ic,
+		fault.New(true))
 	assert.Error(t, err, "snapshot should be deleted")
 	assert.Empty(t, c)
 	assert.Zero(t, ic.i)

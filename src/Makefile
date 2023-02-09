@@ -15,6 +15,10 @@ lint: check-lint-version
 	golangci-lint run
 	staticcheck ./...
 
+fmt:
+	gofumpt -w .
+	gci write --skip-generated -s 'standard,default,prefix(github.com/alcionai/corso)' .
+
 check-lint-version: check-lint
 	@if [ "$(LINT_VERSION)" != "$(WANTED_LINT_VERSION)" ]; then \
 		echo >&2 $(BAD_LINT_MSG); \
@@ -74,4 +78,4 @@ load-test:
 	-mutexprofile=mutex.prof \
 	-trace=trace.out \
 	-outputdir=test_results \
-	./pkg/repository/repository_load_test.go
+	./pkg/repository/loadtest/repository_load_test.go

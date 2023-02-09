@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] (alpha)
+### Added
+
+### Fixed
+- Support for item.Attachment:Mail restore
+
+### Changed
+
+### Known Issues
+- Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
 
 ## [v0.3.0] (alpha) - 2023-2-07
 
@@ -19,9 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add versions to backups so that we can understand/handle older backup formats
 
 ### Fixed
-- Backing up a calendar that has the same name as the default calendar
+
 - Added additional backoff-retry to all OneDrive queries.
 - Users with `null` userType values are no longer excluded from user queries.
+- Fix bug when backing up a calendar that has the same name as the default calendar
 
 ### Known Issues
 

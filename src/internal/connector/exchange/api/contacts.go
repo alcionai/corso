@@ -274,6 +274,8 @@ func (c Contacts) Serialize(
 		return nil, fmt.Errorf("expected Contactable, got %T", item)
 	}
 
+	ctx = clues.Add(ctx, "item_id", *contact.GetId())
+
 	var (
 		err    error
 		writer = kioser.NewJsonSerializationWriter()
@@ -282,7 +284,7 @@ func (c Contacts) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", contact); err != nil {
-		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	bs, err := writer.GetSerializedContent()

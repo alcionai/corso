@@ -98,8 +98,8 @@ func Initialize(
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
-		if kopia.IsRepoAlreadyExistsError(err) {
-			return nil, clues.Stack(ErrorRepoAlreadyExists).WithClues(ctx)
+		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
+			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
 		return nil, errors.Wrap(err, "initializing kopia")
@@ -323,7 +323,8 @@ func (r repository) BackupDetails(
 	deets, err := streamstore.New(
 		r.dataLayer,
 		r.Account.ID(),
-		b.Selector.PathService()).ReadBackupDetails(ctx, dID)
+		b.Selector.PathService(),
+	).ReadBackupDetails(ctx, dID, errs)
 	if err != nil {
 		return nil, nil, errs.Fail(err)
 	}

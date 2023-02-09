@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/alcionai/corso/src/cli/print"
 )
 
 // Default location for writing logs, initialized in platform specific files
@@ -123,7 +121,6 @@ func PreloadLoggingFlags() (string, string) {
 	if logfile != "stdout" && logfile != "stderr" {
 		LogFile = logfile
 		logdir := filepath.Dir(logfile)
-		print.Info(context.Background(), "Logging to file: "+logfile)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {

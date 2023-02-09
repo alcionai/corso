@@ -1,6 +1,8 @@
 package data
 
 import (
+	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -11,6 +13,8 @@ import (
 // ------------------------------------------------------------------------------------------------
 // standard ifaces
 // ------------------------------------------------------------------------------------------------
+
+var ErrNotFound = errors.New("not found")
 
 type CollectionState int
 
@@ -64,6 +68,20 @@ type BackupCollection interface {
 // RestoreCollection is an extension of Collection that is used during restores.
 type RestoreCollection interface {
 	Collection
+	// Fetch retrieves an item with the given name from the Collection if it
+	// exists. Items retrieved with Fetch may still appear in the channel returned
+	// by Items().
+	Fetch(ctx context.Context, name string) (Stream, error)
+}
+
+// NotFoundRestoreCollection is a wrapper for a Collection that returns
+// ErrNotFound for all Fetch calls.
+type NotFoundRestoreCollection struct {
+	Collection
+}
+
+func (c NotFoundRestoreCollection) Fetch(context.Context, string) (Stream, error) {
+	return nil, ErrNotFound
 }
 
 // Stream represents a single item within a Collection

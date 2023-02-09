@@ -323,6 +323,8 @@ func (c Events) Serialize(
 		return nil, fmt.Errorf("expected Eventable, got %T", item)
 	}
 
+	ctx = clues.Add(ctx, "item_id", *event.GetId())
+
 	var (
 		err    error
 		writer = kioser.NewJsonSerializationWriter()
@@ -331,7 +333,7 @@ func (c Events) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", event); err != nil {
-		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	bs, err := writer.GetSerializedContent()

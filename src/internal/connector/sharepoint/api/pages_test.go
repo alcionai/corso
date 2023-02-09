@@ -61,7 +61,7 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 	}
 }
 
-func (suite *SharePointPageSuite) TestGetSitePage() {
+func (suite *SharePointPageSuite) TestGetSitePages() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -71,7 +71,7 @@ func (suite *SharePointPageSuite) TestGetSitePage() {
 	require.NotNil(t, tuples)
 
 	jobs := []string{tuples[0].ID}
-	pages, err := api.GetSitePage(ctx, suite.service, suite.siteID, jobs)
+	pages, err := api.GetSitePages(ctx, suite.service, suite.siteID, jobs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
 }
