@@ -59,6 +59,7 @@ var _ graph.ContainerResolver = &mockResolver{}
 type (
 	mockResolver struct {
 		items []graph.CachedContainer
+		added map[string]string
 	}
 )
 
@@ -76,7 +77,16 @@ func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
 
-func (m mockResolver) AddToCache(context.Context, graph.Container, bool) error { return nil }
+func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container, b bool) error {
+	if len(m.added) == 0 {
+		m.added = map[string]string{}
+	}
+
+	m.added[*gc.GetDisplayName()] = *gc.GetId()
+
+	return nil
+}
+func (m mockResolver) DestinationNameToID(dest string) string { return m.added[dest] }
 func (m mockResolver) IDToPath(context.Context, string, bool) (*path.Builder, *path.Builder, error) {
 	return nil, nil, nil
 }

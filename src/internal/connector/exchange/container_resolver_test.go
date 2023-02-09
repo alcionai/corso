@@ -478,16 +478,20 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	defer flush()
 
 	var (
+		dest = "testAddFolder"
 		t    = suite.T()
 		last = suite.allContainers[len(suite.allContainers)-1]
-		m    = newMockCachedContainer("testAddFolder")
+		m    = newMockCachedContainer(dest)
 	)
 
 	m.parentID = last.id
 	m.expectedPath = stdpath.Join(last.expectedPath, m.displayName)
 	m.expectedLocation = stdpath.Join(last.expectedPath, m.displayName)
 
+	require.Empty(t, suite.fc.DestinationNameToID(dest), "destination not yet added to cache")
 	require.NoError(t, suite.fc.AddToCache(ctx, m, false))
+	require.Empty(t, suite.fc.DestinationNameToID(dest),
+		"destination id from cache, still empty, because this is not a calendar")
 
 	p, l, err := suite.fc.IDToPath(ctx, m.id, false)
 	require.NoError(t, err)

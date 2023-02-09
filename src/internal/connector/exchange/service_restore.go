@@ -482,7 +482,6 @@ func CreateContainerDestination(
 		user           = directory.ResourceOwner()
 		category       = directory.Category()
 		directoryCache = caches[category]
-		newPathFolders = append([]string{destination}, directory.Folders()...)
 	)
 
 	// TODO(rkeepers): pass the api client into this func, rather than generating one.
@@ -493,6 +492,8 @@ func CreateContainerDestination(
 
 	switch category {
 	case path.EmailCategory:
+		folders := append([]string{destination}, directory.Folders()...)
+
 		if directoryCache == nil {
 			acm := ac.Mail()
 			mfc := &mailFolderCache{
@@ -509,12 +510,14 @@ func CreateContainerDestination(
 		return establishMailRestoreLocation(
 			ctx,
 			ac,
-			newPathFolders,
+			folders,
 			directoryCache,
 			user,
 			newCache)
 
 	case path.ContactsCategory:
+		folders := append([]string{destination}, directory.Folders()...)
+
 		if directoryCache == nil {
 			acc := ac.Contacts()
 			cfc := &contactFolderCache{
@@ -530,12 +533,14 @@ func CreateContainerDestination(
 		return establishContactsRestoreLocation(
 			ctx,
 			ac,
-			newPathFolders,
+			folders,
 			directoryCache,
 			user,
 			newCache)
 
 	case path.EventsCategory:
+		dest := destination
+
 		if directoryCache == nil {
 			ace := ac.Events()
 			ecc := &eventCalendarCache{
@@ -546,16 +551,23 @@ func CreateContainerDestination(
 			caches[category] = ecc
 			newCache = true
 			directoryCache = ecc
+		} else if did := directoryCache.DestinationNameToID(dest); len(did) > 0 {
+			// calendars are cached by ID in the resolver, not name, so once we have
+			// created the destination calendar, we need to look up its id and use
+			// that for resolver lookups instead of the display name.
+			dest = did
 		}
+
+		folders := append([]string{dest}, directory.Folders()...)
 
 		return establishEventsRestoreLocation(
 			ctx,
 			ac,
-			newPathFolders,
+			folders,
 			directoryCache,
 			user,
-			newCache,
-		)
+			newCache)
+
 	default:
 		return "", fmt.Errorf("category: %s not support for exchange cache", category)
 	}
