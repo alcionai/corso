@@ -25,6 +25,7 @@ corso backup exchange --user '*' --data events --disable-incrementals
 This will force Corso to refresh the entire backup, preventing the creation of duplicate entries.
 
 ### Changed
+- When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or an m365 ID.
 
 ### Known Issues
 - Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
