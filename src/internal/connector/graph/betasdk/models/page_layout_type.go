@@ -17,6 +17,7 @@ const (
 func (i PageLayoutType) String() string {
 	return []string{"microsoftReserved", "article", "home", "unknownFutureValue"}[i]
 }
+
 func ParsePageLayoutType(v string) (interface{}, error) {
 	result := MICROSOFTRESERVED_PAGELAYOUTTYPE
 	switch v {
@@ -33,6 +34,7 @@ func ParsePageLayoutType(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializePageLayoutType(values []PageLayoutType) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
