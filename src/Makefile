@@ -74,4 +74,4 @@ load-test:
 	-mutexprofile=mutex.prof \
 	-trace=trace.out \
 	-outputdir=test_results \
-	./pkg/repository/repository_load_test.go
+	./pkg/repository/loadtest/repository_load_test.go
