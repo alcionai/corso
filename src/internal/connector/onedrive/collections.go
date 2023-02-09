@@ -415,12 +415,6 @@ func (c *Collections) UpdateCollections(
 			return err
 		}
 
-		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
-			continue
-		}
-
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
 			if item.GetDeleted() != nil {
@@ -445,6 +439,12 @@ func (c *Collections) UpdateCollections(
 
 			visitedPaths[folderPath.String()] = *item.GetId()
 
+			// Skip items that don't match the folder selectors we were given.
+			if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+				logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
+				continue
+			}
+
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
@@ -461,6 +461,12 @@ func (c *Collections) UpdateCollections(
 			fallthrough
 
 		case item.GetFile() != nil:
+			// Skip items that don't match the folder selectors we were given.
+			if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+				logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
+				continue
+			}
+
 			if item.GetDeleted() != nil {
 				excluded[*item.GetId()] = struct{}{}
 				// Exchange counts items streamed through it which includes deletions so
