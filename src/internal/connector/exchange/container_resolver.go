@@ -87,10 +87,14 @@ func (cr *containerResolver) idToPath(
 	}
 
 	fullPath := parentPath.Append(toAppend)
-	locPath := parentLoc.Append(*c.GetDisplayName())
-
 	c.SetPath(fullPath)
-	c.SetLocation(locPath)
+
+	var locPath *path.Builder
+
+	if parentLoc != nil {
+		locPath = parentLoc.Append(*c.GetDisplayName())
+		c.SetLocation(locPath)
+	}
 
 	return fullPath, locPath, nil
 }
