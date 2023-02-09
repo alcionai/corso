@@ -586,7 +586,7 @@ func mergeDetails(
 
 			if newLoc != nil {
 				locBuilder = newLoc.ToBuilder()
-				newLocStr = newLoc.Folder()
+				newLocStr = newLoc.Folder(true)
 				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
 			}
 
