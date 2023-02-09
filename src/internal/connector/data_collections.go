@@ -16,6 +16,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -225,4 +227,47 @@ func (gc *GraphConnector) OneDriveDataCollections(
 	}
 
 	return collections, allExcludes, errs
+}
+
+// RestoreDataCollections restores data from the specified collections
+// into M365 using the GraphAPI.
+// SideEffect: gc.status is updated at the completion of operation
+func (gc *GraphConnector) RestoreDataCollections(
+	ctx context.Context,
+	backupVersion int,
+	acct account.Account,
+	selector selectors.Selector,
+	dest control.RestoreDestination,
+	opts control.Options,
+	dcs []data.RestoreCollection,
+) (*details.Details, error) {
+	ctx, end := D.Span(ctx, "connector:restore")
+	defer end()
+
+	var (
+		status *support.ConnectorOperationStatus
+		err    error
+		deets  = &details.Builder{}
+	)
+
+	creds, err := acct.M365Config()
+	if err != nil {
+		return nil, errors.Wrap(err, "malformed azure credentials")
+	}
+
+	switch selector.Service {
+	case selectors.ServiceExchange:
+		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
+	case selectors.ServiceOneDrive:
+		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
+	case selectors.ServiceSharePoint:
+		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets)
+	default:
+		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
+	}
+
+	gc.incrementAwaitingMessages()
+	gc.UpdateStatus(status)
+
+	return deets.Details(), err
 }

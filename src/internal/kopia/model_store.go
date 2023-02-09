@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
@@ -59,7 +60,7 @@ func (ms *ModelStore) Close(ctx context.Context) error {
 // bad model type is given.
 func tagsForModel(s model.Schema, tags map[string]string) (map[string]string, error) {
 	if _, ok := tags[manifest.TypeLabelKey]; ok {
-		return nil, errors.WithStack(errBadTagKey)
+		return nil, clues.Stack(errBadTagKey)
 	}
 
 	res := make(map[string]string, len(tags)+1)
@@ -80,11 +81,11 @@ func tagsForModelWithID(
 	tags map[string]string,
 ) (map[string]string, error) {
 	if !s.Valid() {
-		return nil, errors.WithStack(errUnrecognizedSchema)
+		return nil, clues.Stack(errUnrecognizedSchema)
 	}
 
 	if len(id) == 0 {
-		return nil, errors.WithStack(errNoStableID)
+		return nil, clues.Stack(errNoStableID)
 	}
 
 	res, err := tagsForModel(s, tags)
@@ -93,13 +94,13 @@ func tagsForModelWithID(
 	}
 
 	if _, ok := res[stableIDKey]; ok {
-		return nil, errors.WithStack(errBadTagKey)
+		return nil, clues.Stack(errBadTagKey)
 	}
 
 	res[stableIDKey] = string(id)
 
 	if _, ok := res[modelVersionKey]; ok {
-		return nil, errors.WithStack(errBadTagKey)
+		return nil, clues.Stack(errBadTagKey)
 	}
 
 	res[modelVersionKey] = strconv.Itoa(version)
@@ -117,7 +118,7 @@ func putInner(
 	create bool,
 ) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	base := m.Base()
@@ -128,13 +129,13 @@ func putInner(
 	tmpTags, err := tagsForModelWithID(s, base.ID, base.Version, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	id, err := w.PutManifest(ctx, tmpTags, m)
 	if err != nil {
 		// Will be wrapped at a higher layer.
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	base.ModelStoreID = id
@@ -150,7 +151,7 @@ func (ms *ModelStore) Put(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema)
 	}
 
 	m.Base().Version = ms.modelVersion
@@ -162,14 +163,16 @@ func (ms *ModelStore) Put(
 		func(innerCtx context.Context, w repo.RepositoryWriter) error {
 			err := putInner(innerCtx, w, s, m, true)
 			if err != nil {
-				return err
+				return clues.Stack(err).WithClues(innerCtx)
 			}
 
 			return nil
-		},
-	)
+		})
+	if err != nil {
+		return clues.Wrap(err, "putting model").WithClues(ctx)
+	}
 
-	return errors.Wrap(err, "putting model")
+	return nil
 }
 
 func stripHiddenTags(tags map[string]string) {
@@ -184,7 +187,7 @@ func (ms ModelStore) populateBaseModelFromMetadata(
 ) error {
 	id, ok := m.Labels[stableIDKey]
 	if !ok {
-		return errors.WithStack(errNoStableID)
+		return clues.Stack(errNoStableID)
 	}
 
 	v, err := strconv.Atoi(m.Labels[modelVersionKey])
@@ -193,7 +196,7 @@ func (ms ModelStore) populateBaseModelFromMetadata(
 	}
 
 	if v != ms.modelVersion {
-		return errors.Errorf("bad model version %s", m.Labels[modelVersionKey])
+		return clues.Wrap(clues.New(m.Labels[modelVersionKey]), "bad model version")
 	}
 
 	base.ModelStoreID = m.ID
@@ -211,7 +214,7 @@ func (ms ModelStore) baseModelFromMetadata(
 ) (*model.BaseModel, error) {
 	res := &model.BaseModel{}
 	if err := ms.populateBaseModelFromMetadata(res, m); err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithAll("metadata_id", m.ID, "metadata_modtime", m.ModTime)
 	}
 
 	return res, nil
@@ -226,21 +229,21 @@ func (ms *ModelStore) GetIDsForType(
 	tags map[string]string,
 ) ([]*model.BaseModel, error) {
 	if !s.Valid() {
-		return nil, errors.WithStack(errUnrecognizedSchema)
+		return nil, clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	if _, ok := tags[stableIDKey]; ok {
-		return nil, errors.WithStack(errBadTagKey)
+		return nil, clues.Stack(errBadTagKey).WithClues(ctx)
 	}
 
 	tmpTags, err := tagsForModel(s, tags)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting model metadata")
+		return nil, clues.Wrap(err, "getting model metadata").WithClues(ctx)
 	}
 
 	metadata, err := ms.c.FindManifests(ctx, tmpTags)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting model metadata")
+		return nil, clues.Wrap(err, "getting model metadata").WithClues(ctx)
 	}
 
 	res := make([]*model.BaseModel, 0, len(metadata))
@@ -248,7 +251,7 @@ func (ms *ModelStore) GetIDsForType(
 	for _, m := range metadata {
 		bm, err := ms.baseModelFromMetadata(m)
 		if err != nil {
-			return nil, errors.Wrap(err, "parsing model metadata")
+			return nil, clues.Wrap(err, "parsing model metadata").WithClues(ctx)
 		}
 
 		res = append(res, bm)
@@ -266,30 +269,30 @@ func (ms *ModelStore) getModelStoreID(
 	id model.StableID,
 ) (manifest.ID, error) {
 	if !s.Valid() {
-		return "", errors.WithStack(errUnrecognizedSchema)
+		return "", clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	if len(id) == 0 {
-		return "", errors.WithStack(errNoStableID)
+		return "", clues.Stack(errNoStableID).WithClues(ctx)
 	}
 
 	tags := map[string]string{stableIDKey: string(id)}
 
 	metadata, err := ms.c.FindManifests(ctx, tags)
 	if err != nil {
-		return "", errors.Wrap(err, "getting ModelStoreID")
+		return "", clues.Wrap(err, "getting ModelStoreID").WithClues(ctx)
 	}
 
 	if len(metadata) == 0 {
-		return "", errors.Wrap(data.ErrNotFound, "getting ModelStoreID")
+		return "", clues.Wrap(data.ErrNotFound, "getting ModelStoreID").WithClues(ctx)
 	}
 
 	if len(metadata) != 1 {
-		return "", errors.New("multiple models with same StableID")
+		return "", clues.New("multiple models with same StableID").WithClues(ctx)
 	}
 
 	if metadata[0].Labels[manifest.TypeLabelKey] != s.String() {
-		return "", errors.WithStack(errModelTypeMismatch)
+		return "", clues.Stack(errModelTypeMismatch).WithClues(ctx)
 	}
 
 	return metadata[0].ID, nil
@@ -305,7 +308,7 @@ func (ms *ModelStore) Get(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	modelID, err := ms.getModelStoreID(ctx, s, id)
@@ -313,7 +316,7 @@ func (ms *ModelStore) Get(
 		return err
 	}
 
-	return transmuteErr(ms.GetWithModelStoreID(ctx, s, modelID, m))
+	return ms.GetWithModelStoreID(ctx, s, modelID, m)
 }
 
 // GetWithModelStoreID deserializes the model with the given ModelStoreID into
@@ -326,26 +329,34 @@ func (ms *ModelStore) GetWithModelStoreID(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	if len(id) == 0 {
-		return errors.WithStack(errNoModelStoreID)
+		return clues.Stack(errNoModelStoreID).WithClues(ctx)
 	}
 
 	metadata, err := ms.c.GetManifest(ctx, id, m)
 	if err != nil {
-		return errors.Wrap(transmuteErr(err), "getting model data")
+		if errors.Is(err, manifest.ErrNotFound) {
+			err = data.ErrNotFound
+		}
+
+		return clues.Wrap(err, "getting model data").WithClues(ctx)
 	}
 
-	if metadata.Labels[manifest.TypeLabelKey] != s.String() {
-		return errors.WithStack(errModelTypeMismatch)
+	mdlbl := metadata.Labels[manifest.TypeLabelKey]
+	if mdlbl != s.String() {
+		return clues.Stack(errModelTypeMismatch).
+			WithClues(ctx).
+			WithAll("expected_label", s, "got_label", mdlbl)
 	}
 
-	return errors.Wrap(
-		ms.populateBaseModelFromMetadata(m.Base(), metadata),
-		"getting model by ID",
-	)
+	if err := ms.populateBaseModelFromMetadata(m.Base(), metadata); err != nil {
+		return clues.Wrap(err, "getting model by ID").WithClues(ctx)
+	}
+
+	return nil
 }
 
 // checkPrevModelVersion compares the ModelType and ModelStoreID in this model
@@ -359,26 +370,31 @@ func (ms *ModelStore) checkPrevModelVersion(
 	b *model.BaseModel,
 ) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	id, err := ms.getModelStoreID(ctx, s, b.ID)
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
 	// We actually got something back during our lookup.
 	meta, err := ms.c.GetManifest(ctx, id, nil)
 	if err != nil {
-		return errors.Wrap(err, "getting previous model version")
+		return clues.Wrap(err, "getting previous model version").WithClues(ctx)
 	}
 
 	if meta.ID != b.ModelStoreID {
-		return errors.New("updated model has different ModelStoreID")
+		return clues.New("updated model has different ModelStoreID").
+			WithClues(ctx).
+			WithAll("expected_id", meta.ID, "model_store_id", b.ModelStoreID)
 	}
 
-	if meta.Labels[manifest.TypeLabelKey] != s.String() {
-		return errors.New("updated model has different model type")
+	mdlbl := meta.Labels[manifest.TypeLabelKey]
+	if mdlbl != s.String() {
+		return clues.New("updated model has different model type").
+			WithClues(ctx).
+			WithAll("expected_label", s, "got_label", mdlbl)
 	}
 
 	return nil
@@ -396,12 +412,12 @@ func (ms *ModelStore) Update(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	base := m.Base()
 	if len(base.ModelStoreID) == 0 {
-		return errors.WithStack(errNoModelStoreID)
+		return clues.Stack(errNoModelStoreID).WithClues(ctx)
 	}
 
 	base.Version = ms.modelVersion
@@ -415,8 +431,11 @@ func (ms *ModelStore) Update(
 		ctx,
 		ms.c,
 		repo.WriteSessionOptions{Purpose: "ModelStoreUpdate"},
-		func(innerCtx context.Context, w repo.RepositoryWriter) (innerErr error) {
-			oldID := base.ModelStoreID
+		func(innerCtx context.Context, w repo.RepositoryWriter) error {
+			var (
+				innerErr error
+				oldID    = base.ModelStoreID
+			)
 
 			defer func() {
 				if innerErr != nil {
@@ -429,19 +448,26 @@ func (ms *ModelStore) Update(
 				return innerErr
 			}
 
+			// if equal, everything worked out fine.
+			// if not, we handle the cleanup below.
+			if oldID == base.ModelStoreID {
+				return nil
+			}
+
 			// If we fail at this point no changes will be made to the manifest store
 			// in kopia, making it appear like nothing ever happened. At worst some
 			// orphaned content blobs may be uploaded, but they should be garbage
 			// collected the next time kopia maintenance is run.
-			if oldID != base.ModelStoreID {
-				innerErr = w.DeleteManifest(innerCtx, oldID)
+			innerErr = w.DeleteManifest(innerCtx, oldID)
+			if innerErr != nil {
+				return clues.Stack(innerErr).WithClues(ctx)
 			}
 
-			return innerErr
+			return nil
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, "updating model")
+		return clues.Wrap(err, "updating model").WithClues(ctx)
 	}
 
 	return nil
@@ -452,7 +478,7 @@ func (ms *ModelStore) Update(
 // have the same StableID.
 func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
 	if !s.Valid() {
-		return errors.WithStack(errUnrecognizedSchema)
+		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
 	}
 
 	latest, err := ms.getModelStoreID(ctx, s, id)
@@ -472,26 +498,17 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 // exist.
 func (ms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
 	if len(id) == 0 {
-		return errors.WithStack(errNoModelStoreID)
+		return clues.Stack(errNoModelStoreID).WithClues(ctx)
 	}
 
-	err := repo.WriteSession(
-		ctx,
-		ms.c,
-		repo.WriteSessionOptions{Purpose: "ModelStoreDelete"},
-		func(innerCtx context.Context, w repo.RepositoryWriter) error {
-			return w.DeleteManifest(innerCtx, id)
-		},
-	)
-
-	return errors.Wrap(err, "deleting model")
-}
-
-func transmuteErr(err error) error {
-	switch {
-	case errors.Is(err, manifest.ErrNotFound):
-		return data.ErrNotFound
-	default:
-		return err
+	opts := repo.WriteSessionOptions{Purpose: "ModelStoreDelete"}
+	cb := func(innerCtx context.Context, w repo.RepositoryWriter) error {
+		return w.DeleteManifest(innerCtx, id)
 	}
+
+	if err := repo.WriteSession(ctx, ms.c, opts, cb); err != nil {
+		return clues.Wrap(err, "deleting model").WithClues(ctx)
+	}
+
+	return nil
 }

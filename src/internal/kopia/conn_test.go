@@ -85,7 +85,7 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 
 	err := k.Initialize(ctx)
 	assert.Error(t, err)
-	assert.True(t, IsRepoAlreadyExistsError(err))
+	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
 
 func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
