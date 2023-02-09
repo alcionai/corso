@@ -39,7 +39,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo_Pages() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			paged, expected := test.pageAndDeets()
-			info := sharePointPageInfo(paged, 0)
+			info := sharePointPageInfo(paged, "", 0)
 			assert.Equal(t, expected.ItemType, info.ItemType)
 			assert.Equal(t, expected.ItemName, info.ItemName)
 			assert.Equal(t, expected.WebURL, info.WebURL)
