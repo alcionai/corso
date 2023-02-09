@@ -111,6 +111,8 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
+
+			assert.Equal(t, test.expectedCollectionIDs, c.CollectionOrdering)
 			for _, collPath := range test.expectedCollectionIDs {
 				assert.Contains(t, c.CollectionMap, collPath)
 			}
