@@ -283,6 +283,7 @@ func (sc *Collection) retrievePages(
 	if err != nil {
 		return metrics, err
 	}
+
 	if parent.GetWebUrl() != nil {
 		root = *parent.GetWebUrl()
 	}
