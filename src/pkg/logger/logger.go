@@ -162,8 +162,9 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 
 	// then try to set up a logger directly
 	var (
-		lgr *zap.Logger
-		err error
+		lgr  *zap.Logger
+		err  error
+		opts = []zap.Option{zap.AddStacktrace(zapcore.PanicLevel)}
 	)
 
 	if level != Production {
@@ -178,12 +179,13 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
 		}
 
-		opts := []zap.Option{}
-
 		if readableOutput {
-			opts = append(opts, zap.WithCaller(false), zap.AddStacktrace(zapcore.DPanicLevel))
+			opts = append(opts, zap.WithCaller(false))
 			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
-			cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+			if logfile == "stderr" || logfile == "stdout" {
+				cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+			}
 		}
 
 		cfg.OutputPaths = []string{logfile}
@@ -191,7 +193,7 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 	} else {
 		cfg := zap.NewProductionConfig()
 		cfg.OutputPaths = []string{logfile}
-		lgr, err = cfg.Build()
+		lgr, err = cfg.Build(opts...)
 	}
 
 	// fall back to the core config if the default creation fails
