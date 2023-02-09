@@ -111,9 +111,13 @@ func (c *clientConfig) applyMiddlewareConfig(retryoptions *RetryHandlerOptions) 
 	} else {
 		if c.retry.MaxRetries > 0 {
 			retryoptions.MaxRetries = c.retry.MaxRetries
+		} else {
+			retryoptions.MaxRetries = defaultMaxRetries
 		}
 		if c.retry.DelaySeconds > 0 {
 			retryoptions.DelaySeconds = c.retry.DelaySeconds
+		} else {
+			retryoptions.DelaySeconds = defaultDelaySeconds
 		}
 	}
 }
@@ -135,12 +139,19 @@ func NoTimeout() option {
 	}
 }
 
-// RetryRequest sets configuration of MaxRetries and delay seconds for retry middleware
-func RetryOptions(retryOptions RetryHandlerOptions) option {
+func MaxRetries(max int) option {
 	return func(c *clientConfig) {
-		c.retry.NoRetry = retryOptions.NoRetry
-		c.retry.MaxRetries = retryOptions.MaxRetries
-		c.retry.DelaySeconds = retryOptions.DelaySeconds
+		if max == 0 {
+			c.retry.NoRetry = true
+		} else {
+			c.retry.MaxRetries = max
+		}
+	}
+}
+
+func MinimumBackoffSeconds(seconds int) option {
+	return func(c *clientConfig) {
+		c.retry.DelaySeconds = seconds
 	}
 }
 
@@ -191,11 +202,11 @@ func HTTPClient(opts ...option) *http.Client {
 // GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
 func GetMiddlewares(options RetryHandlerOptions) []khttp.Middleware {
 	return []khttp.Middleware{
-		// khttp.NewRetryHandler(),
 		&RetryHandler{
 			// add RetryHandlerOptions to provide custom operation like - MaxRetries and DelaySeconds
 			options: options,
 		},
+		khttp.NewRetryHandler(),
 		khttp.NewRedirectHandler(),
 		khttp.NewCompressionHandler(),
 		khttp.NewParametersNameDecodingHandler(),
@@ -370,10 +381,5 @@ func (middleware RetryHandler) Intercept(
 		return response, err
 	}
 
-	reqOption, ok := req.Context().Value(retryKeyValue).(RetryHandlerOptions)
-	if !ok {
-		reqOption = middleware.options
-	}
-
-	return middleware.retryRequest(ctx, pipeline, middlewareIndex, reqOption, req, response, 0, 0, err)
+	return middleware.retryRequest(ctx, pipeline, middlewareIndex, middleware.options, req, response, 0, 0, err)
 }

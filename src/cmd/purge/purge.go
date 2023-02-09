@@ -263,10 +263,8 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	gc, err := connector.NewGraphConnector(ctx,
 		graph.HTTPClient(
 			graph.NoTimeout(),
-			graph.RetryOptions(
-				graph.RetryHandlerOptions{
-					MaxRetries: 3,
-				})),
+			graph.MaxRetries(3),
+		),
 		acct,
 		connector.Users)
 	if err != nil {

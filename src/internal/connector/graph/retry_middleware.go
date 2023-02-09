@@ -2,13 +2,11 @@ package graph
 
 import (
 	"context"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
 	"time"
 
-	abs "github.com/microsoft/kiota-abstractions-go"
 	khttp "github.com/microsoft/kiota-http-go"
 )
 
@@ -31,15 +29,6 @@ type RetryHandlerOptions struct {
 	DelaySeconds int
 }
 
-var retryKeyValue = abs.RequestOptionKey{
-	Key: "RetryHandler",
-}
-
-// GetKey returns the key value to be used when the option is added to the request context
-func (options *RetryHandlerOptions) GetKey() abs.RequestOptionKey {
-	return retryKeyValue
-}
-
 func (middleware RetryHandler) retryRequest(
 	ctx context.Context,
 	pipeline khttp.Pipeline,
@@ -51,10 +40,6 @@ func (middleware RetryHandler) retryRequest(
 	cumulativeDelay time.Duration,
 	respErr error,
 ) (*http.Response, error) {
-	if options.MaxRetries < 1 {
-		options.MaxRetries = defaultMaxRetries
-	}
-
 	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
 		executionCount < options.MaxRetries &&
@@ -66,16 +51,6 @@ func (middleware RetryHandler) retryRequest(
 
 		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
 
-		if req.Body != nil {
-			s, ok := req.Body.(io.Seeker)
-			if ok {
-				_, err := s.Seek(0, io.SeekStart)
-				if err != nil {
-					return &http.Response{}, err
-				}
-			}
-		}
-
 		time.Sleep(delay)
 
 		response, err := pipeline.Next(req, middlewareIndex)
@@ -83,18 +58,22 @@ func (middleware RetryHandler) retryRequest(
 			return response, err
 		}
 
-		return middleware.retryRequest(ctx, pipeline,
-			middlewareIndex, options, req, response, executionCount, cumulativeDelay, err)
+		return middleware.retryRequest(ctx,
+			pipeline,
+			middlewareIndex,
+			options,
+			req,
+			response,
+			executionCount,
+			cumulativeDelay,
+			err)
 	}
 
 	return resp, nil
 }
 
 func (middleware RetryHandler) isRetriableErrorCode(req *http.Request, code int) bool {
-	return code == http.StatusTooManyRequests ||
-		code == http.StatusServiceUnavailable ||
-		code == http.StatusGatewayTimeout ||
-		code == http.StatusInternalServerError
+	return code == http.StatusInternalServerError
 }
 
 func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
@@ -111,10 +90,6 @@ func (middleware RetryHandler) getRetryDelay(req *http.Request,
 	options RetryHandlerOptions,
 	executionCount int,
 ) time.Duration {
-	if options.DelaySeconds < 1 {
-		options.DelaySeconds = defaultDelaySeconds
-	}
-
 	var retryAfter string
 	if resp != nil {
 		retryAfter = resp.Header.Get(retryAfterHeader)
