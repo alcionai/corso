@@ -376,8 +376,26 @@ func (c *Collections) UpdateCollections(
 	excluded map[string]struct{},
 	invalidPrevDelta bool,
 ) error {
+	// This can only be made local to a page as the folder rename
+	// might happen between pages. Every page in the graph response
+	// will have all the parents for that item.
+	visitedPaths := map[string]string{}
+
 	for _, item := range items {
 		if item.GetRoot() != nil {
+			collectionPath, err := GetCanonicalPath(
+				// TODO(meain): Is there a better way to get root path?
+				fmt.Sprintf("/drives/%s/root:", driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source,
+			)
+			if err != nil {
+				return err
+			}
+
+			visitedPaths[collectionPath.String()] = *item.GetId()
+
 			// Skip the root item
 			continue
 		}
@@ -425,6 +443,8 @@ func (c *Collections) UpdateCollections(
 				return err
 			}
 
+			visitedPaths[folderPath.String()] = *item.GetId()
+
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
@@ -454,8 +474,12 @@ func (c *Collections) UpdateCollections(
 			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
 			// the exclude list.
 
-			col, found := c.CollectionMap[collectionPath.String()]
+			collectionID, ok := visitedPaths[collectionPath.String()]
+			if !ok {
+				return fmt.Errorf("unable to find collection id for %s", collectionPath.String())
+			}
 
+			col, found := c.CollectionMap[collectionID]
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
@@ -470,7 +494,7 @@ func (c *Collections) UpdateCollections(
 					invalidPrevDelta,
 				)
 
-				c.CollectionMap[collectionPath.String()] = col
+				c.CollectionMap[collectionID] = col
 				c.NumContainers++
 			}
 
