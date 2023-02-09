@@ -271,11 +271,20 @@ func (sc *Collection) retrievePages(
 	var (
 		errs    error
 		metrics numMetrics
+		root    string
 	)
 
 	betaService := sc.betaService
 	if betaService == nil {
 		return metrics, fmt.Errorf("beta service not found in collection")
+	}
+
+	parent, err := sapi.GetSiteLite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	if err != nil {
+		return metrics, err
+	}
+	if parent.GetWebUrl() != nil {
+		root = *parent.GetWebUrl()
 	}
 
 	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
@@ -311,7 +320,7 @@ func (sc *Collection) retrievePages(
 			sc.data <- &Item{
 				id:      *pg.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sharePointPageInfo(pg, arrayLength),
+				info:    sharePointPageInfo(pg, root, arrayLength),
 				modTime: t,
 			}
 
