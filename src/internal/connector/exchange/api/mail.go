@@ -321,6 +321,8 @@ func (c Mail) Serialize(
 		return nil, fmt.Errorf("expected Messageable, got %T", item)
 	}
 
+	ctx = clues.Add(ctx, "item_id", *msg.GetId())
+
 	var (
 		err    error
 		writer = kioser.NewJsonSerializationWriter()
@@ -329,7 +331,7 @@ func (c Mail) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", msg); err != nil {
-		return nil, support.SetNonRecoverableError(errors.Wrap(err, itemID))
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	bs, err := writer.GetSerializedContent()

@@ -8,19 +8,20 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[Unknown-1]
-	_ = x[List-2]
-	_ = x[Drive-3]
+	_ = x[Unknown-2]
+	_ = x[List-3]
+	_ = x[Drive-4]
+	_ = x[Pages-5]
 }
 
-const _DataCategory_name = "UnknownListDrive"
+const _DataCategory_name = "UnknownListDrivePages"
 
-var _DataCategory_index = [...]uint8{0, 7, 11, 16}
+var _DataCategory_index = [...]uint8{0, 7, 11, 16, 21}
 
 func (i DataCategory) String() string {
-	i -= 1
+	i -= 2
 	if i < 0 || i >= DataCategory(len(_DataCategory_index)-1) {
-		return "DataCategory(" + strconv.FormatInt(int64(i+1), 10) + ")"
+		return "DataCategory(" + strconv.FormatInt(int64(i+2), 10) + ")"
 	}
 	return _DataCategory_name[_DataCategory_index[i]:_DataCategory_index[i+1]]
 }

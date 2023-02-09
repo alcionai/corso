@@ -28,6 +28,7 @@ type DataCategory int
 //go:generate stringer -type=DataCategory
 const (
 	collectionChannelBufferSize              = 50
+	fetchChannelSize                         = 5
 	Unknown                     DataCategory = iota
 	List
 	Drive
@@ -70,6 +71,7 @@ func NewCollection(
 	service graph.Servicer,
 	category DataCategory,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
 		fullPath:      folderPath,
@@ -78,6 +80,7 @@ func NewCollection(
 		service:       service,
 		statusUpdater: statusUpdater,
 		category:      category,
+		ctrl:          ctrlOpts,
 	}
 
 	return c
@@ -157,7 +160,7 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 	status := support.CreateStatus(
 		ctx,
 		support.Backup,
-		len(sc.jobs),
+		1, // 1 folder
 		support.CollectionMetrics{
 			Objects:    attempted,
 			Successes:  success,
@@ -180,6 +183,9 @@ func (sc *Collection) populate(ctx context.Context) {
 		writer  = kw.NewJsonSerializationWriter()
 	)
 
+	defer func() {
+		sc.finishPopulation(ctx, metrics.attempts, metrics.success, int64(metrics.totalBytes), errs)
+	}()
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
@@ -190,7 +196,6 @@ func (sc *Collection) populate(ctx context.Context) {
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, metrics.attempts, metrics.success, metrics.totalBytes, errs)
 	}()
 
 	// Switch retrieval function based on category
@@ -314,7 +319,7 @@ func (sc *Collection) retrievePages(
 		}
 	}
 
-	return numMetrics{}, nil
+	return metrics, nil
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
