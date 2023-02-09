@@ -554,8 +554,9 @@ func CreateContainerDestination(
 			newCache = true
 			directoryCache = ecc
 		} else if did := directoryCache.DestinationNameToID(dest); len(did) > 0 {
-			// calendars are cached by ID, not name, so we need to look up
-			// the destination id before falling back to destination name
+			// calendars are cached by ID in the resolver, not name, so once we have
+			// created the destination calendar, we need to look up its id and use
+			// that for resolver lookups instead of the display name.
 			dest = did
 		}
 
