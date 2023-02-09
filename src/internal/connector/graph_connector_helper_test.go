@@ -654,7 +654,7 @@ func compareExchangeEvent(
 }
 
 func permissionEqual(expected onedrive.UserPermission, got onedrive.UserPermission) bool {
-	if strings.ToLower(expected.Email) != strings.ToLower(got.Email) {
+	if !strings.EqualFold(expected.Email, got.Email) {
 		return false
 	}
 
