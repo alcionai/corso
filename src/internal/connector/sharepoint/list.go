@@ -122,7 +122,15 @@ func loadSiteLists(
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			entry, err := gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
+			var (
+				entry models.Listable
+				err   error
+			)
+
+			err = graph.RunWithRetry(func() error {
+				entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
+				return err
+			})
 			if err != nil {
 				errUpdater(id, support.ConnectorStackErrorTraceWrap(err, ""))
 				return
