@@ -282,11 +282,16 @@ func collectionEntries(
 	}
 
 	var (
+		locationPath path.Path
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
 		items = streamedEnts.Items()
 	)
+
+	if lp, ok := streamedEnts.(data.LocationPather); ok {
+		locationPath = lp.LocationPath()
+	}
 
 	for {
 		select {
@@ -324,12 +329,6 @@ func collectionEntries(
 				logger.Ctx(ctx).With("err", err).Errorw("getting full item path", clues.InErr(err).Slice()...)
 
 				continue
-			}
-
-			var locationPath path.Path
-
-			if lp, ok := e.(data.LocationPather); ok {
-				locationPath = lp.LocationPath()
 			}
 
 			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
@@ -385,6 +384,7 @@ func streamBaseEntries(
 	cb func(context.Context, fs.Entry) error,
 	curPath path.Path,
 	prevPath path.Path,
+	locationPath path.Path,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
 	globalExcludeSet map[string]struct{},
@@ -440,7 +440,12 @@ func streamBaseEntries(
 		// All items have item info in the base backup. However, we need to make
 		// sure we have enough metadata to find those entries. To do that we add the
 		// item to progress and having progress aggregate everything for later.
-		d := &itemDetails{info: nil, repoPath: itemPath, prevPath: prevItemPath}
+		d := &itemDetails{
+			info:         nil,
+			repoPath:     itemPath,
+			prevPath:     prevItemPath,
+			locationPath: locationPath,
+		}
 		progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
 		if err := cb(ctx, entry); err != nil {
@@ -484,6 +489,12 @@ func getStreamItemFunc(
 			}
 		}
 
+		var locationPath path.Path
+
+		if lp, ok := streamedEnts.(data.LocationPather); ok {
+			locationPath = lp.LocationPath()
+		}
+
 		seen, err := collectionEntries(ctx, cb, streamedEnts, progress)
 		if err != nil {
 			return errors.Wrap(err, "streaming collection entries")
@@ -494,6 +505,7 @@ func getStreamItemFunc(
 			cb,
 			curPath,
 			prevPath,
+			locationPath,
 			baseDir,
 			seen,
 			globalExcludeSet,
@@ -562,6 +574,7 @@ type treeMap struct {
 	// Previous path this directory may have resided at if it is sourced from a
 	// base snapshot.
 	prevPath path.Path
+
 	// Child directories of this directory.
 	childDirs map[string]*treeMap
 	// Reference to data pulled from the external service. Contains only items in
