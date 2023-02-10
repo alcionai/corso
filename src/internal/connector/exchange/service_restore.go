@@ -72,7 +72,7 @@ func RestoreExchangeContact(
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
-		name := *contact.GetGivenName()
+		name := ptr.Value(contact.GetGivenName())
 
 		return nil, errors.Wrap(
 			err,
@@ -147,7 +147,8 @@ func RestoreExchangeEvent(
 			errs = support.WrapAndAppend(
 				fmt.Sprintf(
 					"uploading attachment for message %s: %s",
-					*transformedEvent.GetId(), support.ConnectorStackErrorTrace(err),
+					ptr.Value(transformedEvent.GetId()),
+					support.ConnectorStackErrorTrace(err),
 				),
 				err,
 				errs,
@@ -284,8 +285,8 @@ func SendMailToBackStore(
 
 	for _, attachment := range attached {
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
-			if ptr.Val(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
-				name := ptr.Val(attachment.GetName())
+			if ptr.Value(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
+				name := ptr.Value(attachment.GetName())
 
 				logger.Ctx(ctx).Infow(
 					"item attachment upload not successful. content not accepted by M365 server",
