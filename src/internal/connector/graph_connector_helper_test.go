@@ -1014,16 +1014,8 @@ func collectionsForInfo(
 			info.category,
 			info.pathElements,
 			false)
-		loc := mustToDataLayerPath(
-			t,
-			service,
-			tenant,
-			user,
-			info.category,
-			info.pathElements,
-			false)
 
-		mc := mockconnector.NewMockExchangeCollection(pth, loc, len(info.items))
+		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(info.items))
 		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
 
 		baseExpected := expectedData[baseDestPath.String()]
