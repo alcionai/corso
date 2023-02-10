@@ -141,13 +141,20 @@ func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	lfs := locationRefOf(location)
 
 	for len(parent.Elements()) > 0 {
-		nextParent := parent.Dir()
+		var (
+			nextParent = parent.Dir()
+			lr         string
+			dn         = parent.LastElem()
+		)
 
 		// TODO: We may have future cases where the storage hierarchy
 		// doesn't match the location hierarchy.
-		var lr string
 		if lfs != nil {
 			lr = lfs.String()
+
+			if len(lfs.Elements()) > 0 {
+				dn = lfs.LastElem()
+			}
 		}
 
 		folders = append(folders, folderEntry{
@@ -158,7 +165,7 @@ func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 			Info: ItemInfo{
 				Folder: &FolderInfo{
 					ItemType:    FolderItem,
-					DisplayName: parent.Elements()[len(parent.Elements())-1],
+					DisplayName: dn,
 				},
 			},
 		})

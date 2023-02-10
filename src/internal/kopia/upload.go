@@ -197,7 +197,14 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	if d.locationPath != nil {
 		locationFolders = d.locationPath.Folder(true)
+
 		locPB = d.locationPath.ToBuilder()
+
+		// folderEntriesForPath assumes the location will
+		// not have an item element appended
+		if len(d.locationPath.Item()) > 0 {
+			locPB = locPB.Dir()
+		}
 	}
 
 	cp.deets.Add(
