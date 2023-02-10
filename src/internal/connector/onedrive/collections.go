@@ -28,7 +28,11 @@ const (
 	OneDriveSource
 	SharePointSource
 )
-const restrictedDirectory = "Site Pages"
+
+const (
+	restrictedDirectory = "Site Pages"
+	rootDrivePattern    = "/drives/%s/root:"
+)
 
 func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
 	switch ds {
@@ -384,8 +388,7 @@ func (c *Collections) UpdateCollections(
 	for _, item := range items {
 		if item.GetRoot() != nil {
 			collectionPath, err := GetCanonicalPath(
-				// TODO(meain): Is there a better way to get root path?
-				fmt.Sprintf("/drives/%s/root:", driveID),
+				fmt.Sprintf(rootDrivePattern, driveID),
 				c.tenant,
 				c.resourceOwner,
 				c.source,

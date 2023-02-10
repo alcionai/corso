@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -91,13 +92,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
 
 	const (
-		tenant            = "tenant"
-		user              = "user"
-		folder            = "/folder"
-		folderSub         = "/folder/subfolder"
-		pkg               = "/package"
-		testBaseDrivePath = "drives/driveID1/root:"
+		tenant    = "tenant"
+		user      = "user"
+		folder    = "/folder"
+		folderSub = "/folder/subfolder"
+		pkg       = "/package"
 	)
+
+	testBaseDrivePath := fmt.Sprintf(rootDrivePattern, "driveID1")
 
 	tests := []struct {
 		testCase                string
@@ -1125,8 +1127,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 	drive2.SetId(&driveID2)
 	drive2.SetName(&driveID2)
 
-	driveBasePath1 := "drives/" + driveID1 + "/root:"
-	driveBasePath2 := "drives/" + driveID2 + "/root:"
+	driveBasePath1 := fmt.Sprintf(rootDrivePattern, driveID1)
+	driveBasePath2 := fmt.Sprintf(rootDrivePattern, driveID2)
 
 	rootFolderPath1 := expectedPathAsSlice(
 		suite.T(),
