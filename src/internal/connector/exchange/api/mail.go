@@ -348,9 +348,9 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	sender := ""
-	subject := ptr.Value(msg.GetSubject())
-	received := ptr.Value(msg.GetReceivedDateTime())
-	created := ptr.Value(msg.GetCreatedDateTime())
+	subject := ptr.Val(msg.GetSubject())
+	received := ptr.Val(msg.GetReceivedDateTime())
+	created := ptr.Val(msg.GetCreatedDateTime())
 
 	if msg.GetSender() != nil &&
 		msg.GetSender().GetEmailAddress() != nil &&

@@ -25,7 +25,7 @@ const (
 )
 
 func attachmentType(attachment models.Attachmentable) models.AttachmentType {
-	attachmentType := ptr.Value(attachment.GetOdataType())
+	attachmentType := ptr.Val(attachment.GetOdataType())
 	switch attachmentType {
 	case fileAttachmentOdataValue:
 		return models.FILE_ATTACHMENTTYPE
@@ -65,7 +65,7 @@ func uploadAttachment(
 
 		attachment, err = support.ToItemAttachment(attachment)
 		if err != nil {
-			name := ptr.Value(prev.GetName())
+			name := ptr.Val(prev.GetName())
 			msg := "item attachment restore not supported for this type. skipping upload."
 
 			// TODO: (rkeepers) Update to support PII protection
@@ -74,7 +74,7 @@ func uploadAttachment(
 				"attachment_name", name,
 				"attachment_type", attachmentType,
 				"internal_item_type", getItemAttachmentItemType(prev),
-				"attachment_id", ptr.Value(prev.GetId()),
+				"attachment_id", ptr.Val(prev.GetId()),
 			)
 
 			return nil
@@ -129,5 +129,5 @@ func getItemAttachmentItemType(query models.Attachmentable) string {
 
 	item := attachment.GetItem()
 
-	return ptr.Value(item.GetOdataType())
+	return ptr.Val(item.GetOdataType())
 }

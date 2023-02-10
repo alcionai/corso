@@ -18,12 +18,12 @@ func TestPointerSuite(t *testing.T) {
 	suite.Run(t, new(PointerSuite))
 }
 
-// TestValue  checks to ptr derefencing for the
+// TestVal checks to ptr derefencing for the
 // following types:
 // - *string
 // - *bool
 // - *time.Time
-func (suite *PointerSuite) TestValue() {
+func (suite *PointerSuite) TestVal() {
 	var (
 		t          = suite.T()
 		created    *time.Time
@@ -35,42 +35,42 @@ func (suite *PointerSuite) TestValue() {
 	)
 
 	// String Checks
-	subject := ptr.Value(testString)
+	subject := ptr.Val(testString)
 	assert.Empty(t, subject)
 
 	hello := "Hello World"
 	testString = &hello
-	subject = ptr.Value(testString)
+	subject = ptr.Val(testString)
 
 	t.Logf("Received: %s", subject)
 	assert.NotEmpty(t, subject)
 
 	// Time Checks
 
-	myTime := ptr.Value(created)
+	myTime := ptr.Val(created)
 	assert.Empty(t, myTime)
 	assert.NotNil(t, myTime)
 
 	now := time.Now()
 	created = &now
-	myTime = ptr.Value(created)
+	myTime = ptr.Val(created)
 	assert.NotEmpty(t, myTime)
 
 	// Bool Checks
 	truth := true
-	myBool := ptr.Value(testBool)
+	myBool := ptr.Val(testBool)
 	assert.NotNil(t, myBool)
 	assert.False(t, myBool)
 
 	testBool = &truth
-	myBool = ptr.Value(testBool)
+	myBool = ptr.Val(testBool)
 	assert.NotNil(t, myBool)
 	assert.True(t, myBool)
 
 	// Int checks
-	myInt := ptr.Value(testInt)
-	myInt32 := ptr.Value(testInt32)
-	myInt64 := ptr.Value(testInt64)
+	myInt := ptr.Val(testInt)
+	myInt32 := ptr.Val(testInt32)
+	myInt64 := ptr.Val(testInt64)
 
 	assert.NotNil(t, myInt)
 	assert.NotNil(t, myInt32)
@@ -86,9 +86,9 @@ func (suite *PointerSuite) TestValue() {
 	testInt32 = &num32
 	testInt64 = &num64
 
-	myInt = ptr.Value(testInt)
-	myInt32 = ptr.Value(testInt32)
-	myInt64 = ptr.Value(testInt64)
+	myInt = ptr.Val(testInt)
+	myInt32 = ptr.Val(testInt32)
+	myInt64 = ptr.Val(testInt64)
 
 	assert.NotNil(t, myInt)
 	assert.NotNil(t, myInt32)

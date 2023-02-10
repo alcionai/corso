@@ -392,11 +392,11 @@ func (c CalendarDisplayable) GetParentFolderId() *string {
 func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	var (
 		organizer string
-		subject   = ptr.Value(evt.GetSubject())
+		subject   = ptr.Val(evt.GetSubject())
 		recurs    bool
 		start     = time.Time{}
 		end       = time.Time{}
-		created   = ptr.Value(evt.GetCreatedDateTime())
+		created   = ptr.Val(evt.GetCreatedDateTime())
 	)
 
 	if evt.GetOrganizer() != nil &&

@@ -317,8 +317,8 @@ func (c Contacts) Serialize(
 // ---------------------------------------------------------------------------
 
 func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
-	name := ptr.Value(contact.GetDisplayName())
-	created := ptr.Value(contact.GetCreatedDateTime())
+	name := ptr.Val(contact.GetDisplayName())
+	created := ptr.Val(contact.GetCreatedDateTime())
 
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeContact,
