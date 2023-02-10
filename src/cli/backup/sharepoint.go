@@ -142,7 +142,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&pageFolders,
 			utils.PageFolderFN, nil,
-			"Select backup data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
+			"Select backup data by folder name; accepts '"+utils.Wildcard+"' to select all folders.")
 
 		fs.StringSliceVar(
 			&page,
