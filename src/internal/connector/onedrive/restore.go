@@ -133,24 +133,12 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		var (
-			parentPerms []UserPermission
-			err         error
-		)
-
-		if opts.RestorePermissions {
-			parentPerms, err = getParentPermissions(dc.FullPath(), parentPermissions)
-			if err != nil {
-				errUpdater(dc.FullPath().String(), err)
-			}
-		}
-
 		metrics, folderPerms, permissionIDMappings, canceled = RestoreCollection(
 			ctx,
 			backupVersion,
 			service,
 			dc,
-			parentPerms,
+			parentPermissions,
 			OneDriveSource,
 			dest.ContainerName,
 			deets,
@@ -189,7 +177,7 @@ func RestoreCollection(
 	backupVersion int,
 	service graph.Servicer,
 	dc data.RestoreCollection,
-	parentPerms []UserPermission,
+	parentPermissions map[string][]UserPermission,
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
@@ -228,8 +216,25 @@ func RestoreCollection(
 		"origin", dc.FullPath().Folder(),
 		"destination", restoreFolderElements)
 
+	parentPerms, colPerms, err := getParentAndCollectionPermissions(
+		drivePath,
+		dc.FullPath(),
+		parentPermissions,
+		restorePerms)
+	if err != nil {
+		errUpdater(directory.String(), err)
+		return metrics, folderPerms, permissionIDMappings, false
+	}
+
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
-	restoreFolderID, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolderElements)
+	restoreFolderID, permissionIDMappings, err := createRestoreFoldersWithPermissions(
+		ctx,
+		service,
+		drivePath.DriveID,
+		restoreFolderElements,
+		parentPerms,
+		colPerms,
+		permissionIDMappings)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
 		return metrics, folderPerms, permissionIDMappings, false
@@ -311,7 +316,7 @@ func RestoreCollection(
 						service,
 						drivePath.DriveID,
 						itemID,
-						parentPerms,
+						colPerms,
 						meta.Permissions,
 						permissionIDMappings,
 					)
@@ -327,40 +332,18 @@ func RestoreCollection(
 					// RestoreOp, so we still need to handle them in some way.
 					continue
 				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
-					trimmedName := strings.TrimSuffix(name, DirMetaFileSuffix)
-					folderID, err := createRestoreFolder(
-						ctx,
-						service,
-						drivePath.DriveID,
-						trimmedName,
-						restoreFolderID,
-					)
-					if err != nil {
-						errUpdater(itemData.UUID(), err)
-						continue
-					}
-
+					// Only the first version needed to deserialize the permission for
+					// child folders here. Later versions can request permissions inline.
 					if !restorePerms {
 						continue
 					}
 
-					meta, err := getMetadata(itemData.ToReader())
-					if err != nil {
-						errUpdater(itemData.UUID(), err)
-						continue
-					}
+					metaReader := itemData.ToReader()
+					meta, err := getMetadata(metaReader)
+					metaReader.Close()
 
-					permissionIDMappings, err = restorePermissions(
-						ctx,
-						service,
-						drivePath.DriveID,
-						folderID,
-						parentPerms,
-						meta.Permissions,
-						permissionIDMappings,
-					)
 					if err != nil {
-						errUpdater(itemData.UUID(), err)
+						errUpdater(itemData.UUID(), clues.Wrap(err, "folder metadata"))
 						continue
 					}
 
