@@ -282,11 +282,16 @@ func collectionEntries(
 	}
 
 	var (
+		locationPath path.Path
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
 		items = streamedEnts.Items()
 	)
+
+	if lp, ok := streamedEnts.(data.LocationPather); ok {
+		locationPath = lp.LocationPath()
+	}
 
 	for {
 		select {
@@ -324,12 +329,6 @@ func collectionEntries(
 				logger.Ctx(ctx).With("err", err).Errorw("getting full item path", clues.InErr(err).Slice()...)
 
 				continue
-			}
-
-			var locationPath path.Path
-
-			if lp, ok := e.(data.LocationPather); ok {
-				locationPath = lp.LocationPath()
 			}
 
 			trace.Log(ctx, "kopia:streamEntries:item", itemPath.String())
