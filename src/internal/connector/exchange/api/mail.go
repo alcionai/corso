@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -348,7 +349,7 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	sender := ""
-	subject := ""
+	subject := ptr.Val(msg.GetSubject())
 	received := time.Time{}
 	created := time.Time{}
 
@@ -356,10 +357,6 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 		msg.GetSender().GetEmailAddress() != nil &&
 		msg.GetSender().GetEmailAddress().GetAddress() != nil {
 		sender = *msg.GetSender().GetEmailAddress().GetAddress()
-	}
-
-	if msg.GetSubject() != nil {
-		subject = *msg.GetSubject()
 	}
 
 	if msg.GetReceivedDateTime() != nil {
