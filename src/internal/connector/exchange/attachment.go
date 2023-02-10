@@ -8,7 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -64,7 +64,7 @@ func uploadAttachment(
 
 		attachment, err = support.ToItemAttachment(attachment)
 		if err != nil {
-			name := graph.UnWrapStringPointer(prev.GetName())
+			name := ptr.Val(prev.GetName())
 			msg := "item attachment restore not supported for this type. skipping upload."
 
 			// TODO: (rkeepers) Update to support PII protection
@@ -73,7 +73,7 @@ func uploadAttachment(
 				"attachment_name", name,
 				"attachment_type", attachmentType,
 				"internal_item_type", getItemAttachmentItemType(prev),
-				"attachment_id", graph.UnWrapStringPointer(prev.GetId()),
+				"attachment_id", ptr.Val(prev.GetId()),
 			)
 
 			return nil
@@ -128,5 +128,5 @@ func getItemAttachmentItemType(query models.Attachmentable) string {
 
 	item := attachment.GetItem()
 
-	return graph.UnWrapStringPointer(item.GetOdataType())
+	return ptr.Val(item.GetOdataType())
 }
