@@ -81,7 +81,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&pageFolders,
 			utils.PageFolderFN, nil,
-			"Restore Site pages by SharePoint Site ID",
+			"Restore Site pages by page folder name",
 		)
 
 		fs.StringSliceVar(
