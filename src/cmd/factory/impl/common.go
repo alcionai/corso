@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -114,7 +115,10 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
 		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}

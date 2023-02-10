@@ -147,7 +147,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 	for _, test := range tables {
 		t.Run(test.name, func(t *testing.T) {
-			col := NewCollection(test.getDir(t), nil, test.category, nil)
+			col := NewCollection(test.getDir(t), nil, test.category, nil, control.Defaults())
 			col.data <- test.getItem(t, test.itemName)
 
 			readItems := []data.Stream{}
@@ -165,24 +165,6 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			assert.Equal(t, test.itemName, shareInfo.Info().SharePoint.ItemName)
 		})
 	}
-}
-
-func (suite *SharePointCollectionSuite) TestCollectPages() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	col, err := collectPages(
-		ctx,
-		suite.creds,
-		nil,
-		account.AzureTenantID,
-		suite.siteID,
-		&MockGraphService{},
-		control.Defaults(),
-	)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, col)
 }
 
 // TestRestoreListCollection verifies Graph Restore API for the List Collection

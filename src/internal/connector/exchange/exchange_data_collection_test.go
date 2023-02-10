@@ -12,10 +12,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -116,59 +114,6 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 	}
 	suite.Equal(name, edc.user)
 	suite.Equal(fullPath, edc.FullPath())
-}
-
-func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
-	fooP, err := path.Builder{}.
-		Append("foo").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
-	barP, err := path.Builder{}.
-		Append("bar").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
-
-	table := []struct {
-		name   string
-		prev   path.Path
-		curr   path.Path
-		expect data.CollectionState
-	}{
-		{
-			name:   "new",
-			curr:   fooP,
-			expect: data.NewState,
-		},
-		{
-			name:   "not moved",
-			prev:   fooP,
-			curr:   fooP,
-			expect: data.NotMovedState,
-		},
-		{
-			name:   "moved",
-			prev:   fooP,
-			curr:   barP,
-			expect: data.MovedState,
-		},
-		{
-			name:   "deleted",
-			prev:   fooP,
-			expect: data.DeletedState,
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			c := NewCollection(
-				"u",
-				test.curr, test.prev,
-				0,
-				&mockItemer{}, nil,
-				control.Options{},
-				false)
-			assert.Equal(t, test.expect, c.State())
-		})
-	}
 }
 
 func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {

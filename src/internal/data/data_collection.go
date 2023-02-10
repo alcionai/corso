@@ -112,3 +112,21 @@ type StreamSize interface {
 type StreamModTime interface {
 	ModTime() time.Time
 }
+
+// StateOf lets us figure out the state of the collection from the
+// previous and current path
+func StateOf(prev, curr path.Path) CollectionState {
+	if curr == nil || len(curr.String()) == 0 {
+		return DeletedState
+	}
+
+	if prev == nil || len(prev.String()) == 0 {
+		return NewState
+	}
+
+	if curr.Folder() != prev.Folder() {
+		return MovedState
+	}
+
+	return NotMovedState
+}

@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -260,13 +261,10 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx,
-		graph.HTTPClient(
-			graph.NoTimeout(),
-			graph.MaxRetries(3),
-		),
-		acct,
-		connector.Users)
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
 		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}

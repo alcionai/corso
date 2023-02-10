@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -21,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -163,6 +166,10 @@ type colInfo struct {
 	pathElements []string
 	category     path.CategoryType
 	items        []itemInfo
+	// auxItems are items that can be retrieved with Fetch but won't be returned
+	// by Items(). These files do not directly participate in comparisosn at the
+	// end of a test.
+	auxItems []itemInfo
 }
 
 type restoreBackupInfo struct {
@@ -652,6 +659,35 @@ func compareExchangeEvent(
 	checkEvent(t, expectedEvent, itemEvent)
 }
 
+func permissionEqual(expected onedrive.UserPermission, got onedrive.UserPermission) bool {
+	if !strings.EqualFold(expected.Email, got.Email) {
+		return false
+	}
+
+	if (expected.Expiration == nil && got.Expiration != nil) ||
+		(expected.Expiration != nil && got.Expiration == nil) {
+		return false
+	}
+
+	if expected.Expiration != nil &&
+		got.Expiration != nil &&
+		!expected.Expiration.Equal(*got.Expiration) {
+		return false
+	}
+
+	if len(expected.Roles) != len(got.Roles) {
+		return false
+	}
+
+	for _, r := range got.Roles {
+		if !slices.Contains(expected.Roles, r) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func compareOneDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
@@ -695,13 +731,7 @@ func compareOneDriveItem(
 	}
 
 	assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
-
-	// FIXME(meain): The permissions before and after might not be in the same order.
-	for i, p := range expectedMeta.Permissions {
-		assert.Equal(t, strings.ToLower(p.Email), strings.ToLower(itemMeta.Permissions[i].Email))
-		assert.Equal(t, p.Roles, itemMeta.Permissions[i].Roles)
-		assert.Equal(t, p.Expiration, itemMeta.Permissions[i].Expiration)
-	}
+	testElementsMatch(t, expectedMeta.Permissions, itemMeta.Permissions, permissionEqual)
 }
 
 func compareItem(
@@ -944,6 +974,25 @@ func backupOutputPathFromRestore(
 	)
 }
 
+// TODO(ashmrtn): Make this an actual mock class that can be used in other
+// packages.
+type mockRestoreCollection struct {
+	data.Collection
+	auxItems map[string]data.Stream
+}
+
+func (rc mockRestoreCollection) Fetch(
+	ctx context.Context,
+	name string,
+) (data.Stream, error) {
+	res := rc.auxItems[name]
+	if res == nil {
+		return nil, data.ErrNotFound
+	}
+
+	return res, nil
+}
+
 func collectionsForInfo(
 	t *testing.T,
 	service path.ServiceType,
@@ -966,7 +1015,7 @@ func collectionsForInfo(
 			info.pathElements,
 			false,
 		)
-		c := mockconnector.NewMockExchangeCollection(pth, len(info.items))
+		mc := mockconnector.NewMockExchangeCollection(pth, len(info.items))
 		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
 
 		baseExpected := expectedData[baseDestPath.String()]
@@ -976,8 +1025,8 @@ func collectionsForInfo(
 		}
 
 		for i := 0; i < len(info.items); i++ {
-			c.Names[i] = info.items[i].name
-			c.Data[i] = info.items[i].data
+			mc.Names[i] = info.items[i].name
+			mc.Data[i] = info.items[i].data
 
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
@@ -989,9 +1038,16 @@ func collectionsForInfo(
 			}
 		}
 
-		collections = append(collections, data.NotFoundRestoreCollection{
-			Collection: c,
-		})
+		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}
+
+		for _, aux := range info.auxItems {
+			c.auxItems[aux.name] = &mockconnector.MockExchangeData{
+				ID:     aux.name,
+				Reader: io.NopCloser(bytes.NewReader(aux.data)),
+			}
+		}
+
+		collections = append(collections, c)
 		kopiaEntries += len(info.items)
 	}
 
@@ -1083,7 +1139,8 @@ func getSelectorWith(
 
 func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
-	connector, err := NewGraphConnector(ctx, itemClient, a, r)
+
+	connector, err := NewGraphConnector(ctx, itemClient, a, r, fault.New(true))
 	require.NoError(t, err)
 
 	return connector

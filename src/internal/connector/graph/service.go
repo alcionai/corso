@@ -16,6 +16,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -379,7 +380,7 @@ func (middleware RetryHandler) Intercept(
 
 	response, err := pipeline.Next(req, middlewareIndex)
 	if err != nil && !IsErrTimeout(err) {
-		return response, err
+		return response, support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()

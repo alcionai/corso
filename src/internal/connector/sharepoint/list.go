@@ -3,6 +3,7 @@ package sharepoint
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -91,32 +92,61 @@ func loadSiteLists(
 	listIDs []string,
 ) ([]models.Listable, error) {
 	var (
-		results = make([]models.Listable, 0)
-		errs    error
+		results     = make([]models.Listable, 0)
+		semaphoreCh = make(chan struct{}, fetchChannelSize)
+		errs        error
+		wg          sync.WaitGroup
+		m           sync.Mutex
 	)
 
-	for _, listID := range listIDs {
-		entry, err := gs.Client().SitesById(siteID).ListsById(listID).Get(ctx, nil)
-		if err != nil {
-			errs = support.WrapAndAppend(
-				listID,
-				errors.Wrap(err, support.ConnectorStackErrorTrace(err)),
-				errs,
-			)
-		}
+	defer close(semaphoreCh)
 
-		cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, listID)
-		if err == nil {
+	errUpdater := func(id string, err error) {
+		m.Lock()
+		errs = support.WrapAndAppend(id, err, errs)
+		m.Unlock()
+	}
+
+	updateLists := func(list models.Listable) {
+		m.Lock()
+		results = append(results, list)
+		m.Unlock()
+	}
+
+	for _, listID := range listIDs {
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			var (
+				entry models.Listable
+				err   error
+			)
+
+			entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
+			if err != nil {
+				errUpdater(id, support.ConnectorStackErrorTraceWrap(err, ""))
+				return
+			}
+
+			cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, id)
+			if err != nil {
+				errUpdater(id, errors.Wrap(err, "unable to fetchRelationships during loadSiteLists"))
+				return
+			}
+
 			entry.SetColumns(cols)
 			entry.SetContentTypes(cTypes)
 			entry.SetItems(lItems)
-		} else {
-			errs = support.WrapAndAppend("unable to fetchRelationships during loadSiteLists", err, errs)
-			continue
-		}
-
-		results = append(results, entry)
+			updateLists(entry)
+		}(listID)
 	}
+
+	wg.Wait()
 
 	if errs != nil {
 		return nil, errs
