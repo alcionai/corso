@@ -117,3 +117,9 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 
 	return nil
 }
+
+// DestinationNameToID returns an empty string.  This is only supported by exchange
+// calendars at this time.
+func (ecc *eventCalendarCache) DestinationNameToID(dest string) string {
+	return ecc.newAdditions[dest]
+}
