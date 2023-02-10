@@ -28,7 +28,11 @@ const (
 	OneDriveSource
 	SharePointSource
 )
-const restrictedDirectory = "Site Pages"
+
+const (
+	restrictedDirectory = "Site Pages"
+	rootDrivePattern    = "/drives/%s/root:"
+)
 
 func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
 	switch ds {
@@ -382,11 +386,15 @@ func (c *Collections) UpdateCollections(
 			continue
 		}
 
-		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
+		if item.GetParentReference() == nil ||
+			item.GetParentReference().GetPath() == nil ||
+			item.GetParentReference().GetId() == nil {
 			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
 		}
 
 		// Create a collection for the parent of this item
+		collectionID := *item.GetParentReference().GetId()
+
 		collectionPath, err := GetCanonicalPath(
 			*item.GetParentReference().GetPath(),
 			c.tenant,
@@ -454,8 +462,7 @@ func (c *Collections) UpdateCollections(
 			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
 			// the exclude list.
 
-			col, found := c.CollectionMap[collectionPath.String()]
-
+			col, found := c.CollectionMap[collectionID]
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
@@ -470,7 +477,7 @@ func (c *Collections) UpdateCollections(
 					invalidPrevDelta,
 				)
 
-				c.CollectionMap[collectionPath.String()] = col
+				c.CollectionMap[collectionID] = col
 				c.NumContainers++
 			}
 
