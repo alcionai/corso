@@ -70,7 +70,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 			testCase: "Single File",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("file", testBaseDrivePath, true),
+				driveItem("file", testBaseDrivePath, "root", true),
 			},
 			scope:                 anyFolder,
 			expect:                assert.NoError,
@@ -120,13 +120,14 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 	}
 }
 
-func driveItem(name string, path string, isFile bool) models.DriveItemable {
+func driveItem(name, parentPath, parentID string, isFile bool) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&name)
 
 	parentReference := models.NewItemReference()
-	parentReference.SetPath(&path)
+	parentReference.SetPath(&parentPath)
+	parentReference.SetId(&parentID)
 	item.SetParentReference(parentReference)
 
 	if isFile {

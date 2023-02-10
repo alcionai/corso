@@ -119,7 +119,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "Invalid item",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("item", "item", testBaseDrivePath, false, false, false),
+				driveItem("item", "item", testBaseDrivePath, "root", false, false, false),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 anyFolder,
@@ -131,7 +131,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "Single File",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("file", "file", testBaseDrivePath, true, false, false),
+				driveItem("file", "file", testBaseDrivePath, "root", true, false, false),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 anyFolder,
@@ -154,7 +154,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "Single Folder",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 anyFolder,
@@ -182,7 +182,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "Single Package",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("package", "package", testBaseDrivePath, false, false, true),
+				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 anyFolder,
@@ -210,11 +210,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
-				driveItem("package", "package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
+				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
+				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, "folder", true, false, false),
+				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, "package", true, false, false),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 anyFolder,
@@ -251,14 +251,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "contains folder selector",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("folder2", "folder", testBaseDrivePath+folderSub, false, true, false),
-				driveItem("package", "package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
-				driveItem("fileInFolderPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
+				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, "folder", false, true, false),
+				driveItem("folder2", "folder", testBaseDrivePath+folderSub, "subfolder", false, true, false),
+				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
+				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, "folder", true, false, false),
+				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, "folder2", true, false, false),
+				driveItem("fileInFolderPackage", "fileInPackage", testBaseDrivePath+pkg, "package", true, false, false),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 (&selectors.OneDriveBackup{}).Folders([]string{"folder"})[0],
@@ -297,14 +297,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "prefix subfolder selector",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("folder2", "folder", testBaseDrivePath+folderSub, false, true, false),
-				driveItem("package", "package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, true, false, false),
-				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
+				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, "folder", false, true, false),
+				driveItem("folder2", "folder", testBaseDrivePath+folderSub, "subfolder", false, true, false),
+				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
+				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, "folder", true, false, false),
+				driveItem("fileInFolder2", "fileInFolder2", testBaseDrivePath+folderSub+folder, "folder2", true, false, false),
+				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, "package", true, false, false),
 			},
 			inputFolderMap: map[string]string{},
 			scope: (&selectors.OneDriveBackup{}).
@@ -335,13 +335,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "match subfolder selector",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, true, false, false),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, false, true, false),
-				driveItem("package", "package", testBaseDrivePath, false, false, true),
-				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, true, false, false),
-				driveItem("fileInSubfolder", "fileInSubfolder", testBaseDrivePath+folderSub, true, false, false),
-				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, true, false, false),
+				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath+folder, "folder", false, true, false),
+				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
+				driveItem("fileInFolder", "fileInFolder", testBaseDrivePath+folder, "folder", true, false, false),
+				driveItem("fileInSubfolder", "fileInSubfolder", testBaseDrivePath+folderSub, "subfolder", true, false, false),
+				driveItem("fileInPackage", "fileInPackage", testBaseDrivePath+pkg, "package", true, false, false),
 			},
 			inputFolderMap:        map[string]string{},
 			scope:                 (&selectors.OneDriveBackup{}).Folders([]string{"folder/subfolder"})[0],
@@ -364,7 +364,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "not moved folder tree",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
 				"folder": expectedPathAsSlice(
@@ -412,7 +412,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "moved folder tree",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
 				"folder": expectedPathAsSlice(
@@ -460,8 +460,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "moved folder tree and subfolder 1",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", "subfolder", testBaseDrivePath, false, true, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
 				"folder": expectedPathAsSlice(
@@ -509,8 +509,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "moved folder tree and subfolder 2",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				driveItem("subfolder", "subfolder", testBaseDrivePath, false, true, false),
-				driveItem("folder", "folder", testBaseDrivePath, false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath, "root", false, true, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
 				"folder": expectedPathAsSlice(
@@ -558,8 +558,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "deleted folder and package",
 			items: []models.DriveItemable{
 				driveRootItem("root"), // root is always present, but not necessary here
-				delItem("folder", testBaseDrivePath, false, true, false),
-				delItem("package", testBaseDrivePath, false, false, true),
+				delItem("folder", testBaseDrivePath, "root", false, true, false),
+				delItem("package", testBaseDrivePath, "root", false, false, true),
 			},
 			inputFolderMap: map[string]string{
 				"folder": expectedPathAsSlice(
@@ -588,8 +588,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			testCase: "delete folder tree move subfolder",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
-				delItem("folder", testBaseDrivePath, false, true, false),
-				driveItem("subfolder", "subfolder", testBaseDrivePath, false, true, false),
+				delItem("folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("subfolder", "subfolder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
 				"folder": expectedPathAsSlice(
@@ -630,7 +630,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 		{
 			testCase: "delete file",
 			items: []models.DriveItemable{
-				delItem("item", testBaseDrivePath, true, false, false),
+				delItem("item", testBaseDrivePath, "root", true, false, false),
 			},
 			inputFolderMap:          map[string]string{},
 			scope:                   anyFolder,
@@ -664,7 +664,6 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
 
-			// items := append([]models.DriveItemable{driveRootItem("root")}, tt.items...)
 			err := c.UpdateCollections(
 				ctx,
 				"driveID1",
@@ -1187,7 +1186,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"), // will be present, not needed
-							delItem("file", driveBasePath1, true, false, false),
+							delItem("file", driveBasePath1, "root", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1215,7 +1214,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("file", "file", driveBasePath1, true, false, false),
+							driveItem("file", "file", driveBasePath1, "root", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1248,8 +1247,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1278,8 +1277,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &empty,
 					},
@@ -1302,16 +1301,16 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						nextLink: &next,
 					},
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file2", "file2", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file2", "file2", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1343,8 +1342,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1353,8 +1352,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath2, false, true, false),
-							driveItem("file", "file", driveBasePath2+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath2, "root", false, true, false),
+							driveItem("file", "file", driveBasePath2+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &delta2,
 					},
@@ -1408,7 +1407,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("file", "file", driveBasePath1, true, false, false),
+							driveItem("file", "file", driveBasePath1, "root", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1445,15 +1444,15 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("file", "file", driveBasePath1, true, false, false),
+							driveItem("file", "file", driveBasePath1, "root", true, false, false),
 						},
 						nextLink: &next,
 					},
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1491,15 +1490,15 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("file", "file", driveBasePath1, true, false, false),
+							driveItem("file", "file", driveBasePath1, "root", true, false, false),
 						},
 						nextLink: &next,
 					},
 					{
 						items: []models.DriveItemable{
 							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", true, false, false),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
 						deltaLink: &delta,
 					},
@@ -1622,6 +1621,7 @@ func driveItem(
 	id string,
 	name string,
 	parentPath string,
+	parentID string,
 	isFile, isFolder, isPackage bool,
 ) models.DriveItemable {
 	item := models.NewDriveItem()
@@ -1630,6 +1630,7 @@ func driveItem(
 
 	parentReference := models.NewItemReference()
 	parentReference.SetPath(&parentPath)
+	parentReference.SetId(&parentID)
 	item.SetParentReference(parentReference)
 
 	switch {
@@ -1659,6 +1660,7 @@ func driveRootItem(id string) models.DriveItemable {
 func delItem(
 	id string,
 	parentPath string,
+	parentID string,
 	isFile, isFolder, isPackage bool,
 ) models.DriveItemable {
 	item := models.NewDriveItem()
@@ -1667,6 +1669,7 @@ func delItem(
 
 	parentReference := models.NewItemReference()
 	parentReference.SetPath(&parentPath)
+	parentReference.SetId(&parentID)
 	item.SetParentReference(parentReference)
 
 	switch {

@@ -380,34 +380,21 @@ func (c *Collections) UpdateCollections(
 	excluded map[string]struct{},
 	invalidPrevDelta bool,
 ) error {
-	// This can only be made local to a page as the folder rename
-	// might happen between pages. Every page in the graph response
-	// will have all the parents for that item.
-	visitedPaths := map[string]string{}
-
 	for _, item := range items {
 		if item.GetRoot() != nil {
-			collectionPath, err := GetCanonicalPath(
-				fmt.Sprintf(rootDrivePattern, driveID),
-				c.tenant,
-				c.resourceOwner,
-				c.source,
-			)
-			if err != nil {
-				return err
-			}
-
-			visitedPaths[collectionPath.String()] = *item.GetId()
-
 			// Skip the root item
 			continue
 		}
 
-		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
+		if item.GetParentReference() == nil ||
+			item.GetParentReference().GetPath() == nil ||
+			item.GetParentReference().GetId() == nil {
 			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
 		}
 
 		// Create a collection for the parent of this item
+		collectionID := *item.GetParentReference().GetId()
+
 		collectionPath, err := GetCanonicalPath(
 			*item.GetParentReference().GetPath(),
 			c.tenant,
@@ -416,6 +403,12 @@ func (c *Collections) UpdateCollections(
 		)
 		if err != nil {
 			return err
+		}
+
+		// Skip items that don't match the folder selectors we were given.
+		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
+			continue
 		}
 
 		switch {
@@ -440,14 +433,6 @@ func (c *Collections) UpdateCollections(
 				return err
 			}
 
-			visitedPaths[folderPath.String()] = *item.GetId()
-
-			// Skip items that don't match the folder selectors we were given.
-			if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-				logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
-				continue
-			}
-
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
@@ -464,12 +449,6 @@ func (c *Collections) UpdateCollections(
 			fallthrough
 
 		case item.GetFile() != nil:
-			// Skip items that don't match the folder selectors we were given.
-			if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-				logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
-				continue
-			}
-
 			if item.GetDeleted() != nil {
 				excluded[*item.GetId()] = struct{}{}
 				// Exchange counts items streamed through it which includes deletions so
@@ -482,11 +461,6 @@ func (c *Collections) UpdateCollections(
 
 			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
 			// the exclude list.
-
-			collectionID, ok := visitedPaths[collectionPath.String()]
-			if !ok {
-				return fmt.Errorf("unable to find collection id for %s", collectionPath.String())
-			}
 
 			col, found := c.CollectionMap[collectionID]
 			if !found {
