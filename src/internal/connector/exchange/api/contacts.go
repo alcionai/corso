@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
@@ -318,13 +317,8 @@ func (c Contacts) Serialize(
 // ---------------------------------------------------------------------------
 
 func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
-	created := time.Time{}
-
-	name := ptr.Val(contact.GetDisplayName())
-
-	if contact.GetCreatedDateTime() != nil {
-		created = *contact.GetCreatedDateTime()
-	}
+	name := ptr.Value(contact.GetDisplayName())
+	created := ptr.Value(contact.GetCreatedDateTime())
 
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeContact,

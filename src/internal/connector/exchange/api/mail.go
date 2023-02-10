@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
@@ -349,22 +348,14 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	sender := ""
-	subject := ptr.Val(msg.GetSubject())
-	received := time.Time{}
-	created := time.Time{}
+	subject := ptr.Value(msg.GetSubject())
+	received := ptr.Value(msg.GetReceivedDateTime())
+	created := ptr.Value(msg.GetCreatedDateTime())
 
 	if msg.GetSender() != nil &&
 		msg.GetSender().GetEmailAddress() != nil &&
 		msg.GetSender().GetEmailAddress().GetAddress() != nil {
 		sender = *msg.GetSender().GetEmailAddress().GetAddress()
-	}
-
-	if msg.GetReceivedDateTime() != nil {
-		received = *msg.GetReceivedDateTime()
-	}
-
-	if msg.GetCreatedDateTime() != nil {
-		created = *msg.GetCreatedDateTime()
 	}
 
 	return &details.ExchangeInfo{
