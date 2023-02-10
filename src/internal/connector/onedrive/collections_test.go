@@ -1561,8 +1561,33 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
-			// TODO(ashmrtn): Allow passing previous metadata.
-			cols, delList, err := c.Get(ctx, nil)
+			mc, err := graph.MakeMetadataCollection(
+				tenant,
+				user,
+				path.OneDriveService,
+				path.FilesCategory,
+				[]graph.MetadataCollectionEntry{
+					graph.NewMetadataEntry(
+						graph.DeltaURLsFileName,
+						map[string]string{
+							driveID1: "prev-delta",
+							driveID2: "prev-delta",
+						},
+					),
+					graph.NewMetadataEntry(
+						graph.PreviousPathFileName,
+						map[string]map[string]string{
+							driveID1: {},
+							driveID2: {},
+						},
+					),
+				},
+				func(*support.ConnectorOperationStatus) {},
+			)
+			assert.NoError(t, err, "creating metadata collection")
+
+			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
+			cols, delList, err := c.Get(ctx, prevMetadata)
 			test.errCheck(t, err)
 
 			if err != nil {
@@ -1688,12 +1713,14 @@ func getDeltaError() error {
 func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 	next := "next"
 	delta := "delta"
+	prevDelta := "prev-delta"
 
 	table := []struct {
 		name             string
 		items            []deltaPagerResult
 		deltaURL         string
 		prevDeltaSuccess bool
+		prevDelta        string
 		err              error
 	}{
 		{
@@ -1703,6 +1730,16 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{deltaLink: &delta},
 			},
 			prevDeltaSuccess: true,
+			prevDelta:        prevDelta,
+		},
+		{
+			name:     "empty prev delta",
+			deltaURL: delta,
+			items: []deltaPagerResult{
+				{deltaLink: &delta},
+			},
+			prevDeltaSuccess: false,
+			prevDelta:        "",
 		},
 		{
 			name:     "next then delta",
@@ -1712,6 +1749,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{deltaLink: &delta},
 			},
 			prevDeltaSuccess: true,
+			prevDelta:        prevDelta,
 		},
 		{
 			name:     "invalid prev delta",
@@ -1720,6 +1758,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{err: getDeltaError()},
 				{deltaLink: &delta}, // works on retry
 			},
+			prevDelta:        prevDelta,
 			prevDeltaSuccess: false,
 		},
 		{
@@ -1728,6 +1767,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				{nextLink: &next},
 				{err: assert.AnError},
 			},
+			prevDelta:        prevDelta,
 			prevDeltaSuccess: true,
 			err:              assert.AnError,
 		},
@@ -1759,7 +1799,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				"",
 				"General",
 				collectorFunc,
-				"",
+				test.prevDelta,
 			)
 
 			require.ErrorIs(suite.T(), err, test.err, "delta fetch err")
