@@ -724,3 +724,162 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 		})
 	}
 }
+
+var (
+	basePath       = path.Builder{}.Append("ten", "serv", "user", "type")
+	baseFolderEnts = []folderEntry{
+		{
+			RepoRef:     basePath.String(),
+			ShortRef:    basePath.ShortRef(),
+			ParentRef:   basePath.Dir().ShortRef(),
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "type",
+				},
+			},
+		},
+		{
+			RepoRef:     basePath.Dir().String(),
+			ShortRef:    basePath.Dir().ShortRef(),
+			ParentRef:   basePath.Dir().Dir().ShortRef(),
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "user",
+				},
+			},
+		},
+		{
+			RepoRef:     basePath.Dir().Dir().String(),
+			ShortRef:    basePath.Dir().Dir().ShortRef(),
+			ParentRef:   basePath.Dir().Dir().Dir().ShortRef(),
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "serv",
+				},
+			},
+		},
+		{
+			RepoRef:     basePath.Dir().Dir().Dir().String(),
+			ShortRef:    basePath.Dir().Dir().Dir().ShortRef(),
+			ParentRef:   "",
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "ten",
+				},
+			},
+		},
+	}
+)
+
+func folderEntriesFor(pathElems []string, locElems []string) []folderEntry {
+	p := basePath.Append(pathElems...)
+	l := path.Builder{}.Append(locElems...)
+
+	ents := make([]folderEntry, 0, len(pathElems)+4)
+
+	for range pathElems {
+		dn := p.LastElem()
+		if l != nil && len(l.Elements()) > 0 {
+			dn = l.LastElem()
+		}
+
+		fe := folderEntry{
+			RepoRef:     p.String(),
+			ShortRef:    p.ShortRef(),
+			ParentRef:   p.Dir().ShortRef(),
+			LocationRef: l.String(),
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: dn,
+				},
+			},
+		}
+
+		l = l.Dir()
+		p = p.Dir()
+
+		ents = append(ents, fe)
+	}
+
+	return append(ents, baseFolderEnts...)
+}
+
+func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
+	var (
+		fnords = []string{"fnords"}
+		smarf  = []string{"fnords", "smarf"}
+		beau   = []string{"beau"}
+		regard = []string{"beau", "regard"}
+	)
+
+	table := []struct {
+		name     string
+		parent   *path.Builder
+		location *path.Builder
+		expect   []folderEntry
+	}{
+		{
+			name:   "base path, parent only",
+			parent: basePath,
+			expect: baseFolderEnts,
+		},
+		{
+			name:     "base path with location",
+			parent:   basePath,
+			location: basePath,
+			expect:   baseFolderEnts,
+		},
+		{
+			name:   "single depth parent only",
+			parent: basePath.Append(fnords...),
+			expect: folderEntriesFor(fnords, nil),
+		},
+		{
+			name:     "single depth with location",
+			parent:   basePath.Append(fnords...),
+			location: basePath.Append(beau...),
+			expect:   folderEntriesFor(fnords, beau),
+		},
+		{
+			name:   "two depth parent only",
+			parent: basePath.Append(smarf...),
+			expect: folderEntriesFor(smarf, nil),
+		},
+		{
+			name:     "two depth with location",
+			parent:   basePath.Append(smarf...),
+			location: basePath.Append(regard...),
+			expect:   folderEntriesFor(smarf, regard),
+		},
+		{
+			name:     "mismatched depth, parent longer",
+			parent:   basePath.Append(smarf...),
+			location: basePath.Append(beau...),
+			expect:   folderEntriesFor(smarf, beau),
+		},
+		// We can't handle this right now.  But we don't have any cases
+		// which immediately require it, either.  Keeping in the test
+		// as a reminder that this might be required at some point.
+		// {
+		// 	name:     "mismatched depth, location longer",
+		// 	parent:   basePath.Append(fnords...),
+		// 	location: basePath.Append(regard...),
+		// 	expect:   folderEntriesFor(fnords, regard),
+		// },
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := FolderEntriesForPath(test.parent, test.location)
+			assert.ElementsMatch(t, test.expect, result)
+		})
+	}
+}

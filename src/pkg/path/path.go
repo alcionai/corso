@@ -213,6 +213,14 @@ func (pb Builder) Dir() *Builder {
 	}
 }
 
+func (pb Builder) LastElem() string {
+	if len(pb.elements) == 0 {
+		return ""
+	}
+
+	return pb.elements[len(pb.elements)-1]
+}
+
 // String returns a string that contains all path elements joined together.
 // Elements of the path that need escaping are escaped.
 func (pb Builder) String() string {
