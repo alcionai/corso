@@ -380,26 +380,6 @@ func RestoreCollection(
 	}
 }
 
-// Creates a folder with its permissions
-func createRestoreFolder(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID, folder, parentFolderID string,
-) (string, error) {
-	folderItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
-	if err != nil {
-		return "", errors.Wrapf(
-			err,
-			"failed to create folder %s/%s. details: %s", parentFolderID, folder,
-			support.ConnectorStackErrorTrace(err),
-		)
-	}
-
-	logger.Ctx(ctx).Debugf("Resolved %s in %s to %s", folder, parentFolderID, *folderItem.GetId())
-
-	return *folderItem.GetId(), nil
-}
-
 // createRestoreFoldersWithPermissions creates the restore folder hierarchy in
 // the specified drive and returns the folder ID of the last folder entry in the
 // hierarchy. Permissions are only applied to the last folder in the hierarchy.
