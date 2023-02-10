@@ -1688,6 +1688,40 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			),
 		},
 		{
+			name: "ReplaceDeletedSubtreeWithNew",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				oldInbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
+				oldInbox.PrevPath = inboxPath
+				oldInbox.ColState = data.DeletedState
+
+				newCol := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+				newCol.ColState = data.NewState
+				newCol.Names[0] = workFileName2
+				newCol.Data[0] = workFileData2
+
+				return []data.BackupCollection{oldInbox, newCol}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxDir,
+						children: []*expectedNode{
+							{
+								name: workFileName2,
+								data: workFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
 			name: "ReplaceMovedDirectory",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newPersonalPath := makePath(
