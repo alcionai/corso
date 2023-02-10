@@ -1256,8 +1256,12 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		itemPath1 = makePath(
 			t,
 			pathElems,
-			true,
-		)
+			true)
+
+		locPath1 = makePath(
+			t,
+			pathElems[:len(pathElems)-1],
+			false)
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -1275,7 +1279,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		inputToMerge = map[string]kopia.PrevRefs{
 			itemPath1.ShortRef(): {
 				Repo:     itemPath1,
-				Location: itemPath1,
+				Location: locPath1,
 			},
 		}
 
