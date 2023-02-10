@@ -447,16 +447,16 @@ func restoreCollection(
 				continue
 			}
 
-			// var locationRef string
-			// if category == path.ContactsCategory {
-			// 	locationRef = itemPath.Folder(false)
-			// }
+			var locationRef string
+			if category == path.ContactsCategory {
+				locationRef = itemPath.Folder(false)
+			}
 
 			deets.Add(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
-				"", // TODO: locationRef
+				locationRef,
 				true,
 				details.ItemInfo{
 					Exchange: info,
