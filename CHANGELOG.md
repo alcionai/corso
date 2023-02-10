@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Errors from duplicate names in Exchange Calendars
 
 ### Breaking Change: Exchange Calendar Storage
-Exchange Calendars storage entries now construct theirs paths using container IDs instead of display names.  This fixes cases where duplicate display names caused system failures.  The migration conflicts with existing calendar backups, producing the following problems:
+Exchange Calendars storage entries now construct their paths using container IDs instead of display names.  This fixes cases where duplicate display names caused system failures.  The migration conflicts with existing calendar backups, producing the following problems:
 
 1. On the following backups, all Calendars and Calendar Events will produce duplicate storage entries.
 2. Attempting to restore multiple duplicate storage entries (ex, from an untargeted restore command like: `corso restore exchange --backup id`) will cause errors due to duplicate item collisions.
@@ -25,7 +25,7 @@ corso backup exchange --user '*' --data events --disable-incrementals
 This will force Corso to refresh the entire backup, preventing the creation of duplicate entries.
 
 ### Changed
-- When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or an m365 ID.
+- When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or a Microsoft 365 ID.
 
 ### Known Issues
 - Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
