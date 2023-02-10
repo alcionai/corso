@@ -3,9 +3,9 @@ package ptr
 // ptr package is a common package used for pointer
 // access and deserialization.
 
-// func Value[T any](source T, ptr *T) (T, bool) {
+// func Value[T any](generic T, ptr *T) (T, bool) {
 // 	if ptr == nil {
-// 		return source, false
+// 		return generic, false
 // 	}
 
 // 	return *ptr, true
