@@ -41,7 +41,8 @@ const (
 	// name.
 	// TODO(ashmrtn): Update this to a real value when we merge the file name
 	// change. Set to MAXINT for now to keep the if-check using it working.
-	versionWithNameInMeta = math.MaxInt
+	versionWithNameInMeta            = math.MaxInt
+	versionWithDataAndMetaFilesInDir = 3
 )
 
 func getParentPermissions(
@@ -66,19 +67,22 @@ func getParentPermissions(
 }
 
 func getParentAndCollectionPermissions(
+	ctx context.Context,
 	drivePath *path.DrivePath,
-	collectionPath path.Path,
+	dc data.RestoreCollection,
 	permissions map[string][]UserPermission,
+	backupVersion int,
 	restorePerms bool,
 ) ([]UserPermission, []UserPermission, error) {
-	if !restorePerms {
+	if !restorePerms || backupVersion < versionWithDataAndMetaFiles {
 		return nil, nil, nil
 	}
 
 	var (
-		err         error
-		parentPerms []UserPermission
-		colPerms    []UserPermission
+		err            error
+		parentPerms    []UserPermission
+		colPerms       []UserPermission
+		collectionPath = dc.FullPath()
 	)
 
 	// Only get parent permissions if we're not restoring the root.
@@ -94,11 +98,24 @@ func getParentAndCollectionPermissions(
 		}
 	}
 
-	// TODO(ashmrtn): For versions after this pull the permissions from the
-	// current collection with Fetch().
-	colPerms, err = getParentPermissions(collectionPath, permissions)
-	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting collection permissions")
+	if backupVersion < versionWithDataAndMetaFilesInDir {
+		colPerms, err = getParentPermissions(collectionPath, permissions)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting collection permissions")
+		}
+	} else if len(drivePath.Folders) > 0 {
+		// Root folder doesn't have a metadata file associated with it.
+		folders := collectionPath.Folders()
+
+		meta, err := fetchAndReadMetadata(
+			ctx,
+			dc,
+			folders[len(folders)-1]+DirMetaFileSuffix)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "collection permissions")
+		}
+
+		colPerms = meta.Permissions
 	}
 
 	return parentPerms, colPerms, nil
@@ -223,9 +240,11 @@ func RestoreCollection(
 		"destination", restoreFolderElements)
 
 	parentPerms, colPerms, err := getParentAndCollectionPermissions(
+		ctx,
 		drivePath,
-		dc.FullPath(),
+		dc,
 		parentPermissions,
+		backupVersion,
 		restorePerms)
 	if err != nil {
 		errUpdater(directory.String(), err)
@@ -330,7 +349,10 @@ func RestoreCollection(
 					// RestoreOp, so we still need to handle them in some way.
 					continue
 				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
-					if !restorePerms {
+					// Only the versionWithDataAndMetaFiles needed to deserialize the
+					// permission for child folders here. Later versions can request
+					// permissions inline when processing the collection.
+					if !restorePerms || backupVersion >= versionWithDataAndMetaFilesInDir {
 						continue
 					}
 
