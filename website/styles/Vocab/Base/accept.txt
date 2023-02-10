@@ -40,3 +40,5 @@ stderr
 backoff
 Greenlake   
 subfolder
+zuneNica
+gif
