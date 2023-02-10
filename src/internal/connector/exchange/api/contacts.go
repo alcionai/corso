@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -317,12 +318,9 @@ func (c Contacts) Serialize(
 // ---------------------------------------------------------------------------
 
 func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
-	name := ""
 	created := time.Time{}
 
-	if contact.GetDisplayName() != nil {
-		name = *contact.GetDisplayName()
-	}
+	name := ptr.Val(contact.GetDisplayName())
 
 	if contact.GetCreatedDateTime() != nil {
 		created = *contact.GetCreatedDateTime()
