@@ -27,10 +27,10 @@ type MockExchangeDataCollection struct {
 }
 
 var (
-	_ data.Collection = &MockExchangeDataCollection{}
-	_ data.Stream     = &MockExchangeData{}
-	_ data.StreamInfo = &MockExchangeData{}
-	_ data.StreamSize = &MockExchangeData{}
+	_ data.BackupCollection = &MockExchangeDataCollection{}
+	_ data.Stream           = &MockExchangeData{}
+	_ data.StreamInfo       = &MockExchangeData{}
+	_ data.StreamSize       = &MockExchangeData{}
 )
 
 // NewMockExchangeDataCollection creates an data collection that will return the specified number of

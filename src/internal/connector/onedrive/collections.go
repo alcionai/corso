@@ -61,9 +61,9 @@ type Collections struct {
 
 	ctrl control.Options
 
-	// collectionMap allows lookup of the data.Collection
+	// collectionMap allows lookup of the data.BackupCollection
 	// for a OneDrive folder
-	CollectionMap map[string]data.Collection
+	CollectionMap map[string]data.BackupCollection
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
@@ -100,7 +100,7 @@ func NewCollections(
 		resourceOwner:  resourceOwner,
 		source:         source,
 		matcher:        matcher,
-		CollectionMap:  map[string]data.Collection{},
+		CollectionMap:  map[string]data.BackupCollection{},
 		drivePagerFunc: PagerForSource,
 		itemPagerFunc:  defaultItemPager,
 		service:        service,
@@ -111,7 +111,7 @@ func NewCollections(
 
 func deserializeMetadata(
 	ctx context.Context,
-	cols []data.Collection,
+	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, error) {
 	logger.Ctx(ctx).Infow(
 		"deserialzing previous backup metadata",
@@ -249,9 +249,9 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 // be excluded from the upcoming backup.
 func (c *Collections) Get(
 	ctx context.Context,
-	prevMetadata []data.Collection,
-) ([]data.Collection, map[string]struct{}, error) {
-	_, _, err := deserializeMetadata(ctx, prevMetadata)
+	prevMetadata []data.RestoreCollection,
+) ([]data.BackupCollection, map[string]struct{}, error) {
+	prevDeltas, _, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -287,6 +287,8 @@ func (c *Collections) Get(
 		driveID := *d.GetId()
 		driveName := *d.GetName()
 
+		prevDelta := prevDeltas[driveID]
+
 		delta, paths, excluded, err := collectItems(
 			ctx,
 			c.itemPagerFunc(
@@ -297,6 +299,7 @@ func (c *Collections) Get(
 			driveID,
 			driveName,
 			c.UpdateCollections,
+			prevDelta,
 		)
 		if err != nil {
 			return nil, nil, err
@@ -307,8 +310,8 @@ func (c *Collections) Get(
 		// remove entries for which there is no corresponding delta token/folder. If
 		// we leave empty delta tokens then we may end up setting the State field
 		// for collections when not actually getting delta results.
-		if len(delta) > 0 {
-			deltaURLs[driveID] = delta
+		if len(delta.URL) > 0 {
+			deltaURLs[driveID] = delta.URL
 		}
 
 		// Avoid the edge case where there's no paths but we do have a valid delta
@@ -324,7 +327,7 @@ func (c *Collections) Get(
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
 
 	// Add an extra for the metadata collection.
-	collections := make([]data.Collection, 0, len(c.CollectionMap)+1)
+	collections := make([]data.BackupCollection, 0, len(c.CollectionMap)+1)
 	for _, coll := range c.CollectionMap {
 		collections = append(collections, coll)
 	}
@@ -356,7 +359,7 @@ func (c *Collections) Get(
 	}
 
 	// TODO(ashmrtn): Track and return the set of items to exclude.
-	return collections, nil, nil
+	return collections, excludedItems, nil
 }
 
 // UpdateCollections initializes and adds the provided drive items to Collections
@@ -371,6 +374,7 @@ func (c *Collections) UpdateCollections(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	invalidPrevDelta bool,
 ) error {
 	for _, item := range items {
 		if item.GetRoot() != nil {
@@ -462,7 +466,9 @@ func (c *Collections) UpdateCollections(
 					c.service,
 					c.statusUpdater,
 					c.source,
-					c.ctrl)
+					c.ctrl,
+					invalidPrevDelta,
+				)
 
 				c.CollectionMap[collectionPath.String()] = col
 				c.NumContainers++

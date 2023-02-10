@@ -15,7 +15,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -137,7 +138,7 @@ type corsoProgress struct {
 	toMerge    map[string]path.Path
 	mu         sync.RWMutex
 	totalBytes int64
-	errs       *multierror.Error
+	errs       *fault.Errors
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -167,11 +168,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.info == nil {
 		if d.prevPath == nil {
-			cp.errs = multierror.Append(cp.errs, errors.Errorf(
-				"item sourced from previous backup with no previous path. Service: %s, Category: %s",
-				d.repoPath.Service().String(),
-				d.repoPath.Category().String(),
-			))
+			cp.errs.Add(clues.New("item sourced from previous backup with no previous path").
+				WithAll(
+					"service", d.repoPath.Service().String(),
+					"category", d.repoPath.Category().String(),
+				))
 
 			return
 		}
@@ -254,31 +255,28 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 func collectionEntries(
 	ctx context.Context,
 	cb func(context.Context, fs.Entry) error,
-	streamedEnts data.Collection,
+	streamedEnts data.BackupCollection,
 	progress *corsoProgress,
-) (map[string]struct{}, *multierror.Error) {
+) (map[string]struct{}, error) {
 	if streamedEnts == nil {
 		return nil, nil
 	}
 
 	var (
-		errs *multierror.Error
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
 		items = streamedEnts.Items()
-		log   = logger.Ctx(ctx)
 	)
 
 	for {
 		select {
 		case <-ctx.Done():
-			errs = multierror.Append(errs, ctx.Err())
-			return seen, errs
+			return seen, clues.Stack(ctx.Err()).WithClues(ctx)
 
 		case e, ok := <-items:
 			if !ok {
-				return seen, errs
+				return seen, nil
 			}
 
 			encodedName := encodeAsPath(e.UUID())
@@ -302,9 +300,9 @@ func collectionEntries(
 			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
 			if err != nil {
 				err = errors.Wrap(err, "getting full item path")
-				errs = multierror.Append(errs, err)
+				progress.errs.Add(err)
 
-				log.Error(err)
+				logger.Ctx(ctx).With("err", err).Errorw("getting full item path", clues.InErr(err).Slice()...)
 
 				continue
 			}
@@ -342,13 +340,12 @@ func collectionEntries(
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
 				encodedName,
 				modTime,
-				newBackupStreamReader(serializationVersion, e.ToReader()),
-			)
+				newBackupStreamReader(serializationVersion, e.ToReader()))
+
 			if err := cb(ctx, entry); err != nil {
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
-				errs = multierror.Append(errs, errors.Wrapf(err, "executing callback on %q", itemPath))
-				return seen, errs
+				return seen, clues.Wrap(err, "executing callback").WithClues(ctx).With("item_path", itemPath)
 			}
 		}
 	}
@@ -442,7 +439,7 @@ func getStreamItemFunc(
 	curPath path.Path,
 	prevPath path.Path,
 	staticEnts []fs.Entry,
-	streamedEnts data.Collection,
+	streamedEnts data.BackupCollection,
 	baseDir fs.Directory,
 	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
@@ -454,11 +451,14 @@ func getStreamItemFunc(
 		// Return static entries in this directory first.
 		for _, d := range staticEnts {
 			if err := cb(ctx, d); err != nil {
-				return errors.Wrap(err, "executing callback on static directory")
+				return clues.Wrap(err, "executing callback on static directory").WithClues(ctx)
 			}
 		}
 
-		seen, errs := collectionEntries(ctx, cb, streamedEnts, progress)
+		seen, err := collectionEntries(ctx, cb, streamedEnts, progress)
+		if err != nil {
+			return errors.Wrap(err, "streaming collection entries")
+		}
 
 		if err := streamBaseEntries(
 			ctx,
@@ -470,13 +470,10 @@ func getStreamItemFunc(
 			globalExcludeSet,
 			progress,
 		); err != nil {
-			errs = multierror.Append(
-				errs,
-				errors.Wrap(err, "streaming base snapshot entries"),
-			)
+			return errors.Wrap(err, "streaming base snapshot entries")
 		}
 
-		return errs.ErrorOrNil()
+		return nil
 	}
 }
 
@@ -540,7 +537,7 @@ type treeMap struct {
 	childDirs map[string]*treeMap
 	// Reference to data pulled from the external service. Contains only items in
 	// this directory. Does not contain references to subdirectories.
-	collection data.Collection
+	collection data.BackupCollection
 	// Reference to directory in base snapshot. The referenced directory itself
 	// may contain files and subdirectories, but the subdirectories should
 	// eventually be added when walking the base snapshot to build the hierarchy,
@@ -617,7 +614,7 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 
 func inflateCollectionTree(
 	ctx context.Context,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 ) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that have been moved or renamed.
@@ -911,13 +908,13 @@ func inflateBaseTree(
 // exclude from base directories when uploading the snapshot. As items in *all*
 // base directories will be checked for in every base directory, this assumes
 // that items in the bases are unique. Deletions of directories or subtrees
-// should be represented as changes in the status of a Collection, not an entry
-// in the globalExcludeSet.
+// should be represented as changes in the status of a BackupCollection, not an
+// entry in the globalExcludeSet.
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
@@ -933,9 +930,7 @@ func inflateDirTree(
 
 	logger.Ctx(ctx).Infow(
 		"merging hierarchies from base snapshots",
-		"snapshot_ids",
-		baseIDs,
-	)
+		"snapshot_ids", baseIDs)
 
 	for _, snap := range baseSnaps {
 		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {

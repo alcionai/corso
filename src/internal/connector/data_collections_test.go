@@ -249,7 +249,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
 				test.getSelector(),
-				connector.credentials.AzureTenantID,
+				connector.credentials,
 				connector.Service,
 				connector,
 				control.Options{})

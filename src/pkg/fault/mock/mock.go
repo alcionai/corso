@@ -4,7 +4,8 @@ import "github.com/alcionai/corso/src/pkg/fault"
 
 // Adder mocks an adder interface for testing.
 type Adder struct {
-	Errs []error
+	FailFast bool
+	Errs     []error
 }
 
 func NewAdder() *Adder {
@@ -13,5 +14,9 @@ func NewAdder() *Adder {
 
 func (ma *Adder) Add(err error) *fault.Errors {
 	ma.Errs = append(ma.Errs, err)
-	return fault.New(false)
+	return fault.New(true)
+}
+
+func (ma *Adder) Failed() bool {
+	return ma.FailFast && len(ma.Errs) > 0
 }

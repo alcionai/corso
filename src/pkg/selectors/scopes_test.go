@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault/mock"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -273,13 +274,17 @@ func (suite *SelectorScopesSuite) TestReduce() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			errs := mock.NewAdder()
+
 			ds := deets()
 			result := reduce[mockScope](
 				ctx,
 				&ds,
 				test.sel().Selector,
-				dataCats)
+				dataCats,
+				errs)
 			require.NotNil(t, result)
+			require.Empty(t, errs.Errs, "iteration errors")
 			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}

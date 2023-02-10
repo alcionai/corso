@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/events"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -31,12 +31,12 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error)
+	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
-	) (*details.Details, *backup.Backup, error)
+	) (*details.Details, *backup.Backup, *fault.Errors)
 }
 
 type Repository interface {
@@ -89,13 +89,17 @@ func Initialize(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(ctx, "acct_provider", acct.Provider, "storage_provider", s.Provider)
+	ctx = clues.AddAll(
+		ctx,
+		"acct_provider", acct.Provider.String(),
+		"acct_id", acct.ID(), // TODO: pii
+		"storage_provider", s.Provider.String())
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
-		if kopia.IsRepoAlreadyExistsError(err) {
-			return nil, ErrorRepoAlreadyExists
+		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
+			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
 		return nil, errors.Wrap(err, "initializing kopia")
@@ -153,7 +157,11 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(ctx, "acct_provider", acct.Provider, "storage_provider", s.Provider)
+	ctx = clues.AddAll(
+		ctx,
+		"acct_provider", acct.Provider.String(),
+		"acct_id", acct.ID(), // TODO: pii
+		"storage_provider", s.Provider.String())
 
 	// Close/Reset the progress bar. This ensures callers don't have to worry about
 	// their output getting clobbered (#1720)
@@ -210,12 +218,12 @@ func Connect(
 
 func (r *repository) Close(ctx context.Context) error {
 	if err := r.Bus.Close(); err != nil {
-		logger.Ctx(ctx).Debugw("closing the event bus", "err", err)
+		logger.Ctx(ctx).With("err", err).Debugw("closing the event bus", clues.In(ctx).Slice()...)
 	}
 
 	if r.dataLayer != nil {
 		if err := r.dataLayer.Close(ctx); err != nil {
-			logger.Ctx(ctx).Debugw("closing Datalayer", "err", err)
+			logger.Ctx(ctx).With("err", err).Debugw("closing Datalayer", clues.In(ctx).Slice()...)
 		}
 
 		r.dataLayer = nil
@@ -223,7 +231,7 @@ func (r *repository) Close(ctx context.Context) error {
 
 	if r.modelStore != nil {
 		if err := r.modelStore.Close(ctx); err != nil {
-			logger.Ctx(ctx).Debugw("closing modelStore", "err", err)
+			logger.Ctx(ctx).With("err", err).Debugw("closing modelStore", clues.In(ctx).Slice()...)
 		}
 
 		r.modelStore = nil
@@ -274,23 +282,23 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
-func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, error) {
+func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors) {
 	var (
-		errs *multierror.Error
 		bups []*backup.Backup
+		errs = fault.New(false)
 		sw   = store.NewKopiaStore(r.modelStore)
 	)
 
 	for _, id := range ids {
 		b, err := sw.GetBackup(ctx, id)
 		if err != nil {
-			errs = multierror.Append(errs, err)
+			errs.Add(clues.Stack(err).With("backup_id", id))
 		}
 
 		bups = append(bups, b)
 	}
 
-	return bups, errs.ErrorOrNil()
+	return bups, errs
 }
 
 // backups lists backups in a repository
@@ -300,23 +308,28 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 }
 
 // BackupDetails returns the specified backup details object
-func (r repository) BackupDetails(ctx context.Context, backupID string) (*details.Details, *backup.Backup, error) {
+func (r repository) BackupDetails(
+	ctx context.Context,
+	backupID string,
+) (*details.Details, *backup.Backup, *fault.Errors) {
 	sw := store.NewKopiaStore(r.modelStore)
+	errs := fault.New(false)
 
 	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errs.Fail(err)
 	}
 
 	deets, err := streamstore.New(
 		r.dataLayer,
 		r.Account.ID(),
-		b.Selector.PathService()).ReadBackupDetails(ctx, dID)
+		b.Selector.PathService(),
+	).ReadBackupDetails(ctx, dID, errs)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errs.Fail(err)
 	}
 
-	return deets, b, nil
+	return deets, b, errs
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.

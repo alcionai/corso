@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -87,7 +88,7 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []data.Collection
+	cs                []data.RestoreCollection
 	gc                *support.ConnectorOperationStatus
 	bytesRead         *stats.ByteCounter
 	resourceCount     int
@@ -103,7 +104,8 @@ type restorer interface {
 		snapshotID string,
 		paths []path.Path,
 		bc kopia.ByteCounter,
-	) ([]data.Collection, error)
+		errs *fault.Errors,
+	) ([]data.RestoreCollection, error)
 }
 
 // Run begins a synchronous restore operation.
@@ -196,12 +198,12 @@ func (op *RestoreOperation) do(
 		op.BackupID,
 		op.store,
 		detailsStore,
-	)
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting backup and details")
 	}
 
-	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets)
+	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "formatting paths from details")
 	}
@@ -227,7 +229,7 @@ func (op *RestoreOperation) do(
 	defer closer()
 	defer close(kopiaComplete)
 
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead)
+	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "retrieving collections from repository")
 	}
@@ -240,7 +242,7 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account)
+	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to M365")
 	}
@@ -290,6 +292,7 @@ func (op *RestoreOperation) persistResults(
 	if opStats.readErr != nil || opStats.writeErr != nil {
 		op.Status = Failed
 
+		// TODO(keepers): replace with fault.Errors handling.
 		return multierror.Append(
 			errors.New("errors prevented the operation from processing"),
 			opStats.readErr,
@@ -340,25 +343,29 @@ func formatDetailsForRestoration(
 	ctx context.Context,
 	sel selectors.Selector,
 	deets *details.Details,
+	errs *fault.Errors,
 ) ([]path.Path, error) {
-	fds, err := sel.Reduce(ctx, deets)
+	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
 		return nil, err
 	}
 
 	var (
-		errs     *multierror.Error
 		fdsPaths = fds.Paths()
 		paths    = make([]path.Path, len(fdsPaths))
 	)
 
 	for i := range fdsPaths {
+		if errs.Err() != nil {
+			return nil, errs.Err()
+		}
+
 		p, err := path.FromDataLayerPath(fdsPaths[i], true)
 		if err != nil {
-			errs = multierror.Append(
-				errs,
-				errors.Wrap(err, "parsing details entry path"),
-			)
+			errs.Add(clues.
+				Wrap(err, "parsing details path after reduction").
+				WithMap(clues.In(ctx)).
+				With("path", fdsPaths[i]))
 
 			continue
 		}
@@ -377,9 +384,5 @@ func formatDetailsForRestoration(
 		return paths[i].String() < paths[j].String()
 	})
 
-	if errs != nil {
-		return nil, errs
-	}
-
-	return paths, nil
+	return paths, errs.Err()
 }

@@ -10,89 +10,57 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type mockColl struct {
-	p     path.Path
-	prevP path.Path
-}
-
-func (mc mockColl) Items() <-chan Stream {
-	return nil
-}
-
-func (mc mockColl) FullPath() path.Path {
-	return mc.p
-}
-
-func (mc mockColl) PreviousPath() path.Path {
-	return mc.prevP
-}
-
-func (mc mockColl) State() CollectionState {
-	return NewState
-}
-
-func (mc mockColl) DoNotMergeItems() bool {
-	return false
-}
-
-type CollectionSuite struct {
+type DataCollectionSuite struct {
 	suite.Suite
 }
 
-// ------------------------------------------------------------------------------------------------
-// tests
-// ------------------------------------------------------------------------------------------------
-
-func TestCollectionSuite(t *testing.T) {
-	suite.Run(t, new(CollectionSuite))
+func TestDataCollectionSuite(t *testing.T) {
+	suite.Run(t, new(DataCollectionSuite))
 }
 
-func (suite *CollectionSuite) TestResourceOwnerSet() {
-	t := suite.T()
-	toColl := func(t *testing.T, resource string) Collection {
-		p, err := path.Builder{}.
-			Append("foo").
-			ToDataLayerExchangePathForCategory("tid", resource, path.EventsCategory, false)
-		require.NoError(t, err)
-
-		return mockColl{p, nil}
-	}
+func (suite *DataCollectionSuite) TestStateOf() {
+	fooP, err := path.Builder{}.
+		Append("foo").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
+	barP, err := path.Builder{}.
+		Append("bar").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name   string
-		input  []Collection
-		expect []string
+		prev   path.Path
+		curr   path.Path
+		expect CollectionState
 	}{
 		{
-			name:   "empty",
-			input:  []Collection{},
-			expect: []string{},
+			name:   "new",
+			curr:   fooP,
+			expect: NewState,
 		},
 		{
-			name:   "nil",
-			input:  nil,
-			expect: []string{},
+			name:   "not moved",
+			prev:   fooP,
+			curr:   fooP,
+			expect: NotMovedState,
 		},
 		{
-			name:   "single resource",
-			input:  []Collection{toColl(t, "fnords")},
-			expect: []string{"fnords"},
+			name:   "moved",
+			prev:   fooP,
+			curr:   barP,
+			expect: MovedState,
 		},
 		{
-			name:   "multiple resource",
-			input:  []Collection{toColl(t, "fnords"), toColl(t, "smarfs")},
-			expect: []string{"fnords", "smarfs"},
-		},
-		{
-			name:   "duplciate resources",
-			input:  []Collection{toColl(t, "fnords"), toColl(t, "smarfs"), toColl(t, "fnords")},
-			expect: []string{"fnords", "smarfs"},
+			name:   "deleted",
+			prev:   fooP,
+			expect: DeletedState,
 		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			rs := ResourceOwnerSet(test.input)
-			assert.ElementsMatch(t, test.expect, rs)
+			state := StateOf(test.prev, test.curr)
+			assert.Equal(t, test.expect, state)
 		})
 	}
 }

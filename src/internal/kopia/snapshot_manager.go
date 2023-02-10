@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
@@ -218,9 +219,7 @@ func fetchPrevManifests(
 		found = append(found, man.Manifest)
 		logger.Ctx(ctx).Infow(
 			"reusing cached complete snapshot",
-			"snapshot_id",
-			man.ID,
-		)
+			"snapshot_id", man.ID)
 	}
 
 	return found, nil
@@ -251,29 +250,19 @@ func fetchPrevSnapshotManifests(
 	for _, reason := range reasons {
 		logger.Ctx(ctx).Infow(
 			"searching for previous manifests for reason",
-			"service",
-			reason.Service.String(),
-			"category",
-			reason.Category.String(),
-		)
+			"service", reason.Service.String(),
+			"category", reason.Category.String())
 
-		found, err := fetchPrevManifests(
-			ctx,
-			sm,
-			mans,
-			reason,
-			tags,
-		)
+		found, err := fetchPrevManifests(ctx, sm, mans, reason, tags)
 		if err != nil {
-			logger.Ctx(ctx).Warnw(
-				"fetching previous snapshot manifests for service/category/resource owner",
-				"error",
-				err,
-				"service",
-				reason.Service.String(),
-				"category",
-				reason.Category.String(),
-			)
+			logger.Ctx(ctx).
+				With(
+					"err", err,
+					"service", reason.Service.String(),
+					"category", reason.Category.String()).
+				Warnw(
+					"fetching previous snapshot manifests for service/category/resource owner",
+					clues.InErr(err).Slice()...)
 
 			// Snapshot can still complete fine, just not as efficient.
 			continue

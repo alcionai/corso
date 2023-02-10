@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -125,9 +126,15 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			//nolint
-			result, err := gc.UnionSiteIDsAndWebURLs(context.Background(), test.ids, test.urls)
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			errs := fault.New(true)
+
+			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, errs)
 			assert.NoError(t, err)
+			assert.NoError(t, errs.Err())
+			assert.Empty(t, errs.Errs())
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
@@ -204,18 +211,24 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	t := suite.T()
+
 	service, err := newConnector.createService()
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	newConnector.Service = service
+	assert.Equal(t, 0, len(newConnector.Sites))
 
-	suite.Equal(0, len(newConnector.Sites))
-	err = newConnector.setTenantSites(ctx)
-	suite.NoError(err)
-	suite.Less(0, len(newConnector.Sites))
+	errs := fault.New(true)
+
+	err = newConnector.setTenantSites(ctx, errs)
+	assert.NoError(t, err)
+	assert.NoError(t, errs.Err())
+	assert.Empty(t, errs.Errs())
+	assert.Less(t, 0, len(newConnector.Sites))
 
 	for _, site := range newConnector.Sites {
-		suite.NotContains("sharepoint.com/personal/", site)
+		assert.NotContains(t, "sharepoint.com/personal/", site)
 	}
 }
 
@@ -257,7 +270,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	dest := tester.DefaultTestRestoreDestination()
 	table := []struct {
 		name string
-		col  []data.Collection
+		col  []data.RestoreCollection
 		sel  selectors.Selector
 	}{
 		{
@@ -269,7 +282,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "ExchangeEmpty",
-			col:  []data.Collection{},
+			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceExchange,
 			},
@@ -283,7 +296,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "OneDriveEmpty",
-			col:  []data.Collection{},
+			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceOneDrive,
 			},
@@ -297,7 +310,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 		},
 		{
 			name: "SharePointEmpty",
-			col:  []data.Collection{},
+			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceSharePoint,
 			},
@@ -370,7 +383,7 @@ func runRestoreBackupTest(
 	opts control.Options,
 ) {
 	var (
-		collections     []data.Collection
+		collections     []data.RestoreCollection
 		expectedData    = map[string]map[string][]byte{}
 		totalItems      = 0
 		totalKopiaItems = 0
@@ -495,7 +508,7 @@ func runRestoreBackupTestVersion0(
 	opts control.Options,
 ) {
 	var (
-		collections     []data.Collection
+		collections     []data.RestoreCollection
 		expectedData    = map[string]map[string][]byte{}
 		totalItems      = 0
 		totalKopiaItems = 0
@@ -885,6 +898,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -909,6 +929,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							name:      "b" + onedrive.DirMetaFileSuffix,
 							data:      []byte("{}"),
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
 				},
@@ -938,6 +965,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -961,6 +995,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -976,6 +1017,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							data:      []byte(strings.Repeat("e", 257)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      []byte("{}"),
@@ -1014,6 +1062,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -1029,6 +1084,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 							data:      []byte(strings.Repeat("e", 66)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
@@ -1190,6 +1252,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -1214,6 +1283,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
 							name:      "b" + onedrive.DirMetaFileSuffix,
 							data:      []byte("{}"),
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
 				},
@@ -1243,6 +1319,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
 							lookupKey: "folder-a" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -1266,6 +1349,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -1281,6 +1371,13 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackupVersion0() {
 							data:      []byte(strings.Repeat("e", 257)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      []byte("{}"),
@@ -1508,6 +1605,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 			},
 		},
@@ -1541,6 +1645,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -1556,6 +1667,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							data:      []byte(strings.Repeat("e", 66)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
@@ -1595,6 +1713,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							lookupKey: "b" + onedrive.DirMetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 				{
 					pathElements: []string{
@@ -1610,6 +1735,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							data:      []byte(strings.Repeat("e", 66)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
@@ -1660,6 +1792,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
 						},
 					},
+					auxItems: []itemInfo{
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
 				},
 			},
 		},
@@ -1698,6 +1837,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsRestoreAndBackup() {
 							data:      []byte(strings.Repeat("e", 66)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      []byte("{}"),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      []byte("{}"),
@@ -1756,6 +1902,13 @@ func (suite *GraphConnectorIntegrationSuite) TestPermissionsBackupAndNoRestore()
 							data:      []byte(strings.Repeat("a", 33)),
 							lookupKey: "test-file.txt" + onedrive.DataFileSuffix,
 						},
+						{
+							name:      "test-file.txt" + onedrive.MetaFileSuffix,
+							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
+							lookupKey: "test-file.txt" + onedrive.MetaFileSuffix,
+						},
+					},
+					auxItems: []itemInfo{
 						{
 							name:      "test-file.txt" + onedrive.MetaFileSuffix,
 							data:      getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),

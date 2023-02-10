@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -30,8 +32,9 @@ var serviceToPathType = map[service]path.ServiceType{
 }
 
 var (
-	ErrorBadSelectorCast = errors.New("wrong selector service type")
-	ErrorNoMatchingItems = errors.New("no items match the specified selectors")
+	ErrorBadSelectorCast     = errors.New("wrong selector service type")
+	ErrorNoMatchingItems     = errors.New("no items match the specified selectors")
+	ErrorUnrecognizedService = errors.New("unrecognized service")
 )
 
 const (
@@ -67,7 +70,7 @@ var (
 const All = "All"
 
 type Reducer interface {
-	Reduce(context.Context, *details.Details) *details.Details
+	Reduce(context.Context, *details.Details, fault.Adder) *details.Details
 }
 
 // selectorResourceOwners aggregates all discrete path category types described
@@ -234,13 +237,17 @@ func (s Selector) PathService() path.ServiceType {
 // from the generic selector by interpreting the selector service type rather
 // than have the caller make that interpretation.  Returns an error if the
 // service is unsupported.
-func (s Selector) Reduce(ctx context.Context, deets *details.Details) (*details.Details, error) {
+func (s Selector) Reduce(
+	ctx context.Context,
+	deets *details.Details,
+	errs fault.Adder,
+) (*details.Details, error) {
 	r, err := selectorAsIface[Reducer](s)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Reduce(ctx, deets), nil
+	return r.Reduce(ctx, deets, errs), nil
 }
 
 // returns the sets of path categories identified in each scope set.
@@ -272,7 +279,7 @@ func selectorAsIface[T any](s Selector) (T, error) {
 		a, err = func() (any, error) { return s.ToSharePointRestore() }()
 		t = a.(T)
 	default:
-		err = errors.New("service not supported: " + s.Service.String())
+		err = clues.Stack(ErrorUnrecognizedService, errors.New(s.Service.String()))
 	}
 
 	return t, err
@@ -336,6 +343,7 @@ type scopeConfig struct {
 	usePathFilter   bool
 	usePrefixFilter bool
 	useSuffixFilter bool
+	useEqualsFilter bool
 }
 
 type option func(*scopeConfig)
@@ -364,6 +372,15 @@ func SuffixMatch() option {
 	}
 }
 
+// ExactMatch ensures the selector uses an Equals comparator, instead
+// of contains.  Will not override a default Any() or None()
+// comparator.
+func ExactMatch() option {
+	return func(sc *scopeConfig) {
+		sc.useEqualsFilter = true
+	}
+}
+
 // pathComparator is an internal-facing option.  It is assumed that scope
 // constructors will provide the pathComparator option whenever a folder-
 // level scope (ie, a scope that compares path hierarchies) is created.
@@ -374,7 +391,7 @@ func pathComparator() option {
 }
 
 func badCastErr(cast, is service) error {
-	return errors.Wrapf(ErrorBadSelectorCast, "%s service is not %s", cast, is)
+	return clues.Stack(ErrorBadSelectorCast, errors.Errorf("%s is not %s", cast, is))
 }
 
 func join(s ...string) string {
@@ -426,6 +443,10 @@ func filterize(sc scopeConfig, s ...string) filters.Filter {
 	}
 
 	if sc.usePathFilter {
+		if sc.useEqualsFilter {
+			return filters.PathEquals(s)
+		}
+
 		if sc.usePrefixFilter {
 			return filters.PathPrefix(s)
 		}

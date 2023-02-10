@@ -130,12 +130,13 @@ type containerDeleter interface {
 
 // TestRestoreExchangeObject verifies path.Category usage for restored objects
 func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
-	a := tester.NewM365Account(suite.T())
+	t := suite.T()
+	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	service, err := createService(m365)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	deleters := map[path.CategoryType]containerDeleter{
 		path.EmailCategory:    suite.ac.Mail(),
@@ -181,6 +182,63 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreEventItemAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name:     "Test Mail: Item Attachment_Mail",
+			bytes:    mockconnector.GetMockMessageWithItemAttachmentMail("Mail Item Attachment"),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name: "Test Mail: Hydrated Item Attachment Mail",
+			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentMail(t,
+				mockconnector.GetMockMessageBytes("Basic Item Attachment"),
+				"Mail Item Attachment",
+			),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "TestRestoreMailBasicItemAttachment: " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name: "Test Mail: Hydrated Item Attachment Mail One Attach",
+			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentMail(t,
+				mockconnector.GetMockMessageWithDirectAttachment("Item Attachment Included"),
+				"Mail Item Attachment",
+			),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "ItemMailAttachmentwAttachment " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
+		{
+			name: "Test Mail: Item Attachment_Contact",
+			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentContact(t,
+				mockconnector.GetMockContactBytes("Victor"),
+				"Contact Item Attachment",
+			),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "ItemMailAttachment_Contact " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
@@ -291,6 +349,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			)
 			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 			assert.NotNil(t, info, "item info was not populated")
+			assert.NotNil(t, deleters)
 			assert.NoError(t, deleters[test.category].DeleteContainer(ctx, userID, destination))
 		})
 	}

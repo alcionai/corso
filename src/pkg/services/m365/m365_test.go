@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type M365IntegrationSuite struct {
@@ -27,18 +28,24 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	acct := tester.NewM365Account(suite.T())
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(suite.T())
+		errs = fault.New(true)
+	)
 
-	users, err := Users(ctx, acct)
-	require.NoError(suite.T(), err)
-
-	require.NotNil(suite.T(), users)
-	require.Greater(suite.T(), len(users), 0)
+	users, err := Users(ctx, acct, errs)
+	require.NoError(t, err)
+	require.NoError(t, errs.Err())
+	require.Empty(t, errs.Errs())
+	require.NotNil(t, users)
+	require.Greater(t, len(users), 0)
 
 	for _, u := range users {
-		suite.T().Log(u)
-		assert.NotEmpty(suite.T(), u.ID)
-		assert.NotEmpty(suite.T(), u.PrincipalName)
-		assert.NotEmpty(suite.T(), u.Name)
+		t.Run("user_"+u.ID, func(t *testing.T) {
+			assert.NotEmpty(t, u.ID)
+			assert.NotEmpty(t, u.PrincipalName)
+			assert.NotEmpty(t, u.Name)
+		})
 	}
 }

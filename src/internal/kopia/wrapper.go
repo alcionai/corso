@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
@@ -17,6 +17,7 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -101,7 +102,11 @@ func (w *Wrapper) Close(ctx context.Context) error {
 	err := w.c.Close(ctx)
 	w.c = nil
 
-	return errors.Wrap(err, "closing Wrapper")
+	if err != nil {
+		return clues.Wrap(err, "closing Wrapper").WithClues(ctx)
+	}
+
+	return nil
 }
 
 type IncrementalBase struct {
@@ -118,13 +123,14 @@ type IncrementalBase struct {
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
-	collections []data.Collection,
+	collections []data.BackupCollection,
 	globalExcludeSet map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
+	errs *fault.Errors,
 ) (*BackupStats, *details.Builder, map[string]path.Path, error) {
 	if w.c == nil {
-		return nil, nil, nil, errNotConnected
+		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
 
 	ctx, end := D.Span(ctx, "kopia:backupCollections")
@@ -138,6 +144,7 @@ func (w Wrapper) BackupCollections(
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
 		toMerge: map[string]path.Path{},
+		errs:    errs,
 	}
 
 	// When running an incremental backup, we need to pass the prior
@@ -165,14 +172,12 @@ func (w Wrapper) BackupCollections(
 		previousSnapshots,
 		dirTree,
 		tags,
-		progress,
-	)
+		progress)
 	if err != nil {
-		combinedErrs := multierror.Append(nil, err, progress.errs)
-		return nil, nil, nil, combinedErrs.ErrorOrNil()
+		return nil, nil, nil, err
 	}
 
-	return s, progress.deets, progress.toMerge, progress.errs.ErrorOrNil()
+	return s, progress.deets, progress.toMerge, progress.errs.Err()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -197,9 +202,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 	logger.Ctx(ctx).Infow(
 		"using snapshots for kopia-assisted incrementals",
-		"snapshot_ids",
-		snapIDs,
-	)
+		"snapshot_ids", snapIDs)
 
 	tags := map[string]string{}
 
@@ -224,6 +227,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 			OnUpload:       bc.Count,
 		},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+			log := logger.Ctx(innerCtx)
+
 			si := snapshot.SourceInfo{
 				Host:     corsoHost,
 				UserName: corsoUser,
@@ -240,8 +245,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 			}
 			policyTree, err := policy.TreeForSourceWithOverride(innerCtx, w.c, si, errPolicy)
 			if err != nil {
-				err = errors.Wrap(err, "get policy tree")
-				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				err = clues.Wrap(err, "get policy tree").WithClues(ctx)
+				log.With("err", err).Errorw("building kopia backup", clues.InErr(err).Slice()...)
 				return err
 			}
 
@@ -253,16 +258,16 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
-				err = errors.Wrap(err, "uploading data")
-				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				err = clues.Wrap(err, "uploading data").WithClues(ctx)
+				log.With("err", err).Errorw("uploading kopia backup", clues.InErr(err).Slice()...)
 				return err
 			}
 
 			man.Tags = tags
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
-				err = errors.Wrap(err, "saving snapshot")
-				logger.Ctx(innerCtx).Errorw("kopia backup", err)
+				err = clues.Wrap(err, "saving snapshot").WithClues(ctx)
+				log.With("err", err).Errorw("persisting kopia backup snapshot", clues.InErr(err).Slice()...)
 				return err
 			}
 
@@ -272,7 +277,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {
-		return nil, errors.Wrap(err, "kopia backup")
+		return nil, clues.Wrap(err, "kopia backup")
 	}
 
 	res := manifestToStats(man, progress, bc)
@@ -286,12 +291,15 @@ func (w Wrapper) getSnapshotRoot(
 ) (fs.Entry, error) {
 	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
 	if err != nil {
-		return nil, errors.Wrap(err, "getting snapshot handle")
+		return nil, clues.Wrap(err, "getting snapshot handle").WithClues(ctx)
 	}
 
 	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, man)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting root directory").WithClues(ctx)
+	}
 
-	return rootDirEntry, errors.Wrap(err, "getting root directory")
+	return rootDirEntry, nil
 }
 
 // getItemStream looks up the item at the given path starting from snapshotRoot.
@@ -306,7 +314,7 @@ func getItemStream(
 	bcounter ByteCounter,
 ) (data.Stream, error) {
 	if itemPath == nil {
-		return nil, errors.WithStack(errNoRestorePath)
+		return nil, clues.Stack(errNoRestorePath).WithClues(ctx)
 	}
 
 	// GetNestedEntry handles nil properly.
@@ -317,15 +325,15 @@ func getItemStream(
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "entry not found") {
-			err = errors.Wrap(ErrNotFound, err.Error())
+			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
 		}
 
-		return nil, errors.Wrap(err, "getting nested object handle")
+		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
 	}
 
 	f, ok := e.(fs.File)
 	if !ok {
-		return nil, errors.New("requested object is not a file")
+		return nil, clues.New("requested object is not a file").WithClues(ctx)
 	}
 
 	if bcounter != nil {
@@ -334,12 +342,12 @@ func getItemStream(
 
 	r, err := f.Open(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "opening file")
+		return nil, clues.Wrap(err, "opening file").WithClues(ctx)
 	}
 
 	decodedName, err := decodeElement(f.Name())
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding file name")
+		return nil, clues.Wrap(err, "decoding file name").WithClues(ctx)
 	}
 
 	return &kopiaDataStream{
@@ -368,12 +376,13 @@ func (w Wrapper) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bcounter ByteCounter,
-) ([]data.Collection, error) {
+	errs *fault.Errors,
+) ([]data.RestoreCollection, error) {
 	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
 	defer end()
 
 	if len(paths) == 0 {
-		return nil, errors.WithStack(errNoRestorePath)
+		return nil, clues.Stack(errNoRestorePath).WithClues(ctx)
 	}
 
 	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
@@ -381,40 +390,47 @@ func (w Wrapper) RestoreMultipleItems(
 		return nil, err
 	}
 
-	var (
-		errs *multierror.Error
-		// Maps short ID of parent path to data collection for that folder.
-		cols = map[string]*kopiaDataCollection{}
-	)
+	// Maps short ID of parent path to data collection for that folder.
+	cols := map[string]*kopiaDataCollection{}
 
 	for _, itemPath := range paths {
+		if errs.Err() != nil {
+			return nil, errs.Err()
+		}
+
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
-			errs = multierror.Append(errs, err)
+			errs.Add(err)
 			continue
 		}
 
 		parentPath, err := itemPath.Dir()
 		if err != nil {
-			errs = multierror.Append(errs, errors.Wrap(err, "making directory collection"))
+			errs.Add(clues.Wrap(err, "making directory collection").WithClues(ctx))
 			continue
 		}
 
 		c, ok := cols[parentPath.ShortRef()]
 		if !ok {
-			cols[parentPath.ShortRef()] = &kopiaDataCollection{path: parentPath}
+			cols[parentPath.ShortRef()] = &kopiaDataCollection{
+				path:         parentPath,
+				snapshotRoot: snapshotRoot,
+				counter:      bcounter,
+			}
 			c = cols[parentPath.ShortRef()]
 		}
 
 		c.streams = append(c.streams, ds)
 	}
 
-	res := make([]data.Collection, 0, len(cols))
+	// Can't use the maps package to extract the values because we need to convert
+	// from *kopiaDataCollection to data.RestoreCollection too.
+	res := make([]data.RestoreCollection, 0, len(cols))
 	for _, c := range cols {
 		res = append(res, c)
 	}
 
-	return res, errs.ErrorOrNil()
+	return res, errs.Err()
 }
 
 // DeleteSnapshot removes the provided manifest from kopia.
@@ -425,7 +441,7 @@ func (w Wrapper) DeleteSnapshot(
 	mid := manifest.ID(snapshotID)
 
 	if len(mid) == 0 {
-		return errors.New("attempt to delete unidentified snapshot")
+		return clues.New("attempt to delete unidentified snapshot").WithClues(ctx)
 	}
 
 	err := repo.WriteSession(
@@ -434,7 +450,7 @@ func (w Wrapper) DeleteSnapshot(
 		repo.WriteSessionOptions{Purpose: "KopiaWrapperBackupDeletion"},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 			if err := rw.DeleteManifest(ctx, mid); err != nil {
-				return errors.Wrap(err, "deleting snapshot")
+				return clues.Wrap(err, "deleting snapshot").WithClues(ctx)
 			}
 
 			return nil
@@ -443,7 +459,7 @@ func (w Wrapper) DeleteSnapshot(
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {
-		return errors.Wrap(err, "kopia deleting backup manifest")
+		return clues.Wrap(err, "deleting backup manifest").WithClues(ctx)
 	}
 
 	return nil
@@ -464,7 +480,7 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 	tags map[string]string,
 ) ([]*ManifestEntry, error) {
 	if w.c == nil {
-		return nil, errors.WithStack(errNotConnected)
+		return nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
 
 	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil

@@ -3,6 +3,13 @@ package mockconnector
 import (
 	"encoding/base64"
 	"fmt"
+	"testing"
+
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
+	js "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -360,6 +367,143 @@ func GetMockMessageWithItemAttachmentEvent(subject string) []byte {
 	return []byte(message)
 }
 
+func GetMockMessageWithItemAttachmentMail(subject string) []byte {
+	//nolint:lll
+	// Order of fields:
+	// 1. subject
+	// 2. alias
+	// 3. sender address
+	// 4. from address
+	// 5. toRecipients email address
+	template := `{
+		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages(attachments())/$entity",
+		"@odata.etag": "W/\"CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADKTqr3\"",
+		"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADKo35SAAA=",
+		"createdDateTime": "2023-02-06T20:03:40Z",
+		"lastModifiedDateTime": "2023-02-06T20:03:42Z",
+		"changeKey": "CQAAABYAAAB8wYc0thTTTYl3RpEYIUq+AADKTqr3",
+		"categories": [],
+		"receivedDateTime": "2023-02-06T20:03:40Z",
+		"sentDateTime": "2023-02-06T20:03:37Z",
+		"hasAttachments": true,
+		"internetMessageId": "<SJ0PR17MB5622C17321AE356F5202A857C3DA9@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+		"subject": "%[1]s",
+		"bodyPreview": "Nested Items are not encapsulated in a trivial manner. Review the findings.\r\n\r\nBest,\r\n\r\nYour Test Case",
+		"importance": "normal",
+		"parentFolderId": "AQMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4ADVkZWQwNmNlMTgALgAAAw_9XBStqZdPuOVIalVTz7sBAHzBhzS2FNNNiXdGkRghSr4AAAIBDAAAAA==",
+		"conversationId": "AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAPe8pEQOrBxLvFNhfDtMyEI=",
+		"conversationIndex": "AQHZOmYA97ykRA6sHEu8U2F8O0zIQg==",
+		"isDeliveryReceiptRequested": false,
+		"isReadReceiptRequested": false,
+		"isRead": false,
+		"isDraft": false,
+		"webLink": "https://outlook.office365.com/owal=ReadMessageItem",
+		"inferenceClassification": "focused",
+		"body": {
+			"contentType": "html",
+			"content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Nested Items are not encapsulated in a trivial manner. Review the findings.</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Best,&nbsp;</div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\"><br></div><div class=\"elementToProof\" style=\"font-family:Calibri,Arial,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0); background-color:rgb(255,255,255)\">Your Test Case</div></body></html>"
+		},
+		"sender": {
+			"emailAddress": {
+				"name": "%[2]s",
+				"address": "%[3]s"
+			}
+		},
+		"from": {
+			"emailAddress": {
+				"name": "%[2]s",
+				"address": "%[4]s"
+			}
+		},
+		"toRecipients": [
+			{
+				"emailAddress": {
+					"name": "%[2]s",
+					"address": "%[5]s"
+				}
+			}
+		],
+		"ccRecipients": [],
+		"bccRecipients": [],
+		"replyTo": [],
+		"flag": {
+			"flagStatus": "notFlagged"
+		},
+		"attachments": [
+			{
+				"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#/attachments(microsoft.graph.itemAttachment/item())/$entity",
+				"@odata.type": "#microsoft.graph.itemAttachment",
+				"id": "AAMkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOABGAAAAAAAPvVwUramXT7jlSGpVU8_7BwB8wYc0thTTTYl3RpEYIUq_AAAAAAEMAAB8wYc0thTTTYl3RpEYIUq_AADKo35SAAABEgAQABv3spWM8g5IriSvYJe5kO8=",
+				"lastModifiedDateTime": "2023-02-06T20:03:40Z",
+				"name": "Not Something Small. 28-Jul-2022_20:53:33 Different",
+				"contentType": null,
+				"size": 10959,
+				"isInline": false,
+				"item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('')/$ref",
+				"item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('f435c656-f8b2-4d71-93c3-6e092f52a167')/messages('')",
+				"item": {
+					"@odata.type": "#microsoft.graph.message",
+					"id": "",
+					"createdDateTime": "2023-02-06T20:03:40Z",
+					"lastModifiedDateTime": "2023-02-06T20:03:40Z",
+					"receivedDateTime": "2022-07-28T20:53:33Z",
+					"sentDateTime": "2022-07-28T20:53:33Z",
+					"hasAttachments": false,
+					"internetMessageId": "<MWHPR1401MB1952C46D4A46B6398F562B0FA6E99@MWHPR1401MB1952.namprd14.prod.outlook.com>",
+					"subject": "Not Something Small. 28-Jul-2022_20:53:33 Different",
+					"bodyPreview": "I've been going through with the changing of messages. It shouldn't have the same calls, right? Call Me?\r\n\r\nWe want to be able to send multiple messages and we want to be able to respond and do other things that make sense for our users. In this case. Let",
+					"importance": "normal",
+					"conversationId": "AAQkAGQ1NzViZTdhLTEwMTMtNGJjNi05YWI2LTg4NWRlZDA2Y2UxOAAQAOlAM0OrVQlHkhUZeZMPxgg=",
+					"conversationIndex": "AQHYosQZ6UAzQ6tVCUeSFRl5kw/GCA==",
+					"isDeliveryReceiptRequested": false,
+					"isReadReceiptRequested": false,
+					"isRead": true,
+					"isDraft": false,
+					"webLink": "https://outlook.office365.com/owa/?AttachmentItemID=Aviewmodel=ItemAttachment",
+					"body": {
+						"contentType": "html",
+						"content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><meta name=\"Generator\" content=\"Microsoft Word 15 (filtered medium)\"><style><!--@font-face{font-family:\"Cambria Math\"}@font-face{font-family:Calibri}p.MsoNormal, li.MsoNormal, div.MsoNormal{margin:0in;font-size:11.0pt;font-family:\"Calibri\",sans-serif}span.EmailStyle17{font-family:\"Calibri\",sans-serif;color:windowtext}.MsoChpDefault{font-family:\"Calibri\",sans-serif}@page WordSection1{margin:1.0in 1.0in 1.0in 1.0in}div.WordSection1{}--></style></head><body lang=\"EN-US\" link=\"#0563C1\" vlink=\"#954F72\" style=\"word-wrap:break-word\"><div class=\"WordSection1\"><p class=\"MsoNormal\">I've been going through with the changing of messages. It shouldn't have the same calls, right? Call Me? </p><p class=\"MsoNormal\">&nbsp;</p><p class=\"MsoNormal\">We want to be able to send multiple messages and we want to be able to respond and do other things that make sense for our users. In this case. Let’s consider a Mailbox</p></div></body></html>"
+					},
+					"sender": {
+						"emailAddress": {
+							"name": "%[2]s",
+							"address": "%[3]s"
+						}
+					},
+					"from": {
+						"emailAddress": {
+							"name": "%[2]s",
+							"address": "%[4]s"
+						}
+					},
+					"toRecipients": [
+						{
+							"emailAddress": {
+								"name": "Direct Report",
+								"address":  "notAvailable@8qzvrj.onmicrosoft.com"
+							}
+						}
+					],
+					"flag": {
+						"flagStatus": "notFlagged"
+					}
+				}
+			}
+		]
+	}`
+
+	message := fmt.Sprintf(
+		template,
+		subject,
+		defaultAlias,
+		defaultMessageSender,
+		defaultMessageFrom,
+		defaultMessageTo,
+	)
+
+	return []byte(message)
+}
+
 func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 	//nolint:lll
 	// Order of fields:
@@ -544,4 +688,74 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 	)
 
 	return []byte(message)
+}
+
+func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, subject string) []byte {
+	base := GetMockMessageBytes(subject)
+	message, err := hydrateMessage(base)
+	require.NoError(t, err)
+
+	nestedMessage, err := hydrateMessage(nested)
+	require.NoError(t, err)
+
+	iaNode := models.NewItemAttachment()
+	attachmentSize := int32(len(nested))
+	iaNode.SetSize(&attachmentSize)
+
+	internalName := "Nested Message"
+	iaNode.SetName(&internalName)
+	iaNode.SetItem(nestedMessage)
+	message.SetAttachments([]models.Attachmentable{iaNode})
+
+	return serialize(t, message)
+}
+
+func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject string) []byte {
+	base := GetMockMessageBytes(subject)
+	message, err := hydrateMessage(base)
+	require.NoError(t, err)
+
+	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
+	require.NoError(t, err)
+
+	anObject, err := parseNode.GetObjectValue(models.CreateContactFromDiscriminatorValue)
+	require.NoError(t, err)
+
+	contact := anObject.(models.Contactable)
+	internalName := "Nested Contact"
+	iaNode := models.NewItemAttachment()
+	attachmentSize := int32(len(nested))
+	iaNode.SetSize(&attachmentSize)
+	iaNode.SetName(&internalName)
+	iaNode.SetItem(contact)
+	message.SetAttachments([]models.Attachmentable{iaNode})
+
+	return serialize(t, message)
+}
+
+func serialize(t *testing.T, item absser.Parsable) []byte {
+	wtr := js.NewJsonSerializationWriter()
+	err := wtr.WriteObjectValue("", item)
+	require.NoError(t, err)
+
+	byteArray, err := wtr.GetSerializedContent()
+	require.NoError(t, err)
+
+	return byteArray
+}
+
+func hydrateMessage(byteArray []byte) (models.Messageable, error) {
+	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
+	if err != nil {
+		return nil, errors.Wrap(err, "deserializing bytes into base m365 object")
+	}
+
+	anObject, err := parseNode.GetObjectValue(models.CreateMessageFromDiscriminatorValue)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing m365 object factory")
+	}
+
+	message := anObject.(models.Messageable)
+
+	return message, nil
 }

@@ -24,10 +24,10 @@ import (
 )
 
 var (
-	_ data.Collection    = &Collection{}
-	_ data.Stream        = &Stream{}
-	_ data.StreamInfo    = &Stream{}
-	_ data.StreamModTime = &Stream{}
+	_ data.BackupCollection = &Collection{}
+	_ data.Stream           = &Stream{}
+	_ data.StreamInfo       = &Stream{}
+	_ data.StreamModTime    = &Stream{}
 )
 
 const (
@@ -107,29 +107,13 @@ func NewCollection(
 		added:           make(map[string]struct{}, 0),
 		removed:         make(map[string]struct{}, 0),
 		prevPath:        prev,
-		state:           stateOf(prev, curr),
+		state:           data.StateOf(prev, curr),
 		statusUpdater:   statusUpdater,
 		user:            user,
 		items:           items,
 	}
 
 	return collection
-}
-
-func stateOf(prev, curr path.Path) data.CollectionState {
-	if curr == nil || len(curr.String()) == 0 {
-		return data.DeletedState
-	}
-
-	if prev == nil || len(prev.String()) == 0 {
-		return data.NewState
-	}
-
-	if curr.Folder() != prev.Folder() {
-		return data.MovedState
-	}
-
-	return data.NotMovedState
 }
 
 // Items utility function to asynchronously execute process to fill data channel with

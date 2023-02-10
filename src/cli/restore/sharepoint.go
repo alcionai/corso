@@ -10,7 +10,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 )
@@ -182,7 +182,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
-		if errors.Is(err, kopia.ErrNotFound) {
+		if errors.Is(err, data.ErrNotFound) {
 			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", backupID))
 		}
 

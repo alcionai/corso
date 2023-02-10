@@ -36,6 +36,8 @@ const (
 	TargetPathContains
 	// "baz" equals any complete element suffix of "foo/bar/baz"
 	TargetPathSuffix
+	// "foo/bar/baz" equals the complete path "foo/bar/baz"
+	TargetPathEquals
 )
 
 func norm(s string) string {
@@ -295,6 +297,44 @@ func NotPathSuffix(targets []string) Filter {
 	return newSliceFilter(TargetPathSuffix, targets, tgts, true)
 }
 
+// PathEquals creates a filter where Compare(v) is true if
+// target.Equals(v) &&
+// split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
+// ex: target "foo" returns true for inputs "/foo/", "/foo", and "foo/"
+// but false for "/foo/bar", "bar/foo/", and "/foobar/"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
+func PathEquals(targets []string) Filter {
+	tgts := make([]string, len(targets))
+	for i := range targets {
+		tgts[i] = normPathElem(targets[i])
+	}
+
+	return newSliceFilter(TargetPathEquals, targets, tgts, false)
+}
+
+// NotPathEquals creates a filter where Compare(v) is true if
+// !target.Equals(v) ||
+// !split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
+// ex: target "foo" returns true "/foo/bar", "bar/foo/", and "/foobar/"
+// but false for for inputs "/foo/", "/foo", and "foo/"
+//
+// Unlike single-target filters, this filter accepts a
+// slice of targets, will compare an input against each target
+// independently, and returns true if one or more of the
+// comparisons succeed.
+func NotPathEquals(targets []string) Filter {
+	tgts := make([]string, len(targets))
+	for i := range targets {
+		tgts[i] = normPathElem(targets[i])
+	}
+
+	return newSliceFilter(TargetPathEquals, targets, tgts, true)
+}
+
 // newFilter is the standard filter constructor.
 func newFilter(c comparator, target string, negate bool) Filter {
 	return Filter{
@@ -366,6 +406,9 @@ func (f Filter) Compare(input string) bool {
 		hasSlice = true
 	case TargetPathSuffix:
 		cmp = pathSuffix
+		hasSlice = true
+	case TargetPathEquals:
+		cmp = pathEquals
 		hasSlice = true
 	case Passes:
 		return true
@@ -471,6 +514,20 @@ func pathSuffix(target, input string) bool {
 	return strings.HasSuffix(normPathElem(input), target)
 }
 
+// true if target is an _exact_ match on the input, excluding
+// path delmiters. Element complete means we do not succeed
+// on partial element matches (ex: "/bar" does not match
+// "/foobar").
+//
+// As a precondition, assumes the target value has been
+// passed through normPathElem().
+//
+// The input is assumed to be the complete path that may
+// match the target.
+func pathEquals(target, input string) bool {
+	return normPathElem(input) == target
+}
+
 // ----------------------------------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------------------------------
@@ -487,6 +544,7 @@ var prefixString = map[comparator]string{
 	TargetPathPrefix:   "pathPfx:",
 	TargetPathContains: "pathCont:",
 	TargetPathSuffix:   "pathSfx:",
+	TargetPathEquals:   "pathEq:",
 }
 
 func (f Filter) String() string {

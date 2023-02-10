@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -100,7 +101,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, excluded)
+			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, excluded, true)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
@@ -127,4 +128,39 @@ func driveItem(name string, path string, isFile bool) models.DriveItemable {
 	}
 
 	return item
+}
+
+type SharePointPagesSuite struct {
+	suite.Suite
+}
+
+func TestSharePointPagesSuite(t *testing.T) {
+	tester.RunOnAny(
+		t,
+		tester.CorsoCITests,
+		tester.CorsoGraphConnectorTests,
+		tester.CorsoGraphConnectorSharePointTests)
+	suite.Run(t, new(SharePointPagesSuite))
+}
+
+func (suite *SharePointPagesSuite) TestCollectPages() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+	siteID := tester.M365SiteID(t)
+	a := tester.NewM365Account(t)
+	account, err := a.M365Config()
+	require.NoError(t, err)
+
+	col, err := collectPages(
+		ctx,
+		account,
+		nil,
+		siteID,
+		&MockGraphService{},
+		control.Defaults(),
+	)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, col)
 }

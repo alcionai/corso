@@ -1,8 +1,10 @@
 package path
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 )
 
@@ -119,12 +121,12 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
 	service := toServiceType(s)
 	if service == UnknownService {
-		return UnknownService, UnknownCategory, errors.Wrapf(ErrorUnknownService, "%q", s)
+		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("service", fmt.Sprintf("%q", s))
 	}
 
 	category := ToCategoryType(c)
 	if category == UnknownCategory {
-		return UnknownService, UnknownCategory, errors.Wrapf(ErrorUnknownCategory, "%q", c)
+		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("category", fmt.Sprintf("%q", c))
 	}
 
 	if err := validateServiceAndCategory(service, category); err != nil {
@@ -137,15 +139,12 @@ func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, 
 func validateServiceAndCategory(service ServiceType, category CategoryType) error {
 	cats, ok := serviceCategories[service]
 	if !ok {
-		return errors.New("unsupported service")
+		return clues.New("unsupported service").With("service", fmt.Sprintf("%q", service))
 	}
 
 	if _, ok := cats[category]; !ok {
-		return errors.Errorf(
-			"unknown service/category combination %q/%q",
-			service,
-			category,
-		)
+		return clues.New("unknown service/category combination").
+			WithAll("service", fmt.Sprintf("%q", service), "category", fmt.Sprintf("%q", category))
 	}
 
 	return nil
@@ -234,7 +233,7 @@ func (rp dataLayerResourcePath) Item() string {
 
 func (rp dataLayerResourcePath) Dir() (Path, error) {
 	if len(rp.elements) <= 4 {
-		return nil, errors.Errorf("unable to shorten path %q", rp)
+		return nil, clues.New("unable to shorten path").With("path", fmt.Sprintf("%q", rp))
 	}
 
 	return &dataLayerResourcePath{

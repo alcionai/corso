@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/fault/mock"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -49,9 +50,8 @@ func (mg mockGetDetailsIDer) GetDetailsIDFromBackupID(
 }
 
 type mockColl struct {
-	id    string // for comparisons
-	p     path.Path
-	prevP path.Path
+	id string // for comparisons
+	p  path.Path
 }
 
 func (mc mockColl) Items() <-chan data.Stream {
@@ -60,18 +60,6 @@ func (mc mockColl) Items() <-chan data.Stream {
 
 func (mc mockColl) FullPath() path.Path {
 	return mc.p
-}
-
-func (mc mockColl) PreviousPath() path.Path {
-	return mc.prevP
-}
-
-func (mc mockColl) State() data.CollectionState {
-	return data.NewState
-}
-
-func (mc mockColl) DoNotMergeItems() bool {
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +227,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				Reasons:  test.reasons,
 			}
 
-			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid)
+			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr)
 		})
 	}
@@ -447,7 +435,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		getMeta       bool
 		assertErr     assert.ErrorAssertionFunc
 		assertB       assert.BoolAssertionFunc
-		expectDCS     []data.Collection
+		expectDCS     []mockColl
 		expectNilMans bool
 	}{
 		{
@@ -550,8 +538,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "man missing backup id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
-					"id": {mockColl{id: "id_coll"}},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
+					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
@@ -577,9 +565,9 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "one complete, one incomplete",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
-					"id":        {mockColl{id: "id_coll"}},
-					"incmpl_id": {mockColl{id: "incmpl_id_coll"}},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
+					"id":        {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+					"incmpl_id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "id", "", "bid"),
@@ -591,13 +579,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{mockColl{id: "id_coll"}},
+			expectDCS: []mockColl{{id: "id_coll"}},
 		},
 		{
 			name: "single valid man",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
-					"id": {mockColl{id: "id_coll"}},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
+					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
@@ -606,14 +594,14 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{mockColl{id: "id_coll"}},
+			expectDCS: []mockColl{{id: "id_coll"}},
 		},
 		{
 			name: "multiple valid mans",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.Collection{
-					"mail":    {mockColl{id: "mail_coll"}},
-					"contact": {mockColl{id: "contact_coll"}},
+				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
+					"mail":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
+					"contact": {data.NotFoundRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
 				}},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "mail", "", "bid"),
@@ -625,9 +613,9 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []data.Collection{
-				mockColl{id: "mail_coll"},
-				mockColl{id: "contact_coll"},
+			expectDCS: []mockColl{
+				{id: "mail_coll"},
+				{id: "contact_coll"},
 			},
 		},
 		{
@@ -650,8 +638,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			ma := mock.NewAdder()
-
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				&test.mr,
@@ -659,7 +645,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				test.reasons,
 				tid,
 				test.getMeta,
-				ma)
+				fault.New(true))
 			test.assertErr(t, err)
 			test.assertB(t, b)
 
@@ -672,16 +658,33 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			expect, got := []string{}, []string{}
 
 			for _, dc := range test.expectDCS {
-				mc, ok := dc.(mockColl)
-				assert.True(t, ok)
-
-				expect = append(expect, mc.id)
+				expect = append(expect, dc.id)
 			}
 
 			for _, dc := range dcs {
-				mc, ok := dc.(mockColl)
-				assert.True(t, ok)
+				if !assert.IsTypef(
+					t,
+					data.NotFoundRestoreCollection{},
+					dc,
+					"unexpected type returned [%T]",
+					dc,
+				) {
+					continue
+				}
 
+				tmp := dc.(data.NotFoundRestoreCollection)
+
+				if !assert.IsTypef(
+					t,
+					mockColl{},
+					tmp.Collection,
+					"unexpected type returned [%T]",
+					tmp.Collection,
+				) {
+					continue
+				}
+
+				mc := tmp.Collection.(mockColl)
 				got = append(got, mc.id)
 			}
 
@@ -949,7 +952,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
 
 			mr := &mockRestorer{}
 
-			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant)
+			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
 			assert.NoError(t, err)
 
 			checkPaths(t, test.expected, mr.gotPaths)

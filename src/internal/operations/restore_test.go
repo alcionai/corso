@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -61,7 +62,11 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				bytesRead: &stats.ByteCounter{
 					NumBytes: 42,
 				},
-				cs: []data.Collection{&exchange.Collection{}},
+				cs: []data.RestoreCollection{
+					data.NotFoundRestoreCollection{
+						Collection: &mockconnector.MockExchangeDataCollection{},
+					},
+				},
 				gc: &support.ConnectorOperationStatus{
 					ObjectCount: 1,
 					Successful:  1,
@@ -82,7 +87,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			expectErr:    assert.NoError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
-				cs:        []data.Collection{},
+				cs:        []data.RestoreCollection{},
 				gc:        &support.ConnectorOperationStatus{},
 			},
 		},
@@ -285,6 +290,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	ds, err := ro.Run(ctx)
 
 	require.NoError(t, err, "restoreOp.Run()")
+	require.Empty(t, ro.Errors.Errs(), "restoreOp.Run() recoverable errors")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	require.NotNil(t, ds, "restored details")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")

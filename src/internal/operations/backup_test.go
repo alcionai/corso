@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -36,20 +37,20 @@ import (
 
 type mockRestorer struct {
 	gotPaths  []path.Path
-	colls     []data.Collection
-	collsByID map[string][]data.Collection // snapshotID: []Collection
+	colls     []data.RestoreCollection
+	collsByID map[string][]data.RestoreCollection // snapshotID: []RestoreCollection
 	err       error
 	onRestore restoreFunc
 }
 
-type restoreFunc func(id string, ps []path.Path) ([]data.Collection, error)
+type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
 
 func (mr *mockRestorer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
 ) {
-	mr.onRestore = func(id string, ps []path.Path) ([]data.Collection, error) {
+	mr.onRestore = func(id string, ps []path.Path) ([]data.RestoreCollection, error) {
 		assert.Equal(t, oid, id, "manifest id")
 		checkPaths(t, ops, ps)
 
@@ -62,7 +63,8 @@ func (mr *mockRestorer) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bc kopia.ByteCounter,
-) ([]data.Collection, error) {
+	errs *fault.Errors,
+) ([]data.RestoreCollection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
 	if mr.onRestore != nil {
@@ -85,7 +87,7 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 type mockBackuper struct {
 	checkFunc func(
 		bases []kopia.IncrementalBase,
-		cs []data.Collection,
+		cs []data.BackupCollection,
 		tags map[string]string,
 		buildTreeWithBase bool,
 	)
@@ -94,10 +96,11 @@ type mockBackuper struct {
 func (mbu mockBackuper) BackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
-	cs []data.Collection,
+	cs []data.BackupCollection,
 	excluded map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
+	errs *fault.Errors,
 ) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
@@ -115,6 +118,7 @@ type mockDetailsReader struct {
 func (mdr mockDetailsReader) ReadBackupDetails(
 	ctx context.Context,
 	detailsID string,
+	errs *fault.Errors,
 ) (*details.Details, error) {
 	r := mdr.entries[detailsID]
 
@@ -559,7 +563,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 			mbu := &mockBackuper{
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
-					cs []data.Collection,
+					cs []data.BackupCollection,
 					tags map[string]string,
 					buildTreeWithBase bool,
 				) {
@@ -575,9 +579,10 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 				nil,
 				test.inputMan,
 				nil,
+				nil,
 				model.StableID(""),
 				true,
-			)
+				fault.New(true))
 		})
 	}
 }
@@ -1059,7 +1064,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 
 			mdr := mockDetailsReader{entries: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
-
 			deets := details.Builder{}
 
 			err := mergeDetails(
@@ -1069,8 +1073,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
 				&deets,
-			)
-
+				fault.New(true))
 			test.errCheck(t, err)
 			if err != nil {
 				return
@@ -1167,7 +1170,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 
 	mdr := mockDetailsReader{entries: populatedDetails}
 	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
-
 	deets := details.Builder{}
 
 	err := mergeDetails(
@@ -1177,8 +1179,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		inputMans,
 		inputToMerge,
 		&deets,
-	)
-
+		fault.New(true))
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
 }

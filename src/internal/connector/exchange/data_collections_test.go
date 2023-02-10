@@ -174,7 +174,9 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			)
 			require.NoError(t, err)
 
-			cdps, err := parseMetadataCollections(ctx, []data.Collection{coll})
+			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+				data.NotFoundRestoreCollection{Collection: coll},
+			})
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
@@ -335,7 +337,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			require.NoError(t, err)
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
-			var metadata data.Collection
+			var metadata data.BackupCollection
 
 			for _, coll := range collections {
 				if coll.FullPath().Service() == path.ExchangeMetadataService {
@@ -345,7 +347,9 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
-			cdps, err := parseMetadataCollections(ctx, []data.Collection{metadata})
+			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
+				data.NotFoundRestoreCollection{Collection: metadata},
+			})
 			require.NoError(t, err)
 
 			dps := cdps[test.scope.Category().PathType()]

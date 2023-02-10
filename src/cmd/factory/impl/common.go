@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -114,7 +115,10 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
 		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}
@@ -152,8 +156,8 @@ func buildCollections(
 	tenant, user string,
 	dest control.RestoreDestination,
 	colls []collection,
-) ([]data.Collection, error) {
-	collections := make([]data.Collection, 0, len(colls))
+) ([]data.RestoreCollection, error) {
+	collections := make([]data.RestoreCollection, 0, len(colls))
 
 	for _, c := range colls {
 		pth, err := toDataLayerPath(
@@ -175,7 +179,7 @@ func buildCollections(
 			mc.Data[i] = c.items[i].data
 		}
 
-		collections = append(collections, mc)
+		collections = append(collections, data.NotFoundRestoreCollection{Collection: mc})
 	}
 
 	return collections, nil

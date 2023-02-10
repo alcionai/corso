@@ -17,6 +17,16 @@ import (
 // ---------------------------------------------------------------------------
 type MockGraphService struct{}
 
+type MockUpdater struct {
+	UpdateState func(*support.ConnectorOperationStatus)
+}
+
+func (mu *MockUpdater) UpdateStatus(input *support.ConnectorOperationStatus) {
+	if mu.UpdateState != nil {
+		mu.UpdateState(input)
+	}
+}
+
 //------------------------------------------------------------
 // Interface Functions: @See graph.Service
 //------------------------------------------------------------

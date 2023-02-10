@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -250,7 +251,7 @@ func checkMetadataFilesExist(
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil)
+			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, fault.New(true))
 			assert.NoError(t, err)
 
 			for _, col := range cols {
@@ -346,8 +347,7 @@ func generateContainerOfItems(
 		sel,
 		dest,
 		control.Options{RestorePermissions: true},
-		dataColls,
-	)
+		dataColls)
 	require.NoError(t, err)
 
 	return deets
@@ -387,10 +387,10 @@ func buildCollections(
 	tenant, user string,
 	dest control.RestoreDestination,
 	colls []incrementalCollection,
-) []data.Collection {
+) []data.RestoreCollection {
 	t.Helper()
 
-	collections := make([]data.Collection, 0, len(colls))
+	collections := make([]data.RestoreCollection, 0, len(colls))
 
 	for _, c := range colls {
 		pth := toDataLayerPath(
@@ -409,7 +409,7 @@ func buildCollections(
 			mc.Data[i] = c.items[i].data
 		}
 
-		collections = append(collections, mc)
+		collections = append(collections, data.NotFoundRestoreCollection{Collection: mc})
 	}
 
 	return collections
@@ -669,7 +669,12 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	m365, err := acct.M365Config()
 	require.NoError(t, err)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		graph.HTTPClient(graph.NoTimeout()),
+		acct,
+		connector.Users,
+		fault.New(true))
 	require.NoError(t, err)
 
 	ac, err := api.NewClient(m365)

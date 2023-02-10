@@ -106,6 +106,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		oldPaths map[string]string,
 		newPaths map[string]string,
 		excluded map[string]struct{},
+		doNotMergeItems bool,
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
@@ -126,6 +127,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.userDriveID,
 		"General",
 		itemCollector,
+		"",
 	)
 	require.NoError(suite.T(), err)
 

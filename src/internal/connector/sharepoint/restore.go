@@ -9,11 +9,14 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -27,7 +30,7 @@ import (
 // -- Switch:
 // ---- Libraries restored via the same workflow as oneDrive
 // ---- Lists call RestoreCollection()
-// ----> for each data.Stream within  Collection.Items()
+// ----> for each data.Stream within  RestoreCollection.Items()
 // ----> restoreListItems() is called
 // Restored List can be found in the Site's `Site content` page
 // Restored Libraries can be found within the Site's `Pages` page
@@ -37,9 +40,10 @@ import (
 func RestoreCollections(
 	ctx context.Context,
 	backupVersion int,
+	creds account.M365Config,
 	service graph.Servicer,
 	dest control.RestoreDestination,
-	dcs []data.Collection,
+	dcs []data.RestoreCollection,
 	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -74,7 +78,7 @@ func RestoreCollections(
 				false,
 			)
 		case path.ListsCategory:
-			metrics, canceled = RestoreCollection(
+			metrics, canceled = RestoreListCollection(
 				ctx,
 				service,
 				dc,
@@ -83,11 +87,14 @@ func RestoreCollections(
 				errUpdater,
 			)
 		case path.PagesCategory:
-			errorMessage := fmt.Sprintf("restore of %s not supported", dc.FullPath().Category())
-			logger.Ctx(ctx).Error(errorMessage)
-
-			return nil, errors.New(errorMessage)
-
+			metrics, canceled = RestorePageCollection(
+				ctx,
+				creds,
+				dc,
+				dest.ContainerName,
+				deets,
+				errUpdater,
+			)
 		default:
 			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
 		}
@@ -209,15 +216,15 @@ func restoreListItem(
 	return dii, nil
 }
 
-func RestoreCollection(
+func RestoreListCollection(
 	ctx context.Context,
 	service graph.Servicer,
-	dc data.Collection,
+	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
 	errUpdater func(string, error),
 ) (support.CollectionMetrics, bool) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restoreCollection", D.Label("path", dc.FullPath()))
+	ctx, end := D.Span(ctx, "gc:sharepoint:restoreListCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -225,7 +232,7 @@ func RestoreCollection(
 		directory = dc.FullPath()
 	)
 
-	trace.Log(ctx, "gc:sharepoint:restoreCollection", directory.String())
+	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
 	siteID := directory.ResourceOwner()
 
 	// Restore items from the collection
@@ -271,6 +278,86 @@ func RestoreCollection(
 				"",
 				true,
 				itemInfo)
+
+			metrics.Successes++
+		}
+	}
+}
+
+// RestorePageCollection handles restoration of an individual site page collection.
+// returns:
+// - the collection's item and byte count metrics
+// - the context cancellation station. True iff context is canceled.
+func RestorePageCollection(
+	ctx context.Context,
+	creds account.M365Config,
+	dc data.RestoreCollection,
+	restoreContainerName string,
+	deets *details.Builder,
+	errUpdater func(string, error),
+) (support.CollectionMetrics, bool) {
+	ctx, end := D.Span(ctx, "gc:sharepoint:restorePageCollection", D.Label("path", dc.FullPath()))
+	defer end()
+
+	var (
+		metrics   = support.CollectionMetrics{}
+		directory = dc.FullPath()
+	)
+
+	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	if err != nil {
+		return metrics, false
+	}
+
+	service := discover.NewBetaService(adpt)
+
+	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
+	siteID := directory.ResourceOwner()
+
+	// Restore items from collection
+	items := dc.Items()
+
+	for {
+		select {
+		case <-ctx.Done():
+			errUpdater("context canceled", ctx.Err())
+			return metrics, true
+
+		case itemData, ok := <-items:
+			if !ok {
+				return metrics, false
+			}
+			metrics.Objects++
+
+			itemInfo, err := api.RestoreSitePage(
+				ctx,
+				service,
+				itemData,
+				siteID,
+				restoreContainerName,
+			)
+			if err != nil {
+				errUpdater(itemData.UUID(), err)
+				continue
+			}
+
+			metrics.TotalBytes += itemInfo.SharePoint.Size
+
+			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("transforming item to full path", "error", err)
+				errUpdater(itemData.UUID(), err)
+
+				continue
+			}
+
+			deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				true,
+				itemInfo,
+			)
 
 			metrics.Successes++
 		}

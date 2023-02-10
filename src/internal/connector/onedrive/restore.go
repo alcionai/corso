@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -64,7 +65,7 @@ func RestoreCollections(
 	service graph.Servicer,
 	dest control.RestoreDestination,
 	opts control.Options,
-	dcs []data.Collection,
+	dcs []data.RestoreCollection,
 	deets *details.Builder,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
@@ -148,7 +149,7 @@ func RestoreCollection(
 	ctx context.Context,
 	backupVersion int,
 	service graph.Servicer,
-	dc data.Collection,
+	dc data.RestoreCollection,
 	parentPerms []UserPermission,
 	source driveSource,
 	restoreContainerName string,
@@ -164,7 +165,6 @@ func RestoreCollection(
 		metrics     = support.CollectionMetrics{}
 		copyBuffer  = make([]byte, copyBufferSize)
 		directory   = dc.FullPath()
-		restoredIDs = map[string]string{}
 		itemInfo    details.ItemInfo
 		itemID      string
 		folderPerms = map[string][]UserPermission{}
@@ -226,14 +226,19 @@ func RestoreCollection(
 					metrics.TotalBytes += int64(len(copyBuffer))
 					trimmedName := strings.TrimSuffix(name, DataFileSuffix)
 
-					itemID, itemInfo, err = restoreData(ctx, service, trimmedName, itemData,
-						drivePath.DriveID, restoreFolderID, copyBuffer, source)
+					itemID, itemInfo, err = restoreData(
+						ctx,
+						service,
+						trimmedName,
+						itemData,
+						drivePath.DriveID,
+						restoreFolderID,
+						copyBuffer,
+						source)
 					if err != nil {
 						errUpdater(itemData.UUID(), err)
 						continue
 					}
-
-					restoredIDs[trimmedName] = itemID
 
 					deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
 
@@ -241,22 +246,24 @@ func RestoreCollection(
 					// file if we are not restoring permissions
 					if !restorePerms {
 						metrics.Successes++
-					}
-				} else if strings.HasSuffix(name, MetaFileSuffix) {
-					if !restorePerms {
 						continue
 					}
 
-					meta, err := getMetadata(itemData.ToReader())
+					// Fetch item permissions from the collection and restore them.
+					metaName := trimmedName + MetaFileSuffix
+
+					permsFile, err := dc.Fetch(ctx, metaName)
 					if err != nil {
-						errUpdater(itemData.UUID(), err)
+						errUpdater(metaName, clues.Wrap(err, "getting item metadata"))
 						continue
 					}
 
-					trimmedName := strings.TrimSuffix(name, MetaFileSuffix)
-					restoreID, ok := restoredIDs[trimmedName]
-					if !ok {
-						errUpdater(itemData.UUID(), fmt.Errorf("item not available to restore permissions"))
+					metaReader := permsFile.ToReader()
+					meta, err := getMetadata(metaReader)
+					metaReader.Close()
+
+					if err != nil {
+						errUpdater(metaName, clues.Wrap(err, "deserializing item metadata"))
 						continue
 					}
 
@@ -264,21 +271,22 @@ func RestoreCollection(
 						ctx,
 						service,
 						drivePath.DriveID,
-						restoreID,
+						itemID,
 						parentPerms,
 						meta.Permissions,
 						permissionIDMappings,
 					)
 					if err != nil {
-						errUpdater(itemData.UUID(), err)
+						errUpdater(trimmedName, clues.Wrap(err, "restoring item permissions"))
 						continue
 					}
 
-					// Objects count is incremented when we restore a
-					// data file and success count is incremented when
-					// we restore a meta file as every data file
-					// should have an associated meta file
 					metrics.Successes++
+				} else if strings.HasSuffix(name, MetaFileSuffix) {
+					// Just skip this for the moment since we moved the code to the above
+					// item restore path. We haven't yet stopped fetching these items in
+					// RestoreOp, so we still need to handle them in some way.
+					continue
 				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
 					trimmedName := strings.TrimSuffix(name, DirMetaFileSuffix)
 					folderID, err := createRestoreFolder(
