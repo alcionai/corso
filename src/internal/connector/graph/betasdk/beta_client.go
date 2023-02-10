@@ -13,20 +13,15 @@ import (
 
 // BetaClient the main entry point of the SDK, exposes the configuration and the fluent API.
 // Minimal Beta Connector:
-// Details on how the Code was generated is present in `kioter-lock.json`.
-// NOTE: kiota gen file is altered to indicate what files are included in the created
+// Details on how the Code was generated is within `kioter-lock.json`.
 //
-<<<<<<< HEAD
-// Beta files use an adapter that allows for ASync() request. This feature is disabled in main. Generic Kiota adapters do not support.
-// For the client, only calls that begin as client.SitesBy(siteID).Pages() have an endpoint.
+// Beta files use an adapter that allows for ASync() request. This feature
+// is disabled within the nested directories. Generic Kiota adapters do not support.
 //
-// The use case specific to Pages(). All other requests should be routed to the /internal/connector/graph.Servicer
-//
-// Supported Pages models are located within the models subdirectory
+// Supported betasdk models are located within the models subdirectory
 // Supported Call source are located within the sites subdirectory
 // Specifics on `betaClient.SitesById(siteID).Pages` are located: sites/site_item_request_builder.go
 //
-=======
 // Changes to Sites Directory:
 // Access files send requests with an adapter's with ASync() support.
 // This feature is not enabled in v1.0. Manually changed in remaining files.
@@ -38,7 +33,6 @@ import (
 // Required model files are identified as `modelFiles` in kiota-lock.json. Directory -> betasdk/models
 // Required access files are identified as `sitesFiles` in kiota-lock.json. Directory -> betasdk/sites
 //
->>>>>>> main
 // BetaClient minimal msgraph-beta-sdk-go for connecting to msgraph-beta-sdk-go
 // for retrieving `SharePoint.Pages`. Code is generated from kiota.dev.
 // requestAdapter is registered with the following the serializers:
