@@ -1155,16 +1155,6 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		driveBasePath2+"/folder",
 	)[0]
 
-	// TODO(meain): delete this
-	_ = empty
-	_ = next
-	_ = delta
-	_ = delta2
-	_ = rootFolderPath1
-	_ = folderPath1
-	_ = rootFolderPath2
-	_ = folderPath2
-
 	table := []struct {
 		name     string
 		drives   []models.Driveable
