@@ -4,11 +4,14 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/pkg/path"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 func getParentPermissions(
@@ -33,16 +36,23 @@ func getParentPermissions(
 }
 
 func getParentAndCollectionPermissions(
+	ctx context.Context,
 	drivePath *path.DrivePath,
-	collectionPath path.Path,
+	dc data.RestoreCollection,
 	permissions map[string][]UserPermission,
+	backupVersion int,
 	restorePerms bool,
 ) ([]UserPermission, []UserPermission, error) {
-	if !restorePerms {
+	if !restorePerms || backupVersion < version.OneDrive1DataAndMetaFiles {
 		return nil, nil, nil
 	}
 
-	var parentPerms []UserPermission
+	var (
+		err            error
+		parentPerms    []UserPermission
+		colPerms       []UserPermission
+		collectionPath = dc.FullPath()
+	)
 
 	// Only get parent permissions if we're not restoring the root.
 	if len(drivePath.Folders) > 0 {
@@ -57,11 +67,24 @@ func getParentAndCollectionPermissions(
 		}
 	}
 
-	// TODO(ashmrtn): For versions after this pull the permissions from the
-	// current collection with Fetch().
-	colPerms, err := getParentPermissions(collectionPath, permissions)
-	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting collection permissions")
+	if backupVersion < version.OneDriveDirIncludesPermissions {
+		colPerms, err = getParentPermissions(collectionPath, permissions)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting collection permissions")
+		}
+	} else if len(drivePath.Folders) > 0 {
+		// Root folder doesn't have a metadata file associated with it.
+		folders := collectionPath.Folders()
+
+		meta, err := fetchAndReadMetadata(
+			ctx,
+			dc,
+			folders[len(folders)-1]+DirMetaFileSuffix)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "collection permissions")
+		}
+
+		colPerms = meta.Permissions
 	}
 
 	return parentPerms, colPerms, nil
