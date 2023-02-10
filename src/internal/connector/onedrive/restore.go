@@ -332,8 +332,6 @@ func RestoreCollection(
 					// RestoreOp, so we still need to handle them in some way.
 					continue
 				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
-					// Only the first version needed to deserialize the permission for
-					// child folders here. Later versions can request permissions inline.
 					if !restorePerms {
 						continue
 					}
@@ -406,11 +404,8 @@ func createRestoreFoldersWithPermissions(
 		parentPermissions,
 		folderPermissions,
 		permissionIDMappings)
-	if err != nil {
-		return id, permissionIDMappings, err
-	}
 
-	return id, permissionIDMappings, nil
+	return id, permissionIDMappings, err
 }
 
 // CreateRestoreFolders creates the restore folder hierarchy in the specified
