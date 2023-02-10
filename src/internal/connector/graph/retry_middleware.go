@@ -2,11 +2,11 @@ package graph
 
 import (
 	"context"
-	"math"
 	"net/http"
 	"strconv"
 	"time"
 
+	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
 )
 
@@ -26,7 +26,7 @@ type RetryHandlerOptions struct {
 	// The maximum number of times a request can be retried
 	MaxRetries int
 	// The delay in seconds between retries
-	DelaySeconds int
+	Delay time.Duration
 }
 
 func (middleware RetryHandler) retryRequest(
@@ -38,6 +38,7 @@ func (middleware RetryHandler) retryRequest(
 	resp *http.Response,
 	executionCount int,
 	cumulativeDelay time.Duration,
+	exponentialBackoff *backoff.ExponentialBackOff,
 	respErr error,
 ) (*http.Response, error) {
 	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
@@ -46,7 +47,9 @@ func (middleware RetryHandler) retryRequest(
 		!options.NoRetry &&
 		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second {
 		executionCount++
-		delay := middleware.getRetryDelay(req, resp, options, executionCount)
+
+		delay := middleware.getRetryDelay(req, resp, exponentialBackoff)
+
 		cumulativeDelay += delay
 
 		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
@@ -66,6 +69,7 @@ func (middleware RetryHandler) retryRequest(
 			response,
 			executionCount,
 			cumulativeDelay,
+			exponentialBackoff,
 			err)
 	}
 
@@ -85,10 +89,10 @@ func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
 	return true
 }
 
-func (middleware RetryHandler) getRetryDelay(req *http.Request,
+func (middleware RetryHandler) getRetryDelay(
+	req *http.Request,
 	resp *http.Response,
-	options RetryHandlerOptions,
-	executionCount int,
+	exponentialBackoff *backoff.ExponentialBackOff,
 ) time.Duration {
 	var retryAfter string
 	if resp != nil {
@@ -102,5 +106,5 @@ func (middleware RetryHandler) getRetryDelay(req *http.Request,
 		}
 	} // TODO parse the header if it's a date
 
-	return time.Duration(math.Pow(float64(options.DelaySeconds), float64(executionCount))) * time.Second
+	return exponentialBackoff.NextBackOff()
 }

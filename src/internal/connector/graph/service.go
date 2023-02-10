@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -26,7 +27,7 @@ const (
 	retryAttemptHeader      = "Retry-Attempt"
 	retryAfterHeader        = "Retry-After"
 	defaultMaxRetries       = 3
-	defaultDelaySeconds     = 3
+	defaultDelay            = 3 * time.Second
 	absoluteMaxDelaySeconds = 180
 )
 
@@ -114,10 +115,10 @@ func (c *clientConfig) applyMiddlewareConfig(retryoptions *RetryHandlerOptions) 
 		} else {
 			retryoptions.MaxRetries = defaultMaxRetries
 		}
-		if c.retry.DelaySeconds > 0 {
-			retryoptions.DelaySeconds = c.retry.DelaySeconds
+		if c.retry.Delay > 0 {
+			retryoptions.Delay = c.retry.Delay
 		} else {
-			retryoptions.DelaySeconds = defaultDelaySeconds
+			retryoptions.Delay = defaultDelay
 		}
 	}
 }
@@ -149,9 +150,9 @@ func MaxRetries(max int) option {
 	}
 }
 
-func MinimumBackoffSeconds(seconds int) option {
+func MinimumBackoff(dur time.Duration) option {
 	return func(c *clientConfig) {
-		c.retry.DelaySeconds = seconds
+		c.retry.Delay = dur
 	}
 }
 
@@ -381,5 +382,19 @@ func (middleware RetryHandler) Intercept(
 		return response, err
 	}
 
-	return middleware.retryRequest(ctx, pipeline, middlewareIndex, middleware.options, req, response, 0, 0, err)
+	exponentialBackOff := backoff.NewExponentialBackOff()
+	exponentialBackOff.InitialInterval = middleware.options.Delay
+	exponentialBackOff.Reset()
+
+	return middleware.retryRequest(
+		ctx,
+		pipeline,
+		middlewareIndex,
+		middleware.options,
+		req,
+		response,
+		0,
+		0,
+		exponentialBackOff,
+		err)
 }

@@ -2,8 +2,8 @@ package graph
 
 import (
 	"context"
-	"net/http"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 
