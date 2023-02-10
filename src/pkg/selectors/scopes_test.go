@@ -284,7 +284,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 				dataCats,
 				errs)
 			require.NotNil(t, result)
-			require.Empty(t, errs.Errs, "recoverable errors")
+			require.Empty(t, errs.Errs(), "recoverable errors")
 			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}
