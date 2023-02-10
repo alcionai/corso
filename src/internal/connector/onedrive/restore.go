@@ -58,6 +58,45 @@ func getParentPermissions(
 	return parentPerms, nil
 }
 
+func getParentAndCollectionPermissions(
+	drivePath *path.DrivePath,
+	collectionPath path.Path,
+	permissions map[string][]UserPermission,
+	restorePerms bool,
+) ([]UserPermission, []UserPermission, error) {
+	if !restorePerms {
+		return nil, nil, nil
+	}
+
+	var (
+		err         error
+		parentPerms []UserPermission
+		colPerms    []UserPermission
+	)
+
+	// Only get parent permissions if we're not restoring the root.
+	if len(drivePath.Folders) > 0 {
+		parentPath, err := collectionPath.Dir()
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting parent path")
+		}
+
+		parentPerms, err = getParentPermissions(parentPath, permissions)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting parent permissions")
+		}
+	}
+
+	// TODO(ashmrtn): For versions after this pull the permissions from the
+	// current collection with Fetch().
+	colPerms, err = getParentPermissions(collectionPath, permissions)
+	if err != nil {
+		return nil, nil, clues.Wrap(err, "getting collection permissions")
+	}
+
+	return parentPerms, colPerms, nil
+}
+
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
@@ -378,9 +417,46 @@ func createRestoreFolder(
 	return *folderItem.GetId(), nil
 }
 
-// createRestoreFolders creates the restore folder hierarchy in the specified drive and returns the folder ID
-// of the last folder entry in the hierarchy
-func CreateRestoreFolders(ctx context.Context, service graph.Servicer, driveID string, restoreFolders []string,
+// createRestoreFoldersWithPermissions creates the restore folder hierarchy in
+// the specified drive and returns the folder ID of the last folder entry in the
+// hierarchy. Permissions are only applied to the last folder in the hierarchy.
+// Passing nil for the permissions results in just creating the folder(s).
+func createRestoreFoldersWithPermissions(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	restoreFolders []string,
+	parentPermissions []UserPermission,
+	folderPermissions []UserPermission,
+	permissionIDMappings map[string]string,
+) (string, map[string]string, error) {
+	id, err := CreateRestoreFolders(ctx, service, driveID, restoreFolders)
+	if err != nil {
+		return "", permissionIDMappings, err
+	}
+
+	permissionIDMappings, err = restorePermissions(
+		ctx,
+		service,
+		driveID,
+		id,
+		parentPermissions,
+		folderPermissions,
+		permissionIDMappings)
+	if err != nil {
+		return id, permissionIDMappings, err
+	}
+
+	return id, permissionIDMappings, nil
+}
+
+// CreateRestoreFolders creates the restore folder hierarchy in the specified
+// drive and returns the folder ID of the last folder entry in the hierarchy.
+func CreateRestoreFolders(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	restoreFolders []string,
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
