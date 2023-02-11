@@ -129,12 +129,8 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			errs := fault.New(true)
-
-			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, errs)
+			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
 			assert.NoError(t, err)
-			assert.NoError(t, errs.Err())
-			assert.Empty(t, errs.Errs())
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
@@ -221,12 +217,8 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	newConnector.Service = service
 	assert.Equal(t, 0, len(newConnector.Sites))
 
-	errs := fault.New(true)
-
-	err = newConnector.setTenantSites(ctx, errs)
+	err = newConnector.setTenantSites(ctx, fault.New(true))
 	assert.NoError(t, err)
-	assert.NoError(t, errs.Err())
-	assert.Empty(t, errs.Errs())
 	assert.Less(t, 0, len(newConnector.Sites))
 
 	for _, site := range newConnector.Sites {
