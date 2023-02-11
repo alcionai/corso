@@ -730,7 +730,6 @@ func compareOneDriveItem(
 		return
 	}
 
-	assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
 	testElementsMatch(t, expectedMeta.Permissions, itemMeta.Permissions, permissionEqual)
 }
 
