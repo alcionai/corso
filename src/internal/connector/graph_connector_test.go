@@ -396,6 +396,7 @@ func runRestoreBackupTest(
 			owner,
 			dest,
 			test.collections,
+			false,
 		)
 
 		collections = append(collections, ownerCollections...)
@@ -514,13 +515,14 @@ func runRestoreBackupTestVersion0(
 	defer flush()
 
 	for _, owner := range resourceOwners {
-		_, _, ownerCollections, _ := collectionsForInfoVersion0(
+		_, _, ownerCollections, _ := collectionsForInfo(
 			t,
 			test.service,
 			tenant,
 			owner,
 			dest,
 			test.collectionsPrevious,
+			true,
 		)
 
 		collections = append(collections, ownerCollections...)
@@ -563,6 +565,7 @@ func runRestoreBackupTestVersion0(
 			owner,
 			dest,
 			test.collectionsLatest,
+			false,
 		)
 
 		totalItems += numItems
@@ -1489,6 +1492,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					suite.user,
 					dest,
 					[]colInfo{collection},
+					false,
 				)
 				allItems += totalItems
 

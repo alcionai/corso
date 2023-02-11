@@ -998,6 +998,7 @@ func collectionsForInfo(
 	tenant, user string,
 	dest control.RestoreDestination,
 	allInfo []colInfo,
+	countMeta bool,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
 	collections := make([]data.RestoreCollection, 0, len(allInfo))
 	expectedData := make(map[string]map[string][]byte, len(allInfo))
@@ -1030,7 +1031,7 @@ func collectionsForInfo(
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
 			// We do not count metadata files against item count
-			if service != path.OneDriveService ||
+			if countMeta || service != path.OneDriveService ||
 				(service == path.OneDriveService &&
 					strings.HasSuffix(info.items[i].name, onedrive.DataFileSuffix)) {
 				totalItems++
@@ -1053,55 +1054,6 @@ func collectionsForInfo(
 	return totalItems, kopiaEntries, collections, expectedData
 }
 
-func collectionsForInfoVersion0(
-	t *testing.T,
-	service path.ServiceType,
-	tenant, user string,
-	dest control.RestoreDestination,
-	allInfo []colInfo,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
-	collections := make([]data.RestoreCollection, 0, len(allInfo))
-	expectedData := make(map[string]map[string][]byte, len(allInfo))
-	totalItems := 0
-	kopiaEntries := 0
-
-	for _, info := range allInfo {
-		pth := mustToDataLayerPath(
-			t,
-			service,
-			tenant,
-			user,
-			info.category,
-			info.pathElements,
-			false,
-		)
-		c := mockconnector.NewMockExchangeCollection(pth, pth, len(info.items))
-		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
-
-		baseExpected := expectedData[baseDestPath.String()]
-		if baseExpected == nil {
-			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
-			baseExpected = expectedData[baseDestPath.String()]
-		}
-
-		for i := 0; i < len(info.items); i++ {
-			c.Names[i] = info.items[i].name
-			c.Data[i] = info.items[i].data
-
-			baseExpected[info.items[i].lookupKey] = info.items[i].data
-		}
-
-		collections = append(collections, data.NotFoundRestoreCollection{
-			Collection: c,
-		})
-		totalItems += len(info.items)
-		kopiaEntries += len(info.items)
-	}
-
-	return totalItems, kopiaEntries, collections, expectedData
-}
-
-//nolint:deadcode
 func getSelectorWith(
 	t *testing.T,
 	service path.ServiceType,
