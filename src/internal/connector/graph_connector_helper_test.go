@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -145,6 +146,16 @@ func testElementsMatch[T any](
 		got,
 		unexpected,
 	)
+}
+
+type configInfo struct {
+	acct           account.Account
+	opts           control.Options
+	resource       resource
+	service        path.ServiceType
+	tenant         string
+	resourceOwners []string
+	dest           control.RestoreDestination
 }
 
 type itemInfo struct {

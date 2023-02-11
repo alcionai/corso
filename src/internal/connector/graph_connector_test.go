@@ -368,35 +368,30 @@ func mustGetDefaultDriveID(
 	return *d.GetId()
 }
 
-func runRestoreBackupTest(
+func getCollectionsAndExpected(
 	t *testing.T,
-	acct account.Account,
-	test restoreBackupInfo,
-	tenant string,
-	resourceOwners []string,
-	opts control.Options,
-) {
+	config configInfo,
+	testCollections []colInfo,
+	countMeta bool,
+) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
+	t.Helper()
+
 	var (
 		collections     []data.RestoreCollection
 		expectedData    = map[string]map[string][]byte{}
 		totalItems      = 0
 		totalKopiaItems = 0
-		// Get a dest per test so they're independent.
-		dest = tester.DefaultTestRestoreDestination()
 	)
 
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	for _, owner := range resourceOwners {
+	for _, owner := range config.resourceOwners {
 		numItems, kopiaItems, ownerCollections, userExpectedData := collectionsForInfo(
 			t,
-			test.service,
-			tenant,
+			config.service,
+			config.tenant,
 			owner,
-			dest,
-			test.collections,
-			false,
+			config.dest,
+			testCollections,
+			countMeta,
 		)
 
 		collections = append(collections, ownerCollections...)
@@ -406,22 +401,33 @@ func runRestoreBackupTest(
 		maps.Copy(expectedData, userExpectedData)
 	}
 
+	return totalItems, totalKopiaItems, collections, expectedData
+}
+
+func runRestore(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	config configInfo,
+	backupVersion int,
+	collections []data.RestoreCollection,
+	numRestoreItems int,
+) {
 	t.Logf(
 		"Restoring collections to %s for resourceOwners(s) %v\n",
-		dest.ContainerName,
-		resourceOwners)
+		config.dest.ContainerName,
+		config.resourceOwners)
 
 	start := time.Now()
 
-	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
+	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	restoreSel := getSelectorWith(t, config.service, config.resourceOwners, true)
 	deets, err := restoreGC.RestoreDataCollections(
 		ctx,
-		backup.Version,
-		acct,
+		backupVersion,
+		config.acct,
 		restoreSel,
-		dest,
-		opts,
+		config.dest,
+		config.opts,
 		collections,
 		fault.New(true))
 	require.NoError(t, err)
@@ -432,36 +438,48 @@ func runRestoreBackupTest(
 
 	assert.NoError(t, status.Err, "restored status.Err")
 	assert.Zero(t, status.ErrorCount, "restored status.ErrorCount")
-	assert.Equal(t, totalItems, status.ObjectCount, "restored status.ObjectCount")
-	assert.Equal(t, totalItems, status.Successful, "restored status.Successful")
+	assert.Equal(t, numRestoreItems, status.ObjectCount, "restored status.ObjectCount")
+	assert.Equal(t, numRestoreItems, status.Successful, "restored status.Successful")
 	assert.Len(
 		t,
 		deets.Entries,
-		totalItems,
+		numRestoreItems,
 		"details entries contains same item count as total successful items restored")
 
 	t.Logf("Restore complete in %v\n", runTime)
+}
+
+func runBackupAndCompare(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	config configInfo,
+	expectedData map[string]map[string][]byte,
+	totalItems int,
+	totalKopiaItems int,
+	inputCollections []colInfo,
+) {
+	t.Helper()
 
 	// Run a backup and compare its output with what we put in.
-	cats := make(map[path.CategoryType]struct{}, len(test.collections))
-	for _, c := range test.collections {
+	cats := make(map[path.CategoryType]struct{}, len(inputCollections))
+	for _, c := range inputCollections {
 		cats[c.category] = struct{}{}
 	}
 
-	expectedDests := make([]destAndCats, 0, len(resourceOwners))
-	for _, ro := range resourceOwners {
+	expectedDests := make([]destAndCats, 0, len(config.resourceOwners))
+	for _, ro := range config.resourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
-			dest:          dest.ContainerName,
+			dest:          config.dest.ContainerName,
 			cats:          cats,
 		})
 	}
 
-	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
+	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
-	start = time.Now()
+	start := time.Now()
 	dcs, excludes, err := backupGC.DataCollections(
 		ctx,
 		backupSel,
@@ -479,9 +497,9 @@ func runRestoreBackupTest(
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
+	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, config.opts.RestorePermissions)
 
-	status = backupGC.AwaitStatus()
+	status := backupGC.AwaitStatus()
 
 	assert.NoError(t, status.Err, "backup status.Err")
 	assert.Zero(t, status.ErrorCount, "backup status.ErrorCount")
@@ -491,7 +509,52 @@ func runRestoreBackupTest(
 		"backup status.Successful; wanted %d items + %d skipped", totalItems, skipped)
 }
 
-// runRestoreBackupTestVersion0 restores with data from an older
+func runRestoreBackupTest(
+	t *testing.T,
+	acct account.Account,
+	test restoreBackupInfo,
+	tenant string,
+	resourceOwners []string,
+	opts control.Options,
+) {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	config := configInfo{
+		acct:           acct,
+		opts:           opts,
+		resource:       test.resource,
+		service:        test.service,
+		tenant:         tenant,
+		resourceOwners: resourceOwners,
+		dest:           tester.DefaultTestRestoreDestination(),
+	}
+
+	totalItems, totalKopiaItems, collections, expectedData := getCollectionsAndExpected(
+		t,
+		config,
+		test.collections,
+		false)
+
+	runRestore(
+		t,
+		ctx,
+		config,
+		backup.Version,
+		collections,
+		totalItems)
+
+	runBackupAndCompare(
+		t,
+		ctx,
+		config,
+		expectedData,
+		totalItems,
+		totalKopiaItems,
+		test.collections)
+}
+
+// runRestoreBackupTestVersions restores with data from an older
 // version of the backup and check the restored data against the
 // something that would be in the form of a newer backup.
 func runRestoreBackupTestVersion0(
@@ -502,118 +565,48 @@ func runRestoreBackupTestVersion0(
 	resourceOwners []string,
 	opts control.Options,
 ) {
-	var (
-		collections     []data.RestoreCollection
-		expectedData    = map[string]map[string][]byte{}
-		totalItems      = 0
-		totalKopiaItems = 0
-		// Get a dest per test so they're independent.
-		dest = tester.DefaultTestRestoreDestination()
-	)
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	for _, owner := range resourceOwners {
-		_, _, ownerCollections, _ := collectionsForInfo(
-			t,
-			test.service,
-			tenant,
-			owner,
-			dest,
-			test.collectionsPrevious,
-			true,
-		)
-
-		collections = append(collections, ownerCollections...)
+	config := configInfo{
+		acct:           acct,
+		opts:           opts,
+		resource:       test.resource,
+		service:        test.service,
+		tenant:         tenant,
+		resourceOwners: resourceOwners,
+		dest:           tester.DefaultTestRestoreDestination(),
 	}
 
-	t.Logf(
-		"Restoring collections to %s for resourceOwners(s) %v\n",
-		dest.ContainerName,
-		resourceOwners,
-	)
+	totalItems, _, collections, _ := getCollectionsAndExpected(
+		t,
+		config,
+		test.collectionsPrevious,
+		true)
 
-	start := time.Now()
-
-	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-	restoreSel := getSelectorWith(t, test.service, resourceOwners, true)
-	deets, err := restoreGC.RestoreDataCollections(
+	runRestore(
+		t,
 		ctx,
+		config,
 		0, // The OG version ;)
-		acct,
-		restoreSel,
-		dest,
-		opts,
 		collections,
-		fault.New(true))
-	require.NoError(t, err)
-	assert.NotNil(t, deets)
+		totalItems)
 
-	assert.NotNil(t, restoreGC.AwaitStatus())
+	// Get expected output for new version.
+	totalItems, totalKopiaItems, _, expectedData := getCollectionsAndExpected(
+		t,
+		config,
+		test.collectionsLatest,
+		false)
 
-	runTime := time.Since(start)
-
-	t.Logf("Restore complete in %v\n", runTime)
-
-	// Run a backup and compare its output with what we put in.
-	for _, owner := range resourceOwners {
-		numItems, kopiaItems, _, userExpectedData := collectionsForInfo(
-			t,
-			test.service,
-			tenant,
-			owner,
-			dest,
-			test.collectionsLatest,
-			false,
-		)
-
-		totalItems += numItems
-		totalKopiaItems += kopiaItems
-
-		maps.Copy(expectedData, userExpectedData)
-	}
-
-	cats := make(map[path.CategoryType]struct{}, len(test.collectionsLatest))
-	for _, c := range test.collectionsLatest {
-		cats[c.category] = struct{}{}
-	}
-
-	expectedDests := make([]destAndCats, 0, len(resourceOwners))
-	for _, ro := range resourceOwners {
-		expectedDests = append(expectedDests, destAndCats{
-			resourceOwner: ro,
-			dest:          dest.ContainerName,
-			cats:          cats,
-		})
-	}
-
-	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-	backupSel := backupSelectorForExpected(t, test.service, expectedDests)
-
-	start = time.Now()
-	dcs, excludes, err := backupGC.DataCollections(
+	runBackupAndCompare(
+		t,
 		ctx,
-		backupSel,
-		nil,
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
-		},
-		fault.New(true))
-	require.NoError(t, err)
-	// No excludes yet because this isn't an incremental backup.
-	assert.Empty(t, excludes)
-
-	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
-
-	// Pull the data prior to waiting for the status as otherwise it will
-	// deadlock.
-	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, opts.RestorePermissions)
-
-	status := backupGC.AwaitStatus()
-	assert.Equal(t, totalItems+skipped, status.ObjectCount, "status.ObjectCount")
-	assert.Equal(t, totalItems+skipped, status.Successful, "status.Successful")
+		config,
+		expectedData,
+		totalItems,
+		totalKopiaItems,
+		test.collectionsLatest)
 }
 
 func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
