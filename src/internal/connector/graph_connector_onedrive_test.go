@@ -155,74 +155,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup() {
 
 	table := []restoreBackupInfo{
 		{
-			name:     "OneDriveMultipleFoldersAndFiles",
-			service:  path.OneDriveService,
-			resource: Users,
-			collections: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items: withItems(
-						fileAEmptyPerms,
-						folderAEmptyPerms,
-						folderBEmptyPerms,
-					),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileBEmptyPerms, folderBEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileCEmptyPerms, folderAEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileDEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"b",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileEEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-			},
-		},
-		{
 			name:     "OneDriveFoldersAndFilesWithMetadata",
 			service:  path.OneDriveService,
 			resource: Users,
@@ -293,7 +225,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup() {
 	}
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackupVersion0() {
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versions() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -305,11 +237,77 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackupVersion
 		suite.user,
 	)
 
+	collectionsLatest := []colInfo{
+		{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+			},
+			category: path.FilesCategory,
+			items: withItems(
+				fileAEmptyPerms,
+				folderAEmptyPerms,
+				folderBEmptyPerms,
+			),
+			auxItems: []itemInfo{fileEmptyPerms},
+		},
+		{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+				"folder-a",
+			},
+			category: path.FilesCategory,
+			items:    withItems(fileBEmptyPerms, folderBEmptyPerms),
+			auxItems: []itemInfo{fileEmptyPerms},
+		},
+		{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+				"folder-a",
+				"b",
+			},
+			category: path.FilesCategory,
+			items:    withItems(fileCEmptyPerms, folderAEmptyPerms),
+			auxItems: []itemInfo{fileEmptyPerms},
+		},
+		{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+				"folder-a",
+				"b",
+				"folder-a",
+			},
+			category: path.FilesCategory,
+			items:    fileDEmptyPerms,
+			auxItems: []itemInfo{fileEmptyPerms},
+		},
+		{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+				"b",
+			},
+			category: path.FilesCategory,
+			items:    fileEEmptyPerms,
+			auxItems: []itemInfo{fileEmptyPerms},
+		},
+	}
+
 	table := []restoreBackupInfoMultiVersion{
 		{
-			name:     "OneDriveMultipleFoldersAndFiles",
-			service:  path.OneDriveService,
-			resource: Users,
+			name:          "OneDriveMultipleFoldersAndFiles_Version0",
+			service:       path.OneDriveService,
+			resource:      Users,
+			backupVersion: 0, // The OG version ;)
+			countMeta:     true,
 
 			collectionsPrevious: []colInfo{
 				{
@@ -391,69 +389,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackupVersion
 				},
 			},
 
-			collectionsLatest: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items: withItems(
-						fileAEmptyPerms,
-						folderAEmptyPerms,
-						folderBEmptyPerms,
-					),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileBEmptyPerms, folderBEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileCEmptyPerms, folderAEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items:    fileDEmptyPerms,
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"b",
-					},
-					category: path.FilesCategory,
-					items:    fileEEmptyPerms,
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-			},
+			collectionsLatest: collectionsLatest,
+		},
+
+		{
+			name:                "OneDriveMultipleFoldersAndFiles_Version1",
+			service:             path.OneDriveService,
+			resource:            Users,
+			backupVersion:       1,
+			countMeta:           false,
+			collectionsPrevious: collectionsLatest,
+			collectionsLatest:   collectionsLatest,
 		},
 	}
 

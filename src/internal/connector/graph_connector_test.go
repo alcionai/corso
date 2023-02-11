@@ -553,7 +553,7 @@ func runRestoreBackupTest(
 // runRestoreBackupTestVersions restores with data from an older
 // version of the backup and check the restored data against the
 // something that would be in the form of a newer backup.
-func runRestoreBackupTestVersion0(
+func runRestoreBackupTestVersions(
 	t *testing.T,
 	acct account.Account,
 	test restoreBackupInfoMultiVersion,
@@ -578,13 +578,13 @@ func runRestoreBackupTestVersion0(
 		t,
 		config,
 		test.collectionsPrevious,
-		true)
+		test.countMeta)
 
 	runRestore(
 		t,
 		ctx,
 		config,
-		0, // The OG version ;)
+		test.backupVersion,
 		collections,
 		totalItems)
 

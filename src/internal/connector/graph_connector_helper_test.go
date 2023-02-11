@@ -196,6 +196,8 @@ type restoreBackupInfoMultiVersion struct {
 	collectionsLatest   []colInfo
 	collectionsPrevious []colInfo
 	resource            resource
+	backupVersion       int
+	countMeta           bool
 }
 
 func attachmentEqual(
