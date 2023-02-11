@@ -559,7 +559,7 @@ func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
 func (s sharePoint) Reduce(
 	ctx context.Context,
 	deets *details.Details,
-	errs fault.Adder,
+	errs *fault.Errors,
 ) *details.Details {
 	return reduce[SharePointScope](
 		ctx,

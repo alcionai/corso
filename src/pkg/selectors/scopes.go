@@ -287,7 +287,7 @@ func reduce[T scopeT, C categoryT](
 	deets *details.Details,
 	s Selector,
 	dataCategories map[path.CategoryType]C,
-	errs fault.Adder,
+	errs *fault.Errors,
 ) *details.Details {
 	ctx, end := D.Span(ctx, "selectors:reduce")
 	defer end()

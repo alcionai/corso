@@ -135,13 +135,17 @@ func produceManifestsAndMetadata(
 // of manifests, that each manifest's Reason (owner, service, category) is only
 // included once.  If a reason is duplicated by any two manifests, an error is
 // returned.
-func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs fault.Adder) error {
+func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs *fault.Errors) error {
 	var (
 		failed  bool
 		reasons = map[string]manifest.ID{}
 	)
 
 	for _, man := range mans {
+		if errs.Failed() {
+			break
+		}
+
 		// Incomplete snapshots are used only for kopia-assisted incrementals. The
 		// fact that we need this check here makes it seem like this should live in
 		// the kopia code. However, keeping it here allows for better debugging as
@@ -173,7 +177,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 		return clues.New("multiple base snapshots qualify").WithClues(ctx)
 	}
 
-	return nil
+	return errs.Err()
 }
 
 // collectMetadata retrieves all metadata files associated with the manifest.
