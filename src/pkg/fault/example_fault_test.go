@@ -49,14 +49,14 @@ var dependency = mockDepenedency{}
 // ExampleNewErrors highlights assumptions and best practices
 // for generating fault.Errors structs.
 func Example_new() {
-	// faul.Errors should only be generated during the construction of
+	// fault.Errors should only be generated during the construction of
 	// another controller, such as a new Backup or Restore Operations.
 	// Configurations like failFast are set during construction.
 	//
 	// Generating new fault.Errors structs outside of an operation
 	// controller is a smell, and should be avoided.  If you need
 	// to aggregate errors, you should accept an interface and pass
-	// an faullt.Errors instance into it.
+	// an fault.Errors instance into it.
 	ctrl = mockController{
 		errors: fault.New(false),
 	}
@@ -67,8 +67,7 @@ func Example_new() {
 func Example_errors_Fail() {
 	errs := fault.New(false)
 
-	// Fail() is used to record any error that highlights a
-	// non-recoverable failure in a process.
+	// Fail() is used to record non-recoverable errors.
 	//
 	// Fail() should only get called in the last step before returning
 	// a fault.Errors from a controller.  In all other cases, you
