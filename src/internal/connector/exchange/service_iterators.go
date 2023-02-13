@@ -64,7 +64,7 @@ func filterContainersAndFillCollections(
 	}
 
 	for _, c := range resolver.Items() {
-		if errs.Failed() {
+		if errs.Err() != nil {
 			return errs.Err()
 		}
 

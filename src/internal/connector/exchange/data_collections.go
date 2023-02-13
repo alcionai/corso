@@ -185,7 +185,7 @@ func DataCollections(
 	}
 
 	for _, scope := range eb.Scopes() {
-		if errs.Failed() {
+		if errs.Err() != nil {
 			break
 		}
 
