@@ -46,9 +46,9 @@ var dependency = mockDepenedency{}
 // examples
 // ---------------------------------------------------------------------------
 
-// ExampleNewErrors highlights assumptions and best practices
+// ExampleNew highlights assumptions and best practices
 // for generating fault.Errors structs.
-func Example_new() {
+func ExampleNew() {
 	// fault.Errors should only be generated during the construction of
 	// another controller, such as a new Backup or Restore Operations.
 	// Configurations like failFast are set during construction.
@@ -62,9 +62,9 @@ func Example_new() {
 	}
 }
 
-// ExampleErrorsFail describes the assumptions and best practices
+// ExampleErrors_Fail describes the assumptions and best practices
 // for setting the Failure error.
-func Example_errors_Fail() {
+func ExampleErrors_Fail() {
 	errs := fault.New(false)
 
 	// Fail() is used to record non-recoverable errors.
@@ -102,9 +102,9 @@ func Example_errors_Fail() {
 	}
 }
 
-// ExampleErrorsAdd describes the assumptions and best practices
+// ExampleErrors_Add describes the assumptions and best practices
 // for aggregating iterable or recoverable errors.
-func Example_errors_Add() {
+func ExampleErrors_Add() {
 	errs := fault.New(false)
 
 	// Add() is used to record any recoverable error.
@@ -133,7 +133,7 @@ func Example_errors_Add() {
 
 	// Iteration should exit anytime the primary error in fault is
 	// non-nil.  fault.Errors does not expose the failFast flag
-	// directly.  Instead, instead, errors from Add() will automatically
+	// directly.  Instead, errors from Add() will automatically
 	// promote to the Err() value.  Therefore, loops only ned to
 	// check the errs.Err().  If it is non-nil, then the loop should break.
 	for i := range items {
@@ -149,8 +149,8 @@ func Example_errors_Add() {
 	}
 }
 
-// ExampleErrorsErr describes retrieving the non-recoverable error.
-func Example_errors_Err() {
+// ExampleErrors_Err describes retrieving the non-recoverable error.
+func ExampleErrors_Err() {
 	errs := fault.New(false)
 	errs.Fail(errors.New("catastrophe"))
 
@@ -188,8 +188,8 @@ func Example_errors_Err() {
 	// not catastrophic, but still becomes the Err()
 }
 
-// ExampleErrorsErrs describes retrieving individual errors.
-func Example_errors_Errs() {
+// ExampleErrors_Errs describes retrieving individual errors.
+func ExampleErrors_Errs() {
 	errs := fault.New(false)
 	errs.Add(errors.New("not catastrophic"))
 	errs.Add(errors.New("something unwanted"))
@@ -224,8 +224,8 @@ func Example_errors_Errs() {
 	// Err() is nil
 }
 
-// ExampleErrorsE2e showcases a more complex integration.
-func Example_errors_e2e() {
+// ExampleErrors_e2e showcases a more complex integration.
+func ExampleErrors_e2e() {
 	oper := newOperation()
 
 	// imagine that we're a user, calling into corso SDK.
@@ -303,8 +303,8 @@ func Example_errors_e2e() {
 	}
 }
 
-// ExampleErrorsErr showcases when to return err or nil vs errs.Err()
-func Example_errors_err() {
+// ExampleErrors_Err_return showcases when to return err or nil vs errs.Err()
+func ExampleErrors_Err_return() {
 	// The general rule of thumb is to always handle the error directly
 	// by returning err, or nil, or any variety of extension (wrap,
 	// stack, clues, etc).
