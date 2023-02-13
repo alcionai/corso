@@ -1262,13 +1262,10 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			errs := mock.NewAdder()
-
 			sel := test.makeSelector()
-			results := sel.Reduce(ctx, test.deets, errs)
+			results := sel.Reduce(ctx, test.deets, fault.New(true))
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
-			assert.Empty(t, errs.Errs)
 		})
 	}
 }

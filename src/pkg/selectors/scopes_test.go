@@ -318,17 +318,14 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			errs := mock.NewAdder()
-
 			ds := deets()
 			result := reduce[mockScope](
 				ctx,
 				&ds,
 				test.sel().Selector,
 				dataCats,
-				errs)
+				fault.New(true))
 			require.NotNil(t, result)
-			require.Empty(t, errs.Errs, "iteration errors")
 			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}
