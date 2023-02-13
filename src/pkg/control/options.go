@@ -11,6 +11,7 @@ type Options struct {
 	FailFast           bool            `json:"failFast"`
 	RestorePermissions bool            `json:"restorePermissions"`
 	ToggleFeatures     Toggles         `json:"ToggleFeatures"`
+	RepoConnect        bool            `json:"-"`
 }
 
 // Defaults provides an Options with the default values set.

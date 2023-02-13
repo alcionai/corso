@@ -204,7 +204,7 @@ func Connect(
 	complete <- struct{}{}
 
 	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
-	return &repository{
+	r := repository{
 		ID:         string(rm.ID),
 		Version:    "v1",
 		Account:    acct,
@@ -213,7 +213,13 @@ func Connect(
 		Opts:       opts,
 		dataLayer:  w,
 		modelStore: ms,
-	}, nil
+	}
+
+	if opts.RepoConnect {
+		r.Bus.Event(ctx, events.RepoConnect, nil)
+	}
+
+	return &r, nil
 }
 
 func (r *repository) Close(ctx context.Context) error {
