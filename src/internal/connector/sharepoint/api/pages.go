@@ -7,8 +7,12 @@ import (
 	"sync"
 	"time"
 
+	msmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
@@ -17,6 +21,11 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+)
+
+const (
+	textWebPartType     = "#microsoft.graph.textWebPart"
+	standardWebPartType = "#microsoft.graph.standardWebPart"
 )
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
@@ -171,9 +180,8 @@ func RestoreSitePage(
 	defer end()
 
 	var (
-		dii      = details.ItemInfo{}
-		pageID   = itemData.UUID()
-		pageName = pageID
+		dii    = details.ItemInfo{}
+		pageID = itemData.UUID()
 	)
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
@@ -187,23 +195,35 @@ func RestoreSitePage(
 		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
 	}
 
-	pageNamePtr := page.GetName()
-	if pageNamePtr != nil {
-		pageName = *pageNamePtr
+	pageName := ptr.Val(page.GetName())
+	if len(pageName) == 0 {
+		pageName = pageID
 	}
 
 	newName := fmt.Sprintf("%s_%s", destName, pageName)
 	page.SetName(&newName)
+	pg := sanitize(page, newName)
+
+	wtr := kioser.NewJsonSerializationWriter()
+	err = wtr.WriteObjectValue("", pg)
+	byteArray, err = wtr.GetSerializedContent()
+
+	if err != nil {
+		fmt.Println("What happened")
+	}
+	fmt.Printf("Page\n %+v\n", string(byteArray))
+
+	fmt.Printf("Layout: %+v\n", pg.GetCanvasLayout())
 
 	// Restore is a 2-Step Process in Graph API
 	// 1. Create the Page on the site
 	// 2. Publish the site
 	// See: https://learn.microsoft.com/en-us/graph/api/sitepage-create?view=graph-rest-beta
-	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
+	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, pg, nil)
 	if err != nil {
 		sendErr := support.ConnectorStackErrorTraceWrap(
 			err,
-			"creating page from ID: %s"+pageName+" API Error Details",
+			"creating page: "+pageName+" API Error Details",
 		)
 
 		return dii, sendErr
@@ -233,6 +253,182 @@ func RestoreSitePage(
 	dii.SharePoint.ParentPath = pageID
 
 	return dii, nil
+}
+
+// sanitize removes all unique M365IDs from the SitePage data type.
+func sanitize(orig models.SitePageable, newName string) *models.SitePage {
+	newPage := models.NewSitePage()
+
+	layout := sanitizeCanvasLayout(orig.GetCanvasLayout())
+	newPage.SetCanvasLayout(layout)
+
+	ct := sanitizeContentType(orig.GetContentType())
+	newPage.SetContentType(ct)
+	newPage.SetContentType(ct)
+	// Skip CreatedBy.., ..ByUser, ..DateTime
+	newPage.SetDescription(orig.GetDescription())
+	//  skip Etag, ID, lastModified
+	//  skip ID
+	// skip lastModified -> it will be the app
+	newPage.SetName(orig.GetName())
+	newPage.SetPageLayout(orig.GetPageLayout())
+	// Parent skipped
+	newPage.SetPromotionKind(nil)
+	// Skip publishing state. Page will attempt to be published during restore
+	newPage.SetReactions(orig.GetReactions())
+	newPage.SetShowComments(nil)
+	newPage.SetShowRecommendedPages(nil)
+	newPage.SetThumbnailWebUrl(nil)
+	newPage.SetTitle(orig.GetTitle())
+	// Skip TitleArea due to Upstream Failure
+	// https://github.com/microsoftgraph/msgraph-metadata/issues/258
+	newPage.SetTitleArea(nil)
+
+	wp := make([]models.WebPartable, 0)
+	for _, entry := range orig.GetWebParts() {
+		temp := sanitizeWebPart(entry)
+		wp = append(wp, temp)
+	}
+
+	newPage.SetWebParts(wp)
+	// webURL intentionally left
+
+	return newPage
+}
+
+func sanitizeContentType(orig msmodels.ContentTypeInfoable) msmodels.ContentTypeInfoable {
+	if orig == nil {
+		return nil
+	}
+
+	ct := msmodels.NewContentTypeInfo()
+	ct.SetName(orig.GetName())
+	ct.SetOdataType(orig.GetOdataType())
+
+	return ct
+}
+
+func sanitizeCanvasLayout(orig models.CanvasLayoutable) models.CanvasLayoutable {
+	canvas := models.NewCanvasLayout()
+	vert := sanitizeVertical(orig.GetVerticalSection())
+
+	canvas.SetVerticalSection(vert)
+	hzLayouts := make([]models.HorizontalSectionable, 0)
+	sections := orig.GetHorizontalSections()
+
+	for _, entry := range sections {
+		temp := sanitizeHorizontal(entry)
+
+		hzLayouts = append(hzLayouts, temp)
+	}
+
+	canvas.SetHorizontalSections(hzLayouts)
+	canvas.SetHorizontalSections(nil)
+
+	return canvas
+}
+
+func sanitizeVertical(orig models.VerticalSectionable) models.VerticalSectionable {
+	if orig == nil {
+		return nil
+	}
+
+	section := models.NewVerticalSection()
+	wps := make([]models.WebPartable, 0)
+
+	for _, item := range orig.GetWebparts() {
+		temp := sanitizeWebPart(item)
+		wps = append(wps, temp)
+	}
+
+	section.SetWebparts(wps)
+	section.SetEmphasis(orig.GetEmphasis())
+	section.SetOdataType(orig.GetOdataType())
+
+	return section
+}
+
+func sanitizeHorizontal(orig models.HorizontalSectionable) models.HorizontalSectionable {
+	newColumns := make([]models.HorizontalSectionColumnable, 0)
+	temp := models.NewHorizontalSection()
+	temp.SetEmphasis(orig.GetEmphasis())
+	temp.SetLayout(orig.GetLayout())
+
+	for _, entry := range orig.GetColumns() {
+		column := sanitizeColumn(entry)
+		newColumns = append(newColumns, column)
+	}
+
+	temp.SetColumns(newColumns)
+
+	return temp
+}
+
+func sanitizeColumn(orig models.HorizontalSectionColumnable) models.HorizontalSectionColumnable {
+	webparts := make([]models.WebPartable, 0)
+	temp := models.NewHorizontalSectionColumn()
+	temp.SetWidth(orig.GetWidth())
+
+	parts := orig.GetWebparts()
+	for _, entry := range parts {
+		wp := sanitizeWebPart(entry)
+		webparts = append(webparts, wp)
+	}
+
+	temp.SetWebparts(webparts)
+
+	return temp
+}
+
+func sanitizeWebPart(orig models.WebPartable) models.WebPartable {
+	fmt.Println(ptr.Val(orig.GetOdataType()))
+
+	category := ptr.Val(orig.GetOdataType())
+	switch category {
+	case textWebPartType:
+		temp := models.NewTextWebPart()
+		cast := orig.(models.TextWebPartable)
+		temp.SetInnerHtml(cast.GetInnerHtml())
+		temp.SetOdataType(cast.GetOdataType())
+
+		fmt.Println("Print Text Additional")
+		printAdditional(cast.GetAdditionalData())
+		fmt.Printf("WP: %+v\n", cast)
+
+		return temp
+
+	case standardWebPartType:
+		temp := models.NewStandardWebPart()
+		cast := orig.(models.StandardWebPartable)
+		adtl := cast.GetAdditionalData()
+
+		fmt.Println("Print Standard Additional")
+		printAdditional(adtl)
+		temp.SetData(cast.GetData())
+		temp.SetOdataType(cast.GetOdataType())
+		temp.SetWebPartType(cast.GetWebPartType())
+		fmt.Printf("TP: %+v\n", cast)
+
+		return temp
+	default:
+		return nil
+	}
+}
+
+func printAdditional(mapped map[string]any) {
+	if mapped == nil {
+		return
+	}
+
+	fmt.Printf("Length: %d\n", len(mapped))
+	for key, value := range mapped {
+		switch category := value.(type) {
+		case int, string, bool:
+			fmt.Printf("Key: %s Value: %+v", key, value)
+		default:
+			fmt.Printf("Key: %s Value Type: %v\n", key, category)
+		}
+	}
 }
 
 // ==============================
