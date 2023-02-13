@@ -290,6 +290,47 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	}
 }
 
+func (suite *SelectorScopesSuite) TestReduce_locationRef() {
+	deets := func() details.Details {
+		return details.Details{
+			DetailsModel: details.DetailsModel{
+				Entries: []details.DetailsEntry{
+					{
+						RepoRef: stubRepoRef(
+							pathServiceStub,
+							pathCatStub,
+							rootCatStub.String(),
+							"stub",
+							leafCatStub.String(),
+						),
+						LocationRef: "a/b/c//defg",
+					},
+				},
+			},
+		}
+	}
+	dataCats := map[path.CategoryType]mockCategorizer{
+		pathCatStub: rootCatStub,
+	}
+
+	for _, test := range reduceTestTable {
+		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			ds := deets()
+			result := reduce[mockScope](
+				ctx,
+				&ds,
+				test.sel().Selector,
+				dataCats,
+				fault.New(true))
+			require.NotNil(t, result)
+			assert.Len(t, result.Entries, test.expectLen)
+		})
+	}
+}
+
 func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
@@ -309,7 +350,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 func (suite *SelectorScopesSuite) TestPasses() {
 	cat := rootCatStub
 	pth := stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
-	pathVals := cat.pathValues(pth)
+	repoVals, locVals := cat.pathValues(pth, pth)
 	entry := details.DetailsEntry{}
 
 	for _, test := range reduceTestTable {
@@ -320,7 +361,8 @@ func (suite *SelectorScopesSuite) TestPasses() {
 			incl := toMockScope(sel.Includes)
 			result := passes(
 				cat,
-				pathVals,
+				repoVals,
+				locVals,
 				entry,
 				excl, filt, incl)
 			test.expectPasses(t, result)

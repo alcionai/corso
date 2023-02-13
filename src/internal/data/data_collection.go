@@ -96,6 +96,12 @@ type Stream interface {
 	Deleted() bool
 }
 
+// LocationPather provides a LocationPath describing the path with Display Names
+// instead of canonical IDs
+type LocationPather interface {
+	LocationPath() path.Path
+}
+
 // StreamInfo is used to provide service specific
 // information about the Stream
 type StreamInfo interface {
@@ -124,7 +130,7 @@ func StateOf(prev, curr path.Path) CollectionState {
 		return NewState
 	}
 
-	if curr.Folder() != prev.Folder() {
+	if curr.Folder(false) != prev.Folder(false) {
 		return MovedState
 	}
 

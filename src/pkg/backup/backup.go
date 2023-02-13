@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const Version = 1
+const Version = 2
 
 // Backup represents the result of a backup operation
 type Backup struct {
