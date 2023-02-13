@@ -9,7 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault/mock"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -306,13 +306,10 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			errs := mock.NewAdder()
-
 			sel := test.makeSelector()
-			results := sel.Reduce(ctx, test.deets, errs)
+			results := sel.Reduce(ctx, test.deets, fault.New(true))
 			paths := results.Paths()
 			assert.Equal(t, test.expect, paths)
-			assert.Empty(t, errs.Errs)
 		})
 	}
 }

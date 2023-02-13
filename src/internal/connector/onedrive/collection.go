@@ -69,6 +69,14 @@ type Collection struct {
 	itemMetaReader itemMetaReaderFunc
 	ctrl           control.Options
 
+	// PrevPath is the previous hierarchical path used by this collection.
+	// It may be the same as fullPath, if the folder was not renamed or
+	// moved.  It will be empty on its first retrieval.
+	prevPath path.Path
+
+	// Specifies if it new, moved/rename or deleted
+	state data.CollectionState
+
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
 }
@@ -92,6 +100,7 @@ type itemMetaReaderFunc func(
 func NewCollection(
 	itemClient *http.Client,
 	folderPath path.Path,
+	prevPath path.Path,
 	driveID string,
 	service graph.Servicer,
 	statusUpdater support.StatusUpdater,
@@ -102,6 +111,7 @@ func NewCollection(
 	c := &Collection{
 		itemClient:      itemClient,
 		folderPath:      folderPath,
+		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
 		source:          source,
@@ -109,6 +119,7 @@ func NewCollection(
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
+		state:           data.StateOf(prevPath, folderPath),
 		doNotMergeItems: doNotMergeItems,
 	}
 
@@ -140,16 +151,12 @@ func (oc *Collection) FullPath() path.Path {
 	return oc.folderPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
-// and new folder hierarchies.
 func (oc Collection) PreviousPath() path.Path {
-	return nil
+	return oc.prevPath
 }
 
-// TODO(ashmrtn): Fill in once GraphConnector compares old and new folder
-// hierarchies.
 func (oc Collection) State() data.CollectionState {
-	return data.NewState
+	return oc.state
 }
 
 func (oc Collection) DoNotMergeItems() bool {

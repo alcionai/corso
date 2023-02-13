@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -21,7 +20,7 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	testBaseDrivePath = "drive/driveID1/root:"
+	testBaseDrivePath = "drives/driveID1/root:"
 )
 
 type testFolderMatcher struct {
@@ -61,6 +60,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 		items                   []models.DriveItemable
 		scope                   selectors.SharePointScope
 		expect                  assert.ErrorAssertionFunc
+		expectedCollectionIDs   []string
 		expectedCollectionPaths []string
 		expectedItemCount       int
 		expectedContainerCount  int
@@ -69,10 +69,12 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 		{
 			testCase: "Single File",
 			items: []models.DriveItemable{
-				driveItem("file", testBaseDrivePath, true),
+				driveRootItem("root"),
+				driveItem("file", testBaseDrivePath, "root", true),
 			},
-			scope:  anyFolder,
-			expect: assert.NoError,
+			scope:                 anyFolder,
+			expect:                assert.NoError,
+			expectedCollectionIDs: []string{"root"},
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
 				tenant,
@@ -102,31 +104,45 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID", "General", test.items, paths, newPaths, excluded, true)
+			err := c.UpdateCollections(ctx, "driveID1", "General", test.items, paths, newPaths, excluded, true)
 			test.expect(t, err)
-			assert.Equal(t, len(test.expectedCollectionPaths), len(c.CollectionMap), "collection paths")
+			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
-			for _, collPath := range test.expectedCollectionPaths {
+			for _, collPath := range test.expectedCollectionIDs {
 				assert.Contains(t, c.CollectionMap, collPath)
+			}
+			for _, col := range c.CollectionMap {
+				assert.Contains(t, test.expectedCollectionPaths, col.FullPath().String())
 			}
 		})
 	}
 }
 
-func driveItem(name string, path string, isFile bool) models.DriveItemable {
+func driveItem(name, parentPath, parentID string, isFile bool) models.DriveItemable {
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&name)
 
 	parentReference := models.NewItemReference()
-	parentReference.SetPath(&path)
+	parentReference.SetPath(&parentPath)
+	parentReference.SetId(&parentID)
 	item.SetParentReference(parentReference)
 
 	if isFile {
 		item.SetFile(models.NewFile())
 	}
+
+	return item
+}
+
+func driveRootItem(id string) models.DriveItemable {
+	name := "root"
+	item := models.NewDriveItem()
+	item.SetName(&name)
+	item.SetId(&id)
+	item.SetRoot(models.NewRoot())
 
 	return item
 }
@@ -154,20 +170,13 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	account, err := a.M365Config()
 	require.NoError(t, err)
 
-	updateFunc := func(*support.ConnectorOperationStatus) {
-		t.Log("Updater Called ")
-	}
-
-	updater := &MockUpdater{UpdateState: updateFunc}
-
 	col, err := collectPages(
 		ctx,
 		account,
 		nil,
-		account.AzureTenantID,
 		siteID,
-		updater,
-		control.Options{},
+		&MockGraphService{},
+		control.Defaults(),
 	)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, col)

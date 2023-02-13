@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -66,9 +67,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), test.acct(t), Users)
+			gc, err := NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), test.acct(t), Users, fault.New(true))
 			assert.Nil(t, gc, test.name+" failed")
-			assert.NotNil(t, err, test.name+"failed")
+			assert.NotNil(t, err, test.name+" failed")
 		})
 	}
 }
@@ -114,58 +115,6 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	suite.Equal(2, gc.Status().Successful)
 	// Expect 2 folders
 	suite.Equal(2, gc.Status().FolderCount)
-}
-
-func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_ErrorChecking() {
-	tests := []struct {
-		name                 string
-		err                  error
-		returnRecoverable    assert.BoolAssertionFunc
-		returnNonRecoverable assert.BoolAssertionFunc
-	}{
-		{
-			name:                 "Neither Option",
-			err:                  errors.New("regular error"),
-			returnRecoverable:    assert.False,
-			returnNonRecoverable: assert.False,
-		},
-		{
-			name:                 "Validate Recoverable",
-			err:                  support.SetRecoverableError(errors.New("Recoverable")),
-			returnRecoverable:    assert.True,
-			returnNonRecoverable: assert.False,
-		},
-		{
-			name:                 "Validate NonRecoverable",
-			err:                  support.SetNonRecoverableError(errors.New("Non-recoverable")),
-			returnRecoverable:    assert.False,
-			returnNonRecoverable: assert.True,
-		},
-		{
-			name: "Wrapped Recoverable",
-			err: support.WrapAndAppend(
-				"Wrapped Recoverable",
-				support.SetRecoverableError(errors.New("Recoverable")),
-				nil),
-			returnRecoverable:    assert.True,
-			returnNonRecoverable: assert.False,
-		},
-		{
-			name:                 "On Nil",
-			err:                  nil,
-			returnRecoverable:    assert.False,
-			returnNonRecoverable: assert.False,
-		},
-	}
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			recoverable := IsRecoverableError(test.err)
-			nonRecoverable := IsNonRecoverableError(test.err)
-			test.returnRecoverable(suite.T(), recoverable, "Test: %s Recoverable-received %v", test.name, recoverable)
-			test.returnNonRecoverable(suite.T(), nonRecoverable, "Test: %s non-recoverable: %v", test.name, nonRecoverable)
-			t.Logf("Is nil: %v", test.err == nil)
-		})
-	}
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {

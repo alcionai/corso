@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
@@ -706,8 +707,35 @@ func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, sub
 	iaNode.SetItem(nestedMessage)
 	message.SetAttachments([]models.Attachmentable{iaNode})
 
+	return serialize(t, message)
+}
+
+func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject string) []byte {
+	base := GetMockMessageBytes(subject)
+	message, err := hydrateMessage(base)
+	require.NoError(t, err)
+
+	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
+	require.NoError(t, err)
+
+	anObject, err := parseNode.GetObjectValue(models.CreateContactFromDiscriminatorValue)
+	require.NoError(t, err)
+
+	contact := anObject.(models.Contactable)
+	internalName := "Nested Contact"
+	iaNode := models.NewItemAttachment()
+	attachmentSize := int32(len(nested))
+	iaNode.SetSize(&attachmentSize)
+	iaNode.SetName(&internalName)
+	iaNode.SetItem(contact)
+	message.SetAttachments([]models.Attachmentable{iaNode})
+
+	return serialize(t, message)
+}
+
+func serialize(t *testing.T, item absser.Parsable) []byte {
 	wtr := js.NewJsonSerializationWriter()
-	err = wtr.WriteObjectValue("", message)
+	err := wtr.WriteObjectValue("", item)
 	require.NoError(t, err)
 
 	byteArray, err := wtr.GetSerializedContent()

@@ -4,11 +4,13 @@ package connector
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"runtime/trace"
 	"strings"
 	"sync"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -17,18 +19,13 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -71,10 +68,11 @@ func NewGraphConnector(
 	itemClient *http.Client,
 	acct account.Account,
 	r resource,
+	errs *fault.Errors,
 ) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving m365 account configuration")
+		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
 	gc := GraphConnector{
@@ -87,12 +85,12 @@ func NewGraphConnector(
 
 	gc.Service, err = gc.createService()
 	if err != nil {
-		return nil, errors.Wrap(err, "creating service connection")
+		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
 	gc.Owners, err = api.NewClient(m365)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating api client")
+		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
 	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
@@ -100,13 +98,13 @@ func NewGraphConnector(
 	// For now this keeps things functioning if callers do pass in a selector like
 	// "*" instead of.
 	if r == AllResources || r == Users {
-		if err = gc.setTenantUsers(ctx); err != nil {
+		if err = gc.setTenantUsers(ctx, errs); err != nil {
 			return nil, errors.Wrap(err, "retrieving tenant user list")
 		}
 	}
 
 	if r == AllResources || r == Sites {
-		if err = gc.setTenantSites(ctx); err != nil {
+		if err = gc.setTenantSites(ctx, errs); err != nil {
 			return nil, errors.Wrap(err, "retrieveing tenant site list")
 		}
 	}
@@ -131,11 +129,11 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the returned error is nil
-func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.Owners.Users())
+	users, err := discovery.Users(ctx, gc.Owners.Users(), errs)
 	if err != nil {
 		return err
 	}
@@ -162,7 +160,7 @@ func (gc *GraphConnector) GetUsersIds() []string {
 // setTenantSites queries the M365 to identify the sites in the
 // workspace. The sites field is updated during this method
 // iff the returned error is nil.
-func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
+func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Errors) error {
 	gc.Sites = map[string]string{}
 
 	ctx, end := D.Span(ctx, "gc:setTenantSites")
@@ -175,7 +173,7 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
 		sharepoint.GetAllSitesForTenant,
 		models.CreateSiteCollectionResponseFromDiscriminatorValue,
 		identifySite,
-	)
+		errs)
 	if err != nil {
 		return err
 	}
@@ -194,22 +192,23 @@ const personalSitePath = "sharepoint.com/personal/"
 func identifySite(item any) (string, string, error) {
 	m, ok := item.(models.Siteable)
 	if !ok {
-		return "", "", errors.New("iteration retrieved non-Site item")
+		return "", "", clues.New("iteration retrieved non-Site item").With("item_type", fmt.Sprintf("%T", item))
 	}
 
 	if m.GetName() == nil {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
-			return "", "", errKnownSkippableCase
+			// TODO: pii siteID, on this and all following cases
+			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", *m.GetId())
 		}
 
-		return "", "", errors.Errorf("no name for Site: %s", *m.GetId())
+		return "", "", clues.New("site has no name").With("site_id", *m.GetId())
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	url := m.GetWebUrl()
 	if url != nil && strings.Contains(*url, personalSitePath) {
-		return "", "", errKnownSkippableCase
+		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", *m.GetId())
 	}
 
 	return *m.GetWebUrl(), *m.GetId(), nil
@@ -230,9 +229,13 @@ func (gc *GraphConnector) GetSiteIDs() []string {
 // each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
 // but not match "www.ex.com/foobar".
 // The returned IDs are reduced to a set of unique values.
-func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls []string) ([]string, error) {
+func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
+	ctx context.Context,
+	ids, urls []string,
+	errs *fault.Errors,
+) ([]string, error) {
 	if len(gc.Sites) == 0 {
-		if err := gc.setTenantSites(ctx); err != nil {
+		if err := gc.setTenantSites(ctx, errs); err != nil {
 			return nil, err
 		}
 	}
@@ -259,49 +262,6 @@ func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls 
 	}
 
 	return idsl, nil
-}
-
-// RestoreDataCollections restores data from the specified collections
-// into M365 using the GraphAPI.
-// SideEffect: gc.status is updated at the completion of operation
-func (gc *GraphConnector) RestoreDataCollections(
-	ctx context.Context,
-	backupVersion int,
-	acct account.Account,
-	selector selectors.Selector,
-	dest control.RestoreDestination,
-	opts control.Options,
-	dcs []data.RestoreCollection,
-) (*details.Details, error) {
-	ctx, end := D.Span(ctx, "connector:restore")
-	defer end()
-
-	var (
-		status *support.ConnectorOperationStatus
-		err    error
-		deets  = &details.Builder{}
-	)
-
-	creds, err := acct.M365Config()
-	if err != nil {
-		return nil, errors.Wrap(err, "malformed azure credentials")
-	}
-
-	switch selector.Service {
-	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
-	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
-	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets)
-	default:
-		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
-	}
-
-	gc.incrementAwaitingMessages()
-	gc.UpdateStatus(status)
-
-	return deets.Details(), err
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
@@ -354,34 +314,34 @@ func getResources(
 	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
 	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
 	identify func(any) (string, string, error),
+	errs *fault.Errors,
 ) (map[string]string, error) {
 	resources := map[string]string{}
 
 	response, err := query(ctx, gs)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"retrieving resources for tenant %s: %s",
-			tenantID,
-			support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "retrieving tenant's resources").
+			WithClues(ctx).
+			WithAll(graph.ErrData(err)...)
 	}
 
 	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
 	if err != nil {
-		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var iterErrs error
-
 	callbackFunc := func(item any) bool {
+		if errs.Failed() {
+			return false
+		}
+
 		k, v, err := identify(item)
 		if err != nil {
-			if errors.Is(err, errKnownSkippableCase) {
-				return true
+			if !errors.Is(err, errKnownSkippableCase) {
+				errs.Add(clues.Stack(err).
+					WithClues(ctx).
+					With("query_url", gs.Adapter().GetBaseUrl()))
 			}
-
-			iterErrs = support.WrapAndAppend(gs.Adapter().GetBaseUrl(), err, iterErrs)
 
 			return true
 		}
@@ -392,20 +352,8 @@ func getResources(
 	}
 
 	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	return resources, iterErrs
-}
-
-// IsRecoverableError returns true iff error is a RecoverableGCEerror
-func IsRecoverableError(e error) bool {
-	var recoverable support.RecoverableGCError
-	return errors.As(e, &recoverable)
-}
-
-// IsNonRecoverableError returns true iff error is a NonRecoverableGCEerror
-func IsNonRecoverableError(e error) bool {
-	var nonRecoverable support.NonRecoverableGCError
-	return errors.As(e, &nonRecoverable)
+	return resources, errs.Err()
 }

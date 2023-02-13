@@ -25,6 +25,7 @@ const (
 func (i SiteSecurityLevel) String() string {
 	return []string{"userDefined", "low", "mediumLow", "medium", "mediumHigh", "high"}[i]
 }
+
 func ParseSiteSecurityLevel(v string) (interface{}, error) {
 	result := USERDEFINED_SITESECURITYLEVEL
 	switch v {
@@ -45,6 +46,7 @@ func ParseSiteSecurityLevel(v string) (interface{}, error) {
 	}
 	return &result, nil
 }
+
 func SerializeSiteSecurityLevel(values []SiteSecurityLevel) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
