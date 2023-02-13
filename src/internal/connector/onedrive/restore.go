@@ -213,7 +213,7 @@ func RestoreCollection(
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
 	logger.Ctx(ctx).Infow(
 		"restoring to destination",
-		"origin", dc.FullPath().Folder(),
+		"origin", dc.FullPath().Folder(false),
 		"destination", restoreFolderElements)
 
 	parentPerms, colPerms, err := getParentAndCollectionPermissions(
@@ -284,7 +284,13 @@ func RestoreCollection(
 						continue
 					}
 
-					deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
+					deets.Add(
+						itemPath.String(),
+						itemPath.ShortRef(),
+						"",
+						"", // TODO: implement locationRef
+						true,
+						itemInfo)
 
 					// Mark it as success without processing .meta
 					// file if we are not restoring permissions
@@ -371,7 +377,13 @@ func RestoreCollection(
 					continue
 				}
 
-				deets.Add(itemPath.String(), itemPath.ShortRef(), "", true, itemInfo)
+				deets.Add(
+					itemPath.String(),
+					itemPath.ShortRef(),
+					"",
+					"", // TODO: implement locationRef
+					true,
+					itemInfo)
 				metrics.Successes++
 			}
 		}

@@ -86,7 +86,7 @@ type Path interface {
 	Category() CategoryType
 	Tenant() string
 	ResourceOwner() string
-	Folder() string
+	Folder(bool) string
 	Folders() []string
 	Item() string
 	// PopFront returns a Builder object with the first element (left-side)
@@ -138,6 +138,14 @@ func (pb Builder) UnescapeAndAppend(elements ...string) (*Builder, error) {
 	}
 
 	return res, nil
+}
+
+// SplitUnescapeAppend takes in an escaped string representing a directory
+// path, splits the string, and appends it to the current builder.
+func (pb Builder) SplitUnescapeAppend(s string) (*Builder, error) {
+	elems := Split(TrimTrailingSlash(s))
+
+	return pb.UnescapeAndAppend(elems...)
 }
 
 // Append creates a copy of this Builder and adds the given elements them to the
@@ -205,6 +213,14 @@ func (pb Builder) Dir() *Builder {
 	}
 }
 
+func (pb Builder) LastElem() string {
+	if len(pb.elements) == 0 {
+		return ""
+	}
+
+	return pb.elements[len(pb.elements)-1]
+}
+
 // String returns a string that contains all path elements joined together.
 // Elements of the path that need escaping are escaped.
 func (pb Builder) String() string {
@@ -245,11 +261,6 @@ func (pb Builder) ShortRef() string {
 // elements in the future.
 func (pb Builder) Elements() []string {
 	return append([]string{}, pb.elements...)
-}
-
-//nolint:unused
-func (pb Builder) join(start, end int) string {
-	return join(pb.elements[start:end])
 }
 
 func verifyInputValues(tenant, resourceOwner string) error {
