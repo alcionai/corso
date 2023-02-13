@@ -227,7 +227,7 @@ func RestoreCollection(
 	}
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
-	restoreFolderID, permissionIDMappings, err := createRestoreFoldersWithPermissions(
+	restoreFolderID, err := createRestoreFoldersWithPermissions(
 		ctx,
 		service,
 		drivePath.DriveID,
@@ -403,13 +403,13 @@ func createRestoreFoldersWithPermissions(
 	parentPermissions []UserPermission,
 	folderPermissions []UserPermission,
 	permissionIDMappings map[string]string,
-) (string, map[string]string, error) {
+) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, driveID, restoreFolders)
 	if err != nil {
-		return "", permissionIDMappings, err
+		return "", err
 	}
 
-	permissionIDMappings, err = restorePermissions(
+	err = restorePermissions(
 		ctx,
 		service,
 		driveID,
@@ -418,7 +418,7 @@ func createRestoreFoldersWithPermissions(
 		folderPermissions,
 		permissionIDMappings)
 
-	return id, permissionIDMappings, err
+	return id, err
 }
 
 // CreateRestoreFolders creates the restore folder hierarchy in the specified
@@ -604,14 +604,14 @@ func restorePermissions(
 	parentPerms []UserPermission,
 	childPerms []UserPermission,
 	permissionIDMappings map[string]string,
-) (map[string]string, error) {
+) error {
 	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
 
 	for _, p := range permRemoved {
 		err := service.Client().DrivesById(driveID).ItemsById(itemID).
 			PermissionsById(permissionIDMappings[p.ID]).Delete(ctx, nil)
 		if err != nil {
-			return permissionIDMappings, errors.Wrapf(
+			return errors.Wrapf(
 				err,
 				"failed to remove permission for item %s. details: %s",
 				itemID,
@@ -641,7 +641,7 @@ func restorePermissions(
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return permissionIDMappings, errors.Wrapf(
+			return errors.Wrapf(
 				err,
 				"failed to set permission for item %s. details: %s",
 				itemID,
@@ -652,5 +652,5 @@ func restorePermissions(
 		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
 	}
 
-	return permissionIDMappings, nil
+	return nil
 }
