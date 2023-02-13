@@ -30,7 +30,7 @@ func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
 	return testMetaJSON
 }
 
-func itemWithData(name string, itemData []byte) itemInfo {
+func onedriveItemWithData(name string, itemData []byte) itemInfo {
 	return itemInfo{
 		name:      name,
 		data:      itemData,
@@ -38,10 +38,10 @@ func itemWithData(name string, itemData []byte) itemInfo {
 	}
 }
 
-func fileWithMetadata(baseName string, fileData, metadata []byte) []itemInfo {
+func onedriveFileWithMetadata(baseName string, fileData, metadata []byte) []itemInfo {
 	return []itemInfo{
-		itemWithData(baseName+onedrive.DataFileSuffix, fileData),
-		itemWithData(baseName+onedrive.MetaFileSuffix, metadata),
+		onedriveItemWithData(baseName+onedrive.DataFileSuffix, fileData),
+		onedriveItemWithData(baseName+onedrive.MetaFileSuffix, metadata),
 	}
 }
 
@@ -78,13 +78,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 }
 
 var (
-	fileEmptyPerms = itemWithData(
+	fileEmptyPerms = onedriveItemWithData(
 		"test-file.txt"+onedrive.MetaFileSuffix,
 		[]byte("{}"),
 	)
 
 	fileAEmptyPerms = []itemInfo{
-		itemWithData(
+		onedriveItemWithData(
 			"test-file.txt"+onedrive.DataFileSuffix,
 			[]byte(strings.Repeat("a", 33)),
 		),
@@ -92,7 +92,7 @@ var (
 	}
 
 	fileBEmptyPerms = []itemInfo{
-		itemWithData(
+		onedriveItemWithData(
 			"test-file.txt"+onedrive.DataFileSuffix,
 			[]byte(strings.Repeat("b", 65)),
 		),
@@ -100,7 +100,7 @@ var (
 	}
 
 	fileCEmptyPerms = []itemInfo{
-		itemWithData(
+		onedriveItemWithData(
 			"test-file.txt"+onedrive.DataFileSuffix,
 			[]byte(strings.Repeat("c", 129)),
 		),
@@ -108,7 +108,7 @@ var (
 	}
 
 	fileDEmptyPerms = []itemInfo{
-		itemWithData(
+		onedriveItemWithData(
 			"test-file.txt"+onedrive.DataFileSuffix,
 			[]byte(strings.Repeat("d", 257)),
 		),
@@ -116,7 +116,7 @@ var (
 	}
 
 	fileEEmptyPerms = []itemInfo{
-		itemWithData(
+		onedriveItemWithData(
 			"test-file.txt"+onedrive.DataFileSuffix,
 			[]byte(strings.Repeat("e", 257)),
 		),
@@ -124,11 +124,11 @@ var (
 	}
 
 	folderAEmptyPerms = []itemInfo{
-		itemWithData("folder-a"+onedrive.DirMetaFileSuffix, []byte("{}")),
+		onedriveItemWithData("folder-a"+onedrive.DirMetaFileSuffix, []byte("{}")),
 	}
 
 	folderBEmptyPerms = []itemInfo{
-		itemWithData("b"+onedrive.DirMetaFileSuffix, []byte("{}")),
+		onedriveItemWithData("b"+onedrive.DirMetaFileSuffix, []byte("{}")),
 	}
 )
 
@@ -167,18 +167,18 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup() {
 					},
 					category: path.FilesCategory,
 					items: withItems(
-						fileWithMetadata(
+						onedriveFileWithMetadata(
 							"test-file.txt",
 							[]byte(strings.Repeat("a", 33)),
 							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 						),
-						[]itemInfo{itemWithData(
+						[]itemInfo{onedriveItemWithData(
 							"b"+onedrive.DirMetaFileSuffix,
 							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 						)},
 					),
 					auxItems: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt"+onedrive.MetaFileSuffix,
 							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 						),
@@ -192,13 +192,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup() {
 						"b",
 					},
 					category: path.FilesCategory,
-					items: fileWithMetadata(
+					items: onedriveFileWithMetadata(
 						"test-file.txt",
 						[]byte(strings.Repeat("e", 66)),
 						getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 					),
 					auxItems: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt"+onedrive.MetaFileSuffix,
 							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 						),
@@ -318,7 +318,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 					},
 					category: path.FilesCategory,
 					items: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt",
 							[]byte(strings.Repeat("a", 33)),
 						),
@@ -333,7 +333,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 					},
 					category: path.FilesCategory,
 					items: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt",
 							[]byte(strings.Repeat("b", 65)),
 						),
@@ -349,7 +349,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 					},
 					category: path.FilesCategory,
 					items: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt",
 							[]byte(strings.Repeat("c", 129)),
 						),
@@ -366,7 +366,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 					},
 					category: path.FilesCategory,
 					items: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt",
 							[]byte(strings.Repeat("d", 257)),
 						),
@@ -381,7 +381,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 					},
 					category: path.FilesCategory,
 					items: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt",
 							[]byte(strings.Repeat("e", 257)),
 						),
@@ -433,29 +433,29 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 	)
 
 	var (
-		fileAWritePerms = fileWithMetadata(
+		fileAWritePerms = onedriveFileWithMetadata(
 			"test-file.txt",
 			[]byte(strings.Repeat("a", 33)),
 			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 		)
 
-		fileEReadPerms = fileWithMetadata(
+		fileEReadPerms = onedriveFileWithMetadata(
 			"test-file.txt",
 			[]byte(strings.Repeat("e", 66)),
 			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 		)
 
-		folderBReadPerms = []itemInfo{itemWithData(
+		folderBReadPerms = []itemInfo{onedriveItemWithData(
 			"b"+onedrive.DirMetaFileSuffix,
 			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 		)}
 
-		fileWritePerms = itemWithData(
+		fileWritePerms = onedriveItemWithData(
 			"test-file.txt"+onedrive.MetaFileSuffix,
 			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 		)
 
-		fileReadPerms = itemWithData(
+		fileReadPerms = onedriveItemWithData(
 			"test-file.txt"+onedrive.MetaFileSuffix,
 			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
 		)
@@ -636,13 +636,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 						"root:",
 					},
 					category: path.FilesCategory,
-					items: fileWithMetadata(
+					items: onedriveFileWithMetadata(
 						"test-file.txt",
 						[]byte(strings.Repeat("a", 33)),
 						getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 					),
 					auxItems: []itemInfo{
-						itemWithData(
+						onedriveItemWithData(
 							"test-file.txt"+onedrive.MetaFileSuffix,
 							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
 						),
