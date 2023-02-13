@@ -469,7 +469,7 @@ func runRestoreBackupTest(
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 		},
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -597,7 +597,7 @@ func runRestoreBackupTestVersion0(
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 		},
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -1544,7 +1544,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 				},
-			)
+				fault.New(true))
 			require.NoError(t, err)
 			// No excludes yet because this isn't an incremental backup.
 			assert.Empty(t, excludes)

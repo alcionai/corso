@@ -244,7 +244,7 @@ func (op *BackupOperation) do(
 		return nil, errors.Wrap(err, "connectng to m365")
 	}
 
-	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
+	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "producing backup data collections")
 	}
@@ -313,6 +313,7 @@ func produceBackupDataCollections(
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
@@ -321,9 +322,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	cols, excludes, errs := gc.DataCollections(ctx, sel, metadata, ctrlOpts)
-
-	return cols, excludes, errs
+	return gc.DataCollections(ctx, sel, metadata, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
