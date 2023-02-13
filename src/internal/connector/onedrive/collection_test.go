@@ -197,6 +197,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
+				_ bool,
 			) (io.ReadCloser, int, error) {
 				metaJSON, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -331,6 +332,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
+				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
@@ -412,6 +414,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
+				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{"key": "value"}`)), 16, nil
 			}
