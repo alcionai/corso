@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -373,11 +374,12 @@ func (c CalendarDisplayable) GetParentFolderId() *string {
 
 func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	var (
-		organizer, subject string
-		recurs             bool
-		start              = time.Time{}
-		end                = time.Time{}
-		created            = time.Time{}
+		organizer string
+		subject   = ptr.Val(evt.GetSubject())
+		recurs    bool
+		start     = time.Time{}
+		end       = time.Time{}
+		created   = ptr.Val(evt.GetCreatedDateTime())
 	)
 
 	if evt.GetOrganizer() != nil &&
@@ -386,10 +388,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		organizer = *evt.GetOrganizer().
 			GetEmailAddress().
 			GetAddress()
-	}
-
-	if evt.GetSubject() != nil {
-		subject = *evt.GetSubject()
 	}
 
 	if evt.GetRecurrence() != nil {
@@ -418,10 +416,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		if err == nil {
 			end = output
 		}
-	}
-
-	if evt.GetCreatedDateTime() != nil {
-		created = *evt.GetCreatedDateTime()
 	}
 
 	return &details.ExchangeInfo{

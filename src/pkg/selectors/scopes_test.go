@@ -9,7 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault/mock"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -274,7 +274,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			errs := mock.NewAdder()
+			errs := fault.New(true)
 
 			ds := deets()
 			result := reduce[mockScope](
@@ -284,7 +284,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 				dataCats,
 				errs)
 			require.NotNil(t, result)
-			require.Empty(t, errs.Errs, "iteration errors")
+			require.Empty(t, errs.Errs(), "recoverable errors")
 			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}

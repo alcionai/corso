@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -71,7 +72,7 @@ func RestoreExchangeContact(
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
-		name := *contact.GetGivenName()
+		name := ptr.Val(contact.GetGivenName())
 
 		return nil, errors.Wrap(
 			err,
@@ -146,7 +147,8 @@ func RestoreExchangeEvent(
 			errs = support.WrapAndAppend(
 				fmt.Sprintf(
 					"uploading attachment for message %s: %s",
-					*transformedEvent.GetId(), support.ConnectorStackErrorTrace(err),
+					ptr.Val(transformedEvent.GetId()),
+					support.ConnectorStackErrorTrace(err),
 				),
 				err,
 				errs,
@@ -283,12 +285,8 @@ func SendMailToBackStore(
 
 	for _, attachment := range attached {
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
-			if attachment.GetOdataType() != nil &&
-				*attachment.GetOdataType() == "#microsoft.graph.itemAttachment" {
-				var name string
-				if attachment.GetName() != nil {
-					name = *attachment.GetName()
-				}
+			if ptr.Val(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
+				name := ptr.Val(attachment.GetName())
 
 				logger.Ctx(ctx).Infow(
 					"item attachment upload not successful. content not accepted by M365 server",

@@ -28,7 +28,11 @@ const (
 	OneDriveSource
 	SharePointSource
 )
-const restrictedDirectory = "Site Pages"
+
+const (
+	restrictedDirectory = "Site Pages"
+	rootDrivePattern    = "/drives/%s/root:"
+)
 
 func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
 	switch ds {
@@ -382,11 +386,15 @@ func (c *Collections) UpdateCollections(
 			continue
 		}
 
-		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
+		if item.GetParentReference() == nil ||
+			item.GetParentReference().GetPath() == nil ||
+			item.GetParentReference().GetId() == nil {
 			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
 		}
 
 		// Create a collection for the parent of this item
+		collectionID := *item.GetParentReference().GetId()
+
 		collectionPath, err := GetCanonicalPath(
 			*item.GetParentReference().GetPath(),
 			c.tenant,
@@ -411,7 +419,34 @@ func (c *Collections) UpdateCollections(
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
 
-				// TODO(ashmrtn): Create a collection with state Deleted.
+				prevColPath, ok := oldPaths[*item.GetId()]
+				if !ok {
+					// It is possible that an item was created and
+					// deleted between two delta invocations. In
+					// that case, it will only produce a single
+					// delete entry in the delta response.
+					continue
+				}
+
+				prevPath, err := path.FromDataLayerPath(prevColPath, false)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("invalid previous path for deleted item", "error", err)
+					return err
+				}
+
+				col := NewCollection(
+					c.itemClient,
+					nil,
+					prevPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+					c.source,
+					c.ctrl,
+					invalidPrevDelta,
+				)
+
+				c.CollectionMap[*item.GetId()] = col
 
 				break
 			}
@@ -454,14 +489,14 @@ func (c *Collections) UpdateCollections(
 			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
 			// the exclude list.
 
-			col, found := c.CollectionMap[collectionPath.String()]
-
+			col, found := c.CollectionMap[collectionID]
 			if !found {
 				// TODO(ashmrtn): Compare old and new path and set collection state
 				// accordingly.
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
+					nil,
 					driveID,
 					c.service,
 					c.statusUpdater,
@@ -470,7 +505,7 @@ func (c *Collections) UpdateCollections(
 					invalidPrevDelta,
 				)
 
-				c.CollectionMap[collectionPath.String()] = col
+				c.CollectionMap[collectionID] = col
 				c.NumContainers++
 			}
 
