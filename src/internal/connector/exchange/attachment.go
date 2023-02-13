@@ -25,7 +25,8 @@ const (
 )
 
 func attachmentType(attachment models.Attachmentable) models.AttachmentType {
-	switch *attachment.GetOdataType() {
+	attachmentType := ptr.Val(attachment.GetOdataType())
+	switch attachmentType {
 	case fileAttachmentOdataValue:
 		return models.FILE_ATTACHMENTTYPE
 	case itemAttachmentOdataValue:

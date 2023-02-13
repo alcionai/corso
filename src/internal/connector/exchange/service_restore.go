@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -71,7 +72,7 @@ func RestoreExchangeContact(
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
-		name := *contact.GetGivenName()
+		name := ptr.Val(contact.GetGivenName())
 
 		return nil, errors.Wrap(
 			err,
@@ -146,7 +147,8 @@ func RestoreExchangeEvent(
 			errs = support.WrapAndAppend(
 				fmt.Sprintf(
 					"uploading attachment for message %s: %s",
-					*transformedEvent.GetId(), support.ConnectorStackErrorTrace(err),
+					ptr.Val(transformedEvent.GetId()),
+					support.ConnectorStackErrorTrace(err),
 				),
 				err,
 				errs,
@@ -283,12 +285,8 @@ func SendMailToBackStore(
 
 	for _, attachment := range attached {
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
-			if attachment.GetOdataType() != nil &&
-				*attachment.GetOdataType() == "#microsoft.graph.itemAttachment" {
-				var name string
-				if attachment.GetName() != nil {
-					name = *attachment.GetName()
-				}
+			if ptr.Val(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
+				name := ptr.Val(attachment.GetName())
 
 				logger.Ctx(ctx).Infow(
 					"item attachment upload not successful. content not accepted by M365 server",
@@ -344,7 +342,7 @@ func RestoreExchangeDataCollections(
 			userCaches = directoryCaches[userID]
 		}
 
-		containerID, err := CreateContainerDestinaion(
+		containerID, err := CreateContainerDestination(
 			ctx,
 			creds,
 			dc.FullPath(),
@@ -400,7 +398,7 @@ func restoreCollection(
 		ctx,
 		category.String(),
 		observe.PII(user),
-		observe.PII(directory.Folder()))
+		observe.PII(directory.Folder(false)))
 	defer closer()
 	defer close(colProgress)
 
@@ -447,10 +445,16 @@ func restoreCollection(
 				continue
 			}
 
+			var locationRef string
+			if category == path.ContactsCategory {
+				locationRef = itemPath.Folder(false)
+			}
+
 			deets.Add(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				locationRef,
 				true,
 				details.ItemInfo{
 					Exchange: info,
@@ -461,12 +465,12 @@ func restoreCollection(
 	}
 }
 
-// CreateContainerDestinaion builds the destination into the container
+// CreateContainerDestination builds the destination into the container
 // at the provided path.  As a precondition, the destination cannot
 // already exist.  If it does then an error is returned.  The provided
 // containerResolver is updated with the new destination.
 // @ returns the container ID of the new destination container.
-func CreateContainerDestinaion(
+func CreateContainerDestination(
 	ctx context.Context,
 	creds account.M365Config,
 	directory path.Path,
@@ -478,7 +482,6 @@ func CreateContainerDestinaion(
 		user           = directory.ResourceOwner()
 		category       = directory.Category()
 		directoryCache = caches[category]
-		newPathFolders = append([]string{destination}, directory.Folders()...)
 	)
 
 	// TODO(rkeepers): pass the api client into this func, rather than generating one.
@@ -489,6 +492,8 @@ func CreateContainerDestinaion(
 
 	switch category {
 	case path.EmailCategory:
+		folders := append([]string{destination}, directory.Folders()...)
+
 		if directoryCache == nil {
 			acm := ac.Mail()
 			mfc := &mailFolderCache{
@@ -505,12 +510,14 @@ func CreateContainerDestinaion(
 		return establishMailRestoreLocation(
 			ctx,
 			ac,
-			newPathFolders,
+			folders,
 			directoryCache,
 			user,
 			newCache)
 
 	case path.ContactsCategory:
+		folders := append([]string{destination}, directory.Folders()...)
+
 		if directoryCache == nil {
 			acc := ac.Contacts()
 			cfc := &contactFolderCache{
@@ -526,12 +533,14 @@ func CreateContainerDestinaion(
 		return establishContactsRestoreLocation(
 			ctx,
 			ac,
-			newPathFolders,
+			folders,
 			directoryCache,
 			user,
 			newCache)
 
 	case path.EventsCategory:
+		dest := destination
+
 		if directoryCache == nil {
 			ace := ac.Events()
 			ecc := &eventCalendarCache{
@@ -542,16 +551,23 @@ func CreateContainerDestinaion(
 			caches[category] = ecc
 			newCache = true
 			directoryCache = ecc
+		} else if did := directoryCache.DestinationNameToID(dest); len(did) > 0 {
+			// calendars are cached by ID in the resolver, not name, so once we have
+			// created the destination calendar, we need to look up its id and use
+			// that for resolver lookups instead of the display name.
+			dest = did
 		}
+
+		folders := append([]string{dest}, directory.Folders()...)
 
 		return establishEventsRestoreLocation(
 			ctx,
 			ac,
-			newPathFolders,
+			folders,
 			directoryCache,
 			user,
-			newCache,
-		)
+			newCache)
+
 	default:
 		return "", fmt.Errorf("category: %s not support for exchange cache", category)
 	}
@@ -604,7 +620,7 @@ func establishMailRestoreLocation(
 		}
 
 		// NOOP if the folder is already in the cache.
-		if err = mfc.AddToCache(ctx, temp); err != nil {
+		if err = mfc.AddToCache(ctx, temp, false); err != nil {
 			return "", errors.Wrap(err, "adding folder to cache")
 		}
 	}
@@ -643,7 +659,7 @@ func establishContactsRestoreLocation(
 			return "", errors.Wrap(err, "populating contact cache")
 		}
 
-		if err = cfc.AddToCache(ctx, temp); err != nil {
+		if err = cfc.AddToCache(ctx, temp, false); err != nil {
 			return "", errors.Wrap(err, "adding contact folder to cache")
 		}
 	}
@@ -660,10 +676,7 @@ func establishEventsRestoreLocation(
 	isNewCache bool,
 ) (string, error) {
 	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
-	cached, ok := ecc.PathInCache(path.Builder{}.Append(
-		calendarOthersFolder,
-		folders[0],
-	).String())
+	cached, ok := ecc.PathInCache(folders[0])
 	if ok {
 		return cached, nil
 	}
@@ -681,7 +694,7 @@ func establishEventsRestoreLocation(
 		}
 
 		displayable := api.CalendarDisplayable{Calendarable: temp}
-		if err = ecc.AddToCache(ctx, displayable); err != nil {
+		if err = ecc.AddToCache(ctx, displayable, true); err != nil {
 			return "", errors.Wrap(err, "adding new calendar to cache")
 		}
 	}

@@ -201,13 +201,20 @@ func (rp dataLayerResourcePath) lastFolderIdx() int {
 }
 
 // Folder returns the folder segment embedded in the dataLayerResourcePath.
-func (rp dataLayerResourcePath) Folder() string {
+func (rp dataLayerResourcePath) Folder(escape bool) string {
 	endIdx := rp.lastFolderIdx()
 	if endIdx == 4 {
 		return ""
 	}
 
-	return rp.Builder.join(4, endIdx)
+	fs := rp.Folders()
+
+	if !escape {
+		return join(fs)
+	}
+
+	// builder.String() will escape all individual elements.
+	return Builder{}.Append(fs...).String()
 }
 
 // Folders returns the individual folder elements embedded in the

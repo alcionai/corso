@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
@@ -13,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -78,28 +78,6 @@ func (c Contacts) GetItem(
 	}
 
 	return cont, ContactInfo(cont), nil
-}
-
-// GetAllContactFolderNamesForUser is a GraphQuery function for getting
-// ContactFolderId and display names for contacts. All other information is omitted.
-// Does not return the default Contact Folder
-func (c Contacts) GetAllContactFolderNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.ContactFolderCollectionResponseable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
-		return err
-	})
-
-	return resp, err
 }
 
 func (c Contacts) GetContainerByID(
@@ -169,10 +147,8 @@ func (c Contacts) EnumerateContainers(
 				continue
 			}
 
-			temp := graph.NewCacheFolder(fold, nil)
-
-			err = fn(temp)
-			if err != nil {
+			temp := graph.NewCacheFolder(fold, nil, nil)
+			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}
@@ -317,16 +293,8 @@ func (c Contacts) Serialize(
 // ---------------------------------------------------------------------------
 
 func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
-	name := ""
-	created := time.Time{}
-
-	if contact.GetDisplayName() != nil {
-		name = *contact.GetDisplayName()
-	}
-
-	if contact.GetCreatedDateTime() != nil {
-		created = *contact.GetCreatedDateTime()
-	}
+	name := ptr.Val(contact.GetDisplayName())
+	created := ptr.Val(contact.GetCreatedDateTime())
 
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeContact,

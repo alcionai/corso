@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -274,8 +275,8 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 					continue
 				}
 
-				require.NotEmpty(t, c.FullPath().Folder())
-				folder := c.FullPath().Folder()
+				require.NotEmpty(t, c.FullPath().Folder(false))
+				folder := c.FullPath().Folder(false)
 
 				delete(test.folderNames, folder)
 			}
@@ -507,7 +508,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 					continue
 				}
 
-				assert.Equal(t, edc.FullPath().Folder(), DefaultContactFolder)
+				assert.Equal(t, edc.FullPath().Folder(false), DefaultContactFolder)
 				assert.NotZero(t, count)
 			}
 
@@ -527,13 +528,35 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 	users := []string{suite.user}
 
+	ac, err := api.NewClient(acct)
+	require.NoError(suite.T(), err, "creating client")
+
+	var (
+		calID  string
+		bdayID string
+	)
+
+	fn := func(gcf graph.CacheFolder) error {
+		if *gcf.GetDisplayName() == DefaultCalendar {
+			calID = *gcf.GetId()
+		}
+
+		if *gcf.GetDisplayName() == "Birthdays" {
+			bdayID = *gcf.GetId()
+		}
+
+		return nil
+	}
+
+	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn))
+
 	tests := []struct {
 		name, expected string
 		scope          selectors.ExchangeScope
 	}{
 		{
 			name:     "Default Event Calendar",
-			expected: DefaultCalendar,
+			expected: calID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{DefaultCalendar},
 				selectors.PrefixMatch(),
@@ -541,9 +564,9 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		},
 		{
 			name:     "Birthday Calendar",
-			expected: calendarOthersFolder + "/Birthdays",
+			expected: bdayID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
-				[]string{calendarOthersFolder + "/Birthdays"},
+				[]string{"Birthdays"},
 				selectors.PrefixMatch(),
 			)[0],
 		},
@@ -571,9 +594,9 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 				if edc.FullPath().Service() != path.ExchangeMetadataService {
 					isMetadata = true
-					assert.Equal(t, test.expected, edc.FullPath().Folder())
+					assert.Equal(t, test.expected, edc.FullPath().Folder(false))
 				} else {
-					assert.Equal(t, "", edc.FullPath().Folder())
+					assert.Equal(t, "", edc.FullPath().Folder(false))
 				}
 
 				for item := range edc.Items() {

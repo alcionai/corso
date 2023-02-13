@@ -123,10 +123,11 @@ func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
 }
 
 type itemDetails struct {
-	info     *details.ItemInfo
-	repoPath path.Path
-	prevPath path.Path
-	cached   bool
+	info         *details.ItemInfo
+	repoPath     path.Path
+	prevPath     path.Path
+	locationPath path.Path
+	cached       bool
 }
 
 type corsoProgress struct {
@@ -135,7 +136,7 @@ type corsoProgress struct {
 	deets   *details.Builder
 	// toMerge represents items that we don't have in-memory item info for. The
 	// item info for these items should be sourced from a base snapshot later on.
-	toMerge    map[string]path.Path
+	toMerge    map[string]PrevRefs
 	mu         sync.RWMutex
 	totalBytes int64
 	errs       *fault.Errors
@@ -180,27 +181,45 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		cp.toMerge[d.prevPath.ShortRef()] = d.repoPath
+		cp.toMerge[d.prevPath.ShortRef()] = PrevRefs{
+			Repo:     d.repoPath,
+			Location: d.locationPath,
+		}
 
 		return
 	}
 
-	parent := d.repoPath.ToBuilder().Dir()
+	var (
+		locationFolders string
+		locPB           *path.Builder
+		parent          = d.repoPath.ToBuilder().Dir()
+	)
+
+	if d.locationPath != nil {
+		locationFolders = d.locationPath.Folder(true)
+
+		locPB = d.locationPath.ToBuilder()
+
+		// folderEntriesForPath assumes the location will
+		// not have an item element appended
+		if len(d.locationPath.Item()) > 0 {
+			locPB = locPB.Dir()
+		}
+	}
 
 	cp.deets.Add(
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
+		locationFolders,
 		!d.cached,
-		*d.info,
-	)
+		*d.info)
 
-	folders := details.FolderEntriesForPath(parent)
+	folders := details.FolderEntriesForPath(parent, locPB)
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
-		!d.cached,
-	)
+		!d.cached)
 }
 
 // Kopia interface function used as a callback when kopia finishes hashing a file.
@@ -263,11 +282,16 @@ func collectionEntries(
 	}
 
 	var (
+		locationPath path.Path
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
 		items = streamedEnts.Items()
 	)
+
+	if lp, ok := streamedEnts.(data.LocationPather); ok {
+		locationPath = lp.LocationPath()
+	}
 
 	for {
 		select {
@@ -328,7 +352,11 @@ func collectionEntries(
 				// previous snapshot then we should populate prevPath here and leave
 				// info nil.
 				itemInfo := ei.Info()
-				d := &itemDetails{info: &itemInfo, repoPath: itemPath}
+				d := &itemDetails{
+					info:         &itemInfo,
+					repoPath:     itemPath,
+					locationPath: locationPath,
+				}
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 			}
 
@@ -356,6 +384,7 @@ func streamBaseEntries(
 	cb func(context.Context, fs.Entry) error,
 	curPath path.Path,
 	prevPath path.Path,
+	locationPath path.Path,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
 	globalExcludeSet map[string]struct{},
@@ -411,7 +440,12 @@ func streamBaseEntries(
 		// All items have item info in the base backup. However, we need to make
 		// sure we have enough metadata to find those entries. To do that we add the
 		// item to progress and having progress aggregate everything for later.
-		d := &itemDetails{info: nil, repoPath: itemPath, prevPath: prevItemPath}
+		d := &itemDetails{
+			info:         nil,
+			repoPath:     itemPath,
+			prevPath:     prevItemPath,
+			locationPath: locationPath,
+		}
 		progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
 		if err := cb(ctx, entry); err != nil {
@@ -455,6 +489,12 @@ func getStreamItemFunc(
 			}
 		}
 
+		var locationPath path.Path
+
+		if lp, ok := streamedEnts.(data.LocationPather); ok {
+			locationPath = lp.LocationPath()
+		}
+
 		seen, err := collectionEntries(ctx, cb, streamedEnts, progress)
 		if err != nil {
 			return errors.Wrap(err, "streaming collection entries")
@@ -465,6 +505,7 @@ func getStreamItemFunc(
 			cb,
 			curPath,
 			prevPath,
+			locationPath,
 			baseDir,
 			seen,
 			globalExcludeSet,
@@ -533,6 +574,7 @@ type treeMap struct {
 	// Previous path this directory may have resided at if it is sourced from a
 	// base snapshot.
 	prevPath path.Path
+
 	// Child directories of this directory.
 	childDirs map[string]*treeMap
 	// Reference to data pulled from the external service. Contains only items in

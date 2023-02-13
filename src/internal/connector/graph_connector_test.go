@@ -129,12 +129,8 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			errs := fault.New(true)
-
-			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, errs)
+			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
 			assert.NoError(t, err)
-			assert.NoError(t, errs.Err())
-			assert.Empty(t, errs.Errs())
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
@@ -192,9 +188,11 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	require.NoError(suite.T(), err)
 
 	newConnector.Owners = owners
-
 	suite.Empty(len(newConnector.Users))
-	err = newConnector.setTenantUsers(ctx)
+
+	errs := fault.New(true)
+
+	err = newConnector.setTenantUsers(ctx, errs)
 	suite.NoError(err)
 	suite.Less(0, len(newConnector.Users))
 }
@@ -219,12 +217,8 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	newConnector.Service = service
 	assert.Equal(t, 0, len(newConnector.Sites))
 
-	errs := fault.New(true)
-
-	err = newConnector.setTenantSites(ctx, errs)
+	err = newConnector.setTenantSites(ctx, fault.New(true))
 	assert.NoError(t, err)
-	assert.NoError(t, errs.Err())
-	assert.Empty(t, errs.Errs())
 	assert.Less(t, 0, len(newConnector.Sites))
 
 	for _, site := range newConnector.Sites {
@@ -475,7 +469,7 @@ func runRestoreBackupTest(
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 		},
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -603,7 +597,7 @@ func runRestoreBackupTestVersion0(
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 		},
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -1550,7 +1544,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 				},
-			)
+				fault.New(true))
 			require.NoError(t, err)
 			// No excludes yet because this isn't an incremental backup.
 			assert.Empty(t, excludes)

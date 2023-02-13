@@ -10,7 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault/mock"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
@@ -48,7 +48,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailInboxPath.Folder()},
+					[]string{testdata.ExchangeEmailInboxPath.Folder(false)},
 				))
 
 				return sel
@@ -177,7 +177,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailBasePath.Folder()},
+					[]string{testdata.ExchangeEmailBasePath.Folder(false)},
 				))
 
 				return sel
@@ -192,7 +192,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailBasePath.Folder()},
+					[]string{testdata.ExchangeEmailBasePath.Folder(false)},
 					selectors.PrefixMatch(), // force prefix matching
 				))
 
@@ -205,7 +205,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.MailFolders(
-					[]string{testdata.ExchangeEmailInboxPath.Folder()},
+					[]string{testdata.ExchangeEmailInboxPath.Folder(false)},
 				))
 
 				return sel
@@ -217,7 +217,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.ContactFolders(
-					[]string{testdata.ExchangeContactsBasePath.Folder()},
+					[]string{testdata.ExchangeContactsBasePath.Folder(false)},
 				))
 
 				return sel
@@ -229,7 +229,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.ContactFolders(
-					[]string{testdata.ExchangeContactsRootPath.Folder()},
+					[]string{testdata.ExchangeContactsRootPath.Folder(false)},
 				))
 
 				return sel
@@ -242,7 +242,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.EventCalendars(
-					[]string{testdata.ExchangeEventsBasePath.Folder()},
+					[]string{testdata.ExchangeEventsBasePath.Folder(false)},
 				))
 
 				return sel
@@ -254,7 +254,7 @@ func (suite *SelectorReduceSuite) TestReduce() {
 			selFunc: func() selectors.Reducer {
 				sel := selectors.NewExchangeRestore(selectors.Any())
 				sel.Include(sel.EventCalendars(
-					[]string{testdata.ExchangeEventsRootPath.Folder()},
+					[]string{testdata.ExchangeEventsRootPath.Folder(false)},
 				))
 
 				return sel
@@ -265,11 +265,8 @@ func (suite *SelectorReduceSuite) TestReduce() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			errs := mock.NewAdder()
-
-			output := test.selFunc().Reduce(ctx, allDetails, errs)
+			output := test.selFunc().Reduce(ctx, allDetails, fault.New(true))
 			assert.ElementsMatch(t, test.expected, output.Entries)
-			assert.Empty(t, errs.Errs)
 		})
 	}
 }
