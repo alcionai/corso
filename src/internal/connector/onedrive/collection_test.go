@@ -164,6 +164,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
+				nil,
 				"drive-id",
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
@@ -298,6 +299,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
+				nil,
 				"fakeDriveID",
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
@@ -370,6 +372,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
 				folderPath,
+				nil,
 				"fakeDriveID",
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
