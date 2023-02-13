@@ -31,11 +31,7 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 		return nil, err
 	}
 
-	if errs.Err() != nil {
-		return nil, errs.Err()
-	}
-
-	return users, nil
+	return users, errs.Err()
 }
 
 // Users returns a list of users in the specified M365 tenant
