@@ -102,11 +102,6 @@ func (e *Errors) setErr(err error) *Errors {
 	return e
 }
 
-type Adder interface {
-	Add(err error) *Errors
-	Failed() bool
-}
-
 // Add appends the error to the slice of recoverable and
 // iterated errors (ie: errors.errs).  If failFast is true,
 // the first Added error will get copied to errors.err,

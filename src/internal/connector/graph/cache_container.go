@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -26,12 +27,12 @@ func CheckRequiredValues(c Container) error {
 
 	ptr := c.GetDisplayName()
 	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
+		return clues.New("folder missing display name").With("container_id", *idPtr)
 	}
 
 	ptr = c.GetParentFolderId()
 	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
+		return clues.New("folder missing parent ID").With("container_parent_id", *idPtr)
 	}
 
 	return nil

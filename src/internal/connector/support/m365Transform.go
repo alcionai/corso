@@ -306,9 +306,10 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 //
 //nolint:lll
 const (
-	itemAttachment = "#microsoft.graph.itemAttachment"
-	eventItemType  = "#microsoft.graph.event"
-	mailItemType   = "#microsoft.graph.message"
+	itemAttachment  = "#microsoft.graph.itemAttachment"
+	eventItemType   = "#microsoft.graph.event"
+	mailItemType    = "#microsoft.graph.message"
+	contactItemType = "#microsoft.graph.contact"
 )
 
 // ToItemAttachment transforms internal item, OutlookItemables, into
@@ -323,6 +324,13 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 	itemType := item.GetOdataType()
 
 	switch *itemType {
+	case contactItemType:
+		contact := item.(models.Contactable)
+		revised := sanitizeContact(contact)
+
+		transform.SetItem(revised)
+
+		return transform, nil
 	case eventItemType:
 		event := item.(models.Eventable)
 
@@ -371,6 +379,15 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 
 // 	return attachments, nil
 // }
+
+// sanitizeContact removes fields which prevent a Contact from
+// being uploaded as an attachment.
+func sanitizeContact(orig models.Contactable) models.Contactable {
+	orig.SetParentFolderId(nil)
+	orig.SetAdditionalData(nil)
+
+	return orig
+}
 
 // sanitizeEvent transfers data into event object and
 // removes unique IDs from the M365 object
