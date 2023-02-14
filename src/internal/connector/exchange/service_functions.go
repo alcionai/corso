@@ -2,8 +2,8 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -75,11 +75,11 @@ func PopulateExchangeContainerResolver(
 		cacheRoot = DefaultCalendar
 
 	default:
-		return nil, fmt.Errorf("ContainerResolver not present for %s type", qp.Category)
+		return nil, clues.New("no container resolver registered for category").WithClues(ctx)
 	}
 
 	if err := res.Populate(ctx, cacheRoot); err != nil {
-		return nil, errors.Wrap(err, "populating directory resolver")
+		return nil, clues.Wrap(err, "populating directory resolver").WithClues(ctx)
 	}
 
 	return res, nil
