@@ -1,8 +1,6 @@
 package version
 
-import "math"
-
-const Backup = 4
+const Backup = 5
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -28,7 +26,5 @@ const (
 	// OneDriveXNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
-	// TODO(ashmrtn): Update this to a real value when we merge the file name
-	// change. Set to MAXINT for now to keep the if-check using it working.
-	OneDriveXNameInMeta = math.MaxInt
+	OneDrive5NameInMeta = 5
 )

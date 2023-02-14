@@ -333,6 +333,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemID       = ptr.Val(item.GetId())
 				itemName     = ptr.Val(item.GetName())
 				itemSize     = ptr.Val(item.GetSize())
+				metaFileName = itemID
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
@@ -365,6 +366,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 
+				metaFileName = itemName
 				metaSuffix = DirMetaFileSuffix
 			}
 
@@ -450,7 +452,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				})
 
 				oc.data <- &Item{
-					id:   itemName + dataSuffix,
+					id:   itemID + dataSuffix,
 					data: itemReader,
 					info: itemInfo,
 				}
@@ -466,7 +468,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				})
 
 				oc.data <- &metadataItem{
-					id:      itemName + metaSuffix,
+					id:      metaFileName + metaSuffix,
 					data:    metaReader,
 					modTime: time.Now(),
 				}
