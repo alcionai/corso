@@ -340,16 +340,17 @@ func formatDetailsForRestoration(
 	var (
 		fdsPaths = fds.Paths()
 		paths    = make([]path.Path, len(fdsPaths))
+		et       = errs.Tracker()
 	)
 
 	for i := range fdsPaths {
 		if errs.Err() != nil {
-			return nil, errs.Err()
+			break
 		}
 
 		p, err := path.FromDataLayerPath(fdsPaths[i], true)
 		if err != nil {
-			errs.Add(clues.
+			et.Add(clues.
 				Wrap(err, "parsing details path after reduction").
 				WithMap(clues.In(ctx)).
 				With("path", fdsPaths[i]))
@@ -371,5 +372,5 @@ func formatDetailsForRestoration(
 		return paths[i].String() < paths[j].String()
 	})
 
-	return paths, errs.Err()
+	return paths, et.Err()
 }

@@ -178,6 +178,7 @@ func DataCollections(
 	var (
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
+		et          = errs.Tracker()
 	)
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
@@ -200,14 +201,14 @@ func DataCollections(
 			su,
 			errs)
 		if err != nil {
-			errs.Add(err)
+			et.Add(err)
 			continue
 		}
 
 		collections = append(collections, dcs...)
 	}
 
-	return collections, nil, errs.Err()
+	return collections, nil, et.Err()
 }
 
 func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {

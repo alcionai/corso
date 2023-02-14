@@ -223,7 +223,10 @@ func (sc *Collection) retrieveLists(
 	progress chan<- struct{},
 	errs *fault.Errors,
 ) (numMetrics, error) {
-	var metrics numMetrics
+	var (
+		metrics numMetrics
+		et      = errs.Tracker()
+	)
 
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
@@ -240,7 +243,7 @@ func (sc *Collection) retrieveLists(
 
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
+			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
 			continue
 		}
 
@@ -266,7 +269,7 @@ func (sc *Collection) retrieveLists(
 		}
 	}
 
-	return metrics, errs.Err()
+	return metrics, et.Err()
 }
 
 func (sc *Collection) retrievePages(
@@ -275,7 +278,10 @@ func (sc *Collection) retrievePages(
 	progress chan<- struct{},
 	errs *fault.Errors,
 ) (numMetrics, error) {
-	var metrics numMetrics
+	var (
+		metrics numMetrics
+		et      = errs.Tracker()
+	)
 
 	betaService := sc.betaService
 	if betaService == nil {
@@ -298,7 +304,7 @@ func (sc *Collection) retrievePages(
 
 		byteArray, err := serializeContent(wtr, pg)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
+			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
 			continue
 		}
 
@@ -318,7 +324,7 @@ func (sc *Collection) retrievePages(
 		}
 	}
 
-	return metrics, errs.Err()
+	return metrics, et.Err()
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {

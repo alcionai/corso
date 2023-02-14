@@ -139,6 +139,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 	var (
 		failed  bool
 		reasons = map[string]manifest.ID{}
+		et      = errs.Tracker()
 	)
 
 	for _, man := range mans {
@@ -162,7 +163,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 			if b, ok := reasons[reasonKey]; ok {
 				failed = true
 
-				errs.Add(clues.New("manifests have overlapping reasons").
+				et.Add(clues.New("manifests have overlapping reasons").
 					WithClues(ctx).
 					With("other_manifest_id", b))
 
@@ -177,7 +178,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 		return clues.New("multiple base snapshots qualify").WithClues(ctx)
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // collectMetadata retrieves all metadata files associated with the manifest.
