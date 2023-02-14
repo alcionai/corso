@@ -76,25 +76,6 @@ func (c Contacts) GetItem(
 	return cont, ContactInfo(cont), nil
 }
 
-// GetAllContactFolderNamesForUser is a GraphQuery function for getting
-// ContactFolderId and display names for contacts. All other information is omitted.
-// Does not return the default Contact Folder
-func (c Contacts) GetAllContactFolderNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.ContactFolderCollectionResponseable
-
-	resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
-
-	return resp, err
-}
-
 func (c Contacts) GetContainerByID(
 	ctx context.Context,
 	userID, dirID string,
@@ -155,10 +136,8 @@ func (c Contacts) EnumerateContainers(
 				continue
 			}
 
-			temp := graph.NewCacheFolder(fold, nil)
-
-			err = fn(temp)
-			if err != nil {
+			temp := graph.NewCacheFolder(fold, nil, nil)
+			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}

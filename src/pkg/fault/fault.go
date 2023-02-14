@@ -84,11 +84,6 @@ func (e *Errors) Fail(err error) *Errors {
 	return e.setErr(err)
 }
 
-// Failed returns true if e.err != nil, signifying a catastrophic failure.
-func (e *Errors) Failed() bool {
-	return e.err != nil
-}
-
 // setErr handles setting errors.err.  Sync locking gets
 // handled upstream of this call.
 func (e *Errors) setErr(err error) *Errors {

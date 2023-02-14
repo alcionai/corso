@@ -31,13 +31,10 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	var (
 		t    = suite.T()
 		acct = tester.NewM365Account(suite.T())
-		errs = fault.New(true)
 	)
 
-	users, err := Users(ctx, acct, errs)
+	users, err := Users(ctx, acct, fault.New(true))
 	require.NoError(t, err)
-	require.NoError(t, errs.Err())
-	require.Empty(t, errs.Errs())
 	require.NotNil(t, users)
 	require.Greater(t, len(users), 0)
 

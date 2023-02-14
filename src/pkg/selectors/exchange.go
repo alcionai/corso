@@ -575,12 +575,12 @@ func (ec exchangeCategory) isLeaf() bool {
 	return ec == ec.leafCat()
 }
 
-// pathValues transforms a path to a map of identified properties.
+// pathValues transforms the two paths to maps of identified properties.
 //
 // Example:
 // [tenantID, service, userPN, category, mailFolder, mailID]
-// => {exchUser: userPN, exchMailFolder: mailFolder, exchMail: mailID}
-func (ec exchangeCategory) pathValues(p path.Path) map[categorizer]string {
+// => {exchMailFolder: mailFolder, exchMail: mailID}
+func (ec exchangeCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
 	var folderCat, itemCat categorizer
 
 	switch ec {
@@ -594,13 +594,24 @@ func (ec exchangeCategory) pathValues(p path.Path) map[categorizer]string {
 		folderCat, itemCat = ExchangeMailFolder, ExchangeMail
 
 	default:
-		return map[categorizer]string{}
+		return map[categorizer]string{}, map[categorizer]string{}
 	}
 
-	return map[categorizer]string{
-		folderCat: p.Folder(),
-		itemCat:   p.Item(),
+	rv := map[categorizer]string{
+		folderCat: repo.Folder(false),
+		itemCat:   repo.Item(),
 	}
+
+	lv := map[categorizer]string{}
+
+	if location != nil {
+		lv = map[categorizer]string{
+			folderCat: location.Folder(false),
+			itemCat:   location.Item(),
+		}
+	}
+
+	return rv, lv
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.

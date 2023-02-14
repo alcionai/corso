@@ -187,8 +187,7 @@ func (c Mail) EnumerateContainers(
 		}
 
 		for _, v := range resp.GetValue() {
-			temp := graph.NewCacheFolder(v, nil)
-
+			temp := graph.NewCacheFolder(v, nil, nil)
 			if err := fn(temp); err != nil {
 				errs = multierror.Append(errs, errors.Wrap(err, "iterating mail folders delta"))
 				continue

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	absser "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -10,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -85,7 +86,7 @@ func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
 }
 
 // GetAll retrieves all users.
-func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
+func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userable, error) {
 	service, err := c.service()
 	if err != nil {
 		return nil, err
@@ -96,7 +97,7 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 	resp, err = service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
 
 	if err != nil {
-		return nil, support.ConnectorStackErrorTraceWrap(err, "getting all users")
+		return nil, clues.Wrap(err, "getting all users").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	iter, err := msgraphgocore.NewPageIterator(
@@ -104,18 +105,19 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 		service.Adapter(),
 		models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, support.ConnectorStackErrorTraceWrap(err, "constructing user iterator")
+		return nil, clues.Wrap(err, "creating users iterator").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		iterErrs error
-		us       = make([]models.Userable, 0)
-	)
+	us := make([]models.Userable, 0)
 
 	iterator := func(item any) bool {
+		if errs.Err() != nil {
+			return false
+		}
+
 		u, err := validateUser(item)
 		if err != nil {
-			iterErrs = support.WrapAndAppend("validating user", err, iterErrs)
+			errs.Add(clues.Wrap(err, "validating user").WithClues(ctx).WithAll(graph.ErrData(err)...))
 		} else {
 			us = append(us, u)
 		}
@@ -124,10 +126,10 @@ func (c Users) GetAll(ctx context.Context) ([]models.Userable, error) {
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, support.ConnectorStackErrorTraceWrap(err, "iterating all users")
+		return nil, clues.Wrap(err, "iterating all users").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	return us, iterErrs
+	return us, errs.Err()
 }
 
 func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {
@@ -139,7 +141,7 @@ func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, err
 	resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
 
 	if err != nil {
-		return nil, support.ConnectorStackErrorTraceWrap(err, "getting user by id")
+		return nil, clues.Wrap(err, "getting user").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return resp, err
@@ -158,7 +160,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
-			return nil, support.ConnectorStackErrorTraceWrap(err, "getting user's exchange mailfolders")
+			return nil, clues.Wrap(err, "getting user's mail folder").WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		delete(userInfo.DiscoveredServices, path.ExchangeService)
@@ -177,15 +179,15 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 func validateUser(item any) (models.Userable, error) {
 	m, ok := item.(models.Userable)
 	if !ok {
-		return nil, errors.Errorf("expected Userable, got %T", item)
+		return nil, clues.Stack(clues.New("unexpected model"), errors.Errorf("%T", item))
 	}
 
 	if m.GetId() == nil {
-		return nil, errors.Errorf("missing ID")
+		return nil, clues.New("missing ID")
 	}
 
 	if m.GetUserPrincipalName() == nil {
-		return nil, errors.New("missing principalName")
+		return nil, clues.New("missing principalName")
 	}
 
 	return m, nil
