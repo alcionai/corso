@@ -3,9 +3,11 @@ package graph
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -171,19 +173,19 @@ func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
 func CheckRequiredValues(c Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
+	id := ptr.Val(c.GetId())
+	if len(id) == 0 {
+		return errors.New("container missing ID")
 	}
 
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
+	dn := ptr.Val(c.GetDisplayName())
+	if len(dn) == 0 {
+		return clues.New("container missing display name").With("container_id", id)
 	}
 
-	ptr = c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
+	parentID := ptr.Val(c.GetParentFolderId())
+	if len(parentID) == 0 {
+		return clues.New("container missing parent ID").With("container_id", id)
 	}
 
 	return nil

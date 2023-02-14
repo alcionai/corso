@@ -192,7 +192,7 @@ const personalSitePath = "sharepoint.com/personal/"
 func identifySite(item any) (string, string, error) {
 	m, ok := item.(models.Siteable)
 	if !ok {
-		return "", "", clues.New("iteration retrieved non-Site item").With("item_type", fmt.Sprintf("%T", item))
+		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
 	}
 
 	if m.GetName() == nil {
