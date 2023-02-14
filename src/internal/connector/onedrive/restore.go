@@ -129,11 +129,14 @@ func RestoreCollections(
 		return dcs[i].FullPath().String() < dcs[j].FullPath().String()
 	})
 
-	parentPermissions := map[string][]UserPermission{}
+	var (
+		et                = errs.Tracker()
+		parentPermissions = map[string][]UserPermission{}
+	)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -159,7 +162,7 @@ func RestoreCollections(
 			opts.RestorePermissions,
 			errs)
 		if err != nil {
-			errs.Add(err)
+			et.Add(err)
 		}
 
 		for k, v := range folderPerms {
@@ -178,10 +181,10 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		errs.Err(),
+		et.Err(),
 		dest.ContainerName)
 
-	return status, errs.Err()
+	return status, et.Err()
 }
 
 // RestoreCollection handles restoration of an individual collection.
@@ -256,11 +259,13 @@ func RestoreCollection(
 		return metrics, folderPerms, permissionIDMappings, clues.Wrap(err, "creating folders for restore")
 	}
 
-	// Restore items from the collection
-	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
+	var (
+		et    = errs.Tracker()
+		items = dc.Items(ctx, errs)
+	)
 
 	for {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -275,7 +280,7 @@ func RestoreCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				et.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -297,7 +302,7 @@ func RestoreCollection(
 						copyBuffer,
 						source)
 					if err != nil {
-						errs.Add(err)
+						et.Add(err)
 						continue
 					}
 
@@ -321,7 +326,7 @@ func RestoreCollection(
 
 					permsFile, err := dc.Fetch(ctx, metaName)
 					if err != nil {
-						errs.Add(clues.Wrap(err, "getting item metadata"))
+						et.Add(clues.Wrap(err, "getting item metadata"))
 						continue
 					}
 
@@ -330,7 +335,7 @@ func RestoreCollection(
 					metaReader.Close()
 
 					if err != nil {
-						errs.Add(clues.Wrap(err, "deserializing item metadata"))
+						et.Add(clues.Wrap(err, "deserializing item metadata"))
 						continue
 					}
 
@@ -343,7 +348,7 @@ func RestoreCollection(
 						meta.Permissions,
 						permissionIDMappings)
 					if err != nil {
-						errs.Add(clues.Wrap(err, "restoring item permissions"))
+						et.Add(clues.Wrap(err, "restoring item permissions"))
 						continue
 					}
 
@@ -363,7 +368,7 @@ func RestoreCollection(
 
 					meta, err := getMetadata(metaReader)
 					if err != nil {
-						errs.Add(clues.Wrap(err, "getting directory metadata").WithClues(ctx))
+						et.Add(clues.Wrap(err, "getting directory metadata").WithClues(ctx))
 						continue
 					}
 
@@ -386,7 +391,7 @@ func RestoreCollection(
 					copyBuffer,
 					source)
 				if err != nil {
-					errs.Add(err)
+					et.Add(err)
 					continue
 				}
 
@@ -402,7 +407,7 @@ func RestoreCollection(
 		}
 	}
 
-	return metrics, folderPerms, permissionIDMappings, errs.Err()
+	return metrics, folderPerms, permissionIDMappings, et.Err()
 }
 
 // createRestoreFoldersWithPermissions creates the restore folder hierarchy in
