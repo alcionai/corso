@@ -143,7 +143,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 	)
 
 	for _, man := range mans {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 

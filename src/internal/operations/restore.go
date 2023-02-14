@@ -358,7 +358,7 @@ func formatDetailsForRestoration(
 	)
 
 	for i := range fdsPaths {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 

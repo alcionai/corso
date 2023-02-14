@@ -224,7 +224,7 @@ func ExampleErrors_Errs() {
 	// Err() is nil
 }
 
-func ExampleTracker() {
+func ExampleErrors_Tracker() {
 	// It is common for Corso to run operations in parallel,
 	// and for iterations to be nested within iterations.  To
 	// avoid mistakenly returning an error that was sourced
@@ -235,10 +235,7 @@ func ExampleTracker() {
 
 	err := func() error {
 		for i := range items {
-			// note that we check errs.Err() on every iteration,
-			// not trkr.Err().  The loop should break if any
-			// hard failure occurs, not just one within this loop.
-			if errs.Err() != nil {
+			if trkr.Err() != nil {
 				break
 			}
 

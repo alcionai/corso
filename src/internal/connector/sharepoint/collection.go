@@ -237,7 +237,7 @@ func (sc *Collection) retrieveLists(
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -298,7 +298,7 @@ func (sc *Collection) retrievePages(
 	// Pageable objects are not supported in v1.0 of msgraph at this time.
 	// TODO: Verify Parsable interface supported with modified-Pageable
 	for _, pg := range pages {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 

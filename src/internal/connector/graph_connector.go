@@ -333,7 +333,7 @@ func getResources(
 	et := errs.Tracker()
 
 	callbackFunc := func(item any) bool {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return false
 		}
 

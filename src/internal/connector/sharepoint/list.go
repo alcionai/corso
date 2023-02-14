@@ -112,7 +112,7 @@ func loadSiteLists(
 	}
 
 	for _, listID := range listIDs {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -213,7 +213,7 @@ func fetchListItems(
 		}
 
 		for _, itm := range resp.GetValue() {
-			if errs.Err() != nil {
+			if et.Err() != nil {
 				break
 			}
 
@@ -319,7 +319,7 @@ func fetchContentTypes(
 		}
 
 		for _, cont := range resp.GetValue() {
-			if errs.Err() != nil {
+			if et.Err() != nil {
 				break
 			}
 
