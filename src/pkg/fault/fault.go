@@ -124,3 +124,48 @@ func (e *Errors) addErr(err error) *Errors {
 
 	return e
 }
+
+// ---------------------------------------------------------------------------
+// Iteration Tracker
+// ---------------------------------------------------------------------------
+
+// Tracker constructs a new errors tracker for aggregating errors
+// in a single iteration loop.  Trackers shouldn't be passed down
+// to other funcs, and the function that spawned the tracker should
+// always return `tracker.Err()` to ensure that hard failures are
+// propagated upstream.
+func (e *Errors) Tracker() *tracker {
+	return &tracker{
+		mu:   &sync.Mutex{},
+		errs: e,
+	}
+}
+
+type tracker struct {
+	mu      *sync.Mutex
+	errs    *Errors
+	current error
+}
+
+func (e *tracker) Add(err error) {
+	if err == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.errs.Err() == nil && e.errs.failFast {
+		e.current = err
+	}
+
+	e.errs.Add(err)
+}
+
+// Err returns the primary error in the tracker.  Will be nil if the
+// original Errors is set to bestEffort handling.  Does not return the
+// underlying Errors.Err().  Should be called as the return value of
+// any func which created a new tracker.
+func (e *tracker) Err() error {
+	return e.current
+}

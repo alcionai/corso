@@ -224,8 +224,45 @@ func ExampleErrors_Errs() {
 	// Err() is nil
 }
 
-// ExampleErrors_e2e showcases a more complex integration.
-func ExampleErrors_e2e() {
+func ExampleTracker() {
+	// It is common for Corso to run operations in parallel,
+	// and for iterations to be nested within iterations.  To
+	// avoid mistakenly returning an error that was sourced
+	// from some other async iteration, recoverable instances
+	// are aggrgated into a Tracker.
+	errs := fault.New(false)
+	trkr := errs.Tracker()
+
+	err := func() error {
+		for i := range items {
+			// note that we check errs.Err() on every iteration,
+			// not trkr.Err().  The loop should break if any
+			// hard failure occurs, not just one within this loop.
+			if errs.Err() != nil {
+				break
+			}
+
+			if err := getIthItem(i); err != nil {
+				// instead of calling errs.Add(err), we call the
+				// trackers Add method.  The error will still get
+				// added to the errs.Errs() set.  But if this err
+				// causes the run to fail, only this tracker treats
+				// it as the causal failure.
+				trkr.Add(err)
+			}
+		}
+
+		return trkr.Err()
+	}()
+	if err != nil {
+		// handle the Err() that appeared in the tracker
+		fmt.Println("err occurred", errs.Err())
+	}
+
+}
+
+// ExampleErrorsE2e showcases a more complex integration.
+func Example_errors_e2e() {
 	oper := newOperation()
 
 	// imagine that we're a user, calling into corso SDK.

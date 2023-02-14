@@ -44,6 +44,7 @@ func DataCollections(
 	}
 
 	var (
+		et          = errs.Tracker()
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
 	)
@@ -73,7 +74,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -88,7 +89,7 @@ func DataCollections(
 				su,
 				ctrlOpts)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -102,7 +103,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 		}
@@ -111,7 +112,7 @@ func DataCollections(
 		foldersComplete <- struct{}{}
 	}
 
-	return collections, nil, errs.Err()
+	return collections, nil, et.Err()
 }
 
 func collectLists(
@@ -124,7 +125,10 @@ func collectLists(
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
 
-	spcs := make([]data.BackupCollection, 0)
+	var (
+		et   = errs.Tracker()
+		spcs = make([]data.BackupCollection, 0)
+	)
 
 	lists, err := preFetchLists(ctx, serv, siteID)
 	if err != nil {
@@ -143,7 +147,7 @@ func collectLists(
 				path.ListsCategory,
 				false)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "creating list collection path").WithClues(ctx))
+			et.Add(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
@@ -152,7 +156,7 @@ func collectLists(
 		spcs = append(spcs, collection)
 	}
 
-	return spcs, errs.Err()
+	return spcs, et.Err()
 }
 
 // collectLibraries constructs a onedrive Collections struct and Get()s
@@ -204,7 +208,10 @@ func collectPages(
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Pages collections")
 
-	spcs := make([]data.BackupCollection, 0)
+	var (
+		et   = errs.Tracker()
+		spcs = make([]data.BackupCollection, 0)
+	)
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
@@ -232,7 +239,7 @@ func collectPages(
 				path.PagesCategory,
 				false)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "creating page collection path").WithClues(ctx))
+			et.Add(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
@@ -242,7 +249,7 @@ func collectPages(
 		spcs = append(spcs, collection)
 	}
 
-	return spcs, errs.Err()
+	return spcs, et.Err()
 }
 
 type folderMatcher struct {
