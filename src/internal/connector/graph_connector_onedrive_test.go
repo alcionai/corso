@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -17,11 +18,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
+func getMetadata(fileName, user string, roles []string) onedrive.Metadata {
+	if len(user) == 0 || len(roles) == 0 {
+		return onedrive.Metadata{FileName: fileName}
+	}
+
 	id := base64.StdEncoding.EncodeToString([]byte(user + strings.Join(roles, "+")))
-	testMeta := onedrive.Metadata{Permissions: []onedrive.UserPermission{
-		{ID: id, Roles: roles, Email: user},
-	}}
+	testMeta := onedrive.Metadata{
+		FileName: fileName,
+		Permissions: []onedrive.UserPermission{
+			{ID: id, Roles: roles, Email: user},
+		},
+	}
+
+	return testMeta
+}
+
+func getTestMetaJSON(t *testing.T, fileName, user string, roles []string) []byte {
+	testMeta := getMetadata(fileName, user, roles)
 
 	testMetaJSON, err := json.Marshal(testMeta)
 	if err != nil {
@@ -31,18 +45,50 @@ func getTestMetaJSON(t *testing.T, user string, roles []string) []byte {
 	return testMetaJSON
 }
 
-func onedriveItemWithData(name string, itemData []byte) itemInfo {
+type testOneDriveData struct {
+	FileName string `json:"fileName,omitempty"`
+	Data     []byte `json:"data,omitempty"`
+}
+
+func onedriveItemWithData(
+	t *testing.T,
+	name, lookupKey string,
+	fileData []byte,
+) itemInfo {
+	t.Helper()
+
+	content := testOneDriveData{
+		FileName: lookupKey,
+		Data:     fileData,
+	}
+
+	serialized, err := json.Marshal(content)
+	require.NoError(t, err)
+
 	return itemInfo{
 		name:      name,
-		data:      itemData,
-		lookupKey: name,
+		data:      serialized,
+		lookupKey: lookupKey,
 	}
 }
 
-func onedriveFileWithMetadata(baseName string, fileData, metadata []byte) []itemInfo {
-	return []itemInfo{
-		onedriveItemWithData(baseName+onedrive.DataFileSuffix, fileData),
-		onedriveItemWithData(baseName+onedrive.MetaFileSuffix, metadata),
+func onedriveMetadata(
+	t *testing.T,
+	fileName, itemID string,
+	user string,
+	roles []string,
+) itemInfo {
+	t.Helper()
+
+	testMeta := getMetadata(fileName, user, roles)
+
+	testMetaJSON, err := json.Marshal(testMeta)
+	require.NoError(t, err, "marshalling metadata")
+
+	return itemInfo{
+		name:      itemID,
+		data:      testMetaJSON,
+		lookupKey: itemID,
 	}
 }
 
@@ -139,13 +185,150 @@ var (
 	}
 )
 
-func withItems(items ...[]itemInfo) []itemInfo {
-	res := []itemInfo{}
-	for _, i := range items {
-		res = append(res, i...)
+func newOneDriveCollection(
+	t *testing.T,
+	pathElements []string,
+	backupVersion int,
+) *onedriveCollection {
+	return &onedriveCollection{
+		pathElements:  pathElements,
+		backupVersion: backupVersion,
+		t:             t,
+	}
+}
+
+type onedriveCollection struct {
+	pathElements  []string
+	items         []itemInfo
+	aux           []itemInfo
+	backupVersion int
+	t             *testing.T
+}
+
+func (c onedriveCollection) collection() colInfo {
+	return colInfo{
+		pathElements: c.pathElements,
+		category:     path.FilesCategory,
+		items:        c.items,
+		auxItems:     c.aux,
+	}
+}
+
+func (c *onedriveCollection) withFile(
+	name string,
+	fileData []byte,
+	user string,
+	roles []string,
+) *onedriveCollection {
+	switch c.backupVersion {
+	case 0:
+		// Lookups will occur using the most recent version of things so we need
+		// the embedded file name to match that.
+		c.items = append(c.items, onedriveItemWithData(
+			c.t,
+			name,
+			name+onedrive.DataFileSuffix,
+			fileData))
+
+	case 1:
+		fallthrough
+	case 2:
+		c.items = append(c.items, onedriveItemWithData(
+			c.t,
+			name+onedrive.DataFileSuffix,
+			name+onedrive.DataFileSuffix,
+			fileData))
+
+		metadata := onedriveMetadata(
+			c.t,
+			"",
+			name+onedrive.MetaFileSuffix,
+			user,
+			roles)
+		c.items = append(c.items, metadata)
+		c.aux = append(c.aux, metadata)
+
+	default:
+		c.items = append(c.items, onedriveItemWithData(
+			c.t,
+			name+"-id"+onedrive.DataFileSuffix,
+			name+onedrive.DataFileSuffix,
+			fileData))
+
+		metadata := onedriveMetadata(
+			c.t,
+			name,
+			name+"-id"+onedrive.MetaFileSuffix,
+			user,
+			roles)
+		c.items = append(c.items, metadata)
+		c.aux = append(c.aux, metadata)
 	}
 
-	return res
+	return c
+}
+
+func (c *onedriveCollection) withFolder(
+	name string,
+	user string,
+	roles []string,
+) *onedriveCollection {
+	if c.backupVersion < 1 {
+		return c
+	}
+
+	switch c.backupVersion {
+	case 1:
+		fallthrough
+	case 2:
+		c.items = append(
+			c.items,
+			onedriveMetadata(
+				c.t,
+				"",
+				name+onedrive.DirMetaFileSuffix,
+				user,
+				roles),
+		)
+
+	default:
+		c.items = append(
+			c.items,
+			onedriveMetadata(
+				c.t,
+				name,
+				name+onedrive.DirMetaFileSuffix,
+				user,
+				roles),
+		)
+	}
+
+	return c
+}
+
+// withPermissions adds permissions to the folder represented by this
+// onedriveCollection.
+func (c *onedriveCollection) withPermissions(
+	user string,
+	roles []string,
+) *onedriveCollection {
+	// These versions didn't store permissions for the folder or didn't store them
+	// in the folder's collection.
+	if c.backupVersion < 3 {
+		return c
+	}
+
+	name := c.pathElements[len(c.pathElements)-1]
+
+	c.items = append(
+		c.items,
+		onedriveMetadata(
+			c.t,
+			name,
+			name+onedrive.DirMetaFileSuffix,
+			user,
+			roles),
+	)
 }
 
 func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup() {
