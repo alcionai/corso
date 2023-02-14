@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -119,7 +120,8 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		suite.gs,
 		control.Copy,
 		calendarID,
-		userID)
+		userID,
+		fault.New(true))
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	assert.NotNil(t, info, "event item info")
 }
@@ -346,7 +348,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				service,
 				destination,
 				userID,
-			)
+				fault.New(true))
 			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 			assert.NotNil(t, info, "item info was not populated")
 			assert.NotNil(t, deleters)

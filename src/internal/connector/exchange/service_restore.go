@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime/trace"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -35,20 +37,21 @@ func RestoreExchangeObject(
 	policy control.CollisionPolicy,
 	service graph.Servicer,
 	destination, user string,
+	errs *fault.Errors,
 ) (*details.ExchangeInfo, error) {
 	if policy != control.Copy {
-		return nil, fmt.Errorf("restore policy: %s not supported for RestoreExchangeObject", policy)
+		return nil, clues.Wrap(clues.New(policy.String()), "policy not supported for Exchange restore").WithClues(ctx)
 	}
 
 	switch category {
 	case path.EmailCategory:
-		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user)
+		return RestoreMailMessage(ctx, bits, service, control.Copy, destination, user, errs)
 	case path.ContactsCategory:
 		return RestoreExchangeContact(ctx, bits, service, control.Copy, destination, user)
 	case path.EventsCategory:
-		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user)
+		return RestoreExchangeEvent(ctx, bits, service, control.Copy, destination, user, errs)
 	default:
-		return nil, fmt.Errorf("type: %s not supported for RestoreExchangeObject", category)
+		return nil, clues.Wrap(clues.New(category.String()), "not supported for Exchange restore")
 	}
 }
 
@@ -67,22 +70,18 @@ func RestoreExchangeContact(
 ) (*details.ExchangeInfo, error) {
 	contact, err := support.CreateContactFromBytes(bits)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating contact from bytes: RestoreExchangeContact")
+		return nil, clues.Wrap(err, "creating contact from bytes").WithClues(ctx)
 	}
+
+	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
-		name := ptr.Val(contact.GetGivenName())
-
-		return nil, errors.Wrap(
-			err,
-			"uploading Contact during RestoreExchangeContact: "+name+" "+
-				support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "uploading Contact").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	if response == nil {
-		return nil, errors.New("msgraph contact post fail: REST response not received")
+		return nil, clues.New("nil response from post").WithClues(ctx)
 	}
 
 	info := api.ContactInfo(contact)
@@ -103,17 +102,18 @@ func RestoreExchangeEvent(
 	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
+	errs *fault.Errors,
 ) (*details.ExchangeInfo, error) {
 	event, err := support.CreateEventFromBytes(bits)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating event from bytes: RestoreExchangeEvent")
+		return nil, clues.Wrap(err, "creating event from bytes").WithClues(ctx)
 	}
 
-	transformedEvent := support.ToEventSimplified(event)
+	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
 	var (
-		attached []models.Attachmentable
-		errs     error
+		transformedEvent = support.ToEventSimplified(event)
+		attached         []models.Attachmentable
 	)
 
 	if *event.GetHasAttachments() {
@@ -124,15 +124,11 @@ func RestoreExchangeEvent(
 
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
 	if err != nil {
-		return nil, errors.Wrap(err,
-			fmt.Sprintf(
-				"uploading event during RestoreExchangeEvent: %s",
-				support.ConnectorStackErrorTrace(err)),
-		)
+		return nil, clues.Wrap(err, "uploading event").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	if response == nil {
-		return nil, errors.New("msgraph event post fail: REST response not received")
+		return nil, clues.New("nil response from post").WithClues(ctx)
 	}
 
 	uploader := &eventAttachmentUploader{
@@ -143,25 +139,19 @@ func RestoreExchangeEvent(
 	}
 
 	for _, attach := range attached {
-		if err := uploadAttachment(ctx, uploader, attach); err != nil {
-			errs = support.WrapAndAppend(
-				fmt.Sprintf(
-					"uploading attachment for message %s: %s",
-					ptr.Val(transformedEvent.GetId()),
-					support.ConnectorStackErrorTrace(err),
-				),
-				err,
-				errs,
-			)
-
+		if errs.Err() != nil {
 			break
+		}
+
+		if err := uploadAttachment(ctx, uploader, attach); err != nil {
+			errs.Add(err)
 		}
 	}
 
 	info := api.EventInfo(event)
 	info.Size = int64(len(bits))
 
-	return info, errs
+	return info, errs.Err()
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -176,16 +166,21 @@ func RestoreMailMessage(
 	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
+	errs *fault.Errors,
 ) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating email from bytes: RestoreMailMessage")
+		return nil, clues.Wrap(err, "creating mail from bytes").WithClues(ctx)
 	}
-	// Sets fields from original message from storage
-	clone := support.ToMessage(originalMessage)
-	valueID := MailRestorePropertyTag
-	enableValue := RestoreCanonicalEnableValue
+
+	ctx = clues.Add(ctx, "item_id", ptr.Val(originalMessage.GetId()))
+
+	var (
+		clone       = support.ToMessage(originalMessage)
+		valueID     = MailRestorePropertyTag
+		enableValue = RestoreCanonicalEnableValue
+	)
 
 	// Set Extended Properties:
 	// 1st: No transmission
@@ -219,17 +214,8 @@ func RestoreMailMessage(
 
 	clone.SetSingleValueExtendedProperties(svlep)
 
-	// Switch workflow based on collision policy
-	switch cp {
-	default:
-		logger.Ctx(ctx).DPanicw("restoreMailMessage received unrecognized restore policy; defaulting to copy",
-			"policy", cp)
-		fallthrough
-	case control.Copy:
-		err := SendMailToBackStore(ctx, service, user, destination, clone)
-		if err != nil {
-			return nil, err
-		}
+	if err := SendMailToBackStore(ctx, service, user, destination, clone, errs); err != nil {
+		return nil, err
 	}
 
 	info := api.MailInfo(clone)
@@ -253,28 +239,23 @@ func SendMailToBackStore(
 	service graph.Servicer,
 	user, destination string,
 	message models.Messageable,
+	errs *fault.Errors,
 ) error {
-	var (
-		attached []models.Attachmentable
-		errs     error
-	)
+	attached := message.GetAttachments()
 
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
-	attached = message.GetAttachments()
 	message.SetAttachments([]models.Attachmentable{})
 
-	sentMessage, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
+	response, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
-		return errors.Wrap(err,
-			user+": failure sendMailAPI: Dest: "+destination+" Details: "+support.ConnectorStackErrorTrace(err),
-		)
+		return clues.Wrap(err, "restoring mail").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	if sentMessage == nil {
-		return errors.New("message not Sent: blocked by server")
+	if response == nil {
+		return clues.New("nil response from post").WithClues(ctx)
 	}
 
-	id := *sentMessage.GetId()
+	id := ptr.Val(response.GetId())
 
 	uploader := &mailAttachmentUploader{
 		userID:   user,
@@ -284,29 +265,28 @@ func SendMailToBackStore(
 	}
 
 	for _, attachment := range attached {
+		if errs.Err() != nil {
+			break
+		}
+
 		if err := uploadAttachment(ctx, uploader, attachment); err != nil {
 			if ptr.Val(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
 				name := ptr.Val(attachment.GetName())
 
-				logger.Ctx(ctx).Infow(
-					"item attachment upload not successful. content not accepted by M365 server",
-					"Attachment Name", name)
+				logger.Ctx(ctx).
+					With("err", err, "attachment_name", name).
+					Infow("mail upload failed", clues.InErr(err).Slice()...)
 
 				continue
 			}
 
-			errs = support.WrapAndAppend(
-				fmt.Sprintf("uploading attachment for message %s: %s",
-					id, support.ConnectorStackErrorTrace(err)),
-				err,
-				errs,
-			)
+			errs.Add(errors.Wrap(err, "uploading mail attachment"))
 
 			break
 		}
 	}
 
-	return errs
+	return errs.Err()
 }
 
 // RestoreExchangeDataCollections restores M365 objects in data.RestoreCollection to MSFT
@@ -319,22 +299,25 @@ func RestoreExchangeDataCollections(
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
+	errs *fault.Errors,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
-		// map of caches... but not yet...
 		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
 		metrics         support.CollectionMetrics
-		errs            error
+		userID          string
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
 	)
 
-	errUpdater := func(id string, err error) {
-		errs = support.WrapAndAppend(id, err, errs)
+	if len(dcs) > 0 {
+		userID = dcs[0].FullPath().ResourceOwner()
+		ctx = clues.Add(ctx, "resource_owner", userID) // TODO: pii
 	}
 
 	for _, dc := range dcs {
-		userID := dc.FullPath().ResourceOwner()
+		if errs.Err() != nil {
+			return nil, errs.Err()
+		}
 
 		userCaches := directoryCaches[userID]
 		if userCaches == nil {
@@ -349,11 +332,11 @@ func RestoreExchangeDataCollections(
 			dest.ContainerName,
 			userCaches)
 		if err != nil {
-			errs = support.WrapAndAppend(dc.FullPath().ShortRef(), err, errs)
+			errs.Add(clues.Wrap(err, "creating destination").WithClues(ctx))
 			continue
 		}
 
-		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errUpdater)
+		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errs)
 
 		metrics.Combine(temp)
 
@@ -362,14 +345,15 @@ func RestoreExchangeDataCollections(
 		}
 	}
 
-	status := support.CreateStatus(ctx,
+	status := support.CreateStatus(
+		ctx,
 		support.Restore,
 		len(dcs),
 		metrics,
-		errs,
+		errs.Err(),
 		dest.ContainerName)
 
-	return status, errs
+	return status, errs.Err()
 }
 
 // restoreCollection handles restoration of an individual collection.
@@ -380,7 +364,7 @@ func restoreCollection(
 	folderID string,
 	policy control.CollisionPolicy,
 	deets *details.Builder,
-	errUpdater func(string, error),
+	errs *fault.Errors,
 ) (support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:exchange:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
@@ -394,6 +378,12 @@ func restoreCollection(
 		user      = directory.ResourceOwner()
 	)
 
+	ctx = clues.AddAll(
+		ctx,
+		"full_path", directory,
+		"service", service,
+		"category", category)
+
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		category.String(),
@@ -405,34 +395,39 @@ func restoreCollection(
 	for {
 		select {
 		case <-ctx.Done():
-			errUpdater("context cancelled", ctx.Err())
+			errs.Add(clues.Wrap(ctx.Err(), "context cancelled").WithClues(ctx))
 			return metrics, true
 
 		case itemData, ok := <-items:
-			if !ok {
+			if !ok || errs.Err() != nil {
 				return metrics, false
 			}
-			metrics.Objects++
 
-			trace.Log(ctx, "gc:exchange:restoreCollection:item", itemData.UUID())
+			ictx := clues.Add(ctx, "item_id", itemData.UUID())
+			trace.Log(ictx, "gc:exchange:restoreCollection:item", itemData.UUID())
+			metrics.Objects++
 
 			buf := &bytes.Buffer{}
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
-				errUpdater(itemData.UUID()+": byteReadError during RestoreDataCollection", err)
+				errs.Add(clues.Wrap(err, "reading item bytes").WithClues(ictx))
 				continue
 			}
 
 			byteArray := buf.Bytes()
 
-			info, err := RestoreExchangeObject(ctx, byteArray, category, policy, gs, folderID, user)
+			info, err := RestoreExchangeObject(
+				ictx,
+				byteArray,
+				category,
+				policy,
+				gs,
+				folderID,
+				user,
+				errs)
 			if err != nil {
-				//  More information to be here
-				errUpdater(
-					itemData.UUID()+": failed to upload RestoreExchangeObject: "+service.String()+"-"+category.String(),
-					err)
-
+				errs.Add(err)
 				continue
 			}
 
@@ -441,7 +436,7 @@ func restoreCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
+				errs.Add(clues.Wrap(err, "building full path with item").WithClues(ctx))
 				continue
 			}
 
@@ -487,7 +482,7 @@ func CreateContainerDestination(
 	// TODO(rkeepers): pass the api client into this func, rather than generating one.
 	ac, err := api.NewClient(creds)
 	if err != nil {
-		return "", err
+		return "", clues.Stack(err).WithClues(ctx)
 	}
 
 	switch category {
@@ -569,7 +564,7 @@ func CreateContainerDestination(
 			newCache)
 
 	default:
-		return "", fmt.Errorf("category: %s not support for exchange cache", category)
+		return "", clues.Wrap(fmt.Errorf("%T", category), "not support for exchange cache").WithClues(ctx)
 	}
 }
 
@@ -590,6 +585,8 @@ func establishMailRestoreLocation(
 	// the top-level folder with the same tactic
 	folderID := rootFolderAlias
 	pb := path.Builder{}
+
+	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
 	for _, folder := range folders {
 		pb = *pb.Append(folder)
@@ -647,6 +644,8 @@ func establishContactsRestoreLocation(
 		return cached, nil
 	}
 
+	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
+
 	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
 	if err != nil {
 		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
@@ -680,6 +679,8 @@ func establishEventsRestoreLocation(
 	if ok {
 		return cached, nil
 	}
+
+	ctx = clues.Add(ctx, "is_new_cache", isNewCache)
 
 	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
 	if err != nil {

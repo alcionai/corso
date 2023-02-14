@@ -250,7 +250,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 		},
 		nil,
-	)
+		fault.New(true))
 	assert.Error(t, err)
 	assert.NotNil(t, deets)
 
@@ -327,7 +327,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 				},
 				test.col,
-			)
+				fault.New(true))
 			require.NoError(t, err)
 			assert.NotNil(t, deets)
 
@@ -422,7 +422,7 @@ func runRestoreBackupTest(
 		dest,
 		opts,
 		collections,
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	assert.NotNil(t, deets)
 
@@ -544,7 +544,7 @@ func runRestoreBackupTestVersion0(
 		dest,
 		opts,
 		collections,
-	)
+		fault.New(true))
 	require.NoError(t, err)
 	assert.NotNil(t, deets)
 
@@ -1515,7 +1515,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 					},
 					collections,
-				)
+					fault.New(true))
 				require.NoError(t, err)
 				require.NotNil(t, deets)
 
