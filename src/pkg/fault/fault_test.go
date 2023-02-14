@@ -251,3 +251,29 @@ func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
 	err = json.Unmarshal(jsonStr, &um)
 	require.NoError(t, err)
 }
+
+func (suite *FaultErrorsUnitSuite) TestTracker() {
+	t := suite.T()
+
+	be := fault.New(false)
+
+	ba := be.Tracker()
+	assert.NoError(t, ba.Err())
+	assert.Empty(t, be.Errs())
+
+	ba.Add(assert.AnError)
+	assert.NoError(t, ba.Err())
+	assert.NoError(t, be.Err())
+	assert.NotEmpty(t, be.Errs())
+
+	fe := fault.New(true)
+
+	fa := fe.Tracker()
+	assert.NoError(t, fa.Err())
+	assert.Empty(t, fe.Errs())
+
+	fa.Add(assert.AnError)
+	assert.Error(t, fa.Err())
+	assert.Error(t, fe.Err())
+	assert.NotEmpty(t, fe.Errs())
+}

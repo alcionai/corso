@@ -330,6 +330,8 @@ func getResources(
 		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
+	et := errs.Tracker()
+
 	callbackFunc := func(item any) bool {
 		if errs.Err() != nil {
 			return false
@@ -338,7 +340,7 @@ func getResources(
 		k, v, err := identify(item)
 		if err != nil {
 			if !errors.Is(err, errKnownSkippableCase) {
-				errs.Add(clues.Stack(err).
+				et.Add(clues.Stack(err).
 					WithClues(ctx).
 					With("query_url", gs.Adapter().GetBaseUrl()))
 			}
@@ -355,5 +357,5 @@ func getResources(
 		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return resources, errs.Err()
+	return resources, et.Err()
 }
