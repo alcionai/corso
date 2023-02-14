@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type ItemIntegrationSuite struct {
@@ -106,6 +107,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		excluded map[string]struct{},
 		itemCollection map[string]string,
 		doNotMergeItems bool,
+		errs *fault.Errors,
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
@@ -128,7 +130,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		itemCollector,
 		map[string]string{},
 		"",
-	)
+		fault.New(true))
 	require.NoError(suite.T(), err)
 
 	// Test Requirement 2: Need a file

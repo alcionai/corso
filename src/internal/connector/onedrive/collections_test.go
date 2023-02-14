@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -740,7 +741,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				excludes,
 				itemCollection,
 				false,
-			)
+				fault.New(true))
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionIDs), len(c.CollectionMap), "total collections")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
@@ -1101,7 +1102,7 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 				cols = append(cols, data.NotFoundRestoreCollection{Collection: mc})
 			}
 
-			deltas, paths, err := deserializeMetadata(ctx, cols)
+			deltas, paths, err := deserializeMetadata(ctx, cols, fault.New(true))
 			test.errCheck(t, err)
 
 			assert.Equal(t, test.expectedDeltas, deltas)
@@ -1786,7 +1787,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			assert.NoError(t, err, "creating metadata collection")
 
 			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
-			cols, delList, err := c.Get(ctx, prevMetadata)
+			cols, delList, err := c.Get(ctx, prevMetadata, fault.New(true))
 			test.errCheck(t, err)
 
 			if err != nil {
@@ -1803,9 +1804,12 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				}
 
 				if folderPath == metadataPath.String() {
-					deltas, paths, err := deserializeMetadata(ctx, []data.RestoreCollection{
-						data.NotFoundRestoreCollection{Collection: baseCol},
-					})
+					deltas, paths, err := deserializeMetadata(
+						ctx,
+						[]data.RestoreCollection{
+							data.NotFoundRestoreCollection{Collection: baseCol},
+						},
+						fault.New(true))
 					if !assert.NoError(t, err, "deserializing metadata") {
 						continue
 					}
@@ -2016,6 +2020,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				excluded map[string]struct{},
 				itemCollection map[string]string,
 				doNotMergeItems bool,
+				errs *fault.Errors,
 			) error {
 				return nil
 			}
@@ -2028,7 +2033,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				collectorFunc,
 				map[string]string{},
 				test.prevDelta,
-			)
+				fault.New(true))
 
 			require.ErrorIs(t, err, test.err, "delta fetch err")
 			require.Equal(t, test.deltaURL, delta.URL, "delta url")
