@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -399,7 +400,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
 			require.NoError(t, err)
 
-			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix)
+			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix, fault.New(true))
 			require.NoError(t, err)
 
 			foundFolderIDs := []string{}
@@ -465,7 +466,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service,
 				service.updateStatus,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-			).Get(ctx, nil)
+			).Get(ctx, nil, fault.New(true))
 			assert.NoError(t, err)
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)

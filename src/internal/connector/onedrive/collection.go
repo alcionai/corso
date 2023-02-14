@@ -10,10 +10,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -82,7 +84,7 @@ type Collection struct {
 type itemReaderFunc func(
 	hc *http.Client,
 	item models.DriveItemable,
-) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
+) (details.ItemInfo, io.ReadCloser, error)
 
 // itemMetaReaderFunc returns a reader for the metadata of the
 // specified item
@@ -143,7 +145,7 @@ func (oc *Collection) Items(
 	ctx context.Context,
 	errs *fault.Errors, // TODO: currently unused while onedrive isn't up to date with clues/fault
 ) <-chan data.Stream {
-	go oc.populateItems(ctx)
+	go oc.populateItems(ctx, errs)
 	return oc.data
 }
 
@@ -216,23 +218,22 @@ func (od *Item) ModTime() time.Time {
 
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
-func (oc *Collection) populateItems(ctx context.Context) {
+func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 	var (
-		errs       error
 		byteCount  int64
 		itemsRead  int64
 		dirsRead   int64
 		itemsFound int64
 		dirsFound  int64
 		wg         sync.WaitGroup
-		m          sync.Mutex
+		et         = errs.Tracker()
 	)
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, 0, err)
+		oc.reportAsCompleted(ctx, 0, 0, 0, clues.Wrap(err, "getting drive path").WithClues(ctx))
 		return
 	}
 
@@ -247,14 +248,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
-	errUpdater := func(id string, err error) {
-		m.Lock()
-		errs = support.WrapAndAppend(id, err, errs)
-		m.Unlock()
-	}
-
 	for _, item := range oc.driveItems {
-		if oc.ctrl.FailFast && errs != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -262,21 +257,26 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 		wg.Add(1)
 
-		go func(item models.DriveItemable) {
+		go func(ctx context.Context, item models.DriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
 			// Read the item
 			var (
-				itemID       = *item.GetId()
-				itemName     = *item.GetName()
-				itemSize     = *item.GetSize()
+				itemID       = ptr.Val(item.GetId())
+				itemName     = ptr.Val(item.GetName())
+				itemSize     = ptr.Val(item.GetSize())
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
 				metaSuffix   string
-				err          error
 			)
+
+			ctx = clues.Add(ctx,
+				"restore_item_id", itemID,
+				"restore_item_name", itemName,
+				"restore_item_size", itemSize,
+				"restore_item_info", itemInfo)
 
 			isFile := item.GetFile() != nil
 
@@ -301,9 +301,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					itemMetaSize = 2
 				} else {
 					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-
 					if err != nil {
-						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
+						et.Add(clues.Wrap(err, "getting item permissions"))
 						return
 					}
 				}
@@ -351,7 +350,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 					// check for errors following retries
 					if err != nil {
-						errUpdater(itemID, err)
+						et.Add(clues.Stack(err).WithClues(ctx))
 						return nil, err
 					}
 
@@ -361,8 +360,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						itemData,
 						observe.ItemBackupMsg,
 						observe.PII(itemName+dataSuffix),
-						itemSize,
-					)
+						itemSize)
 					go closer()
 
 					return progReader, nil
@@ -419,15 +417,15 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			atomic.AddInt64(&byteCount, itemSize)
 
 			folderProgress <- struct{}{}
-		}(item)
+		}(ctx, item)
 	}
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, errs)
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, et.Err())
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
@@ -437,7 +435,7 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRe
 			Successes:  itemsRead,  // items read successfully,
 			TotalBytes: byteCount,  // Number of bytes read in the operation,
 		},
-		errs,
+		err,
 		oc.folderPath.Folder(false), // Additional details
 	)
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())

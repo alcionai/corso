@@ -87,7 +87,8 @@ func DataCollections(
 				site,
 				scope,
 				su,
-				ctrlOpts)
+				ctrlOpts,
+				errs)
 			if err != nil {
 				et.Add(err)
 				continue
@@ -169,6 +170,7 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
@@ -187,7 +189,7 @@ func collectLibraries(
 
 	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
 	// token-based incrementals.
-	odcs, excludes, err := colls.Get(ctx, nil)
+	odcs, excludes, err := colls.Get(ctx, nil, errs)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "getting library").WithClues(ctx).With(graph.ErrData(err)...)
 	}
