@@ -707,43 +707,77 @@ func compareOneDriveItem(
 	item data.Stream,
 	restorePermissions bool,
 ) {
-	name := item.UUID()
-
-	expectedData := expected[item.UUID()]
-	if !assert.NotNil(t, expectedData, "unexpected file with name %s", item.UUID()) {
-		return
-	}
-
 	buf, err := io.ReadAll(item.ToReader())
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	if !strings.HasSuffix(name, onedrive.MetaFileSuffix) && !strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
-		// OneDrive data items are just byte buffers of the data. Nothing special to
-		// interpret. May need to do chunked comparisons in the future if we test
-		// large item equality.
-		assert.Equal(t, expectedData, buf)
+	name := item.UUID()
+	if strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
+		strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
+		var (
+			itemMeta     onedrive.Metadata
+			expectedMeta onedrive.Metadata
+		)
+
+		err = json.Unmarshal(buf, &itemMeta)
+		if !assert.NoErrorf(t, err, "unmarshalling retrieved metadata for file %s", name) {
+			return
+		}
+
+		expectedData := expected[name]
+		if !assert.NotNil(
+			t,
+			expectedData,
+			"unexpected metadata file with name %s",
+			name,
+		) {
+			return
+		}
+
+		err = json.Unmarshal(expectedData, &expectedMeta)
+		if !assert.NoError(t, err, "unmarshalling expected metadata") {
+			return
+		}
+
+		// Only compare file names if we're using a version that expects them to be
+		// set.
+		if len(expectedMeta.FileName) > 0 {
+			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
+		}
+
+		if !restorePermissions {
+			assert.Equal(t, 0, len(itemMeta.Permissions))
+			return
+		}
+
+		testElementsMatch(
+			t,
+			expectedMeta.Permissions,
+			itemMeta.Permissions,
+			permissionEqual,
+		)
+
 		return
 	}
 
-	var (
-		itemMeta     onedrive.Metadata
-		expectedMeta onedrive.Metadata
-	)
-
-	err = json.Unmarshal(buf, &itemMeta)
-	assert.Nil(t, err)
-
-	err = json.Unmarshal(expectedData, &expectedMeta)
-	assert.Nil(t, err)
-
-	if !restorePermissions {
-		assert.Equal(t, 0, len(itemMeta.Permissions))
+	var fileData testOneDriveData
+	err = json.Unmarshal(buf, &fileData)
+	if !assert.NoErrorf(t, err, "unmarshalling file data for file %s", name) {
 		return
 	}
 
-	testElementsMatch(t, expectedMeta.Permissions, itemMeta.Permissions, permissionEqual)
+	expectedData := expected[fileData.FileName]
+	if !assert.NotNil(t, expectedData, "unexpected file with name %s", name) {
+		return
+	}
+
+	// OneDrive data items are just byte buffers of the data. Nothing special to
+	// interpret. May need to do chunked comparisons in the future if we test
+	// large item equality.
+	// Compare against the version with the file name embedded because that's what
+	// the auto-generated expected data has.
+	assert.Equal(t, expectedData, buf)
 }
 
 func compareItem(
