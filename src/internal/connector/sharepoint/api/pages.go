@@ -49,7 +49,7 @@ func GetSitePages(
 	}
 
 	for _, entry := range pages {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 

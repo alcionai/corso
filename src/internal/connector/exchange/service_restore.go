@@ -140,7 +140,7 @@ func RestoreExchangeEvent(
 	}
 
 	for _, attach := range attached {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -268,7 +268,7 @@ func SendMailToBackStore(
 	)
 
 	for _, attachment := range attached {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -319,7 +319,7 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 

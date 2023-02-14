@@ -232,7 +232,7 @@ func RestoreListCollection(
 	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
 
 	for {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -315,7 +315,7 @@ func RestorePageCollection(
 	)
 
 	for {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 

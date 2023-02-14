@@ -114,7 +114,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 	)
 
 	iterator := func(item any) bool {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return false
 		}
 

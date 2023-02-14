@@ -50,7 +50,7 @@ func DataCollections(
 	)
 
 	for _, scope := range b.Scopes() {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -136,7 +136,7 @@ func collectLists(
 	}
 
 	for _, tuple := range lists {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -228,7 +228,7 @@ func collectPages(
 	}
 
 	for _, tuple := range tuples {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
