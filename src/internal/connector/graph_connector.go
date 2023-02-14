@@ -147,16 +147,6 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors
 	return nil
 }
 
-// GetUsers returns the email address of users within the tenant.
-func (gc *GraphConnector) GetUsers() []string {
-	return maps.Keys(gc.Users)
-}
-
-// GetUsersIds returns the M365 id for the user
-func (gc *GraphConnector) GetUsersIds() []string {
-	return maps.Values(gc.Users)
-}
-
 // setTenantSites queries the M365 to identify the sites in the
 // workspace. The sites field is updated during this method
 // iff the returned error is nil.
