@@ -402,10 +402,27 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					return progReader, nil
 				})
 
+				// TODO(meain): Remove this once we change to always
+				// backing up permissions. Until then we cannot rely
+				// on weather the previous data is what we need as the
+				// user might have not backup up permissions in the
+				// previous run.
+				metaItemInfo := details.ItemInfo{}
+				metaItemInfo.OneDrive = &details.OneDriveInfo{
+					Created:    itemInfo.OneDrive.Created,
+					ItemName:   itemInfo.OneDrive.ItemName,
+					DriveName:  itemInfo.OneDrive.DriveName,
+					ItemType:   itemInfo.OneDrive.ItemType,
+					Modified:   time.Now(), // set to current time to always refresh
+					Owner:      itemInfo.OneDrive.Owner,
+					ParentPath: itemInfo.OneDrive.ParentPath,
+					Size:       itemInfo.OneDrive.Size,
+				}
+
 				oc.data <- &Item{
 					id:   itemName + metaSuffix,
 					data: metaReader,
-					info: itemInfo,
+					info: metaItemInfo,
 				}
 			}
 
