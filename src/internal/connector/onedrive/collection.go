@@ -451,7 +451,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				})
 
 				oc.data <- &Item{
-					id:   itemName + dataSuffix,
+					id:   itemID + dataSuffix,
 					data: itemReader,
 					info: itemInfo,
 				}

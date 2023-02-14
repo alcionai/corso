@@ -229,7 +229,7 @@ func RestoreCollection(
 						err      error
 					)
 
-					if backupVersion < version.OneDriveXNameInMeta {
+					if backupVersion < version.OneDrive6NameInMeta {
 						itemInfo, err = restoreV1File(
 							ctx,
 							source,
