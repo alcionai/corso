@@ -6,9 +6,10 @@ import (
 	"io"
 	"runtime/trace"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -19,7 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -45,27 +46,29 @@ func RestoreCollections(
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
+	errs *fault.Errors,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
+		err            error
 		restoreMetrics support.CollectionMetrics
-		restoreErrors  error
 	)
-
-	errUpdater := func(id string, err error) {
-		restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
-	}
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
 		var (
-			metrics  support.CollectionMetrics
 			canceled bool
+			category = dc.FullPath().Category()
+			metrics  support.CollectionMetrics
+			ictx     = clues.AddAll(ctx,
+				"category", category,
+				"destination", dest.ContainerName, // TODO: pii
+				"resource_owner", dc.FullPath().ResourceOwner()) // TODO: pii
 		)
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
 			metrics, _, _, canceled = onedrive.RestoreCollection(
-				ctx,
+				ictx,
 				backupVersion,
 				service,
 				dc,
@@ -73,61 +76,59 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				errUpdater,
+				func(s string, err error) { errs.Add(err) },
 				map[string]string{},
-				false,
-			)
+				false)
 		case path.ListsCategory:
-			metrics, canceled = RestoreListCollection(
-				ctx,
+			metrics, err = RestoreListCollection(
+				ictx,
 				service,
 				dc,
 				dest.ContainerName,
 				deets,
-				errUpdater,
-			)
+				errs)
 		case path.PagesCategory:
-			metrics, canceled = RestorePageCollection(
-				ctx,
+			metrics, err = RestorePageCollection(
+				ictx,
 				creds,
 				dc,
 				dest.ContainerName,
 				deets,
-				errUpdater,
-			)
+				errs)
 		default:
-			return nil, errors.Errorf("category %s not supported", dc.FullPath().Category())
+			return nil, clues.Wrap(clues.New(category.String()), "category not supported")
 		}
 
 		restoreMetrics.Combine(metrics)
 
-		if canceled {
+		if canceled || err != nil {
 			break
 		}
 	}
 
-	return support.CreateStatus(
-			ctx,
-			support.Restore,
-			len(dcs),
-			restoreMetrics,
-			restoreErrors,
-			dest.ContainerName),
-		nil
+	status := support.CreateStatus(
+		ctx,
+		support.Restore,
+		len(dcs),
+		restoreMetrics,
+		err,
+		dest.ContainerName)
+
+	return status, err
 }
 
 // createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
 // of the last folder entry given in the hiearchy
-func createRestoreFolders(ctx context.Context, service graph.Servicer, siteID string, restoreFolders []string,
+func createRestoreFolders(
+	ctx context.Context,
+	service graph.Servicer,
+	siteID string,
+	restoreFolders []string,
 ) (string, error) {
 	// Get Main Drive for Site, Documents
 	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
 	if err != nil {
-		return "", errors.Wrapf(
-			err,
-			"failed to get site drive root. details: %s",
-			support.ConnectorStackErrorTrace(err),
-		)
+		return "", clues.Wrap(err, "getting site drive root").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
@@ -146,6 +147,8 @@ func restoreListItem(
 	ctx, end := D.Span(ctx, "gc:sharepoint:restoreList", D.Label("item_uuid", itemData.UUID()))
 	defer end()
 
+	ctx = clues.Add(ctx, "list_item_id", itemData.UUID())
+
 	var (
 		dii      = details.ItemInfo{}
 		listName = itemData.UUID()
@@ -153,22 +156,23 @@ func restoreListItem(
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
-		return dii, errors.Wrap(err, "sharepoint restoreItem failed to retrieve bytes from data.Stream")
+		return dii, clues.Wrap(err, "reading backup data").WithClues(ctx)
 	}
-	// Create Item
+
 	oldList, err := support.CreateListFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "failed to build list item %s", listName)
+		return dii, clues.Wrap(err, "creating item").WithClues(ctx)
 	}
 
 	if oldList.GetDisplayName() != nil {
 		listName = *oldList.GetDisplayName()
 	}
 
-	newName := fmt.Sprintf("%s_%s", destName, listName)
-	newList := support.ToListable(oldList, newName)
-
-	contents := make([]models.ListItemable, 0)
+	var (
+		newName  = fmt.Sprintf("%s_%s", destName, listName)
+		newList  = support.ToListable(oldList, newName)
+		contents = make([]models.ListItemable, 0)
+	)
 
 	for _, itm := range oldList.GetItems() {
 		temp := support.CloneListItem(itm)
@@ -180,13 +184,7 @@ func restoreListItem(
 	// Restore to List base to M365 back store
 	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
-		errorMsg := fmt.Sprintf(
-			"failure to create list foundation ID: %s API Error Details: %s",
-			itemData.UUID(),
-			support.ConnectorStackErrorTrace(err),
-		)
-
-		return dii, errors.Wrap(err, errorMsg)
+		return dii, clues.Wrap(err, "restoring list").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	// Uploading of ListItems is conducted after the List is restored
@@ -199,14 +197,10 @@ func restoreListItem(
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {
-				errorMsg := fmt.Sprintf(
-					"listItem  failed for listID %s. Details: %s. Content: %v",
-					*restoredList.GetId(),
-					support.ConnectorStackErrorTrace(err),
-					lItem.GetAdditionalData(),
-				)
-
-				return dii, errors.Wrap(err, errorMsg)
+				return dii, clues.Wrap(err, "restoring list items").
+					With("restored_list_id", ptr.Val(restoredList.GetId())).
+					WithClues(ctx).
+					WithAll(graph.ErrData(err)...)
 			}
 		}
 	}
@@ -222,31 +216,32 @@ func RestoreListCollection(
 	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
-	errUpdater func(string, error),
-) (support.CollectionMetrics, bool) {
+	errs *fault.Errors,
+) (support.CollectionMetrics, error) {
 	ctx, end := D.Span(ctx, "gc:sharepoint:restoreListCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
+		siteID    = directory.ResourceOwner()
+		items     = dc.Items(ctx, errs)
 	)
 
 	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
-	siteID := directory.ResourceOwner()
-
-	// Restore items from the collection
-	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 	for {
+		if errs.Err() != nil {
+			return metrics, errs.Err()
+		}
+
 		select {
 		case <-ctx.Done():
-			errUpdater("context canceled", ctx.Err())
-			return metrics, true
+			return metrics, clues.Stack(ctx.Err()).WithClues(ctx)
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, false
+				return metrics, nil
 			}
 			metrics.Objects++
 
@@ -255,10 +250,9 @@ func RestoreListCollection(
 				service,
 				itemData,
 				siteID,
-				restoreContainerName,
-			)
+				restoreContainerName)
 			if err != nil {
-				errUpdater(itemData.UUID(), err)
+				errs.Add(err)
 				continue
 			}
 
@@ -266,9 +260,7 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
-				errUpdater(itemData.UUID(), err)
-
+				errs.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -295,38 +287,41 @@ func RestorePageCollection(
 	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
-	errUpdater func(string, error),
-) (support.CollectionMetrics, bool) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restorePageCollection", D.Label("path", dc.FullPath()))
-	defer end()
-
+	errs *fault.Errors,
+) (support.CollectionMetrics, error) {
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
+		siteID    = directory.ResourceOwner()
 	)
+
+	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
+	ctx, end := D.Span(ctx, "gc:sharepoint:restorePageCollection", D.Label("path", dc.FullPath()))
+
+	defer end()
 
 	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 	if err != nil {
-		return metrics, false
+		return metrics, clues.Wrap(err, "constructing graph client")
 	}
 
 	service := discover.NewBetaService(adpt)
-
-	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
-	siteID := directory.ResourceOwner()
 
 	// Restore items from collection
 	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 	for {
+		if errs.Err() != nil {
+			return metrics, errs.Err()
+		}
+
 		select {
 		case <-ctx.Done():
-			errUpdater("context canceled", ctx.Err())
-			return metrics, true
+			return metrics, clues.Stack(ctx.Err()).WithClues(ctx)
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, false
+				return metrics, nil
 			}
 			metrics.Objects++
 
@@ -335,10 +330,9 @@ func RestorePageCollection(
 				service,
 				itemData,
 				siteID,
-				restoreContainerName,
-			)
+				restoreContainerName)
 			if err != nil {
-				errUpdater(itemData.UUID(), err)
+				errs.Add(err)
 				continue
 			}
 
@@ -346,9 +340,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				logger.Ctx(ctx).Errorw("transforming item to full path", "error", err)
-				errUpdater(itemData.UUID(), err)
-
+				errs.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -358,8 +350,7 @@ func RestorePageCollection(
 				"",
 				"", // TODO: implement locationRef
 				true,
-				itemInfo,
-			)
+				itemInfo)
 
 			metrics.Successes++
 		}

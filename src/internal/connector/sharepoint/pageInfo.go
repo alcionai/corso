@@ -1,8 +1,7 @@
 package sharepoint
 
 import (
-	"time"
-
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -12,25 +11,11 @@ import (
 // Page Details: https://learn.microsoft.com/en-us/graph/api/resources/sitepage?view=graph-rest-beta
 func sharePointPageInfo(page models.SitePageable, size int64) *details.SharePointInfo {
 	var (
-		name, webURL      string
-		created, modified time.Time
+		name     = ptr.Val(page.GetTitle())
+		webURL   = ptr.Val(page.GetWebUrl())
+		created  = ptr.Val(page.GetCreatedDateTime())
+		modified = ptr.Val(page.GetLastModifiedDateTime())
 	)
-
-	if page.GetTitle() != nil {
-		name = *page.GetTitle()
-	}
-
-	if page.GetWebUrl() != nil {
-		webURL = *page.GetWebUrl()
-	}
-
-	if page.GetCreatedDateTime() != nil {
-		created = *page.GetCreatedDateTime()
-	}
-
-	if page.GetLastModifiedDateTime() != nil {
-		modified = *page.GetLastModifiedDateTime()
-	}
 
 	return &details.SharePointInfo{
 		ItemType: details.SharePointItem,
