@@ -125,64 +125,15 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 }
 
 var (
-	fileEmptyPerms = onedriveItemWithData(
-		"test-file.txt"+onedrive.MetaFileSuffix,
-		[]byte("{}"),
-	)
+	fileName    = "test-file.txt"
+	folderAName = "folder-a"
+	folderBName = "b"
 
 	fileAData = []byte(strings.Repeat("a", 33))
 	fileBData = []byte(strings.Repeat("b", 65))
 	fileCData = []byte(strings.Repeat("c", 129))
 	fileDData = []byte(strings.Repeat("d", 257))
 	fileEData = []byte(strings.Repeat("e", 257))
-
-	fileAEmptyPerms = []itemInfo{
-		onedriveItemWithData(
-			"test-file.txt"+onedrive.DataFileSuffix,
-			fileAData,
-		),
-		fileEmptyPerms,
-	}
-
-	fileBEmptyPerms = []itemInfo{
-		onedriveItemWithData(
-			"test-file.txt"+onedrive.DataFileSuffix,
-			fileBData,
-		),
-		fileEmptyPerms,
-	}
-
-	fileCEmptyPerms = []itemInfo{
-		onedriveItemWithData(
-			"test-file.txt"+onedrive.DataFileSuffix,
-			fileCData,
-		),
-		fileEmptyPerms,
-	}
-
-	fileDEmptyPerms = []itemInfo{
-		onedriveItemWithData(
-			"test-file.txt"+onedrive.DataFileSuffix,
-			fileDData,
-		),
-		fileEmptyPerms,
-	}
-
-	fileEEmptyPerms = []itemInfo{
-		onedriveItemWithData(
-			"test-file.txt"+onedrive.DataFileSuffix,
-			fileEData,
-		),
-		fileEmptyPerms,
-	}
-
-	folderAEmptyPerms = []itemInfo{
-		onedriveItemWithData("folder-a"+onedrive.DirMetaFileSuffix, []byte("{}")),
-	}
-
-	folderBEmptyPerms = []itemInfo{
-		onedriveItemWithData("b"+onedrive.DirMetaFileSuffix, []byte("{}")),
-	}
 )
 
 func newOneDriveCollection(
@@ -343,64 +294,112 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup() {
 		suite.user,
 	)
 
-	table := []restoreBackupInfo{
+	collectionsLatest := []colInfo{
+		newOneDriveCollection(
+			suite.T(),
+			[]string{
+				"drives",
+				driveID,
+				"root:",
+			},
+			3,
+		).
+			withFile(
+				"test-file.txt",
+				fileAData,
+				suite.secondaryUser,
+				[]string{"write"},
+			).
+			withFolder(
+				"b",
+				suite.secondaryUser,
+				[]string{"read"},
+			).
+			collection(),
+
+		newOneDriveCollection(
+			suite.T(),
+			[]string{
+				"drives",
+				driveID,
+				"root:",
+				"b",
+			},
+			3,
+		).
+			withFile(
+				"test-file.txt",
+				fileEData,
+				suite.secondaryUser,
+				[]string{"read"},
+			).
+			collection(),
+	}
+
+	table := []restoreBackupInfoMultiVersion{
 		{
-			name:     "OneDriveFoldersAndFilesWithMetadata",
-			service:  path.OneDriveService,
-			resource: Users,
-			collections: []colInfo{
-				{
-					pathElements: []string{
+			name:          "OneDriveMultipleFoldersAndFilesWithMetadata_Version1",
+			service:       path.OneDriveService,
+			resource:      Users,
+			backupVersion: 1, // The OG version ;)
+			countMeta:     false,
+			collectionsPrevious: []colInfo{
+				newOneDriveCollection(
+					suite.T(),
+					[]string{
 						"drives",
 						driveID,
 						"root:",
 					},
-					category: path.FilesCategory,
-					items: withItems(
-						onedriveFileWithMetadata(
-							"test-file.txt",
-							fileAData,
-							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
-						),
-						[]itemInfo{onedriveItemWithData(
-							"b"+onedrive.DirMetaFileSuffix,
-							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
-						)},
-					),
-					auxItems: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt"+onedrive.MetaFileSuffix,
-							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
-						),
-					},
-				},
-				{
-					pathElements: []string{
+					1,
+				).
+					withFile(
+						"test-file.txt",
+						fileAData,
+						suite.secondaryUser,
+						[]string{"write"},
+					).
+					withFolder(
+						"b",
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
+
+				newOneDriveCollection(
+					suite.T(),
+					[]string{
 						"drives",
 						driveID,
 						"root:",
 						"b",
 					},
-					category: path.FilesCategory,
-					items: onedriveFileWithMetadata(
+					1,
+				).
+					withFile(
 						"test-file.txt",
 						fileEData,
-						getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
-					),
-					auxItems: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt"+onedrive.MetaFileSuffix,
-							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
-						),
-					},
-				},
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
 			},
+			collectionsLatest: collectionsLatest,
+		},
+		{
+			name:                "OneDriveMultipleFoldersAndFilesWithMetadata_Version3",
+			service:             path.OneDriveService,
+			resource:            Users,
+			backupVersion:       3, // The OG version ;)
+			countMeta:           false,
+			collectionsPrevious: collectionsLatest,
+			collectionsLatest:   collectionsLatest,
 		},
 	}
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
-			runRestoreBackupTest(
+			runRestoreBackupTestVersions(
 				t,
 				suite.acct,
 				test,
@@ -427,68 +426,100 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 		suite.user,
 	)
 
+	rootPath := []string{
+		"drives",
+		driveID,
+		"root:",
+	}
+	folderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		"folder-a",
+	}
+	subfolderBPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		"folder-a",
+		"b",
+	}
+	subfolderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		"folder-a",
+		"b",
+		"folder-a",
+	}
+	folderBPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		"b",
+	}
+
 	collectionsLatest := []colInfo{
-		{
-			pathElements: []string{
-				"drives",
-				driveID,
-				"root:",
-			},
-			category: path.FilesCategory,
-			items: withItems(
-				fileAEmptyPerms,
-				folderAEmptyPerms,
-				folderBEmptyPerms,
-			),
-			auxItems: []itemInfo{fileEmptyPerms},
-		},
-		{
-			pathElements: []string{
-				"drives",
-				driveID,
-				"root:",
+		newOneDriveCollection(suite.T(), rootPath, 1).
+			withFile(
+				fileName,
+				fileAData,
+				"",
+				nil,
+			).
+			withFolder(
 				"folder-a",
-			},
-			category: path.FilesCategory,
-			items:    withItems(fileBEmptyPerms, folderBEmptyPerms),
-			auxItems: []itemInfo{fileEmptyPerms},
-		},
-		{
-			pathElements: []string{
-				"drives",
-				driveID,
-				"root:",
-				"folder-a",
+				"",
+				nil,
+			).
+			withFolder(
 				"b",
-			},
-			category: path.FilesCategory,
-			items:    withItems(fileCEmptyPerms, folderAEmptyPerms),
-			auxItems: []itemInfo{fileEmptyPerms},
-		},
-		{
-			pathElements: []string{
-				"drives",
-				driveID,
-				"root:",
-				"folder-a",
+				"",
+				nil,
+			).
+			collection(),
+		newOneDriveCollection(suite.T(), folderAPath, 1).
+			withFile(
+				fileName,
+				fileBData,
+				"",
+				nil,
+			).
+			withFolder(
 				"b",
+				"",
+				nil,
+			).
+			collection(),
+		newOneDriveCollection(suite.T(), subfolderBPath, 1).
+			withFile(
+				fileName,
+				fileCData,
+				"",
+				nil,
+			).
+			withFolder(
 				"folder-a",
-			},
-			category: path.FilesCategory,
-			items:    fileDEmptyPerms,
-			auxItems: []itemInfo{fileEmptyPerms},
-		},
-		{
-			pathElements: []string{
-				"drives",
-				driveID,
-				"root:",
-				"b",
-			},
-			category: path.FilesCategory,
-			items:    fileEEmptyPerms,
-			auxItems: []itemInfo{fileEmptyPerms},
-		},
+				"",
+				nil,
+			).
+			collection(),
+		newOneDriveCollection(suite.T(), subfolderAPath, 1).
+			withFile(
+				fileName,
+				fileDData,
+				"",
+				nil,
+			).
+			collection(),
+		newOneDriveCollection(suite.T(), folderBPath, 1).
+			withFile(
+				fileName,
+				fileEData,
+				"",
+				nil,
+			).
+			collection(),
 	}
 
 	table := []restoreBackupInfoMultiVersion{
@@ -500,83 +531,46 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Versio
 			countMeta:     true,
 
 			collectionsPrevious: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt",
-							fileAData,
-						),
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt",
-							fileBData,
-						),
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt",
-							fileCData,
-						),
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"folder-a",
-						"b",
-						"folder-a",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt",
-							fileDData,
-						),
-					},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-						"b",
-					},
-					category: path.FilesCategory,
-					items: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt",
-							fileEData,
-						),
-					},
-				},
+				newOneDriveCollection(suite.T(), rootPath, 0).
+					withFile(
+						fileName,
+						fileAData,
+						"",
+						nil,
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), folderAPath, 0).
+					withFile(
+						fileName,
+						fileBData,
+						"",
+						nil,
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), subfolderBPath, 0).
+					withFile(
+						fileName,
+						fileCData,
+						"",
+						nil,
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), subfolderAPath, 0).
+					withFile(
+						fileName,
+						fileDData,
+						"",
+						nil,
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), folderBPath, 0).
+					withFile(
+						fileName,
+						fileEData,
+						"",
+						nil,
+					).
+					collection(),
 			},
 
 			collectionsLatest: collectionsLatest,
@@ -622,34 +616,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 		suite.user,
 	)
 
-	var (
-		fileAWritePerms = onedriveFileWithMetadata(
-			"test-file.txt",
-			fileAData,
-			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
-		)
-
-		fileEReadPerms = onedriveFileWithMetadata(
-			"test-file.txt",
-			fileEData,
-			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
-		)
-
-		folderBReadPerms = []itemInfo{onedriveItemWithData(
-			"b"+onedrive.DirMetaFileSuffix,
-			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
-		)}
-
-		fileWritePerms = onedriveItemWithData(
-			"test-file.txt"+onedrive.MetaFileSuffix,
-			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
-		)
-
-		fileReadPerms = onedriveItemWithData(
-			"test-file.txt"+onedrive.MetaFileSuffix,
-			getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"read"}),
-		)
-	)
+	rootPath := []string{
+		"drives",
+		driveID,
+		"root:",
+	}
+	folderPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		"b",
+	}
 
 	table := []restoreBackupInfo{
 		{
@@ -657,16 +634,14 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items:    fileAWritePerms,
-					auxItems: []itemInfo{fileWritePerms},
-				},
+				newOneDriveCollection(suite.T(), rootPath, 1).
+					withFile(
+						fileName,
+						fileAData,
+						suite.secondaryUser,
+						[]string{"write"},
+					).
+					collection(),
 			},
 		},
 
@@ -675,27 +650,27 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileAEmptyPerms, folderBEmptyPerms),
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
+				newOneDriveCollection(suite.T(), rootPath, 1).
+					withFile(
+						fileName,
+						fileAData,
+						"",
+						nil,
+					).
+					withFolder(
 						"b",
-					},
-					category: path.FilesCategory,
-					items:    fileEReadPerms,
-					auxItems: []itemInfo{fileReadPerms},
-				},
+						"",
+						nil,
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), folderPath, 1).
+					withFile(
+						fileName,
+						fileEData,
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
 			},
 		},
 
@@ -704,27 +679,27 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items:    withItems(fileAWritePerms, folderBReadPerms),
-					auxItems: []itemInfo{fileWritePerms},
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
+				newOneDriveCollection(suite.T(), rootPath, 1).
+					withFile(
+						fileName,
+						fileAData,
+						suite.secondaryUser,
+						[]string{"write"},
+					).
+					withFolder(
 						"b",
-					},
-					category: path.FilesCategory,
-					items:    fileEReadPerms,
-					auxItems: []itemInfo{fileReadPerms},
-				},
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), folderPath, 1).
+					withFile(
+						fileName,
+						fileEData,
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
 			},
 		},
 
@@ -733,26 +708,21 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items:    folderBReadPerms,
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
+				newOneDriveCollection(suite.T(), rootPath, 1).
+					withFolder(
 						"b",
-					},
-					category: path.FilesCategory,
-					items:    fileAWritePerms,
-					auxItems: []itemInfo{fileWritePerms},
-				},
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), folderPath, 1).
+					withFile(
+						fileName,
+						fileAData,
+						suite.secondaryUser,
+						[]string{"write"},
+					).
+					collection(),
 			},
 		},
 
@@ -761,26 +731,21 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					category: path.FilesCategory,
-					items:    folderBReadPerms,
-				},
-				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
+				newOneDriveCollection(suite.T(), rootPath, 1).
+					withFolder(
 						"b",
-					},
-					category: path.FilesCategory,
-					items:    fileEEmptyPerms,
-					auxItems: []itemInfo{fileEmptyPerms},
-				},
+						suite.secondaryUser,
+						[]string{"read"},
+					).
+					collection(),
+				newOneDriveCollection(suite.T(), folderPath, 1).
+					withFile(
+						"test-file.txt",
+						fileEData,
+						"",
+						nil,
+					).
+					collection(),
 			},
 		},
 	}
@@ -819,25 +784,22 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 			service:  path.OneDriveService,
 			resource: Users,
 			collections: []colInfo{
-				{
-					pathElements: []string{
+				newOneDriveCollection(
+					suite.T(),
+					[]string{
 						"drives",
 						driveID,
 						"root:",
 					},
-					category: path.FilesCategory,
-					items: onedriveFileWithMetadata(
+					1,
+				).
+					withFile(
 						"test-file.txt",
 						fileAData,
-						getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
-					),
-					auxItems: []itemInfo{
-						onedriveItemWithData(
-							"test-file.txt"+onedrive.MetaFileSuffix,
-							getTestMetaJSON(suite.T(), suite.secondaryUser, []string{"write"}),
-						),
-					},
-				},
+						suite.secondaryUser,
+						[]string{"write"},
+					).
+					collection(),
 			},
 		},
 	}
@@ -878,81 +840,88 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		backupVersion: backup.Version,
 		countMeta:     false,
 		collectionsPrevious: []colInfo{
-			{
-				pathElements: []string{
+			newOneDriveCollection(
+				suite.T(),
+				[]string{
 					"drives",
 					driveID,
 					"root:",
 				},
-				category: path.FilesCategory,
-				items: withItems(
-					onedriveFileWithMetadata(
-						"test-file.txt",
-						fileAData,
-						getTestMetaJSON(t, suite.secondaryUser, []string{"write"}),
-					),
-					[]itemInfo{onedriveItemWithData(
-						"b"+onedrive.DirMetaFileSuffix,
-						getTestMetaJSON(t, suite.secondaryUser, []string{"read"}),
-					)},
-				),
-				auxItems: []itemInfo{
-					onedriveItemWithData(
-						"test-file.txt"+onedrive.MetaFileSuffix,
-						getTestMetaJSON(t, suite.secondaryUser, []string{"write"}),
-					),
-				},
-			},
-			{
-				pathElements: []string{
+				backup.Version,
+			).
+				withFile(
+					"test-file.txt",
+					fileAData,
+					suite.secondaryUser,
+					[]string{"write"},
+				).
+				withFolder(
+					folderBName,
+					suite.secondaryUser,
+					[]string{"read"},
+				).
+				collection(),
+			newOneDriveCollection(
+				suite.T(),
+				[]string{
 					"drives",
 					driveID,
 					"root:",
-					"b",
+					folderBName,
 				},
-				category: path.FilesCategory,
-				items: onedriveFileWithMetadata(
+				backup.Version,
+			).
+				withFile(
 					"test-file.txt",
 					fileEData,
-					getTestMetaJSON(t, suite.secondaryUser, []string{"read"}),
-				),
-				auxItems: []itemInfo{
-					onedriveItemWithData(
-						"test-file.txt"+onedrive.MetaFileSuffix,
-						getTestMetaJSON(t, suite.secondaryUser, []string{"read"}),
-					),
-				},
-			},
+					suite.secondaryUser,
+					[]string{"read"},
+				).
+				withPermissions(
+					suite.secondaryUser,
+					[]string{"read"},
+				).
+				collection(),
 		},
 		collectionsLatest: []colInfo{
-			{
-				pathElements: []string{
+			newOneDriveCollection(
+				suite.T(),
+				[]string{
 					"drives",
 					driveID,
 					"root:",
 				},
-				category: path.FilesCategory,
-				items: withItems(
-					fileAEmptyPerms,
-					folderBEmptyPerms,
-				),
-				auxItems: []itemInfo{
-					fileEmptyPerms,
-				},
-			},
-			{
-				pathElements: []string{
+				backup.Version,
+			).
+				withFile(
+					"test-file.txt",
+					fileAData,
+					"",
+					nil,
+				).
+				withFolder(
+					folderBName,
+					"",
+					nil,
+				).
+				collection(),
+			newOneDriveCollection(
+				suite.T(),
+				[]string{
 					"drives",
 					driveID,
 					"root:",
-					"b",
+					folderBName,
 				},
-				category: path.FilesCategory,
-				items:    fileEEmptyPerms,
-				auxItems: []itemInfo{
-					fileEmptyPerms,
-				},
-			},
+				backup.Version,
+			).
+				withFile(
+					"test-file.txt",
+					fileEData,
+					"",
+					nil,
+				).
+				collection(),
 		},
 	}
 
