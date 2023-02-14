@@ -82,12 +82,7 @@ func (c Events) GetContainerByID(
 		return nil, clues.Wrap(err, "setting event calendar options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var cal models.Calendarable
-
-	err = graph.RunWithRetry(func() error {
-		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
-		return err
-	})
+	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
@@ -106,35 +101,24 @@ func (c Events) GetItem(
 		event models.Eventable
 	)
 
-	ctx = clues.Add(ctx, "item_id", itemID)
-
-	err = graph.RunWithRetry(func() error {
-		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
-		return err
-	})
+	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
-		var (
-			attached models.AttachmentCollectionResponseable
-			options  = &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
-				QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
-					Expand: []string{"microsoft.graph.itemattachment/item"},
-				},
-			}
-		)
+		options := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
 
-		err = graph.RunWithRetry(func() error {
-			attached, err = c.largeItem.
-				Client().
-				UsersById(user).
-				EventsById(itemID).
-				Attachments().
-				Get(ctx, options)
-			return err
-		})
+		attached, err := c.largeItem.
+			Client().
+			UsersById(user).
+			EventsById(itemID).
+			Attachments().
+			Get(ctx, options)
 		if err != nil {
 			return nil, nil, clues.Wrap(err, "event attachment download").WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
@@ -162,8 +146,6 @@ func (c Events) EnumerateContainers(
 		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var resp models.CalendarCollectionResponseable
-
 	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
 		return clues.Wrap(err, "setting calendar options").WithClues(ctx).WithAll(graph.ErrData(err)...)
@@ -172,12 +154,7 @@ func (c Events) EnumerateContainers(
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		var err error
-
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofc)
-			return err
-		})
+		resp, err := builder.Get(ctx, ofc)
 		if err != nil {
 			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
@@ -232,15 +209,7 @@ type eventPager struct {
 }
 
 func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	var (
-		resp api.DeltaPageLinker
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}

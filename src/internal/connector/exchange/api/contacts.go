@@ -72,15 +72,7 @@ func (c Contacts) GetItem(
 	user, itemID string,
 	_ *fault.Errors, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		cont models.Contactable
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
-		return err
-	})
+	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
@@ -97,12 +89,7 @@ func (c Contacts) GetContainerByID(
 		return nil, clues.Wrap(err, "setting contact folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var resp models.ContactFolderable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
-		return err
-	})
+	resp, err := c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
@@ -127,10 +114,7 @@ func (c Contacts) EnumerateContainers(
 		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		resp   models.ContactFolderCollectionResponseable
-		fields = []string{"displayName", "parentFolderId"}
-	)
+	fields := []string{"displayName", "parentFolderId"}
 
 	ofcf, err := optionsForContactChildFolders(fields)
 	if err != nil {
@@ -146,10 +130,7 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofcf)
-			return err
-		})
+		resp, err := builder.Get(ctx, ofcf)
 		if err != nil {
 			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
@@ -200,15 +181,7 @@ type contactPager struct {
 }
 
 func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	var (
-		resp api.DeltaPageLinker
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}

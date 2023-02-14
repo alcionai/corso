@@ -109,12 +109,7 @@ func (c Mail) GetContainerByID(
 		return nil, clues.Wrap(err, "setting mail folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var resp graph.Container
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
-		return err
-	})
+	resp, err := service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
@@ -129,38 +124,24 @@ func (c Mail) GetItem(
 	user, itemID string,
 	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		mail models.Messageable
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
-		return err
-	})
+	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
-		var (
-			attached models.AttachmentCollectionResponseable
-			options  = &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
-				QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
-					Expand: []string{"microsoft.graph.itemattachment/item"},
-				},
-			}
-		)
+		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+		}
 
-		err = graph.RunWithRetry(func() error {
-			attached, err = c.largeItem.
-				Client().
-				UsersById(user).
-				MessagesById(itemID).
-				Attachments().
-				Get(ctx, options)
-			return err
-		})
+		attached, err := c.largeItem.
+			Client().
+			UsersById(user).
+			MessagesById(itemID).
+			Attachments().
+			Get(ctx, options)
 		if err != nil {
 			return nil, nil, clues.Wrap(err, "mail attachment download").WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
@@ -188,21 +169,13 @@ func (c Mail) EnumerateContainers(
 		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		resp    users.ItemMailFoldersDeltaResponseable
-		builder = service.Client().
-			UsersById(userID).
-			MailFolders().
-			Delta()
-	)
+	builder := service.Client().
+		UsersById(userID).
+		MailFolders().
+		Delta()
 
 	for {
-		var err error
-
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, nil)
-			return err
-		})
+		resp, err := builder.Get(ctx, nil)
 		if err != nil {
 			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
@@ -244,15 +217,7 @@ type mailPager struct {
 }
 
 func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	var (
-		page api.DeltaPageLinker
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		page, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	page, err := p.builder.Get(ctx, p.options)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
