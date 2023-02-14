@@ -231,7 +231,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1),
 			scope:               allScope,
-			expectErr:           assert.Error,
+			expectErr:           assert.NoError,
 			expectNewColls:      0,
 			expectMetadataColls: 1,
 		},
@@ -256,7 +256,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
-			expectErr:           assert.Error,
+			expectErr:           assert.NoError,
 			expectNewColls:      1,
 			expectMetadataColls: 1,
 		},
@@ -305,7 +305,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				test.scope,
 				dps,
 				control.Options{FailFast: test.failFast},
-				fault.New(true))
+				fault.New(test.failFast))
 			test.expectErr(t, err)
 
 			// collection assertions
