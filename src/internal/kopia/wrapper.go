@@ -404,7 +404,7 @@ func (w Wrapper) RestoreMultipleItems(
 	)
 
 	for _, itemPath := range paths {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return nil, et.Err()
 		}
 

@@ -71,7 +71,7 @@ func filterContainersAndFillCollections(
 	et := errs.Tracker()
 
 	for _, c := range resolver.Items() {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return et.Err()
 		}
 
@@ -157,7 +157,7 @@ func filterContainersAndFillCollections(
 	// in the `previousPath` set, but does not exist in the current container
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return et.Err()
 		}
 
