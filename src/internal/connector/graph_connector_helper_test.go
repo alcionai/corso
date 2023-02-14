@@ -1011,7 +1011,7 @@ func collectionsForInfo(
 	tenant, user string,
 	dest control.RestoreDestination,
 	allInfo []colInfo,
-	countMeta bool,
+	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
 	collections := make([]data.RestoreCollection, 0, len(allInfo))
 	expectedData := make(map[string]map[string][]byte, len(allInfo))
@@ -1044,7 +1044,7 @@ func collectionsForInfo(
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
 			// We do not count metadata files against item count
-			if countMeta || service != path.OneDriveService ||
+			if backupVersion == 0 || service != path.OneDriveService ||
 				(service == path.OneDriveService &&
 					strings.HasSuffix(info.items[i].name, onedrive.DataFileSuffix)) {
 				totalItems++

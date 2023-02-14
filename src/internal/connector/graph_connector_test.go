@@ -368,7 +368,7 @@ func getCollectionsAndExpected(
 	t *testing.T,
 	config configInfo,
 	testCollections []colInfo,
-	countMeta bool,
+	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
 	t.Helper()
 
@@ -387,7 +387,7 @@ func getCollectionsAndExpected(
 			owner,
 			config.dest,
 			testCollections,
-			countMeta,
+			backupVersion,
 		)
 
 		collections = append(collections, ownerCollections...)
@@ -530,7 +530,7 @@ func runRestoreBackupTest(
 		t,
 		config,
 		test.collections,
-		false)
+		backup.Version)
 
 	runRestore(
 		t,
@@ -578,7 +578,7 @@ func runRestoreBackupTestVersions(
 		t,
 		config,
 		test.collectionsPrevious,
-		test.countMeta)
+		test.backupVersion)
 
 	runRestore(
 		t,
@@ -593,7 +593,7 @@ func runRestoreBackupTestVersions(
 		t,
 		config,
 		test.collectionsLatest,
-		false)
+		backup.Version)
 
 	runBackupAndCompare(
 		t,
@@ -933,7 +933,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					suite.user,
 					dest,
 					[]colInfo{collection},
-					false,
+					backup.Version,
 				)
 				allItems += totalItems
 
