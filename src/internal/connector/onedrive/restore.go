@@ -234,7 +234,8 @@ func RestoreCollection(
 		restoreFolderElements,
 		parentPerms,
 		colPerms,
-		permissionIDMappings)
+		permissionIDMappings,
+	)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
 		return metrics, folderPerms, permissionIDMappings, false
