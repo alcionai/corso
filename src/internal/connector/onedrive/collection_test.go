@@ -20,8 +20,10 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -150,6 +152,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
 				wg         = sync.WaitGroup{}
 				collStatus = support.ConnectorOperationStatus{}
@@ -204,7 +209,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			// Read items from the collection
 			wg.Add(1)
 
-			for item := range coll.Items() {
+			for item := range coll.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
 			}
 
@@ -284,9 +289,11 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
 				testItemID = "fakeItemID"
-
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
 			)
@@ -328,7 +335,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
 
-			collItem, ok := <-coll.Items()
+			collItem, ok := <-coll.Items(ctx, fault.New(true))
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
@@ -355,13 +362,15 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
 				testItemID   = "fakeItemID"
 				testItemName = "Fake Item"
 				testItemSize = int64(10)
-
-				collStatus = support.ConnectorOperationStatus{}
-				wg         = sync.WaitGroup{}
+				collStatus   = support.ConnectorOperationStatus{}
+				wg           = sync.WaitGroup{}
 			)
 
 			wg.Add(1)
@@ -408,7 +417,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 			}
 
 			readItems := []data.Stream{}
-			for item := range coll.Items() {
+			for item := range coll.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
 			}
 
