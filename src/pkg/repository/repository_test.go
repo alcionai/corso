@@ -81,7 +81,7 @@ func (suite *RepositorySuite) TestConnect() {
 
 			st, err := test.storage()
 			assert.NoError(t, err)
-			_, err = repository.Connect(ctx, test.account, st, control.Options{})
+			_, err = repository.Connect(ctx, test.account, st, false, control.Options{})
 			test.errCheck(t, err)
 		})
 	}
@@ -153,7 +153,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	require.NoError(t, err)
 
 	// now re-connect
-	_, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
+	_, err = repository.Connect(ctx, account.Account{}, st, false, control.Options{})
 	assert.NoError(t, err)
 }
 
@@ -174,7 +174,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	require.NoError(t, r.Close(ctx))
 
 	// now re-connect
-	r, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
+	r, err = repository.Connect(ctx, account.Account{}, st, false, control.Options{})
 	require.NoError(t, err)
 	assert.Equal(t, oldID, r.GetID())
 }

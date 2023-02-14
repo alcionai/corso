@@ -187,7 +187,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, acct, s, false, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -288,7 +288,7 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, acct, s, false, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -348,7 +348,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, acct, s, false, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -435,7 +435,7 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, acct, s, false, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
