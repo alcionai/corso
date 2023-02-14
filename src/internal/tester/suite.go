@@ -11,8 +11,7 @@ type Suite interface {
 	Run(name string, subtest func()) bool
 }
 
-func NewUnitSuite(t *testing.T, envSets [][]string) *unitSuite {
-	MustGetEnvSets(t, envSets...)
+func NewUnitSuite(t *testing.T) *unitSuite {
 	return new(unitSuite)
 }
 
