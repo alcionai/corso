@@ -89,6 +89,7 @@ type Path interface {
 	Folder(bool) string
 	Folders() []string
 	Item() string
+	UpdateParent(prev, cur Path) bool
 	// PopFront returns a Builder object with the first element (left-side)
 	// removed. As the resulting set of elements is no longer a valid resource
 	// path a Builder is returned instead.

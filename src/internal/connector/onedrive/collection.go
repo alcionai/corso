@@ -151,6 +151,12 @@ func (oc Collection) PreviousPath() path.Path {
 	return oc.prevPath
 }
 
+func (oc *Collection) SetPaths(prevPath, curPath path.Path) {
+	oc.prevPath = prevPath
+	oc.folderPath = curPath
+	oc.state = data.StateOf(prevPath, curPath)
+}
+
 func (oc Collection) State() data.CollectionState {
 	return oc.state
 }
