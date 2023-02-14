@@ -98,7 +98,7 @@ func NewGraphConnector(
 	// For now this keeps things functioning if callers do pass in a selector like
 	// "*" instead of.
 	if r == AllResources || r == Users {
-		if err = gc.setTenantUsers(ctx); err != nil {
+		if err = gc.setTenantUsers(ctx, errs); err != nil {
 			return nil, errors.Wrap(err, "retrieving tenant user list")
 		}
 	}
@@ -129,11 +129,11 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the returned error is nil
-func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.Owners.Users())
+	users, err := discovery.Users(ctx, gc.Owners.Users(), errs)
 	if err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func getResources(
 	}
 
 	callbackFunc := func(item any) bool {
-		if errs.Failed() {
+		if errs.Err() != nil {
 			return false
 		}
 

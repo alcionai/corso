@@ -172,7 +172,7 @@ func buildCollections(
 			return nil, err
 		}
 
-		mc := mockconnector.NewMockExchangeCollection(pth, len(c.items))
+		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(c.items))
 
 		for i := 0; i < len(c.items); i++ {
 			mc.Names[i] = c.items[i].name

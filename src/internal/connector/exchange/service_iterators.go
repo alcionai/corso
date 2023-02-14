@@ -2,8 +2,8 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -38,9 +39,9 @@ func filterContainersAndFillCollections(
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) error {
 	var (
-		errs error
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
@@ -63,14 +64,14 @@ func filterContainersAndFillCollections(
 	}
 
 	for _, c := range resolver.Items() {
-		if ctrlOpts.FailFast && errs != nil {
-			return errs
+		if errs.Err() != nil {
+			return errs.Err()
 		}
 
 		cID := *c.GetId()
 		delete(tombstones, cID)
 
-		currPath, ok := includeContainer(qp, c, scope)
+		currPath, locPath, ok := includeContainer(qp, c, scope)
 		// Only create a collection if the path matches the scope.
 		if !ok {
 			continue
@@ -85,7 +86,7 @@ func filterContainersAndFillCollections(
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
-				logger.Ctx(ctx).Error(err)
+				logger.Ctx(ctx).With("err", err).Errorw("parsing prev path", clues.InErr(err).Slice()...)
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
 			}
@@ -94,7 +95,7 @@ func filterContainersAndFillCollections(
 		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
-				errs = support.WrapAndAppend(qp.ResourceOwner, err, errs)
+				errs.Add(err)
 				continue
 			}
 
@@ -110,10 +111,15 @@ func filterContainersAndFillCollections(
 			deltaURLs[cID] = newDelta.URL
 		}
 
+		if qp.Category != path.EventsCategory {
+			locPath = nil
+		}
+
 		edc := NewCollection(
 			qp.ResourceOwner,
 			currPath,
 			prevPath,
+			locPath,
 			scope.Category().PathType(),
 			ibt,
 			statusUpdater,
@@ -145,7 +151,7 @@ func filterContainersAndFillCollections(
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
 		if collections[id] != nil {
-			errs = support.WrapAndAppend(p, errors.New("conflict: tombstone exists for a live collection"), errs)
+			errs.Add(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ctx))
 			continue
 		}
 
@@ -157,9 +163,8 @@ func filterContainersAndFillCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
-			// technically shouldn't ever happen.  But just in case, we need to catch
-			// it for protection.
-			logger.Ctx(ctx).Errorw("parsing tombstone path", "err", err)
+			// technically shouldn't ever happen.  But just in case...
+			logger.Ctx(ctx).With("err", err).Errorw("parsing tombstone prev path", clues.InErr(err).Slice()...)
 			continue
 		}
 
@@ -167,6 +172,7 @@ func filterContainersAndFillCollections(
 			qp.ResourceOwner,
 			nil, // marks the collection as deleted
 			prevPath,
+			nil, // tombstones don't need a location
 			scope.Category().PathType(),
 			ibt,
 			statusUpdater,
@@ -183,20 +189,21 @@ func filterContainersAndFillCollections(
 		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
 	}
 
-	if col, err := graph.MakeMetadataCollection(
+	col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
 		path.ExchangeService,
 		qp.Category,
 		entries,
 		statusUpdater,
-	); err != nil {
-		errs = support.WrapAndAppend("making metadata collection", err, errs)
-	} else if col != nil {
-		collections["metadata"] = col
+	)
+	if err != nil {
+		return clues.Wrap(err, "making metadata collection")
 	}
 
-	return errs
+	collections["metadata"] = col
+
+	return errs.Err()
 }
 
 // produces a set of id:path pairs from the deltapaths map.
@@ -230,6 +237,6 @@ func itemerByType(ac api.Client, category path.CategoryType) (itemer, error) {
 	case path.ContactsCategory:
 		return ac.Contacts(), nil
 	default:
-		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
+		return nil, clues.New("category not registered in getFetchIDFunc")
 	}
 }

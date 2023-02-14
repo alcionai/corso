@@ -13,8 +13,14 @@ import (
 
 // BetaClient the main entry point of the SDK, exposes the configuration and the fluent API.
 // Minimal Beta Connector:
-// Details on how the Code was generated is present in `kioter-lock.json`.
-// NOTE: kiota gen file is altered to indicate what files are included in the created
+// Details on how the Code was generated is within `kioter-lock.json`.
+//
+// Beta files use an adapter that allows for ASync() request. This feature
+// is disabled within the nested directories. Generic Kiota adapters do not support.
+//
+// Supported betasdk models are located within the models subdirectory
+// Supported Call source are located within the sites subdirectory
+// Specifics on `betaClient.SitesById(siteID).Pages` are located: sites/site_item_request_builder.go
 //
 // Changes to Sites Directory:
 // Access files send requests with an adapter's with ASync() support.
