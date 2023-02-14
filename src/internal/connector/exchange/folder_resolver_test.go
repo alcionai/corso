@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type CacheResolverSuite struct {
@@ -119,7 +120,7 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			resolver := test.resolverFunc(t)
-			require.NoError(t, resolver.Populate(ctx, test.root, test.basePath))
+			require.NoError(t, resolver.Populate(ctx, fault.New(true), test.root, test.basePath))
 
 			_, isFound := resolver.PathInCache(test.folderInCache)
 			test.canFind(t, isFound)

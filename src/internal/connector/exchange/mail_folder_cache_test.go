@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 const (
@@ -92,7 +93,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 				getter: acm,
 			}
 
-			require.NoError(t, mfc.Populate(ctx, test.root, test.path...))
+			require.NoError(t, mfc.Populate(ctx, fault.New(true), test.root, test.path...))
 
 			p, l, err := mfc.IDToPath(ctx, testFolderID, true)
 			require.NoError(t, err)
