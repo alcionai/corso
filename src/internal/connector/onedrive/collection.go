@@ -32,10 +32,6 @@ const (
 	// TODO: Tune this later along with collectionChannelBufferSize
 	urlPrefetchChannelBufferSize = 5
 
-	// Max number of retries to get doc from M365
-	// Seems to timeout at times because of multiple requests
-	maxRetries = 4 // 1 + 3 retries
-
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
 	DataFileSuffix    = ".data"
@@ -295,10 +291,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					itemMeta = io.NopCloser(strings.NewReader("{}"))
 					itemMetaSize = 2
 				} else {
-					err = graph.RunWithRetry(func() error {
-						itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-						return err
-					})
+					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
 
 					if err != nil {
 						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
@@ -333,38 +326,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						err      error
 					)
 
-					for i := 1; i <= maxRetries; i++ {
-						_, itemData, err = oc.itemReader(oc.itemClient, item)
-						if err == nil {
-							break
+					_, itemData, err = oc.itemReader(oc.itemClient, item)
+
+					if err != nil && graph.IsErrUnauthorized(err) {
+						// assume unauthorized requests are a sign of an expired
+						// jwt token, and that we've overrun the available window
+						// to download the actual file.  Re-downloading the item
+						// will refresh that download url.
+						di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+						if diErr != nil {
+							err = errors.Wrap(diErr, "retrieving expired item")
 						}
-
-						if graph.IsErrUnauthorized(err) {
-							// assume unauthorized requests are a sign of an expired
-							// jwt token, and that we've overrun the available window
-							// to download the actual file.  Re-downloading the item
-							// will refresh that download url.
-							di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
-							if diErr != nil {
-								err = errors.Wrap(diErr, "retrieving expired item")
-								break
-							}
-
-							item = di
-
-							continue
-
-						} else if !graph.IsErrTimeout(err) &&
-							!graph.IsInternalServerError(err) {
-							// Don't retry for non-timeout, on-unauth, as
-							// we are already retrying it in the default
-							// retry middleware
-							break
-						}
-
-						if i < maxRetries {
-							time.Sleep(1 * time.Second)
-						}
+						item = di
 					}
 
 					// check for errors following retries
