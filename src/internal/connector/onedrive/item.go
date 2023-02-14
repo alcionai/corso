@@ -63,44 +63,12 @@ func oneDriveItemMetaReader(
 	driveID string,
 	item models.DriveItemable,
 	fetchPermissions bool,
-) (r io.ReadCloser, size int, err error) {
+) (io.ReadCloser, int, error) {
 	meta := Metadata{
 		FileName: *item.GetName(),
 	}
 
-	// Always try to serialize the metadata struct so we get the file name.
-	defer func() {
-		metaJSON, serializeErr := json.Marshal(meta)
-		if serializeErr != nil {
-			serializeErr = clues.Wrap(serializeErr, "serializing item metadata")
-
-			// Need to check if err was already non-nil since it doesn't filter nil
-			// values out in calls to Stack().
-			if err != nil {
-				err = clues.Stack(err, serializeErr)
-			} else {
-				err = serializeErr
-			}
-
-			return
-		}
-
-		r = io.NopCloser(bytes.NewReader(metaJSON))
-		size = len(metaJSON)
-	}()
-
-	if !fetchPermissions {
-		return
-	}
-
-	var perms []UserPermission
-
-	err = graph.RunWithRetry(func() error {
-		var fetchErr error
-
-		perms, fetchErr = oneDriveItemMetaInfo(ctx, service, driveID, item)
-		return fetchErr
-	})
+	perms, err := oneDriveItemPermissionInfo(ctx, service, driveID, item, fetchPermissions)
 	if err != nil {
 		// Keep this in an if-block because if it's not then we have a weird issue
 		// of having no value in error but golang thinking it's non nil because of
@@ -110,7 +78,24 @@ func oneDriveItemMetaReader(
 		meta.Permissions = perms
 	}
 
-	return
+	metaJSON, serializeErr := json.Marshal(meta)
+	if serializeErr != nil {
+		serializeErr = clues.Wrap(serializeErr, "serializing item metadata")
+
+		// Need to check if err was already non-nil since it doesn't filter nil
+		// values out in calls to Stack().
+		if err != nil {
+			err = clues.Stack(err, serializeErr)
+		} else {
+			err = serializeErr
+		}
+
+		return nil, 0, err
+	}
+
+	r := io.NopCloser(bytes.NewReader(metaJSON))
+
+	return r, len(metaJSON), err
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -218,16 +203,35 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 	}
 }
 
-// oneDriveItemMetaInfo will fetch the meta information for a drive
-// item. As of now, it only adds the permissions applicable for a
-// onedrive item.
-func oneDriveItemMetaInfo(
-	ctx context.Context, service graph.Servicer,
-	driveID string, di models.DriveItemable,
+// oneDriveItemPermissionInfo will fetch the permission information for a drive
+// item.
+func oneDriveItemPermissionInfo(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	di models.DriveItemable,
+	fetchPermissions bool,
 ) ([]UserPermission, error) {
-	itemID := di.GetId()
+	if !fetchPermissions {
+		return nil, nil
+	}
 
-	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
+	var (
+		perm   models.PermissionCollectionResponseable
+		itemID = di.GetId()
+	)
+
+	err := graph.RunWithRetry(func() error {
+		var fetchErr error
+
+		perm, fetchErr = service.
+			Client().
+			DrivesById(driveID).
+			ItemsById(*itemID).
+			Permissions().
+			Get(ctx, nil)
+		return fetchErr
+	})
 	if err != nil {
 		return nil, err
 	}
