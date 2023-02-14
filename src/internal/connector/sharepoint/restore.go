@@ -70,7 +70,7 @@ func RestoreCollections(
 				service,
 				dc,
 				map[string][]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
-				onedrive.OneDriveSource,
+				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
 				errUpdater,
