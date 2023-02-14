@@ -56,7 +56,6 @@ func RestoreCollections(
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
 		var (
-			canceled bool
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
@@ -67,7 +66,7 @@ func RestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, _, _, canceled = onedrive.RestoreCollection(
+			metrics, _, _, err = onedrive.RestoreCollection(
 				ictx,
 				backupVersion,
 				service,
@@ -76,9 +75,9 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				func(s string, err error) { errs.Add(err) },
 				map[string]string{},
-				false)
+				false,
+				errs)
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(
 				ictx,
@@ -101,7 +100,7 @@ func RestoreCollections(
 
 		restoreMetrics.Combine(metrics)
 
-		if canceled || err != nil {
+		if err != nil {
 			break
 		}
 	}

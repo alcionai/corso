@@ -3,7 +3,6 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"math"
 	"runtime/trace"
@@ -15,6 +14,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -56,7 +57,7 @@ func getParentPermissions(
 		}
 
 		if len(onedrivePath.Folders) != 0 {
-			return nil, errors.Wrap(err, "unable to compute item permissions")
+			return nil, errors.Wrap(err, "computing item permissions")
 		}
 
 		parentPerms = []UserPermission{}
@@ -76,7 +77,6 @@ func getParentAndCollectionPermissions(
 	}
 
 	var (
-		err         error
 		parentPerms []UserPermission
 		colPerms    []UserPermission
 	)
@@ -96,7 +96,7 @@ func getParentAndCollectionPermissions(
 
 	// TODO(ashmrtn): For versions after this pull the permissions from the
 	// current collection with Fetch().
-	colPerms, err = getParentPermissions(collectionPath, permissions)
+	colPerms, err := getParentPermissions(collectionPath, permissions)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "getting collection permissions")
 	}
@@ -113,22 +113,22 @@ func RestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
+	errs *fault.Errors,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
-		restoreErrors  error
 		metrics        support.CollectionMetrics
 		folderPerms    map[string][]UserPermission
-		canceled       bool
 
 		// permissionIDMappings is used to map between old and new id
 		// of permissions as we restore them
 		permissionIDMappings = map[string]string{}
 	)
 
-	errUpdater := func(id string, err error) {
-		restoreErrors = support.WrapAndAppend(id, err, restoreErrors)
-	}
+	ctx = clues.Add(
+		ctx,
+		"backup_version", backupVersion,
+		"destination", dest.ContainerName)
 
 	// Reorder collections so that the parents directories are created
 	// before the child directories
@@ -140,8 +140,21 @@ func RestoreCollections(
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		metrics, folderPerms, permissionIDMappings, canceled = RestoreCollection(
-			ctx,
+		if errs.Err() != nil {
+			break
+		}
+
+		var (
+			err  error
+			ictx = clues.Add(
+				ctx,
+				"resource_owner", dc.FullPath().ResourceOwner(), // TODO: pii
+				"category", dc.FullPath().Category(),
+				"path", dc.FullPath()) // TODO: pii
+		)
+
+		metrics, folderPerms, permissionIDMappings, err = RestoreCollection(
+			ictx,
 			backupVersion,
 			service,
 			dc,
@@ -149,10 +162,12 @@ func RestoreCollections(
 			OneDriveSource,
 			dest.ContainerName,
 			deets,
-			errUpdater,
 			permissionIDMappings,
 			opts.RestorePermissions,
-		)
+			errs)
+		if err != nil {
+			errs.Add(err)
+		}
 
 		for k, v := range folderPerms {
 			parentPermissions[k] = v
@@ -160,19 +175,20 @@ func RestoreCollections(
 
 		restoreMetrics.Combine(metrics)
 
-		if canceled {
+		if errors.Is(err, context.Canceled) {
 			break
 		}
 	}
 
-	return support.CreateStatus(
-			ctx,
-			support.Restore,
-			len(dcs),
-			restoreMetrics,
-			restoreErrors,
-			dest.ContainerName),
-		nil
+	status := support.CreateStatus(
+		ctx,
+		support.Restore,
+		len(dcs),
+		restoreMetrics,
+		errs.Err(),
+		dest.ContainerName)
+
+	return status, errs.Err()
 }
 
 // RestoreCollection handles restoration of an individual collection.
@@ -188,10 +204,10 @@ func RestoreCollection(
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
-	errUpdater func(string, error),
 	permissionIDMappings map[string]string,
 	restorePerms bool,
-) (support.CollectionMetrics, map[string][]UserPermission, map[string]string, bool) {
+	errs *fault.Errors,
+) (support.CollectionMetrics, map[string][]UserPermission, map[string]string, error) {
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
 
@@ -205,8 +221,7 @@ func RestoreCollection(
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
-		errUpdater(directory.String(), err)
-		return metrics, folderPerms, permissionIDMappings, false
+		return metrics, folderPerms, permissionIDMappings, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -216,11 +231,13 @@ func RestoreCollection(
 	restoreFolderElements := []string{restoreContainerName}
 	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
 
+	ctx = clues.Add(
+		ctx,
+		"destination_elements", restoreFolderElements,
+		"drive_id", drivePath.DriveID)
+
 	trace.Log(ctx, "gc:oneDrive:restoreCollection", directory.String())
-	logger.Ctx(ctx).Infow(
-		"restoring to destination",
-		"origin", dc.FullPath().Folder(false),
-		"destination", restoreFolderElements)
+	logger.Ctx(ctx).Info("restoring onedrive collection")
 
 	parentPerms, colPerms, err := getParentAndCollectionPermissions(
 		drivePath,
@@ -228,8 +245,7 @@ func RestoreCollection(
 		parentPermissions,
 		restorePerms)
 	if err != nil {
-		errUpdater(directory.String(), err)
-		return metrics, folderPerms, permissionIDMappings, false
+		return metrics, folderPerms, permissionIDMappings, clues.Wrap(err, "getting permissions").WithClues(ctx)
 	}
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
@@ -243,35 +259,35 @@ func RestoreCollection(
 		permissionIDMappings,
 	)
 	if err != nil {
-		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
-		return metrics, folderPerms, permissionIDMappings, false
+		return metrics, folderPerms, permissionIDMappings, clues.Wrap(err, "creating folders for restore")
 	}
 
 	// Restore items from the collection
 	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 	for {
+		if errs.Err() != nil {
+			break
+		}
+
 		select {
 		case <-ctx.Done():
-			errUpdater("context canceled", ctx.Err())
-			return metrics, folderPerms, permissionIDMappings, true
+			return metrics, folderPerms, permissionIDMappings, err
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, folderPerms, permissionIDMappings, false
+				return metrics, folderPerms, permissionIDMappings, nil
 			}
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				logger.Ctx(ctx).DPanicw("transforming item to full path", "error", err)
-
-				errUpdater(itemData.UUID(), err)
-
+				errs.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
 			if source == OneDriveSource && backupVersion >= versionWithDataAndMetaFiles {
 				name := itemData.UUID()
+
 				if strings.HasSuffix(name, DataFileSuffix) {
 					metrics.Objects++
 					metrics.TotalBytes += int64(len(copyBuffer))
@@ -312,7 +328,7 @@ func RestoreCollection(
 					}
 
 					if err != nil {
-						errUpdater(itemData.UUID(), err)
+						errs.Add(err)
 						continue
 					}
 
@@ -335,28 +351,25 @@ func RestoreCollection(
 					}
 
 					metaReader := itemData.ToReader()
-					meta, err := getMetadata(metaReader)
-					metaReader.Close()
+					defer metaReader.Close()
 
+					meta, err := getMetadata(metaReader)
 					if err != nil {
-						errUpdater(itemData.UUID(), clues.Wrap(err, "folder metadata"))
+						errs.Add(clues.Wrap(err, "getting directory metadata").WithClues(ctx))
 						continue
 					}
 
 					trimmedPath := strings.TrimSuffix(itemPath.String(), DirMetaFileSuffix)
 					folderPerms[trimmedPath] = meta.Permissions
-				} else {
-					if !ok {
-						errUpdater(itemData.UUID(), fmt.Errorf("invalid backup format, you might be using an old backup"))
-						continue
-					}
+
 				}
 			} else {
 				metrics.Objects++
 				metrics.TotalBytes += int64(len(copyBuffer))
 
 				// No permissions stored at the moment for SharePoint
-				_, itemInfo, err = restoreData(ctx,
+				_, itemInfo, err = restoreData(
+					ctx,
 					service,
 					itemData.UUID(),
 					itemData,
@@ -365,7 +378,7 @@ func RestoreCollection(
 					copyBuffer,
 					source)
 				if err != nil {
-					errUpdater(itemData.UUID(), err)
+					errs.Add(err)
 					continue
 				}
 
@@ -380,6 +393,8 @@ func RestoreCollection(
 			}
 		}
 	}
+
+	return metrics, folderPerms, permissionIDMappings, errs.Err()
 }
 
 type fileFetcher interface {
@@ -425,8 +440,7 @@ func restoreV1File(
 
 	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
 	if err != nil {
-		err = clues.Wrap(err, "restoring file")
-		return details.ItemInfo{}, err
+		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
 	err = restorePermissions(
@@ -439,8 +453,7 @@ func restoreV1File(
 		permissionIDMappings,
 	)
 	if err != nil {
-		err = clues.Wrap(err, "restoring item permissions")
-		return details.ItemInfo{}, err
+		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
 
 	return itemInfo, nil
@@ -466,13 +479,11 @@ func restoreV2File(
 
 	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
 	if err != nil {
-		err = clues.Wrap(err, "restoring file")
-		return details.ItemInfo{}, err
+		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
 	if err != nil {
-		err = clues.Wrap(err, "deserializing item metadata")
-		return details.ItemInfo{}, err
+		return details.ItemInfo{}, clues.Wrap(err, "deserializing item metadata")
 	}
 
 	// TODO(ashmrtn): Future versions could attempt to do the restore in a
@@ -511,8 +522,7 @@ func restoreV2File(
 		permissionIDMappings,
 	)
 	if err != nil {
-		err = clues.Wrap(err, "restoring item permissions")
-		return details.ItemInfo{}, err
+		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
 
 	return itemInfo, nil
@@ -558,42 +568,31 @@ func CreateRestoreFolders(
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
-		return "", errors.Wrapf(
-			err,
-			"failed to get drive root. details: %s",
-			support.ConnectorStackErrorTrace(err),
-		)
+		return "", clues.Wrap(err, "getting drive root").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	logger.Ctx(ctx).Debugf("Found Root for Drive %s with ID %s", driveID, *driveRoot.GetId())
+	parentFolderID := ptr.Val(driveRoot.GetId())
+	ctx = clues.Add(ctx, "drive_root_id", parentFolderID)
 
-	parentFolderID := *driveRoot.GetId()
+	logger.Ctx(ctx).Debug("found drive root")
+
 	for _, folder := range restoreFolders {
 		folderItem, err := getFolder(ctx, service, driveID, parentFolderID, folder)
 		if err == nil {
-			parentFolderID = *folderItem.GetId()
-			logger.Ctx(ctx).Debugf("Found %s with ID %s", folder, parentFolderID)
-
+			parentFolderID = ptr.Val(folderItem.GetId())
 			continue
 		}
 
-		if !errors.Is(err, errFolderNotFound) {
-			return "", errors.Wrapf(err, "folder %s not found in drive(%s) parentFolder(%s)", folder, driveID, parentFolderID)
+		if errors.Is(err, errFolderNotFound) {
+			return "", clues.Wrap(err, "folder not found").With("folder_id", folder).WithClues(ctx)
 		}
 
 		folderItem, err = createItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
-			return "", errors.Wrapf(
-				err,
-				"failed to create folder %s/%s. details: %s", parentFolderID, folder,
-				support.ConnectorStackErrorTrace(err),
-			)
+			return "", clues.Wrap(err, "creating folder")
 		}
 
-		logger.Ctx(ctx).Debugw("resolved restore destination",
-			"dest_name", folder,
-			"parent", parentFolderID,
-			"dest_id", *folderItem.GetId())
+		logger.Ctx(ctx).Debugw("resolved restore destination", "dest_id", *folderItem.GetId())
 
 		parentFolderID = *folderItem.GetId()
 	}
@@ -614,25 +613,27 @@ func restoreData(
 	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
 	defer end()
 
+	ctx = clues.Add(ctx, "item_name", itemData.UUID())
+
 	itemName := itemData.UUID()
 	trace.Log(ctx, "gc:oneDrive:restoreItem", itemName)
 
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.StreamSize)
 	if !ok {
-		return "", details.ItemInfo{}, errors.Errorf("item %q does not implement DataStreamInfo", itemName)
+		return "", details.ItemInfo{}, clues.New("item does not implement DataStreamInfo").WithClues(ctx)
 	}
 
 	// Create Item
 	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(name, false))
 	if err != nil {
-		return "", details.ItemInfo{}, errors.Wrapf(err, "failed to create item %s", itemName)
+		return "", details.ItemInfo{}, clues.Wrap(err, "creating item")
 	}
 
 	// Get a drive item writer
 	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), ss.Size())
 	if err != nil {
-		return "", details.ItemInfo{}, errors.Wrapf(err, "failed to create item upload session %s", itemName)
+		return "", details.ItemInfo{}, clues.Wrap(err, "creating item writer")
 	}
 
 	iReader := itemData.ToReader()
@@ -643,7 +644,7 @@ func restoreData(
 	// Upload the stream data
 	written, err := io.CopyBuffer(w, progReader, copyBuffer)
 	if err != nil {
-		return "", details.ItemInfo{}, errors.Wrapf(err, "failed to upload data: item %s", itemName)
+		return "", details.ItemInfo{}, clues.Wrap(err, "writing item bytes").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	dii := details.ItemInfo{}
@@ -757,16 +758,16 @@ func restorePermissions(
 ) error {
 	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
 
+	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
 	for _, p := range permRemoved {
-		err := service.Client().DrivesById(driveID).ItemsById(itemID).
-			PermissionsById(permissionIDMappings[p.ID]).Delete(ctx, nil)
+		err := service.Client().
+			DrivesById(driveID).
+			ItemsById(itemID).
+			PermissionsById(permissionIDMappings[p.ID]).
+			Delete(ctx, nil)
 		if err != nil {
-			return errors.Wrapf(
-				err,
-				"failed to remove permission for item %s. details: %s",
-				itemID,
-				support.ConnectorStackErrorTrace(err),
-			)
+			return clues.Wrap(err, "removing permissions").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 	}
 
@@ -791,12 +792,7 @@ func restorePermissions(
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return errors.Wrapf(
-				err,
-				"failed to set permission for item %s. details: %s",
-				itemID,
-				support.ConnectorStackErrorTrace(err),
-			)
+			return clues.Wrap(err, "setting permissions").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
