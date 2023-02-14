@@ -17,13 +17,6 @@ import (
 
 // RetryHandler handles transient HTTP responses and retries the request given the retry options
 type RetryHandler struct {
-	// default options to use when evaluating the response
-	options RetryHandlerOptions
-}
-
-type RetryHandlerOptions struct {
-	// request never retried if flag set to true
-	NoRetry bool
 	// The maximum number of times a request can be retried
 	MaxRetries int
 	// The delay in seconds between retries
@@ -34,7 +27,6 @@ func (middleware RetryHandler) retryRequest(
 	ctx context.Context,
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
-	options RetryHandlerOptions,
 	req *http.Request,
 	resp *http.Response,
 	executionCount int,
@@ -44,8 +36,7 @@ func (middleware RetryHandler) retryRequest(
 ) (*http.Response, error) {
 	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
-		executionCount < options.MaxRetries &&
-		!options.NoRetry &&
+		executionCount < middleware.MaxRetries &&
 		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second {
 		executionCount++
 
@@ -65,7 +56,6 @@ func (middleware RetryHandler) retryRequest(
 		return middleware.retryRequest(ctx,
 			pipeline,
 			middlewareIndex,
-			options,
 			req,
 			response,
 			executionCount,
