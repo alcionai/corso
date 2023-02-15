@@ -771,7 +771,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			ResourceOwner: suite.user,
 			Credentials:   m365,
 		}
-		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
 		require.NoError(t, err, "populating %s container resolver", category)
 
 		for destName, dest := range gen.dests {
@@ -890,7 +890,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						ResourceOwner: suite.user,
 						Credentials:   m365,
 					}
-					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
 					require.NoError(t, err, "populating %s container resolver", category)
 
 					p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)

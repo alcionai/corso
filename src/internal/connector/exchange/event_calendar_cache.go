@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -61,6 +62,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 // @param baseID: ignored. Present to conform to interface
 func (ecc *eventCalendarCache) Populate(
 	ctx context.Context,
+	errs *fault.Errors,
 	baseID string,
 	baseContainerPath ...string,
 ) error {
@@ -72,7 +74,8 @@ func (ecc *eventCalendarCache) Populate(
 		ctx,
 		ecc.userID,
 		"",
-		ecc.addFolder)
+		ecc.addFolder,
+		errs)
 	if err != nil {
 		return errors.Wrap(err, "enumerating containers")
 	}
