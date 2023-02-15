@@ -35,17 +35,6 @@ func getMetadata(fileName, user string, roles []string) onedrive.Metadata {
 	return testMeta
 }
 
-func getTestMetaJSON(t *testing.T, fileName, user string, roles []string) []byte {
-	testMeta := getMetadata(fileName, user, roles)
-
-	testMetaJSON, err := json.Marshal(testMeta)
-	if err != nil {
-		t.Fatal("unable to marshall test permissions", err)
-	}
-
-	return testMetaJSON
-}
-
 type testOneDriveData struct {
 	FileName string `json:"fileName,omitempty"`
 	Data     []byte `json:"data,omitempty"`

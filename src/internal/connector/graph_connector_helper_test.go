@@ -191,7 +191,6 @@ type restoreBackupInfo struct {
 }
 
 type restoreBackupInfoMultiVersion struct {
-	name                string
 	service             path.ServiceType
 	collectionsLatest   []colInfo
 	collectionsPrevious []colInfo
@@ -762,6 +761,7 @@ func compareOneDriveItem(
 	}
 
 	var fileData testOneDriveData
+
 	err = json.Unmarshal(buf, &fileData)
 	if !assert.NoErrorf(t, err, "unmarshalling file data for file %s", name) {
 		return
