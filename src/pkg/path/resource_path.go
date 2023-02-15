@@ -272,8 +272,6 @@ func (rp dataLayerResourcePath) ToBuilder() *Builder {
 	return &rp.Builder
 }
 
-// UpdateParent updates parent from old to new if the item/folder was
-// parented by old path
 func (rp *dataLayerResourcePath) UpdateParent(prev, cur Path) bool {
 	if prev == cur || len(prev.Elements()) > len(rp.Elements()) {
 		return false

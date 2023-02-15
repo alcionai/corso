@@ -89,6 +89,8 @@ type Path interface {
 	Folder(bool) string
 	Folders() []string
 	Item() string
+	// UpdateParent updates parent from old to new if the item/folder was
+	// parented by old path
 	UpdateParent(prev, cur Path) bool
 	// PopFront returns a Builder object with the first element (left-side)
 	// removed. As the resulting set of elements is no longer a valid resource

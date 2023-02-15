@@ -44,9 +44,9 @@ func getExpectedStatePathGenerator(
 		)
 
 		if state != data.MovedState {
-			require.Equal(t, len(pths), 1, "invalid number of paths to getExpectedStatePathGenerator")
+			require.Len(t, pths, 1, "invalid number of paths to getExpectedStatePathGenerator")
 		} else {
-			require.Equal(t, len(pths), 2, "invalid number of paths to getExpectedStatePathGenerator")
+			require.Len(t, pths, 2, "invalid number of paths to getExpectedStatePathGenerator")
 			p2, err = GetCanonicalPath(base+pths[1], tenant, user, OneDriveSource)
 			require.NoError(t, err)
 		}
@@ -678,10 +678,10 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 
 			for id, sp := range tt.expectedCollectionIDs {
-				assert.Contains(t, c.CollectionMap, id, fmt.Sprintf("contains collection with id %s", id))
-				assert.Equal(t, sp.state, c.CollectionMap[id].State(), fmt.Sprintf("state for collection %s", id))
-				assert.Equal(t, sp.curPath, c.CollectionMap[id].FullPath(), fmt.Sprintf("current path for collection %s", id))
-				assert.Equal(t, sp.prevPath, c.CollectionMap[id].PreviousPath(), fmt.Sprintf("prev path for collection %s", id))
+				assert.Containsf(t, c.CollectionMap, id, "contains collection with id %s", id)
+				assert.Equalf(t, sp.state, c.CollectionMap[id].State(), "state for collection %s", id)
+				assert.Equalf(t, sp.curPath, c.CollectionMap[id].FullPath(), "current path for collection %s", id)
+				assert.Equalf(t, sp.prevPath, c.CollectionMap[id].PreviousPath(), "prev path for collection %s", id)
 			}
 
 			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap, "metadata paths")
@@ -1572,11 +1572,12 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					itemIDs = append(itemIDs, id)
 				}
 
-				assert.ElementsMatch(
+				assert.ElementsMatchf(
 					t,
 					test.expectedCollections[folderPath][baseCol.State()],
 					itemIDs,
-					fmt.Sprintf("items in collection %s", folderPath),
+					"items in collection %s",
+					folderPath,
 				)
 				assert.Equal(t, test.doNotMergeItems, baseCol.DoNotMergeItems(), "DoNotMergeItems")
 			}

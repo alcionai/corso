@@ -387,7 +387,7 @@ func updateCollectionPaths(
 			return found, nil
 		}
 
-		ocol.SetPaths(ocol.PreviousPath(), curPath)
+		ocol.SetFullPath(curPath)
 	}
 
 	if initialCurPath == nil {
@@ -409,8 +409,7 @@ func updateCollectionPaths(
 		// Only updates if initialCurPath parent of colPath
 		updated := colPath.UpdateParent(initialCurPath, curPath)
 		if updated {
-			ocol.SetPaths(c.PreviousPath(), colPath)
-			updatePath(newPaths, i, colPath.String())
+			ocol.SetFullPath(colPath)
 		}
 	}
 
@@ -461,25 +460,6 @@ func (c *Collections) UpdateCollections(
 			return err
 		}
 
-		oneDrivePath, err := path.ToOneDrivePath(collectionPath)
-		if err != nil {
-			return clues.Wrap(err, "invalid path for backup")
-		}
-
-		if len(oneDrivePath.Folders) == 0 {
-			// path for root will never change
-			prevCollectionPath = collectionPath
-		} else {
-			prevCollectionPathStr, ok := oldPaths[collectionID]
-			if ok {
-				prevCollectionPath, err = path.FromDataLayerPath(prevCollectionPathStr, false)
-				if err != nil {
-					return clues.Wrap(err, fmt.Sprintf("invalid previous path for collection %s", prevCollectionPathStr))
-				}
-			}
-
-		}
-
 		// Skip items that don't match the folder selectors we were given.
 		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
@@ -492,7 +472,7 @@ func (c *Collections) UpdateCollections(
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 				if err != nil {
-					return clues.Wrap(err, fmt.Sprintf("invalid previous path for deleted item %s", prevPathStr))
+					return clues.Wrap(err, "invalid previous path").WithAll("path_string", prevPathStr)
 				}
 			}
 
@@ -589,6 +569,25 @@ func (c *Collections) UpdateCollections(
 				c.NumItems++
 
 				continue
+			}
+
+			oneDrivePath, err := path.ToOneDrivePath(collectionPath)
+			if err != nil {
+				return clues.Wrap(err, "invalid path for backup")
+			}
+
+			if len(oneDrivePath.Folders) == 0 {
+				// path for root will never change
+				prevCollectionPath = collectionPath
+			} else {
+				prevCollectionPathStr, ok := oldPaths[collectionID]
+				if ok {
+					prevCollectionPath, err = path.FromDataLayerPath(prevCollectionPathStr, false)
+					if err != nil {
+						return clues.Wrap(err, "invalid previous path").WithAll("path_string", prevCollectionPathStr)
+					}
+				}
+
 			}
 
 			col, found := c.CollectionMap[collectionID]
