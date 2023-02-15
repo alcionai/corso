@@ -68,38 +68,12 @@ func (c Contacts) GetItem(
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return cont, ContactInfo(cont), nil
-}
-
-// GetAllContactFolderNamesForUser is a GraphQuery function for getting
-// ContactFolderId and display names for contacts. All other information is omitted.
-// Does not return the default Contact Folder
-func (c Contacts) GetAllContactFolderNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.ContactFolderCollectionResponseable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
-		return err
-	})
-
-	return resp, err
 }
 
 func (c Contacts) GetContainerByID(
@@ -113,10 +87,7 @@ func (c Contacts) GetContainerByID(
 
 	var resp models.ContactFolderable
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
-		return err
-	})
+	resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 
 	return resp, err
 }
@@ -154,11 +125,7 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofcf)
-			return err
-		})
-
+		resp, err = builder.Get(ctx, ofcf)
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -169,10 +136,8 @@ func (c Contacts) EnumerateContainers(
 				continue
 			}
 
-			temp := graph.NewCacheFolder(fold, nil)
-
-			err = fn(temp)
-			if err != nil {
+			temp := graph.NewCacheFolder(fold, nil, nil)
+			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}
@@ -206,10 +171,7 @@ func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error)
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	resp, err = p.builder.Get(ctx, p.options)
 
 	return resp, err
 }

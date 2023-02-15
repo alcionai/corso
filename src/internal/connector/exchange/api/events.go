@@ -78,10 +78,7 @@ func (c Events) GetContainerByID(
 
 	var cal models.Calendarable
 
-	err = graph.RunWithRetry(func() error {
-		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
-		return err
-	})
+	cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 
 	if err != nil {
 		return nil, err
@@ -100,11 +97,7 @@ func (c Events) GetItem(
 		err   error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -144,25 +137,6 @@ func (c Events) GetItem(
 	return event, EventInfo(event), nil
 }
 
-func (c Client) GetAllCalendarNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForCalendars([]string{"name", "owner"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.CalendarCollectionResponseable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
-		return err
-	})
-
-	return resp, err
-}
-
 // EnumerateContainers iterates through all of the users current
 // calendars, converting each to a graph.CacheFolder, and
 // calling fn(cf) on each one.  If fn(cf) errors, the error is
@@ -194,11 +168,7 @@ func (c Events) EnumerateContainers(
 	for {
 		var err error
 
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofc)
-			return err
-		})
-
+		resp, err = builder.Get(ctx, ofc)
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -210,10 +180,11 @@ func (c Events) EnumerateContainers(
 				continue
 			}
 
-			temp := graph.NewCacheFolder(cd, path.Builder{}.Append(*cd.GetDisplayName()))
-
-			err = fn(temp)
-			if err != nil {
+			temp := graph.NewCacheFolder(
+				cd,
+				path.Builder{}.Append(*cd.GetId()), // storage path
+				path.Builder{}.Append(*cd.GetDisplayName())) // display location
+			if err := fn(temp); err != nil {
 				errs = multierror.Append(err, errs)
 				continue
 			}
@@ -251,10 +222,7 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	resp, err = p.builder.Get(ctx, p.options)
 
 	return resp, err
 }

@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -51,38 +52,54 @@ type containerResolver struct {
 func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
-) (*path.Builder, error) {
-	return cr.idToPath(ctx, folderID, 0)
+	useIDInPath bool,
+) (*path.Builder, *path.Builder, error) {
+	return cr.idToPath(ctx, folderID, 0, useIDInPath)
 }
 
 func (cr *containerResolver) idToPath(
 	ctx context.Context,
 	folderID string,
 	depth int,
-) (*path.Builder, error) {
+	useIDInPath bool,
+) (*path.Builder, *path.Builder, error) {
+	ctx = clues.Add(ctx, "container_id", folderID)
+
 	if depth >= maxIterations {
-		return nil, errors.New("path contains cycle or is too tall")
+		return nil, nil, clues.New("path contains cycle or is too tall").WithClues(ctx)
 	}
 
 	c, ok := cr.cache[folderID]
 	if !ok {
-		return nil, errors.Errorf("folder %s not cached", folderID)
+		return nil, nil, clues.New("folder not cached").WithClues(ctx)
 	}
 
 	p := c.Path()
 	if p != nil {
-		return p, nil
+		return p, c.Location(), nil
 	}
 
-	parentPath, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1)
+	parentPath, parentLoc, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1, useIDInPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving parent folder")
+		return nil, nil, errors.Wrap(err, "retrieving parent folder")
 	}
 
-	fullPath := parentPath.Append(*c.GetDisplayName())
+	toAppend := *c.GetDisplayName()
+	if useIDInPath {
+		toAppend = *c.GetId()
+	}
+
+	fullPath := parentPath.Append(toAppend)
 	c.SetPath(fullPath)
 
-	return fullPath, nil
+	var locPath *path.Builder
+
+	if parentLoc != nil {
+		locPath = parentLoc.Append(*c.GetDisplayName())
+		c.SetLocation(locPath)
+	}
+
+	return fullPath, locPath, nil
 }
 
 // PathInCache utility function to return m365ID of folder if the path.Folders
@@ -93,13 +110,13 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 		return "", false
 	}
 
-	for _, contain := range cr.cache {
-		if contain.Path() == nil {
+	for _, cc := range cr.cache {
+		if cc.Path() == nil {
 			continue
 		}
 
-		if contain.Path().String() == pathString {
-			return *contain.GetId(), true
+		if cc.Path().String() == pathString {
+			return *cc.GetId(), true
 		}
 	}
 
@@ -141,18 +158,21 @@ func (cr *containerResolver) Items() []graph.CachedContainer {
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (cr *containerResolver) AddToCache(ctx context.Context, f graph.Container) error {
+func (cr *containerResolver) AddToCache(
+	ctx context.Context,
+	f graph.Container,
+	useIDInPath bool,
+) error {
 	temp := graph.CacheFolder{
 		Container: f,
 	}
-
 	if err := cr.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding cache folder")
+		return clues.Wrap(err, "adding cache folder").WithClues(ctx)
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, err := cr.IDToPath(ctx, *f.GetId())
+	_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 	if err != nil {
 		return errors.Wrap(err, "adding cache entry")
 	}
@@ -160,12 +180,18 @@ func (cr *containerResolver) AddToCache(ctx context.Context, f graph.Container) 
 	return nil
 }
 
-func (cr *containerResolver) populatePaths(ctx context.Context) error {
+// DestinationNameToID returns an empty string.  This is only supported by exchange
+// calendars at this time.
+func (cr *containerResolver) DestinationNameToID(dest string) string {
+	return ""
+}
+
+func (cr *containerResolver) populatePaths(ctx context.Context, useIDInPath bool) error {
 	var errs *multierror.Error
 
 	// Populate all folder paths.
 	for _, f := range cr.Items() {
-		_, err := cr.IDToPath(ctx, *f.GetId())
+		_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "populating path"))
 		}

@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
@@ -46,46 +47,42 @@ func uploadAttachment(
 	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
-	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
+	attachmentType := attachmentType(attachment)
 
-	var (
-		attachmentType = attachmentType(attachment)
-		err            error
-	)
+	ctx = clues.AddAll(
+		ctx,
+		"attachment_size", ptr.Val(attachment.GetSize()),
+		"attachment_id", ptr.Val(attachment.GetId()),
+		"attachment_name", ptr.Val(attachment.GetName()), // TODO: pii
+		"attachment_type", attachmentType,
+		"internal_item_type", getItemAttachmentItemType(attachment),
+		"uploader_item_id", uploader.getItemID())
+
+	logger.Ctx(ctx).Debugw("uploading attachment")
+
 	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
-	if attachmentType == models.REFERENCE_ATTACHMENTTYPE &&
-		attachment.GetIsInline() != nil && *attachment.GetIsInline() {
-		logger.Ctx(ctx).Debugf("skip uploading inline reference attachment: ", *attachment.GetName())
+	if attachmentType == models.REFERENCE_ATTACHMENTTYPE && ptr.Val(attachment.GetIsInline()) {
+		logger.Ctx(ctx).Debug("skip uploading inline reference attachment: ", ptr.Val(attachment.GetName()))
 		return nil
 	}
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
-		prev := attachment
-
-		attachment, err = support.ToItemAttachment(attachment)
+		a, err := support.ToItemAttachment(attachment)
 		if err != nil {
-			name := ptr.Val(prev.GetName())
-			msg := "item attachment restore not supported for this type. skipping upload."
-
-			// TODO: (rkeepers) Update to support PII protection
-			logger.Ctx(ctx).Infow(msg,
-				"err", err,
-				"attachment_name", name,
-				"attachment_type", attachmentType,
-				"internal_item_type", getItemAttachmentItemType(prev),
-				"attachment_id", ptr.Val(prev.GetId()),
-			)
+			logger.Ctx(ctx).
+				With("err", err).
+				Infow("item attachment restore not supported for this type. skipping upload.", clues.InErr(err).Slice()...)
 
 			return nil
 		}
+
+		attachment = a
 	}
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
-	if attachmentType != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
-		err := uploader.uploadSmallAttachment(ctx, attachment)
-
-		return err
+	if attachmentType != models.FILE_ATTACHMENTTYPE || ptr.Val(attachment.GetSize()) < largeAttachmentSize {
+		return uploader.uploadSmallAttachment(ctx, attachment)
 	}
 
 	return uploadLargeAttachment(ctx, uploader, attachment)
@@ -93,7 +90,9 @@ func uploadAttachment(
 
 // uploadLargeAttachment will upload the specified attachment by creating an upload session and
 // doing a chunked upload
-func uploadLargeAttachment(ctx context.Context, uploader attachmentUploadable,
+func uploadLargeAttachment(
+	ctx context.Context,
+	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
 	ab := attachmentBytes(attachment)

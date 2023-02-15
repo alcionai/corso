@@ -99,10 +99,7 @@ func (c Mail) GetContainerByID(
 
 	var resp graph.Container
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
-		return err
-	})
+	resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
 
 	return resp, err
 }
@@ -118,11 +115,7 @@ func (c Mail) GetItem(
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,18 +181,13 @@ func (c Mail) EnumerateContainers(
 	for {
 		var err error
 
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, nil)
-			return err
-		})
-
+		resp, err = builder.Get(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, v := range resp.GetValue() {
-			temp := graph.NewCacheFolder(v, nil)
-
+			temp := graph.NewCacheFolder(v, nil, nil)
 			if err := fn(temp); err != nil {
 				errs = multierror.Append(errs, errors.Wrap(err, "iterating mail folders delta"))
 				continue
@@ -235,10 +223,7 @@ func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		page, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	page, err = p.builder.Get(ctx, p.options)
 
 	return page, err
 }
