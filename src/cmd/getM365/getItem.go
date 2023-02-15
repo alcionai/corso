@@ -81,7 +81,7 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = runDisplayM365JSON(ctx, creds, user, m365ID)
+	err = runDisplayM365JSON(ctx, creds, user, m365ID, fault.New(true))
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "unable to create mock from M365: %s", m365ID))
 	}
@@ -93,6 +93,7 @@ func runDisplayM365JSON(
 	ctx context.Context,
 	creds account.M365Config,
 	user, itemID string,
+	errs *fault.Errors,
 ) error {
 	var (
 		bs  []byte
@@ -108,11 +109,11 @@ func runDisplayM365JSON(
 
 	switch cat {
 	case path.EmailCategory:
-		bs, err = getItem(ctx, ac.Mail(), user, itemID)
+		bs, err = getItem(ctx, ac.Mail(), user, itemID, errs)
 	case path.EventsCategory:
-		bs, err = getItem(ctx, ac.Events(), user, itemID)
+		bs, err = getItem(ctx, ac.Events(), user, itemID, errs)
 	case path.ContactsCategory:
-		bs, err = getItem(ctx, ac.Contacts(), user, itemID)
+		bs, err = getItem(ctx, ac.Contacts(), user, itemID, errs)
 	default:
 		return fmt.Errorf("unable to process category: %s", cat)
 	}
@@ -142,6 +143,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		errs *fault.Errors,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
@@ -154,8 +156,9 @@ func getItem(
 	ctx context.Context,
 	itm itemer,
 	user, itemID string,
+	errs *fault.Errors,
 ) ([]byte, error) {
-	sp, _, err := itm.GetItem(ctx, user, itemID)
+	sp, _, err := itm.GetItem(ctx, user, itemID, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting item")
 	}

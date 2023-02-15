@@ -330,7 +330,8 @@ func RestoreExchangeDataCollections(
 			creds,
 			dc.FullPath(),
 			dest.ContainerName,
-			userCaches)
+			userCaches,
+			errs)
 		if err != nil {
 			errs.Add(clues.Wrap(err, "creating destination").WithClues(ctx))
 			continue
@@ -471,6 +472,7 @@ func CreateContainerDestination(
 	directory path.Path,
 	destination string,
 	caches map[path.CategoryType]graph.ContainerResolver,
+	errs *fault.Errors,
 ) (string, error) {
 	var (
 		newCache       = false
@@ -508,7 +510,8 @@ func CreateContainerDestination(
 			folders,
 			directoryCache,
 			user,
-			newCache)
+			newCache,
+			errs)
 
 	case path.ContactsCategory:
 		folders := append([]string{destination}, directory.Folders()...)
@@ -531,7 +534,8 @@ func CreateContainerDestination(
 			folders,
 			directoryCache,
 			user,
-			newCache)
+			newCache,
+			errs)
 
 	case path.EventsCategory:
 		dest := destination
@@ -561,7 +565,8 @@ func CreateContainerDestination(
 			folders,
 			directoryCache,
 			user,
-			newCache)
+			newCache,
+			errs)
 
 	default:
 		return "", clues.Wrap(fmt.Errorf("%T", category), "not support for exchange cache").WithClues(ctx)
@@ -580,6 +585,7 @@ func establishMailRestoreLocation(
 	mfc graph.ContainerResolver,
 	user string,
 	isNewCache bool,
+	errs *fault.Errors,
 ) (string, error) {
 	// Process starts with the root folder in order to recreate
 	// the top-level folder with the same tactic
@@ -609,7 +615,7 @@ func establishMailRestoreLocation(
 		// newCache to false in this we'll only try to populate it once per function
 		// call even if we make a new cache.
 		if isNewCache {
-			if err := mfc.Populate(ctx, rootFolderAlias); err != nil {
+			if err := mfc.Populate(ctx, errs, rootFolderAlias); err != nil {
 				return "", errors.Wrap(err, "populating folder cache")
 			}
 
@@ -638,6 +644,7 @@ func establishContactsRestoreLocation(
 	cfc graph.ContainerResolver,
 	user string,
 	isNewCache bool,
+	errs *fault.Errors,
 ) (string, error) {
 	cached, ok := cfc.PathInCache(folders[0])
 	if ok {
@@ -654,7 +661,7 @@ func establishContactsRestoreLocation(
 	folderID := *temp.GetId()
 
 	if isNewCache {
-		if err := cfc.Populate(ctx, folderID, folders[0]); err != nil {
+		if err := cfc.Populate(ctx, errs, folderID, folders[0]); err != nil {
 			return "", errors.Wrap(err, "populating contact cache")
 		}
 
@@ -673,6 +680,7 @@ func establishEventsRestoreLocation(
 	ecc graph.ContainerResolver, // eventCalendarCache
 	user string,
 	isNewCache bool,
+	errs *fault.Errors,
 ) (string, error) {
 	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
 	cached, ok := ecc.PathInCache(folders[0])
@@ -690,7 +698,7 @@ func establishEventsRestoreLocation(
 	folderID := *temp.GetId()
 
 	if isNewCache {
-		if err = ecc.Populate(ctx, folderID, folders[0]); err != nil {
+		if err = ecc.Populate(ctx, errs, folderID, folders[0]); err != nil {
 			return "", errors.Wrap(err, "populating event cache")
 		}
 

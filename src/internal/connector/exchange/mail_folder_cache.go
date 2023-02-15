@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -71,6 +72,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 // for the base container in the cache.
 func (mc *mailFolderCache) Populate(
 	ctx context.Context,
+	errs *fault.Errors,
 	baseID string,
 	baseContainerPath ...string,
 ) error {
@@ -78,7 +80,7 @@ func (mc *mailFolderCache) Populate(
 		return errors.Wrap(err, "initializing")
 	}
 
-	err := mc.enumer.EnumerateContainers(ctx, mc.userID, "", mc.addFolder)
+	err := mc.enumer.EnumerateContainers(ctx, mc.userID, "", mc.addFolder, errs)
 	if err != nil {
 		return errors.Wrap(err, "enumerating containers")
 	}
