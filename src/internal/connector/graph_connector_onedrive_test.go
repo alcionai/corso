@@ -275,6 +275,10 @@ func (c *onedriveCollection) withPermissions(
 
 	name := c.pathElements[len(c.pathElements)-1]
 
+	if name == "root:" {
+		return c
+	}
+
 	c.items = append(
 		c.items,
 		onedriveMetadata(
@@ -284,6 +288,8 @@ func (c *onedriveCollection) withPermissions(
 			user,
 			roles),
 	)
+
+	return c
 }
 
 type permData struct {
