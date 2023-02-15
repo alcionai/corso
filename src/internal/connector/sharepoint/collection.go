@@ -11,6 +11,7 @@ import (
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -271,7 +272,6 @@ func (sc *Collection) retrievePages(
 	var (
 		errs    error
 		metrics numMetrics
-		root    string
 	)
 
 	betaService := sc.betaService
@@ -279,14 +279,12 @@ func (sc *Collection) retrievePages(
 		return metrics, fmt.Errorf("beta service not found in collection")
 	}
 
-	parent, err := sapi.GetSiteLite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	parent, err := sapi.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
 	if err != nil {
 		return metrics, err
 	}
 
-	if parent.GetWebUrl() != nil {
-		root = *parent.GetWebUrl()
-	}
+	root := ptr.Val(parent.GetWebUrl())
 
 	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
 	if err != nil {
