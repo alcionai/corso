@@ -1,4 +1,4 @@
-package observe_test
+package observe
 
 import (
 	"bytes"
@@ -14,22 +14,23 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type ObserveProgressUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestObserveProgressUnitSuite(t *testing.T) {
-	suite.Run(t, new(ObserveProgressUnitSuite))
+	suite.Run(t, &ObserveProgressUnitSuite{
+		Suite: tester.NewUnitSuite(t),
+	})
 }
 
 var (
-	tst        = observe.Safe("test")
-	testcat    = observe.Safe("testcat")
-	testertons = observe.Safe("testertons")
+	tst        = Safe("test")
+	testcat    = Safe("testcat")
+	testertons = Safe("testertons")
 )
 
 func (suite *ObserveProgressUnitSuite) TestItemProgress() {
@@ -39,17 +40,17 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
-		observe.Complete()
+		Complete()
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	from := make([]byte, 100)
-	prog, closer := observe.ItemProgress(
+	prog, closer := ItemProgress(
 		ctx,
 		io.NopCloser(bytes.NewReader(from)),
 		"folder",
@@ -94,16 +95,16 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
-		observe.Complete()
+		Complete()
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := observe.CollectionProgress(ctx, "test", testcat, testertons)
+	progCh, closer := CollectionProgress(ctx, "test", testcat, testertons)
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 
@@ -129,16 +130,16 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	t := suite.T()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
-		observe.Complete()
+		Complete()
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := observe.CollectionProgress(ctx, "test", testcat, testertons)
+	progCh, closer := CollectionProgress(ctx, "test", testcat, testertons)
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 
@@ -160,18 +161,18 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgress() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	message := "Test Message"
 
-	observe.Message(ctx, observe.Safe(message))
-	observe.Complete()
+	Message(ctx, Safe(message))
+	Complete()
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
 }
@@ -181,17 +182,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	message := "Test Message"
 
-	ch, closer := observe.MessageWithCompletion(ctx, observe.Safe(message))
+	ch, closer := MessageWithCompletion(ctx, Safe(message))
 
 	// Trigger completion
 	ch <- struct{}{}
@@ -199,7 +200,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCompletion() {
 	// Run the closer - this should complete because the bar was compelted above
 	closer()
 
-	observe.Complete()
+	Complete()
 
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
@@ -211,17 +212,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	message := "Test Message"
 
-	ch, closer := observe.MessageWithCompletion(ctx, observe.Safe(message))
+	ch, closer := MessageWithCompletion(ctx, Safe(message))
 
 	// Close channel without completing
 	close(ch)
@@ -229,7 +230,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithChannelClosed() {
 	// Run the closer - this should complete because the channel was closed above
 	closer()
 
-	observe.Complete()
+	Complete()
 
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
@@ -243,17 +244,17 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 	ctx, cancel := context.WithCancel(ctx)
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	message := "Test Message"
 
-	_, closer := observe.MessageWithCompletion(ctx, observe.Safe(message))
+	_, closer := MessageWithCompletion(ctx, Safe(message))
 
 	// cancel context
 	cancel()
@@ -261,7 +262,7 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithContextCancelled()
 	// Run the closer - this should complete because the context was closed above
 	closer()
 
-	observe.Complete()
+	Complete()
 
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
@@ -272,19 +273,19 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	header := "Header"
 	message := "Test Message"
 	count := 3
 
-	ch, closer := observe.ProgressWithCount(ctx, header, observe.Safe(message), int64(count))
+	ch, closer := ProgressWithCount(ctx, header, Safe(message), int64(count))
 
 	for i := 0; i < count; i++ {
 		ch <- struct{}{}
@@ -293,40 +294,117 @@ func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCount() {
 	// Run the closer - this should complete because the context was closed above
 	closer()
 
-	observe.Complete()
+	Complete()
 
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
 	require.Contains(suite.T(), recorder.String(), fmt.Sprintf("%d/%d", count, count))
 }
 
-func (suite *ObserveProgressUnitSuite) TestObserveProgressWithCountChannelClosed() {
+func (suite *ObserveProgressUnitSuite) TestrogressWithCountChannelClosed() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
 	recorder := strings.Builder{}
-	observe.SeedWriter(ctx, &recorder, nil)
+	SeedWriter(ctx, &recorder, nil)
 
 	defer func() {
 		// don't cross-contaminate other tests.
 		//nolint:forbidigo
-		observe.SeedWriter(context.Background(), nil, nil)
+		SeedWriter(context.Background(), nil, nil)
 	}()
 
 	header := "Header"
 	message := "Test Message"
 	count := 3
 
-	ch, closer := observe.ProgressWithCount(ctx, header, observe.Safe(message), int64(count))
+	ch, closer := ProgressWithCount(ctx, header, Safe(message), int64(count))
 
 	close(ch)
 
 	// Run the closer - this should complete because the context was closed above
 	closer()
 
-	observe.Complete()
+	Complete()
 
 	require.NotEmpty(suite.T(), recorder.String())
 	require.Contains(suite.T(), recorder.String(), message)
 	require.Contains(suite.T(), recorder.String(), fmt.Sprintf("%d/%d", 0, count))
+}
+
+func (suite *ObserveProgressUnitSuite) TestListen() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t     = suite.T()
+		ch    = make(chan struct{})
+		end   bool
+		onEnd = func() { end = true }
+		inc   bool
+		onInc = func() { inc = true }
+	)
+
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		ch <- struct{}{}
+
+		time.Sleep(500 * time.Millisecond)
+		close(ch)
+	}()
+
+	// regular channel close
+	listen(ctx, ch, onEnd, onInc)
+	assert.True(t, end)
+	assert.True(t, inc)
+}
+
+func (suite *ObserveProgressUnitSuite) TestListen_close() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t     = suite.T()
+		ch    = make(chan struct{})
+		end   bool
+		onEnd = func() { end = true }
+		inc   bool
+		onInc = func() { inc = true }
+	)
+
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		close(ch)
+	}()
+
+	// regular channel close
+	listen(ctx, ch, onEnd, onInc)
+	assert.True(t, end)
+	assert.False(t, inc)
+}
+
+func (suite *ObserveProgressUnitSuite) TestListen_cancel() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	ctx, cancelFn := context.WithCancel(ctx)
+
+	var (
+		t     = suite.T()
+		ch    = make(chan struct{})
+		end   bool
+		onEnd = func() { end = true }
+		inc   bool
+		onInc = func() { inc = true }
+	)
+
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancelFn()
+	}()
+
+	// regular channel close
+	listen(ctx, ch, onEnd, onInc)
+	assert.True(t, end)
+	assert.False(t, inc)
 }
