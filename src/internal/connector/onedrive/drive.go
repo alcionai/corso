@@ -178,6 +178,7 @@ func defaultItemPager(
 			"parentReference",
 			"root",
 			"size",
+			"deleted",
 		},
 	)
 }
