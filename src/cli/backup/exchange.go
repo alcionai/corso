@@ -264,7 +264,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create exchange"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -388,7 +395,14 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list exchange"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -468,7 +482,14 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details exchange"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -546,7 +567,14 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete exchange"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}

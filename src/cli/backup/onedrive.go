@@ -187,7 +187,14 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create onedrive"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -288,7 +295,14 @@ func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list onedrive"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -348,7 +362,14 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details onedrive"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -435,7 +456,14 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete onedrive"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
+	r, err := repository.Connect(ctx, acct, s, controlOpts)
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}

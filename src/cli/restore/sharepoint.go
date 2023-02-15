@@ -163,6 +163,13 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "restore sharepoint"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
 	r, err := repository.Connect(ctx, a, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))

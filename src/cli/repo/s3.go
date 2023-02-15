@@ -114,6 +114,13 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "init repo"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
+	}
+
 	s3Cfg, err := s.S3Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
@@ -124,7 +131,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, a, s, options.Control())
+	r, err := repository.Initialize(ctx, a, s, controlOpts)
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -171,6 +178,13 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	s, a, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	controlOpts := options.Control()
+
+	err = utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "connect repo"}, controlOpts)
+	if err != nil {
+		return errors.Wrap(err, "constructing event bus")
 	}
 
 	s3Cfg, err := s.S3Config()
