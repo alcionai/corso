@@ -78,10 +78,7 @@ func (c Events) GetContainerByID(
 
 	var cal models.Calendarable
 
-	err = graph.RunWithRetry(func() error {
-		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
-		return err
-	})
+	cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 
 	if err != nil {
 		return nil, err
@@ -100,11 +97,7 @@ func (c Events) GetItem(
 		err   error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -175,11 +168,7 @@ func (c Events) EnumerateContainers(
 	for {
 		var err error
 
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofc)
-			return err
-		})
-
+		resp, err = builder.Get(ctx, ofc)
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -233,10 +222,7 @@ func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	resp, err = p.builder.Get(ctx, p.options)
 
 	return resp, err
 }

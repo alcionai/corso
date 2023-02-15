@@ -68,11 +68,7 @@ func (c Contacts) GetItem(
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,10 +87,7 @@ func (c Contacts) GetContainerByID(
 
 	var resp models.ContactFolderable
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
-		return err
-	})
+	resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 
 	return resp, err
 }
@@ -132,11 +125,7 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofcf)
-			return err
-		})
-
+		resp, err = builder.Get(ctx, ofcf)
 		if err != nil {
 			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
@@ -182,10 +171,7 @@ func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error)
 		err  error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
+	resp, err = p.builder.Get(ctx, p.options)
 
 	return resp, err
 }
