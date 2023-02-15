@@ -23,11 +23,12 @@ import (
 // unit tests
 // ---------------
 type KopiaDataCollectionUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestKopiaDataCollectionUnitSuite(t *testing.T) {
-	suite.Run(t, new(KopiaDataCollectionUnitSuite))
+	s := &KopiaDataCollectionUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
@@ -93,7 +94,9 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			c := kopiaDataCollection{
 				streams: test.streams,
 				path:    nil,

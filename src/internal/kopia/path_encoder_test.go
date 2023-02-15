@@ -7,14 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type PathEncoderSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestPathEncoderSuite(t *testing.T) {
-	suite.Run(t, new(PathEncoderSuite))
+	s := &PathEncoderSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *PathEncoderSuite) TestEncodeDecode() {
@@ -66,7 +69,9 @@ func (suite *PathEncoderSuite) TestEncodeAsPathDecode() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			encoded := encodeAsPath(test.elements...)
 
 			// Sanity check, first and last character should not be '/'.

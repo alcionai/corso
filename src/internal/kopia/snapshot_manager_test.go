@@ -187,11 +187,12 @@ func (msm *mockSnapshotManager) LoadSnapshots(
 }
 
 type SnapshotFetchUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSnapshotFetchUnitSuite(t *testing.T) {
-	suite.Run(t, new(SnapshotFetchUnitSuite))
+	s := &SnapshotFetchUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
@@ -752,7 +753,9 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -874,7 +877,9 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots_customTags() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

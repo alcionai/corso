@@ -93,15 +93,12 @@ func expectedTreeWithChildren(
 
 // Currently only works for files that Corso has serialized as it expects a
 // version specifier at the start of the file.
-//
-//revive:disable:context-as-argument
 func expectFileData(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expected []byte,
 	f fs.StreamingFile,
 ) {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	if len(expected) == 0 {
@@ -132,14 +129,12 @@ func expectFileData(
 	assert.Equalf(t, expected, got, "data in file: %s", name)
 }
 
-//revive:disable:context-as-argument
 func expectTree(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expected *expectedNode,
 	got fs.Entry,
 ) {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	if expected == nil {
@@ -199,13 +194,11 @@ func expectDirs(
 	assert.Subset(t, names, dirs)
 }
 
-//revive:disable:context-as-argument
 func getDirEntriesForEntry(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	entry fs.Entry,
 ) []fs.Entry {
-	//revive:enable:context-as-argument
 	d, ok := entry.(fs.Directory)
 	require.True(t, ok, "entry is not a directory")
 
@@ -238,11 +231,12 @@ func (lrr *limitedRangeReader) Read(p []byte) (int, error) {
 }
 
 type VersionReadersUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestVersionReadersUnitSuite(t *testing.T) {
-	suite.Run(t, new(VersionReadersUnitSuite))
+	s := &VersionReadersUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
@@ -268,7 +262,9 @@ func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			baseReader := bytes.NewReader(inputData)
 
 			reversible := &restoreStreamReader{
@@ -347,13 +343,14 @@ func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
 }
 
 type CorsoProgressUnitSuite struct {
-	suite.Suite
+	tester.Suite
 	targetFilePath path.Path
 	targetFileName string
 }
 
 func TestCorsoProgressUnitSuite(t *testing.T) {
-	suite.Run(t, new(CorsoProgressUnitSuite))
+	s := &CorsoProgressUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *CorsoProgressUnitSuite) SetupSuite() {
@@ -449,9 +446,11 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	}
 
 	for _, cachedTest := range table {
-		suite.T().Run(cachedTest.name, func(outerT *testing.T) {
+		suite.Run(cachedTest.name, func() {
 			for _, test := range finishedFileTable {
-				outerT.Run(test.name, func(t *testing.T) {
+				suite.Run(test.name, func() {
+					t := suite.T()
+
 					bd := &details.Builder{}
 					cp := corsoProgress{
 						UploadProgress: &snapshotfs.NullUploadProgress{},
@@ -632,7 +631,9 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 	for _, test := range finishedFileTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			bd := &details.Builder{}
 			cp := corsoProgress{
 				UploadProgress: &snapshotfs.NullUploadProgress{},
@@ -654,7 +655,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 }
 
 type HierarchyBuilderUnitSuite struct {
-	suite.Suite
+	tester.Suite
 	testStoragePath  path.Path
 	testLocationPath path.Path
 }
@@ -671,7 +672,8 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 }
 
 func TestHierarchyBuilderUnitSuite(t *testing.T) {
-	suite.Run(t, new(HierarchyBuilderUnitSuite))
+	s := &HierarchyBuilderUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
@@ -812,7 +814,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
 				errs:    fault.New(true),
@@ -916,7 +920,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx, flush := tester.NewContext()
 		defer flush()
 
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
 			assert.Error(t, err)
 		})
@@ -997,7 +1003,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			tester.LogTimeOfTest(t)
 
 			ctx, flush := tester.NewContext()
@@ -1286,7 +1294,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			tester.LogTimeOfTest(t)
 
 			ctx, flush := tester.NewContext()
@@ -2027,7 +2037,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			tester.LogTimeOfTest(t)
 
 			ctx, flush := tester.NewContext()
