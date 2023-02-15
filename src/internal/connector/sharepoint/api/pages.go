@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -79,7 +80,8 @@ func GetSitePages(
 	return col, nil
 }
 
-func GetSiteLite(ctx context.Context, gs graph.Servicer, siteID string) (msmodels.Siteable, error) {
+// GetSite returns a minimal Site with the SiteID and the WebURL
+func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (msmodels.Siteable, error) {
 	// resp *sites.SiteItemRequestBuilderresp *sites.SiteItemRequestBuilde
 	options := &mssites.SiteItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &mssites.SiteItemRequestBuilderGetQueryParameters{
