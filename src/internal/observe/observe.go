@@ -433,15 +433,19 @@ func waitAndCloseBar(bar *mpb.Bar, log func()) func() {
 
 var nop = func() {}
 
-// listen runs a
-func listen(ctx context.Context, ci <-chan struct{}, onEnd, onInc func()) {
+// listen handles reading, and exiting, from a channel.  It assumes the
+// caller will run it inside a goroutine (ex: go listen(...)).
+// On context timeout or channel close, the loop exits.
+// onEnd() is called on both ctx.Done() and channel close.  onInc is
+// called on every channel read except when closing.
+func listen(ctx context.Context, ch <-chan struct{}, onEnd, onInc func()) {
 	for {
 		select {
 		case <-ctx.Done():
 			onEnd()
 			return
 
-		case _, ok := <-ci:
+		case _, ok := <-ch:
 			if !ok {
 				onEnd()
 				return
