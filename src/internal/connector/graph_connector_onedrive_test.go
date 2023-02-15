@@ -675,3 +675,113 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		})
 	}
 }
+
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNoBackup() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	driveID := mustGetDefaultDriveID(
+		t,
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	test := restoreBackupInfoMultiVersion{
+		service:       path.OneDriveService,
+		resource:      Users,
+		backupVersion: backup.Version,
+		countMeta:     false,
+		collectionsPrevious: []colInfo{
+			{
+				pathElements: []string{
+					"drives",
+					driveID,
+					"root:",
+				},
+				category: path.FilesCategory,
+				items: withItems(
+					onedriveFileWithMetadata(
+						"test-file.txt",
+						fileAData,
+						getTestMetaJSON(t, suite.secondaryUser, []string{"write"}),
+					),
+					[]itemInfo{onedriveItemWithData(
+						"b"+onedrive.DirMetaFileSuffix,
+						getTestMetaJSON(t, suite.secondaryUser, []string{"read"}),
+					)},
+				),
+				auxItems: []itemInfo{
+					onedriveItemWithData(
+						"test-file.txt"+onedrive.MetaFileSuffix,
+						getTestMetaJSON(t, suite.secondaryUser, []string{"write"}),
+					),
+				},
+			},
+			{
+				pathElements: []string{
+					"drives",
+					driveID,
+					"root:",
+					"b",
+				},
+				category: path.FilesCategory,
+				items: onedriveFileWithMetadata(
+					"test-file.txt",
+					fileEData,
+					getTestMetaJSON(t, suite.secondaryUser, []string{"read"}),
+				),
+				auxItems: []itemInfo{
+					onedriveItemWithData(
+						"test-file.txt"+onedrive.MetaFileSuffix,
+						getTestMetaJSON(t, suite.secondaryUser, []string{"read"}),
+					),
+				},
+			},
+		},
+		collectionsLatest: []colInfo{
+			{
+				pathElements: []string{
+					"drives",
+					driveID,
+					"root:",
+				},
+				category: path.FilesCategory,
+				items: withItems(
+					fileAEmptyPerms,
+					folderBEmptyPerms,
+				),
+				auxItems: []itemInfo{
+					fileEmptyPerms,
+				},
+			},
+			{
+				pathElements: []string{
+					"drives",
+					driveID,
+					"root:",
+					"b",
+				},
+				category: path.FilesCategory,
+				items:    fileEEmptyPerms,
+				auxItems: []itemInfo{
+					fileEmptyPerms,
+				},
+			},
+		},
+	}
+
+	runRestoreBackupTestVersions(
+		t,
+		suite.acct,
+		test,
+		suite.connector.tenant,
+		[]string{suite.user},
+		control.Options{
+			RestorePermissions: true,
+			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
+		},
+	)
+}
