@@ -1762,7 +1762,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				},
 				[]*expectedNode{
 					{
-						name: testInboxDir,
+						name: testInboxID,
 						children: []*expectedNode{
 							{
 								name: workFileName2,
