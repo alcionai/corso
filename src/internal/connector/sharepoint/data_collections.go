@@ -30,6 +30,7 @@ func DataCollections(
 	ctx context.Context,
 	itemClient *http.Client,
 	selector selectors.Selector,
+	metadata []data.RestoreCollection,
 	creds account.M365Config,
 	serv graph.Servicer,
 	su statusUpdater,
@@ -73,6 +74,7 @@ func DataCollections(
 			spcs, _, err = collectLibraries(
 				ctx,
 				itemClient,
+				metadata,
 				serv,
 				creds.AzureTenantID,
 				site,
@@ -143,6 +145,7 @@ func collectLists(
 func collectLibraries(
 	ctx context.Context,
 	itemClient *http.Client,
+	metadata []data.RestoreCollection,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
@@ -156,7 +159,7 @@ func collectLibraries(
 
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
-	colls := onedrive.NewCollections(
+	odcs, excludes, err := onedrive.NewCollections(
 		itemClient,
 		tenantID,
 		siteID,
@@ -164,11 +167,7 @@ func collectLibraries(
 		folderMatcher{scope},
 		serv,
 		updater.UpdateStatus,
-		ctrlOpts)
-
-	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
-	// token-based incrementals.
-	odcs, excludes, err := colls.Get(ctx, nil)
+		ctrlOpts).Get(ctx, metadata)
 	if err != nil {
 		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}

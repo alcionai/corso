@@ -256,6 +256,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
 				test.getSelector(),
+				nil,
 				connector.credentials,
 				connector.Service,
 				connector,
