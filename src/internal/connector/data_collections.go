@@ -95,6 +95,7 @@ func (gc *GraphConnector) DataCollections(
 			ctx,
 			gc.itemClient,
 			sels,
+			metadata,
 			gc.credentials,
 			gc.Service,
 			gc,
