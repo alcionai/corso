@@ -3,10 +3,10 @@ package exchange
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -46,16 +46,18 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 
 		f, err := mc.getter.GetContainerByID(ctx, mc.userID, fldr)
 		if err != nil {
-			return support.ConnectorStackErrorTraceWrap(err, "fetching root folder")
+			return clues.Wrap(err, "fetching root folder")
 		}
 
 		if fldr == DefaultMailFolder {
 			directory = DefaultMailFolder
 		}
 
-		temp := graph.NewCacheFolder(f, path.Builder{}.Append(directory))
+		temp := graph.NewCacheFolder(f,
+			path.Builder{}.Append(directory), // storage path
+			path.Builder{}.Append(directory)) // display location
 		if err := mc.addFolder(temp); err != nil {
-			return errors.Wrap(err, "adding resolver dir")
+			return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 		}
 	}
 
@@ -81,7 +83,7 @@ func (mc *mailFolderCache) Populate(
 		return errors.Wrap(err, "enumerating containers")
 	}
 
-	if err := mc.populatePaths(ctx); err != nil {
+	if err := mc.populatePaths(ctx, false); err != nil {
 		return errors.Wrap(err, "populating paths")
 	}
 

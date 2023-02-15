@@ -371,19 +371,30 @@ func (c oneDriveCategory) isLeaf() bool {
 	return c == OneDriveItem
 }
 
-// pathValues transforms a path to a map of identified properties.
+// pathValues transforms the two paths to maps of identified properties.
 //
 // Example:
 // [tenantID, service, userPN, category, folder, fileID]
-// => {odUser: userPN, odFolder: folder, odFileID: fileID}
-func (c oneDriveCategory) pathValues(p path.Path) map[categorizer]string {
+// => {odFolder: folder, odFileID: fileID}
+func (c oneDriveCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
 	// Ignore `drives/<driveID>/root:` for folder comparison
-	folder := path.Builder{}.Append(p.Folders()...).PopFront().PopFront().PopFront().String()
-
-	return map[categorizer]string{
-		OneDriveFolder: folder,
-		OneDriveItem:   p.Item(),
+	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
+	rv := map[categorizer]string{
+		OneDriveFolder: rFld,
+		OneDriveItem:   repo.Item(),
 	}
+
+	lv := map[categorizer]string{}
+
+	if location != nil {
+		lFld := path.Builder{}.Append(location.Folders()...).PopFront().PopFront().PopFront().String()
+		lv = map[categorizer]string{
+			OneDriveFolder: lFld,
+			OneDriveItem:   location.Item(),
+		}
+	}
+
+	return rv, lv
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
@@ -487,7 +498,7 @@ func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
 func (s oneDrive) Reduce(
 	ctx context.Context,
 	deets *details.Details,
-	errs fault.Adder,
+	errs *fault.Errors,
 ) *details.Details {
 	return reduce[OneDriveScope](
 		ctx,

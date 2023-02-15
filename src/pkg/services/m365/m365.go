@@ -20,6 +20,20 @@ type User struct {
 	Name          string
 }
 
+// UsersCompat returns a list of users in the specified M365 tenant.
+// TODO(ashmrtn): Remove when upstream consumers of the SDK support the fault
+// package.
+func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
+	errs := fault.New(true)
+
+	users, err := Users(ctx, acct, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, errs.Err()
+}
+
 // Users returns a list of users in the specified M365 tenant
 // TODO: Implement paging support
 func Users(ctx context.Context, acct account.Account, errs *fault.Errors) ([]*User, error) {
@@ -28,7 +42,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Errors) ([]*Us
 		return nil, errors.Wrap(err, "initializing M365 graph connection")
 	}
 
-	users, err := discovery.Users(ctx, gc.Owners.Users())
+	users, err := discovery.Users(ctx, gc.Owners.Users(), errs)
 	if err != nil {
 		return nil, err
 	}
