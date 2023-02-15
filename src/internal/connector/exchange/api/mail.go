@@ -5,19 +5,16 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
-	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -49,7 +46,12 @@ func (c Mail) CreateMailFolder(
 	requestBody.SetDisplayName(&folder)
 	requestBody.SetIsHidden(&isHidden)
 
-	return c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return mdl, nil
 }
 
 func (c Mail) CreateMailFolderWithParent(
@@ -58,7 +60,7 @@ func (c Mail) CreateMailFolderWithParent(
 ) (models.MailFolderable, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	isHidden := false
@@ -66,12 +68,17 @@ func (c Mail) CreateMailFolderWithParent(
 	requestBody.SetDisplayName(&folder)
 	requestBody.SetIsHidden(&isHidden)
 
-	return service.
+	mdl, err := service.
 		Client().
 		UsersById(user).
 		MailFoldersById(parentID).
 		ChildFolders().
 		Post(ctx, requestBody, nil)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return mdl, nil
 }
 
 // DeleteContainer removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
@@ -80,7 +87,12 @@ func (c Mail) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
-	return c.stable.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
+	err := c.stable.Client().UsersById(user).MailFoldersById(folderID).Delete(ctx, nil)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return nil
 }
 
 func (c Mail) GetContainerByID(
@@ -89,19 +101,20 @@ func (c Mail) GetContainerByID(
 ) (graph.Container, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	ofmf, err := optionsForMailFoldersItem([]string{"displayName", "parentFolderId"})
 	if err != nil {
-		return nil, errors.Wrap(err, "options for mail folder")
+		return nil, clues.Wrap(err, "setting mail folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var resp graph.Container
+	resp, err := service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
 
-	resp, err = service.Client().UsersById(userID).MailFoldersById(dirID).Get(ctx, ofmf)
-
-	return resp, err
+	return resp, nil
 }
 
 // GetItem retrieves a Messageable item.  If the item contains an attachment, that
@@ -109,18 +122,12 @@ func (c Mail) GetContainerByID(
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		mail models.Messageable
-		err  error
-	)
-
-	mail, err = c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
+	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
-
-	var errs *multierror.Error
 
 	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
 		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
@@ -128,26 +135,18 @@ func (c Mail) GetItem(
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
 		}
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := c.largeItem.
-				Client().
-				UsersById(user).
-				MessagesById(itemID).
-				Attachments().
-				Get(ctx, options)
-			if err == nil {
-				mail.SetAttachments(attached.GetValue())
-				break
-			}
 
-			logger.Ctx(ctx).Debugw("retrying mail attachment download", "err", err)
-			errs = multierror.Append(errs, err)
-		}
-
+		attached, err := c.largeItem.
+			Client().
+			UsersById(user).
+			MessagesById(itemID).
+			Attachments().
+			Get(ctx, options)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("mail attachment download exceeded maximum retries", "err", errs)
-			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "downloading mail attachment"), nil)
+			return nil, nil, clues.Wrap(err, "mail attachment download").WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
+
+		mail.SetAttachments(attached.GetValue())
 	}
 
 	return mail, MailInfo(mail), nil
@@ -163,46 +162,46 @@ func (c Mail) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
+	errs *fault.Errors,
 ) error {
 	service, err := c.service()
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		resp    users.ItemMailFoldersDeltaResponseable
-		errs    *multierror.Error
-		builder = service.Client().
-			UsersById(userID).
-			MailFolders().
-			Delta()
-	)
+	builder := service.Client().
+		UsersById(userID).
+		MailFolders().
+		Delta()
 
 	for {
-		var err error
-
-		resp, err = builder.Get(ctx, nil)
+		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		for _, v := range resp.GetValue() {
+			fctx := clues.AddAll(
+				ctx,
+				"container_id", ptr.Val(v.GetId()),
+				"container_name", ptr.Val(v.GetDisplayName()))
+
 			temp := graph.NewCacheFolder(v, nil, nil)
 			if err := fn(temp); err != nil {
-				errs = multierror.Append(errs, errors.Wrap(err, "iterating mail folders delta"))
+				errs.Add(clues.Stack(err).WithClues(fctx).WithAll(graph.ErrData(err)...))
 				continue
 			}
 		}
 
-		link := resp.GetOdataNextLink()
-		if link == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = users.NewItemMailFoldersDeltaRequestBuilder(*link, service.Adapter())
+		builder = users.NewItemMailFoldersDeltaRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.ErrorOrNil()
+	return errs.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -218,14 +217,12 @@ type mailPager struct {
 }
 
 func (p *mailPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	var (
-		page api.DeltaPageLinker
-		err  error
-	)
+	page, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
 
-	page, err = p.builder.Get(ctx, p.options)
-
-	return page, err
+	return page, nil
 }
 
 func (p *mailPager) setNext(nextLink string) {
@@ -246,7 +243,6 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	}
 
 	var (
-		errs       *multierror.Error
 		deltaURL   string
 		resetDelta bool
 	)
@@ -258,17 +254,22 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
+		return nil,
+			nil,
+			DeltaUpdate{},
+			clues.Wrap(err, "setting contact folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	if len(oldDelta) > 0 {
-		builder := users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter())
-		pgr := &mailPager{service, builder, options}
+		var (
+			builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(oldDelta, service.Adapter())
+			pgr     = &mailPager{service, builder, options}
+		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return added, removed, DeltaUpdate{deltaURL, false}, err
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
@@ -277,7 +278,6 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		}
 
 		resetDelta = true
-		errs = nil
 	}
 
 	builder := service.Client().UsersById(user).MailFoldersById(directoryID).Messages().Delta()
@@ -288,7 +288,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -303,10 +303,10 @@ func (c Mail) Serialize(
 ) ([]byte, error) {
 	msg, ok := item.(models.Messageable)
 	if !ok {
-		return nil, fmt.Errorf("expected Messageable, got %T", item)
+		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not a Messageable")
 	}
 
-	ctx = clues.Add(ctx, "item_id", *msg.GetId())
+	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))
 
 	var (
 		err    error
@@ -316,12 +316,12 @@ func (c Mail) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", msg); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing email")
+		return nil, clues.Wrap(err, "serializing email").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return bs, nil
@@ -338,9 +338,8 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	created := ptr.Val(msg.GetCreatedDateTime())
 
 	if msg.GetSender() != nil &&
-		msg.GetSender().GetEmailAddress() != nil &&
-		msg.GetSender().GetEmailAddress().GetAddress() != nil {
-		sender = *msg.GetSender().GetEmailAddress().GetAddress()
+		msg.GetSender().GetEmailAddress() != nil {
+		sender = ptr.Val(msg.GetSender().GetEmailAddress().GetAddress())
 	}
 
 	return &details.ExchangeInfo{
@@ -349,6 +348,6 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 		Subject:  subject,
 		Received: received,
 		Created:  created,
-		Modified: orNow(msg.GetLastModifiedDateTime()),
+		Modified: ptr.OrNow(msg.GetLastModifiedDateTime()),
 	}
 }

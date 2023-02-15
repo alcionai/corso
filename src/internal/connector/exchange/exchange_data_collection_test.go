@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -29,12 +30,17 @@ type mockItemer struct {
 func (mi *mockItemer) GetItem(
 	context.Context,
 	string, string,
+	*fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mi.getCount++
 	return nil, nil, mi.getErr
 }
 
-func (mi *mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+func (mi *mockItemer) Serialize(
+	context.Context,
+	serialization.Parsable,
+	string, string,
+) ([]byte, error) {
 	mi.serializeCount++
 	return nil, mi.serializeErr
 }
@@ -224,7 +230,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items)
+			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items, fault.New(true))
 			test.expectErr(t, err)
 		})
 	}

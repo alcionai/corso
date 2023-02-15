@@ -216,6 +216,22 @@ func Connect(
 	}, nil
 }
 
+func ConnectAndSendConnectEvent(ctx context.Context,
+	acct account.Account,
+	s storage.Storage,
+	opts control.Options,
+) (Repository, error) {
+	repo, err := Connect(ctx, acct, s, opts)
+
+	r := repo.(*repository)
+
+	if err == nil {
+		r.Bus.Event(ctx, events.RepoConnect, nil)
+	}
+
+	return r, err
+}
+
 func (r *repository) Close(ctx context.Context) error {
 	if err := r.Bus.Close(); err != nil {
 		logger.Ctx(ctx).With("err", err).Debugw("closing the event bus", clues.In(ctx).Slice()...)
