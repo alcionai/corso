@@ -293,20 +293,7 @@ func getItemWithRetries(
 	items itemer,
 	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		item serialization.Parsable
-		info *details.ExchangeInfo
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		item, info, err = items.GetItem(ctx, userID, itemID, errs)
-		if err == nil {
-			return nil
-		}
-
-		return err
-	})
+	item, info, err := items.GetItem(ctx, userID, itemID, errs)
 	if err != nil {
 		return nil, nil, err
 	}

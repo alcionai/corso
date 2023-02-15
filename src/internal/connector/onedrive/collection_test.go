@@ -451,6 +451,9 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
 				testItemID   = "fakeItemID"
 				testItemName = "Fake Item"
@@ -504,7 +507,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			}
 
 			readItems := []data.Stream{}
-			for item := range coll.Items() {
+			for item := range coll.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
 			}
 
