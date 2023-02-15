@@ -1,5 +1,7 @@
 package ptr
 
+import "time"
+
 // ptr package is a common package used for pointer
 // access and deserialization.
 
@@ -18,4 +20,26 @@ func Val[T any](ptr *T) T {
 	}
 
 	return *ptr
+}
+
+// ValOK behaves the same as Val, except it also gives
+// a boolean response for whether the pointer was nil
+// (false) or non-nil (true).
+func ValOK[T any](ptr *T) (T, bool) {
+	if ptr == nil {
+		return *new(T), false
+	}
+
+	return *ptr, true
+}
+
+// OrNow returns the value of the provided time, if the
+// parameter is non-nil.  Otherwise it returns the current
+// time in UTC.
+func OrNow(t *time.Time) time.Time {
+	if t == nil {
+		return time.Now().UTC()
+	}
+
+	return *t
 }
