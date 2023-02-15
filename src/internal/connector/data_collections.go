@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -38,6 +39,7 @@ func (gc *GraphConnector) DataCollections(
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
@@ -65,7 +67,8 @@ func (gc *GraphConnector) DataCollections(
 			gc.credentials,
 			// gc.Service,
 			gc.UpdateStatus,
-			ctrlOpts)
+			ctrlOpts,
+			errs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -240,6 +243,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
+	errs *fault.Errors,
 ) (*details.Details, error) {
 	ctx, end := D.Span(ctx, "connector:restore")
 	defer end()
@@ -257,7 +261,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
 	case selectors.ServiceSharePoint:

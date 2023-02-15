@@ -96,6 +96,12 @@ type Stream interface {
 	Deleted() bool
 }
 
+// LocationPather provides a LocationPath describing the path with Display Names
+// instead of canonical IDs
+type LocationPather interface {
+	LocationPath() path.Path
+}
+
 // StreamInfo is used to provide service specific
 // information about the Stream
 type StreamInfo interface {
@@ -111,4 +117,22 @@ type StreamSize interface {
 // StreamModTime is used to provide the modified time of the stream's data.
 type StreamModTime interface {
 	ModTime() time.Time
+}
+
+// StateOf lets us figure out the state of the collection from the
+// previous and current path
+func StateOf(prev, curr path.Path) CollectionState {
+	if curr == nil || len(curr.String()) == 0 {
+		return DeletedState
+	}
+
+	if prev == nil || len(prev.String()) == 0 {
+		return NewState
+	}
+
+	if curr.Folder(false) != prev.Folder(false) {
+		return MovedState
+	}
+
+	return NotMovedState
 }

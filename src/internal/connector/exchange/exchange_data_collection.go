@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -43,6 +44,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		errs *fault.Errors,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
@@ -77,6 +79,11 @@ type Collection struct {
 	// moved.  It will be empty on its first retrieval.
 	prevPath path.Path
 
+	// LocationPath contains the path with human-readable display names.
+	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
+	// Currently only implemented for Exchange Calendars.
+	locationPath path.Path
+
 	state data.CollectionState
 
 	// doNotMergeItems should only be true if the old delta token expired.
@@ -91,7 +98,7 @@ type Collection struct {
 // or notMoved (if they match).
 func NewCollection(
 	user string,
-	curr, prev path.Path,
+	curr, prev, location path.Path,
 	category path.CategoryType,
 	items itemer,
 	statusUpdater support.StatusUpdater,
@@ -99,37 +106,22 @@ func NewCollection(
 	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
+		added:           make(map[string]struct{}, 0),
 		category:        category,
 		ctrl:            ctrlOpts,
 		data:            make(chan data.Stream, collectionChannelBufferSize),
 		doNotMergeItems: doNotMergeItems,
 		fullPath:        curr,
-		added:           make(map[string]struct{}, 0),
-		removed:         make(map[string]struct{}, 0),
+		items:           items,
+		locationPath:    location,
 		prevPath:        prev,
-		state:           stateOf(prev, curr),
+		removed:         make(map[string]struct{}, 0),
+		state:           data.StateOf(prev, curr),
 		statusUpdater:   statusUpdater,
 		user:            user,
-		items:           items,
 	}
 
 	return collection
-}
-
-func stateOf(prev, curr path.Path) data.CollectionState {
-	if curr == nil || len(curr.String()) == 0 {
-		return data.DeletedState
-	}
-
-	if prev == nil || len(prev.String()) == 0 {
-		return data.NewState
-	}
-
-	if curr.Folder() != prev.Folder() {
-		return data.MovedState
-	}
-
-	return data.NotMovedState
 }
 
 // Items utility function to asynchronously execute process to fill data channel with
@@ -142,6 +134,12 @@ func (col *Collection) Items() <-chan data.Stream {
 // FullPath returns the Collection's fullPath []string
 func (col *Collection) FullPath() path.Path {
 	return col.fullPath
+}
+
+// LocationPath produces the Collection's full path, but with display names
+// instead of IDs in the folders.  Only populated for Calendars.
+func (col *Collection) LocationPath() path.Path {
+	return col.locationPath
 }
 
 // TODO(ashmrtn): Fill in with previous path once GraphConnector compares old
@@ -188,7 +186,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 			ctx,
 			col.fullPath.Category().String(),
 			observe.PII(user),
-			observe.PII(col.fullPath.Folder()))
+			observe.PII(col.fullPath.Folder(false)))
 
 		go closer()
 
@@ -254,7 +252,12 @@ func (col *Collection) streamItems(ctx context.Context) {
 				err  error
 			)
 
-			item, info, err = getItemWithRetries(ctx, user, id, col.items)
+			item, info, err = getItemWithRetries(
+				ctx,
+				user,
+				id,
+				col.items,
+				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
 				// back up data that is gone. Record it as a "success", since there's
@@ -302,6 +305,7 @@ func getItemWithRetries(
 	ctx context.Context,
 	userID, itemID string,
 	items itemer,
+	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
 		item serialization.Parsable
@@ -310,7 +314,7 @@ func getItemWithRetries(
 	)
 
 	for i := 1; i <= numberOfRetries; i++ {
-		item, info, err = items.GetItem(ctx, userID, itemID)
+		item, info, err = items.GetItem(ctx, userID, itemID, errs)
 		if err == nil {
 			break
 		}
@@ -347,7 +351,7 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 			TotalBytes: totalBytes,
 		},
 		errs,
-		col.fullPath.Folder())
+		col.fullPath.Folder(false))
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	col.statusUpdater(status)
 }

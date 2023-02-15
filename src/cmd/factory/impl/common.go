@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -52,6 +53,7 @@ func generateAndRestoreItems(
 	howMany int,
 	dbf dataBuilderFunc,
 	opts control.Options,
+	errs *fault.Errors,
 ) (*details.Details, error) {
 	items := make([]item, 0, howMany)
 
@@ -92,7 +94,7 @@ func generateAndRestoreItems(
 
 	Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return gc.RestoreDataCollections(ctx, backup.Version, acct, sel, dest, opts, dataColls)
+	return gc.RestoreDataCollections(ctx, backup.Version, acct, sel, dest, opts, dataColls, errs)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -114,7 +116,10 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	// build a graph connector
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users)
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
 		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}
@@ -168,7 +173,7 @@ func buildCollections(
 			return nil, err
 		}
 
-		mc := mockconnector.NewMockExchangeCollection(pth, len(c.items))
+		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(c.items))
 
 		for i := 0; i < len(c.items); i++ {
 			mc.Names[i] = c.items[i].name

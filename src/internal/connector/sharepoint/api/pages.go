@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -62,10 +61,7 @@ func GetSitePages(
 
 			var page models.SitePageable
 
-			err = graph.RunWithRetry(func() error {
-				page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
-				return err
-			})
+			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
 			if err != nil {
 				errUpdater(pageID, errors.Wrap(err, support.ConnectorStackErrorTrace(err)+" fetching page"))
 			} else {
@@ -110,10 +106,7 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 	)
 
 	for {
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, opts)
-			return err
-		})
+		resp, err = builder.Get(ctx, opts)
 		if err != nil {
 			return nil, support.ConnectorStackErrorTraceWrap(err, "failed fetching site page")
 		}

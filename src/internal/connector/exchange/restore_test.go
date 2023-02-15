@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -119,7 +120,8 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		suite.gs,
 		control.Copy,
 		calendarID,
-		userID)
+		userID,
+		fault.New(true))
 	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 	assert.NotNil(t, info, "event item info")
 }
@@ -230,6 +232,21 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				return *folder.GetId()
 			},
 		},
+		{
+			name: "Test Mail: Item Attachment_Contact",
+			bytes: mockconnector.GetMockMessageWithNestedItemAttachmentContact(t,
+				mockconnector.GetMockContactBytes("Victor"),
+				"Contact Item Attachment",
+			),
+			category: path.EmailCategory,
+			destination: func(t *testing.T, ctx context.Context) string {
+				folderName := "ItemMailAttachment_Contact " + common.FormatSimpleDateTime(now)
+				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
+				require.NoError(t, err)
+
+				return *folder.GetId()
+			},
+		},
 		{ // Restore will upload the Message without uploading the attachment
 			name:     "Test Mail: Item Attachment_NestedEvent",
 			bytes:    mockconnector.GetMockMessageWithNestedItemAttachmentEvent("Nested Item Attachment"),
@@ -331,7 +348,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				service,
 				destination,
 				userID,
-			)
+				fault.New(true))
 			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
 			assert.NotNil(t, info, "item info was not populated")
 			assert.NotNil(t, deleters)

@@ -69,8 +69,8 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				[]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
-				onedrive.OneDriveSource,
+				map[string][]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
+				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
 				errUpdater,
@@ -276,6 +276,7 @@ func RestoreListCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				"", // TODO: implement locationRef
 				true,
 				itemInfo)
 
@@ -355,6 +356,7 @@ func RestorePageCollection(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
+				"", // TODO: implement locationRef
 				true,
 				itemInfo,
 			)

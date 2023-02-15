@@ -242,7 +242,7 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account)
+	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to M365")
 	}
@@ -258,7 +258,8 @@ func (op *RestoreOperation) do(
 		op.Selectors,
 		op.Destination,
 		op.Options,
-		dcs)
+		dcs,
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "restoring collections")
 	}

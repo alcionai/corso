@@ -3,20 +3,18 @@ package api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -47,7 +45,12 @@ func (c Contacts) CreateContactFolder(
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
 
-	return c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return mdl, nil
 }
 
 // DeleteContainer deletes the ContactFolder associated with the M365 ID if permissions are valid.
@@ -55,51 +58,26 @@ func (c Contacts) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
-	return c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+	err := c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return nil
 }
 
 // GetItem retrieves a Contactable item.
 func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	_ *fault.Errors, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		cont models.Contactable
-		err  error
-	)
-
-	err = graph.RunWithRetry(func() error {
-		cont, err = c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return cont, ContactInfo(cont), nil
-}
-
-// GetAllContactFolderNamesForUser is a GraphQuery function for getting
-// ContactFolderId and display names for contacts. All other information is omitted.
-// Does not return the default Contact Folder
-func (c Contacts) GetAllContactFolderNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForContactFolders([]string{"displayName", "parentFolderId"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.ContactFolderCollectionResponseable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(user).ContactFolders().Get(ctx, options)
-		return err
-	})
-
-	return resp, err
 }
 
 func (c Contacts) GetContainerByID(
@@ -108,17 +86,15 @@ func (c Contacts) GetContainerByID(
 ) (graph.Container, error) {
 	ofcf, err := optionsForContactFolderByID([]string{"displayName", "parentFolderId"})
 	if err != nil {
-		return nil, errors.Wrap(err, "options for contact folder")
+		return nil, clues.Wrap(err, "setting contact folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var resp models.ContactFolderable
+	resp, err := c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
-		return err
-	})
-
-	return resp, err
+	return resp, nil
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -131,21 +107,21 @@ func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
+	errs *fault.Errors,
 ) error {
 	service, err := c.service()
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		errs   *multierror.Error
-		resp   models.ContactFolderCollectionResponseable
-		fields = []string{"displayName", "parentFolderId"}
-	)
+	fields := []string{"displayName", "parentFolderId"}
 
 	ofcf, err := optionsForContactChildFolders(fields)
 	if err != nil {
-		return errors.Wrapf(err, "options for contact child folders: %v", fields)
+		return clues.Wrap(err, "setting contact child folder options").
+			WithClues(ctx).
+			WithAll(graph.ErrData(err)...).
+			With("options_fields", fields)
 	}
 
 	builder := service.Client().
@@ -154,38 +130,42 @@ func (c Contacts) EnumerateContainers(
 		ChildFolders()
 
 	for {
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofcf)
-			return err
-		})
-
+		resp, err := builder.Get(ctx, ofcf)
 		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		for _, fold := range resp.GetValue() {
+			if errs.Err() != nil {
+				return errs.Err()
+			}
+
 			if err := checkIDAndName(fold); err != nil {
-				errs = multierror.Append(err, errs)
+				errs.Add(clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...))
 				continue
 			}
 
-			temp := graph.NewCacheFolder(fold, nil)
+			fctx := clues.AddAll(
+				ctx,
+				"container_id", ptr.Val(fold.GetId()),
+				"container_display_name", ptr.Val(fold.GetDisplayName()))
 
-			err = fn(temp)
-			if err != nil {
-				errs = multierror.Append(err, errs)
+			temp := graph.NewCacheFolder(fold, nil, nil)
+			if err := fn(temp); err != nil {
+				errs.Add(clues.Stack(err).WithClues(fctx).WithAll(graph.ErrData(err)...))
 				continue
 			}
 		}
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(*resp.GetOdataNextLink(), service.Adapter())
+		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.ErrorOrNil()
+	return errs.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -201,17 +181,12 @@ type contactPager struct {
 }
 
 func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	var (
-		resp api.DeltaPageLinker
-		err  error
-	)
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
-
-	return resp, err
+	return resp, nil
 }
 
 func (p *contactPager) setNext(nextLink string) {
@@ -228,41 +203,43 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, err
+		return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		errs       *multierror.Error
-		resetDelta bool
-	)
+	var resetDelta bool
 
 	ctx = clues.AddAll(
 		ctx,
 		"category", selectors.ExchangeContact,
-		"folder_id", directoryID)
+		"container_id", directoryID)
 
 	options, err := optionsForContactFoldersItemDelta([]string{"parentFolderId"})
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, errors.Wrap(err, "getting query options")
+		return nil,
+			nil,
+			DeltaUpdate{},
+			clues.Wrap(err, "setting contact folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	if len(oldDelta) > 0 {
-		builder := users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
-		pgr := &contactPager{service, builder, options}
+		var (
+			builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(oldDelta, service.Adapter())
+			pgr     = &contactPager{service, builder, options}
+		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return added, removed, DeltaUpdate{deltaURL, false}, err
 		}
+
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
 		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, err
+			return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		resetDelta = true
-		errs = nil
 	}
 
 	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
@@ -273,7 +250,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -288,10 +265,10 @@ func (c Contacts) Serialize(
 ) ([]byte, error) {
 	contact, ok := item.(models.Contactable)
 	if !ok {
-		return nil, fmt.Errorf("expected Contactable, got %T", item)
+		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not a Contactable")
 	}
 
-	ctx = clues.Add(ctx, "item_id", *contact.GetId())
+	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
 	var (
 		err    error
@@ -301,12 +278,12 @@ func (c Contacts) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", contact); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing contact")
+		return nil, clues.Wrap(err, "serializing contact").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return bs, nil
@@ -317,21 +294,13 @@ func (c Contacts) Serialize(
 // ---------------------------------------------------------------------------
 
 func ContactInfo(contact models.Contactable) *details.ExchangeInfo {
-	name := ""
-	created := time.Time{}
-
-	if contact.GetDisplayName() != nil {
-		name = *contact.GetDisplayName()
-	}
-
-	if contact.GetCreatedDateTime() != nil {
-		created = *contact.GetCreatedDateTime()
-	}
+	name := ptr.Val(contact.GetDisplayName())
+	created := ptr.Val(contact.GetCreatedDateTime())
 
 	return &details.ExchangeInfo{
 		ItemType:    details.ExchangeContact,
 		ContactName: name,
 		Created:     created,
-		Modified:    orNow(contact.GetLastModifiedDateTime()),
+		Modified:    ptr.OrNow(contact.GetLastModifiedDateTime()),
 	}
 }

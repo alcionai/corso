@@ -25,7 +25,7 @@ func TestMockExchangeCollectionSuite(t *testing.T) {
 }
 
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
-	mdc := mockconnector.NewMockExchangeCollection(nil, 2)
+	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
 
 	messagesRead := 0
 
@@ -40,7 +40,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 	t := suite.T()
-	mdc := mockconnector.NewMockExchangeCollection(nil, 2)
+	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
 
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
@@ -58,7 +58,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
 	t := suite.T()
-	mdc := mockconnector.NewMockExchangeCollection(nil, 3)
+	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 3)
 	buf := &bytes.Buffer{}
 
 	for stream := range mdc.Items() {

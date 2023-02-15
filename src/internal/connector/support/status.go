@@ -6,8 +6,6 @@ import (
 
 	"github.com/dustin/go-humanize"
 	multierror "github.com/hashicorp/go-multierror"
-
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ConnectorOperationStatus is a data type used to describe the state of
@@ -65,6 +63,7 @@ func CreateStatus(
 	}
 
 	hasErrors := err != nil
+	// TODO(keeprs): remove
 	numErr := GetNumberOfErrors(err)
 
 	status := ConnectorOperationStatus{
@@ -78,15 +77,6 @@ func CreateStatus(
 		incompleteReason:  reason,
 		bytes:             cm.TotalBytes,
 		additionalDetails: details,
-	}
-
-	if status.ObjectCount != status.ErrorCount+status.Successful {
-		logger.Ctx(ctx).Errorw(
-			"status object count does not match errors + successes",
-			"objects", cm.Objects,
-			"successes", cm.Successes,
-			"numErrors", numErr,
-			"errors", err)
 	}
 
 	return &status
@@ -114,10 +104,11 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 	}
 
 	status := ConnectorOperationStatus{
-		lastOperation:     one.lastOperation,
-		ObjectCount:       one.ObjectCount + two.ObjectCount,
-		FolderCount:       one.FolderCount + two.FolderCount,
-		Successful:        one.Successful + two.Successful,
+		lastOperation: one.lastOperation,
+		ObjectCount:   one.ObjectCount + two.ObjectCount,
+		FolderCount:   one.FolderCount + two.FolderCount,
+		Successful:    one.Successful + two.Successful,
+		// TODO: remove in favor of fault.Errors
 		ErrorCount:        one.ErrorCount + two.ErrorCount,
 		Err:               multierror.Append(one.Err, two.Err).ErrorOrNil(),
 		bytes:             one.bytes + two.bytes,
@@ -144,14 +135,11 @@ func (cos *ConnectorOperationStatus) String() string {
 		cos.Successful,
 		cos.ObjectCount,
 		humanize.Bytes(uint64(cos.bytes)),
-		cos.FolderCount,
-	)
+		cos.FolderCount)
 
 	if cos.incomplete {
 		message += " " + cos.incompleteReason
 	}
 
-	message += " " + operationStatement + cos.additionalDetails + "\n"
-
-	return message
+	return message + " " + operationStatement + cos.additionalDetails
 }

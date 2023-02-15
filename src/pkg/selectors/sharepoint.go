@@ -423,12 +423,12 @@ func (c sharePointCategory) isLeaf() bool {
 	return c == c.leafCat()
 }
 
-// pathValues transforms a path to a map of identified properties.
+// pathValues transforms the two paths to maps of identified properties.
 //
 // Example:
 // [tenantID, service, siteID, category, folder, itemID]
-// => {spSite: siteID, spFolder: folder, spItemID: itemID}
-func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
+// => {spFolder: folder, spItemID: itemID}
+func (c sharePointCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
 	var folderCat, itemCat categorizer
 
 	switch c {
@@ -439,13 +439,24 @@ func (c sharePointCategory) pathValues(p path.Path) map[categorizer]string {
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
 	default:
-		return map[categorizer]string{}
+		return map[categorizer]string{}, map[categorizer]string{}
 	}
 
-	return map[categorizer]string{
-		folderCat: p.Folder(),
-		itemCat:   p.Item(),
+	rv := map[categorizer]string{
+		folderCat: repo.Folder(false),
+		itemCat:   repo.Item(),
 	}
+
+	lv := map[categorizer]string{}
+
+	if location != nil {
+		lv = map[categorizer]string{
+			folderCat: location.Folder(false),
+			itemCat:   location.Item(),
+		}
+	}
+
+	return rv, lv
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
@@ -559,7 +570,7 @@ func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
 func (s sharePoint) Reduce(
 	ctx context.Context,
 	deets *details.Details,
-	errs fault.Adder,
+	errs *fault.Errors,
 ) *details.Details {
 	return reduce[SharePointScope](
 		ctx,

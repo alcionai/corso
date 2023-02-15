@@ -6,21 +6,18 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // ---------------------------------------------------------------------------
@@ -49,7 +46,12 @@ func (c Events) CreateCalendar(
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	return c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	mdl, err := c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return mdl, nil
 }
 
 // DeleteContainer removes a calendar from user's M365 account
@@ -58,7 +60,12 @@ func (c Events) DeleteContainer(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
-	return c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	err := c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
+
+	return nil
 }
 
 func (c Events) GetContainerByID(
@@ -67,23 +74,17 @@ func (c Events) GetContainerByID(
 ) (graph.Container, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
 	if err != nil {
-		return nil, errors.Wrap(err, "options for event calendar")
+		return nil, clues.Wrap(err, "setting event calendar options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var cal models.Calendarable
-
-	err = graph.RunWithRetry(func() error {
-		cal, err = service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
-		return err
-	})
-
+	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return graph.CalendarDisplayable{Calendarable: cal}, nil
@@ -93,73 +94,39 @@ func (c Events) GetContainerByID(
 func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
+	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
-		event models.Eventable
 		err   error
+		event models.Eventable
 	)
 
-	err = graph.RunWithRetry(func() error {
-		event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
-		return err
-	})
-
+	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
-	var (
-		errs    *multierror.Error
-		options = &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
+	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
+		options := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
 		}
-	)
 
-	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
-		for count := 0; count < numberOfRetries; count++ {
-			attached, err := c.largeItem.
-				Client().
-				UsersById(user).
-				EventsById(itemID).
-				Attachments().
-				Get(ctx, options)
-			if err == nil {
-				event.SetAttachments(attached.GetValue())
-				break
-			}
-
-			logger.Ctx(ctx).Debugw("retrying event attachment download", "err", err)
-			errs = multierror.Append(errs, err)
-		}
-
+		attached, err := c.largeItem.
+			Client().
+			UsersById(user).
+			EventsById(itemID).
+			Attachments().
+			Get(ctx, options)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("event attachment download exceeded maximum retries", "err", errs)
-			return nil, nil, support.WrapAndAppend(itemID, errors.Wrap(err, "download event attachment"), nil)
+			return nil, nil, clues.Wrap(err, "event attachment download").WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
+
+		event.SetAttachments(attached.GetValue())
 	}
 
 	return event, EventInfo(event), nil
-}
-
-func (c Client) GetAllCalendarNamesForUser(
-	ctx context.Context,
-	user string,
-) (serialization.Parsable, error) {
-	options, err := optionsForCalendars([]string{"name", "owner"})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.CalendarCollectionResponseable
-
-	err = graph.RunWithRetry(func() error {
-		resp, err = c.stable.Client().UsersById(user).Calendars().Get(ctx, options)
-		return err
-	})
-
-	return resp, err
 }
 
 // EnumerateContainers iterates through all of the users current
@@ -172,60 +139,57 @@ func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
+	errs *fault.Errors,
 ) error {
 	service, err := c.service()
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
-
-	var (
-		resp models.CalendarCollectionResponseable
-		errs *multierror.Error
-	)
 
 	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
-		return errors.Wrapf(err, "options for event calendars")
+		return clues.Wrap(err, "setting calendar options").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		var err error
-
-		err = graph.RunWithRetry(func() error {
-			resp, err = builder.Get(ctx, ofc)
-			return err
-		})
-
+		resp, err := builder.Get(ctx, ofc)
 		if err != nil {
-			return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		for _, cal := range resp.GetValue() {
 			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
-				errs = multierror.Append(err, errs)
+				errs.Add(clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...))
 				continue
 			}
 
-			temp := graph.NewCacheFolder(cd, path.Builder{}.Append(*cd.GetDisplayName()))
+			fctx := clues.AddAll(
+				ctx,
+				"container_id", ptr.Val(cal.GetId()),
+				"container_name", ptr.Val(cal.GetName()))
 
-			err = fn(temp)
-			if err != nil {
-				errs = multierror.Append(err, errs)
+			temp := graph.NewCacheFolder(
+				cd,
+				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
+				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
+			if err := fn(temp); err != nil {
+				errs.Add(clues.Stack(err).WithClues(fctx).WithAll(graph.ErrData(err)...))
 				continue
 			}
 		}
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = users.NewItemCalendarsRequestBuilder(*resp.GetOdataNextLink(), service.Adapter())
+		builder = users.NewItemCalendarsRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.ErrorOrNil()
+	return errs.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -245,17 +209,12 @@ type eventPager struct {
 }
 
 func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
-	var (
-		resp api.DeltaPageLinker
-		err  error
-	)
+	resp, err := p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+	}
 
-	err = graph.RunWithRetry(func() error {
-		resp, err = p.builder.Get(ctx, p.options)
-		return err
-	})
-
-	return resp, err
+	return resp, nil
 }
 
 func (p *eventPager) setNext(nextLink string) {
@@ -275,33 +234,30 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		return nil, nil, DeltaUpdate{}, err
 	}
 
-	var (
-		resetDelta bool
-		errs       *multierror.Error
-	)
+	var resetDelta bool
 
 	ctx = clues.AddAll(
 		ctx,
-		"category", selectors.ExchangeEvent,
 		"calendar_id", calendarID)
 
 	if len(oldDelta) > 0 {
-		builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
-		pgr := &eventPager{service, builder, nil}
+		var (
+			builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, service.Adapter())
+			pgr     = &eventPager{service, builder, nil}
+		)
 
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, errs.ErrorOrNil()
+			return added, removed, DeltaUpdate{deltaURL, false}, nil
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
 		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, err
+			return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		resetDelta = true
-		errs = nil
 	}
 
 	// Graph SDK only supports delta queries against events on the beta version, so we're
@@ -322,7 +278,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	}
 
 	// Events don't have a delta endpoint so just return an empty string.
-	return added, removed, DeltaUpdate{deltaURL, resetDelta}, errs.ErrorOrNil()
+	return added, removed, DeltaUpdate{deltaURL, resetDelta}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -337,10 +293,10 @@ func (c Events) Serialize(
 ) ([]byte, error) {
 	event, ok := item.(models.Eventable)
 	if !ok {
-		return nil, fmt.Errorf("expected Eventable, got %T", item)
+		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not an Eventable")
 	}
 
-	ctx = clues.Add(ctx, "item_id", *event.GetId())
+	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
 	var (
 		err    error
@@ -350,12 +306,12 @@ func (c Events) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", event); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing calendar event")
+		return nil, clues.Wrap(err, "serializing event").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return bs, nil
@@ -390,34 +346,27 @@ func (c CalendarDisplayable) GetParentFolderId() *string {
 
 func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 	var (
-		organizer, subject string
-		recurs             bool
-		start              = time.Time{}
-		end                = time.Time{}
-		created            = time.Time{}
+		organizer string
+		subject   = ptr.Val(evt.GetSubject())
+		recurs    bool
+		start     = time.Time{}
+		end       = time.Time{}
+		created   = ptr.Val(evt.GetCreatedDateTime())
 	)
 
 	if evt.GetOrganizer() != nil &&
-		evt.GetOrganizer().GetEmailAddress() != nil &&
-		evt.GetOrganizer().GetEmailAddress().GetAddress() != nil {
-		organizer = *evt.GetOrganizer().
-			GetEmailAddress().
-			GetAddress()
-	}
-
-	if evt.GetSubject() != nil {
-		subject = *evt.GetSubject()
+		evt.GetOrganizer().GetEmailAddress() != nil {
+		organizer = ptr.Val(evt.GetOrganizer().GetEmailAddress().GetAddress())
 	}
 
 	if evt.GetRecurrence() != nil {
 		recurs = true
 	}
 
-	if evt.GetStart() != nil &&
-		evt.GetStart().GetDateTime() != nil {
+	if evt.GetStart() != nil && len(ptr.Val(evt.GetStart().GetDateTime())) > 0 {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		startTime := *evt.GetStart().GetDateTime() + "Z"
+		startTime := ptr.Val(evt.GetStart().GetDateTime()) + "Z"
 
 		output, err := common.ParseTime(startTime)
 		if err == nil {
@@ -425,20 +374,15 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		}
 	}
 
-	if evt.GetEnd() != nil &&
-		evt.GetEnd().GetDateTime() != nil {
+	if evt.GetEnd() != nil && len(ptr.Val(evt.GetEnd().GetDateTime())) > 0 {
 		// timeString has 'Z' literal added to ensure the stored
 		// DateTime is not: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
-		endTime := *evt.GetEnd().GetDateTime() + "Z"
+		endTime := ptr.Val(evt.GetEnd().GetDateTime()) + "Z"
 
 		output, err := common.ParseTime(endTime)
 		if err == nil {
 			end = output
 		}
-	}
-
-	if evt.GetCreatedDateTime() != nil {
-		created = *evt.GetCreatedDateTime()
 	}
 
 	return &details.ExchangeInfo{
@@ -449,6 +393,6 @@ func EventInfo(evt models.Eventable) *details.ExchangeInfo {
 		EventEnd:    end,
 		EventRecurs: recurs,
 		Created:     created,
-		Modified:    orNow(evt.GetLastModifiedDateTime()),
+		Modified:    ptr.OrNow(evt.GetLastModifiedDateTime()),
 	}
 }

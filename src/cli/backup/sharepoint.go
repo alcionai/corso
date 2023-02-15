@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -140,12 +141,12 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		fs.StringSliceVar(
 			&pageFolders,
-			utils.PageFN, nil,
-			"Select backup data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
+			utils.PageFolderFN, nil,
+			"Select backup data by folder name; accepts '"+utils.Wildcard+"' to select all folders.")
 
 		fs.StringSliceVar(
 			&page,
-			utils.PageItemFN, nil,
+			utils.PagesFN, nil,
 			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
 		)
 
@@ -210,7 +211,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites)
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
@@ -221,14 +225,14 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		errs *multierror.Error
-		bIDs []model.StableID
+		merrs *multierror.Error
+		bIDs  []model.StableID
 	)
 
 	for _, discSel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
 		bo, err := r.NewBackup(ctx, discSel.Selector)
 		if err != nil {
-			errs = multierror.Append(errs, errors.Wrapf(
+			merrs = multierror.Append(merrs, errors.Wrapf(
 				err,
 				"Failed to initialize SharePoint backup for site %s",
 				discSel.DiscreteOwner,
@@ -239,7 +243,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 		err = bo.Run(ctx)
 		if err != nil {
-			errs = multierror.Append(errs, errors.Wrapf(
+			merrs = multierror.Append(merrs, errors.Wrapf(
 				err,
 				"Failed to run SharePoint backup for site %s",
 				discSel.DiscreteOwner,
@@ -259,7 +263,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	backup.PrintAll(ctx, bups)
 
-	if e := errs.ErrorOrNil(); e != nil {
+	if e := merrs.ErrorOrNil(); e != nil {
 		return Only(ctx, e)
 	}
 
@@ -315,7 +319,10 @@ func sharePointBackupCreateSelectors(
 		}
 	}
 
-	union, err := gc.UnionSiteIDsAndWebURLs(ctx, sites, weburls)
+	// TODO: log/print recoverable errors
+	errs := fault.New(false)
+
+	union, err := gc.UnionSiteIDsAndWebURLs(ctx, sites, weburls, errs)
 	if err != nil {
 		return nil, err
 	}
