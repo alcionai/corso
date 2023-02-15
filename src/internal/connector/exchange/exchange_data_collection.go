@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -43,6 +44,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		errs *fault.Errors,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
@@ -250,7 +252,12 @@ func (col *Collection) streamItems(ctx context.Context) {
 				err  error
 			)
 
-			item, info, err = getItemWithRetries(ctx, user, id, col.items)
+			item, info, err = getItemWithRetries(
+				ctx,
+				user,
+				id,
+				col.items,
+				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
 				// back up data that is gone. Record it as a "success", since there's
@@ -298,6 +305,7 @@ func getItemWithRetries(
 	ctx context.Context,
 	userID, itemID string,
 	items itemer,
+	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
 		item serialization.Parsable
@@ -306,7 +314,7 @@ func getItemWithRetries(
 	)
 
 	for i := 1; i <= numberOfRetries; i++ {
-		item, info, err = items.GetItem(ctx, userID, itemID)
+		item, info, err = items.GetItem(ctx, userID, itemID, errs)
 		if err == nil {
 			break
 		}
