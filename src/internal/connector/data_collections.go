@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -20,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -88,7 +86,22 @@ func (gc *GraphConnector) DataCollections(
 		return colls, excludes, nil
 
 	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels, metadata, ctrlOpts)
+		colls, excludes, err := onedrive.DataCollections(
+			ctx,
+			sels, metadata,
+			gc.credentials.AzureTenantID,
+			gc.itemClient,
+			gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		gc.incrementMessagesBy(len(colls))
+
+		return colls, excludes, nil
 
 	case selectors.ServiceSharePoint:
 		colls, excludes, err := sharepoint.DataCollections(
@@ -103,9 +116,7 @@ func (gc *GraphConnector) DataCollections(
 			return nil, nil, err
 		}
 
-		for range colls {
-			gc.incrementAwaitingMessages()
-		}
+		gc.incrementMessagesBy(len(colls))
 
 		return colls, excludes, nil
 
@@ -164,72 +175,6 @@ func checkServiceEnabled(
 	}
 
 	return true, nil
-}
-
-// ---------------------------------------------------------------------------
-// OneDrive
-// ---------------------------------------------------------------------------
-
-type odFolderMatcher struct {
-	scope selectors.OneDriveScope
-}
-
-func (fm odFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.OneDriveFolder)
-}
-
-func (fm odFolderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, dir)
-}
-
-// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
-// for the specified user
-func (gc *GraphConnector) OneDriveDataCollections(
-	ctx context.Context,
-	selector selectors.Selector,
-	metadata []data.RestoreCollection,
-	ctrlOpts control.Options,
-) ([]data.BackupCollection, map[string]struct{}, error) {
-	odb, err := selector.ToOneDriveBackup()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
-	}
-
-	var (
-		user        = selector.DiscreteOwner
-		collections = []data.BackupCollection{}
-		allExcludes = map[string]struct{}{}
-		errs        error
-	)
-
-	// for each scope that includes oneDrive items, get all
-	for _, scope := range odb.Scopes() {
-		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
-
-		odcs, excludes, err := onedrive.NewCollections(
-			gc.itemClient,
-			gc.credentials.AzureTenantID,
-			user,
-			onedrive.OneDriveSource,
-			odFolderMatcher{scope},
-			gc.Service,
-			gc.UpdateStatus,
-			ctrlOpts,
-		).Get(ctx, metadata)
-		if err != nil {
-			return nil, nil, support.WrapAndAppend(user, err, errs)
-		}
-
-		collections = append(collections, odcs...)
-
-		maps.Copy(allExcludes, excludes)
-	}
-
-	for range collections {
-		gc.incrementAwaitingMessages()
-	}
-
-	return collections, allExcludes, errs
 }
 
 // RestoreDataCollections restores data from the specified collections
