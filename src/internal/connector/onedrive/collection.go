@@ -123,6 +123,7 @@ func NewCollection(
 	switch source {
 	case SharePointSource:
 		c.itemReader = sharePointItemReader
+		c.itemMetaReader = oneDriveItemMetaReader
 	default:
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
@@ -286,22 +287,20 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				metaSuffix = DirMetaFileSuffix
 			}
 
-			if oc.source == OneDriveSource {
-				// Fetch metadata for the file
-				if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
-					// We are still writing the metadata file but with
-					// empty permissions as we don't have a way to
-					// signify that the permissions was explicitly
-					// not added.
-					itemMeta = io.NopCloser(strings.NewReader("{}"))
-					itemMetaSize = 2
-				} else {
-					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+			// Fetch metadata for the file
+			if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
+				// We are still writing the metadata file but with
+				// empty permissions as we don't have a way to
+				// signify that the permissions was explicitly
+				// not added.
+				itemMeta = io.NopCloser(strings.NewReader("{}"))
+				itemMetaSize = 2
+			} else {
+				itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
 
-					if err != nil {
-						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
-						return
-					}
+				if err != nil {
+					errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
+					return
 				}
 			}
 
@@ -315,10 +314,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			}
 
 			if isFile {
-				dataSuffix := ""
-				if oc.source == OneDriveSource {
-					dataSuffix = DataFileSuffix
-				}
+				dataSuffix := DataFileSuffix
 
 				// Construct a new lazy readCloser to feed to the collection consumer.
 				// This ensures that downloads won't be attempted unless that consumer
@@ -371,38 +367,15 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				}
 			}
 
+			var metaItem *Item
 			if oc.source == OneDriveSource {
-				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(
-						ctx, itemMeta, observe.ItemBackupMsg,
-						observe.PII(itemName+metaSuffix), int64(itemMetaSize))
-					go closer()
-					return progReader, nil
-				})
-
-				// TODO(meain): Remove this once we change to always
-				// backing up permissions. Until then we cannot rely
-				// on weather the previous data is what we need as the
-				// user might have not backup up permissions in the
-				// previous run.
-				metaItemInfo := details.ItemInfo{}
-				metaItemInfo.OneDrive = &details.OneDriveInfo{
-					Created:    itemInfo.OneDrive.Created,
-					ItemName:   itemInfo.OneDrive.ItemName,
-					DriveName:  itemInfo.OneDrive.DriveName,
-					ItemType:   itemInfo.OneDrive.ItemType,
-					Modified:   time.Now(), // set to current time to always refresh
-					Owner:      itemInfo.OneDrive.Owner,
-					ParentPath: itemInfo.OneDrive.ParentPath,
-					Size:       itemInfo.OneDrive.Size,
-				}
-
-				oc.data <- &Item{
-					id:   itemName + metaSuffix,
-					data: metaReader,
-					info: metaItemInfo,
-				}
+				metaItem = handleOneDriveMeta(ctx, itemMeta, itemInfo.OneDrive,
+					itemName, metaSuffix, itemMetaSize)
+			} else {
+				metaItem = handleSharePointMeta(ctx, itemMeta, itemInfo.SharePoint, itemName, metaSuffix, itemMetaSize)
 			}
+
+			oc.data <- metaItem
 
 			// Item read successfully, add to collection
 			if isFile {
@@ -438,4 +411,94 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRe
 	)
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
 	oc.statusUpdater(status)
+}
+
+func createMetaOneDrive(info *details.OneDriveInfo) details.ItemInfo {
+	// TODO(meain): Remove this once we change to always
+	// backing up permissions. Until then we cannot rely
+	// on weather the previous data is what we need as the
+	// user might have not backup up permissions in the
+	// previous run.
+	metaItemInfo := details.ItemInfo{}
+	metaItemInfo.OneDrive = &details.OneDriveInfo{
+		Created:    info.Created,
+		ItemName:   info.ItemName,
+		DriveName:  info.DriveName,
+		ItemType:   info.ItemType,
+		Modified:   time.Now(), // set to current time to always refresh
+		Owner:      info.Owner,
+		ParentPath: info.ParentPath,
+		Size:       info.Size,
+	}
+
+	return metaItemInfo
+}
+
+func createMetaSharePoint(info *details.SharePointInfo) details.ItemInfo {
+	metaItemInfo := details.ItemInfo{}
+	metaItemInfo.SharePoint = &details.SharePointInfo{
+		Created:    info.Created,
+		ItemName:   info.ItemName,
+		DriveName:  info.DriveName,
+		ItemType:   info.ItemType,
+		Modified:   time.Now(),
+		Owner:      info.Owner,
+		ParentPath: info.ParentPath,
+		WebURL:     info.WebURL,
+		Size:       info.Size,
+	}
+
+	return metaItemInfo
+}
+
+func handleOneDriveMeta(
+	ctx context.Context,
+	itemMeta io.ReadCloser,
+	info *details.OneDriveInfo,
+	name, suffix string,
+	size int,
+) *Item {
+	metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+		progReader, closer := observe.ItemProgress(
+			ctx, itemMeta, observe.ItemBackupMsg,
+			observe.PII(name+suffix), int64(size))
+		go closer()
+		return progReader, nil
+	})
+
+	metaItemInfo := createMetaOneDrive(info)
+
+	item := &Item{
+		id:   name + suffix,
+		data: metaReader,
+		info: metaItemInfo,
+	}
+
+	return item
+}
+
+func handleSharePointMeta(
+	ctx context.Context,
+	itemMeta io.ReadCloser,
+	info *details.SharePointInfo,
+	name, suffix string,
+	size int,
+) *Item {
+	metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+		progReader, closer := observe.ItemProgress(
+			ctx, itemMeta, observe.ItemBackupMsg,
+			observe.PII(name+suffix), int64(size))
+		go closer()
+		return progReader, nil
+	})
+
+	metaItemInfo := createMetaSharePoint(info)
+
+	item := &Item{
+		id:   name + suffix,
+		data: metaReader,
+		info: metaItemInfo,
+	}
+
+	return item
 }
