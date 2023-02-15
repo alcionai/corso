@@ -587,7 +587,7 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
 	buildPath := func(t *testing.T, pth string, isItem bool) path.Path {
 		pathBuilder := path.Builder{}.Append(strings.Split(pth, "/")...)
 		item, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", isItem)
-		assert.NoError(t, err, "err building path")
+		require.NoError(t, err, "err building path")
 
 		return item
 	}

@@ -370,7 +370,6 @@ func (c *Collections) Get(
 func updateCollectionPaths(
 	id string,
 	cmap map[string]data.BackupCollection,
-	newPaths map[string]string,
 	curPath path.Path,
 ) (bool, error) {
 	var initialCurPath path.Path
@@ -521,7 +520,7 @@ func (c *Collections) UpdateCollections(
 			// update newPaths so we don't accidentally clobber previous deletes.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
 
-			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, newPaths, folderPath)
+			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, folderPath)
 			if err != nil {
 				return err
 			}
