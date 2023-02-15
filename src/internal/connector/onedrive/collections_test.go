@@ -1283,7 +1283,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						deltaLink: &empty, // not sure if this is a valid scenario
+						deltaLink: &empty, // probably will never happen with graph
 					},
 				},
 			},

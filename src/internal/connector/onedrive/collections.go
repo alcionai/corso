@@ -449,6 +449,9 @@ func (c *Collections) UpdateCollections(
 				return err
 			}
 
+			// Add root path so as to have root folder information in
+			// path metadata. Root id -> path map is necessary in
+			// following delta incremental backups.
 			updatePath(newPaths, *item.GetId(), rootPath.String())
 
 			continue
