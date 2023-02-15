@@ -189,21 +189,18 @@ func collectItems(
 	pager itemPager,
 	driveID, driveName string,
 	collector itemCollector,
+	oldPaths map[string]string,
 	prevDelta string,
 ) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
 	var (
-		newDeltaURL = ""
-		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
-		// take in previous paths.
-		oldPaths         = map[string]string{}
+		newDeltaURL      = ""
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = len(prevDelta) == 0
 	)
 
-	maps.Copy(newPaths, oldPaths)
-
-	if len(prevDelta) != 0 {
+	if !invalidPrevDelta {
+		maps.Copy(newPaths, oldPaths)
 		pager.SetNext(prevDelta)
 	}
 
@@ -411,6 +408,7 @@ func GetAllFolders(
 
 				return nil
 			},
+			map[string]string{},
 			"",
 		)
 		if err != nil {

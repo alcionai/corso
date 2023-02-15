@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -256,7 +256,7 @@ func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
-	prevDeltas, _, err := deserializeMetadata(ctx, prevMetadata)
+	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -293,6 +293,7 @@ func (c *Collections) Get(
 		driveName := *d.GetName()
 
 		prevDelta := prevDeltas[driveID]
+		oldPaths := oldPathsByDriveID[driveID]
 
 		delta, paths, excluded, err := collectItems(
 			ctx,
@@ -304,6 +305,7 @@ func (c *Collections) Get(
 			driveID,
 			driveName,
 			c.UpdateCollections,
+			oldPaths,
 			prevDelta,
 		)
 		if err != nil {
@@ -433,24 +435,53 @@ func (c *Collections) UpdateCollections(
 		var (
 			prevPath           path.Path
 			prevCollectionPath path.Path
+			ok                 bool
 		)
 
 		if item.GetRoot() != nil {
-			// Skip the root item
+			rootPath, err := GetCanonicalPath(
+				fmt.Sprintf(rootDrivePattern, driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source,
+			)
+			if err != nil {
+				return err
+			}
+
+			updatePath(newPaths, *item.GetId(), rootPath.String())
+
 			continue
 		}
 
 		if item.GetParentReference() == nil ||
-			item.GetParentReference().GetPath() == nil ||
-			item.GetParentReference().GetId() == nil {
-			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
+			item.GetParentReference().GetId() == nil ||
+			(item.GetDeleted() == nil && item.GetParentReference().GetPath() == nil) {
+			err := clues.New("no parent reference").With("item_id", *item.GetId())
+			if item.GetName() != nil {
+				err = err.With("item_name", *item.GetName())
+			}
+
+			return err
 		}
 
 		// Create a collection for the parent of this item
 		collectionID := *item.GetParentReference().GetId()
 
+		var collectionPathStr string
+		if item.GetDeleted() == nil {
+			collectionPathStr = *item.GetParentReference().GetPath()
+		} else {
+			collectionPathStr, ok = oldPaths[*item.GetParentReference().GetId()]
+			if !ok {
+				// This collection was created and destroyed in
+				// between the current and previous invocation
+				continue
+			}
+		}
+
 		collectionPath, err := GetCanonicalPath(
-			*item.GetParentReference().GetPath(),
+			collectionPathStr,
 			c.tenant,
 			c.resourceOwner,
 			c.source,
