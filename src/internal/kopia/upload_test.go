@@ -1742,11 +1742,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		{
 			name: "ReplaceDeletedSubtreeWithNew",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				oldInbox := mockconnector.NewMockExchangeCollection(inboxPath, 0)
-				oldInbox.PrevPath = inboxPath
+				oldInbox := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 0)
+				oldInbox.PrevPath = inboxStorePath
 				oldInbox.ColState = data.DeletedState
 
-				newCol := mockconnector.NewMockExchangeCollection(inboxPath, 1)
+				newCol := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 1)
 				newCol.ColState = data.NewState
 				newCol.Names[0] = workFileName2
 				newCol.Data[0] = workFileData2
