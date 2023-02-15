@@ -152,7 +152,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, a, s, false, options.Control())
+	r, err := repository.Connect(ctx, a, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}

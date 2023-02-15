@@ -155,7 +155,6 @@ func Connect(
 	ctx context.Context,
 	acct account.Account,
 	s storage.Storage,
-	repoConnect bool,
 	opts control.Options,
 ) (Repository, error) {
 	ctx = clues.AddAll(
@@ -216,11 +215,23 @@ func Connect(
 		modelStore: ms,
 	}
 
-	if repoConnect {
+	return &r, nil
+}
+
+func ConnectAndSendConnectEvent(ctx context.Context,
+	acct account.Account,
+	s storage.Storage,
+	opts control.Options,
+) (Repository, error) {
+	repo, err := Connect(ctx, acct, s, opts)
+
+	var r = repo.(*repository)
+
+	if err != nil {
 		r.Bus.Event(ctx, events.RepoConnect, nil)
 	}
 
-	return &r, nil
+	return r, err
 }
 
 func (r *repository) Close(ctx context.Context) error {

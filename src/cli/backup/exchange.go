@@ -264,7 +264,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, false, options.Control())
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -388,7 +388,7 @@ func listExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, false, options.Control())
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -468,7 +468,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, false, options.Control())
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -546,7 +546,7 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, false, options.Control())
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
