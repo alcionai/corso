@@ -199,7 +199,10 @@ func MessageWithCompletion(
 			select {
 			case <-contxt.Done():
 				bar.SetTotal(-1, true)
-			case <-ci:
+			case _, ok := <-ci:
+				if !ok {
+					return
+				}
 				// We don't care whether the channel was signalled or closed
 				// Use either one as an indication that the bar is done
 				bar.SetTotal(-1, true)

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	"github.com/pkg/profile"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 
@@ -124,6 +125,8 @@ func Handle() {
 
 	loglevel, logfile := logger.PreloadLoggingFlags()
 	ctx, log := logger.Seed(ctx, loglevel, logfile)
+
+	defer profile.Start().Stop()
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
