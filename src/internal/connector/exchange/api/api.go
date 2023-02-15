@@ -18,8 +18,6 @@ import (
 // common types and consts
 // ---------------------------------------------------------------------------
 
-const numberOfRetries = 3
-
 // DeltaUpdate holds the results of a current delta token.  It normally
 // gets produced when aggregating the addition and removal of items in
 // a delta-queriable folder.

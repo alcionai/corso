@@ -249,7 +249,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 		// note: happy path, not the error condition
 		if err == nil {
-			return added, removed, DeltaUpdate{deltaURL, false}, err
+			return added, removed, DeltaUpdate{deltaURL, false}, nil
 		}
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
