@@ -119,7 +119,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
-		// Exchange and OneDrive user existance now checked in checkServiceEnabled.
+		// Exchange and OneDrive user existence now checked in checkServiceEnabled.
 		return nil
 
 	case selectors.ServiceSharePoint:
