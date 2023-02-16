@@ -1179,6 +1179,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		expectedFolderPaths map[string]map[string]string
 		expectedDelList     map[string]struct{}
 		doNotMergeItems     bool
+		emptyPrevDelta      bool
 	}{
 		{
 			name:   "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
@@ -1614,6 +1615,85 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedDelList: map[string]struct{}{},
 			doNotMergeItems: true,
 		},
+		{
+			name:   "OneDrive_OneItemPage_EmptyPrevDelta_DeleteNonExistantFolder",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder2", "folder2", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder2", "folder2", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				expectedPath1(""):         {data.NotMovedState: {"folder2"}},
+				expectedPath1("/folder"):  {data.DeletedState: {}},
+				expectedPath1("/folder2"): {data.NewState: {"file"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder2": expectedPath1("/folder2"),
+				},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: true,
+			emptyPrevDelta:  true,
+		},
+		{
+			name:   "OneDrive_OneItemPage_EmptyPrevDelta_AnotherFolderAtDeletedLocation",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder2", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder2", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				expectedPath1(""):        {data.NotMovedState: {"folder2"}},
+				expectedPath1("/folder"): {data.NewState: {"file"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder2": expectedPath1("/folder"),
+				},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: true,
+			emptyPrevDelta:  true,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -1657,6 +1737,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
+			prevDelta := ""
+			if !test.emptyPrevDelta {
+				prevDelta = "prev-delta"
+			}
 			mc, err := graph.MakeMetadataCollection(
 				tenant,
 				user,
@@ -1666,8 +1750,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					graph.NewMetadataEntry(
 						graph.DeltaURLsFileName,
 						map[string]string{
-							driveID1: "prev-delta",
-							driveID2: "prev-delta",
+							driveID1: prevDelta,
+							driveID2: prevDelta,
 						},
 					),
 					graph.NewMetadataEntry(
