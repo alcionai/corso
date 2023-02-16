@@ -3,12 +3,11 @@ package exchange
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 )
 
 // attachementUploadable represents structs that are able to upload small attachments directly to an item or use an
@@ -45,7 +44,7 @@ func (mau *mailAttachmentUploader) uploadSmallAttachment(ctx context.Context, at
 		Attachments().
 		Post(ctx, attach, nil)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return nil
@@ -69,12 +68,7 @@ func (mau *mailAttachmentUploader) uploadSession(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to create attachment upload session for item %s. details: %s",
-			mau.itemID,
-			support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "uploading mail attachment").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return r, nil
@@ -100,7 +94,7 @@ func (eau *eventAttachmentUploader) uploadSmallAttachment(ctx context.Context, a
 		Attachments().
 		Post(ctx, attach, nil)
 	if err != nil {
-		return errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return nil
@@ -122,11 +116,7 @@ func (eau *eventAttachmentUploader) uploadSession(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to create attachment upload session for event item %s. details: %s",
-			eau.itemID, support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "uploading event attachment").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return r, nil

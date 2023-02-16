@@ -172,7 +172,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 			)
 			require.NoError(t, err)
 
-			assert.Empty(t, p.Folder())
+			assert.Empty(t, p.Folder(false))
 			assert.Empty(t, p.Folders())
 			assert.Equal(t, item, p.Item())
 		})
@@ -391,7 +391,7 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					assert.Equal(t, path.ExchangeService, p.Service())
 					assert.Equal(t, test.category, p.Category())
 					assert.Equal(t, testUser, p.ResourceOwner())
-					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder())
+					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder(false))
 					assert.Equal(t, m.expectedFolders, p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
 				})
@@ -465,7 +465,7 @@ func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 			assert.Equal(
 				t,
 				strings.Join(m.expectedFolders, "/"),
-				suite.paths[m.isItem].Folder(),
+				suite.paths[m.isItem].Folder(false),
 			)
 		})
 	}
@@ -525,9 +525,84 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 						return
 					}
 
-					assert.Equal(t, test.expectedFolder, newPath.Folder())
+					assert.Equal(t, test.expectedFolder, newPath.Folder(false))
 					assert.Equal(t, test.expectedItem, newPath.Item())
 				})
+			}
+		})
+	}
+}
+
+func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
+	cases := []struct {
+		name     string
+		item     string
+		prev     string
+		cur      string
+		expected string
+		updated  bool
+	}{
+		{
+			name:     "basic",
+			item:     "folder/item",
+			prev:     "folder",
+			cur:      "new-folder",
+			expected: "new-folder/item",
+			updated:  true,
+		},
+		{
+			name:     "long path",
+			item:     "folder/folder1/folder2/item",
+			prev:     "folder/folder1",
+			cur:      "new-folder/new-folder1",
+			expected: "new-folder/new-folder1/folder2/item",
+			updated:  true,
+		},
+		{
+			name:     "change to shorter path",
+			item:     "folder/folder1/folder2/item",
+			prev:     "folder/folder1/folder2",
+			cur:      "new-folder",
+			expected: "new-folder/item",
+			updated:  true,
+		},
+		{
+			name:     "change to longer path",
+			item:     "folder/item",
+			prev:     "folder",
+			cur:      "folder/folder1/folder2/folder3",
+			expected: "folder/folder1/folder2/folder3/item",
+			updated:  true,
+		},
+		{
+			name:     "not parent",
+			item:     "folder/folder1/folder2/item",
+			prev:     "folder1",
+			cur:      "new-folder1",
+			expected: "dummy",
+			updated:  false,
+		},
+	}
+
+	buildPath := func(t *testing.T, pth string, isItem bool) path.Path {
+		pathBuilder := path.Builder{}.Append(strings.Split(pth, "/")...)
+		item, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", isItem)
+		require.NoError(t, err, "err building path")
+
+		return item
+	}
+
+	for _, tc := range cases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			item := buildPath(t, tc.item, true)
+			prev := buildPath(t, tc.prev, false)
+			cur := buildPath(t, tc.cur, false)
+			expected := buildPath(t, tc.expected, true)
+
+			updated := item.UpdateParent(prev, cur)
+			assert.Equal(t, tc.updated, updated, "path updated")
+			if tc.updated {
+				assert.Equal(t, expected, item, "modified path")
 			}
 		})
 	}

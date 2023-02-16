@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -59,6 +60,7 @@ var _ graph.ContainerResolver = &mockResolver{}
 type (
 	mockResolver struct {
 		items []graph.CachedContainer
+		added map[string]string
 	}
 )
 
@@ -76,10 +78,21 @@ func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
 
-func (m mockResolver) AddToCache(context.Context, graph.Container) error       { return nil }
-func (m mockResolver) IDToPath(context.Context, string) (*path.Builder, error) { return nil, nil }
-func (m mockResolver) PathInCache(string) (string, bool)                       { return "", false }
-func (m mockResolver) Populate(context.Context, string, ...string) error       { return nil }
+func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container, b bool) error {
+	if len(m.added) == 0 {
+		m.added = map[string]string{}
+	}
+
+	m.added[*gc.GetDisplayName()] = *gc.GetId()
+
+	return nil
+}
+func (m mockResolver) DestinationNameToID(dest string) string { return m.added[dest] }
+func (m mockResolver) IDToPath(context.Context, string, bool) (*path.Builder, *path.Builder, error) {
+	return nil, nil, nil
+}
+func (m mockResolver) PathInCache(string) (string, bool)                                { return "", false }
+func (m mockResolver) Populate(context.Context, *fault.Errors, string, ...string) error { return nil }
 
 // ---------------------------------------------------------------------------
 // tests
@@ -218,7 +231,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1),
 			scope:               allScope,
-			expectErr:           assert.Error,
+			expectErr:           assert.NoError,
 			expectNewColls:      0,
 			expectMetadataColls: 1,
 		},
@@ -243,7 +256,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
-			expectErr:           assert.Error,
+			expectErr:           assert.NoError,
 			expectNewColls:      1,
 			expectMetadataColls: 1,
 		},
@@ -292,7 +305,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				test.scope,
 				dps,
 				control.Options{FailFast: test.failFast},
-			)
+				fault.New(test.failFast))
 			test.expectErr(t, err)
 
 			// collection assertions
@@ -445,7 +458,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				allScope,
 				dps,
 				control.Options{FailFast: true},
-			)
+				fault.New(true))
 			require.NoError(t, err)
 
 			// collection assertions
@@ -797,7 +810,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				allScope,
 				test.dps,
 				control.Options{},
-			)
+				fault.New(true))
 			assert.NoError(t, err)
 
 			metadatas := 0

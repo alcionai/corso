@@ -331,7 +331,7 @@ func getResources(
 	}
 
 	callbackFunc := func(item any) bool {
-		if errs.Failed() {
+		if errs.Err() != nil {
 			return false
 		}
 

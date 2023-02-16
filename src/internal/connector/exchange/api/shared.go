@@ -2,12 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -34,7 +35,7 @@ type getIDAndAddtler interface {
 func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	gv, ok := a.(interface{ GetValue() []T })
 	if !ok {
-		return nil, errors.Errorf("response of type [%T] does not comply with the GetValue() interface", a)
+		return nil, clues.Wrap(fmt.Errorf("%T", a), "does not comply with the GetValue() interface")
 	}
 
 	items := gv.GetValue()
@@ -45,7 +46,7 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 
 		ri, ok := a.(getIDAndAddtler)
 		if !ok {
-			return nil, errors.Errorf("item of type [%T] does not comply with the getIDAndAddtler interface", item)
+			return nil, clues.Wrap(fmt.Errorf("%T", item), "does not comply with the getIDAndAddtler interface")
 		}
 
 		r = append(r, ri)
@@ -72,18 +73,14 @@ func getItemsAddedAndRemovedFromContainer(
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
 		if err != nil {
-			if graph.IsErrDeletedInFlight(err) || graph.IsErrInvalidDelta(err) {
-				return nil, nil, deltaURL, err
-			}
-
-			return nil, nil, deltaURL, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, nil, deltaURL, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
 		items, err := pager.valuesIn(resp)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, nil, "", clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
 		}
 
 		itemCount += len(items)
@@ -100,9 +97,9 @@ func getItemsAddedAndRemovedFromContainer(
 			// be 'changed' or 'deleted'.  We don't really care about the cause: both
 			// cases are handled the same way in storage.
 			if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-				addedIDs = append(addedIDs, *item.GetId())
+				addedIDs = append(addedIDs, ptr.Val(item.GetId()))
 			} else {
-				removedIDs = append(removedIDs, *item.GetId())
+				removedIDs = append(removedIDs, ptr.Val(item.GetId()))
 			}
 		}
 

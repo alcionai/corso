@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type CacheResolverSuite struct {
@@ -47,6 +48,9 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	ac, err := api.NewClient(suite.credentials)
 	require.NoError(suite.T(), err)
 
+	cal, err := ac.Events().GetContainerByID(ctx, tester.M365UserID(suite.T()), DefaultCalendar)
+	require.NoError(suite.T(), err)
+
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
@@ -64,61 +68,61 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	}
 
 	tests := []struct {
-		name, folderName, root, basePath string
-		resolverFunc                     func(t *testing.T) graph.ContainerResolver
-		canFind                          assert.BoolAssertionFunc
+		name, folderInCache, root, basePath string
+		resolverFunc                        func(t *testing.T) graph.ContainerResolver
+		canFind                             assert.BoolAssertionFunc
 	}{
 		{
-			name:         "Default Event Cache",
-			folderName:   DefaultCalendar,
-			root:         DefaultCalendar,
-			basePath:     DefaultCalendar,
-			resolverFunc: eventFunc,
-			canFind:      assert.True,
+			name:          "Default Event Cache",
+			folderInCache: *cal.GetId(),
+			root:          DefaultCalendar,
+			basePath:      DefaultCalendar,
+			resolverFunc:  eventFunc,
+			canFind:       assert.True,
 		},
 		{
-			name:         "Default Event Folder Hidden",
-			root:         DefaultCalendar,
-			folderName:   DefaultContactFolder,
-			canFind:      assert.False,
-			resolverFunc: eventFunc,
+			name:          "Default Event Folder Hidden",
+			folderInCache: DefaultContactFolder,
+			root:          DefaultCalendar,
+			canFind:       assert.False,
+			resolverFunc:  eventFunc,
 		},
 		{
-			name:         "Name Not in Cache",
-			folderName:   "testFooBarWhoBar",
-			root:         DefaultCalendar,
-			canFind:      assert.False,
-			resolverFunc: eventFunc,
+			name:          "Name Not in Cache",
+			folderInCache: "testFooBarWhoBar",
+			root:          DefaultCalendar,
+			canFind:       assert.False,
+			resolverFunc:  eventFunc,
 		},
 		{
-			name:         "Default Contact Cache",
-			folderName:   DefaultContactFolder,
-			root:         DefaultContactFolder,
-			basePath:     DefaultContactFolder,
-			canFind:      assert.True,
-			resolverFunc: contactFunc,
+			name:          "Default Contact Cache",
+			folderInCache: DefaultContactFolder,
+			root:          DefaultContactFolder,
+			basePath:      DefaultContactFolder,
+			canFind:       assert.True,
+			resolverFunc:  contactFunc,
 		},
 		{
-			name:         "Default Contact Hidden",
-			folderName:   DefaultContactFolder,
-			root:         DefaultContactFolder,
-			canFind:      assert.False,
-			resolverFunc: contactFunc,
+			name:          "Default Contact Hidden",
+			folderInCache: DefaultContactFolder,
+			root:          DefaultContactFolder,
+			canFind:       assert.False,
+			resolverFunc:  contactFunc,
 		},
 		{
-			name:         "Name Not in Cache",
-			folderName:   "testFooBarWhoBar",
-			root:         DefaultContactFolder,
-			canFind:      assert.False,
-			resolverFunc: contactFunc,
+			name:          "Name Not in Cache",
+			folderInCache: "testFooBarWhoBar",
+			root:          DefaultContactFolder,
+			canFind:       assert.False,
+			resolverFunc:  contactFunc,
 		},
 	}
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			resolver := test.resolverFunc(t)
+			require.NoError(t, resolver.Populate(ctx, fault.New(true), test.root, test.basePath))
 
-			require.NoError(t, resolver.Populate(ctx, test.root, test.basePath))
-			_, isFound := resolver.PathInCache(test.folderName)
+			_, isFound := resolver.PathInCache(test.folderInCache)
 			test.canFind(t, isFound)
 		})
 	}

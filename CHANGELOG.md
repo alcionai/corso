@@ -10,11 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Support for item.Attachment:Mail restore
+- Errors from duplicate names in Exchange Calendars
+- Resolved an issue where progress bar displays could fail to exit, causing unbounded CPU consumption.
 
 ### Changed
+- When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or a Microsoft 365 ID.
+- Exchange Calendars storage entries now construct their paths using container IDs instead of display names.  This fixes cases where duplicate display names caused system failures.
 
 ### Known Issues
 - Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
+- Breaking changes to Exchange Calendar backups.
 
 ## [v0.3.0] (alpha) - 2023-2-07
 
