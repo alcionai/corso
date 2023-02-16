@@ -19,13 +19,13 @@ backing up large Exchange mailboxes with Corso.
 
 ### Make sure you’re using the latest version of Corso
 
-We have recently done a lot of work  to harden Corso against transient network outages and Graph API timeouts. This
+We've recently done a lot of work  to harden Corso against transient network outages and Graph API timeouts. This
 hardening work makes the most impact during large backups as their long runtime increase the probability of running
 into transient errors.
 
 Our recent work has also included support for incremental backups, which you’ll definitely need for larger data sets.
-This means that while your first backup of a user with a large mailbox can take some time, all subsequenet backups
-will be blazingly fast as Corso will only capture the incremental changes while still constructing a full backup.
+This means that while your first backup of a user with a large mailbox can take some time, all subsequent backups
+will be quite fast as Corso will only capture the incremental changes while still constructing a full backup.
 
 ### Don’t be afraid to restart your backups
 
