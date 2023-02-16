@@ -2261,6 +2261,110 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	expectTree(t, ctx, expected, dirTree)
 }
 
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		archiveStorePath = makePath(
+			suite.T(),
+			[]string{testTenant, service, testUser, category, testArchiveID},
+			false)
+		archiveLocPath = makePath(
+			suite.T(),
+			[]string{testTenant, service, testUser, category, testArchiveDir},
+			false)
+	)
+
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchangeMetadata
+	//     - user1
+	//       - email
+	//         - file1
+	getBaseSnapshot := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				path.ExchangeMetadataService.String(),
+				testUser,
+				category,
+			},
+			[]fs.Entry{
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(testFileName)[0],
+					time.Time{},
+					io.NopCloser(bytes.NewReader(testFileData)),
+				),
+			},
+		)
+	}
+
+	// Metadata subtree doesn't appear because we don't select it as one of the
+	// subpaths and we're not passing in a metadata collection.
+	expected := expectedTreeWithChildren(
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		},
+		[]*expectedNode{
+			{
+				name: testArchiveID,
+				children: []*expectedNode{
+					{
+						name:     testFileName2,
+						children: []*expectedNode{},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		errs:    fault.New(true),
+	}
+	mc := mockconnector.NewMockExchangeCollection(archiveStorePath, archiveLocPath, 1)
+	mc.ColState = data.NewState
+	mc.Names[0] = testFileName2
+	mc.Data[0] = testFileData2
+
+	msw := &mockSnapshotWalker{
+		snapshotRoot: getBaseSnapshot(),
+	}
+
+	collections := []data.BackupCollection{mc}
+
+	// Returned directory structure should look like:
+	// - a-tenant
+	//   - exchangeMetadata
+	//     - user1
+	//       - emails
+	//         - file1
+	//   - exchange
+	//     - user1
+	//       - emails
+	//         - Archive
+	//           - file2
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]IncrementalBase{
+			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		},
+		collections,
+		nil,
+		progress)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
 type mockMultiSnapshotWalker struct {
 	snaps map[string]fs.Entry
 }
