@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -657,7 +658,8 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				m365,
 				test.pathFunc1(t),
 				folderName,
-				directoryCaches)
+				directoryCaches,
+				fault.New(true))
 			require.NoError(t, err)
 
 			resolver := directoryCaches[test.category]
@@ -675,7 +677,8 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				m365,
 				test.pathFunc2(t),
 				parentContainer,
-				directoryCaches)
+				directoryCaches,
+				fault.New(true))
 			require.NoError(t, err)
 
 			_, _, err = resolver.IDToPath(ctx, secondID, test.useIDForPath)

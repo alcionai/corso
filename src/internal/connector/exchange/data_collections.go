@@ -264,7 +264,7 @@ func createCollections(
 	defer closer()
 	defer close(foldersComplete)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "populating container cache")
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -27,6 +28,7 @@ type containersEnumerator interface {
 		ctx context.Context,
 		userID, baseDirID string,
 		fn func(graph.CacheFolder) error,
+		errs *fault.Errors,
 	) error
 }
 
