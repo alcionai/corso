@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type testErr struct {
@@ -20,11 +21,12 @@ type testErr2 struct {
 }
 
 type ErrorsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestErrorsUnitSuite(t *testing.T) {
-	suite.Run(t, new(ErrorsUnitSuite))
+	s := &ErrorsUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *ErrorsUnitSuite) TestPropagatesCause() {

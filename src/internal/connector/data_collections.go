@@ -99,6 +99,13 @@ func (gc *GraphConnector) DataCollections(
 			return nil, nil, err
 		}
 
+		for _, c := range colls {
+			// kopia doesn't stream Items() from deleted collections.
+			if c.State() != data.DeletedState {
+				gc.incrementAwaitingMessages()
+			}
+		}
+
 		gc.incrementMessagesBy(len(colls))
 
 		return colls, excludes, nil

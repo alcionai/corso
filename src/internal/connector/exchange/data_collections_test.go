@@ -554,7 +554,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		return nil
 	}
 
-	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn))
+	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true)))
 
 	tests := []struct {
 		name, expected string
