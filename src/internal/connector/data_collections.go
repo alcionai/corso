@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -204,6 +205,8 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]struct{}{}
+		categories  = map[path.CategoryType]struct{}{}
+		errs        error
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -227,6 +230,24 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		collections = append(collections, odcs...)
 
 		maps.Copy(allExcludes, excludes)
+
+		// Don't expect this to be more than files but just in case.
+		categories[scope.Category().PathType()] = struct{}{}
+	}
+
+	ferrs := fault.New(true)
+	baseCols, baseErrs := graph.BaseCollections(
+		gc.credentials.AzureTenantID,
+		user,
+		path.OneDriveService,
+		categories,
+		gc.UpdateStatus,
+		ferrs)
+
+	if baseErrs.Err() != nil {
+		errs = support.WrapAndAppend(user, ferrs.Err(), errs)
+	} else {
+		collections = append(collections, baseCols...)
 	}
 
 	for _, c := range collections {
