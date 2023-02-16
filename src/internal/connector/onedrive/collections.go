@@ -128,7 +128,7 @@ func deserializeMetadata(
 	prevFolders := map[string]map[string]string{}
 
 	for _, col := range cols {
-		items := col.Items()
+		items := col.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 		for breakLoop := false; !breakLoop; {
 			select {

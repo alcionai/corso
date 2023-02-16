@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -94,6 +95,9 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			t := suite.T()
 
 			c := kopiaDataCollection{
@@ -102,7 +106,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			}
 
 			count := 0
-			for returnedStream := range c.Items() {
+			for returnedStream := range c.Items(ctx, fault.New(true)) {
 				require.Less(t, count, len(test.streams))
 
 				assert.Equal(t, returnedStream.UUID(), uuids[count])
