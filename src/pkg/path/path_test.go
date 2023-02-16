@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type testData struct {
@@ -213,17 +215,19 @@ var basicEscapedInputs = []testData{
 }
 
 type PathUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestPathUnitSuite(t *testing.T) {
-	suite.Run(t, new(PathUnitSuite))
+	suite.Run(t, &PathUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *PathUnitSuite) TestAppend() {
 	table := append(append([]testData{}, genericCases...), basicUnescapedInputs...)
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			p := Builder{}.Append(test.input...)
 			assert.Equal(t, test.expectedString, p.String())
 		})
@@ -233,7 +237,9 @@ func (suite *PathUnitSuite) TestAppend() {
 func (suite *PathUnitSuite) TestUnescapeAndAppend() {
 	table := append(append([]testData{}, genericCases...), basicEscapedInputs...)
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			p, err := Builder{}.UnescapeAndAppend(test.input...)
 			require.NoError(t, err)
 
@@ -327,7 +333,9 @@ func (suite *PathUnitSuite) TestElements() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			p, err := test.pathFunc(test.input)
 			require.NoError(t, err)
 
@@ -359,7 +367,9 @@ func (suite *PathUnitSuite) TestPopFront() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, test.expectedString, test.base.PopFront().String())
 		})
 	}
@@ -383,7 +393,7 @@ func (suite *PathUnitSuite) TestShortRef() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			pb := Builder{}.Append(test.inputElements...)
 			ref := pb.ShortRef()
 			assert.Len(suite.T(), ref, test.expectedLen)
@@ -473,7 +483,9 @@ func (suite *PathUnitSuite) TestFromStringErrors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			_, err := FromDataLayerPath(test.escapedPath, false)
 			assert.Error(t, err)
 		})
@@ -544,7 +556,9 @@ func (suite *PathUnitSuite) TestFolder() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			p := test.p(t)
 			result := p.Folder(test.escape)
 			assert.Equal(t, test.expectFolder, result)

@@ -8,15 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type FaultErrorsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestFaultErrorsUnitSuite(t *testing.T) {
-	suite.Run(t, new(FaultErrorsUnitSuite))
+	suite.Run(t, &FaultErrorsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *FaultErrorsUnitSuite) TestNew() {
@@ -70,7 +71,9 @@ func (suite *FaultErrorsUnitSuite) TestErr() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
 			require.NoError(t, n.Err())
@@ -145,7 +148,9 @@ func (suite *FaultErrorsUnitSuite) TestErrs() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
 

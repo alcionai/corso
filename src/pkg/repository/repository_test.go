@@ -20,11 +20,11 @@ import (
 // ---------------
 
 type RepositorySuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestRepositorySuite(t *testing.T) {
-	suite.Run(t, new(RepositorySuite))
+	suite.Run(t, &RepositorySuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *RepositorySuite) TestInitialize() {
@@ -44,7 +44,9 @@ func (suite *RepositorySuite) TestInitialize() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -75,7 +77,9 @@ func (suite *RepositorySuite) TestConnect() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -92,21 +96,18 @@ func (suite *RepositorySuite) TestConnect() {
 // ---------------
 
 type RepositoryIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoRepositoryTests)
 
-	suite.Run(t, new(RepositoryIntegrationSuite))
-}
-
-// ensure all required env values are populated
-func (suite *RepositoryIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
+	suite.Run(t, &RepositoryIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoRepositoryTests,
+		),
+	})
 }
 
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
@@ -126,7 +127,9 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			st := test.storage(t)
 			r, err := repository.Initialize(ctx, test.account, st, control.Options{})
 			if err == nil {
