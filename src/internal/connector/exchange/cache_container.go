@@ -31,7 +31,7 @@ func checkRequiredValues(c graph.Container) error {
 	}
 
 	if _, ok := ptr.ValOK(c.GetParentFolderId()); !ok {
-		return clues.New("container missing parent ID").With("folder_id", ptr.Val(c.GetId()))
+		return clues.New("container missing parent ID").With("container_id", ptr.Val(c.GetId()))
 	}
 
 	return nil

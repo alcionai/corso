@@ -250,7 +250,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx = clues.AddAll(
 		ctx,
 		"category", selectors.ExchangeMail,
-		"folder_id", directoryID)
+		"container_id", directoryID)
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {

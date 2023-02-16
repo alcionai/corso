@@ -238,7 +238,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 
 	ctx = clues.AddAll(
 		ctx,
-		"calendar_id", calendarID)
+		"container_id", calendarID)
 
 	if len(oldDelta) > 0 {
 		var (
