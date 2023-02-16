@@ -180,7 +180,7 @@ func RestoreCollection(
 	}
 
 	// Restore items from the collection
-	items := dc.Items()
+	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 	for {
 		select {

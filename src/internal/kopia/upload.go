@@ -286,7 +286,7 @@ func collectionEntries(
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
-		items = streamedEnts.Items()
+		items = streamedEnts.Items(ctx, progress.errs)
 	)
 
 	if lp, ok := streamedEnts.(data.LocationPather); ok {
@@ -526,22 +526,18 @@ func buildKopiaDirs(
 	globalExcludeSet map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
-	// Reuse kopia directories directly if the subtree rooted at them is
-	// unchanged.
-	//
-	// TODO(ashmrtn): We could possibly also use this optimization if we know that
-	// the collection has no items in it. In that case though, we may need to take
-	// extra care to ensure the name of the directory is properly represented. For
-	// example, a directory that has been renamed but with no additional items may
-	// not be able to directly use kopia's version of the directory due to the
-	// rename.
-	if dir.collection == nil && len(dir.childDirs) == 0 && dir.baseDir != nil && len(globalExcludeSet) == 0 {
-		return dir.baseDir, nil
-	}
-
 	// Need to build the directory tree from the leaves up because intermediate
 	// directories need to have all their entries at creation time.
 	var childDirs []fs.Entry
+
+	// TODO(ashmrtn): Reuse kopia directories directly if the subtree rooted at
+	// them is unchanged.
+	//
+	// This has a few restrictions though:
+	//   * if we allow for moved folders, we need to make sure we update folder
+	//     names properly
+	//   * we need some way to know what items need to be pulled from the base
+	//     backup's backup details
 
 	for childName, childDir := range dir.childDirs {
 		child, err := buildKopiaDirs(childName, childDir, globalExcludeSet, progress)
