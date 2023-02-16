@@ -60,5 +60,6 @@ In both cases, the best way to keep these settings tidy is by using multiple `.c
 `-config-file` option to point to separate config files
 
 ### Have questions?
+
 Corso is under active development, and we expect our support for this type of use case to improve rapidly.
 If you have feedback for us please do [join our discord](https://discord.gg/63DTTSnuhT) and talk directly with the team!
