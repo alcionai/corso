@@ -16,9 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -35,12 +33,6 @@ const (
 // metadata such as delta tokens and folderID->path references.
 func AllMetadataFileNames() []string {
 	return []string{DeltaURLsFileName, PreviousPathFileName}
-}
-
-type QueryParams struct {
-	Category      path.CategoryType
-	ResourceOwner string
-	Credentials   account.M365Config
 }
 
 // ---------------------------------------------------------------------------

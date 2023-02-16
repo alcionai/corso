@@ -121,10 +121,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			Category:      path.EmailCategory, // doesn't matter which one we use.
 			ResourceOwner: userID,
 			Credentials:   suite.creds,
+			DeltaPaths:    graph.DeltaPaths{}, // incrementals are tested separately
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
-		dps           = DeltaPaths{} // incrementals are tested separately
 		commonResult  = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
@@ -303,7 +303,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				statusUpdater,
 				test.resolver,
 				test.scope,
-				dps,
 				control.Options{FailFast: test.failFast},
 				fault.New(test.failFast))
 			test.expectErr(t, err)
@@ -434,10 +433,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 					Category:      path.EmailCategory, // doesn't matter which one we use.
 					ResourceOwner: userID,
 					Credentials:   suite.creds,
+					DeltaPaths:    graph.DeltaPaths{}, // incrementals are tested separately
 				}
 				statusUpdater = func(*support.ConnectorOperationStatus) {}
 				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
-				dps           = DeltaPaths{} // incrementals are tested separately
 				container1    = mockContainer{
 					id:          strPtr("1"),
 					displayName: strPtr("display_name_1"),
@@ -456,7 +455,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				statusUpdater,
 				resolver,
 				allScope,
-				dps,
 				control.Options{FailFast: true},
 				fault.New(true))
 			require.NoError(t, err)
@@ -548,7 +546,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		name     string
 		getter   mockGetter
 		resolver graph.ContainerResolver
-		dps      DeltaPaths
+		dps      graph.DeltaPaths
 		expect   map[string]endState
 	}{
 		{
@@ -561,7 +559,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("new"),
 				p:           path.Builder{}.Append("1", "new"),
 			}),
-			dps: DeltaPaths{},
+			dps: graph.DeltaPaths{},
 			expect: map[string]endState{
 				"1": {data.NewState, false},
 			},
@@ -576,10 +574,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("not_moved"),
 				p:           path.Builder{}.Append("1", "not_moved"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "not_moved").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "not_moved").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -596,10 +594,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("moved"),
 				p:           path.Builder{}.Append("1", "moved"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "prev").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "prev").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -610,10 +608,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			name:     "deleted container",
 			getter:   map[string]mockGetterResults{},
 			resolver: newMockResolver(),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "deleted").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -630,10 +628,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("new"),
 				p:           path.Builder{}.Append("2", "new"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "deleted").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -651,10 +649,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("same"),
 				p:           path.Builder{}.Append("2", "same"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "same").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "same").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -680,10 +678,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 					p:           path.Builder{}.Append("2", "prev"),
 				},
 			),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "prev").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "prev").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -701,14 +699,14 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("not_moved"),
 				p:           path.Builder{}.Append("1", "not_moved"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  "1/fnords/mc/smarfs",
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  "1/fnords/mc/smarfs",
 				},
-				"2": DeltaPath{
-					delta: "old_delta_url",
-					path:  "2/fnords/mc/smarfs",
+				"2": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  "2/fnords/mc/smarfs",
 				},
 			},
 			expect: map[string]endState{
@@ -725,10 +723,10 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				displayName: strPtr("same"),
 				p:           path.Builder{}.Append("1", "same"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "1", "same").String(),
+			dps: graph.DeltaPaths{
+				"1": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "1", "same").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -766,22 +764,22 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 					p:           path.Builder{}.Append("4", "moved"),
 				},
 			),
-			dps: DeltaPaths{
-				"2": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "2", "not_moved").String(),
+			dps: graph.DeltaPaths{
+				"2": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "2", "not_moved").String(),
 				},
-				"3": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "3", "prev").String(),
+				"3": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "3", "prev").String(),
 				},
-				"4": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "4", "prev").String(),
+				"4": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "4", "prev").String(),
 				},
-				"5": DeltaPath{
-					delta: "old_delta_url",
-					path:  prevPath(suite.T(), "5", "deleted").String(),
+				"5": graph.DeltaPath{
+					Delta: "old_delta_url",
+					Path:  prevPath(suite.T(), "5", "deleted").String(),
 				},
 			},
 			expect: map[string]endState{
@@ -799,6 +797,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 			defer flush()
 
 			collections := map[string]data.BackupCollection{}
+			qp.DeltaPaths = test.dps
 
 			err := filterContainersAndFillCollections(
 				ctx,
@@ -808,7 +807,6 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				statusUpdater,
 				test.resolver,
 				allScope,
-				test.dps,
 				control.Options{},
 				fault.New(true))
 			assert.NoError(t, err)

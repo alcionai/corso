@@ -37,7 +37,6 @@ func filterContainersAndFillCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
-	dps DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Errors,
 ) error {
@@ -45,6 +44,7 @@ func filterContainersAndFillCollections(
 		// folder ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
+		dps       = qp.DeltaPaths
 		// copy of previousPaths.  any folder found in the resolver get
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
@@ -79,8 +79,8 @@ func filterContainersAndFillCollections(
 
 		var (
 			dp          = dps[cID]
-			prevDelta   = dp.delta
-			prevPathStr = dp.path
+			prevDelta   = dp.Delta
+			prevPathStr = dp.Path
 			prevPath    path.Path
 		)
 
@@ -209,11 +209,11 @@ func filterContainersAndFillCollections(
 // produces a set of id:path pairs from the deltapaths map.
 // Each entry in the set will, if not removed, produce a collection
 // that will delete the tombstone by path.
-func makeTombstones(dps DeltaPaths) map[string]string {
+func makeTombstones(dps graph.DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
-		r[id] = v.path
+		r[id] = v.Path
 	}
 
 	return r

@@ -30,44 +30,15 @@ func MetadataFileNames(cat path.CategoryType) []string {
 	}
 }
 
-type CatDeltaPaths map[path.CategoryType]DeltaPaths
-
-type DeltaPaths map[string]DeltaPath
-
-func (dps DeltaPaths) AddDelta(k, d string) {
-	dp, ok := dps[k]
-	if !ok {
-		dp = DeltaPath{}
-	}
-
-	dp.delta = d
-	dps[k] = dp
-}
-
-func (dps DeltaPaths) AddPath(k, p string) {
-	dp, ok := dps[k]
-	if !ok {
-		dp = DeltaPath{}
-	}
-
-	dp.path = p
-	dps[k] = dp
-}
-
-type DeltaPath struct {
-	delta string
-	path  string
-}
-
 // ParseMetadataCollections produces a map of structs holding delta
 // and path lookup maps.
 func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
 	errs *fault.Errors,
-) (CatDeltaPaths, error) {
+) (graph.CatDeltaPaths, error) {
 	// cdp stores metadata
-	cdp := CatDeltaPaths{
+	cdp := graph.CatDeltaPaths{
 		path.ContactsCategory: {},
 		path.EmailCategory:    {},
 		path.EventsCategory:   {},
@@ -147,7 +118,7 @@ func parseMetadataCollections(
 	// complete backup on the next run.
 	for _, dps := range cdp {
 		for k, dp := range dps {
-			if len(dp.delta) == 0 || len(dp.path) == 0 {
+			if len(dp.Delta) == 0 || len(dp.Path) == 0 {
 				delete(dps, k)
 			}
 		}
@@ -231,7 +202,7 @@ func createCollections(
 	creds account.M365Config,
 	user string,
 	scope selectors.ExchangeScope,
-	dps DeltaPaths,
+	dps graph.DeltaPaths,
 	ctrlOpts control.Options,
 	su support.StatusUpdater,
 	errs *fault.Errors,
@@ -256,6 +227,11 @@ func createCollections(
 		Category:      category,
 		ResourceOwner: user,
 		Credentials:   creds,
+		DeltaPaths:    dps,
+	}
+
+	if err := qp.Validate(); err != nil {
+		return nil, clues.Wrap(err, "validating collection parameters").WithClues(ctx)
 	}
 
 	foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
@@ -278,7 +254,6 @@ func createCollections(
 		su,
 		resolver,
 		scope,
-		dps,
 		ctrlOpts,
 		errs)
 	if err != nil {

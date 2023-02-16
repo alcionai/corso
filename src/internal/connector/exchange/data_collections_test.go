@@ -41,7 +41,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 	table := []struct {
 		name        string
 		data        []fileValues
-		expect      map[string]DeltaPath
+		expect      map[string]graph.DeltaPath
 		expectError assert.ErrorAssertionFunc
 	}{
 		{
@@ -49,7 +49,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			data: []fileValues{
 				{graph.DeltaURLsFileName, "delta-link"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect:      map[string]graph.DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
@@ -65,7 +65,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			data: []fileValues{
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect:      map[string]graph.DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
@@ -82,10 +82,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]graph.DeltaPath{
 				"key": {
-					delta: "delta-link",
-					path:  "prev-path",
+					Delta: "delta-link",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -96,7 +96,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.PreviousPathFileName, ""},
 			},
-			expect:      map[string]DeltaPath{},
+			expect:      map[string]graph.DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
@@ -105,7 +105,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, ""},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect:      map[string]DeltaPath{},
+			expect:      map[string]graph.DeltaPath{},
 			expectError: assert.NoError,
 		},
 		{
@@ -114,10 +114,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "`!@#$%^&*()_[]{}/\"\\"},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]graph.DeltaPath{
 				"key": {
-					delta: "`!@#$%^&*()_[]{}/\"\\",
-					path:  "prev-path",
+					Delta: "`!@#$%^&*()_[]{}/\"\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -128,10 +128,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, `\n\r\t\b\f\v\0\\`},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]graph.DeltaPath{
 				"key": {
-					delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
-					path:  "prev-path",
+					Delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -145,10 +145,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, string([]rune{rune(92), rune(110)})},
 				{graph.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]graph.DeltaPath{
 				"key": {
-					delta: "\\n",
-					path:  "prev-path",
+					Delta: "\\n",
+					Path:  "prev-path",
 				},
 			},
 			expectError: assert.NoError,
@@ -186,8 +186,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			assert.Len(t, emails, len(test.expect))
 
 			for k, v := range emails {
-				assert.Equal(t, v.delta, emails[k].delta, "delta")
-				assert.Equal(t, v.path, emails[k].path, "path")
+				assert.Equal(t, v.Delta, emails[k].Delta, "delta")
+				assert.Equal(t, v.Path, emails[k].Path, "path")
 			}
 		})
 	}
@@ -266,7 +266,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				acct,
 				userID,
 				test.scope,
-				DeltaPaths{},
+				graph.DeltaPaths{},
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
@@ -334,7 +334,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				acct,
 				userID,
 				test.scope,
-				DeltaPaths{},
+				graph.DeltaPaths{},
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
@@ -411,7 +411,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		acct,
 		suite.user,
 		sel.Scopes()[0],
-		DeltaPaths{},
+		graph.DeltaPaths{},
 		control.Options{},
 		newStatusUpdater(t, &wg),
 		fault.New(true))
@@ -479,7 +479,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				acct,
 				suite.user,
 				test.scope,
-				DeltaPaths{},
+				graph.DeltaPaths{},
 				control.Options{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
@@ -587,7 +587,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				acct,
 				suite.user,
 				test.scope,
-				DeltaPaths{},
+				graph.DeltaPaths{},
 				control.Options{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
