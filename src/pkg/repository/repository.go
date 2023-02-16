@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -88,12 +89,18 @@ func Initialize(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-) (Repository, error) {
+) (repo Repository, err error) {
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
 		"storage_provider", s.Provider.String())
+
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
@@ -156,12 +163,18 @@ func Connect(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-) (Repository, error) {
+) (r Repository, err error) {
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
 		"storage_provider", s.Provider.String())
+
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	// Close/Reset the progress bar. This ensures callers don't have to worry about
 	// their output getting clobbered (#1720)

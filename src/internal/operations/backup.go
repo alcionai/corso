@@ -2,8 +2,6 @@ package operations
 
 import (
 	"context"
-	"fmt"
-	"runtime/debug"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -12,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -111,22 +110,8 @@ type detailsWriter interface {
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			var rerr error
-			if re, ok := r.(error); ok {
-				rerr = re
-			} else if re, ok := r.(string); ok {
-				rerr = clues.New(re)
-			} else {
-				rerr = clues.New(fmt.Sprintf("%v", r))
-			}
-
-			err = clues.Wrap(rerr, "panic recovery").
-				WithClues(ctx).
-				With("stacktrace", string(debug.Stack()))
-			logger.Ctx(ctx).
-				With("err", err).
-				Errorw("backup panic", clues.InErr(err).Slice()...)
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
 		}
 	}()
 
