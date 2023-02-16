@@ -16,8 +16,7 @@ type PathEncoderSuite struct {
 }
 
 func TestPathEncoderSuite(t *testing.T) {
-	s := &PathEncoderSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &PathEncoderSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *PathEncoderSuite) TestEncodeDecode() {

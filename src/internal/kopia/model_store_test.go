@@ -39,8 +39,7 @@ type ModelStoreUnitSuite struct {
 }
 
 func TestModelStoreUnitSuite(t *testing.T) {
-	s := &ModelStoreUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &ModelStoreUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
@@ -64,15 +63,13 @@ type ModelStoreIntegrationSuite struct {
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
-	s := &ModelStoreIntegrationSuite{
+	suite.Run(t, &ModelStoreIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
 			tester.CorsoModelStoreTests,
 		),
-	}
-
-	suite.Run(t, s)
+	})
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
@@ -723,15 +720,13 @@ type ModelStoreRegressionSuite struct {
 }
 
 func TestModelStoreRegressionSuite(t *testing.T) {
-	s := &ModelStoreRegressionSuite{
+	suite.Run(t, &ModelStoreRegressionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
 			tester.CorsoModelStoreTests,
 		),
-	}
-
-	suite.Run(t, s)
+	})
 }
 
 // TODO(ashmrtn): Make a mock of whatever controls the handle to kopia so we can

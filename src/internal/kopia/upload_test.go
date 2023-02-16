@@ -235,8 +235,7 @@ type VersionReadersUnitSuite struct {
 }
 
 func TestVersionReadersUnitSuite(t *testing.T) {
-	s := &VersionReadersUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &VersionReadersUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
@@ -349,8 +348,7 @@ type CorsoProgressUnitSuite struct {
 }
 
 func TestCorsoProgressUnitSuite(t *testing.T) {
-	s := &CorsoProgressUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &CorsoProgressUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *CorsoProgressUnitSuite) SetupSuite() {
@@ -672,8 +670,7 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 }
 
 func TestHierarchyBuilderUnitSuite(t *testing.T) {
-	s := &HierarchyBuilderUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &HierarchyBuilderUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {

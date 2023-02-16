@@ -37,9 +37,7 @@ type WrapperUnitSuite struct {
 }
 
 func TestWrapperUnitSuite(t *testing.T) {
-	s := &WrapperUnitSuite{Suite: tester.NewUnitSuite(t)}
-
-	suite.Run(t, s)
+	suite.Run(t, &WrapperUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
@@ -61,15 +59,13 @@ type WrapperIntegrationSuite struct {
 }
 
 func TestWrapperIntegrationSuite(t *testing.T) {
-	s := &WrapperIntegrationSuite{
+	suite.Run(t, &WrapperIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
 			tester.CorsoKopiaWrapperTests,
 		),
-	}
-
-	suite.Run(t, s)
+	})
 }
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {

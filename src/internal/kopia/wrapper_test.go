@@ -122,8 +122,7 @@ func (suite *KopiaUnitSuite) SetupSuite() {
 }
 
 func TestKopiaUnitSuite(t *testing.T) {
-	s := &KopiaUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &KopiaUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
@@ -152,15 +151,13 @@ type KopiaIntegrationSuite struct {
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
-	s := &KopiaIntegrationSuite{
+	suite.Run(t, &KopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
 			tester.CorsoKopiaWrapperTests,
 		),
-	}
-
-	suite.Run(t, s)
+	})
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
@@ -570,15 +567,13 @@ type KopiaSimpleRepoIntegrationSuite struct {
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
-	s := &KopiaSimpleRepoIntegrationSuite{
+	suite.Run(t, &KopiaSimpleRepoIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
 			tester.CorsoKopiaWrapperTests,
 		),
-	}
-
-	suite.Run(t, s)
+	})
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {

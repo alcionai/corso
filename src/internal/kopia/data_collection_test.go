@@ -27,8 +27,7 @@ type KopiaDataCollectionUnitSuite struct {
 }
 
 func TestKopiaDataCollectionUnitSuite(t *testing.T) {
-	s := &KopiaDataCollectionUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &KopiaDataCollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {

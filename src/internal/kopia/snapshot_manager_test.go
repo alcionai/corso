@@ -191,8 +191,7 @@ type SnapshotFetchUnitSuite struct {
 }
 
 func TestSnapshotFetchUnitSuite(t *testing.T) {
-	s := &SnapshotFetchUnitSuite{Suite: tester.NewUnitSuite(t)}
-	suite.Run(t, s)
+	suite.Run(t, &SnapshotFetchUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
