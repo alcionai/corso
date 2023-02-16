@@ -23,7 +23,7 @@ type mockController struct {
 
 func connectClient() error              { return nil }
 func dependencyCall() error             { return nil }
-func getIthItem(i string) error         { return nil }
+func getIthItem(i int) error            { return nil }
 func getData() ([]string, error)        { return nil, nil }
 func storeData([]string, *fault.Errors) {}
 
@@ -46,44 +46,47 @@ var dependency = mockDepenedency{}
 // examples
 // ---------------------------------------------------------------------------
 
-// ExampleNewErrors highlights assumptions and best practices
-// for generating Errors structs.
-func Example_new() {
-	// Errors should only be generated during the construction of
+// ExampleNew highlights assumptions and best practices
+// for generating fault.Errors structs.
+func ExampleNew() {
+	// fault.Errors should only be generated during the construction of
 	// another controller, such as a new Backup or Restore Operations.
 	// Configurations like failFast are set during construction.
 	//
 	// Generating new fault.Errors structs outside of an operation
 	// controller is a smell, and should be avoided.  If you need
 	// to aggregate errors, you should accept an interface and pass
-	// an Errors instance into it.
+	// an fault.Errors instance into it.
 	ctrl = mockController{
 		errors: fault.New(false),
 	}
 }
 
-// ExampleErrorsFail describes the assumptions and best practices
+// ExampleErrors_Fail describes the assumptions and best practices
 // for setting the Failure error.
-func Example_errors_Fail() {
+func ExampleErrors_Fail() {
 	errs := fault.New(false)
 
-	// Fail() should be used to record any error that highlights a
-	// non-recoverable failure in a process.
+	// Fail() is used to record non-recoverable errors.
 	//
 	// Fail() should only get called in the last step before returning
 	// a fault.Errors from a controller.  In all other cases, you
 	// should simply return an error and expect the upstream controller
 	// to call Fail() for you.
-	if err := connectClient(); err != nil {
-		// normally, you'd want to
-		// return errs.Fail(err)
-		errs.Fail(err)
+	topLevelHandler := func(errs *fault.Errors) *fault.Errors {
+		if err := connectClient(); err != nil {
+			return errs.Fail(err)
+		}
+
+		return errs
+	}
+	if errs := topLevelHandler(errs); errs.Err() != nil {
+		fmt.Println(errs.Err())
 	}
 
-	// Only the topmost handler of the error should set the Fail() err.
-	// This will normally be the operation controller itself.
+	// Only the topmost func in the stack should set the Fail() err.
 	// IE: Fail() is not Wrap().  In lower levels, errors should get
-	// wrapped and returned like normal, and only handled by errors
+	// wrapped and returned like normal, and only handled by fault
 	// at the end.
 	lowLevelCall := func() error {
 		if err := dependencyCall(); err != nil {
@@ -93,71 +96,65 @@ func Example_errors_Fail() {
 
 		return nil
 	}
-
 	if err := lowLevelCall(); err != nil {
 		// fail here, at the top of the stack
 		errs.Fail(err)
 	}
 }
 
-// ExampleErrorsAdd describes the assumptions and best practices
+// ExampleErrors_Add describes the assumptions and best practices
 // for aggregating iterable or recoverable errors.
-func Example_errors_Add() {
+func ExampleErrors_Add() {
 	errs := fault.New(false)
 
-	// Add() should be used to record any error in a recoverable
-	// part of processing.
+	// Add() is used to record any recoverable error.
 	//
-	// Add() should only get called in the last step in handling an
-	// error within a loop or stream that does not otherwise return
-	// an error.  In all other cases, you should simply return an error
-	// and expect the upstream point of iteration to call Add() for you.
-	for _, i := range items {
-		if err := getIthItem(i); err != nil {
+	// Add() should only get called as the last error handling step
+	// within a loop or stream.  In all other cases, you can return
+	// an error like normal and expect the upstream point of iteration
+	// to call Add() for you.
+	for i := range items {
+		clientBasedGetter := func(i int) error {
+			if err := getIthItem(i); err != nil {
+				// lower level calls don't Add to the fault.Errors.
+				// they handl errors like normal.
+				return errors.Wrap(err, "dependency")
+			}
+
+			return nil
+		}
+
+		if err := clientBasedGetter(i); err != nil {
+			// Here at the top of the loop is the correct place
+			// to Add an error using fault.
 			errs.Add(err)
 		}
 	}
 
-	// In case of failFast behavior, iteration should exit as soon
-	// as an error occurs.  Errors does not expose the failFast flag
-	// directly.  Instead, iterators should check the value of Err().
-	// If it is non-nil, then the loop shold break.
-	for _, i := range items {
+	// Iteration should exit anytime the primary error in fault is
+	// non-nil.  fault.Errors does not expose the failFast flag
+	// directly.  Instead, errors from Add() will automatically
+	// promote to the Err() value.  Therefore, loops only ned to
+	// check the errs.Err().  If it is non-nil, then the loop should break.
+	for i := range items {
 		if errs.Err() != nil {
+			// if failFast == true errs.Add() was called,
+			// we'll catch the error here.
 			break
 		}
 
-		errs.Add(getIthItem(i))
-	}
-
-	// Only the topmost handler of the error should Add() the err.
-	// This will normally be the iteration loop itself.
-	// IE: Add() is not Wrap().  In lower levels, errors should get
-	// wrapped and returned like normally, and only added to the
-	// errors at the end.
-	clientBasedGetter := func(s string) error {
-		if err := dependencyCall(); err != nil {
-			// wrap here, deeper into the stack
-			return errors.Wrap(err, "dependency")
-		}
-
-		return nil
-	}
-
-	for _, i := range items {
-		if err := clientBasedGetter(i); err != nil {
-			// add here, within the iteraton loop
+		if err := getIthItem(i); err != nil {
 			errs.Add(err)
 		}
 	}
 }
 
-// ExampleErrorsErr describes retrieving the non-recoverable error.
-func Example_errors_Err() {
+// ExampleErrors_Err describes retrieving the non-recoverable error.
+func ExampleErrors_Err() {
 	errs := fault.New(false)
 	errs.Fail(errors.New("catastrophe"))
 
-	// Err() gets the primary failure error.
+	// Err() returns the primary failure.
 	err := errs.Err()
 	fmt.Println(err)
 
@@ -172,6 +169,7 @@ func Example_errors_Err() {
 
 	// If Err() is nil, then you can assume the operation completed.
 	// A complete operation is not necessarily an error-free operation.
+	// Recoverable errors may still have been added using Add(err).
 	//
 	// Even if Err() is nil, Errs() can be non-empty.
 	// Make sure you check both.
@@ -190,24 +188,30 @@ func Example_errors_Err() {
 	// not catastrophic, but still becomes the Err()
 }
 
-// ExampleErrorsErrs describes retrieving individual errors.
-func Example_errors_Errs() {
+// ExampleErrors_Errs describes retrieving individual errors.
+func ExampleErrors_Errs() {
 	errs := fault.New(false)
 	errs.Add(errors.New("not catastrophic"))
 	errs.Add(errors.New("something unwanted"))
 
-	// Errs() gets the slice errors that were recorded, but were
-	// considered recoverable.
+	// Errs() gets the slice of all recoverable errors Add()ed during
+	// the run, but which did not force the process to exit.
+	//
+	// Errs() only needs to be investigated by the end user at the
+	// conclusion of an operation.  Checking Errs() within lower-
+	// layer code is a smell.  Funcs should return a standard error,
+	// or errs.Err(), if they need upstream handlers to handle the errors.
 	errSl := errs.Errs()
 	for _, err := range errSl {
 		fmt.Println(err)
 	}
 
-	// Errs() only needs to be investigated by the end user at the
-	// conclusion of an operation.  Checking Errs() within lower-
-	// layer code is a smell.  Funcs should return an error if they
-	// need upstream handlers to recognize failure states.
-	//
+	// One or more errors in errs.Errs() does not necessarily mean the
+	// process failed.  You can have non-zero Errs() but a nil Err().
+	if errs.Err() == nil {
+		fmt.Println("Err() is nil")
+	}
+
 	// If Errs() is nil, then you can assume that no recoverable or
 	// iteration-based errors occurred.  But that does not necessarily
 	// mean the operation was able to complete.
@@ -217,10 +221,11 @@ func Example_errors_Errs() {
 
 	// Output: not catastrophic
 	// something unwanted
+	// Err() is nil
 }
 
-// ExampleErrorsE2e showcases a more complex integration.
-func Example_errors_e2e() {
+// ExampleErrors_e2e showcases a more complex integration.
+func ExampleErrors_e2e() {
 	oper := newOperation()
 
 	// imagine that we're a user, calling into corso SDK.
@@ -298,8 +303,8 @@ func Example_errors_e2e() {
 	}
 }
 
-// ExampleErrorsErr showcases when to return err or nil vs errs.Err()
-func Example_errors_err() {
+// ExampleErrors_Err_return showcases when to return err or nil vs errs.Err()
+func ExampleErrors_Err_return() {
 	// The general rule of thumb is to always handle the error directly
 	// by returning err, or nil, or any variety of extension (wrap,
 	// stack, clues, etc).
