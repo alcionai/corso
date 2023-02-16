@@ -222,6 +222,9 @@ func ConnectAndSendConnectEvent(ctx context.Context,
 	opts control.Options,
 ) (Repository, error) {
 	repo, err := Connect(ctx, acct, s, opts)
+	if err != nil {
+		return nil, err
+	}
 
 	r := repo.(*repository)
 
