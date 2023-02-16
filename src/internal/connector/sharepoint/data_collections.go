@@ -74,7 +74,6 @@ func DataCollections(
 			spcs, _, err = collectLibraries(
 				ctx,
 				itemClient,
-				metadata,
 				serv,
 				creds.AzureTenantID,
 				site,
@@ -145,7 +144,6 @@ func collectLists(
 func collectLibraries(
 	ctx context.Context,
 	itemClient *http.Client,
-	metadata []data.RestoreCollection,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,
@@ -159,6 +157,7 @@ func collectLibraries(
 
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
 
+	// TODO (ashmrtn): metadata for incremental support
 	odcs, excludes, err := onedrive.NewCollections(
 		itemClient,
 		tenantID,
@@ -167,7 +166,7 @@ func collectLibraries(
 		folderMatcher{scope},
 		serv,
 		updater.UpdateStatus,
-		ctrlOpts).Get(ctx, metadata)
+		ctrlOpts).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, support.WrapAndAppend(siteID, err, errs)
 	}
