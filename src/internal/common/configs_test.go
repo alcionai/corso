@@ -7,14 +7,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type CommonConfigsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCommonConfigsSuite(t *testing.T) {
-	suite.Run(t, new(CommonConfigsSuite))
+	s := &CommonConfigsSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 const (
@@ -52,7 +54,9 @@ func (suite *CommonConfigsSuite) TestUnionConfigs_string() {
 		{"fc error", stringConfig{keyExpect, nil}, stringConfig2{keyExpect2, assert.AnError}, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cs, err := common.UnionStringConfigs(test.ac, test.bc)
 			test.errCheck(t, err)
 			// remaining tests depend on error-free state
