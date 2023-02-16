@@ -179,6 +179,7 @@ func DataCollections(
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
+		categories  = map[path.CategoryType]struct{}{}
 	)
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
@@ -205,8 +206,22 @@ func DataCollections(
 			continue
 		}
 
+		categories[scope.Category().PathType()] = struct{}{}
+
 		collections = append(collections, dcs...)
 	}
+
+	baseCols, baseErrs := graph.BaseCollections(
+		acct.AzureTenantID,
+		user,
+		path.ExchangeService,
+		categories,
+		su)
+	if baseErrs != nil {
+		return collections, nil, baseErrs
+	}
+
+	collections = append(collections, baseCols...)
 
 	return collections, nil, el.Failure()
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"golang.org/x/exp/maps"
 )
@@ -48,6 +49,7 @@ func DataCollections(
 	var (
 		el          = errs.Local()
 		user        = selector.DiscreteOwner
+		categories  = map[path.CategoryType]struct{}{}
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]map[string]struct{}{}
 	)
@@ -76,6 +78,19 @@ func DataCollections(
 		}
 
 		collections = append(collections, odcs...)
+
+		baseCols, baseErrs := graph.BaseCollections(
+			tenant,
+			user,
+			path.OneDriveService,
+			categories,
+			su)
+
+		if baseErrs != nil {
+			return collections, allExcludes, baseErrs
+		}
+
+		collections = append(collections, baseCols...)
 
 		for k, ex := range excludes {
 			if _, ok := allExcludes[k]; !ok {

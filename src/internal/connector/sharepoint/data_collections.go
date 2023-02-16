@@ -47,6 +47,7 @@ func DataCollections(
 		el          = errs.Local()
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
+		categories  = map[path.CategoryType]struct{}{}
 	)
 
 	for _, scope := range b.Scopes() {
@@ -110,7 +111,22 @@ func DataCollections(
 
 		collections = append(collections, spcs...)
 		foldersComplete <- struct{}{}
+
+		categories[scope.Category().PathType()] = struct{}{}
 	}
+
+	baseCols, baseErrs := graph.BaseCollections(
+		creds.AzureTenantID,
+		site,
+		path.SharePointService,
+		categories,
+		su.UpdateStatus)
+
+	if baseErrs != nil {
+		return collections, nil, baseErrs
+	}
+
+	collections = append(collections, baseCols...)
 
 	return collections, nil, el.Failure()
 }
