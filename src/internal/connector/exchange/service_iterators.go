@@ -51,8 +51,8 @@ func filterContainersAndFillCollections(
 	)
 
 	logger.Ctx(ctx).Infow(
-		"previous metadata",
-		"num_complete_items",
+		"filling collections",
+		"metadata_count",
 		len(dps))
 
 	// TODO(rkeepers): this should be passed in from the caller, probably
@@ -191,11 +191,9 @@ func filterContainersAndFillCollections(
 	}
 
 	logger.Ctx(ctx).Infow(
-		"persisted metadata",
-		"num_paths_entries",
-		len(currPaths),
-		"num_deltas_entries",
-		len(deltaURLs))
+		"adding metadata collection entries",
+		"num_paths_entries", len(currPaths),
+		"num_deltas_entries", len(deltaURLs))
 
 	if len(deltaURLs) > 0 {
 		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
