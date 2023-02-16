@@ -9,14 +9,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type CommonTimeUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCommonTimeUnitSuite(t *testing.T) {
-	suite.Run(t, new(CommonTimeUnitSuite))
+	s := &CommonTimeUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *CommonTimeUnitSuite) TestFormatTime() {
@@ -145,7 +147,9 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			result, err := common.ExtractTime(test.input)
 			require.NoError(t, err)
 			assert.Equal(t, test.expect, comparable(t, result, test.clippedFormat))

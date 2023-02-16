@@ -7,14 +7,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type CommonBucketsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCommonBucketsSuite(t *testing.T) {
-	suite.Run(t, new(CommonBucketsSuite))
+	s := &CommonBucketsSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *CommonBucketsSuite) TestBucketPrefix() {
