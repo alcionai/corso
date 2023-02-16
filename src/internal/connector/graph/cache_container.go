@@ -173,18 +173,16 @@ func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
 func CheckRequiredValues(c Container) error {
-	id := ptr.Val(c.GetId())
-	if len(id) == 0 {
+	id, ok := ptr.ValOK(c.GetId())
+	if !ok {
 		return errors.New("container missing ID")
 	}
 
-	dn := ptr.Val(c.GetDisplayName())
-	if len(dn) == 0 {
+	if _, ok := ptr.ValOK(c.GetDisplayName()); !ok {
 		return clues.New("container missing display name").With("container_id", id)
 	}
 
-	parentID := ptr.Val(c.GetParentFolderId())
-	if len(parentID) == 0 {
+	if _, ok := ptr.ValOK(c.GetParentFolderId()); !ok {
 		return clues.New("container missing parent ID").With("container_id", id)
 	}
 

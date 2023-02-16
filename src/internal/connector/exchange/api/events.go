@@ -48,7 +48,7 @@ func (c Events) CreateCalendar(
 
 	mdl, err := c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating calendar").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return mdl, nil
