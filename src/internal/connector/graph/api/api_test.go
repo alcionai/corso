@@ -66,15 +66,6 @@ func TestAPIUnitSuite(t *testing.T) {
 	suite.Run(t, new(APIUnitSuite))
 }
 
-func (suite *APIUnitSuite) TestNextLink() {
-	for _, test := range nextLinkInputs {
-		suite.T().Run(test.name, func(t *testing.T) {
-			l := mockNextLink{nextLink: test.inputLink}
-			assert.Equal(t, test.expectedLink, api.NextLink(l))
-		})
-	}
-}
-
 func (suite *APIUnitSuite) TestNextAndDeltaLink() {
 	deltaTable := []testInput{
 		{
