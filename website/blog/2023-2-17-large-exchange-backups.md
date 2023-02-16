@@ -1,7 +1,7 @@
 ---
 slug: large-exchange-backups
-title: "Backing up large Exchange servers with Corso"
-description: "A guide to using Corso to back up very large installations"
+title: "Backing up large Exchange mailboxes with Corso"
+description: "A guide to using Corso to back up very large Exchange mailboxes in Microsoft 365"
 authors: nica
 tags: [corso, microsoft 365, backups, S3]
 date: 2023-2-17
