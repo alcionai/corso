@@ -213,6 +213,7 @@ func collectItems(
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
 
 			invalidPrevDelta = true
+			newPaths = map[string]string{}
 
 			pager.Reset()
 
