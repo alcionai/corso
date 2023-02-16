@@ -225,8 +225,11 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		maps.Copy(allExcludes, excludes)
 	}
 
-	for range collections {
-		gc.incrementAwaitingMessages()
+	for _, c := range collections {
+		if c.State() != data.DeletedState {
+			// kopia doesn't stream Items() from deleted collections
+			gc.incrementAwaitingMessages()
+		}
 	}
 
 	return collections, allExcludes, errs

@@ -16,8 +16,7 @@ LABEL org.opencontainers.image.vendor="Alcion, Inc."
 
 COPY --from=builder /go/src/app/corso /corso
 
-#  Pull tls certs directly from latest upstream image
-COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add --no-cache ca-certificates
 
 ENV CORSO_HOME=/app/corso
 ENV CORSO_CONFIG_DIR=$CORSO_HOME \

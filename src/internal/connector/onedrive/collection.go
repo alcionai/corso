@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -138,8 +139,11 @@ func (oc *Collection) Add(item models.DriveItemable) {
 }
 
 // Items() returns the channel containing M365 Exchange objects
-func (oc *Collection) Items() <-chan data.Stream {
-	go oc.populateItems(context.Background())
+func (oc *Collection) Items(
+	ctx context.Context,
+	errs *fault.Errors, // TODO: currently unused while onedrive isn't up to date with clues/fault
+) <-chan data.Stream {
+	go oc.populateItems(ctx)
 	return oc.data
 }
 
@@ -149,6 +153,11 @@ func (oc *Collection) FullPath() path.Path {
 
 func (oc Collection) PreviousPath() path.Path {
 	return oc.prevPath
+}
+
+func (oc *Collection) SetFullPath(curPath path.Path) {
+	oc.folderPath = curPath
+	oc.state = data.StateOf(oc.prevPath, curPath)
 }
 
 func (oc Collection) State() data.CollectionState {

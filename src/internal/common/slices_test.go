@@ -7,14 +7,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type CommonSlicesSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCommonSlicesSuite(t *testing.T) {
-	suite.Run(t, new(CommonSlicesSuite))
+	s := &CommonSlicesSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *CommonSlicesSuite) TestContainsString() {

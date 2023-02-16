@@ -129,7 +129,7 @@ func (ss *streamStore) ReadBackupDetails(
 	var d details.Details
 
 	found := false
-	items := dc.Items()
+	items := dc.Items(ctx, errs)
 
 	for {
 		select {
@@ -195,7 +195,7 @@ func (dc *streamCollection) DoNotMergeItems() bool {
 
 // Items() always returns a channel with a single data.Stream
 // representing the object to be persisted
-func (dc *streamCollection) Items() <-chan data.Stream {
+func (dc *streamCollection) Items(context.Context, *fault.Errors) <-chan data.Stream {
 	items := make(chan data.Stream, 1)
 	defer close(items)
 	items <- dc.item

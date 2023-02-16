@@ -286,7 +286,7 @@ func collectionEntries(
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
-		items = streamedEnts.Items()
+		items = streamedEnts.Items(ctx, progress.errs)
 	)
 
 	if lp, ok := streamedEnts.(data.LocationPather); ok {
