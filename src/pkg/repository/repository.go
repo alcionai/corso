@@ -227,12 +227,9 @@ func ConnectAndSendConnectEvent(ctx context.Context,
 	}
 
 	r := repo.(*repository)
+	r.Bus.Event(ctx, events.RepoConnect, nil)
 
-	if err == nil {
-		r.Bus.Event(ctx, events.RepoConnect, nil)
-	}
-
-	return r, err
+	return r, nil
 }
 
 func (r *repository) Close(ctx context.Context) error {
