@@ -287,7 +287,7 @@ func (handler *LoggingMiddleware) Intercept(
 	}
 
 	// Log errors according to api debugging configurations.
-	// When debugging is toggled, every non-2xx is recorded with a respose dump.
+	// When debugging is toggled, every non-2xx is recorded with a response dump.
 	// Otherwise, throttling cases and other non-2xx responses are logged
 	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
@@ -307,9 +307,16 @@ func (handler *LoggingMiddleware) Intercept(
 		// special case for supportability: log all throttling cases.
 		if resp.StatusCode == http.StatusTooManyRequests {
 			logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
-		}
-
-		if resp.StatusCode != http.StatusTooManyRequests && (resp.StatusCode/100) != 2 {
+		} else if resp.StatusCode/100 == 4 {
+			respDump, _ := httputil.DumpResponse(resp, true)
+			logger.Ctx(ctx).Infow(
+				"graph api error",
+				"status", resp.Status,
+				"method", req.Method,
+				"url", req.URL,
+				"response", string(respDump),
+			)
+		} else if resp.StatusCode/100 != 2 {
 			logger.Ctx(ctx).Infow("graph api error", "status", resp.Status, "method", req.Method, "url", req.URL)
 		}
 	}
