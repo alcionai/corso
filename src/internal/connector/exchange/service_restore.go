@@ -372,7 +372,7 @@ func restoreCollection(
 
 	var (
 		metrics   support.CollectionMetrics
-		items     = dc.Items()
+		items     = dc.Items(ctx, errs)
 		directory = dc.FullPath()
 		service   = directory.Service()
 		category  = directory.Category()
