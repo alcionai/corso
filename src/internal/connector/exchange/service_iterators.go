@@ -50,6 +50,11 @@ func filterContainersAndFillCollections(
 		tombstones = makeTombstones(dps)
 	)
 
+	logger.Ctx(ctx).Infow(
+		"previous metadata",
+		"num_complete_items",
+		len(dps))
+
 	// TODO(rkeepers): this should be passed in from the caller, probably
 	// as an interface that satisfies the NewCollection requirements.
 	// But this will work for the short term.
@@ -184,6 +189,13 @@ func filterContainersAndFillCollections(
 	entries := []graph.MetadataCollectionEntry{
 		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
 	}
+
+	logger.Ctx(ctx).Infow(
+		"persisted metadata",
+		"num_paths_entries",
+		len(currPaths),
+		"num_deltas_entries",
+		len(deltaURLs))
 
 	if len(deltaURLs) > 0 {
 		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
