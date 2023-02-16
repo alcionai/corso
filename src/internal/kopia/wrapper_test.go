@@ -27,7 +27,9 @@ import (
 const (
 	testTenant     = "a-tenant"
 	testUser       = "user1"
+	testInboxID    = "Inbox_ID"
 	testInboxDir   = "Inbox"
+	testArchiveID  = "Archive_ID"
 	testArchiveDir = "Archive"
 	testFileName   = "file1"
 	testFileName2  = "file2"
@@ -83,15 +85,13 @@ func testForFiles(
 	assert.Equal(t, len(expected), count)
 }
 
-//revive:disable:context-as-argument
 func checkSnapshotTags(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	rep repo.Repository,
 	expectedTags map[string]string,
 	snapshotID string,
 ) {
-	//revive:enable:context-as-argument
 	man, err := snapshot.LoadSnapshot(ctx, rep, manifest.ID(snapshotID))
 	require.NoError(t, err)
 	assert.Equal(t, expectedTags, man.Tags)
@@ -101,7 +101,7 @@ func checkSnapshotTags(
 // unit tests
 // ---------------
 type KopiaUnitSuite struct {
-	suite.Suite
+	tester.Suite
 	testPath path.Path
 }
 
@@ -122,7 +122,7 @@ func (suite *KopiaUnitSuite) SetupSuite() {
 }
 
 func TestKopiaUnitSuite(t *testing.T) {
-	suite.Run(t, new(KopiaUnitSuite))
+	suite.Run(t, &KopiaUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
@@ -139,46 +139,47 @@ func (suite *KopiaUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 // integration tests that use kopia
 // ---------------
 type KopiaIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	w     *Wrapper
 	ctx   context.Context
 	flush func()
 
-	testPath1 path.Path
-	testPath2 path.Path
+	storePath1 path.Path
+	storePath2 path.Path
+	locPath1   path.Path
+	locPath2   path.Path
 }
 
 func TestKopiaIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests)
-
-	suite.Run(t, new(KopiaIntegrationSuite))
+	suite.Run(t, &KopiaIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+			tester.CorsoKopiaWrapperTests,
+		),
+	})
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
-
 	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
 		testTenant,
 		testUser,
 		path.EmailCategory,
-		false,
-	)
+		false)
 	require.NoError(suite.T(), err)
 
-	suite.testPath1 = tmp
+	suite.storePath1 = tmp
+	suite.locPath1 = tmp
 
 	tmp, err = path.Builder{}.Append(testArchiveDir).ToDataLayerExchangePathForCategory(
 		testTenant,
 		testUser,
 		path.EmailCategory,
-		false,
-	)
+		false)
 	require.NoError(suite.T(), err)
 
-	suite.testPath2 = tmp
+	suite.storePath2 = tmp
+	suite.locPath2 = tmp
 }
 
 func (suite *KopiaIntegrationSuite) SetupTest() {
@@ -199,13 +200,13 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	collections := []data.BackupCollection{
 		mockconnector.NewMockExchangeCollection(
-			suite.testPath1,
-			5,
-		),
+			suite.storePath1,
+			suite.locPath1,
+			5),
 		mockconnector.NewMockExchangeCollection(
-			suite.testPath2,
-			42,
-		),
+			suite.storePath2,
+			suite.locPath2,
+			42),
 	}
 
 	// tags that are supplied by the caller. This includes basic tags to support
@@ -217,14 +218,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	reasons := []Reason{
 		{
-			ResourceOwner: suite.testPath1.ResourceOwner(),
-			Service:       suite.testPath1.Service(),
-			Category:      suite.testPath1.Category(),
+			ResourceOwner: suite.storePath1.ResourceOwner(),
+			Service:       suite.storePath1.Service(),
+			Category:      suite.storePath1.Category(),
 		},
 		{
-			ResourceOwner: suite.testPath2.ResourceOwner(),
-			Service:       suite.testPath2.Service(),
-			Category:      suite.testPath2.Category(),
+			ResourceOwner: suite.storePath2.ResourceOwner(),
+			Service:       suite.storePath2.Service(),
+			Category:      suite.storePath2.Category(),
 		},
 	}
 
@@ -262,7 +263,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	prevSnaps := []IncrementalBase{}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			stats, deets, _, err := suite.w.BackupCollections(
 				suite.ctx,
 				prevSnaps,
@@ -311,7 +314,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			prevSnaps = append(prevSnaps, IncrementalBase{
 				Manifest: snap,
 				SubtreePaths: []*path.Builder{
-					suite.testPath1.ToBuilder().Dir(),
+					suite.storePath1.ToBuilder().Dir(),
 				},
 			})
 		})
@@ -342,13 +345,13 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		tags[k] = ""
 	}
 
-	dc1 := mockconnector.NewMockExchangeCollection(suite.testPath1, 1)
-	dc2 := mockconnector.NewMockExchangeCollection(suite.testPath2, 1)
+	dc1 := mockconnector.NewMockExchangeCollection(suite.storePath1, suite.locPath1, 1)
+	dc2 := mockconnector.NewMockExchangeCollection(suite.storePath2, suite.locPath2, 1)
 
-	fp1, err := suite.testPath1.Append(dc1.Names[0], true)
+	fp1, err := suite.storePath1.Append(dc1.Names[0], true)
 	require.NoError(t, err)
 
-	fp2, err := suite.testPath2.Append(dc2.Names[0], true)
+	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
 	require.NoError(t, err)
 
 	stats, _, _, err := w.BackupCollections(
@@ -434,7 +437,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	collections := []data.BackupCollection{
 		&mockBackupCollection{
-			path: suite.testPath1,
+			path: suite.storePath1,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName,
@@ -447,7 +450,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			},
 		},
 		&mockBackupCollection{
-			path: suite.testPath2,
+			path: suite.storePath2,
 			streams: []data.Stream{
 				&mockconnector.MockExchangeData{
 					ID:     testFileName3,
@@ -487,7 +490,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// 5 file and 6 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+6)
 
-	failedPath, err := suite.testPath2.Append(testFileName4, true)
+	failedPath, err := suite.storePath2.Append(testFileName4, true)
 	require.NoError(t, err)
 
 	ic := i64counter{}
@@ -526,7 +529,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -547,7 +552,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 }
 
 type KopiaSimpleRepoIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	w          *Wrapper
 	ctx        context.Context
 	snapshotID manifest.ID
@@ -562,17 +567,16 @@ type KopiaSimpleRepoIntegrationSuite struct {
 }
 
 func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests)
-
-	suite.Run(t, new(KopiaSimpleRepoIntegrationSuite))
+	suite.Run(t, &KopiaSimpleRepoIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+			tester.CorsoKopiaWrapperTests,
+		),
+	})
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
-
 	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
 		testTenant,
 		testUser,
@@ -792,8 +796,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			cols: func() []data.BackupCollection {
 				c := mockconnector.NewMockExchangeCollection(
 					suite.testPath1,
-					1,
-				)
+					suite.testPath1,
+					1)
 				c.ColState = data.NotMovedState
 
 				return []data.BackupCollection{c}
@@ -804,7 +808,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			var excluded map[string]struct{}
 			if test.excludeItem {
 				excluded = map[string]struct{}{
@@ -919,7 +925,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			// May slightly overallocate as only items that are actually in our map
 			// are expected. The rest are errors, but best-effort says it should carry
 			// on even then.
@@ -982,7 +990,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			c, err := suite.w.RestoreMultipleItems(
 				suite.ctx,
 				test.snapshotID,
@@ -1033,7 +1043,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot_BadIDs() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			test.expect(t, suite.w.DeleteSnapshot(suite.ctx, test.snapshotID))
 		})
 	}

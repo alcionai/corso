@@ -22,12 +22,15 @@ import (
 // Disconnected Test Section
 // ---------------------------------------------------------------
 type DisconnectedGraphConnectorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestDisconnectedGraphSuite(t *testing.T) {
-	tester.LogTimeOfTest(t)
-	suite.Run(t, new(DisconnectedGraphConnectorSuite))
+	s := &DisconnectedGraphConnectorSuite{
+		Suite: tester.NewUnitSuite(t),
+	}
+
+	suite.Run(t, s)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
@@ -66,8 +69,15 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			gc, err := NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), test.acct(t), Users, fault.New(true))
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			gc, err := NewGraphConnector(
+				ctx,
+				graph.HTTPClient(graph.NoTimeout()),
+				test.acct(t),
+				Users,
+				fault.New(true))
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+" failed")
 		})
@@ -108,13 +118,16 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	go statusTestTask(&gc, 4, 1, 1)
 
 	gc.AwaitStatus()
-	suite.NotEmpty(gc.PrintableStatus())
+
+	t := suite.T()
+
+	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	suite.Equal(8, gc.Status().ObjectCount)
+	assert.Equal(t, 8, gc.Status().ObjectCount)
 	// Expect 2 success
-	suite.Equal(2, gc.Status().Successful)
+	assert.Equal(t, 2, gc.Status().Successful)
 	// Expect 2 folders
-	suite.Equal(2, gc.Status().FolderCount)
+	assert.Equal(t, 2, gc.Status().FolderCount)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {

@@ -225,8 +225,11 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		maps.Copy(allExcludes, excludes)
 	}
 
-	for range collections {
-		gc.incrementAwaitingMessages()
+	for _, c := range collections {
+		if c.State() != data.DeletedState {
+			// kopia doesn't stream Items() from deleted collections
+			gc.incrementAwaitingMessages()
+		}
 	}
 
 	return collections, allExcludes, errs
@@ -243,6 +246,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
+	errs *fault.Errors,
 ) (*details.Details, error) {
 	ctx, end := D.Span(ctx, "connector:restore")
 	defer end()
@@ -260,7 +264,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	switch selector.Service {
 	case selectors.ServiceExchange:
-		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets)
+		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
 		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
 	case selectors.ServiceSharePoint:

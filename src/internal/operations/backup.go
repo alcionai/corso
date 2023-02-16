@@ -338,7 +338,7 @@ type backuper interface {
 		tags map[string]string,
 		buildTreeWithBase bool,
 		errs *fault.Errors,
-	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
+	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
 }
 
 func selectorToReasons(sel selectors.Selector) []kopia.Reason {
@@ -397,7 +397,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Errors,
-) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
 		complete <- struct{}{}
@@ -503,7 +503,7 @@ func mergeDetails(
 	ms *store.Wrapper,
 	detailsStore detailsReader,
 	mans []*kopia.ManifestEntry,
-	shortRefsFromPrevBackup map[string]path.Path,
+	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
 	deets *details.Builder,
 	errs *fault.Errors,
 ) error {
@@ -559,12 +559,15 @@ func mergeDetails(
 				continue
 			}
 
-			newPath := shortRefsFromPrevBackup[rr.ShortRef()]
-			if newPath == nil {
+			prev, ok := shortRefsFromPrevBackup[rr.ShortRef()]
+			if !ok {
 				// This entry was not sourced from a base snapshot or cached from a
 				// previous backup, skip it.
 				continue
 			}
+
+			newPath := prev.Repo
+			newLoc := prev.Location
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
@@ -574,16 +577,27 @@ func mergeDetails(
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
-			itemUpdated := newPath.String() != rr.String()
+			var (
+				itemUpdated = newPath.String() != rr.String()
+				newLocStr   string
+				locBuilder  *path.Builder
+			)
+
+			if newLoc != nil {
+				locBuilder = newLoc.ToBuilder()
+				newLocStr = newLoc.Folder(true)
+				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
+			}
 
 			deets.Add(
 				newPath.String(),
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
+				newLocStr,
 				itemUpdated,
 				item)
 
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), locBuilder)
 			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when

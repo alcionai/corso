@@ -185,7 +185,7 @@ func DataCollections(
 	}
 
 	for _, scope := range eb.Scopes() {
-		if errs.Failed() {
+		if errs.Err() != nil {
 			break
 		}
 
@@ -196,7 +196,8 @@ func DataCollections(
 			scope,
 			cdps[scope.Category().PathType()],
 			ctrlOpts,
-			su)
+			su,
+			errs)
 		if err != nil {
 			errs.Add(err)
 			continue
@@ -217,7 +218,7 @@ func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedIte
 	case path.ContactsCategory:
 		return ac.Contacts(), nil
 	default:
-		return nil, clues.Wrap(clues.New(category.String()), "category not supported")
+		return nil, clues.New("no api client registered for category")
 	}
 }
 
@@ -232,12 +233,15 @@ func createCollections(
 	dps DeltaPaths,
 	ctrlOpts control.Options,
 	su support.StatusUpdater,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, error) {
 	var (
 		allCollections = make([]data.BackupCollection, 0)
 		ac             = api.Client{Credentials: creds}
 		category       = scope.Category().PathType()
 	)
+
+	ctx = clues.Add(ctx, "category", category)
 
 	getter, err := getterByType(ac, category)
 	if err != nil {
@@ -260,7 +264,7 @@ func createCollections(
 	defer closer()
 	defer close(foldersComplete)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "populating container cache")
 	}
@@ -274,7 +278,8 @@ func createCollections(
 		resolver,
 		scope,
 		dps,
-		ctrlOpts)
+		ctrlOpts,
+		errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "filling collections")
 	}

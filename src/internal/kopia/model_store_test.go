@@ -23,9 +23,8 @@ type fooModel struct {
 	Bar string
 }
 
-//revive:disable:context-as-argument
+//revive:disable-next-line:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
-	//revive:enable:context-as-argument
 	c, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err)
 
@@ -36,11 +35,11 @@ func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
 // unit tests
 // ---------------
 type ModelStoreUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestModelStoreUnitSuite(t *testing.T) {
-	suite.Run(t, new(ModelStoreUnitSuite))
+	suite.Run(t, &ModelStoreUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
@@ -57,23 +56,20 @@ func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
 // integration tests that use kopia
 // ---------------
 type ModelStoreIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	ctx   context.Context
 	m     *ModelStore
 	flush func()
 }
 
 func TestModelStoreIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoModelStoreTests)
-
-	suite.Run(t, new(ModelStoreIntegrationSuite))
-}
-
-func (suite *ModelStoreIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
+	suite.Run(t, &ModelStoreIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+			tester.CorsoModelStoreTests,
+		),
+	})
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
@@ -112,7 +108,9 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			foo := &fooModel{Bar: uuid.NewString()}
 			foo.Tags = test.tags
 
@@ -258,7 +256,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.s.String(), func(t *testing.T) {
+		suite.Run(test.s.String(), func() {
+			t := suite.T()
+
 			foo := &fooModel{Bar: uuid.NewString()}
 			// Avoid some silly test errors from comparing nil to empty map.
 			foo.Tags = map[string]string{}
@@ -306,7 +306,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			foo := &fooModel{
 				BaseModel: model.BaseModel{ID: model.StableID(test.baseID)},
 				Bar:       uuid.NewString(),
@@ -411,7 +413,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.s.String(), func(t *testing.T) {
+		suite.Run(test.s.String(), func() {
+			t := suite.T()
+
 			foo := &fooModel{Bar: uuid.NewString()}
 
 			err := suite.m.Put(suite.ctx, test.s, foo)
@@ -546,7 +550,9 @@ func (suite *ModelStoreIntegrationSuite) TestGetOfTypeWithTags() {
 
 	// Check we can properly execute our tests.
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			expected := make([]*model.BaseModel, 0, len(test.expectedModels))
 			for _, e := range test.expectedModels {
 				expected = append(expected, &e.BaseModel)
@@ -585,7 +591,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -660,7 +668,9 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -706,20 +716,17 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
 // regression tests that use kopia
 // ---------------
 type ModelStoreRegressionSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestModelStoreRegressionSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoModelStoreTests)
-
-	suite.Run(t, new(ModelStoreRegressionSuite))
-}
-
-func (suite *ModelStoreRegressionSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
+	suite.Run(t, &ModelStoreRegressionSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+			tester.CorsoModelStoreTests,
+		),
+	})
 }
 
 // TODO(ashmrtn): Make a mock of whatever controls the handle to kopia so we can
@@ -784,12 +791,10 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	assert.Equal(t, foo, returned)
 }
 
-//revive:disable:context-as-argument
 func openConnAndModelStore(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, *ModelStore) {
-	//revive:enable:context-as-argument
 	st := tester.NewPrefixedS3Storage(t)
 	c := NewConn(st)
 
@@ -805,13 +810,11 @@ func openConnAndModelStore(
 	return c, ms
 }
 
-//revive:disable:context-as-argument
 func reconnectToModelStore(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	c *conn,
 ) *ModelStore {
-	//revive:enable:context-as-argument
 	require.NoError(t, c.Connect(ctx))
 
 	defer func() {

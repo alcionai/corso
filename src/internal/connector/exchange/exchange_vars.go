@@ -38,5 +38,4 @@ const (
 	rootFolderAlias      = "msgfolderroot"
 	DefaultContactFolder = "Contacts"
 	DefaultCalendar      = "Calendar"
-	calendarOthersFolder = "Other Calendars"
 )

@@ -258,7 +258,8 @@ func (op *RestoreOperation) do(
 		op.Selectors,
 		op.Destination,
 		op.Options,
-		dcs)
+		dcs,
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "restoring collections")
 	}
