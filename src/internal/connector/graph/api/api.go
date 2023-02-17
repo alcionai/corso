@@ -1,5 +1,7 @@
 package api
 
+import "github.com/alcionai/corso/src/internal/common/ptr"
+
 type PageLinker interface {
 	GetOdataNextLink() *string
 }
@@ -10,21 +12,9 @@ type DeltaPageLinker interface {
 }
 
 func NextLink(pl PageLinker) string {
-	next := pl.GetOdataNextLink()
-	if next == nil || len(*next) == 0 {
-		return ""
-	}
-
-	return *next
+	return ptr.Val(pl.GetOdataNextLink())
 }
 
 func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
-	next := NextLink(pl)
-
-	delta := pl.GetOdataDeltaLink()
-	if delta == nil || len(*delta) == 0 {
-		return next, ""
-	}
-
-	return next, *delta
+	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
 }

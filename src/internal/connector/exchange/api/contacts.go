@@ -49,7 +49,7 @@ func (c Contacts) CreateContactFolder(
 
 	mdl, err := c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating contact folder").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return mdl, nil
