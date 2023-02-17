@@ -52,17 +52,20 @@ var (
 	testFileData6 = testFileData
 )
 
+//revive:disable:context-as-argument
 func testForFiles(
 	t *testing.T,
+	ctx context.Context,
 	expected map[string][]byte,
 	collections []data.RestoreCollection,
 ) {
+	//revive:enable:context-as-argument
 	t.Helper()
 
 	count := 0
 
 	for _, c := range collections {
-		for s := range c.Items() {
+		for s := range c.Items(ctx, fault.New(true)) {
 			count++
 
 			fullPath, err := c.FullPath().Append(s.UUID(), true)
@@ -383,7 +386,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(result))
 
-	testForFiles(t, expected, result)
+	testForFiles(t, ctx, expected, result)
 }
 
 type mockBackupCollection struct {
@@ -391,7 +394,7 @@ type mockBackupCollection struct {
 	streams []data.Stream
 }
 
-func (c *mockBackupCollection) Items() <-chan data.Stream {
+func (c *mockBackupCollection) Items(context.Context, *fault.Errors) <-chan data.Stream {
 	res := make(chan data.Stream)
 
 	go func() {
@@ -480,7 +483,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		tags,
 		true,
 		fault.New(true))
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
@@ -926,6 +929,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			t := suite.T()
 
 			// May slightly overallocate as only items that are actually in our map
@@ -958,7 +964,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 
 			assert.Len(t, result, test.expectedCollections)
 			assert.Less(t, int64(0), ic.i)
-			testForFiles(t, expected, result)
+			testForFiles(t, ctx, expected, result)
 		})
 	}
 }

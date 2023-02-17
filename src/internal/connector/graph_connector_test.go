@@ -493,7 +493,7 @@ func runBackupAndCompare(
 
 	// Pull the data prior to waiting for the status as otherwise it will
 	// deadlock.
-	skipped := checkCollections(t, totalKopiaItems, expectedData, dcs, config.opts.RestorePermissions)
+	skipped := checkCollections(t, ctx, totalKopiaItems, expectedData, dcs, config.opts.RestorePermissions)
 
 	status := backupGC.AwaitStatus()
 
@@ -998,7 +998,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			skipped := checkCollections(t, allItems, allExpectedData, dcs, true)
+			skipped := checkCollections(t, ctx, allItems, allExpectedData, dcs, true)
 
 			status := backupGC.AwaitStatus()
 			assert.Equal(t, allItems+skipped, status.ObjectCount, "status.ObjectCount")
