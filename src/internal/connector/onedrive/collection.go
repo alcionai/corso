@@ -139,6 +139,7 @@ func NewCollection(
 func (oc *Collection) Add(item models.DriveItemable) bool {
 	_, found := oc.driveItems[*item.GetId()]
 	oc.driveItems[*item.GetId()] = item
+
 	return !found // !found = new
 }
 
@@ -150,7 +151,14 @@ func (oc *Collection) Remove(item models.DriveItemable) bool {
 	}
 
 	delete(oc.driveItems, *item.GetId())
+
 	return true
+}
+
+// IsEmpty check if a collection does not contain any items
+// TODO(meain): Should we just have function that returns driveItems?
+func (oc *Collection) IsEmpty() bool {
+	return len(oc.driveItems) == 0
 }
 
 // Items() returns the channel containing M365 Exchange objects

@@ -718,9 +718,9 @@ func (c *Collections) UpdateCollections(
 			// Delete the file from previous collection. This will
 			// only kick in if the file was moved multiple times
 			// within a single delta query
-			cid, found := itemCollection[*item.GetId()]
+			itemColID, found := itemCollection[*item.GetId()]
 			if found {
-				pcol, found := c.CollectionMap[cid]
+				pcol, found := c.CollectionMap[itemColID]
 				if !found {
 					return clues.New("previous collection not found").With("item_id", *item.GetId())
 				}
@@ -731,12 +731,20 @@ func (c *Collections) UpdateCollections(
 				if !removed {
 					return clues.New("removing from prev collection").With("item_id", *item.GetId())
 				}
+
+				// If that was the only item in that collection and is
+				// not getting added back, delete the collection
+				if itemColID != collectionID &&
+					pcollection.IsEmpty() &&
+					pcollection.State() == data.NewState {
+					delete(c.CollectionMap, itemColID)
+				}
 			}
 
 			itemCollection[*item.GetId()] = collectionID
 			collection := col.(*Collection)
-			new := collection.Add(item)
-			if new {
+
+			if collection.Add(item) {
 				c.NumItems++
 				if item.GetFile() != nil {
 					// This is necessary as we have a fallthrough for
