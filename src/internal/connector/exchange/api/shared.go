@@ -104,8 +104,8 @@ func getItemsAddedAndRemovedFromContainer(
 		}
 
 		nextLink, delta := api.NextAndDeltaLink(resp)
-		if !api.IsNextLinkValid(nextLink) {
-			logger.Ctx(ctx).Infof("Received invalid next link from M365: %s", nextLink)
+		if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(delta) {
+			logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, delta)
 		}
 
 		// the deltaLink is kind of like a cursor for overall data state.
