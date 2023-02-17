@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/alcionai/clues"
 
@@ -104,6 +105,11 @@ func getItemsAddedAndRemovedFromContainer(
 		}
 
 		nextLink, delta := api.NextAndDeltaLink(resp)
+		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(delta) {
+				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, delta)
+			}
+		}
 
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will
