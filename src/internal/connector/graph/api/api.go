@@ -1,6 +1,10 @@
 package api
 
-import "github.com/alcionai/corso/src/internal/common/ptr"
+import (
+	"strings"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
+)
 
 type PageLinker interface {
 	GetOdataNextLink() *string
@@ -16,4 +20,9 @@ func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
 	delta := ptr.Val(pl.GetOdataDeltaLink())
 
 	return next, delta
+}
+
+// IsNextLinkValid separate check to investigate whether error is
+func IsNextLinkValid(next string) bool {
+	return !strings.Contains(next, `users//`)
 }
