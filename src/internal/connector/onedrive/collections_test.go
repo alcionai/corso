@@ -1360,7 +1360,6 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				folderPath1:     {data.NewState: {}}, // TODO(meain): This should not be present
 				rootFolderPath1: {data.NotMovedState: {"folder", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
@@ -1790,6 +1789,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				return
 			}
 
+			collectionCount := 0
 			for _, baseCol := range cols {
 				var folderPath string
 				if baseCol.State() != data.DeletedState {
@@ -1811,6 +1811,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 
 					continue
 				}
+
+				collectionCount++
 
 				// TODO(ashmrtn): We should really be getting items in the collection
 				// via the Items() channel, but we don't have a way to mock out the
@@ -1834,6 +1836,17 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				)
 				assert.Equal(t, test.doNotMergeItems, baseCol.DoNotMergeItems(), "DoNotMergeItems")
 			}
+
+			expectedCollectionCount := 0
+			for c := range test.expectedCollections {
+				for range test.expectedCollections[c] {
+					expectedCollectionCount++
+				}
+			}
+
+			// This check is necessary to make sure we are all the
+			// collections we expect it to
+			assert.Equal(t, expectedCollectionCount, collectionCount, "number of collections")
 
 			assert.Equal(t, test.expectedDelList, delList, "del list")
 		})
