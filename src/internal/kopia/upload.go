@@ -908,6 +908,11 @@ func inflateBaseTree(
 
 		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
 		if err != nil {
+			if isErrEntryNotFound(err) {
+				logger.Ctx(ctx).Infow("base snapshot missing subtree", "error", err)
+				continue
+			}
+
 			return errors.Wrapf(err, "snapshot %s getting subtree root", snap.ID)
 		}
 
