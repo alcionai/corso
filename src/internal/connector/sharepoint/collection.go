@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -109,8 +110,11 @@ func (sc Collection) DoNotMergeItems() bool {
 	return false
 }
 
-func (sc *Collection) Items() <-chan data.Stream {
-	go sc.populate(context.TODO())
+func (sc *Collection) Items(
+	ctx context.Context,
+	errs *fault.Errors,
+) <-chan data.Stream {
+	go sc.populate(ctx)
 	return sc.data
 }
 

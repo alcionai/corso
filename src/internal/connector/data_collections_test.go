@@ -109,7 +109,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				control.Options{},
 				fault.New(true))
 			require.NoError(t, err)
-
 			assert.Empty(t, excludes)
 
 			for range collections {
@@ -122,7 +121,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
 
 			for _, col := range collections {
-				for object := range col.Items() {
+				for object := range col.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
 					assert.NoError(t, err, "received a buf.Read error")
@@ -273,7 +272,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			assert.Less(t, test.expected, len(collections))
 
 			for _, coll := range collections {
-				for object := range coll.Items() {
+				for object := range coll.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
 					assert.NoError(t, err, "reading item")
@@ -377,7 +376,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
 
-		for item := range collection.Items() {
+		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.UUID())
 
 			bs, err := io.ReadAll(item.ToReader())

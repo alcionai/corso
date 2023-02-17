@@ -257,7 +257,7 @@ func checkMetadataFilesExist(
 			for _, col := range cols {
 				itemNames := []string{}
 
-				for item := range col.Items() {
+				for item := range col.Items(ctx, fault.New(true)) {
 					assert.Implements(t, (*data.StreamSize)(nil), item)
 
 					s := item.(data.StreamSize)

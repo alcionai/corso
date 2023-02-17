@@ -2,6 +2,7 @@ package mockconnector
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -44,7 +46,10 @@ func (mlc *MockListCollection) PreviousPath() path.Path {
 	return nil
 }
 
-func (mlc *MockListCollection) Items() <-chan data.Stream {
+func (mlc *MockListCollection) Items(
+	ctx context.Context,
+	_ *fault.Errors, // unused
+) <-chan data.Stream {
 	res := make(chan data.Stream)
 
 	go func() {
