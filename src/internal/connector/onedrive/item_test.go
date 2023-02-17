@@ -106,6 +106,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		oldPaths map[string]string,
 		newPaths map[string]string,
 		excluded map[string]struct{},
+		itemCollection map[string]string,
 		doNotMergeItems bool,
 	) error {
 		for _, item := range items {

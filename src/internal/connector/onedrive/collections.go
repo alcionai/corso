@@ -497,6 +497,7 @@ func (c *Collections) UpdateCollections(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	itemCollection map[string]string,
 	invalidPrevDelta bool,
 ) error {
 	for _, item := range items {
@@ -713,14 +714,35 @@ func (c *Collections) UpdateCollections(
 			// times within a single delta response, we might end up
 			// storing the permissions multiple times. Switching the
 			// files to IDs should fix this.
-			collection := col.(*Collection)
-			collection.Add(item)
 
-			c.NumItems++
-			if item.GetFile() != nil {
-				// This is necessary as we have a fallthrough for
-				// folders and packages
-				c.NumFiles++
+			// Delete the file from previous collection. This will
+			// only kick in if the file was moved multiple times
+			// within a single delta query
+			cid, found := itemCollection[*item.GetId()]
+			if found {
+				pcol, found := c.CollectionMap[cid]
+				if !found {
+					return clues.New("previous collection not found").With("item_id", *item.GetId())
+				}
+
+				pcollection := pcol.(*Collection)
+
+				removed := pcollection.Remove(item)
+				if !removed {
+					return clues.New("removing from prev collection").With("item_id", *item.GetId())
+				}
+			}
+
+			itemCollection[*item.GetId()] = collectionID
+			collection := col.(*Collection)
+			new := collection.Add(item)
+			if new {
+				c.NumItems++
+				if item.GetFile() != nil {
+					// This is necessary as we have a fallthrough for
+					// folders and packages
+					c.NumFiles++
+				}
 			}
 
 		default:
