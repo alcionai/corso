@@ -22,7 +22,7 @@ func GetAllSitesForTenant(ctx context.Context, gs graph.Servicer) (absser.Parsab
 
 	sites, err := gs.Client().Sites().Get(ctx, options)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting sites").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "getting sites").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return sites, nil

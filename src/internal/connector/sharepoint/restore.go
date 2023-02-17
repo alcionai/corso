@@ -59,7 +59,7 @@ func RestoreCollections(
 			canceled bool
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
-			ictx     = clues.AddAll(ctx,
+			ictx     = clues.Add(ctx,
 				"category", category,
 				"destination", dest.ContainerName, // TODO: pii
 				"resource_owner", dc.FullPath().ResourceOwner()) // TODO: pii
@@ -128,7 +128,7 @@ func createRestoreFolders(
 	// Get Main Drive for Site, Documents
 	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
 	if err != nil {
-		return "", clues.Wrap(err, "getting site drive root").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return "", clues.Wrap(err, "getting site drive root").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
@@ -184,7 +184,7 @@ func restoreListItem(
 	// Restore to List base to M365 back store
 	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
-		return dii, clues.Wrap(err, "restoring list").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return dii, clues.Wrap(err, "restoring list").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	// Uploading of ListItems is conducted after the List is restored
@@ -200,7 +200,7 @@ func restoreListItem(
 				return dii, clues.Wrap(err, "restoring list items").
 					With("restored_list_id", ptr.Val(restoredList.GetId())).
 					WithClues(ctx).
-					WithAll(graph.ErrData(err)...)
+					With(graph.ErrData(err)...)
 			}
 		}
 	}
