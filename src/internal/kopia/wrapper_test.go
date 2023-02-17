@@ -483,7 +483,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		tags,
 		true,
 		fault.New(true))
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
