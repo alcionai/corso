@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -58,11 +57,11 @@ func uploadAttachment(
 		"internal_item_type", getItemAttachmentItemType(attachment),
 		"uploader_item_id", uploader.getItemID())
 
-	logger.Ctx(ctx).Debugw("uploading attachment")
+	logger.Ctx(ctx).Debug("uploading attachment")
 
 	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
 	if attachmentType == models.REFERENCE_ATTACHMENTTYPE && ptr.Val(attachment.GetIsInline()) {
-		logger.Ctx(ctx).Debug("skip uploading inline reference attachment: ", ptr.Val(attachment.GetName()))
+		logger.Ctx(ctx).Debug("skip uploading inline reference attachment")
 		return nil
 	}
 
@@ -95,24 +94,26 @@ func uploadLargeAttachment(
 	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
-	ab := attachmentBytes(attachment)
-	size := int64(len(ab))
+	var (
+		bs   = attachmentBytes(attachment)
+		size = int64(len(bs))
+	)
 
-	session, err := uploader.uploadSession(ctx, *attachment.GetName(), size)
+	session, err := uploader.uploadSession(ctx, ptr.Val(attachment.GetName()), size)
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	url := *session.GetUploadUrl()
+	url := ptr.Val(session.GetUploadUrl())
 	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
-	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", uploader.getItemID(), url)
+	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", url) // TODO: url pii
 
 	// Upload the stream data
 	copyBuffer := make([]byte, attachmentChunkSize)
 
-	_, err = io.CopyBuffer(aw, bytes.NewReader(ab), copyBuffer)
+	_, err = io.CopyBuffer(aw, bytes.NewReader(bs), copyBuffer)
 	if err != nil {
-		return errors.Wrapf(err, "failed to upload attachment: item %s", uploader.getItemID())
+		return clues.Wrap(err, "uploading large attachment").WithClues(ctx)
 	}
 
 	return nil

@@ -15,14 +15,15 @@ type DeltaPageLinker interface {
 	GetOdataDeltaLink() *string
 }
 
-func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
-	next := ptr.Val(pl.GetOdataNextLink())
-	delta := ptr.Val(pl.GetOdataDeltaLink())
-
-	return next, delta
-}
-
 // IsNextLinkValid separate check to investigate whether error is
 func IsNextLinkValid(next string) bool {
 	return !strings.Contains(next, `users//`)
+}
+
+func NextLink(pl PageLinker) string {
+	return ptr.Val(pl.GetOdataNextLink())
+}
+
+func NextAndDeltaLink(pl DeltaPageLinker) (string, string) {
+	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
 }
