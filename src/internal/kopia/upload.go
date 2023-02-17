@@ -257,6 +257,16 @@ func (cp *corsoProgress) CachedFile(fname string, size int64) {
 	d.cached = true
 }
 
+// Kopia interface function used as a callback when kopia encounters an error
+// during the upload process. This could be from reading a file or something
+// else.
+func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
+	defer cp.UploadProgress.Error(relpath, err, isIgnored)
+
+	cp.errs.Add(clues.Wrap(err, "kopia reported error").
+		WithAll("is_ignored", isIgnored, "relative_path", relpath))
+}
+
 func (cp *corsoProgress) put(k string, v *itemDetails) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
@@ -908,6 +918,11 @@ func inflateBaseTree(
 
 		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
 		if err != nil {
+			if isErrEntryNotFound(err) {
+				logger.Ctx(ctx).Infow("base snapshot missing subtree", "error", err)
+				continue
+			}
+
 			return errors.Wrapf(err, "snapshot %s getting subtree root", snap.ID)
 		}
 
