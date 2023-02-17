@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -32,7 +33,7 @@ type Collection interface {
 	// Each returned struct contains the next item in the collection
 	// The channel is closed when there are no more items in the collection or if
 	// an unrecoverable error caused an early termination in the sender.
-	Items() <-chan Stream
+	Items(ctx context.Context, errs *fault.Errors) <-chan Stream
 	// FullPath returns a path struct that acts as a metadata tag for this
 	// Collection.
 	FullPath() path.Path
