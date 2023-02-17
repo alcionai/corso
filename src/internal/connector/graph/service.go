@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -260,6 +261,10 @@ func (handler *LoggingMiddleware) Intercept(
 		ctx       = req.Context()
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
+
+	if strings.Contains(req.URL.String(), "users//") {
+		logger.Ctx(ctx).Errorw("malformed request url: missing user", "url", req.URL)
+	}
 
 	if resp == nil {
 		return resp, err

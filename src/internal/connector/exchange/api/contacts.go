@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -244,6 +245,18 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 
 	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
 	pgr := &contactPager{service, builder, options}
+
+	gri, err := builder.ToGetRequestInformation(ctx, options)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("getting builder info", "error", err)
+	} else {
+		uri, err := gri.GetUri()
+		if err != nil {
+			logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
+		} else {
+			logger.Ctx(ctx).Infow("contact builder", "user", user, "directoryID", directoryID, "uri", uri)
+		}
+	}
 
 	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
