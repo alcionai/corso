@@ -259,19 +259,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create exchange"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create exchange"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -390,19 +385,14 @@ func exchangeListCmd() *cobra.Command {
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list exchange"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list exchange"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -477,19 +467,14 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details exchange"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details exchange"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -562,19 +547,14 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete exchange"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete exchange"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}

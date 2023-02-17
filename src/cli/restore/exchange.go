@@ -204,19 +204,14 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, a, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "restore exchange"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "restore exchange"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, a, s, controlOpts)
+	r, err := repository.Connect(ctx, a, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}

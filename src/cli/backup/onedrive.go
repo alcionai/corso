@@ -182,19 +182,14 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create onedrive"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create onedrive"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -290,19 +285,14 @@ func oneDriveListCmd() *cobra.Command {
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list onedrive"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list onedrive"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -357,19 +347,14 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details onedrive"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details onedrive"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
@@ -451,19 +436,14 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
+	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete onedrive"}, repoid, options.Control())
 
-	err = utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete onedrive"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
-
-	r, err := repository.Connect(ctx, acct, s, controlOpts)
+	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}

@@ -109,17 +109,13 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
+	s, a, _, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
-
-	err = utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "init repo"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
+	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
+	utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "init repo"}, a.ID(), options.Control())
 
 	s3Cfg, err := s.S3Config()
 	if err != nil {
@@ -131,7 +127,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, a, s, controlOpts)
+	r, err := repository.Initialize(ctx, a, s, options.Control())
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -144,7 +140,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r); err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
 	}
 
@@ -175,17 +171,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
+	s, a, repoid, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	controlOpts := options.Control()
-
-	err = utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "connect repo"}, controlOpts)
-	if err != nil {
-		return errors.Wrap(err, "constructing event bus")
-	}
+	utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "connect repo"}, repoid, options.Control())
 
 	s3Cfg, err := s.S3Config()
 	if err != nil {
@@ -206,7 +197,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r); err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
 	}
 
