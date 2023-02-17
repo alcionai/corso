@@ -505,7 +505,7 @@ func (c *Collections) UpdateCollections(
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 				if err != nil {
-					return clues.Wrap(err, "invalid previous path").WithAll("path_string", prevPathStr)
+					return clues.Wrap(err, "invalid previous path").With("path_string", prevPathStr)
 				}
 			}
 
@@ -617,7 +617,7 @@ func (c *Collections) UpdateCollections(
 				if ok {
 					prevCollectionPath, err = path.FromDataLayerPath(prevCollectionPathStr, false)
 					if err != nil {
-						return clues.Wrap(err, "invalid previous path").WithAll("path_string", prevCollectionPathStr)
+						return clues.Wrap(err, "invalid previous path").With("path_string", prevCollectionPathStr)
 					}
 				}
 

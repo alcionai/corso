@@ -57,7 +57,7 @@ func (iw *writer) Write(p []byte) (int, error) {
 		}).
 		SetBody(bytes.NewReader(p)).Put(iw.url)
 	if err != nil {
-		return 0, clues.Wrap(err, "uploading item").WithAll(
+		return 0, clues.Wrap(err, "uploading item").With(
 			"upload_id", iw.id,
 			"upload_chunk_size", rangeLength,
 			"upload_offset", iw.lastWrittenOffset,

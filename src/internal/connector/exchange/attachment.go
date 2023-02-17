@@ -48,7 +48,7 @@ func uploadAttachment(
 ) error {
 	attachmentType := attachmentType(attachment)
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"attachment_size", ptr.Val(attachment.GetSize()),
 		"attachment_id", ptr.Val(attachment.GetId()),
