@@ -216,22 +216,12 @@ func oneDriveItemPermissionInfo(
 		return nil, nil
 	}
 
-	var (
-		perm   models.PermissionCollectionResponseable
-		itemID = di.GetId()
-	)
-
-	err := graph.RunWithRetry(func() error {
-		var fetchErr error
-
-		perm, fetchErr = service.
-			Client().
-			DrivesById(driveID).
-			ItemsById(*itemID).
-			Permissions().
-			Get(ctx, nil)
-		return fetchErr
-	})
+	perm, err := service.
+		Client().
+		DrivesById(driveID).
+		ItemsById(*di.GetId()).
+		Permissions().
+		Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
