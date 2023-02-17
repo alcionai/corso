@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -15,7 +17,6 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -79,7 +80,7 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "writeObjecValue serialization")
+		return nil, errors.Wrap(err, "serializing object")
 	}
 
 	return writer.GetSerializedContent()
@@ -161,7 +162,7 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating m365 client secret credentials")
+		return nil, errors.Wrap(err, "creating m365 client identity")
 	}
 
 	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
@@ -169,13 +170,15 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 		[]string{"https://graph.microsoft.com/.default"},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating new AzureIdentityAuthentication")
+		return nil, errors.Wrap(err, "creating azure authentication")
 	}
 
 	httpClient := HTTPClient(opts...)
 
 	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth, nil, nil, httpClient)
+		auth,
+		nil, nil,
+		httpClient)
 }
 
 // HTTPClient creates the httpClient with middlewares and timeout configured
@@ -261,6 +264,12 @@ func (handler *LoggingMiddleware) Intercept(
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		if strings.Contains(req.URL.String(), "users//") {
+			logger.Ctx(ctx).Errorw("malformed request url: missing user", "url", req.URL)
+		}
+	}
+
 	if resp == nil {
 		return resp, err
 	}
@@ -327,14 +336,14 @@ func (middleware RetryHandler) Intercept(
 
 	response, err := pipeline.Next(req, middlewareIndex)
 	if err != nil && !IsErrTimeout(err) {
-		return response, support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
+		return nil, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = middleware.Delay
 	exponentialBackOff.Reset()
 
-	return middleware.retryRequest(
+	response, err = middleware.retryRequest(
 		ctx,
 		pipeline,
 		middlewareIndex,
@@ -344,4 +353,9 @@ func (middleware RetryHandler) Intercept(
 		0,
 		exponentialBackOff,
 		err)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+	}
+
+	return response, nil
 }

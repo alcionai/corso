@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -47,7 +49,7 @@ func (c Contacts) CreateContactFolder(
 
 	mdl, err := c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating contact folder").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return mdl, nil
@@ -60,7 +62,7 @@ func (c Contacts) DeleteContainer(
 ) error {
 	err := c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return nil
@@ -74,7 +76,7 @@ func (c Contacts) GetItem(
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return cont, ContactInfo(cont), nil
@@ -86,12 +88,12 @@ func (c Contacts) GetContainerByID(
 ) (graph.Container, error) {
 	ofcf, err := optionsForContactFolderByID([]string{"displayName", "parentFolderId"})
 	if err != nil {
-		return nil, clues.Wrap(err, "setting contact folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "setting contact folder options").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	resp, err := c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return resp, nil
@@ -111,7 +113,7 @@ func (c Contacts) EnumerateContainers(
 ) error {
 	service, err := c.service()
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	fields := []string{"displayName", "parentFolderId"}
@@ -120,7 +122,7 @@ func (c Contacts) EnumerateContainers(
 	if err != nil {
 		return clues.Wrap(err, "setting contact child folder options").
 			WithClues(ctx).
-			WithAll(graph.ErrData(err)...).
+			With(graph.ErrData(err)...).
 			With("options_fields", fields)
 	}
 
@@ -132,7 +134,7 @@ func (c Contacts) EnumerateContainers(
 	for {
 		resp, err := builder.Get(ctx, ofcf)
 		if err != nil {
-			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, fold := range resp.GetValue() {
@@ -141,18 +143,18 @@ func (c Contacts) EnumerateContainers(
 			}
 
 			if err := checkIDAndName(fold); err != nil {
-				errs.Add(clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
 				continue
 			}
 
-			fctx := clues.AddAll(
+			fctx := clues.Add(
 				ctx,
 				"container_id", ptr.Val(fold.GetId()),
 				"container_display_name", ptr.Val(fold.GetDisplayName()))
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
 				continue
 			}
 		}
@@ -183,7 +185,7 @@ type contactPager struct {
 func (p *contactPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return resp, nil
@@ -203,12 +205,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 ) ([]string, []string, DeltaUpdate, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	var resetDelta bool
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"category", selectors.ExchangeContact,
 		"container_id", directoryID)
@@ -218,7 +220,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		return nil,
 			nil,
 			DeltaUpdate{},
-			clues.Wrap(err, "setting contact folder options").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			clues.Wrap(err, "setting contact folder options").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	if len(oldDelta) > 0 {
@@ -236,7 +238,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
 		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		resetDelta = true
@@ -244,6 +246,20 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 
 	builder := service.Client().UsersById(user).ContactFoldersById(directoryID).Contacts().Delta()
 	pgr := &contactPager{service, builder, options}
+
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := builder.ToGetRequestInformation(ctx, options)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
+		} else {
+			uri, err := gri.GetUri()
+			if err != nil {
+				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
+			} else {
+				logger.Ctx(ctx).Infow("contact builder", "user", user, "directoryID", directoryID, "uri", uri)
+			}
+		}
+	}
 
 	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
@@ -278,12 +294,12 @@ func (c Contacts) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", contact); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, clues.Wrap(err, "serializing contact").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "serializing contact").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return bs, nil

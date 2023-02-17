@@ -149,7 +149,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
 		"resource_owner", op.ResourceOwner, // TODO: pii
@@ -609,7 +609,7 @@ func mergeDetails(
 	if addedEntries != len(shortRefsFromPrevBackup) {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
-			WithAll("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
+			With("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
 	}
 
 	return nil

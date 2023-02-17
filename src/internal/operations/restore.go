@@ -150,7 +150,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		observe.Complete()
 	}()
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
 		"backup_id", op.BackupID,
@@ -208,7 +208,7 @@ func (op *RestoreOperation) do(
 		return nil, errors.Wrap(err, "formatting paths from details")
 	}
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"resource_owner", bup.Selector.DiscreteOwner,
 		"details_paths", len(paths))

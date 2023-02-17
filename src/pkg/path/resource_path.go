@@ -144,7 +144,7 @@ func validateServiceAndCategory(service ServiceType, category CategoryType) erro
 
 	if _, ok := cats[category]; !ok {
 		return clues.New("unknown service/category combination").
-			WithAll("service", fmt.Sprintf("%q", service), "category", fmt.Sprintf("%q", category))
+			With("service", fmt.Sprintf("%q", service), "category", fmt.Sprintf("%q", category))
 	}
 
 	return nil
