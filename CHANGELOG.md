@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 ### Added
 
-- New Flag `--on-error` which controls recoverable error handling behavior.  Accepts `--on-error fail` (default) to fail out immediately, and `--on-error recover` to proceed with the operation.
+- New Flag `--on-error` which controls recoverable error handling behavior.  Accepts `--on-error fail` to fail out immediately, and `--on-error continue` (default) to proceed with the operation.
 
 ### Fixed
 - Support for item.Attachment:Mail restore

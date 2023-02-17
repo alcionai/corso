@@ -13,7 +13,7 @@ import (
 func Control() control.Options {
 	opt := control.Defaults()
 
-	opt.FailFast = strings.ToLower(onError) != "recover"
+	opt.FailFast = strings.ToLower(onError) != "continue"
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
@@ -37,8 +37,8 @@ func AddOperationFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.StringVar(
 		&onError, "on-error",
-		"fail",
-		"Configure how Corso handles recoverable errors.  Accepts 'fail' (default) or 'recover'.")
+		"continue",
+		"Configure how Corso handles recoverable errors.  Accepts 'fail' or 'continue' (default).")
 }
 
 // AddGlobalOperationFlags adds the global operations flag set.
