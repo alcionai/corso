@@ -204,7 +204,7 @@ func collectMetadata(
 			if err != nil {
 				return nil, clues.
 					Wrap(err, "building metadata path").
-					WithAll("metadata_file", fn, "category", reason.Category)
+					With("metadata_file", fn, "category", reason.Category)
 			}
 
 			paths = append(paths, p)

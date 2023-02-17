@@ -50,7 +50,7 @@ func (c Events) CreateCalendar(
 
 	mdl, err := c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating calendar").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating calendar").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return mdl, nil
@@ -64,7 +64,7 @@ func (c Events) DeleteContainer(
 ) error {
 	err := c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return nil
@@ -76,17 +76,17 @@ func (c Events) GetContainerByID(
 ) (graph.Container, error) {
 	service, err := c.service()
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	ofc, err := optionsForCalendarsByID([]string{"name", "owner"})
 	if err != nil {
-		return nil, clues.Wrap(err, "setting event calendar options").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "setting event calendar options").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	cal, err := service.Client().UsersById(userID).CalendarsById(containerID).Get(ctx, ofc)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return graph.CalendarDisplayable{Calendarable: cal}, nil
@@ -105,7 +105,7 @@ func (c Events) GetItem(
 
 	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
@@ -122,7 +122,7 @@ func (c Events) GetItem(
 			Attachments().
 			Get(ctx, options)
 		if err != nil {
-			return nil, nil, clues.Wrap(err, "event attachment download").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, nil, clues.Wrap(err, "event attachment download").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		event.SetAttachments(attached.GetValue())
@@ -145,12 +145,12 @@ func (c Events) EnumerateContainers(
 ) error {
 	service, err := c.service()
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	ofc, err := optionsForCalendars([]string{"name"})
 	if err != nil {
-		return clues.Wrap(err, "setting calendar options").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Wrap(err, "setting calendar options").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	builder := service.Client().UsersById(userID).Calendars()
@@ -158,17 +158,17 @@ func (c Events) EnumerateContainers(
 	for {
 		resp, err := builder.Get(ctx, ofc)
 		if err != nil {
-			return clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, cal := range resp.GetValue() {
 			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
-				errs.Add(clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
 				continue
 			}
 
-			fctx := clues.AddAll(
+			fctx := clues.Add(
 				ctx,
 				"container_id", ptr.Val(cal.GetId()),
 				"container_name", ptr.Val(cal.GetName()))
@@ -178,7 +178,7 @@ func (c Events) EnumerateContainers(
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
 				continue
 			}
 		}
@@ -213,7 +213,7 @@ type eventPager struct {
 func (p *eventPager) getPage(ctx context.Context) (api.DeltaPageLinker, error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return resp, nil
@@ -238,7 +238,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 
 	var resetDelta bool
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"container_id", calendarID)
 
@@ -256,7 +256,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		// only return on error if it is NOT a delta issue.
 		// on bad deltas we retry the call with the regular builder
 		if !graph.IsErrInvalidDelta(err) {
-			return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, nil, DeltaUpdate{}, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		resetDelta = true
@@ -322,12 +322,12 @@ func (c Events) Serialize(
 	defer writer.Close()
 
 	if err = writer.WriteObjectValue("", event); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	bs, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, clues.Wrap(err, "serializing event").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "serializing event").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return bs, nil

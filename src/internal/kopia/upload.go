@@ -170,7 +170,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	if d.info == nil {
 		if d.prevPath == nil {
 			cp.errs.Add(clues.New("item sourced from previous backup with no previous path").
-				WithAll(
+				With(
 					"service", d.repoPath.Service().String(),
 					"category", d.repoPath.Category().String(),
 				))
@@ -264,7 +264,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
 	cp.errs.Add(clues.Wrap(err, "kopia reported error").
-		WithAll("is_ignored", isIgnored, "relative_path", relpath))
+		With("is_ignored", isIgnored, "relative_path", relpath))
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {
