@@ -48,7 +48,7 @@ func (c Mail) CreateMailFolder(
 
 	mdl, err := c.stable.Client().UsersById(user).MailFolders().Post(ctx, requestBody, nil)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating mail folder").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return mdl, nil
@@ -75,7 +75,7 @@ func (c Mail) CreateMailFolderWithParent(
 		ChildFolders().
 		Post(ctx, requestBody, nil)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating nested mail folder").WithClues(ctx).WithAll(graph.ErrData(err)...)
 	}
 
 	return mdl, nil
@@ -250,7 +250,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx = clues.AddAll(
 		ctx,
 		"category", selectors.ExchangeMail,
-		"folder_id", directoryID)
+		"container_id", directoryID)
 
 	options, err := optionsForFolderMessagesDelta([]string{"isRead"})
 	if err != nil {

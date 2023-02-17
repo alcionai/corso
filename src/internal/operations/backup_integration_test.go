@@ -146,8 +146,7 @@ func runAndCheckBackup(
 		Completed,
 		bo.Status,
 		"backup status should be Completed, got %s",
-		bo.Status,
-	)
+		bo.Status)
 	require.Less(t, 0, bo.Results.ItemsWritten)
 
 	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
