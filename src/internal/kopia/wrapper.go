@@ -331,7 +331,7 @@ func getItemStream(
 		encodeElements(itemPath.PopFront().Elements()...),
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "entry not found") {
+		if isErrEntryNotFound(err) {
 			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
 		}
 
@@ -491,4 +491,9 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 	}
 
 	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
+}
+
+func isErrEntryNotFound(err error) bool {
+	return strings.Contains(err.Error(), "entry not found") &&
+		!strings.Contains(err.Error(), "parent is not a directory")
 }
