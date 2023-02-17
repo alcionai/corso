@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -17,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -271,6 +273,20 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, user, calendarID)
 	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, service.Adapter())
 	pgr := &eventPager{service, builder, nil}
+
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		gri, err := builder.ToGetRequestInformation(ctx, nil)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
+		} else {
+			uri, err := gri.GetUri()
+			if err != nil {
+				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
+			} else {
+				logger.Ctx(ctx).Infow("calendar builder", "user", user, "directoryID", calendarID, "uri", uri)
+			}
+		}
+	}
 
 	added, removed, deltaURL, err := getItemsAddedAndRemovedFromContainer(ctx, pgr)
 	if err != nil {
