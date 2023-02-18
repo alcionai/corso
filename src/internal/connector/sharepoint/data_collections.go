@@ -185,7 +185,7 @@ func collectLibraries(
 	// token-based incrementals.
 	odcs, excludes, err := colls.Get(ctx, nil)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting library").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, nil, clues.Wrap(err, "getting library").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return append(collections, odcs...), excludes, nil

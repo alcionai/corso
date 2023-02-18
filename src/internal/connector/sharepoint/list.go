@@ -51,7 +51,7 @@ func preFetchLists(
 
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, clues.Wrap(err, "getting lists").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, clues.Wrap(err, "getting lists").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, entry := range resp.GetValue() {
@@ -132,7 +132,7 @@ func loadSiteLists(
 
 			entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "getting site list").WithClues(ctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Wrap(err, "getting site list").WithClues(ctx).With(graph.ErrData(err)...))
 				return
 			}
 
@@ -221,7 +221,7 @@ func fetchListItems(
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "getting list fields").WithClues(ctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Wrap(err, "getting list fields").WithClues(ctx).With(graph.ErrData(err)...))
 				continue
 			}
 
@@ -257,7 +257,7 @@ func fetchColumns(
 		for {
 			resp, err := builder.Get(ctx, nil)
 			if err != nil {
-				return nil, clues.Wrap(err, "getting list columns").WithClues(ctx).WithAll(graph.ErrData(err)...)
+				return nil, clues.Wrap(err, "getting list columns").WithClues(ctx).With(graph.ErrData(err)...)
 			}
 
 			cs = append(cs, resp.GetValue()...)
@@ -274,7 +274,7 @@ func fetchColumns(
 		for {
 			resp, err := builder.Get(ctx, nil)
 			if err != nil {
-				return nil, clues.Wrap(err, "getting content columns").WithClues(ctx).WithAll(graph.ErrData(err)...)
+				return nil, clues.Wrap(err, "getting content columns").WithClues(ctx).With(graph.ErrData(err)...)
 			}
 
 			cs = append(cs, resp.GetValue()...)
@@ -366,7 +366,7 @@ func fetchColumnLinks(
 	for {
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return nil, clues.Wrap(err, "getting column links").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, clues.Wrap(err, "getting column links").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		links = append(links, resp.GetValue()...)
@@ -393,7 +393,7 @@ func DeleteList(
 ) error {
 	err := gs.Client().SitesById(siteID).ListsById(listID).Delete(ctx, nil)
 	if err != nil {
-		return clues.Wrap(err, "deleting list").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Wrap(err, "deleting list").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return nil

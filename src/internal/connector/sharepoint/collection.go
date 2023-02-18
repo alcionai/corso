@@ -326,12 +326,12 @@ func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) (
 
 	err := writer.WriteObjectValue("", obj)
 	if err != nil {
-		return nil, clues.Wrap(err, "writing object").WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "writing object").With(graph.ErrData(err)...)
 	}
 
 	byteArray, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, clues.Wrap(err, "getting content from writer").WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "getting content from writer").With(graph.ErrData(err)...)
 	}
 
 	return byteArray, nil
