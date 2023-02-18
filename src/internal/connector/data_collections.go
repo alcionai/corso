@@ -101,7 +101,8 @@ func (gc *GraphConnector) DataCollections(
 			gc.credentials,
 			gc.Service,
 			gc,
-			ctrlOpts)
+			ctrlOpts,
+			errs)
 		if err != nil {
 			return nil, nil, err
 		}
