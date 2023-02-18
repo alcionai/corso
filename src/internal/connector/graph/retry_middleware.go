@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
 )
@@ -50,7 +50,10 @@ func (middleware RetryHandler) retryRequest(
 
 		response, err := pipeline.Next(req, middlewareIndex)
 		if err != nil && !IsErrTimeout(err) {
-			return response, support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
+			return response, clues.Stack(err).
+				WithClues(ctx).
+				With("retry_count", executionCount).
+				With(ErrData(err)...)
 		}
 
 		return middleware.retryRequest(ctx,
@@ -64,7 +67,14 @@ func (middleware RetryHandler) retryRequest(
 			err)
 	}
 
-	return resp, support.ConnectorStackErrorTraceWrap(respErr, "maximum retries or unretryable")
+	if respErr != nil {
+		return nil, clues.Stack(respErr).
+			WithClues(ctx).
+			With("retry_count", executionCount).
+			With(ErrData(respErr)...)
+	}
+
+	return resp, nil
 }
 
 func (middleware RetryHandler) isRetriableErrorCode(req *http.Request, code int) bool {

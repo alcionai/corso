@@ -336,7 +336,7 @@ func (middleware RetryHandler) Intercept(
 
 	response, err := pipeline.Next(req, middlewareIndex)
 	if err != nil && !IsErrTimeout(err) {
-		return nil, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+		return response, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
