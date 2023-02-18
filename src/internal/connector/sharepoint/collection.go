@@ -282,7 +282,7 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
+	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
 		return metrics, err
 	}
@@ -310,7 +310,7 @@ func (sc *Collection) retrievePages(
 			sc.data <- &Item{
 				id:      *pg.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sharePointPageInfo(pg, size),
+				info:    sapi.PageInfo(pg, size),
 				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),
 			}
 

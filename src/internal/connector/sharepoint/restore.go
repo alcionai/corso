@@ -308,7 +308,7 @@ func RestorePageCollection(
 	service := discover.NewBetaService(adpt)
 
 	// Restore items from collection
-	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
+	items := dc.Items(ctx, errs)
 
 	for {
 		if errs.Err() != nil {
