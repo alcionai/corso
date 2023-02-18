@@ -83,9 +83,10 @@ costs, as well.
 
 <!-- vale Microsoft.Contractions = NO -->
 
-Corso, currently in alpha, provides a CLI-based tool for backups of your M365 data.
+Corso, currently in ~~~alpha~~~ beta, provides a CLI-based tool for backups of your M365 data.
 [Follow the quickstart guide](../../docs/quickstart) to start protecting your business-critical M365 data in
-just a few minutes. Because Corso is currently in alpha, it should **NOT** be used in production.
+just a few minutes. Because Corso is currently in ~~~alpha, it should **NOT** be used in production~~~
+beta, there might still be breaking changes in its backup format.
 
 <!-- vale Microsoft.Contractions = YES -->
 
