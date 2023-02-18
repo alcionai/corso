@@ -36,7 +36,6 @@ func preFetchLists(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID string,
-	errs *fault.Errors,
 ) ([]listTuple, error) {
 	var (
 		builder    = gs.Client().SitesById(siteID).Lists()
@@ -45,21 +44,20 @@ func preFetchLists(
 	)
 
 	for {
-		if errs.Err() != nil {
-			break
-		}
-
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting lists").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, entry := range resp.GetValue() {
-			temp := listTuple{id: ptr.Val(entry.GetId())}
+			var (
+				id   = ptr.Val(entry.GetId())
+				name = ptr.Val(entry.GetDisplayName())
+				temp = listTuple{id: id, name: name}
+			)
 
-			name := ptr.Val(entry.GetDisplayName())
 			if len(name) == 0 {
-				temp.name = ptr.Val(entry.GetId())
+				temp.name = id
 			}
 
 			listTuples = append(listTuples, temp)
@@ -72,7 +70,7 @@ func preFetchLists(
 		builder = mssite.NewItemListsRequestBuilder(ptr.Val(resp.GetOdataNextLink()), gs.Adapter())
 	}
 
-	return listTuples, errs.Err()
+	return listTuples, nil
 }
 
 // list.go contains additional functions to help retrieve SharePoint List data from M365

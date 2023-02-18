@@ -126,7 +126,7 @@ func collectLists(
 
 	spcs := make([]data.BackupCollection, 0)
 
-	lists, err := preFetchLists(ctx, serv, siteID, errs)
+	lists, err := preFetchLists(ctx, serv, siteID)
 	if err != nil {
 		return nil, err
 	}
