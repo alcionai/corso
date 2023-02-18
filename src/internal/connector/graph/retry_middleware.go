@@ -67,11 +67,14 @@ func (middleware RetryHandler) retryRequest(
 			err)
 	}
 
-	return resp,
-		clues.Stack(respErr).
+	if respErr != nil {
+		return nil, clues.Stack(respErr).
 			WithClues(ctx).
 			With("retry_count", executionCount).
 			With(ErrData(respErr)...)
+	}
+
+	return resp, nil
 }
 
 func (middleware RetryHandler) isRetriableErrorCode(req *http.Request, code int) bool {
