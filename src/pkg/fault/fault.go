@@ -32,8 +32,8 @@ type Errors struct {
 // ErrorsData provides the errors data alone, without sync
 // controls, allowing the data to be persisted.
 type ErrorsData struct {
-	Err      error   `json:"err"`
-	Errs     []error `json:"errs"`
+	Err      error   `json:"-"`
+	Errs     []error `json:"-"`
 	FailFast bool    `json:"failFast"`
 }
 
