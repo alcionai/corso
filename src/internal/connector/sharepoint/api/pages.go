@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -64,7 +65,7 @@ func GetSitePages(
 
 			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "fetching page").WithClues(ctx).WithAll(graph.ErrData(err)...))
+				errs.Add(clues.Wrap(err, "fetching page").WithClues(ctx).With(graph.ErrData(err)...))
 				return
 			}
 
@@ -90,7 +91,7 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 	for {
 		resp, err = builder.Get(ctx, opts)
 		if err != nil {
-			return nil, clues.Wrap(err, "fetching site page").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, clues.Wrap(err, "fetching site page").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, entry := range resp.GetValue() {
@@ -139,7 +140,7 @@ func DeleteSitePage(
 ) error {
 	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
 	if err != nil {
-		return clues.Wrap(err, "deleting page").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Wrap(err, "deleting page").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return nil
@@ -199,7 +200,7 @@ func RestoreSitePage(
 	// See: https://learn.microsoft.com/en-us/graph/api/sitepage-create?view=graph-rest-beta
 	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
 	if err != nil {
-		return dii, clues.Wrap(err, "creating page").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return dii, clues.Wrap(err, "creating page").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	pageID = ptr.Val(restoredPage.GetId())
@@ -217,7 +218,7 @@ func RestoreSitePage(
 		Publish().
 		Post(ctx, nil)
 	if err != nil {
-		return dii, clues.Wrap(err, "publishing page").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return dii, clues.Wrap(err, "publishing page").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	dii.SharePoint = PageInfo(restoredPage, int64(len(byteArray)))
