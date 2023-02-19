@@ -255,7 +255,6 @@ func ExampleErrors_Tracker() {
 		// handle the Err() that appeared in the tracker
 		fmt.Println("err occurred", errs.Err())
 	}
-
 }
 
 // ExampleErrorsE2e showcases a more complex integration.
