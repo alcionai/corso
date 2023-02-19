@@ -38,7 +38,7 @@ func AddOperationFlags(cmd *cobra.Command) {
 	fs.StringVar(
 		&onError, "on-error",
 		"continue",
-		"Configure how Corso handles recoverable errors.  Accepts 'fail' or 'continue' (default).")
+		"Configure how Corso handles recoverable errors. Accepts 'fail' or 'continue' (default).")
 }
 
 // AddGlobalOperationFlags adds the global operations flag set.
