@@ -118,7 +118,7 @@ func RestoreCollections(
 		permissionIDMappings = map[string]string{}
 	)
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"backup_version", backupVersion,
 		"destination", dest.ContainerName)
@@ -142,7 +142,7 @@ func RestoreCollections(
 
 		var (
 			err  error
-			ictx = clues.AddAll(
+			ictx = clues.Add(
 				ctx,
 				"resource_owner", dc.FullPath().ResourceOwner(), // TODO: pii
 				"category", dc.FullPath().Category(),
@@ -228,7 +228,7 @@ func RestoreCollection(
 	restoreFolderElements := []string{restoreContainerName}
 	restoreFolderElements = append(restoreFolderElements, drivePath.Folders...)
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"destination_elements", restoreFolderElements,
 		"drive_id", drivePath.DriveID)
@@ -450,11 +450,11 @@ func CreateRestoreFolders(
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
-		return "", clues.Wrap(err, "getting drive root").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return "", clues.Wrap(err, "getting drive root").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	parentFolderID := ptr.Val(driveRoot.GetId())
-	ctx = clues.AddAll(ctx, "drive_root_id", parentFolderID)
+	ctx = clues.Add(ctx, "drive_root_id", parentFolderID)
 
 	logger.Ctx(ctx).Debug("found drive root")
 
@@ -526,7 +526,7 @@ func restoreData(
 	// Upload the stream data
 	written, err := io.CopyBuffer(w, progReader, copyBuffer)
 	if err != nil {
-		return "", details.ItemInfo{}, clues.Wrap(err, "writing item bytes").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return "", details.ItemInfo{}, clues.Wrap(err, "writing item bytes").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	dii := details.ItemInfo{}
@@ -626,7 +626,7 @@ func restorePermissions(
 			PermissionsById(permissionIDMappings[p.ID]).
 			Delete(ctx, nil)
 		if err != nil {
-			return permissionIDMappings, clues.Wrap(err, "removing permissions").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return permissionIDMappings, clues.Wrap(err, "removing permissions").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 	}
 
@@ -651,7 +651,7 @@ func restorePermissions(
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return permissionIDMappings, clues.Wrap(err, "setting permissions").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return permissionIDMappings, clues.Wrap(err, "setting permissions").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
