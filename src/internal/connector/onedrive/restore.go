@@ -423,18 +423,9 @@ func restoreV1File(
 	// Fetch item permissions from the collection and restore them.
 	metaName := trimmedName + MetaFileSuffix
 
-	permsFile, err := fetcher.Fetch(ctx, metaName)
+	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
 	if err != nil {
-		err = clues.Wrap(err, "getting item metadata")
-		return details.ItemInfo{}, err
-	}
-
-	metaReader := permsFile.ToReader()
-	meta, err := getMetadata(metaReader)
-	metaReader.Close()
-
-	if err != nil {
-		err = clues.Wrap(err, "deserializing item metadata")
+		err = clues.Wrap(err, "restoring file")
 		return details.ItemInfo{}, err
 	}
 
@@ -473,15 +464,11 @@ func restoreV2File(
 	// Get metadata file so we can determine the file name.
 	metaName := trimmedName + MetaFileSuffix
 
-	metaFile, err := fetcher.Fetch(ctx, metaName)
+	meta, err := fetchAndReadMetadata(ctx, fetcher, metaName)
 	if err != nil {
-		err = clues.Wrap(err, "getting item metadata")
+		err = clues.Wrap(err, "restoring file")
 		return details.ItemInfo{}, err
 	}
-
-	metaReader := metaFile.ToReader()
-	meta, err := getMetadata(metaReader)
-	metaReader.Close()
 
 	if err != nil {
 		err = clues.Wrap(err, "deserializing item metadata")
@@ -669,6 +656,29 @@ func restoreData(
 	}
 
 	return *newItem.GetId(), dii, nil
+}
+
+func fetchAndReadMetadata(
+	ctx context.Context,
+	fetcher fileFetcher,
+	metaName string,
+) (Metadata, error) {
+	metaFile, err := fetcher.Fetch(ctx, metaName)
+	if err != nil {
+		err = clues.Wrap(err, "getting item metadata").With("meta_file_name", metaName)
+		return Metadata{}, err
+	}
+
+	metaReader := metaFile.ToReader()
+	defer metaReader.Close()
+
+	meta, err := getMetadata(metaReader)
+	if err != nil {
+		err = clues.Wrap(err, "deserializing item metadata").With("meta_file_name", metaName)
+		return Metadata{}, err
+	}
+
+	return meta, nil
 }
 
 // getMetadata read and parses the metadata info for an item
