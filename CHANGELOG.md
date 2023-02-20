@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Show owner information when doing backup list in json format
 
+### Known Issues
+- Folders and Calendars with zero items and subfolders are not backed up.
+
 ## [v0.4.0] (alpha) - 2023-2-20
 
 ### Fixed
