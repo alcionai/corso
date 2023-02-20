@@ -57,10 +57,10 @@ func New(
 	se stats.StartAndEndTime,
 	errs *fault.Bus,
 ) *Backup {
-	errData := errs.Data()
+	errData := errs.Errors()
 
-	errCount := len(errs.Data().Errs)
-	if errData.Err != nil {
+	errCount := len(errs.Errors().Recovered)
+	if errData.Failure != nil {
 		errCount++
 	}
 
@@ -169,12 +169,12 @@ func (b Backup) countErrors() int {
 	}
 
 	// future tracking
-	if b.Errors.Err != nil || len(b.Errors.Errs) > 0 {
-		if b.Errors.Err != nil {
+	if b.Errors.Failure != nil || len(b.Errors.Recovered) > 0 {
+		if b.Errors.Failure != nil {
 			errCount++
 		}
 
-		errCount += len(b.Errors.Errs)
+		errCount += len(b.Errors.Recovered)
 	}
 
 	return errCount
