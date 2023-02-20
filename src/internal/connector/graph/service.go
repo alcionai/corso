@@ -307,7 +307,7 @@ func (handler *LoggingMiddleware) Intercept(
 		// special case for supportability: log all throttling cases.
 		if resp.StatusCode == http.StatusTooManyRequests {
 			logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
-		} else if resp.StatusCode/100 == 4 {
+		} else if resp.StatusCode == http.StatusBadRequest {
 			respDump, _ := httputil.DumpResponse(resp, true)
 			logger.Ctx(ctx).Infow(
 				"graph api error",
