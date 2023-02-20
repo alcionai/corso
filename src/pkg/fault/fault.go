@@ -32,12 +32,8 @@ type Bus struct {
 // controls, allowing the data to be persisted.
 type Errors struct {
 	Failure   error   `json:"failure"`
-	Recovered []error `json:"recovered"`
+	Recovered []error `json:"-"`
 	FailFast  bool    `json:"failFast"`
-
-	// legacy support
-	Err  error   `json:"err"`
-	Errs []error `json:"errs"`
 }
 
 // New constructs a new error with default values in place.
@@ -63,9 +59,9 @@ func (e *Bus) Recovered() []error {
 	return e.recoverable
 }
 
-// Data returns the plain record of errors that were aggregated
+// Errors returns the plain record of errors that were aggregated
 // within a fult Bus.
-func (e *Bus) Data() Errors {
+func (e *Bus) Errors() Errors {
 	return Errors{
 		Failure:   e.failure,
 		Recovered: slices.Clone(e.recoverable),

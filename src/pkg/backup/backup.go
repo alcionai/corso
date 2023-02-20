@@ -69,7 +69,7 @@ func New(
 		DetailsID:       detailsID,
 		Status:          status,
 		Selector:        selector,
-		Errors:          errs.Data(),
+		Errors:          errs.Errors(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		Version:         Version,
@@ -156,12 +156,12 @@ func (b Backup) errorCount() int {
 	}
 
 	// future tracking
-	if b.Errors.Err != nil || len(b.Errors.Errs) > 0 {
-		if b.Errors.Err != nil {
+	if b.Errors.Failure != nil || len(b.Errors.Recovered) > 0 {
+		if b.Errors.Failure != nil {
 			errCount++
 		}
 
-		errCount += len(b.Errors.Errs)
+		errCount += len(b.Errors.Recovered)
 	}
 
 	return errCount
