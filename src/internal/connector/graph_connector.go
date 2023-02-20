@@ -147,16 +147,6 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors
 	return nil
 }
 
-// GetUsers returns the email address of users within the tenant.
-func (gc *GraphConnector) GetUsers() []string {
-	return maps.Keys(gc.Users)
-}
-
-// GetUsersIds returns the M365 id for the user
-func (gc *GraphConnector) GetUsersIds() []string {
-	return maps.Values(gc.Users)
-}
-
 // setTenantSites queries the M365 to identify the sites in the
 // workspace. The sites field is updated during this method
 // iff the returned error is nil.
@@ -192,7 +182,7 @@ const personalSitePath = "sharepoint.com/personal/"
 func identifySite(item any) (string, string, error) {
 	m, ok := item.(models.Siteable)
 	if !ok {
-		return "", "", clues.New("iteration retrieved non-Site item").With("item_type", fmt.Sprintf("%T", item))
+		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
 	}
 
 	if m.GetName() == nil {
@@ -322,12 +312,12 @@ func getResources(
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving tenant's resources").
 			WithClues(ctx).
-			WithAll(graph.ErrData(err)...)
+			With(graph.ErrData(err)...)
 	}
 
 	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	callbackFunc := func(item any) bool {
@@ -352,7 +342,7 @@ func getResources(
 	}
 
 	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return resources, errs.Err()

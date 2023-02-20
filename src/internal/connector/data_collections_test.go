@@ -258,7 +258,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector.credentials,
 				connector.Service,
 				connector,
-				control.Options{})
+				control.Options{},
+				fault.New(true))
 			require.NoError(t, err)
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)

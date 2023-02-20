@@ -13,7 +13,7 @@ Microsoft 365 data. It provides a reliable, secure, and efficient data protectio
 the backup data and have the flexibility to perform backups of their desired service through an intuitive interface.
 As Corso evolves, it can become a great building block for more complex data protection workflows.
 
-**Corso is currently in ALPHA and should NOT be used in production.**
+**Corso is currently in Beta.**
 
 Corso supports M365 Exchange and OneDrive with SharePoint and Teams support in active development. Coverage for more
 services, possibly beyond M365, will expand based on the interest and needs of the community.
