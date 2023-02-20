@@ -26,7 +26,7 @@ type kopiaDataCollection struct {
 
 func (kdc *kopiaDataCollection) Items(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) <-chan data.Stream {
 	res := make(chan data.Stream)
 

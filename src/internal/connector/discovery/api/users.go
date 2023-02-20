@@ -86,7 +86,7 @@ func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
 }
 
 // GetAll retrieves all users.
-func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userable, error) {
+func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, error) {
 	service, err := c.service()
 	if err != nil {
 		return nil, err
@@ -110,17 +110,17 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 
 	var (
 		us = make([]models.Userable, 0)
-		et = errs.Tracker()
+		el = errs.Local()
 	)
 
 	iterator := func(item any) bool {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			return false
 		}
 
 		u, err := validateUser(item)
 		if err != nil {
-			et.Add(clues.Wrap(err, "validating user").WithClues(ctx).With(graph.ErrData(err)...))
+			el.AddRecoverable(clues.Wrap(err, "validating user").WithClues(ctx).With(graph.ErrData(err)...))
 		} else {
 			us = append(us, u)
 		}
@@ -132,7 +132,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 		return nil, clues.Wrap(err, "iterating all users").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return us, et.Err()
+	return us, el.Failure()
 }
 
 func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {

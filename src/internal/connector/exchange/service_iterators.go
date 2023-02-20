@@ -39,7 +39,7 @@ func filterContainersAndFillCollections(
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	var (
 		// folder ID -> delta url or folder path lookups
@@ -68,11 +68,11 @@ func filterContainersAndFillCollections(
 		return err
 	}
 
-	et := errs.Tracker()
+	el := errs.Local()
 
 	for _, c := range resolver.Items() {
-		if et.Err() != nil {
-			return et.Err()
+		if el.Failure() != nil {
+			return el.Failure()
 		}
 
 		cID := *c.GetId()
@@ -102,7 +102,7 @@ func filterContainersAndFillCollections(
 		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
-				et.Add(err)
+				el.AddRecoverable(err)
 				continue
 			}
 
@@ -157,12 +157,12 @@ func filterContainersAndFillCollections(
 	// in the `previousPath` set, but does not exist in the current container
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
-		if et.Err() != nil {
-			return et.Err()
+		if el.Failure() != nil {
+			return el.Failure()
 		}
 
 		if collections[id] != nil {
-			et.Add(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ctx))
+			el.AddRecoverable(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ctx))
 			continue
 		}
 
@@ -218,7 +218,7 @@ func filterContainersAndFillCollections(
 
 	collections["metadata"] = col
 
-	return et.Err()
+	return el.Failure()
 }
 
 // produces a set of id:path pairs from the deltapaths map.

@@ -47,7 +47,7 @@ const (
 func (ss *streamStore) WriteBackupDetails(
 	ctx context.Context,
 	backupDetails *details.Details,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (string, error) {
 	// construct the path of the container for the `details` item
 	p, err := path.Builder{}.
@@ -95,7 +95,7 @@ func (ss *streamStore) WriteBackupDetails(
 func (ss *streamStore) ReadBackupDetails(
 	ctx context.Context,
 	detailsID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	// construct the path for the `details` item
 	detailsPath, err := path.Builder{}.
@@ -195,7 +195,7 @@ func (dc *streamCollection) DoNotMergeItems() bool {
 
 // Items() always returns a channel with a single data.Stream
 // representing the object to be persisted
-func (dc *streamCollection) Items(context.Context, *fault.Errors) <-chan data.Stream {
+func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
 	items := make(chan data.Stream, 1)
 	defer close(items)
 	items <- dc.item

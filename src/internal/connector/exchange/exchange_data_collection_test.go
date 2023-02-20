@@ -30,7 +30,7 @@ type mockItemer struct {
 func (mi *mockItemer) GetItem(
 	context.Context,
 	string, string,
-	*fault.Errors,
+	*fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mi.getCount++
 	return nil, nil, mi.getErr

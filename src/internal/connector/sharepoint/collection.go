@@ -112,7 +112,7 @@ func (sc Collection) DoNotMergeItems() bool {
 
 func (sc *Collection) Items(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) <-chan data.Stream {
 	go sc.populate(ctx, errs)
 	return sc.data
@@ -183,7 +183,7 @@ func (sc *Collection) finishPopulation(
 }
 
 // populate utility function to retrieve data from back store for a given collection
-func (sc *Collection) populate(ctx context.Context, errs *fault.Errors) {
+func (sc *Collection) populate(ctx context.Context, errs *fault.Bus) {
 	var (
 		metrics numMetrics
 		writer  = kw.NewJsonSerializationWriter()
@@ -221,11 +221,11 @@ func (sc *Collection) retrieveLists(
 	ctx context.Context,
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (numMetrics, error) {
 	var (
 		metrics numMetrics
-		et      = errs.Tracker()
+		el      = errs.Local()
 	)
 
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
@@ -237,13 +237,13 @@ func (sc *Collection) retrieveLists(
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
-			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
+			el.AddRecoverable(clues.Wrap(err, "serializing list").WithClues(ctx))
 			continue
 		}
 
@@ -269,18 +269,18 @@ func (sc *Collection) retrieveLists(
 		}
 	}
 
-	return metrics, et.Err()
+	return metrics, el.Failure()
 }
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (numMetrics, error) {
 	var (
 		metrics numMetrics
-		et      = errs.Tracker()
+		el      = errs.Local()
 	)
 
 	betaService := sc.betaService
@@ -298,13 +298,13 @@ func (sc *Collection) retrievePages(
 	// Pageable objects are not supported in v1.0 of msgraph at this time.
 	// TODO: Verify Parsable interface supported with modified-Pageable
 	for _, pg := range pages {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		byteArray, err := serializeContent(wtr, pg)
 		if err != nil {
-			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
+			el.AddRecoverable(clues.Wrap(err, "serializing page").WithClues(ctx))
 			continue
 		}
 
@@ -324,7 +324,7 @@ func (sc *Collection) retrievePages(
 		}
 	}
 
-	return metrics, et.Err()
+	return metrics, el.Failure()
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {

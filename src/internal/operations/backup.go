@@ -101,7 +101,7 @@ type backupStats struct {
 }
 
 type detailsWriter interface {
-	WriteBackupDetails(context.Context, *details.Details, *fault.Errors) (string, error)
+	WriteBackupDetails(context.Context, *details.Details, *fault.Bus) (string, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			With("err", err).
 			Errorw("doing backup", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
-		opStats.readErr = op.Errors.Err()
+		opStats.readErr = op.Errors.Failure()
 	}
 
 	// -----
@@ -191,9 +191,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.persistResults(startTime, &opStats)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
-		opStats.writeErr = op.Errors.Err()
+		opStats.writeErr = op.Errors.Failure()
 
-		return op.Errors.Err()
+		return op.Errors.Failure()
 	}
 
 	err = op.createBackupModels(
@@ -204,9 +204,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup"))
-		opStats.writeErr = op.Errors.Err()
+		opStats.writeErr = op.Errors.Failure()
 
-		return op.Errors.Err()
+		return op.Errors.Failure()
 	}
 
 	logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
@@ -313,7 +313,7 @@ func produceBackupDataCollections(
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
@@ -337,7 +337,7 @@ type backuper interface {
 		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
 }
 
@@ -396,7 +396,7 @@ func consumeBackupDataCollections(
 	excludes map[string]struct{},
 	backupID model.StableID,
 	isIncremental bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
@@ -505,7 +505,7 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to
 	// merge.

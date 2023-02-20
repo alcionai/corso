@@ -96,7 +96,7 @@ func (c Events) GetContainerByID(
 func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
 		err   error
@@ -141,7 +141,7 @@ func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	service, err := c.service()
 	if err != nil {
@@ -164,7 +164,7 @@ func (c Events) EnumerateContainers(
 		for _, cal := range resp.GetValue() {
 			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
-				errs.Add(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
+				errs.AddRecoverable(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
 				continue
 			}
 
@@ -178,7 +178,7 @@ func (c Events) EnumerateContainers(
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
+				errs.AddRecoverable(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
 				continue
 			}
 		}
@@ -191,7 +191,7 @@ func (c Events) EnumerateContainers(
 		builder = users.NewItemCalendarsRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return errs.Failure()
 }
 
 // ---------------------------------------------------------------------------

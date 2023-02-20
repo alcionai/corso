@@ -257,8 +257,8 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	bups, ferrs := r.Backups(ctx, bIDs)
 	// TODO: print/log recoverable errors
-	if ferrs.Err() != nil {
-		return Only(ctx, errors.Wrap(ferrs.Err(), "Unable to retrieve backup results from storage"))
+	if ferrs.Failure() != nil {
+		return Only(ctx, errors.Wrap(ferrs.Failure(), "Unable to retrieve backup results from storage"))
 	}
 
 	backup.PrintAll(ctx, bups)
@@ -506,7 +506,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 // runDetailsSharePointCmd actually performs the lookup in backup details.
 // the fault.Errors return is always non-nil.  Callers should check if
-// errs.Err() == nil.
+// errs.Failure() == nil.
 func runDetailsSharePointCmd(
 	ctx context.Context,
 	r repository.BackupGetter,
@@ -519,12 +519,12 @@ func runDetailsSharePointCmd(
 
 	d, _, errs := r.BackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
-	if errs.Err() != nil {
-		if errors.Is(errs.Err(), data.ErrNotFound) {
+	if errs.Failure() != nil {
+		if errors.Is(errs.Failure(), data.ErrNotFound) {
 			return nil, errors.Errorf("no backup exists with the id %s", backupID)
 		}
 
-		return nil, errors.Wrap(errs.Err(), "Failed to get backup details in the repository")
+		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)

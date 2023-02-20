@@ -124,7 +124,7 @@ func (c Mail) GetContainerByID(
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
@@ -164,7 +164,7 @@ func (c Mail) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	service, err := c.service()
 	if err != nil {
@@ -190,7 +190,7 @@ func (c Mail) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(v, nil, nil)
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
+				errs.AddRecoverable(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
 				continue
 			}
 		}
@@ -203,7 +203,7 @@ func (c Mail) EnumerateContainers(
 		builder = users.NewItemMailFoldersDeltaRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return errs.Failure()
 }
 
 // ---------------------------------------------------------------------------

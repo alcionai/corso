@@ -134,7 +134,7 @@ func (md MetadataCollection) DoNotMergeItems() bool {
 
 func (md MetadataCollection) Items(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) <-chan data.Stream {
 	res := make(chan data.Stream)
 

@@ -38,7 +38,7 @@ type Backup struct {
 	Version int `json:"version"`
 
 	// Errors contains all errors aggregated during a backup operation.
-	Errors fault.ErrorsData `json:"errors"`
+	Errors fault.Errors `json:"errors"`
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.Errs // Deprecated, replaced with Errors.
@@ -55,7 +55,7 @@ func New(
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) *Backup {
 	return &Backup{
 		BaseModel: model.BaseModel{

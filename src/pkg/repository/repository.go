@@ -31,12 +31,12 @@ var ErrorRepoAlreadyExists = errors.New("a repository was already initialized wi
 // repository.
 type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors)
+	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	BackupDetails(
 		ctx context.Context,
 		backupID string,
-	) (*details.Details, *backup.Backup, *fault.Errors)
+	) (*details.Details, *backup.Backup, *fault.Bus)
 }
 
 type Repository interface {
@@ -298,7 +298,7 @@ func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Back
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
-func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Errors) {
+func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus) {
 	var (
 		bups []*backup.Backup
 		errs = fault.New(false)
@@ -308,7 +308,7 @@ func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backu
 	for _, id := range ids {
 		b, err := sw.GetBackup(ctx, id)
 		if err != nil {
-			errs.Add(clues.Stack(err).With("backup_id", id))
+			errs.AddRecoverable(clues.Stack(err).With("backup_id", id))
 		}
 
 		bups = append(bups, b)
@@ -327,7 +327,7 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 func (r repository) BackupDetails(
 	ctx context.Context,
 	backupID string,
-) (*details.Details, *backup.Backup, *fault.Errors) {
+) (*details.Details, *backup.Backup, *fault.Bus) {
 	sw := store.NewKopiaStore(r.modelStore)
 	errs := fault.New(false)
 

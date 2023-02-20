@@ -53,7 +53,7 @@ func generateAndRestoreItems(
 	howMany int,
 	dbf dataBuilderFunc,
 	opts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	items := make([]item, 0, howMany)
 

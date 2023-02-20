@@ -108,7 +108,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		newPaths map[string]string,
 		excluded map[string]struct{},
 		doNotMergeItems bool,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {

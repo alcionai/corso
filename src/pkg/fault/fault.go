@@ -6,21 +6,20 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type Errors struct {
+type Bus struct {
 	mu *sync.Mutex
 
-	// err identifies non-recoverable errors.  This includes
+	// failure identifies non-recoverable errors.  This includes
 	// non-start cases (ex: cannot connect to client), hard-
 	// stop issues (ex: credentials expired) or conscious exit
 	// cases (ex: iteration error + failFast config).
-	err error
+	failure error
 
-	// errs is the accumulation of recoverable or iterated
-	// errors.  Eg: if a process is retrieving N items, and
-	// 1 of the items fails to be retrieved, but the rest of
-	// them succeed, we'd expect to see 1 error added to this
-	// slice.
-	errs []error
+	// recoverable is the accumulation of recoverable errors
+	// Eg: if a process is retrieving N items, and 1 of the
+	// items fails to be retrieved, but the rest of them succeed,
+	// we'd expect to see 1 error added to this slice.
+	recoverable []error
 
 	// if failFast is true, the first errs addition will
 	// get promoted to the err value.  This signifies a
@@ -29,51 +28,60 @@ type Errors struct {
 	failFast bool
 }
 
-// ErrorsData provides the errors data alone, without sync
+// Errors provides the errors data alone, without sync
 // controls, allowing the data to be persisted.
-type ErrorsData struct {
-	Err      error   `json:"-"`
-	Errs     []error `json:"-"`
-	FailFast bool    `json:"failFast"`
+type Errors struct {
+	Failure   error   `json:"failure"`
+	Recovered []error `json:"recovered"`
+	FailFast  bool    `json:"failFast"`
+
+	// legacy support
+	Err  error   `json:"err"`
+	Errs []error `json:"errs"`
 }
 
 // New constructs a new error with default values in place.
-func New(failFast bool) *Errors {
-	return &Errors{
-		mu:       &sync.Mutex{},
-		errs:     []error{},
-		failFast: failFast,
+func New(failFast bool) *Bus {
+	return &Bus{
+		mu:          &sync.Mutex{},
+		recoverable: []error{},
+		failFast:    failFast,
 	}
 }
 
-// Err returns the primary error.  If not nil, this
+// Failure returns the primary error.  If not nil, this
 // indicates the operation exited prior to completion.
-func (e *Errors) Err() error {
-	return e.err
+func (e *Bus) Failure() error {
+	return e.failure
 }
 
-// Errs returns the slice of recoverable and
-// iterated errors.
-func (e *Errors) Errs() []error {
-	return e.errs
+// Recovered returns the slice of errors that occurred in
+// recoverable points of processing.  This is often during
+// iteration where a single failure (ex: retrieving an item),
+// doesn't require the entire process to end.
+func (e *Bus) Recovered() []error {
+	return e.recoverable
 }
 
-// Data returns the plain set of error data
-// without any sync properties.
-func (e *Errors) Data() ErrorsData {
-	return ErrorsData{
-		Err:      e.err,
-		Errs:     slices.Clone(e.errs),
-		FailFast: e.failFast,
+// Data returns the plain record of errors that were aggregated
+// within a fult Bus.
+func (e *Bus) Data() Errors {
+	return Errors{
+		Failure:   e.failure,
+		Recovered: slices.Clone(e.recoverable),
+		FailFast:  e.failFast,
 	}
 }
 
-// TODO: introduce Failer interface
-
-// Fail sets the non-recoverable error (ie: errors.err)
-// in the errors struct.  If a non-recoverable error is
-// already present, the error gets added to the errs slice.
-func (e *Errors) Fail(err error) *Errors {
+// Fail sets the non-recoverable error (ie: bus.failure)
+// in thebus.  If a failure error is already present,
+// the error gets added to the recoverable slice for
+// purposes of tracking.
+//
+// TODO: Return Data, not Bus.  The consumers of a failure
+// should care about the state of data, not the communication
+// pattern.
+func (e *Bus) Fail(err error) *Bus {
 	if err == nil {
 		return e
 	}
@@ -81,28 +89,33 @@ func (e *Errors) Fail(err error) *Errors {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.setErr(err)
+	return e.setFailure(err)
 }
 
-// setErr handles setting errors.err.  Sync locking gets
+// setErr handles setting bus.failure.  Sync locking gets
 // handled upstream of this call.
-func (e *Errors) setErr(err error) *Errors {
-	if e.err == nil {
-		e.err = err
+func (e *Bus) setFailure(err error) *Bus {
+	if e.failure == nil {
+		e.failure = err
 		return e
 	}
 
-	e.errs = append(e.errs, err)
+	// technically not a recoverable error: we're using the
+	// recoverable slice as an overflow container here to
+	// ensure everything is tracked.
+	e.recoverable = append(e.recoverable, err)
 
 	return e
 }
 
-// Add appends the error to the slice of recoverable and
-// iterated errors (ie: errors.errs).  If failFast is true,
-// the first Added error will get copied to errors.err,
-// causing the errors struct to identify as non-recoverably
-// failed.
-func (e *Errors) Add(err error) *Errors {
+// AddRecoverable appends the error to the slice of recoverable
+// errors (ie: bus.recoverable).  If failFast is true, the first
+// added error will get copied to bus.failure, causing the bus
+// to identify as non-recoverably failed.
+//
+// TODO: nil return, not Bus, since we don't want people to return
+// from errors.AddRecoverable().
+func (e *Bus) AddRecoverable(err error) *Bus {
 	if err == nil {
 		return e
 	}
@@ -110,44 +123,44 @@ func (e *Errors) Add(err error) *Errors {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.addErr(err)
+	return e.addRecoverableErr(err)
 }
 
 // addErr handles adding errors to errors.errs.  Sync locking
 // gets handled upstream of this call.
-func (e *Errors) addErr(err error) *Errors {
-	if e.err == nil && e.failFast {
-		e.setErr(err)
+func (e *Bus) addRecoverableErr(err error) *Bus {
+	if e.failure == nil && e.failFast {
+		e.setFailure(err)
 	}
 
-	e.errs = append(e.errs, err)
+	e.recoverable = append(e.recoverable, err)
 
 	return e
 }
 
 // ---------------------------------------------------------------------------
-// Iteration Tracker
+// Local aggregator
 // ---------------------------------------------------------------------------
 
-// Tracker constructs a new errors tracker for aggregating errors
-// in a single iteration loop.  Trackers shouldn't be passed down
-// to other funcs, and the function that spawned the tracker should
-// always return `tracker.Err()` to ensure that hard failures are
-// propagated upstream.
-func (e *Errors) Tracker() *tracker {
-	return &tracker{
-		mu:   &sync.Mutex{},
-		errs: e,
+// Local constructs a new local bus to handle error aggregation in a
+// constrained scope.  Local busses shouldn't be passed down  to other
+// funcs, and the function that spawned the local bus should always
+// return `local.Failure()` to ensure that hard failures are propagated
+// back upstream.
+func (e *Bus) Local() *localBus {
+	return &localBus{
+		mu:  &sync.Mutex{},
+		bus: e,
 	}
 }
 
-type tracker struct {
+type localBus struct {
 	mu      *sync.Mutex
-	errs    *Errors
+	bus     *Bus
 	current error
 }
 
-func (e *tracker) Add(err error) {
+func (e *localBus) AddRecoverable(err error) {
 	if err == nil {
 		return
 	}
@@ -155,17 +168,17 @@ func (e *tracker) Add(err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.errs.Err() == nil && e.errs.failFast {
+	if e.bus.Failure() == nil && e.bus.failFast {
 		e.current = err
 	}
 
-	e.errs.Add(err)
+	e.bus.AddRecoverable(err)
 }
 
-// Err returns the primary error in the tracker.  Will be nil if the
-// original Errors is set to bestEffort handling.  Does not return the
-// underlying Errors.Err().  Should be called as the return value of
-// any func which created a new tracker.
-func (e *tracker) Err() error {
+// Failure returns the failure that happened within the local bus.
+// It does not return the underlying bus.Failure(), only the failure
+// that was recorded within the local bus instance.  This error should
+// get returned by any func which created a local bus.
+func (e *localBus) Failure() error {
 	return e.current
 }

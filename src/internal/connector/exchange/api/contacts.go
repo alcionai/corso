@@ -72,7 +72,7 @@ func (c Contacts) DeleteContainer(
 func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
-	_ *fault.Errors, // no attachments to iterate over, so this goes unused
+	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
@@ -109,7 +109,7 @@ func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	service, err := c.service()
 	if err != nil {
@@ -138,12 +138,12 @@ func (c Contacts) EnumerateContainers(
 		}
 
 		for _, fold := range resp.GetValue() {
-			if errs.Err() != nil {
-				return errs.Err()
+			if errs.Failure() != nil {
+				return errs.Failure()
 			}
 
 			if err := checkIDAndName(fold); err != nil {
-				errs.Add(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
+				errs.AddRecoverable(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
 				continue
 			}
 
@@ -154,7 +154,7 @@ func (c Contacts) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
+				errs.AddRecoverable(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
 				continue
 			}
 		}
@@ -167,7 +167,7 @@ func (c Contacts) EnumerateContainers(
 		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return errs.Failure()
 }
 
 // ---------------------------------------------------------------------------
