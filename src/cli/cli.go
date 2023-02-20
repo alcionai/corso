@@ -42,7 +42,8 @@ func preRun(cc *cobra.Command, args []string) error {
 		return err
 	}
 
-	log := logger.Ctx(cc.Context())
+	ctx := cc.Context()
+	log := logger.Ctx(ctx)
 
 	flags := utils.GetPopulatedFlags(cc)
 	flagSl := make([]string, 0, len(flags))
@@ -55,8 +56,22 @@ func preRun(cc *cobra.Command, args []string) error {
 	avoidTheseCommands := []string{
 		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
 	}
+
 	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
-		print.Info(cc.Context(), "Logging to file: "+logger.LogFile)
+		print.Info(ctx, "Logging to file: "+logger.LogFile)
+	}
+
+	avoidTheseCommands = []string{
+		"help",
+	}
+
+	if !slices.Contains(avoidTheseCommands, cc.Use) {
+		s, acct, repoid, err := config.GetStorageRepoAndAccount(ctx)
+		if err != nil {
+			log.Debug(ctx, "Error while triggering event for ", cc.Use)
+		}
+
+		utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": cc.Use}, repoid, options.Control())
 	}
 
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())

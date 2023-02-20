@@ -182,12 +182,10 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create onedrive"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -285,12 +283,10 @@ func oneDriveListCmd() *cobra.Command {
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list onedrive"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -347,12 +343,10 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details onedrive"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -436,12 +430,10 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete onedrive"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {

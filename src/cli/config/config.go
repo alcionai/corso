@@ -222,12 +222,21 @@ func writeRepoConfigWithViper(vpr *viper.Viper,
 
 // GetStorageAndAccount creates a storage and account instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) and the config file.
+func GetStorageRepoAndAccount(
+	ctx context.Context,
+) (storage.Storage, account.Account, string, error) {
+	return getStorageAndAccountWithViper(GetViper(ctx), true, make(map[string]string))
+}
+
+// GetStorageAndAccount creates a storage and account instance by mediating all the possible
+// data sources (config file, env vars, flag overrides) and the config file.
 func GetStorageAndAccount(
 	ctx context.Context,
 	readFromFile bool,
 	overrides map[string]string,
-) (storage.Storage, account.Account, string, error) {
-	return getStorageAndAccountWithViper(GetViper(ctx), readFromFile, overrides)
+) (storage.Storage, account.Account, error) {
+	s, acc, _, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, overrides)
+	return s, acc, err
 }
 
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper

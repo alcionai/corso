@@ -259,12 +259,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create exchange"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -385,12 +383,10 @@ func exchangeListCmd() *cobra.Command {
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list exchange"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -467,12 +463,10 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "details exchange"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -547,12 +541,10 @@ func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete exchange"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {

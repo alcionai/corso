@@ -199,12 +199,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "create sharepoint"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -366,12 +364,10 @@ func sharePointListCmd() *cobra.Command {
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "list sharepoint"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -428,12 +424,10 @@ func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": "delete sharepoint"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {
@@ -474,18 +468,10 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(
-		ctx,
-		s,
-		acct.ID(),
-		map[string]any{"command": "details sharepoint"},
-		repoid,
-		options.Control())
 
 	r, err := repository.Connect(ctx, acct, s, options.Control())
 	if err != nil {

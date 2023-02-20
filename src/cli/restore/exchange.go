@@ -204,12 +204,10 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, a, repoid, err := config.GetStorageAndAccount(ctx, true, nil)
+	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "restore exchange"}, repoid, options.Control())
 
 	r, err := repository.Connect(ctx, a, s, options.Control())
 	if err != nil {

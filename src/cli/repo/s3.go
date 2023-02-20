@@ -109,7 +109,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, _, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
+	s, a, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -171,12 +171,10 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, repoid, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
+	s, a, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
-
-	utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "connect repo"}, repoid, options.Control())
 
 	s3Cfg, err := s.S3Config()
 	if err != nil {
