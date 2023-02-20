@@ -1,0 +1,56 @@
+name: Sanity Testing
+on:
+  schedule:
+    # every day at 01:59 (01:59am) UTC
+    # - cron: "59 1 * * *"
+    # temp, for testing: every 4 hours
+    - cron: "0 */4 * * *"
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Sanity-Tests:
+    environment: Sanity Testing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - run: make build
+
+      - run: mkdir test_results
+
+      # run the tests
+      - name: Sanity Test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+          # AWS_CORSO_BUCKET: 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+        run: |
+          set -euo pipefail
+          touch $TEST_RESULT/version.txt
+          output= ./corso repo connect s3 --hide-progress --bucket 'test-corso-neha'
+          if !( grep -q  "Connected to S3 bucket" output.txt ) ; then
+              echo "response"
+              exit 2
+          fi
