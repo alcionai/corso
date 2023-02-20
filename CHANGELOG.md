@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Show owner information when doing backup list in json format
+
 ## [v0.4.0] (alpha) - 2023-2-20
 
 ### Fixed
