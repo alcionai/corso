@@ -8,14 +8,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type PointerSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestPointerSuite(t *testing.T) {
-	suite.Run(t, new(PointerSuite))
+	s := &PointerSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 // TestVal checks to ptr derefencing for the

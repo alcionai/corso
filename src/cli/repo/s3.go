@@ -186,7 +186,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Connect(ctx, a, s, options.Control())
+	r, err := repository.ConnectAndSendConnectEvent(ctx, a, s, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to the S3 repository"))
 	}

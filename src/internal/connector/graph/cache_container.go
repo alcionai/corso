@@ -3,9 +3,12 @@ package graph
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -62,7 +65,7 @@ type ContainerResolver interface {
 	// @param ctx is necessary param for Graph API tracing
 	// @param baseFolderID represents the M365ID base that the resolver will
 	// conclude its search. Default input is "".
-	Populate(ctx context.Context, baseFolderID string, baseContainerPather ...string) error
+	Populate(ctx context.Context, errs *fault.Errors, baseFolderID string, baseContainerPather ...string) error
 
 	// PathInCache performs a look up of a path reprensentation
 	// and returns the m365ID of directory iff the pathString
@@ -170,19 +173,17 @@ func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable 
 // checkRequiredValues is a helper function to ensure that
 // all the pointers are set prior to being called.
 func CheckRequiredValues(c Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
+	id, ok := ptr.ValOK(c.GetId())
+	if !ok {
+		return errors.New("container missing ID")
 	}
 
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
+	if _, ok := ptr.ValOK(c.GetDisplayName()); !ok {
+		return clues.New("container missing display name").With("container_id", id)
 	}
 
-	ptr = c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *idPtr)
+	if _, ok := ptr.ValOK(c.GetParentFolderId()); !ok {
+		return clues.New("container missing parent ID").With("container_id", id)
 	}
 
 	return nil

@@ -234,14 +234,15 @@ func RestoreCollection(
 		restoreFolderElements,
 		parentPerms,
 		colPerms,
-		permissionIDMappings)
+		permissionIDMappings,
+	)
 	if err != nil {
 		errUpdater(directory.String(), errors.Wrapf(err, "failed to create folders %v", restoreFolderElements))
 		return metrics, folderPerms, permissionIDMappings, false
 	}
 
 	// Restore items from the collection
-	items := dc.Items()
+	items := dc.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 	for {
 		select {

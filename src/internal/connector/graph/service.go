@@ -4,9 +4,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/clues"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -14,15 +17,19 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
-	logGraphRequestsEnvKey = "LOG_GRAPH_REQUESTS"
-	numberOfRetries        = 3
+	logGraphRequestsEnvKey  = "LOG_GRAPH_REQUESTS"
+	numberOfRetries         = 3
+	retryAttemptHeader      = "Retry-Attempt"
+	retryAfterHeader        = "Retry-After"
+	defaultMaxRetries       = 3
+	defaultDelay            = 3 * time.Second
+	absoluteMaxDelaySeconds = 180
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -73,7 +80,7 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "writeObjecValue serialization")
+		return nil, errors.Wrap(err, "serializing object")
 	}
 
 	return writer.GetSerializedContent()
@@ -85,6 +92,11 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 
 type clientConfig struct {
 	noTimeout bool
+	// MaxRetries before failure
+	maxRetries int
+	// The minimum delay in seconds between retries
+	minDelay           time.Duration
+	overrideRetryCount bool
 }
 
 type option func(*clientConfig)
@@ -96,6 +108,21 @@ func (c *clientConfig) populate(opts ...option) *clientConfig {
 	}
 
 	return c
+}
+
+// apply updates the http.Client with the expected options.
+func (c *clientConfig) applyMiddlewareConfig() (retry int, delay time.Duration) {
+	retry = defaultMaxRetries
+	if c.overrideRetryCount {
+		retry = c.maxRetries
+	}
+
+	delay = defaultDelay
+	if c.minDelay > 0 {
+		delay = c.minDelay
+	}
+
+	return
 }
 
 // apply updates the http.Client with the expected options.
@@ -115,6 +142,19 @@ func NoTimeout() option {
 	}
 }
 
+func MaxRetries(max int) option {
+	return func(c *clientConfig) {
+		c.overrideRetryCount = true
+		c.maxRetries = max
+	}
+}
+
+func MinimumBackoff(dur time.Duration) option {
+	return func(c *clientConfig) {
+		c.minDelay = dur
+	}
+}
+
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
 // to create  *msgraphsdk.GraphServiceClient
@@ -122,7 +162,7 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating m365 client secret credentials")
+		return nil, errors.Wrap(err, "creating m365 client identity")
 	}
 
 	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
@@ -130,13 +170,15 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 		[]string{"https://graph.microsoft.com/.default"},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating new AzureIdentityAuthentication")
+		return nil, errors.Wrap(err, "creating azure authentication")
 	}
 
 	httpClient := HTTPClient(opts...)
 
 	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth, nil, nil, httpClient)
+		auth,
+		nil, nil,
+		httpClient)
 }
 
 // HTTPClient creates the httpClient with middlewares and timeout configured
@@ -147,16 +189,49 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 // can utilize it on a per-download basis.
 func HTTPClient(opts ...option) *http.Client {
 	clientOptions := msgraphsdk.GetDefaultClientOptions()
-	middlewares := msgraphgocore.GetDefaultMiddlewaresWithOptions(&clientOptions)
-	middlewares = append(middlewares, &LoggingMiddleware{})
+	clientconfig := (&clientConfig{}).populate(opts...)
+	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
+	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = time.Minute * 3
 
-	(&clientConfig{}).
-		populate(opts...).
-		apply(httpClient)
+	clientconfig.apply(httpClient)
 
 	return httpClient
+}
+
+// GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
+func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
+	return []khttp.Middleware{
+		&RetryHandler{
+			// The maximum number of times a request can be retried
+			MaxRetries: maxRetry,
+			// The delay in seconds between retries
+			Delay: delay,
+		},
+		khttp.NewRetryHandler(),
+		khttp.NewRedirectHandler(),
+		khttp.NewCompressionHandler(),
+		khttp.NewParametersNameDecodingHandler(),
+		khttp.NewUserAgentHandler(),
+		&LoggingMiddleware{},
+	}
+}
+
+// GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
+func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
+	maxRetry int, minDelay time.Duration,
+) []khttp.Middleware {
+	kiotaMiddlewares := GetMiddlewares(maxRetry, minDelay)
+	graphMiddlewares := []khttp.Middleware{
+		msgraphgocore.NewGraphTelemetryHandler(options),
+	}
+	graphMiddlewaresLen := len(graphMiddlewares)
+	resultMiddlewares := make([]khttp.Middleware, len(kiotaMiddlewares)+graphMiddlewaresLen)
+	copy(resultMiddlewares, graphMiddlewares)
+	copy(resultMiddlewares[graphMiddlewaresLen:], kiotaMiddlewares)
+
+	return resultMiddlewares
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +263,12 @@ func (handler *LoggingMiddleware) Intercept(
 		ctx       = req.Context()
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
+
+	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+		if strings.Contains(req.URL.String(), "users//") {
+			logger.Ctx(ctx).Errorw("malformed request url: missing user", "url", req.URL)
+		}
+	}
 
 	if resp == nil {
 		return resp, err
@@ -245,25 +326,36 @@ func (handler *LoggingMiddleware) Intercept(
 	return resp, err
 }
 
-// Run a function with retries
-func RunWithRetry(run func() error) error {
-	var err error
+// Intercept implements the interface and evaluates whether to retry a failed request.
+func (middleware RetryHandler) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	ctx := req.Context()
 
-	for i := 0; i < numberOfRetries; i++ {
-		err = run()
-		if err == nil {
-			return nil
-		}
-
-		// only retry on timeouts and 500-internal-errors.
-		if !(IsErrTimeout(err) || IsInternalServerError(err)) {
-			break
-		}
-
-		if i < numberOfRetries {
-			time.Sleep(time.Duration(3*(i+2)) * time.Second)
-		}
+	response, err := pipeline.Next(req, middlewareIndex)
+	if err != nil && !IsErrTimeout(err) {
+		return response, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
 	}
 
-	return support.ConnectorStackErrorTraceWrap(err, "maximum retries or unretryable")
+	exponentialBackOff := backoff.NewExponentialBackOff()
+	exponentialBackOff.InitialInterval = middleware.Delay
+	exponentialBackOff.Reset()
+
+	response, err = middleware.retryRequest(
+		ctx,
+		pipeline,
+		middlewareIndex,
+		req,
+		response,
+		0,
+		0,
+		exponentialBackOff,
+		err)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+	}
+
+	return response, nil
 }

@@ -214,7 +214,7 @@ func (ms ModelStore) baseModelFromMetadata(
 ) (*model.BaseModel, error) {
 	res := &model.BaseModel{}
 	if err := ms.populateBaseModelFromMetadata(res, m); err != nil {
-		return nil, clues.Stack(err).WithAll("metadata_id", m.ID, "metadata_modtime", m.ModTime)
+		return nil, clues.Stack(err).With("metadata_id", m.ID, "metadata_modtime", m.ModTime)
 	}
 
 	return res, nil
@@ -349,7 +349,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 	if mdlbl != s.String() {
 		return clues.Stack(errModelTypeMismatch).
 			WithClues(ctx).
-			WithAll("expected_label", s, "got_label", mdlbl)
+			With("expected_label", s, "got_label", mdlbl)
 	}
 
 	if err := ms.populateBaseModelFromMetadata(m.Base(), metadata); err != nil {
@@ -387,14 +387,14 @@ func (ms *ModelStore) checkPrevModelVersion(
 	if meta.ID != b.ModelStoreID {
 		return clues.New("updated model has different ModelStoreID").
 			WithClues(ctx).
-			WithAll("expected_id", meta.ID, "model_store_id", b.ModelStoreID)
+			With("expected_id", meta.ID, "model_store_id", b.ModelStoreID)
 	}
 
 	mdlbl := meta.Labels[manifest.TypeLabelKey]
 	if mdlbl != s.String() {
 		return clues.New("updated model has different model type").
 			WithClues(ctx).
-			WithAll("expected_label", s, "got_label", mdlbl)
+			With("expected_label", s, "got_label", mdlbl)
 	}
 
 	return nil

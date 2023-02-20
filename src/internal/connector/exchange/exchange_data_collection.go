@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -43,6 +45,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
+		errs *fault.Errors,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
@@ -124,8 +127,8 @@ func NewCollection(
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection) Items() <-chan data.Stream {
-	go col.streamItems(context.TODO())
+func (col *Collection) Items(ctx context.Context, errs *fault.Errors) <-chan data.Stream {
+	go col.streamItems(ctx, errs)
 	return col.data
 }
 
@@ -160,9 +163,8 @@ func (col Collection) DoNotMergeItems() bool {
 
 // streamItems is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the added field. data channel is closed by this function
-func (col *Collection) streamItems(ctx context.Context) {
+func (col *Collection) streamItems(ctx context.Context, errs *fault.Errors) {
 	var (
-		errs        error
 		success     int64
 		totalBytes  int64
 		wg          sync.WaitGroup
@@ -175,7 +177,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 	)
 
 	defer func() {
-		col.finishPopulation(ctx, int(success), totalBytes, errs)
+		col.finishPopulation(ctx, int(success), totalBytes, errs.Err())
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
@@ -222,17 +224,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 		}(id)
 	}
 
-	updaterMu := sync.Mutex{}
-	errUpdater := func(user string, err error) {
-		updaterMu.Lock()
-		defer updaterMu.Unlock()
-
-		errs = support.WrapAndAppend(user, err, errs)
-	}
-
 	// add any new items
 	for id := range col.added {
-		if col.ctrl.FailFast && errs != nil {
+		if errs.Err() != nil {
 			break
 		}
 
@@ -244,13 +238,12 @@ func (col *Collection) streamItems(ctx context.Context) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			var (
-				item serialization.Parsable
-				info *details.ExchangeInfo
-				err  error
-			)
-
-			item, info, err = getItemWithRetries(ctx, user, id, col.items)
+			item, info, err := getItemWithRetries(
+				ctx,
+				user,
+				id,
+				col.items,
+				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
 				// back up data that is gone. Record it as a "success", since there's
@@ -258,9 +251,9 @@ func (col *Collection) streamItems(ctx context.Context) {
 				// investigation upset.
 				if graph.IsErrDeletedInFlight(err) {
 					atomic.AddInt64(&success, 1)
-					log.Infow("item not found", "err", err)
+					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
 				} else {
-					errUpdater(user, support.ConnectorStackErrorTraceWrap(err, "fetching item"))
+					errs.Add(clues.Wrap(err, "fetching item"))
 				}
 
 				return
@@ -268,7 +261,7 @@ func (col *Collection) streamItems(ctx context.Context) {
 
 			data, err := col.items.Serialize(ctx, item, user, id)
 			if err != nil {
-				errUpdater(user, err)
+				errs.Add(clues.Wrap(err, "serializing item"))
 				return
 			}
 
@@ -298,41 +291,26 @@ func getItemWithRetries(
 	ctx context.Context,
 	userID, itemID string,
 	items itemer,
+	errs *fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	var (
-		item serialization.Parsable
-		info *details.ExchangeInfo
-		err  error
-	)
-
-	for i := 1; i <= numberOfRetries; i++ {
-		item, info, err = items.GetItem(ctx, userID, itemID)
-		if err == nil {
-			break
-		}
-
-		// If the data is no longer available just return here and chalk it up
-		// as a success. There's no reason to retry; it's gone  Let it go.
-		if graph.IsErrDeletedInFlight(err) {
-			return nil, nil, err
-		}
-
-		if i < numberOfRetries {
-			time.Sleep(time.Duration(3*(i+1)) * time.Second)
-		}
-	}
-
+	item, info, err := items.GetItem(ctx, userID, itemID, errs)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return item, info, err
+	return item, info, nil
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
-func (col *Collection) finishPopulation(ctx context.Context, success int, totalBytes int64, errs error) {
+func (col *Collection) finishPopulation(
+	ctx context.Context,
+	success int,
+	totalBytes int64,
+	err error,
+) {
 	close(col.data)
+
 	attempted := len(col.added) + len(col.removed)
 	status := support.CreateStatus(ctx,
 		support.Backup,
@@ -342,9 +320,11 @@ func (col *Collection) finishPopulation(ctx context.Context, success int, totalB
 			Successes:  success,
 			TotalBytes: totalBytes,
 		},
-		errs,
+		err,
 		col.fullPath.Folder(false))
+
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+
 	col.statusUpdater(status)
 }
 

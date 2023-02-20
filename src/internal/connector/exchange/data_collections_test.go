@@ -178,7 +178,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NotFoundRestoreCollection{Collection: coll},
-			})
+			}, fault.New(true))
 			test.expectError(t, err)
 
 			emails := cdps[path.EmailCategory]
@@ -353,7 +353,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NotFoundRestoreCollection{Collection: metadata},
-			})
+			}, fault.New(true))
 			require.NoError(t, err)
 
 			dps := cdps[test.scope.Category().PathType()]
@@ -422,7 +422,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	for _, edc := range collections {
 		t.Run(edc.FullPath().String(), func(t *testing.T) {
 			isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
-			streamChannel := edc.Items()
+			streamChannel := edc.Items(ctx, fault.New(true))
 
 			// Verify that each message can be restored
 			for stream := range streamChannel {
@@ -494,7 +494,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
 				count := 0
 
-				for stream := range edc.Items() {
+				for stream := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					read, err := buf.ReadFrom(stream.ToReader())
 					assert.NoError(t, err)
@@ -554,7 +554,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		return nil
 	}
 
-	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn))
+	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true)))
 
 	tests := []struct {
 		name, expected string
@@ -606,7 +606,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 					assert.Equal(t, "", edc.FullPath().Folder(false))
 				}
 
-				for item := range edc.Items() {
+				for item := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 
 					read, err := buf.ReadFrom(item.ToReader())

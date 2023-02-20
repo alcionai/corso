@@ -33,11 +33,11 @@ func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
 // unit tests
 // ---------------
 type WrapperUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestWrapperUnitSuite(t *testing.T) {
-	suite.Run(t, new(WrapperUnitSuite))
+	suite.Run(t, &WrapperUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
@@ -55,20 +55,17 @@ func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
 // integration tests that use kopia
 // ---------------
 type WrapperIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestWrapperIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoKopiaWrapperTests)
-
-	suite.Run(t, new(WrapperIntegrationSuite))
-}
-
-func (suite *WrapperIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs)
+	suite.Run(t, &WrapperIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs},
+			tester.CorsoKopiaWrapperTests,
+		),
+	})
 }
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
@@ -296,9 +293,11 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
+
+			t := suite.T()
 
 			k, err := openKopiaRepo(t, ctx)
 			require.NoError(t, err)

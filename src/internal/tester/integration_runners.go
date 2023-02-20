@@ -52,7 +52,7 @@ func RunOnAny(t *testing.T, tests ...string) {
 
 	if l == 0 {
 		t.Skipf(
-			"one or more env vars mus be flagged to run this test: %v",
+			"one or more env vars must be flagged to run this test: %v",
 			strings.Join(tests, ", "))
 	}
 }

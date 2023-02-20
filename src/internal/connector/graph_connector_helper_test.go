@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -147,6 +148,16 @@ func testElementsMatch[T any](
 	)
 }
 
+type configInfo struct {
+	acct           account.Account
+	opts           control.Options
+	resource       resource
+	service        path.ServiceType
+	tenant         string
+	resourceOwners []string
+	dest           control.RestoreDestination
+}
+
 type itemInfo struct {
 	// lookupKey is a string that can be used to find this data from a set of
 	// other data in the same collection. This key should be something that will
@@ -185,6 +196,8 @@ type restoreBackupInfoMultiVersion struct {
 	collectionsLatest   []colInfo
 	collectionsPrevious []colInfo
 	resource            resource
+	backupVersion       int
+	countMeta           bool
 }
 
 func attachmentEqual(
@@ -730,7 +743,6 @@ func compareOneDriveItem(
 		return
 	}
 
-	assert.Equal(t, len(expectedMeta.Permissions), len(itemMeta.Permissions), "number of permissions after restore")
 	testElementsMatch(t, expectedMeta.Permissions, itemMeta.Permissions, permissionEqual)
 }
 
@@ -788,13 +800,16 @@ func checkHasCollections(
 	assert.ElementsMatch(t, expectedNames, gotNames)
 }
 
+//revive:disable:context-as-argument
 func checkCollections(
 	t *testing.T,
+	ctx context.Context,
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
 	restorePermissions bool,
 ) int {
+	//revive:enable:context-as-argument
 	collectionsWithItems := []data.BackupCollection{}
 
 	skipped := 0
@@ -809,7 +824,7 @@ func checkCollections(
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
-		for item := range returned.Items() {
+		for item := range returned.Items(ctx, fault.New(true)) {
 			// Skip metadata collections as they aren't directly related to items to
 			// backup. Don't add them to the item count either since the item count
 			// is for actual pull items.
@@ -999,6 +1014,7 @@ func collectionsForInfo(
 	tenant, user string,
 	dest control.RestoreDestination,
 	allInfo []colInfo,
+	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
 	collections := make([]data.RestoreCollection, 0, len(allInfo))
 	expectedData := make(map[string]map[string][]byte, len(allInfo))
@@ -1031,7 +1047,7 @@ func collectionsForInfo(
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
 			// We do not count metadata files against item count
-			if service != path.OneDriveService ||
+			if backupVersion == 0 || service != path.OneDriveService ||
 				(service == path.OneDriveService &&
 					strings.HasSuffix(info.items[i].name, onedrive.DataFileSuffix)) {
 				totalItems++
@@ -1054,55 +1070,6 @@ func collectionsForInfo(
 	return totalItems, kopiaEntries, collections, expectedData
 }
 
-func collectionsForInfoVersion0(
-	t *testing.T,
-	service path.ServiceType,
-	tenant, user string,
-	dest control.RestoreDestination,
-	allInfo []colInfo,
-) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
-	collections := make([]data.RestoreCollection, 0, len(allInfo))
-	expectedData := make(map[string]map[string][]byte, len(allInfo))
-	totalItems := 0
-	kopiaEntries := 0
-
-	for _, info := range allInfo {
-		pth := mustToDataLayerPath(
-			t,
-			service,
-			tenant,
-			user,
-			info.category,
-			info.pathElements,
-			false,
-		)
-		c := mockconnector.NewMockExchangeCollection(pth, pth, len(info.items))
-		baseDestPath := backupOutputPathFromRestore(t, dest, pth)
-
-		baseExpected := expectedData[baseDestPath.String()]
-		if baseExpected == nil {
-			expectedData[baseDestPath.String()] = make(map[string][]byte, len(info.items))
-			baseExpected = expectedData[baseDestPath.String()]
-		}
-
-		for i := 0; i < len(info.items); i++ {
-			c.Names[i] = info.items[i].name
-			c.Data[i] = info.items[i].data
-
-			baseExpected[info.items[i].lookupKey] = info.items[i].data
-		}
-
-		collections = append(collections, data.NotFoundRestoreCollection{
-			Collection: c,
-		})
-		totalItems += len(info.items)
-		kopiaEntries += len(info.items)
-	}
-
-	return totalItems, kopiaEntries, collections, expectedData
-}
-
-//nolint:deadcode
 func getSelectorWith(
 	t *testing.T,
 	service path.ServiceType,

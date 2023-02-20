@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -31,10 +32,6 @@ const (
 
 	// TODO: Tune this later along with collectionChannelBufferSize
 	urlPrefetchChannelBufferSize = 5
-
-	// Max number of retries to get doc from M365
-	// Seems to timeout at times because of multiple requests
-	maxRetries = 4 // 1 + 3 retries
 
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
@@ -142,8 +139,11 @@ func (oc *Collection) Add(item models.DriveItemable) {
 }
 
 // Items() returns the channel containing M365 Exchange objects
-func (oc *Collection) Items() <-chan data.Stream {
-	go oc.populateItems(context.Background())
+func (oc *Collection) Items(
+	ctx context.Context,
+	errs *fault.Errors, // TODO: currently unused while onedrive isn't up to date with clues/fault
+) <-chan data.Stream {
+	go oc.populateItems(ctx)
 	return oc.data
 }
 
@@ -153,6 +153,11 @@ func (oc *Collection) FullPath() path.Path {
 
 func (oc Collection) PreviousPath() path.Path {
 	return oc.prevPath
+}
+
+func (oc *Collection) SetFullPath(curPath path.Path) {
+	oc.folderPath = curPath
+	oc.state = data.StateOf(oc.prevPath, curPath)
 }
 
 func (oc Collection) State() data.CollectionState {
@@ -295,10 +300,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					itemMeta = io.NopCloser(strings.NewReader("{}"))
 					itemMetaSize = 2
 				} else {
-					err = graph.RunWithRetry(func() error {
-						itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
-						return err
-					})
+					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
 
 					if err != nil {
 						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
@@ -333,38 +335,18 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						err      error
 					)
 
-					for i := 1; i <= maxRetries; i++ {
-						_, itemData, err = oc.itemReader(oc.itemClient, item)
-						if err == nil {
-							break
+					_, itemData, err = oc.itemReader(oc.itemClient, item)
+
+					if err != nil && graph.IsErrUnauthorized(err) {
+						// assume unauthorized requests are a sign of an expired
+						// jwt token, and that we've overrun the available window
+						// to download the actual file.  Re-downloading the item
+						// will refresh that download url.
+						di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
+						if diErr != nil {
+							err = errors.Wrap(diErr, "retrieving expired item")
 						}
-
-						if graph.IsErrUnauthorized(err) {
-							// assume unauthorized requests are a sign of an expired
-							// jwt token, and that we've overrun the available window
-							// to download the actual file.  Re-downloading the item
-							// will refresh that download url.
-							di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
-							if diErr != nil {
-								err = errors.Wrap(diErr, "retrieving expired item")
-								break
-							}
-
-							item = di
-
-							continue
-
-						} else if !graph.IsErrTimeout(err) &&
-							!graph.IsInternalServerError(err) {
-							// Don't retry for non-timeout, on-unauth, as
-							// we are already retrying it in the default
-							// retry middleware
-							break
-						}
-
-						if i < maxRetries {
-							time.Sleep(1 * time.Second)
-						}
+						item = di
 					}
 
 					// check for errors following retries

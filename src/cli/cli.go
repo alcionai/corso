@@ -62,7 +62,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	avoidTheseCommands = []string{
-		"help",
+		"help", "init",
 	}
 
 	if !slices.Contains(avoidTheseCommands, cc.Use) {
