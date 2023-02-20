@@ -344,6 +344,13 @@ func (c *Collections) Get(
 		folderPaths[driveID] = map[string]string{}
 		maps.Copy(folderPaths[driveID], paths)
 
+		logger.Ctx(ctx).Infow(
+			"persisted metadata for drive",
+			"num_paths_entries",
+			len(paths),
+			"num_deltas_entries",
+			numDeltas)
+
 		if !delta.Reset {
 			maps.Copy(excludedItems, excluded)
 			continue
