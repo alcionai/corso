@@ -4,21 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 // ---------------------------------------------------------------------------
 // interfaces
 // ---------------------------------------------------------------------------
-
-type getAller interface {
-	GetAll(context.Context, *fault.Bus) ([]models.Userable, error)
-}
 
 type getter interface {
 	GetByID(context.Context, string) (models.Userable, error)
@@ -38,8 +36,22 @@ type getWithInfoer interface {
 // ---------------------------------------------------------------------------
 
 // Users fetches all users in the tenant.
-func Users(ctx context.Context, ga getAller, errs *fault.Bus) ([]models.Userable, error) {
-	return ga.GetAll(ctx, errs)
+func Users(
+	ctx context.Context,
+	acct account.Account,
+	errs *fault.Bus,
+) ([]models.Userable, error) {
+	m365, err := acct.M365Config()
+	if err != nil {
+		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
+	}
+
+	client, err := api.NewClient(m365)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	return client.Users().GetAll(ctx, errs)
 }
 
 func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userable, *api.UserInfo, error) {
