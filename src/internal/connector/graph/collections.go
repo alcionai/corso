@@ -51,22 +51,30 @@ func BaseCollections(
 	service path.ServiceType,
 	categories map[path.CategoryType]struct{},
 	su support.StatusUpdater,
-	errs *fault.Errors,
-) ([]data.BackupCollection, *fault.Errors) {
-	res := []data.BackupCollection{}
+) ([]data.BackupCollection, error) {
+	var (
+		errs = []error{}
+		res  = []data.BackupCollection{}
+	)
 
 	for cat := range categories {
 		p, err := path.Builder{}.Append("tmp").ToDataLayerPath(tenant, user, service, cat, false)
 		if err != nil {
 			// Shouldn't happen.
-			errs.Fail(clues.Wrap(err, "making path").WithAll("service", service, "category", cat))
+			errs = append(
+				errs,
+				clues.Wrap(err, "making path").WithAll("service", service, "category", cat))
+
 			continue
 		}
 
 		p, err = p.Dir()
 		if err != nil {
 			// Shouldn't happen.
-			errs.Fail(clues.Wrap(err, "getting base prefix").WithAll("serivce", service, "category", cat))
+			errs = append(
+				errs,
+				clues.Wrap(err, "getting base prefix").WithAll("serivce", service, "category", cat))
+
 			continue
 		}
 
@@ -74,5 +82,5 @@ func BaseCollections(
 		res = append(res, emptyCollection{p: p, su: su})
 	}
 
-	return res, errs
+	return res, clues.Stack(errs...)
 }

@@ -235,20 +235,18 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		categories[scope.Category().PathType()] = struct{}{}
 	}
 
-	ferrs := fault.New(true)
 	baseCols, baseErrs := graph.BaseCollections(
 		gc.credentials.AzureTenantID,
 		user,
 		path.OneDriveService,
 		categories,
-		gc.UpdateStatus,
-		ferrs)
+		gc.UpdateStatus)
 
-	if baseErrs.Err() != nil {
-		errs = support.WrapAndAppend(user, ferrs.Err(), errs)
-	} else {
-		collections = append(collections, baseCols...)
+	if baseErrs != nil {
+		errs = support.WrapAndAppend(user, baseErrs, errs)
 	}
+
+	collections = append(collections, baseCols...)
 
 	for _, c := range collections {
 		if c.State() != data.DeletedState {

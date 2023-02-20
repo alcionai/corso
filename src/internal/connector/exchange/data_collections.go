@@ -216,13 +216,12 @@ func DataCollections(
 		user,
 		path.ExchangeService,
 		categories,
-		su,
-		errs)
-	if baseErrs.Err() != nil {
-		errs.Add(baseErrs.Err())
-	} else {
-		collections = append(collections, baseCols...)
+		su)
+	if baseErrs != nil {
+		return collections, nil, baseErrs
 	}
+
+	collections = append(collections, baseCols...)
 
 	return collections, nil, et.Err()
 }

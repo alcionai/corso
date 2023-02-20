@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -116,20 +115,18 @@ func DataCollections(
 		categories[scope.Category().PathType()] = struct{}{}
 	}
 
-	ferrs := fault.New(true)
 	baseCols, baseErrs := graph.BaseCollections(
 		creds.AzureTenantID,
 		site,
 		path.SharePointService,
 		categories,
-		su.UpdateStatus,
-		ferrs)
+		su.UpdateStatus)
 
-	if baseErrs.Err() != nil {
-		errs = support.WrapAndAppend(site, ferrs.Err(), errs)
-	} else {
-		collections = append(collections, baseCols...)
+	if baseErrs != nil {
+		return collections, nil, support.WrapAndAppend(site, baseErrs, errs)
 	}
+
+	collections = append(collections, baseCols...)
 
 	return collections, nil, et.Err()
 }
