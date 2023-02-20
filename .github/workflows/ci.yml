@@ -501,7 +501,7 @@ jobs:
 
       # deploy the image
       - name: Build image and push to GitHub Container Registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v3
         with:
           context: .
           file: ./build/Dockerfile

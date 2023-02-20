@@ -800,13 +800,16 @@ func checkHasCollections(
 	assert.ElementsMatch(t, expectedNames, gotNames)
 }
 
+//revive:disable:context-as-argument
 func checkCollections(
 	t *testing.T,
+	ctx context.Context,
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
 	restorePermissions bool,
 ) int {
+	//revive:enable:context-as-argument
 	collectionsWithItems := []data.BackupCollection{}
 
 	skipped := 0
@@ -821,7 +824,7 @@ func checkCollections(
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
-		for item := range returned.Items() {
+		for item := range returned.Items(ctx, fault.New(true)) {
 			// Skip metadata collections as they aren't directly related to items to
 			// backup. Don't add them to the item count either since the item count
 			// is for actual pull items.

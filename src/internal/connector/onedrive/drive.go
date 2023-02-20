@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
@@ -126,7 +127,7 @@ func drives(
 
 		drives = append(drives, tmp...)
 
-		nextLink := gapi.NextLink(page)
+		nextLink := ptr.Val(page.GetOdataNextLink())
 		if len(nextLink) == 0 {
 			break
 		}

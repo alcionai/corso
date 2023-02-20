@@ -1,10 +1,9 @@
 package sharepoint
 
 import (
-	"time"
-
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -12,25 +11,11 @@ import (
 // List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
 func sharePointListInfo(lst models.Listable, size int64) *details.SharePointInfo {
 	var (
-		name, webURL      string
-		created, modified time.Time
+		name     = ptr.Val(lst.GetDisplayName())
+		webURL   = ptr.Val(lst.GetWebUrl())
+		created  = ptr.Val(lst.GetCreatedDateTime())
+		modified = ptr.Val(lst.GetLastModifiedDateTime())
 	)
-
-	if lst.GetDisplayName() != nil {
-		name = *lst.GetDisplayName()
-	}
-
-	if lst.GetWebUrl() != nil {
-		webURL = *lst.GetWebUrl()
-	}
-
-	if lst.GetCreatedDateTime() != nil {
-		created = *lst.GetCreatedDateTime()
-	}
-
-	if lst.GetLastModifiedDateTime() != nil {
-		modified = *lst.GetLastModifiedDateTime()
-	}
 
 	return &details.SharePointInfo{
 		ItemType: details.SharePointItem,

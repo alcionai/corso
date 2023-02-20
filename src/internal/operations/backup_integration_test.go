@@ -146,8 +146,7 @@ func runAndCheckBackup(
 		Completed,
 		bo.Status,
 		"backup status should be Completed, got %s",
-		bo.Status,
-	)
+		bo.Status)
 	require.Less(t, 0, bo.Results.ItemsWritten)
 
 	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
@@ -257,7 +256,7 @@ func checkMetadataFilesExist(
 			for _, col := range cols {
 				itemNames := []string{}
 
-				for item := range col.Items() {
+				for item := range col.Items(ctx, fault.New(true)) {
 					assert.Implements(t, (*data.StreamSize)(nil), item)
 
 					s := item.(data.StreamSize)

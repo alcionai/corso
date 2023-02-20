@@ -128,7 +128,7 @@ func deserializeMetadata(
 	prevFolders := map[string]map[string]string{}
 
 	for _, col := range cols {
-		items := col.Items()
+		items := col.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 		for breakLoop := false; !breakLoop; {
 			select {
@@ -295,6 +295,18 @@ func (c *Collections) Get(
 		prevDelta := prevDeltas[driveID]
 		oldPaths := oldPathsByDriveID[driveID]
 
+		numOldDelta := 0
+		if len(prevDelta) > 0 {
+			numOldDelta++
+		}
+
+		logger.Ctx(ctx).Infow(
+			"previous metadata for drive",
+			"num_paths_entries",
+			len(oldPaths),
+			"num_deltas_entries",
+			numOldDelta)
+
 		delta, paths, excluded, err := collectItems(
 			ctx,
 			c.itemPagerFunc(
@@ -312,6 +324,9 @@ func (c *Collections) Get(
 			return nil, nil, err
 		}
 
+		// Used for logging below.
+		numDeltas := 0
+
 		// It's alright to have an empty folders map (i.e. no folders found) but not
 		// an empty delta token. This is because when deserializing the metadata we
 		// remove entries for which there is no corresponding delta token/folder. If
@@ -319,6 +334,7 @@ func (c *Collections) Get(
 		// for collections when not actually getting delta results.
 		if len(delta.URL) > 0 {
 			deltaURLs[driveID] = delta.URL
+			numDeltas++
 		}
 
 		// Avoid the edge case where there's no paths but we do have a valid delta
@@ -329,6 +345,13 @@ func (c *Collections) Get(
 		maps.Copy(folderPaths[driveID], paths)
 
 		maps.Copy(excludedItems, excluded)
+
+		logger.Ctx(ctx).Infow(
+			"persisted metadata for drive",
+			"num_paths_entries",
+			len(paths),
+			"num_deltas_entries",
+			numDeltas)
 	}
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
@@ -505,7 +528,7 @@ func (c *Collections) UpdateCollections(
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 				if err != nil {
-					return clues.Wrap(err, "invalid previous path").WithAll("path_string", prevPathStr)
+					return clues.Wrap(err, "invalid previous path").With("path_string", prevPathStr)
 				}
 			}
 
@@ -617,7 +640,7 @@ func (c *Collections) UpdateCollections(
 				if ok {
 					prevCollectionPath, err = path.FromDataLayerPath(prevCollectionPathStr, false)
 					if err != nil {
-						return clues.Wrap(err, "invalid previous path").WithAll("path_string", prevCollectionPathStr)
+						return clues.Wrap(err, "invalid previous path").With("path_string", prevCollectionPathStr)
 					}
 				}
 

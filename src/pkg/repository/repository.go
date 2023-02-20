@@ -89,7 +89,7 @@ func Initialize(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
@@ -157,7 +157,7 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
