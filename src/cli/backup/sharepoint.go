@@ -303,13 +303,13 @@ func sharePointBackupCreateSelectors(
 
 	for _, site := range sites {
 		if site == utils.Wildcard {
-			return handleWildCard(cats), nil
+			return includeAllSitesWithCategories(cats), nil
 		}
 	}
 
 	for _, wURL := range weburls {
 		if wURL == utils.Wildcard {
-			return handleWildCard(cats), nil
+			return includeAllSitesWithCategories(cats), nil
 		}
 	}
 
@@ -322,27 +322,23 @@ func sharePointBackupCreateSelectors(
 	}
 
 	sel := selectors.NewSharePointBackup(union)
-	if len(cats) == 0 {
-		sel.Include(sel.AllData())
-
-		return sel, nil
-	}
 
 	return addCategories(sel, cats), nil
 }
 
-func handleWildCard(categories []string) *selectors.SharePointBackup {
-	sel := selectors.NewSharePointBackup(selectors.Any())
-	if len(categories) == 0 {
-		sel.Include(sel.AllData())
-	} else {
-		sel = addCategories(sel, categories)
-	}
+func includeAllSitesWithCategories(categories []string) *selectors.SharePointBackup {
+	sel := addCategories(
+		selectors.NewSharePointBackup(selectors.Any()),
+		categories)
 
 	return sel
 }
 
 func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
+	if len(cats) == 0 {
+		sel.Include(sel.AllData())
+	}
+
 	for _, d := range cats {
 		switch d {
 		case dataLibraries:
