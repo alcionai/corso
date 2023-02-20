@@ -14,7 +14,7 @@ Below is a list of known Corso issues and limitations:
 
 * Restoration of Nested attachments within Exchange Mail or Calendars aren't yet supported.
 
-* Folders and Calendars containing zero items or subfolders are not included in the backup.
+* Folders and Calendars containing zero items or subfolders aren't included in the backup.
 
 * Provides no guarantees about whether data moved, added, or deleted in M365
   while a backup is being created will be included in the running backup.
