@@ -38,7 +38,7 @@ func DataCollections(
 	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
@@ -46,7 +46,7 @@ func DataCollections(
 	}
 
 	var (
-		et          = errs.Tracker()
+		el          = errs.Local()
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]struct{}{}
@@ -54,7 +54,7 @@ func DataCollections(
 
 	// for each scope that includes oneDrive items, get all
 	for _, scope := range odb.Scopes() {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -72,7 +72,7 @@ func DataCollections(
 
 		odcs, excludes, err := nc.Get(ctx, metadata, errs)
 		if err != nil {
-			et.Add(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
 
 		collections = append(collections, odcs...)
@@ -80,5 +80,5 @@ func DataCollections(
 		maps.Copy(allExcludes, excludes)
 	}
 
-	return collections, allExcludes, et.Err()
+	return collections, allExcludes, el.Failure()
 }

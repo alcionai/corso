@@ -288,7 +288,7 @@ func reduce[T scopeT, C categoryT](
 	deets *details.Details,
 	s Selector,
 	dataCategories map[path.CategoryType]C,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) *details.Details {
 	ctx, end := D.Span(ctx, "selectors:reduce")
 	defer end()
@@ -314,7 +314,7 @@ func reduce[T scopeT, C categoryT](
 	for _, ent := range deets.Items() {
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "transforming repoRef to path").WithClues(ctx))
+			errs.AddRecoverable(clues.Wrap(err, "transforming repoRef to path").WithClues(ctx))
 			continue
 		}
 
@@ -326,7 +326,7 @@ func reduce[T scopeT, C categoryT](
 		if len(ent.LocationRef) > 0 {
 			pb, err := path.Builder{}.SplitUnescapeAppend(ent.LocationRef)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
+				errs.AddRecoverable(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
 				continue
 			}
 
@@ -338,7 +338,7 @@ func reduce[T scopeT, C categoryT](
 					repoPath.Category(),
 					true)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
+				errs.AddRecoverable(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
 				continue
 			}
 		}

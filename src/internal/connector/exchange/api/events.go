@@ -96,7 +96,7 @@ func (c Events) GetContainerByID(
 func (c Events) GetItem(
 	ctx context.Context,
 	user, itemID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
 		err   error
@@ -141,7 +141,7 @@ func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	service, err := c.service()
 	if err != nil {
@@ -153,11 +153,11 @@ func (c Events) EnumerateContainers(
 		return clues.Wrap(err, "setting calendar options").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	et := errs.Tracker()
+	el := errs.Local()
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -167,13 +167,13 @@ func (c Events) EnumerateContainers(
 		}
 
 		for _, cal := range resp.GetValue() {
-			if et.Err() != nil {
+			if el.Failure() != nil {
 				break
 			}
 
 			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
-				et.Add(clues.Stack(err).
+				el.AddRecoverable(clues.Stack(err).
 					WithClues(ctx).
 					With(graph.ErrData(err)...).
 					Label(fault.LabelForceNoBackupCreation))
@@ -191,7 +191,7 @@ func (c Events) EnumerateContainers(
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
 			if err := fn(temp); err != nil {
-				et.Add(clues.Stack(err).
+				el.AddRecoverable(clues.Stack(err).
 					WithClues(fctx).
 					With(graph.ErrData(err)...).
 					Label(fault.LabelForceNoBackupCreation))
@@ -208,7 +208,7 @@ func (c Events) EnumerateContainers(
 		builder = users.NewItemCalendarsRequestBuilder(link, service.Adapter())
 	}
 
-	return et.Err()
+	return el.Failure()
 }
 
 // ---------------------------------------------------------------------------

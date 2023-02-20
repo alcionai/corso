@@ -41,7 +41,7 @@ func stubBackup(t time.Time) backup.Backup {
 		DetailsID:    "details",
 		Status:       "status",
 		Selector:     sel.Selector,
-		Errors: fault.ErrorsData{
+		Errors: fault.Errors{
 			Errs: []error{errors.New("read"), errors.New("write")},
 		},
 		Errs: stats.Errs{

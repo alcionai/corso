@@ -104,7 +104,7 @@ type restorer interface {
 		snapshotID string,
 		paths []path.Path,
 		bc kopia.ByteCounter,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) ([]data.RestoreCollection, error)
 }
 
@@ -153,12 +153,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			With("err", err).
 			Errorw("doing restore", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
-		opStats.readErr = op.Errors.Err()
+		opStats.readErr = op.Errors.Failure()
 	}
 
 	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Errs())
-	for i, err := range op.Errors.Errs() {
+	recoverableCount := len(op.Errors.Recovered())
+	for i, err := range op.Errors.Recovered() {
 		logger.Ctx(ctx).
 			With("error", err).
 			With(clues.InErr(err).Slice()...).
@@ -172,9 +172,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	err = op.persistResults(ctx, start, &opStats)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting restore results"))
-		opStats.writeErr = op.Errors.Err()
+		opStats.writeErr = op.Errors.Failure()
 
-		return nil, op.Errors.Err()
+		return nil, op.Errors.Failure()
 	}
 
 	logger.Ctx(ctx).Infow("completed restore", "results", op.Results)
@@ -340,7 +340,7 @@ func formatDetailsForRestoration(
 	ctx context.Context,
 	sel selectors.Selector,
 	deets *details.Details,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]path.Path, error) {
 	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
@@ -351,17 +351,17 @@ func formatDetailsForRestoration(
 		fdsPaths  = fds.Paths()
 		paths     = make([]path.Path, len(fdsPaths))
 		shortRefs = make([]string, len(fdsPaths))
-		et        = errs.Tracker()
+		el        = errs.Local()
 	)
 
 	for i := range fdsPaths {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		p, err := path.FromDataLayerPath(fdsPaths[i], true)
 		if err != nil {
-			et.Add(clues.
+			el.AddRecoverable(clues.
 				Wrap(err, "parsing details path after reduction").
 				WithMap(clues.In(ctx)).
 				With("path", fdsPaths[i]))
@@ -386,5 +386,5 @@ func formatDetailsForRestoration(
 
 	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
 
-	return paths, et.Err()
+	return paths, el.Failure()
 }

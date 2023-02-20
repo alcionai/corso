@@ -45,7 +45,7 @@ func produceManifestsAndMetadata(
 	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
 		metadataFiles = graph.AllMetadataFileNames()
@@ -135,15 +135,15 @@ func produceManifestsAndMetadata(
 // of manifests, that each manifest's Reason (owner, service, category) is only
 // included once.  If a reason is duplicated by any two manifests, an error is
 // returned.
-func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs *fault.Errors) error {
+func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs *fault.Bus) error {
 	var (
 		failed  bool
 		reasons = map[string]manifest.ID{}
-		et      = errs.Tracker()
+		el      = errs.Local()
 	)
 
 	for _, man := range mans {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -163,7 +163,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 			if b, ok := reasons[reasonKey]; ok {
 				failed = true
 
-				et.Add(clues.New("manifests have overlapping reasons").
+				el.AddRecoverable(clues.New("manifests have overlapping reasons").
 					WithClues(ctx).
 					With("other_manifest_id", b))
 
@@ -178,7 +178,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 		return clues.New("multiple base snapshots qualify").WithClues(ctx)
 	}
 
-	return et.Err()
+	return el.Failure()
 }
 
 // collectMetadata retrieves all metadata files associated with the manifest.
@@ -188,7 +188,7 @@ func collectMetadata(
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	paths := []path.Path{}
 
