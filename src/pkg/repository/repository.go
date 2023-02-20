@@ -89,7 +89,7 @@ func Initialize(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
@@ -157,7 +157,7 @@ func Connect(
 	s storage.Storage,
 	opts control.Options,
 ) (Repository, error) {
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
@@ -214,6 +214,22 @@ func Connect(
 		dataLayer:  w,
 		modelStore: ms,
 	}, nil
+}
+
+func ConnectAndSendConnectEvent(ctx context.Context,
+	acct account.Account,
+	s storage.Storage,
+	opts control.Options,
+) (Repository, error) {
+	repo, err := Connect(ctx, acct, s, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	r := repo.(*repository)
+	r.Bus.Event(ctx, events.RepoConnect, nil)
+
+	return r, nil
 }
 
 func (r *repository) Close(ctx context.Context) error {

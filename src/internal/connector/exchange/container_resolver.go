@@ -3,10 +3,12 @@ package exchange
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -26,6 +28,7 @@ type containersEnumerator interface {
 		ctx context.Context,
 		userID, baseDirID string,
 		fn func(graph.CacheFolder) error,
+		errs *fault.Errors,
 	) error
 }
 
@@ -62,13 +65,15 @@ func (cr *containerResolver) idToPath(
 	depth int,
 	useIDInPath bool,
 ) (*path.Builder, *path.Builder, error) {
+	ctx = clues.Add(ctx, "container_id", folderID)
+
 	if depth >= maxIterations {
-		return nil, nil, errors.New("path contains cycle or is too tall")
+		return nil, nil, clues.New("path contains cycle or is too tall").WithClues(ctx)
 	}
 
 	c, ok := cr.cache[folderID]
 	if !ok {
-		return nil, nil, errors.Errorf("folder %s not cached", folderID)
+		return nil, nil, clues.New("folder not cached").WithClues(ctx)
 	}
 
 	p := c.Path()
@@ -164,7 +169,7 @@ func (cr *containerResolver) AddToCache(
 		Container: f,
 	}
 	if err := cr.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding cache folder")
+		return clues.Wrap(err, "adding cache folder").WithClues(ctx)
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter

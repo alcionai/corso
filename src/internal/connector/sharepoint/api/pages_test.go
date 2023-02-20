@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type SharePointPageSuite struct {
@@ -71,7 +72,7 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 	require.NotNil(t, tuples)
 
 	jobs := []string{tuples[0].ID}
-	pages, err := api.GetSitePages(ctx, suite.service, suite.siteID, jobs)
+	pages, err := api.GetSitePages(ctx, suite.service, suite.siteID, jobs, fault.New(true))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
 }

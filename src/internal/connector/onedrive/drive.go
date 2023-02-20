@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
@@ -26,13 +27,15 @@ const (
 
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
-	nextLinkKey             = "@odata.nextLink"
-	itemChildrenRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt     = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-	itemNotFoundErrorCode   = "itemNotFound"
-	userMysiteURLNotFound   = "BadRequest Unable to retrieve user's mysite URL"
-	userMysiteNotFound      = "ResourceNotFound User's mysite not found"
-	contextDeadlineExceeded = "context deadline exceeded"
+	nextLinkKey              = "@odata.nextLink"
+	itemChildrenRawURLFmt    = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+	itemByPathRawURLFmt      = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	itemNotFoundErrorCode    = "itemNotFound"
+	userMysiteURLNotFound    = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteURLNotFoundMsg = "Unable to retrieve user's mysite URL"
+	userMysiteNotFound       = "ResourceNotFound User's mysite not found"
+	userMysiteNotFoundMsg    = "User's mysite not found"
+	contextDeadlineExceeded  = "context deadline exceeded"
 )
 
 // DeltaUpdate holds the results of a current delta token.  It normally
@@ -91,9 +94,11 @@ func drives(
 			page, err = pager.GetPage(ctx)
 			if err != nil {
 				// Various error handling. May return an error or perform a retry.
-				detailedError := err.Error()
+				detailedError := support.ConnectorStackErrorTraceWrap(err, "").Error()
 				if strings.Contains(detailedError, userMysiteURLNotFound) ||
-					strings.Contains(detailedError, userMysiteNotFound) {
+					strings.Contains(detailedError, userMysiteURLNotFoundMsg) ||
+					strings.Contains(detailedError, userMysiteNotFound) ||
+					strings.Contains(detailedError, userMysiteNotFoundMsg) {
 					logger.Ctx(ctx).Infof("resource owner does not have a drive")
 					return make([]models.Driveable, 0), nil // no license or drives.
 				}
@@ -122,7 +127,7 @@ func drives(
 
 		drives = append(drives, tmp...)
 
-		nextLink := gapi.NextLink(page)
+		nextLink := ptr.Val(page.GetOdataNextLink())
 		if len(nextLink) == 0 {
 			break
 		}
@@ -174,6 +179,7 @@ func defaultItemPager(
 			"parentReference",
 			"root",
 			"size",
+			"deleted",
 		},
 	)
 }
@@ -185,21 +191,18 @@ func collectItems(
 	pager itemPager,
 	driveID, driveName string,
 	collector itemCollector,
+	oldPaths map[string]string,
 	prevDelta string,
 ) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
 	var (
-		newDeltaURL = ""
-		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
-		// take in previous paths.
-		oldPaths         = map[string]string{}
+		newDeltaURL      = ""
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = len(prevDelta) == 0
 	)
 
-	maps.Copy(newPaths, oldPaths)
-
-	if len(prevDelta) != 0 {
+	if !invalidPrevDelta {
+		maps.Copy(newPaths, oldPaths)
 		pager.SetNext(prevDelta)
 	}
 
@@ -271,10 +274,7 @@ func getFolder(
 		err       error
 	)
 
-	err = graph.RunWithRetry(func() error {
-		foundItem, err = builder.Get(ctx, nil)
-		return err
-	})
+	foundItem, err = builder.Get(ctx, nil)
 
 	if err != nil {
 		var oDataError *odataerrors.ODataError
@@ -410,6 +410,7 @@ func GetAllFolders(
 
 				return nil
 			},
+			map[string]string{},
 			"",
 		)
 		if err != nil {

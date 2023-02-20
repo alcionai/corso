@@ -63,6 +63,7 @@ func CreateStatus(
 	}
 
 	hasErrors := err != nil
+	// TODO(keeprs): remove
 	numErr := GetNumberOfErrors(err)
 
 	status := ConnectorOperationStatus{

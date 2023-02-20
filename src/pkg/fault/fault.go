@@ -32,8 +32,8 @@ type Errors struct {
 // ErrorsData provides the errors data alone, without sync
 // controls, allowing the data to be persisted.
 type ErrorsData struct {
-	Err      error   `json:"err"`
-	Errs     []error `json:"errs"`
+	Err      error   `json:"-"`
+	Errs     []error `json:"-"`
 	FailFast bool    `json:"failFast"`
 }
 
@@ -82,11 +82,6 @@ func (e *Errors) Fail(err error) *Errors {
 	defer e.mu.Unlock()
 
 	return e.setErr(err)
-}
-
-// Failed returns true if e.err != nil, signifying a catastrophic failure.
-func (e *Errors) Failed() bool {
-	return e.err != nil
 }
 
 // setErr handles setting errors.err.  Sync locking gets

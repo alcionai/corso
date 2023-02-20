@@ -3,10 +3,11 @@ package exchange
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -42,7 +43,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 
 	f, err := ecc.getter.GetContainerByID(ctx, ecc.userID, container)
 	if err != nil {
-		return errors.Wrap(err, "fetching calendar "+support.ConnectorStackErrorTrace(err))
+		return errors.Wrap(err, "fetching calendar")
 	}
 
 	temp := graph.NewCacheFolder(
@@ -50,7 +51,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 		path.Builder{}.Append(*f.GetId()), // storage path
 		path.Builder{}.Append(*f.GetDisplayName())) // display location
 	if err := ecc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "initializing calendar resolver")
+		return clues.Wrap(err, "initializing calendar resolver").WithClues(ctx)
 	}
 
 	return nil
@@ -61,6 +62,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 // @param baseID: ignored. Present to conform to interface
 func (ecc *eventCalendarCache) Populate(
 	ctx context.Context,
+	errs *fault.Errors,
 	baseID string,
 	baseContainerPath ...string,
 ) error {
@@ -72,7 +74,8 @@ func (ecc *eventCalendarCache) Populate(
 		ctx,
 		ecc.userID,
 		"",
-		ecc.addFolder)
+		ecc.addFolder,
+		errs)
 	if err != nil {
 		return errors.Wrap(err, "enumerating containers")
 	}
@@ -88,7 +91,7 @@ func (ecc *eventCalendarCache) Populate(
 // @returns error iff the required values are not accessible.
 func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container, useIDInPath bool) error {
 	if err := checkIDAndName(f); err != nil {
-		return errors.Wrap(err, "validating container")
+		return clues.Wrap(err, "validating container").WithClues(ctx)
 	}
 
 	temp := graph.NewCacheFolder(
@@ -104,7 +107,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 
 	if err := ecc.addFolder(temp); err != nil {
 		delete(ecc.newAdditions, *f.GetDisplayName())
-		return errors.Wrap(err, "adding container")
+		return clues.Wrap(err, "adding container").WithClues(ctx)
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter

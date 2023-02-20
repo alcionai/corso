@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -147,12 +148,15 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 	for _, test := range tables {
 		t.Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			col := NewCollection(test.getDir(t), nil, test.category, nil, control.Defaults())
 			col.data <- test.getItem(t, test.itemName)
 
 			readItems := []data.Stream{}
 
-			for item := range col.Items() {
+			for item := range col.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
 			}
 

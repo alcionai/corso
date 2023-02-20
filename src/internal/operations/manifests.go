@@ -142,7 +142,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 	)
 
 	for _, man := range mans {
-		if errs.Failed() {
+		if errs.Err() != nil {
 			break
 		}
 
@@ -204,7 +204,7 @@ func collectMetadata(
 			if err != nil {
 				return nil, clues.
 					Wrap(err, "building metadata path").
-					WithAll("metadata_file", fn, "category", reason.Category)
+					With("metadata_file", fn, "category", reason.Category)
 			}
 
 			paths = append(paths, p)

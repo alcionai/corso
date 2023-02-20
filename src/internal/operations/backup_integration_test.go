@@ -146,8 +146,7 @@ func runAndCheckBackup(
 		Completed,
 		bo.Status,
 		"backup status should be Completed, got %s",
-		bo.Status,
-	)
+		bo.Status)
 	require.Less(t, 0, bo.Results.ItemsWritten)
 
 	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
@@ -257,7 +256,7 @@ func checkMetadataFilesExist(
 			for _, col := range cols {
 				itemNames := []string{}
 
-				for item := range col.Items() {
+				for item := range col.Items(ctx, fault.New(true)) {
 					assert.Implements(t, (*data.StreamSize)(nil), item)
 
 					s := item.(data.StreamSize)
@@ -347,7 +346,8 @@ func generateContainerOfItems(
 		sel,
 		dest,
 		control.Options{RestorePermissions: true},
-		dataColls)
+		dataColls,
+		fault.New(true))
 	require.NoError(t, err)
 
 	return deets
@@ -770,7 +770,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			ResourceOwner: suite.user,
 			Credentials:   m365,
 		}
-		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
 		require.NoError(t, err, "populating %s container resolver", category)
 
 		for destName, dest := range gen.dests {
@@ -889,7 +889,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						ResourceOwner: suite.user,
 						Credentials:   m365,
 					}
-					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp)
+					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
 					require.NoError(t, err, "populating %s container resolver", category)
 
 					p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)

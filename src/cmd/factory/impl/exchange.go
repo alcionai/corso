@@ -1,12 +1,15 @@
 package impl
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -42,6 +45,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		ctx      = cmd.Context()
 		service  = path.ExchangeService
 		category = path.EmailCategory
+		errs     = fault.New(false)
 	)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
@@ -69,9 +73,14 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 				now, now, now, now)
 		},
 		control.Options{},
-	)
+		errs)
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	log := logger.Ctx(ctx)
+	for _, e := range errs.Errs() {
+		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
 	}
 
 	deets.PrintEntries(ctx)
@@ -84,6 +93,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		ctx      = cmd.Context()
 		service  = path.ExchangeService
 		category = path.EventsCategory
+		errs     = fault.New(false)
 	)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
@@ -110,9 +120,14 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 				now, now, false)
 		},
 		control.Options{},
-	)
+		errs)
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	log := logger.Ctx(ctx)
+	for _, e := range errs.Errs() {
+		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
 	}
 
 	deets.PrintEntries(ctx)
@@ -125,6 +140,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		ctx      = cmd.Context()
 		service  = path.ExchangeService
 		category = path.ContactsCategory
+		errs     = fault.New(false)
 	)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
@@ -156,9 +172,14 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 			)
 		},
 		control.Options{},
-	)
+		errs)
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	log := logger.Ctx(ctx)
+	for _, e := range errs.Errs() {
+		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
 	}
 
 	deets.PrintEntries(ctx)

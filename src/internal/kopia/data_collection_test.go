@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -23,11 +24,11 @@ import (
 // unit tests
 // ---------------
 type KopiaDataCollectionUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestKopiaDataCollectionUnitSuite(t *testing.T) {
-	suite.Run(t, new(KopiaDataCollectionUnitSuite))
+	suite.Run(t, &KopiaDataCollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
@@ -93,14 +94,19 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
 			c := kopiaDataCollection{
 				streams: test.streams,
 				path:    nil,
 			}
 
 			count := 0
-			for returnedStream := range c.Items() {
+			for returnedStream := range c.Items(ctx, fault.New(true)) {
 				require.Less(t, count, len(test.streams))
 
 				assert.Equal(t, returnedStream.UUID(), uuids[count])

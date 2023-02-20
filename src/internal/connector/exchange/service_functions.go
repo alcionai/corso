@@ -2,13 +2,14 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -35,6 +36,7 @@ func createService(credentials account.M365Config) (*graph.Service, error) {
 func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
+	errs *fault.Errors,
 ) (graph.ContainerResolver, error) {
 	var (
 		res       graph.ContainerResolver
@@ -75,11 +77,11 @@ func PopulateExchangeContainerResolver(
 		cacheRoot = DefaultCalendar
 
 	default:
-		return nil, fmt.Errorf("ContainerResolver not present for %s type", qp.Category)
+		return nil, clues.New("no container resolver registered for category").WithClues(ctx)
 	}
 
-	if err := res.Populate(ctx, cacheRoot); err != nil {
-		return nil, errors.Wrap(err, "populating directory resolver")
+	if err := res.Populate(ctx, errs, cacheRoot); err != nil {
+		return nil, clues.Wrap(err, "populating directory resolver").WithClues(ctx)
 	}
 
 	return res, nil

@@ -2,15 +2,17 @@ package sharepoint
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type listTuple struct {
@@ -39,23 +41,23 @@ func preFetchLists(
 		builder    = gs.Client().SitesById(siteID).Lists()
 		options    = preFetchListOptions()
 		listTuples = make([]listTuple, 0)
-		errs       error
 	)
 
 	for {
 		resp, err := builder.Get(ctx, options)
 		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+			return nil, clues.Wrap(err, "getting lists").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, entry := range resp.GetValue() {
-			temp := listTuple{id: *entry.GetId()}
+			var (
+				id   = ptr.Val(entry.GetId())
+				name = ptr.Val(entry.GetDisplayName())
+				temp = listTuple{id: id, name: name}
+			)
 
-			name := entry.GetDisplayName()
-			if name != nil {
-				temp.name = *name
-			} else {
-				temp.name = *entry.GetId()
+			if len(name) == 0 {
+				temp.name = id
 			}
 
 			listTuples = append(listTuples, temp)
@@ -65,7 +67,7 @@ func preFetchLists(
 			break
 		}
 
-		builder = mssite.NewItemListsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsRequestBuilder(ptr.Val(resp.GetOdataNextLink()), gs.Adapter())
 	}
 
 	return listTuples, nil
@@ -90,30 +92,29 @@ func loadSiteLists(
 	gs graph.Servicer,
 	siteID string,
 	listIDs []string,
+	errs *fault.Errors,
 ) ([]models.Listable, error) {
 	var (
 		results     = make([]models.Listable, 0)
 		semaphoreCh = make(chan struct{}, fetchChannelSize)
-		errs        error
 		wg          sync.WaitGroup
 		m           sync.Mutex
 	)
 
 	defer close(semaphoreCh)
 
-	errUpdater := func(id string, err error) {
-		m.Lock()
-		errs = support.WrapAndAppend(id, err, errs)
-		m.Unlock()
-	}
-
 	updateLists := func(list models.Listable) {
 		m.Lock()
+		defer m.Unlock()
+
 		results = append(results, list)
-		m.Unlock()
 	}
 
 	for _, listID := range listIDs {
+		if errs.Err() != nil {
+			return nil, errs.Err()
+		}
+
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
@@ -127,18 +128,15 @@ func loadSiteLists(
 				err   error
 			)
 
-			err = graph.RunWithRetry(func() error {
-				entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
-				return err
-			})
+			entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
 			if err != nil {
-				errUpdater(id, support.ConnectorStackErrorTraceWrap(err, ""))
+				errs.Add(clues.Wrap(err, "getting site list").WithClues(ctx).With(graph.ErrData(err)...))
 				return
 			}
 
-			cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, id)
+			cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, id, errs)
 			if err != nil {
-				errUpdater(id, errors.Wrap(err, "unable to fetchRelationships during loadSiteLists"))
+				errs.Add(clues.Wrap(err, "getting list contents"))
 				return
 			}
 
@@ -151,11 +149,7 @@ func loadSiteLists(
 
 	wg.Wait()
 
-	if errs != nil {
-		return nil, errs
-	}
-
-	return results, nil
+	return results, errs.Err()
 }
 
 // fetchListContents utility function to retrieve associated M365 relationships
@@ -165,31 +159,26 @@ func fetchListContents(
 	ctx context.Context,
 	service graph.Servicer,
 	siteID, listID string,
+	errs *fault.Errors,
 ) (
 	[]models.ColumnDefinitionable,
 	[]models.ContentTypeable,
 	[]models.ListItemable,
 	error,
 ) {
-	var errs error
-
 	cols, err := fetchColumns(ctx, service, siteID, listID, "")
 	if err != nil {
-		errs = support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, nil, err
 	}
 
-	cTypes, err := fetchContentTypes(ctx, service, siteID, listID)
+	cTypes, err := fetchContentTypes(ctx, service, siteID, listID, errs)
 	if err != nil {
-		errs = support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, nil, err
 	}
 
-	lItems, err := fetchListItems(ctx, service, siteID, listID)
+	lItems, err := fetchListItems(ctx, service, siteID, listID, errs)
 	if err != nil {
-		errs = support.WrapAndAppend(siteID, err, errs)
-	}
-
-	if errs != nil {
-		return nil, nil, nil, errs
+		return nil, nil, nil, err
 	}
 
 	return cols, cTypes, lItems, nil
@@ -203,26 +192,35 @@ func fetchListItems(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID, listID string,
+	errs *fault.Errors,
 ) ([]models.ListItemable, error) {
 	var (
 		prefix  = gs.Client().SitesById(siteID).ListsById(listID)
 		builder = prefix.Items()
 		itms    = make([]models.ListItemable, 0)
-		errs    error
 	)
 
 	for {
+		if errs.Err() != nil {
+			break
+		}
+
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, itm := range resp.GetValue() {
+			if errs.Err() != nil {
+				break
+			}
+
 			newPrefix := prefix.ItemsById(*itm.GetId())
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
-				errs = errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+				errs.Add(clues.Wrap(err, "getting list fields").WithClues(ctx).With(graph.ErrData(err)...))
+				continue
 			}
 
 			itm.SetFields(fields)
@@ -237,11 +235,7 @@ func fetchListItems(
 		builder = mssite.NewItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
-	if errs != nil {
-		return nil, errors.Wrap(errs, "fetchListItem unsuccessful")
-	}
-
-	return itms, nil
+	return itms, errs.Err()
 }
 
 // fetchColumns utility function to return columns from a site.
@@ -261,7 +255,7 @@ func fetchColumns(
 		for {
 			resp, err := builder.Get(ctx, nil)
 			if err != nil {
-				return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, nil)
+				return nil, clues.Wrap(err, "getting list columns").WithClues(ctx).With(graph.ErrData(err)...)
 			}
 
 			cs = append(cs, resp.GetValue()...)
@@ -278,7 +272,7 @@ func fetchColumns(
 		for {
 			resp, err := builder.Get(ctx, nil)
 			if err != nil {
-				return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+				return nil, clues.Wrap(err, "getting content columns").WithClues(ctx).With(graph.ErrData(err)...)
 			}
 
 			cs = append(cs, resp.GetValue()...)
@@ -304,33 +298,42 @@ func fetchContentTypes(
 	ctx context.Context,
 	gs graph.Servicer,
 	siteID, listID string,
+	errs *fault.Errors,
 ) ([]models.ContentTypeable, error) {
 	var (
 		cTypes  = make([]models.ContentTypeable, 0)
 		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypes()
-		errs    error
 	)
 
 	for {
+		if errs.Err() != nil {
+			break
+		}
+
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return nil, support.WrapAndAppend(support.ConnectorStackErrorTrace(err), err, errs)
+			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
 		}
 
 		for _, cont := range resp.GetValue() {
-			id := *cont.GetId()
+			if errs.Err() != nil {
+				break
+			}
+
+			id := ptr.Val(cont.GetId())
 
 			links, err := fetchColumnLinks(ctx, gs, siteID, listID, id)
 			if err != nil {
-				errs = support.WrapAndAppend("unable to add column links to list", err, errs)
-				break
+				errs.Add(err)
+				continue
 			}
 
 			cont.SetColumnLinks(links)
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
-				errs = support.WrapAndAppend("unable to populate columns for contentType", err, errs)
+				errs.Add(err)
+				continue
 			}
 
 			cont.SetColumns(cs)
@@ -345,11 +348,7 @@ func fetchContentTypes(
 		builder = mssite.NewItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
-	if errs != nil {
-		return nil, errs
-	}
-
-	return cTypes, nil
+	return cTypes, errs.Err()
 }
 
 func fetchColumnLinks(
@@ -365,7 +364,7 @@ func fetchColumnLinks(
 	for {
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, clues.Wrap(err, "getting column links").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		links = append(links, resp.GetValue()...)
@@ -391,11 +390,9 @@ func DeleteList(
 	siteID, listID string,
 ) error {
 	err := gs.Client().SitesById(siteID).ListsById(listID).Delete(ctx, nil)
-	errorMsg := fmt.Sprintf("failure deleting listID %s from site %s. Details: %s",
-		listID,
-		siteID,
-		support.ConnectorStackErrorTrace(err),
-	)
+	if err != nil {
+		return clues.Wrap(err, "deleting list").WithClues(ctx).With(graph.ErrData(err)...)
+	}
 
-	return errors.Wrap(err, errorMsg)
+	return nil
 }

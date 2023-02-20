@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type SharePointSuite struct {
@@ -54,7 +55,7 @@ func (suite *SharePointSuite) TestLoadList() {
 	require.NoError(t, err)
 
 	job := []string{tuples[0].id}
-	lists, err := loadSiteLists(ctx, service, "root", job)
+	lists, err := loadSiteLists(ctx, service, "root", job, fault.New(true))
 	assert.NoError(t, err)
 	assert.Greater(t, len(lists), 0)
 	t.Logf("Length: %d\n", len(lists))

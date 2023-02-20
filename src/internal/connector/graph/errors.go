@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -101,7 +102,7 @@ func IsErrTimeout(err error) bool {
 		return true
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) || errors.Is(err, http.ErrHandlerTimeout) {
 		return true
 	}
 
