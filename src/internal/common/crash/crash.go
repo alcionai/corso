@@ -18,10 +18,10 @@ import (
 // Call it as follows:
 //
 //	defer func() {
-//			if crErr := crash.Recovery(ctx, recover()); crErr != nil {
-//				err = crErr // err needs to be a named return variable
-//			}
-//		}()
+//		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+//			err = crErr // err needs to be a named return variable
+//		}
+//	}()
 func Recovery(ctx context.Context, r any) error {
 	var (
 		err    error
