@@ -16,21 +16,15 @@ import (
 )
 
 type S3IntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestS3IntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
+	suite.Run(t, &S3IntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		tester.CorsoCITests,
+		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCLITests,
-		tester.CorsoCLIRepoTests)
-
-	suite.Run(t, new(S3IntegrationSuite))
-}
-
-func (suite *S3IntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
+		tester.CorsoCLIRepoTests)})
 }
 
 func (suite *S3IntegrationSuite) TestInitS3Cmd() {
@@ -49,7 +43,9 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -148,7 +144,9 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

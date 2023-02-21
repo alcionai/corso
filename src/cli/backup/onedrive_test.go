@@ -13,11 +13,11 @@ import (
 )
 
 type OneDriveSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveSuite))
+	suite.Run(t, &OneDriveSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OneDriveSuite) TestAddOneDriveCommands() {
@@ -48,7 +48,9 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addOneDriveCommands(cmd)
@@ -82,8 +84,8 @@ func (suite *OneDriveSuite) TestValidateOneDriveBackupCreateFlags() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, validateOneDriveBackupCreateFlags(test.user))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), validateOneDriveBackupCreateFlags(test.user))
 		})
 	}
 }
@@ -93,7 +95,9 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
 	defer flush()
 
 	for _, test := range testdata.OneDriveOptionDetailLookups {
-		suite.T().Run(test.Name, func(t *testing.T) {
+		suite.Run(test.Name, func() {
+			t := suite.T()
+
 			output, err := runDetailsOneDriveCmd(
 				ctx,
 				test.BackupGetter,
@@ -110,7 +114,9 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 	defer flush()
 
 	for _, test := range testdata.BadOneDriveOptionsFormats {
-		suite.T().Run(test.Name, func(t *testing.T) {
+		suite.Run(test.Name, func() {
+			t := suite.T()
+
 			output, err := runDetailsOneDriveCmd(
 				ctx,
 				test.BackupGetter,

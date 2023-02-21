@@ -12,11 +12,11 @@ import (
 )
 
 type OneDriveSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveSuite))
+	suite.Run(t, &OneDriveSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OneDriveSuite) TestAddOneDriveCommands() {
@@ -32,7 +32,9 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 		{"restore onedrive", restoreCommand, expectUse, oneDriveRestoreCmd().Short, restoreOneDriveCmd},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addOneDriveCommands(cmd)

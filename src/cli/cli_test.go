@@ -8,14 +8,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type CLISuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCLISuite(t *testing.T) {
-	suite.Run(t, new(CLISuite))
+	suite.Run(t, &CLISuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *CLISuite) TestAddCommands_noPanics() {
