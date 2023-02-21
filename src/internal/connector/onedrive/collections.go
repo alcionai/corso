@@ -371,8 +371,8 @@ func (c *Collections) Get(
 
 			_, found = modifiedPaths[p]
 			if found {
-				// Path has been updated with something else already
-				// instead of being modified
+				// Original folder was deleted and new folder with the
+				// same name/path was created in its place
 				continue
 			}
 
