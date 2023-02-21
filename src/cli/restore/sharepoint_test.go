@@ -12,11 +12,11 @@ import (
 )
 
 type SharePointSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, new(SharePointSuite))
+	suite.Run(t, &SharePointSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SharePointSuite) TestAddSharePointCommands() {
@@ -32,7 +32,9 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 		{"restore onedrive", restoreCommand, expectUse, sharePointRestoreCmd().Short, restoreSharePointCmd},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addSharePointCommands(cmd)
