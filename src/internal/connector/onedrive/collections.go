@@ -344,14 +344,59 @@ func (c *Collections) Get(
 		folderPaths[driveID] = map[string]string{}
 		maps.Copy(folderPaths[driveID], paths)
 
-		maps.Copy(excludedItems, excluded)
-
 		logger.Ctx(ctx).Infow(
 			"persisted metadata for drive",
 			"num_paths_entries",
 			len(paths),
 			"num_deltas_entries",
 			numDeltas)
+
+		if !delta.Reset {
+			maps.Copy(excludedItems, excluded)
+			continue
+		}
+
+		// Set all folders in previous backup but not in the current
+		// one with state deleted
+		modifiedPaths := map[string]struct{}{}
+		for _, p := range c.CollectionMap {
+			modifiedPaths[p.FullPath().String()] = struct{}{}
+		}
+
+		for i, p := range oldPaths {
+			_, found := paths[i]
+			if found {
+				continue
+			}
+
+			_, found = modifiedPaths[p]
+			if found {
+				// Original folder was deleted and new folder with the
+				// same name/path was created in its place
+				continue
+			}
+
+			delete(paths, i)
+
+			prevPath, err := path.FromDataLayerPath(p, false)
+			if err != nil {
+				return nil, map[string]struct{}{},
+					clues.Wrap(err, "invalid previous path").WithClues(ctx).With("deleted_path", p)
+			}
+
+			col := NewCollection(
+				c.itemClient,
+				nil,
+				prevPath,
+				driveID,
+				c.service,
+				c.statusUpdater,
+				c.source,
+				c.ctrl,
+				true,
+			)
+			c.CollectionMap[i] = col
+		}
 	}
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))

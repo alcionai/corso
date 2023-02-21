@@ -1531,6 +1531,89 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedDelList: map[string]struct{}{"file": {}},
 			doNotMergeItems: false,
 		},
+		{
+			name:   "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistantFolder",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						err: getDeltaError(),
+					},
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder2", "folder2", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder2", "folder2", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				expectedPath1(""):         {data.NotMovedState: {"folder2"}},
+				expectedPath1("/folder"):  {data.DeletedState: {}},
+				expectedPath1("/folder2"): {data.NewState: {"file"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder2": expectedPath1("/folder2"),
+				},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: true,
+		},
+		{
+			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						err: getDeltaError(),
+					},
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder2", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder2", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				expectedPath1(""):        {data.NotMovedState: {"folder2"}},
+				expectedPath1("/folder"): {data.NewState: {"file"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder2": expectedPath1("/folder"),
+				},
+			},
+			expectedDelList: map[string]struct{}{},
+			doNotMergeItems: true,
+		},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -1574,6 +1657,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
+			prevDelta := "prev-delta"
 			mc, err := graph.MakeMetadataCollection(
 				tenant,
 				user,
@@ -1583,8 +1667,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					graph.NewMetadataEntry(
 						graph.DeltaURLsFileName,
 						map[string]string{
-							driveID1: "prev-delta",
-							driveID2: "prev-delta",
+							driveID1: prevDelta,
+							driveID2: prevDelta,
 						},
 					),
 					graph.NewMetadataEntry(
@@ -1605,7 +1689,13 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			}
 
 			for _, baseCol := range cols {
-				folderPath := baseCol.FullPath().String()
+				var folderPath string
+				if baseCol.State() != data.DeletedState {
+					folderPath = baseCol.FullPath().String()
+				} else {
+					folderPath = baseCol.PreviousPath().String()
+				}
+
 				if folderPath == metadataPath.String() {
 					deltas, paths, err := deserializeMetadata(ctx, []data.RestoreCollection{
 						data.NotFoundRestoreCollection{Collection: baseCol},
@@ -1614,8 +1704,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 						continue
 					}
 
-					assert.Equal(t, test.expectedDeltaURLs, deltas)
-					assert.Equal(t, test.expectedFolderPaths, paths)
+					assert.Equal(t, test.expectedDeltaURLs, deltas, "delta urls")
+					assert.Equal(t, test.expectedFolderPaths, paths, "folder  paths")
 
 					continue
 				}
