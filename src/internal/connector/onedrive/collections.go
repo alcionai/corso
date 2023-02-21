@@ -562,8 +562,21 @@ func (c *Collections) UpdateCollections(
 			return err
 		}
 
+		var (
+			folderPath path.Path
+			isFolder   = item.GetFolder() != nil || item.GetPackage() != nil
+		)
+
+		if item.GetName() != nil {
+			folderPath, err = collectionPath.Append(*item.GetName(), !isFolder)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+		if shouldSkipDrive(ctx, folderPath, c.matcher, driveName) &&
+			shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
 		}
@@ -614,15 +627,6 @@ func (c *Collections) UpdateCollections(
 				c.CollectionMap[*item.GetId()] = col
 
 				break
-			}
-
-			// Deletions of folders are handled in this case so we may as well start
-			// off by saving the path.Path of the item instead of just the OneDrive
-			// parentRef or such.
-			folderPath, err := collectionPath.Append(*item.GetName(), false)
-			if err != nil {
-				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
-				return err
 			}
 
 			// Moved folders don't cause delta results for any subfolders nested in
@@ -770,6 +774,10 @@ func (c *Collections) UpdateCollections(
 }
 
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
+	if drivePath == nil {
+		return false
+	}
+
 	return !includePath(ctx, m, drivePath) ||
 		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }
