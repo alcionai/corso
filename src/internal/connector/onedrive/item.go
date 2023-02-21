@@ -278,8 +278,6 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 		reference       = di.GetParentReference()
 	)
 
-	fmt.Println("We see the difference")
-
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
 	// way to source the data.
@@ -344,12 +342,20 @@ func driveItemWriter(
 	return uploadsession.NewWriter(itemID, url, itemSize), nil
 }
 
+// constructWebURL helper function for recreating the webURL
+// for the originating SharePoint site. Uses additional data map
+// from a models.DriveItemable that possesses a downloadURL within the map.
+// Returns "" if map nil or key is not present.
 func constructWebURL(adtl map[string]any) string {
 	var (
 		desiredKey = "@microsoft.graph.downloadUrl"
 		del        = `/_layouts`
 		url        string
 	)
+
+	if adtl == nil {
+		return url
+	}
 
 	r := adtl[desiredKey]
 	point, ok := r.(*string)
