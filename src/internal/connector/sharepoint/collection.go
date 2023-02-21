@@ -231,7 +231,7 @@ func (sc *Collection) retrieveLists(
 			break
 		}
 
-		byteArray, err := serializeContent(wtr, lst)
+		byteArray, err := serializeContent(ctx, wtr, lst)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "serializing list").WithClues(ctx))
 			continue
@@ -292,7 +292,7 @@ func (sc *Collection) retrievePages(
 			break
 		}
 
-		byteArray, err := serializeContent(wtr, pg)
+		byteArray, err := serializeContent(ctx, wtr, pg)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "serializing page").WithClues(ctx))
 			continue
@@ -317,17 +317,21 @@ func (sc *Collection) retrievePages(
 	return metrics, el.Failure()
 }
 
-func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
+func serializeContent(
+	ctx context.Context,
+	writer *kw.JsonSerializationWriter,
+	obj absser.Parsable,
+) ([]byte, error) {
 	defer writer.Close()
 
 	err := writer.WriteObjectValue("", obj)
 	if err != nil {
-		return nil, clues.Wrap(err, "writing object").With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "writing object")
 	}
 
 	byteArray, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, clues.Wrap(err, "getting content from writer").With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "getting content from writer")
 	}
 
 	return byteArray, nil

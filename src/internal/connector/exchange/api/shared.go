@@ -74,14 +74,14 @@ func getItemsAddedAndRemovedFromContainer(
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
 		if err != nil {
-			return nil, nil, deltaURL, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return nil, nil, deltaURL, graph.Stack(ctx, err)
 		}
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
 		items, err := pager.valuesIn(resp)
 		if err != nil {
-			return nil, nil, "", clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return nil, nil, "", graph.Stack(ctx, err)
 		}
 
 		itemCount += len(items)

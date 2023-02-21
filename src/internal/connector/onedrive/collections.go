@@ -268,7 +268,7 @@ func (c *Collections) Get(
 	// Enumerate drives for the specified resourceOwner
 	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, nil, graph.Stack(ctx, err)
 	}
 
 	retry := c.source == OneDriveSource

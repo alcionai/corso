@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -349,7 +348,7 @@ func mustGetDefaultDriveID(
 	//revive:enable:context-as-argument
 	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
 	if err != nil {
-		err = clues.Wrap(err, "retrieving drive").WithClues(ctx).With(graph.ErrData(err)...)
+		err = graph.Wrap(ctx, err, "retrieving drive")
 	}
 
 	require.NoError(t, err)

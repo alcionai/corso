@@ -320,14 +320,12 @@ func getResources(
 
 	response, err := query(ctx, gs)
 	if err != nil {
-		return nil, clues.Wrap(err, "retrieving tenant's resources").
-			WithClues(ctx).
-			With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "retrieving tenant's resources")
 	}
 
 	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	el := errs.Local()
@@ -354,7 +352,7 @@ func getResources(
 	}
 
 	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resources, el.Failure()
