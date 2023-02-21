@@ -597,13 +597,6 @@ func (c *Collections) UpdateCollections(
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
 
-				// TODO(meain): Directory metadata files should be
-				// moved into the directory instead of having a
-				// `.dirmeta` file at the same level as the
-				// directory. This way we can make sure it is moved
-				// and deleted along with the directory and don't have
-				// to be handled separately.
-
 				if prevPath == nil {
 					// It is possible that an item was created and
 					// deleted between two delta invocations. In
@@ -659,7 +652,15 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			fallthrough
+			if col := c.CollectionMap[*item.GetId()]; col != nil {
+				// Add an entry to fetch permissions into this collection. This assumes
+				// that OneDrive always returns all folders on the path of an item
+				// before the item. This seems to hold true for now at least.
+				collection := col.(*Collection)
+				if collection.Add(item) {
+					c.NumItems++
+				}
+			}
 
 		case item.GetFile() != nil:
 			if !invalidPrevDelta && item.GetFile() != nil {
@@ -701,6 +702,11 @@ func (c *Collections) UpdateCollections(
 
 			col, found := c.CollectionMap[collectionID]
 			if !found {
+				// TODO(ashmrtn): We should probably tighten the restrictions on this
+				// and just make it return an error if the collection doesn't already
+				// exist. Graph seems pretty consistent about returning all folders on
+				// the path from the root to the item in question. Removing this will
+				// also ensure we always add an entry to get the folder metadata.
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
@@ -745,11 +751,7 @@ func (c *Collections) UpdateCollections(
 
 			if collection.Add(item) {
 				c.NumItems++
-				if item.GetFile() != nil {
-					// This is necessary as we have a fallthrough for
-					// folders and packages
-					c.NumFiles++
-				}
+				c.NumFiles++
 			}
 
 		default:
