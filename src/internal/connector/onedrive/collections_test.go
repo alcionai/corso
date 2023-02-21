@@ -220,7 +220,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:          anyFolder,
 			expect:         assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root": expectedStatePath(data.NotMovedState, ""),
+				"folder": expectedStatePath(data.NewState, folder),
 			},
 			expectedMetadataPaths: map[string]string{
 				"root":   expectedPath(""),
@@ -240,7 +240,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:          anyFolder,
 			expect:         assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root": expectedStatePath(data.NotMovedState, ""),
+				"package": expectedStatePath(data.NewState, pkg),
 			},
 			expectedMetadataPaths: map[string]string{
 				"root":    expectedPath(""),
@@ -299,15 +299,16 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"subfolder": expectedStatePath(data.NewState, folderSub),
 				"folder2":   expectedStatePath(data.NewState, folderSub+folder),
 			},
-			expectedItemCount:      4,
+			expectedItemCount:      5,
 			expectedFileCount:      2,
 			expectedContainerCount: 3,
 			// just "folder" isn't added here because the include check is done on the
 			// parent path since we only check later if something is a folder or not.
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
-				"subfolder": expectedPath("/folder/subfolder"),
-				"folder2":   expectedPath("/folder/subfolder/folder"),
+				"folder":    expectedPath(folder),
+				"subfolder": expectedPath(folderSub),
+				"folder2":   expectedPath(folderSub + folder),
 			},
 			expectedExcludes: getDelList("fileInFolder", "fileInFolder2"),
 		},
@@ -332,12 +333,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"subfolder": expectedStatePath(data.NewState, folderSub),
 				"folder2":   expectedStatePath(data.NewState, folderSub+folder),
 			},
-			expectedItemCount:      2,
+			expectedItemCount:      3,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
-				"root":    expectedPath(""),
-				"folder2": expectedPath("/folder/subfolder/folder"),
+				"root":      expectedPath(""),
+				"subfolder": expectedPath(folderSub),
+				"folder2":   expectedPath(folderSub + folder),
 			},
 			expectedExcludes: getDelList("fileInFolder2"),
 		},
@@ -359,12 +361,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedCollectionIDs: map[string]statePath{
 				"subfolder": expectedStatePath(data.NewState, folderSub),
 			},
-			expectedItemCount:      1,
+			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.
 			expectedMetadataPaths: map[string]string{
-				"root": expectedPath(""),
+				"root":      expectedPath(""),
+				"subfolder": expectedPath(folderSub),
 			},
 			expectedExcludes: getDelList("fileInSubfolder"),
 		},
@@ -375,22 +378,21 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
-				"folder":    expectedPath("/folder"),
-				"subfolder": expectedPath("/folder/subfolder"),
+				"folder":    expectedPath(folder),
+				"subfolder": expectedPath(folderSub),
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":   expectedStatePath(data.NotMovedState, ""),
-				"folder": expectedStatePath(data.NotMovedState, "/folder"),
+				"folder": expectedStatePath(data.NotMovedState, folder),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
-				"folder":    expectedPath("/folder"),
-				"subfolder": expectedPath("/folder/subfolder"),
+				"folder":    expectedPath(folder),
+				"subfolder": expectedPath(folderSub),
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
@@ -407,16 +409,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":   expectedStatePath(data.NotMovedState, ""),
-				"folder": expectedStatePath(data.MovedState, "/folder", "/a-folder"),
+				"folder": expectedStatePath(data.MovedState, folder, "/a-folder"),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
-				"folder":    expectedPath("/folder"),
-				"subfolder": expectedPath("/folder/subfolder"),
+				"folder":    expectedPath(folder),
+				"subfolder": expectedPath(folderSub),
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
@@ -428,20 +429,19 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
-				"folder": expectedPath("/folder"),
+				"folder": expectedPath(folder),
 			},
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":   expectedStatePath(data.NotMovedState, ""),
-				"folder": expectedStatePath(data.NotMovedState, "/folder"),
+				"folder": expectedStatePath(data.NotMovedState, folder),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":   expectedPath(""),
-				"folder": expectedPath("/folder"),
+				"folder": expectedPath(folder),
 			},
 			expectedExcludes: getDelList("file"),
 		},
@@ -457,12 +457,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:          anyFolder,
 			expect:         assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":   expectedStatePath(data.NotMovedState, ""),
 				"folder": expectedStatePath(data.NewState, "/folder2"),
 			},
-			expectedItemCount:      3, // permissions gets saved twice for folder
+			expectedItemCount:      2,
 			expectedFileCount:      1,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":   expectedPath(""),
 				"folder": expectedPath("/folder2"),
@@ -480,15 +479,14 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:          anyFolder,
 			expect:         assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":   expectedStatePath(data.NotMovedState, ""),
-				"folder": expectedStatePath(data.NewState, "/folder"),
+				"folder": expectedStatePath(data.NewState, folder),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":   expectedPath(""),
-				"folder": expectedPath("/folder"),
+				"folder": expectedPath(folder),
 			},
 			expectedExcludes: getDelList("file"),
 		},
@@ -506,16 +504,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
-				"folder":    expectedStatePath(data.MovedState, "/folder", "/a-folder"),
+				"folder":    expectedStatePath(data.MovedState, folder, "/a-folder"),
 				"subfolder": expectedStatePath(data.MovedState, "/subfolder", "/a-folder/subfolder"),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      0,
-			expectedContainerCount: 3,
+			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
-				"folder":    expectedPath("/folder"),
+				"folder":    expectedPath(folder),
 				"subfolder": expectedPath("/subfolder"),
 			},
 			expectedExcludes: map[string]struct{}{},
@@ -534,16 +531,15 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
-				"folder":    expectedStatePath(data.MovedState, "/folder", "/a-folder"),
+				"folder":    expectedStatePath(data.MovedState, folder, "/a-folder"),
 				"subfolder": expectedStatePath(data.MovedState, "/subfolder", "/a-folder/subfolder"),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      0,
-			expectedContainerCount: 3,
+			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
-				"folder":    expectedPath("/folder"),
+				"folder":    expectedPath(folder),
 				"subfolder": expectedPath("/subfolder"),
 			},
 			expectedExcludes: map[string]struct{}{},
@@ -554,6 +550,9 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				driveRootItem("root"),
 				driveItem("folder2", "folder2", testBaseDrivePath, "root", false, true, false),
 				driveItem("itemInFolder2", "itemInFolder2", testBaseDrivePath+"/folder2", "folder2", true, false, false),
+				// Need to see the parent folder first (expected since that's what Graph
+				// consistently returns).
+				driveItem("folder", "a-folder", testBaseDrivePath, "root", false, true, false),
 				driveItem("subfolder", "subfolder", testBaseDrivePath+"/a-folder", "folder", false, true, false),
 				driveItem(
 					"itemInSubfolder",
@@ -573,14 +572,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
-				"folder":    expectedStatePath(data.MovedState, "/folder", "/a-folder"),
+				"folder":    expectedStatePath(data.MovedState, folder, "/a-folder"),
 				"folder2":   expectedStatePath(data.NewState, "/folder2"),
-				"subfolder": expectedStatePath(data.MovedState, "/folder/subfolder", "/a-folder/subfolder"),
+				"subfolder": expectedStatePath(data.MovedState, folderSub, "/a-folder/subfolder"),
 			},
 			expectedItemCount:      5,
 			expectedFileCount:      2,
-			expectedContainerCount: 4,
+			expectedContainerCount: 3,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath("/folder"),
@@ -604,12 +602,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":   expectedStatePath(data.NotMovedState, ""),
 				"folder": expectedStatePath(data.MovedState, "/folder2", "/a-folder"),
 			},
-			expectedItemCount:      3,
+			expectedItemCount:      2,
 			expectedFileCount:      1,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath("/folder2"),
@@ -678,13 +675,12 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:  anyFolder,
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
 				"folder":    expectedStatePath(data.DeletedState, folder),
-				"subfolder": expectedStatePath(data.MovedState, "/subfolder", "/folder/subfolder"),
+				"subfolder": expectedStatePath(data.MovedState, "/subfolder", folderSub),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			expectedMetadataPaths: map[string]string{
 				"root":      expectedPath(""),
 				"subfolder": expectedPath("/subfolder"),
@@ -748,7 +744,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 
 			for id, sp := range tt.expectedCollectionIDs {
-				assert.Containsf(t, c.CollectionMap, id, "contains collection with id %s", id)
+				if !assert.Containsf(t, c.CollectionMap, id, "missing collection with id %s", id) {
+					// Skip collections we don't find so we don't get an NPE.
+					continue
+				}
+
 				assert.Equalf(t, sp.state, c.CollectionMap[id].State(), "state for collection %s", id)
 				assert.Equalf(t, sp.curPath, c.CollectionMap[id].FullPath(), "current path for collection %s", id)
 				assert.Equalf(t, sp.prevPath, c.CollectionMap[id].PreviousPath(), "prev path for collection %s", id)
@@ -1294,8 +1294,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				folderPath1:     {data.NewState: {"file"}},
-				rootFolderPath1: {data.NotMovedState: {"folder"}},
+				folderPath1: {data.NewState: {"folder", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1329,8 +1328,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				folderPath1:     {data.NewState: {"file"}},
-				rootFolderPath1: {data.NotMovedState: {"folder"}},
+				folderPath1: {data.NewState: {"folder", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1364,7 +1362,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				rootFolderPath1: {data.NotMovedState: {"folder", "file"}},
+				rootFolderPath1: {data.NotMovedState: {"file"}},
+				folderPath1:     {data.NewState: {"folder"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1397,8 +1396,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				folderPath1:     {data.NewState: {"file"}},
-				rootFolderPath1: {data.NotMovedState: {"folder"}},
+				folderPath1: {data.NewState: {"folder", "file"}},
 			},
 			expectedDeltaURLs:   map[string]string{},
 			expectedFolderPaths: map[string]map[string]string{},
@@ -1432,8 +1430,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				folderPath1:     {data.NewState: {"file", "file2"}},
-				rootFolderPath1: {data.NotMovedState: {"folder"}},
+				folderPath1: {data.NewState: {"folder", "file", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1480,10 +1477,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID2: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				folderPath1:     {data.NewState: {"file"}},
-				folderPath2:     {data.NewState: {"file2"}},
-				rootFolderPath1: {data.NotMovedState: {"folder"}},
-				rootFolderPath2: {data.NotMovedState: {"folder2"}},
+				folderPath1: {data.NewState: {"folder", "file"}},
+				folderPath2: {data.NewState: {"folder2", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1579,8 +1574,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			errCheck: assert.NoError,
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):        {data.NotMovedState: {"file", "folder"}},
-				expectedPath1("/folder"): {data.NewState: {"file2"}},
+				expectedPath1(""):        {data.NotMovedState: {"file"}},
+				expectedPath1("/folder"): {data.NewState: {"folder", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1621,8 +1616,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):        {data.NotMovedState: {"file", "folder"}},
-				expectedPath1("/folder"): {data.NewState: {"file2"}},
+				expectedPath1(""):        {data.NotMovedState: {"file"}},
+				expectedPath1("/folder"): {data.NewState: {"folder", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1662,9 +1657,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):         {data.NotMovedState: {"folder2"}},
 				expectedPath1("/folder"):  {data.DeletedState: {}},
-				expectedPath1("/folder2"): {data.NewState: {"file"}},
+				expectedPath1("/folder2"): {data.NewState: {"folder2", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1704,8 +1698,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):        {data.NotMovedState: {"folder2"}},
-				expectedPath1("/folder"): {data.NewState: {"file"}},
+				expectedPath1("/folder"): {data.NewState: {"folder2", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1835,9 +1828,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					t,
 					test.expectedCollections[folderPath][baseCol.State()],
 					itemIDs,
-					"items in collection %s",
-					folderPath,
-				)
+					"state: %d, path: %s",
+					baseCol.State(),
+					folderPath)
 				assert.Equal(t, test.doNotMergeItems, baseCol.DoNotMergeItems(), "DoNotMergeItems")
 			}
 
