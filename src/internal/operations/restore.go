@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 	"sort"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -111,22 +111,8 @@ type restorer interface {
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			var rerr error
-			if re, ok := r.(error); ok {
-				rerr = re
-			} else if re, ok := r.(string); ok {
-				rerr = clues.New(re)
-			} else {
-				rerr = clues.New(fmt.Sprintf("%v", r))
-			}
-
-			err = clues.Wrap(rerr, "panic recovery").
-				WithClues(ctx).
-				With("stacktrace", string(debug.Stack()))
-			logger.Ctx(ctx).
-				With("err", err).
-				Errorw("backup panic", clues.InErr(err).Slice()...)
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
 		}
 	}()
 
@@ -168,6 +154,15 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			Errorw("doing restore", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
 		opStats.readErr = op.Errors.Err()
+	}
+
+	// TODO: the consumer (sdk or cli) should run this, not operations.
+	recoverableCount := len(op.Errors.Errs())
+	for i, err := range op.Errors.Errs() {
+		logger.Ctx(ctx).
+			With("error", err).
+			With(clues.InErr(err).Slice()...).
+			Errorf("doing restore: recoverable error %d of %d", i+1, recoverableCount)
 	}
 
 	// -----

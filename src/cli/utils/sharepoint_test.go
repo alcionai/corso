@@ -7,14 +7,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type SharePointUtilsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointUtilsSuite(t *testing.T) {
-	suite.Run(t, new(SharePointUtilsSuite))
+	suite.Run(t, &SharePointUtilsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // Tests selector build for SharePoint properly
@@ -181,9 +182,9 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			sel := utils.IncludeSharePointRestoreDataSelectors(test.opts)
-			assert.Len(t, sel.Includes, test.expectIncludeLen)
+			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
 		})
 	}
 }

@@ -12,11 +12,11 @@ import (
 )
 
 type EnvSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestEnvSuite(t *testing.T) {
-	suite.Run(t, new(EnvSuite))
+	suite.Run(t, &EnvSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *EnvSuite) TestAddEnvCommands() {
