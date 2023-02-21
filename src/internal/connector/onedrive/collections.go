@@ -640,24 +640,19 @@ func (c *Collections) UpdateCollections(
 			}
 
 			if !found {
-				// We only create collections for folder that are not
-				// new. This is so as to not create collections for
-				// new folders without any files within them.
-				if prevPath != nil {
-					col := NewCollection(
-						c.itemClient,
-						folderPath,
-						prevPath,
-						driveID,
-						c.service,
-						c.statusUpdater,
-						c.source,
-						c.ctrl,
-						invalidPrevDelta,
-					)
-					c.CollectionMap[*item.GetId()] = col
-					c.NumContainers++
-				}
+				col := NewCollection(
+					c.itemClient,
+					folderPath,
+					prevPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+					c.source,
+					c.ctrl,
+					invalidPrevDelta,
+				)
+				c.CollectionMap[*item.GetId()] = col
+				c.NumContainers++
 			}
 
 			if c.source != OneDriveSource {
@@ -742,14 +737,6 @@ func (c *Collections) UpdateCollections(
 				removed := pcollection.Remove(item)
 				if !removed {
 					return clues.New("removing from prev collection").With("item_id", *item.GetId())
-				}
-
-				// If that was the only item in that collection and is
-				// not getting added back, delete the collection
-				if itemColID != collectionID &&
-					pcollection.IsEmpty() &&
-					pcollection.State() == data.NewState {
-					delete(c.CollectionMap, itemColID)
 				}
 			}
 
