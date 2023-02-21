@@ -349,7 +349,7 @@ func driveItemWriter(
 func constructWebURL(adtl map[string]any) string {
 	var (
 		desiredKey = "@microsoft.graph.downloadUrl"
-		del        = `/_layouts`
+		sep        = `/_layouts`
 		url        string
 	)
 
@@ -369,7 +369,7 @@ func constructWebURL(adtl map[string]any) string {
 		return url
 	}
 
-	temp := strings.Split(value, del)
+	temp := strings.Split(value, sep)
 	url = temp[0]
 
 	return url
