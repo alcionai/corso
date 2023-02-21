@@ -584,6 +584,13 @@ func (c *Collections) UpdateCollections(
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
 
+				// TODO(meain): Directory metadata files should be
+				// moved into the directory instead of having a
+				// `.dirmeta` file at the same level as the
+				// directory. This way we can make sure it is moved
+				// and deleted along with the directory and don't have
+				// to be handled separately.
+
 				if prevPath == nil {
 					// It is possible that an item was created and
 					// deleted between two delta invocations. In
@@ -661,7 +668,8 @@ func (c *Collections) UpdateCollections(
 				// deleted, we want to avoid it. If it was
 				// renamed/moved/modified, we still have to drop the
 				// original one and download a fresh copy.
-				excluded[*item.GetId()] = struct{}{}
+				excluded[*item.GetId()+DataFileSuffix] = struct{}{}
+				excluded[*item.GetId()+MetaFileSuffix] = struct{}{}
 			}
 
 			if item.GetDeleted() != nil {

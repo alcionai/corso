@@ -137,6 +137,16 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 	}
 }
 
+func getDelList(files ...string) map[string]struct{} {
+	delList := map[string]struct{}{}
+	for _, file := range files {
+		delList[file+DataFileSuffix] = struct{}{}
+		delList[file+MetaFileSuffix] = struct{}{}
+	}
+
+	return delList
+}
+
 func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
 
@@ -198,7 +208,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedMetadataPaths: map[string]string{
 				"root": expectedPath(""),
 			},
-			expectedExcludes: map[string]struct{}{"file": {}},
+			expectedExcludes: getDelList("file"),
 		},
 		{
 			testCase: "Single Folder",
@@ -266,7 +276,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"folder":  expectedPath("/folder"),
 				"package": expectedPath("/package"),
 			},
-			expectedExcludes: map[string]struct{}{"fileInRoot": {}, "fileInFolder": {}, "fileInPackage": {}},
+			expectedExcludes: getDelList("fileInRoot", "fileInFolder", "fileInPackage"),
 		},
 		{
 			testCase: "contains folder selector",
@@ -299,7 +309,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"subfolder": expectedPath("/folder/subfolder"),
 				"folder2":   expectedPath("/folder/subfolder/folder"),
 			},
-			expectedExcludes: map[string]struct{}{"fileInFolder": {}, "fileInFolder2": {}},
+			expectedExcludes: getDelList("fileInFolder", "fileInFolder2"),
 		},
 		{
 			testCase: "prefix subfolder selector",
@@ -329,7 +339,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"root":    expectedPath(""),
 				"folder2": expectedPath("/folder/subfolder/folder"),
 			},
-			expectedExcludes: map[string]struct{}{"fileInFolder2": {}},
+			expectedExcludes: getDelList("fileInFolder2"),
 		},
 		{
 			testCase: "match subfolder selector",
@@ -356,7 +366,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedMetadataPaths: map[string]string{
 				"root": expectedPath(""),
 			},
-			expectedExcludes: map[string]struct{}{"fileInSubfolder": {}},
+			expectedExcludes: getDelList("fileInSubfolder"),
 		},
 		{
 			testCase: "not moved folder tree",
@@ -433,7 +443,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"root":   expectedPath(""),
 				"folder": expectedPath("/folder"),
 			},
-			expectedExcludes: map[string]struct{}{"file": {}},
+			expectedExcludes: getDelList("file"),
 		},
 		{
 			testCase: "moved folder tree with file no previous",
@@ -457,7 +467,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"root":   expectedPath(""),
 				"folder": expectedPath("/folder2"),
 			},
-			expectedExcludes: map[string]struct{}{"file": {}},
+			expectedExcludes: getDelList("file"),
 		},
 		{
 			testCase: "moved folder tree with file no previous 1",
@@ -480,7 +490,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"root":   expectedPath(""),
 				"folder": expectedPath("/folder"),
 			},
-			expectedExcludes: map[string]struct{}{"file": {}},
+			expectedExcludes: getDelList("file"),
 		},
 		{
 			testCase: "moved folder tree and subfolder 1",
@@ -577,7 +587,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"folder2":   expectedPath("/folder2"),
 				"subfolder": expectedPath("/folder/subfolder"),
 			},
-			expectedExcludes: map[string]struct{}{"itemInSubfolder": {}, "itemInFolder2": {}},
+			expectedExcludes: getDelList("itemInSubfolder", "itemInFolder2"),
 		},
 		{
 			testCase: "moved folder tree multiple times",
@@ -605,9 +615,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"folder":    expectedPath("/folder2"),
 				"subfolder": expectedPath("/folder2/subfolder"),
 			},
-			expectedExcludes: map[string]struct{}{
-				"file": {},
-			},
+			expectedExcludes: getDelList("file"),
 		},
 		{
 			testCase: "deleted folder and package",
@@ -699,9 +707,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedMetadataPaths: map[string]string{
 				"root": expectedPath(""),
 			},
-			expectedExcludes: map[string]struct{}{
-				"item": {},
-			},
+			expectedExcludes: getDelList("item"),
 		},
 	}
 
@@ -1237,9 +1243,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 			},
-			expectedDelList: map[string]struct{}{
-				"file": {},
-			},
+			expectedDelList: getDelList("file"),
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoFolders_NoErrors",
@@ -1268,7 +1272,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 			},
-			expectedDelList: map[string]struct{}{"file": {}},
+			expectedDelList: getDelList("file"),
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors",
@@ -1302,7 +1306,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{"file": {}},
+			expectedDelList: getDelList("file"),
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
@@ -1337,7 +1341,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{"file": {}},
+			expectedDelList: getDelList("file"),
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
@@ -1371,7 +1375,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{"file": {}},
+			expectedDelList: getDelList("file"),
 		},
 		{
 			name:   "OneDrive_OneItemPage_EmptyDelta_NoErrors",
@@ -1398,7 +1402,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			expectedDeltaURLs:   map[string]string{},
 			expectedFolderPaths: map[string]map[string]string{},
-			expectedDelList:     map[string]struct{}{"file": {}},
+			expectedDelList:     getDelList("file"),
 		},
 		{
 			name:   "OneDrive_TwoItemPages_NoErrors",
@@ -1440,7 +1444,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{"file": {}, "file2": {}},
+			expectedDelList: getDelList("file", "file2"),
 		},
 		{
 			name: "TwoDrives_OneItemPageEach_NoErrors",
@@ -1495,7 +1499,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder2": folderPath2,
 				},
 			},
-			expectedDelList: map[string]struct{}{"file": {}, "file2": {}},
+			expectedDelList: getDelList("file", "file2"),
 		},
 		{
 			name:   "OneDrive_OneItemPage_Errors",
@@ -1629,7 +1633,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{"file": {}, "file2": {}},
+			expectedDelList: getDelList("file", "file2"),
 			doNotMergeItems: false,
 		},
 		{
