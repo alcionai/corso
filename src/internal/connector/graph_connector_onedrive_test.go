@@ -178,6 +178,8 @@ func (c *onedriveCollection) withFile(
 	case 1:
 		fallthrough
 	case 2:
+		fallthrough
+	case 3:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -207,6 +209,8 @@ func (c *onedriveCollection) withFolder(
 ) *onedriveCollection {
 	switch c.backupVersion {
 	case 0:
+		fallthrough
+	case 3:
 		return c
 
 	case 1:
@@ -247,15 +251,15 @@ func (c *onedriveCollection) withPermissions(
 		return c
 	}
 
-	c.items = append(
-		c.items,
-		onedriveMetadata(
-			c.t,
-			name,
-			name+onedrive.DirMetaFileSuffix,
-			user,
-			roles),
-	)
+	metadata := onedriveMetadata(
+		c.t,
+		name,
+		name+onedrive.DirMetaFileSuffix,
+		user,
+		roles)
+
+	c.items = append(c.items, metadata)
+	c.aux = append(c.aux, metadata)
 
 	return c
 }
@@ -382,6 +386,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 				},
 				{
 					pathElements: folderBPath,
+					perms: permData{
+						user:  suite.secondaryUser,
+						roles: readPerm,
+					},
 					files: []itemData{
 						{
 							name: fileName,
@@ -892,6 +900,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileEData,
+					"",
+					nil,
+				).
+				// Call this to generate a meta file with the folder name that we can
+				// check.
+				withPermissions(
 					"",
 					nil,
 				).
