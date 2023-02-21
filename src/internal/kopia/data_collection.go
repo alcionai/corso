@@ -26,7 +26,7 @@ type kopiaDataCollection struct {
 
 func (kdc *kopiaDataCollection) Items(
 	ctx context.Context,
-	errs *fault.Errors,
+	_ *fault.Errors, // unused, just matching the interface
 ) <-chan data.Stream {
 	res := make(chan data.Stream)
 
