@@ -167,23 +167,12 @@ func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemabl
 		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return resp, graph.Err429TooManyRequests
-	}
+	// upstream error checks can compare the status with
+	// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
+	cerr := clues.Wrap(clues.New(resp.Status), "non-2xx http response").
+		Label(graph.LabelStatus(resp.StatusCode))
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return resp, graph.Err401Unauthorized
-	}
-
-	if resp.StatusCode == http.StatusInternalServerError {
-		return resp, graph.Err500InternalServerError
-	}
-
-	if resp.StatusCode == http.StatusServiceUnavailable {
-		return resp, graph.Err503ServiceUnavailable
-	}
-
-	return resp, clues.Wrap(clues.New(resp.Status), "non-2xx http response")
+	return resp, cerr
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
