@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -148,20 +147,10 @@ func (b Backup) Values() []string {
 }
 
 func (b Backup) errorCount() int {
-	var errCount int
+	errCount := len(b.Errors.Recovered)
 
-	// current tracking
-	if b.ReadErrors != nil || b.WriteErrors != nil {
-		return support.GetNumberOfErrors(b.ReadErrors) + support.GetNumberOfErrors(b.WriteErrors)
-	}
-
-	// future tracking
-	if b.Errors.Failure != nil || len(b.Errors.Recovered) > 0 {
-		if b.Errors.Failure != nil {
-			errCount++
-		}
-
-		errCount += len(b.Errors.Recovered)
+	if b.Errors.Failure != nil {
+		errCount++
 	}
 
 	return errCount
