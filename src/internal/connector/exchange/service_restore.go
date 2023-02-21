@@ -343,7 +343,7 @@ func RestoreExchangeDataCollections(
 
 		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errs)
 
-		metrics.Combine(temp)
+		metrics = support.CombineMetrics(metrics, temp)
 
 		if canceled {
 			break
@@ -355,7 +355,6 @@ func RestoreExchangeDataCollections(
 		support.Restore,
 		len(dcs),
 		metrics,
-		el.Failure(),
 		dest.ContainerName)
 
 	return status, el.Failure()
@@ -436,7 +435,7 @@ func restoreCollection(
 				continue
 			}
 
-			metrics.TotalBytes += int64(len(byteArray))
+			metrics.Bytes += int64(len(byteArray))
 			metrics.Successes++
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)

@@ -169,7 +169,7 @@ func RestoreCollections(
 			parentPermissions[k] = v
 		}
 
-		restoreMetrics.Combine(metrics)
+		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if errors.Is(err, context.Canceled) {
 			break
@@ -181,7 +181,6 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		el.Failure(),
 		dest.ContainerName)
 
 	return status, el.Failure()
@@ -289,7 +288,7 @@ func RestoreCollection(
 
 				if strings.HasSuffix(name, DataFileSuffix) {
 					metrics.Objects++
-					metrics.TotalBytes += int64(len(copyBuffer))
+					metrics.Bytes += int64(len(copyBuffer))
 					trimmedName := strings.TrimSuffix(name, DataFileSuffix)
 
 					itemID, itemInfo, err = restoreData(
@@ -378,7 +377,7 @@ func RestoreCollection(
 				}
 			} else {
 				metrics.Objects++
-				metrics.TotalBytes += int64(len(copyBuffer))
+				metrics.Bytes += int64(len(copyBuffer))
 
 				// No permissions stored at the moment for SharePoint
 				_, itemInfo, err = restoreData(

@@ -391,7 +391,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 					TotalUploadedBytes: 1,
 				},
 				gc: &support.ConnectorOperationStatus{
-					Successful: 1,
+					Metrics: support.CollectionMetrics{Successes: 1},
 				},
 			},
 		},
@@ -430,7 +430,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")

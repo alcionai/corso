@@ -200,7 +200,6 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.ConnectorOperationStatus) {
 	updater := func(status *support.ConnectorOperationStatus) {
 		defer wg.Done()
-		assert.Zero(t, status.ErrorCount)
 	}
 
 	return updater

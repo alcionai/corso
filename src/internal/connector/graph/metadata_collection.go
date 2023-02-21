@@ -150,11 +150,10 @@ func (md MetadataCollection) Items(
 				support.Backup,
 				1,
 				support.CollectionMetrics{
-					Objects:    len(md.items),
-					Successes:  len(md.items),
-					TotalBytes: totalBytes,
+					Objects:   len(md.items),
+					Successes: len(md.items),
+					Bytes:     totalBytes,
 				},
-				nil,
 				md.fullPath.Folder(false),
 			)
 

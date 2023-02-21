@@ -68,8 +68,10 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 					},
 				},
 				gc: &support.ConnectorOperationStatus{
-					ObjectCount: 1,
-					Successful:  1,
+					Metrics: support.CollectionMetrics{
+						Objects:   1,
+						Successes: 1,
+					},
 				},
 			},
 		},
@@ -109,7 +111,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsWritten, "items written")
+			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
 			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")

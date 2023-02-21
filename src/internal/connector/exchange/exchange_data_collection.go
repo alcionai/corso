@@ -316,11 +316,10 @@ func (col *Collection) finishPopulation(
 		support.Backup,
 		1,
 		support.CollectionMetrics{
-			Objects:    attempted,
-			Successes:  success,
-			TotalBytes: totalBytes,
+			Objects:   attempted,
+			Successes: success,
+			Bytes:     totalBytes,
 		},
-		err,
 		col.fullPath.Folder(false))
 
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
