@@ -304,8 +304,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
 	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
 	assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
-	assert.NoError(t, ro.Results.ReadErrors, "errors while reading restore data")
-	assert.NoError(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")

@@ -44,10 +44,6 @@ func stubBackup(t time.Time) backup.Backup {
 		Errors: fault.Errors{
 			Recovered: []error{errors.New("read"), errors.New("write")},
 		},
-		Errs: stats.Errs{
-			ReadErrors:  errors.New("1"),
-			WriteErrors: errors.New("1"),
-		},
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,

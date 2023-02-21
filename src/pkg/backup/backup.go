@@ -40,7 +40,6 @@ type Backup struct {
 	Errors fault.Errors `json:"errors"`
 
 	// stats are embedded so that the values appear as top-level properties
-	stats.Errs // Deprecated, replaced with Errors.
 	stats.ReadWrites
 	stats.StartAndEndTime
 }

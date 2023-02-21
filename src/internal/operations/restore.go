@@ -46,7 +46,6 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 }
