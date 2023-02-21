@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -89,7 +88,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 		control.Copy,
 		folderID,
 		userID)
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+	assert.NoError(t, err)
 	assert.NotNil(t, info, "contact item info")
 }
 
@@ -123,7 +122,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		calendarID,
 		userID,
 		fault.New(true))
-	assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+	assert.NoError(t, err)
 	assert.NotNil(t, info, "event item info")
 }
 
@@ -352,7 +351,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				destination,
 				userID,
 				fault.New(true))
-			assert.NoError(t, err, support.ConnectorStackErrorTrace(err))
+			assert.NoError(t, err)
 			assert.NotNil(t, info, "item info was not populated")
 			assert.NotNil(t, deleters)
 			assert.NoError(t, deleters[test.category].DeleteContainer(ctx, userID, destination))

@@ -609,7 +609,7 @@ func establishMailRestoreLocation(
 		temp, err := ac.Mail().CreateMailFolderWithParent(ctx, user, folder, folderID)
 		if err != nil {
 			// Should only error if cache malfunctions or incorrect parameters
-			return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return "", err
 		}
 
 		folderID = *temp.GetId()
@@ -658,7 +658,7 @@ func establishContactsRestoreLocation(
 
 	temp, err := ac.Contacts().CreateContactFolder(ctx, user, folders[0])
 	if err != nil {
-		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return "", err
 	}
 
 	folderID := *temp.GetId()
@@ -695,7 +695,7 @@ func establishEventsRestoreLocation(
 
 	temp, err := ac.Events().CreateCalendar(ctx, user, folders[0])
 	if err != nil {
-		return "", errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+		return "", err
 	}
 
 	folderID := *temp.GetId()

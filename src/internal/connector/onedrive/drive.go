@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -98,7 +97,9 @@ func drives(
 			page, err = pager.GetPage(ctx)
 			if err != nil {
 				// Various error handling. May return an error or perform a retry.
-				errMsg := support.ConnectorStackErrorTraceWrap(err, "").Error()
+				// errMsg := support.ConnectorStackErrorTraceWrap(err, "").Error()
+				// temporarily broken until ^ is fixed in next PR.
+				errMsg := err.Error()
 				if strings.Contains(errMsg, userMysiteURLNotFound) ||
 					strings.Contains(errMsg, userMysiteURLNotFoundMsg) ||
 					strings.Contains(errMsg, userMysiteNotFound) ||

@@ -7,11 +7,9 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -209,7 +207,7 @@ func fetchListItems(
 
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, err
 		}
 
 		for _, itm := range resp.GetValue() {
@@ -315,7 +313,7 @@ func fetchContentTypes(
 
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, support.ConnectorStackErrorTrace(err))
+			return nil, err
 		}
 
 		for _, cont := range resp.GetValue() {
