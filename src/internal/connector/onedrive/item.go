@@ -223,7 +223,11 @@ func oneDriveItemPermissionInfo(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, support.ConnectorStackErrorTraceWrap(err, "fetching item permissions")
+		msg := support.ConnectorStackErrorTrace(err)
+		err = clues.Wrap(err, "fetching item permissions: "+msg).
+			With("item_id", *di.GetId())
+
+		return nil, err
 	}
 
 	uperms := filterUserPermissions(perm.GetValue())
