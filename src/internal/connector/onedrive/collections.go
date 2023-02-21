@@ -187,9 +187,7 @@ func deserializeMetadata(
 				err = clues.Stack(err).WithClues(ictx)
 
 				el.AddRecoverable(err)
-				logger.Ctx(ictx).
-					With("err", err).
-					Errorw("deserializing base backup metadata", clues.InErr(err).Slice()...)
+				logger.CtxErr(ictx, err).Error("deserializing base backup metadata")
 			}
 		}
 
@@ -375,9 +373,7 @@ func (c *Collections) Get(
 		// Technically it's safe to continue here because the logic for starting an
 		// incremental backup should eventually find that the metadata files are
 		// empty/missing and default to a full backup.
-		logger.Ctx(ctx).
-			With("err", err).
-			Infow("making metadata collection for future incremental backups", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Info("making metadata collection for future incremental backups")
 	} else {
 		collections = append(collections, metadata)
 	}

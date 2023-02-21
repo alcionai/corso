@@ -122,9 +122,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			err = clues.Wrap(rerr, "panic recovery").
 				WithClues(ctx).
 				With("stacktrace", string(debug.Stack()))
-			logger.Ctx(ctx).
-				With("err", err).
-				Errorw("backup panic", clues.InErr(err).Slice()...)
+			logger.CtxErr(ctx, err).Error("backup panic")
 		}
 	}()
 
