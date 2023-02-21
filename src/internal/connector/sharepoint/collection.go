@@ -243,7 +243,7 @@ func (sc *Collection) retrieveLists(
 
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
-			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
+			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
@@ -311,7 +311,7 @@ func (sc *Collection) retrievePages(
 
 		byteArray, err := serializeContent(wtr, pg)
 		if err != nil {
-			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
+			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 

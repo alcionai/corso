@@ -273,6 +273,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 	errUpdater := func(id string, err error) {
 		m.Lock()
+		// TODO: Label(fault.LabelForceNoBackupCreation)
 		errs = support.WrapAndAppend(id, err, errs)
 		m.Unlock()
 	}
