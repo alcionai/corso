@@ -169,6 +169,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.readErr = op.Errors.Err()
 	}
 
+	// TODO: the consumer (sdk or cli) should run this, not operations.
+	recoverableCount := len(op.Errors.Errs())
+	for i, err := range op.Errors.Errs() {
+		logger.Ctx(ctx).
+			With("error", err).
+			With(clues.InErr(err).Slice()...).
+			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
+	}
+
 	// -----
 	// Persistence
 	// -----
