@@ -6,12 +6,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 // ---------------------------------------------------------------------------
@@ -41,6 +44,17 @@ var (
 	Err504GatewayTimeout      = errors.New("504 Gateway Timeout")
 	Err500InternalServerError = errors.New("500 Internal Server Error")
 )
+
+var (
+	mysiteURLNotFound = "unable to retrieve user's mysite URL"
+	mysiteNotFound    = "user's mysite not found"
+)
+
+var Labels = struct {
+	MysiteNotFound string
+}{
+	MysiteNotFound: "mysite_not_found",
+}
 
 // The folder or item was deleted between the time we identified
 // it and when we tried to fetch data for it.
@@ -190,43 +204,74 @@ func hasErrorCode(err error, codes ...string) bool {
 	return slices.Contains(codes, *oDataError.GetError().GetCode())
 }
 
-// ErrData is a helper function that extracts ODataError metadata from
-// the error.  If the error is not an ODataError type, returns an empty
-// slice.  The returned value is guaranteed to be an even-length pairing
-// of key, value tuples.
-func ErrData(e error) []any {
-	result := make([]any, 0)
-
+// Wrap is a helper function that extracts ODataError metadata from
+// the error.  If the error is not an ODataError type, returns the error.
+func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 	if e == nil {
-		return result
+		return nil
 	}
 
 	odErr, ok := e.(odataerrors.ODataErrorable)
 	if !ok {
-		return result
+		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	// Get MainError
-	mainErr := odErr.GetError()
+	data, innerMsg := ErrData(odErr)
 
-	result = appendIf(result, "odataerror_code", mainErr.GetCode())
-	result = appendIf(result, "odataerror_message", mainErr.GetMessage())
-	result = appendIf(result, "odataerror_target", mainErr.GetTarget())
+	return setLabels(clues.Wrap(e, msg).WithClues(ctx).With(data...), innerMsg)
+}
+
+// Stack is a helper function that extracts ODataError metadata from
+// the error.  If the error is not an ODataError type, returns the error.
+func Stack(ctx context.Context, e error) *clues.Err {
+	if e == nil {
+		return nil
+	}
+
+	odErr, ok := e.(odataerrors.ODataErrorable)
+	if !ok {
+		return clues.Stack(e).WithClues(ctx)
+	}
+
+	data, innerMsg := ErrData(odErr)
+
+	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
+}
+
+func setLabels(err *clues.Err, msg string) *clues.Err {
+	if strings.Contains(msg, mysiteNotFound) || strings.Contains(msg, mysiteURLNotFound) {
+		err = err.Label(Labels.MysiteNotFound)
+	}
+
+	return err
+}
+
+func ErrData(err odataerrors.ODataErrorable) ([]any, string) {
+	data := make([]any, 0)
+
+	// Get MainError
+	mainErr := err.GetError()
+
+	data = appendIf(data, "odataerror_code", mainErr.GetCode())
+	data = appendIf(data, "odataerror_message", mainErr.GetMessage())
+	data = appendIf(data, "odataerror_target", mainErr.GetTarget())
+	msgConcat := ptr.Val(mainErr.GetMessage())
 
 	for i, d := range mainErr.GetDetails() {
 		pfx := fmt.Sprintf("odataerror_details_%d_", i)
-		result = appendIf(result, pfx+"code", d.GetCode())
-		result = appendIf(result, pfx+"message", d.GetMessage())
-		result = appendIf(result, pfx+"target", d.GetTarget())
+		data = appendIf(data, pfx+"code", d.GetCode())
+		data = appendIf(data, pfx+"message", d.GetMessage())
+		data = appendIf(data, pfx+"target", d.GetTarget())
+		msgConcat += ptr.Val(d.GetMessage())
 	}
 
 	inner := mainErr.GetInnererror()
 	if inner != nil {
-		result = appendIf(result, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
-		result = appendIf(result, "odataerror_inner_req_id", inner.GetRequestId())
+		data = appendIf(data, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
+		data = appendIf(data, "odataerror_inner_req_id", inner.GetRequestId())
 	}
 
-	return result
+	return data, strings.ToLower(msgConcat)
 }
 
 func appendIf(a []any, k string, v *string) []any {

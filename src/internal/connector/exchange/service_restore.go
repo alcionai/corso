@@ -70,14 +70,14 @@ func RestoreExchangeContact(
 ) (*details.ExchangeInfo, error) {
 	contact, err := support.CreateContactFromBytes(bits)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating contact from bytes").WithClues(ctx)
+		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "uploading Contact").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "uploading Contact")
 	}
 
 	if response == nil {
@@ -125,7 +125,7 @@ func RestoreExchangeEvent(
 
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "uploading event").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "uploading event")
 	}
 
 	if response == nil {
@@ -249,7 +249,7 @@ func SendMailToBackStore(
 
 	response, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
-		return clues.Wrap(err, "restoring mail").WithClues(ctx).With(graph.ErrData(err)...)
+		return graph.Wrap(ctx, err, "restoring mail")
 	}
 
 	if response == nil {
