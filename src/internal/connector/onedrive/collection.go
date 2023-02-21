@@ -5,11 +5,11 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
@@ -91,6 +91,7 @@ type itemMetaReaderFunc func(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
+	fetchPermissions bool,
 ) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
@@ -202,6 +203,7 @@ type UserPermission struct {
 // ItemMeta contains metadata about the Item. It gets stored in a
 // separate file in kopia
 type Metadata struct {
+	FileName    string           `json:"filename,omitempty"`
 	Permissions []UserPermission `json:"permissions,omitempty"`
 }
 
@@ -314,20 +316,16 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			if oc.source == OneDriveSource {
 				// Fetch metadata for the file
-				if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
-					// We are still writing the metadata file but with
-					// empty permissions as we don't have a way to
-					// signify that the permissions was explicitly
-					// not added.
-					itemMeta = io.NopCloser(strings.NewReader("{}"))
-					itemMetaSize = 2
-				} else {
-					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+				itemMeta, itemMetaSize, err = oc.itemMetaReader(
+					ctx,
+					oc.service,
+					oc.driveID,
+					item,
+					oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
 
-					if err != nil {
-						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
-						return
-					}
+				if err != nil {
+					errUpdater(itemID, clues.Wrap(err, "getting item metadata"))
+					return
 				}
 			}
 

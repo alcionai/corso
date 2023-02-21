@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
-## [v0.4.0] (alpha) - 2023-2-20
+### Added
+- Show owner information when doing backup list in json format
+
+### Known Issues
+- Folders and Calendars containing zero items or subfolders are not included in the backup.
+
+## [v0.4.0] (beta) - 2023-2-20
 
 ### Fixed
 - Support for item.Attachment:Mail restore

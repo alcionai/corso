@@ -480,10 +480,7 @@ func runBackupAndCompare(
 		ctx,
 		backupSel,
 		nil,
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
-		},
+		config.opts,
 		fault.New(true))
 	require.NoError(t, err)
 	// No excludes yet because this isn't an incremental backup.
