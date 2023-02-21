@@ -31,11 +31,11 @@ const (
 )
 
 type ConfigSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestConfigSuite(t *testing.T) {
-	suite.Run(t, new(ConfigSuite))
+	suite.Run(t, &ConfigSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ConfigSuite) TestReadRepoConfigBasic() {
@@ -172,8 +172,8 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		},
 	}
 	for _, test := range table {
-		t.Run(test.name, func(t *testing.T) {
-			test.errCheck(t, mustMatchConfig(vpr, test.input))
+		suite.Run(test.name, func() {
+			test.errCheck(suite.T(), mustMatchConfig(vpr, test.input))
 		})
 	}
 }
@@ -183,20 +183,14 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 // ------------------------------------------------------------
 
 type ConfigIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestConfigIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
+	suite.Run(t, &ConfigIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		tester.CorsoCITests,
-		tester.CorsoCLIConfigTests)
-
-	suite.Run(t, new(ConfigIntegrationSuite))
-}
-
-func (suite *ConfigIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
+		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		tester.CorsoCLIConfigTests)})
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
