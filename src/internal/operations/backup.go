@@ -290,10 +290,6 @@ func (op *BackupOperation) do(
 	}
 
 	opStats.gc = gc.AwaitStatus()
-	// TODO(keepers): remove when fault.Errors handles all iterable error aggregation.
-	if opStats.gc.ErrorCount > 0 {
-		return nil, opStats.gc.Err
-	}
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
@@ -657,11 +653,11 @@ func (op *BackupOperation) persistResults(
 		return errors.New("backup population never completed")
 	}
 
-	if opStats.gc.Successful == 0 {
+	if opStats.gc.Metrics.Successes == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsRead = opStats.gc.Successful
+	op.Results.ItemsRead = opStats.gc.Metrics.Successes
 
 	return nil
 }

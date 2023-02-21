@@ -98,7 +98,7 @@ func RestoreCollections(
 			return nil, clues.Wrap(clues.New(category.String()), "category not supported")
 		}
 
-		restoreMetrics.Combine(metrics)
+		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
 			break
@@ -110,7 +110,6 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		err,
 		dest.ContainerName)
 
 	return status, err
@@ -256,7 +255,7 @@ func RestoreListCollection(
 				continue
 			}
 
-			metrics.TotalBytes += itemInfo.SharePoint.Size
+			metrics.Bytes += itemInfo.SharePoint.Size
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
@@ -339,7 +338,7 @@ func RestorePageCollection(
 				continue
 			}
 
-			metrics.TotalBytes += itemInfo.SharePoint.Size
+			metrics.Bytes += itemInfo.SharePoint.Size
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {

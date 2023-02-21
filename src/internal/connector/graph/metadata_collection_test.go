@@ -84,8 +84,8 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		p,
 		items,
 		func(c *support.ConnectorOperationStatus) {
-			assert.Equal(t, len(itemNames), c.ObjectCount)
-			assert.Equal(t, len(itemNames), c.Successful)
+			assert.Equal(t, len(itemNames), c.Metrics.Objects)
+			assert.Equal(t, len(itemNames), c.Metrics.Successes)
 		},
 	)
 

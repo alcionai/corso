@@ -256,7 +256,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, 0, clues.Wrap(err, "getting drive path").WithClues(ctx))
+		oc.reportAsCompleted(ctx, 0, 0, 0)
 		return
 	}
 
@@ -453,22 +453,22 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, el.Failure())
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
-			Objects:    itemsFound, // items to read,
-			Successes:  itemsRead,  // items read successfully,
-			TotalBytes: byteCount,  // Number of bytes read in the operation,
+			Objects:   itemsFound,
+			Successes: itemsRead,
+			Bytes:     byteCount,
 		},
-		err,
-		oc.folderPath.Folder(false), // Additional details
-	)
+		oc.folderPath.Folder(false))
+
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+
 	oc.statusUpdater(status)
 }

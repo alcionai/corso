@@ -4,7 +4,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -92,17 +91,11 @@ func statusTestTask(gc *GraphConnector, objects, success, folder int) {
 		ctx,
 		support.Restore, folder,
 		support.CollectionMetrics{
-			Objects:    objects,
-			Successes:  success,
-			TotalBytes: 0,
+			Objects:   objects,
+			Successes: success,
+			Bytes:     0,
 		},
-		support.WrapAndAppend(
-			"tres",
-			errors.New("three"),
-			support.WrapAndAppend("arc376", errors.New("one"), errors.New("two")),
-		),
-		"statusTestTask",
-	)
+		"statusTestTask")
 	gc.UpdateStatus(status)
 }
 
@@ -123,11 +116,11 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 
 	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	assert.Equal(t, 8, gc.Status().ObjectCount)
+	assert.Equal(t, 8, gc.Status().Metrics.Objects)
 	// Expect 2 success
-	assert.Equal(t, 2, gc.Status().Successful)
+	assert.Equal(t, 2, gc.Status().Metrics.Successes)
 	// Expect 2 folders
-	assert.Equal(t, 2, gc.Status().FolderCount)
+	assert.Equal(t, 2, gc.Status().Folders)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {
