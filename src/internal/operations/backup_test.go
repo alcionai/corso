@@ -379,6 +379,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		expectStatus opStatus
 		expectErr    assert.ErrorAssertionFunc
 		stats        backupStats
+		fail         error
 	}{
 		{
 			expectStatus: Completed,
@@ -398,10 +399,10 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		{
 			expectStatus: Failed,
 			expectErr:    assert.Error,
+			fail:         assert.AnError,
 			stats: backupStats{
-				readErr: assert.AnError,
-				k:       &kopia.BackupStats{},
-				gc:      &support.ConnectorOperationStatus{},
+				k:  &kopia.BackupStats{},
+				gc: &support.ConnectorOperationStatus{},
 			},
 		},
 		{
@@ -427,6 +428,9 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 				sel,
 				evmock.NewBus())
 			require.NoError(t, err)
+
+			op.Errors.Fail(test.fail)
+
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
@@ -435,8 +439,6 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
-			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
-			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
 		})

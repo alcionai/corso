@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -94,10 +93,10 @@ func (op BackupOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type backupStats struct {
-	k                 *kopia.BackupStats
-	gc                *support.ConnectorOperationStatus
-	resourceCount     int
-	readErr, writeErr error
+	k             *kopia.BackupStats
+	gc            *support.ConnectorOperationStatus
+	resourceCount int
+	// readErr, writeErr error
 }
 
 type detailsWriter interface {
@@ -181,7 +180,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			With("err", err).
 			Errorw("doing backup", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
-		opStats.readErr = op.Errors.Failure()
 	}
 
 	// -----
@@ -191,8 +189,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.persistResults(startTime, &opStats)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
-		opStats.writeErr = op.Errors.Failure()
-
 		return op.Errors.Failure()
 	}
 
@@ -204,8 +200,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup"))
-		opStats.writeErr = op.Errors.Failure()
-
 		return op.Errors.Failure()
 	}
 
@@ -619,19 +613,11 @@ func (op *BackupOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if opStats.readErr != nil || opStats.writeErr != nil {
+	if op.Errors.Failure() != nil {
 		op.Status = Failed
-
-		// TODO(keepers): replace with fault.Errors handling.
-		return multierror.Append(
-			errors.New("errors prevented the operation from processing"),
-			opStats.readErr,
-			opStats.writeErr)
 	}
 
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
@@ -644,13 +630,13 @@ func (op *BackupOperation) persistResults(
 		return errors.New("backup population never completed")
 	}
 
-	if opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
 		op.Status = NoData
 	}
 
 	op.Results.ItemsRead = opStats.gc.Metrics.Successes
 
-	return nil
+	return op.Errors.Failure()
 }
 
 // stores the operation details, results, and selectors in the backup manifest.

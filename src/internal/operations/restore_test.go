@@ -53,6 +53,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		expectStatus opStatus
 		expectErr    assert.ErrorAssertionFunc
 		stats        restoreStats
+		fail         error
 	}{
 		{
 			expectStatus: Completed,
@@ -78,8 +79,8 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		{
 			expectStatus: Failed,
 			expectErr:    assert.Error,
+			fail:         assert.AnError,
 			stats: restoreStats{
-				readErr:   assert.AnError,
 				bytesRead: &stats.ByteCounter{},
 				gc:        &support.ConnectorOperationStatus{},
 			},
@@ -107,6 +108,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				dest,
 				evmock.NewBus())
 			require.NoError(t, err)
+
+			op.Errors.Fail(test.fail)
+
 			test.expectErr(t, op.persistResults(ctx, now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
@@ -114,8 +118,6 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
-			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
-			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
 		})

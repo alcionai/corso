@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -88,11 +87,10 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []data.RestoreCollection
-	gc                *support.ConnectorOperationStatus
-	bytesRead         *stats.ByteCounter
-	resourceCount     int
-	readErr, writeErr error
+	cs            []data.RestoreCollection
+	gc            *support.ConnectorOperationStatus
+	bytesRead     *stats.ByteCounter
+	resourceCount int
 
 	// a transient value only used to pair up start-end events.
 	restoreID string
@@ -167,7 +165,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			With("err", err).
 			Errorw("doing restore", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
-		opStats.readErr = op.Errors.Failure()
 	}
 
 	// -----
@@ -177,8 +174,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	err = op.persistResults(ctx, start, &opStats)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting restore results"))
-		opStats.writeErr = op.Errors.Failure()
-
 		return nil, op.Errors.Failure()
 	}
 
@@ -281,19 +276,11 @@ func (op *RestoreOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if opStats.readErr != nil || opStats.writeErr != nil {
+	if op.Errors.Failure() != nil {
 		op.Status = Failed
-
-		// TODO(keepers): replace with fault.Errors handling.
-		return multierror.Append(
-			errors.New("errors prevented the operation from processing"),
-			opStats.readErr,
-			opStats.writeErr)
 	}
 
 	op.Results.BytesRead = opStats.bytesRead.NumBytes
@@ -305,13 +292,11 @@ func (op *RestoreOperation) persistResults(
 		return errors.New("restoration never completed")
 	}
 
-	if opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
 		op.Status = NoData
 	}
 
 	op.Results.ItemsWritten = opStats.gc.Metrics.Successes
-
-	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
 	op.bus.Event(
 		ctx,
@@ -319,7 +304,7 @@ func (op *RestoreOperation) persistResults(
 		map[string]any{
 			events.BackupID:      op.BackupID,
 			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      dur,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
 			events.ItemsRead:     op.Results.ItemsRead,
 			events.ItemsWritten:  op.Results.ItemsWritten,
@@ -331,7 +316,7 @@ func (op *RestoreOperation) persistResults(
 		},
 	)
 
-	return nil
+	return op.Errors.Failure()
 }
 
 // formatDetailsForRestoration reduces the provided detail entries according to the
