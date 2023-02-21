@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -193,20 +194,7 @@ func (c *onedriveCollection) withFile(
 		c.aux = append(c.aux, metadata)
 
 	default:
-		c.items = append(c.items, onedriveItemWithData(
-			c.t,
-			name+"-id"+onedrive.DataFileSuffix,
-			name+onedrive.DataFileSuffix,
-			fileData))
-
-		metadata := onedriveMetadata(
-			c.t,
-			name,
-			name+"-id"+onedrive.MetaFileSuffix,
-			user,
-			roles)
-		c.items = append(c.items, metadata)
-		c.aux = append(c.aux, metadata)
+		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
 	}
 
 	return c
@@ -217,11 +205,10 @@ func (c *onedriveCollection) withFolder(
 	user string,
 	roles []string,
 ) *onedriveCollection {
-	if c.backupVersion < 1 {
-		return c
-	}
-
 	switch c.backupVersion {
+	case 0:
+		return c
+
 	case 1:
 		fallthrough
 	case 2:
@@ -236,15 +223,7 @@ func (c *onedriveCollection) withFolder(
 		)
 
 	default:
-		c.items = append(
-			c.items,
-			onedriveMetadata(
-				c.t,
-				name,
-				name+onedrive.DirMetaFileSuffix,
-				user,
-				roles),
-		)
+		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
 	}
 
 	return c
