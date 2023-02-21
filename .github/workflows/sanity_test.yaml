@@ -1,10 +1,5 @@
 name: Sanity Testing
-on:
-  schedule:
-    # every day at 01:59 (01:59am) UTC
-    # - cron: "59 1 * * *"
-    # temp, for testing: every 4 hours
-    - cron: "0 */4 * * *"
+on: workflow_dispatch
 
 permissions:
   # required to retrieve AWS credentials
@@ -36,21 +31,43 @@ jobs:
       - run: mkdir test_results
 
       # run the tests
-      - name: Sanity Test
+      - name: Version Test
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-          # AWS_CORSO_BUCKET: 
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+        run: |
+          if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
+          then
+              echo "valid version not found"
+              exit 1
+          fi
+
+
+      # run the tests
+      - name: Repo connect test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
           TEST_RESULT: "test_results"
+
         run: |
-          set -euo pipefail
-          touch $TEST_RESULT/version.txt
-          output= ./corso repo connect s3 --hide-progress --bucket 'test-corso-neha'
-          if !( grep -q  "Connected to S3 bucket" output.txt ) ; then
-              echo "response"
-              exit 2
+          touch $TEST_RESULT/connect.txt
+          ./corso repo connect s3 --hide-progress --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
+          valid_num=$(grep 'Connected to S3 bucket' $TEST_RESULT/connect.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "repo could not be connected"
+              exit 1
           fi
