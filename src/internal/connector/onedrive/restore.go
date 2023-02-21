@@ -76,10 +76,7 @@ func getParentAndCollectionPermissions(
 		return nil, nil, nil
 	}
 
-	var (
-		parentPerms []UserPermission
-		colPerms    []UserPermission
-	)
+	var parentPerms []UserPermission
 
 	// Only get parent permissions if we're not restoring the root.
 	if len(drivePath.Folders) > 0 {
@@ -211,9 +208,6 @@ func RestoreCollection(
 	restorePerms bool,
 	errs *fault.Errors,
 ) (support.CollectionMetrics, map[string][]UserPermission, map[string]string, error) {
-	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", dc.FullPath()))
-	defer end()
-
 	var (
 		metrics     = support.CollectionMetrics{}
 		copyBuffer  = make([]byte, copyBufferSize)
@@ -221,6 +215,9 @@ func RestoreCollection(
 		itemInfo    details.ItemInfo
 		folderPerms = map[string][]UserPermission{}
 	)
+
+	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", directory))
+	defer end()
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
@@ -236,6 +233,7 @@ func RestoreCollection(
 
 	ctx = clues.Add(
 		ctx,
+		"directory", dc.FullPath().Folder(false),
 		"destination_elements", restoreFolderElements,
 		"drive_id", drivePath.DriveID)
 
