@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -95,18 +94,9 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 	// These errors won't be the "correct" format when compared to what graph
 	// returns, but they're close enough to have the same info when the inner
 	// details are extracted via support package.
-	mySiteURLNotFound := support.ConnectorStackErrorTraceWrap(
-		odErr(userMysiteURLNotFound),
-		"maximum retries or unretryable",
-	)
-	mySiteNotFound := support.ConnectorStackErrorTraceWrap(
-		odErr(userMysiteNotFound),
-		"maximum retries or unretryable",
-	)
-	deadlineExceeded := support.ConnectorStackErrorTraceWrap(
-		odErr(contextDeadlineExceeded),
-		"maximum retries or unretryable",
-	)
+	mySiteURLNotFound := odErr(userMysiteURLNotFound)
+	mySiteNotFound := odErr(userMysiteNotFound)
+	deadlineExceeded := odErr(contextDeadlineExceeded)
 
 	resultDrives := make([]models.Driveable, 0, numDriveResults)
 
