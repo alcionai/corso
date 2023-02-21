@@ -155,7 +155,7 @@ func (e *tracker) Add(err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.errs.Err() == nil && e.errs.failFast {
+	if e.current == nil && e.errs.failFast {
 		e.current = err
 	}
 
