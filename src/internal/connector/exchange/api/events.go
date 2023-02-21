@@ -133,8 +133,7 @@ func (c Events) GetItem(
 
 // EnumerateContainers iterates through all of the users current
 // calendars, converting each to a graph.CacheFolder, and
-// calling fn(cf) on each one.  If fn(cf) errors, the error is
-// aggregated into a multierror that gets returned to the caller.
+// calling fn(cf) on each one.
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
 func (c Events) EnumerateContainers(
