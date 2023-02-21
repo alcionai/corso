@@ -108,6 +108,7 @@ type Printable struct {
 	Version       string         `json:"version"`
 	BytesRead     int64          `json:"bytesRead"`
 	BytesUploaded int64          `json:"bytesUploaded"`
+	Owner         string         `json:"owner"`
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
@@ -120,6 +121,7 @@ func (b Backup) MinimumPrintable() any {
 		Version:       "0",
 		BytesRead:     b.BytesRead,
 		BytesUploaded: b.BytesUploaded,
+		Owner:         b.Selector.DiscreteOwner,
 	}
 }
 

@@ -191,7 +191,6 @@ type restoreBackupInfo struct {
 }
 
 type restoreBackupInfoMultiVersion struct {
-	name                string
 	service             path.ServiceType
 	collectionsLatest   []colInfo
 	collectionsPrevious []colInfo
@@ -707,43 +706,78 @@ func compareOneDriveItem(
 	item data.Stream,
 	restorePermissions bool,
 ) {
-	name := item.UUID()
-
-	expectedData := expected[item.UUID()]
-	if !assert.NotNil(t, expectedData, "unexpected file with name %s", item.UUID()) {
-		return
-	}
-
 	buf, err := io.ReadAll(item.ToReader())
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	if !strings.HasSuffix(name, onedrive.MetaFileSuffix) && !strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
-		// OneDrive data items are just byte buffers of the data. Nothing special to
-		// interpret. May need to do chunked comparisons in the future if we test
-		// large item equality.
-		assert.Equal(t, expectedData, buf)
+	name := item.UUID()
+	if strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
+		strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
+		var (
+			itemMeta     onedrive.Metadata
+			expectedMeta onedrive.Metadata
+		)
+
+		err = json.Unmarshal(buf, &itemMeta)
+		if !assert.NoErrorf(t, err, "unmarshalling retrieved metadata for file %s", name) {
+			return
+		}
+
+		expectedData := expected[name]
+		if !assert.NotNil(
+			t,
+			expectedData,
+			"unexpected metadata file with name %s",
+			name,
+		) {
+			return
+		}
+
+		err = json.Unmarshal(expectedData, &expectedMeta)
+		if !assert.NoError(t, err, "unmarshalling expected metadata") {
+			return
+		}
+
+		// Only compare file names if we're using a version that expects them to be
+		// set.
+		if len(expectedMeta.FileName) > 0 {
+			assert.Equal(t, expectedMeta.FileName, itemMeta.FileName)
+		}
+
+		if !restorePermissions {
+			assert.Equal(t, 0, len(itemMeta.Permissions))
+			return
+		}
+
+		testElementsMatch(
+			t,
+			expectedMeta.Permissions,
+			itemMeta.Permissions,
+			permissionEqual,
+		)
+
 		return
 	}
 
-	var (
-		itemMeta     onedrive.Metadata
-		expectedMeta onedrive.Metadata
-	)
+	var fileData testOneDriveData
 
-	err = json.Unmarshal(buf, &itemMeta)
-	assert.Nil(t, err)
-
-	err = json.Unmarshal(expectedData, &expectedMeta)
-	assert.Nil(t, err)
-
-	if !restorePermissions {
-		assert.Equal(t, 0, len(itemMeta.Permissions))
+	err = json.Unmarshal(buf, &fileData)
+	if !assert.NoErrorf(t, err, "unmarshalling file data for file %s", name) {
 		return
 	}
 
-	testElementsMatch(t, expectedMeta.Permissions, itemMeta.Permissions, permissionEqual)
+	expectedData := expected[fileData.FileName]
+	if !assert.NotNil(t, expectedData, "unexpected file with name %s", name) {
+		return
+	}
+
+	// OneDrive data items are just byte buffers of the data. Nothing special to
+	// interpret. May need to do chunked comparisons in the future if we test
+	// large item equality.
+	// Compare against the version with the file name embedded because that's what
+	// the auto-generated expected data has.
+	assert.Equal(t, expectedData, buf)
 }
 
 func compareItem(
@@ -800,13 +834,16 @@ func checkHasCollections(
 	assert.ElementsMatch(t, expectedNames, gotNames)
 }
 
+//revive:disable:context-as-argument
 func checkCollections(
 	t *testing.T,
+	ctx context.Context,
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
 	restorePermissions bool,
 ) int {
+	//revive:enable:context-as-argument
 	collectionsWithItems := []data.BackupCollection{}
 
 	skipped := 0
@@ -821,7 +858,7 @@ func checkCollections(
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
-		for item := range returned.Items() {
+		for item := range returned.Items(ctx, fault.New(true)) {
 			// Skip metadata collections as they aren't directly related to items to
 			// backup. Don't add them to the item count either since the item count
 			// is for actual pull items.

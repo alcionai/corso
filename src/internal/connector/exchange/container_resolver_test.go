@@ -96,7 +96,7 @@ var (
 				displayName: &testName,
 				parentID:    &testParentID,
 			},
-			check: assert.Error,
+			check: assert.NoError,
 		},
 		{
 			name: "EmptyDisplayName",
@@ -105,7 +105,7 @@ var (
 				displayName: &emptyString,
 				parentID:    &testParentID,
 			},
-			check: assert.Error,
+			check: assert.NoError,
 		},
 		{
 			name: "AllValues",
@@ -145,7 +145,7 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 				displayName: &testName,
 				parentID:    &emptyString,
 			},
-			check: assert.Error,
+			check: assert.NoError,
 		},
 	}
 

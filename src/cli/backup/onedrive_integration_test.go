@@ -29,7 +29,7 @@ import (
 // ---------------------------------------------------------------------------
 
 type NoBackupOneDriveIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -40,9 +40,13 @@ type NoBackupOneDriveIntegrationSuite struct {
 }
 
 func TestNoBackupOneDriveIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoCITests, tester.CorsoCLITests, tester.CorsoCLIBackupTests)
-
-	suite.Run(t, new(NoBackupOneDriveIntegrationSuite))
+	suite.Run(t, &NoBackupOneDriveIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCLITests,
+			tester.CorsoCLIBackupTests),
+	})
 }
 
 func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
@@ -50,8 +54,6 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 
 	defer flush()
-
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -114,7 +116,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty()
 // ---------------------------------------------------------------------------
 
 type BackupDeleteOneDriveIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct     account.Account
 	st       storage.Storage
 	vpr      *viper.Viper
@@ -125,18 +127,17 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 }
 
 func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)
-
-	suite.Run(t, new(BackupDeleteOneDriveIntegrationSuite))
+	suite.Run(t, &BackupDeleteOneDriveIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCLITests,
+			tester.CorsoCLIBackupTests),
+	})
 }
 
 func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)

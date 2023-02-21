@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -104,7 +105,17 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID1", "General", test.items, paths, newPaths, excluded, true)
+			err := c.UpdateCollections(
+				ctx,
+				"driveID1",
+				"General",
+				test.items,
+				paths,
+				newPaths,
+				excluded,
+				map[string]string{},
+				true,
+			)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
@@ -177,7 +188,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		siteID,
 		&MockGraphService{},
 		control.Defaults(),
-	)
+		fault.New(true))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, col)
 }

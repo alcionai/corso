@@ -208,7 +208,7 @@ jobs:
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ secrets.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-          CORSO_LOG_FILE: stderr
+          CORSO_LOG_FILE: ./src/testlog/testlogging.log
           LOG_GRAPH_REQUESTS: true
         run: |
           set -euo pipefail
@@ -226,7 +226,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-log
-          path: src/testlog/gotest.log
+          path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -297,6 +297,7 @@ jobs:
           CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+          CORSO_LOG_FILE: ./src/testlog/testlogging.log
         run: |
           set -euo pipefail
           go test \
@@ -310,7 +311,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-log
-          path: src/testlog/gotest.log
+          path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -501,7 +502,7 @@ jobs:
 
       # deploy the image
       - name: Build image and push to GitHub Container Registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v3
         with:
           context: .
           file: ./build/Dockerfile
