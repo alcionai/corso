@@ -4,7 +4,7 @@ title: "Backing up large Microsoft 365 Exchange mailboxes with Corso"
 description: "A guide to using Corso to back up very large Exchange mailboxes in Microsoft 365"
 authors: nica
 tags: [corso, microsoft 365, backups, S3]
-date: 2023-2-17
+date: 2023-2-21
 image: ./images/heavy-mover.jpg
 ---
 
