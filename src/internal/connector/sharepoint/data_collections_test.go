@@ -105,7 +105,17 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
-			err := c.UpdateCollections(ctx, "driveID1", "General", test.items, paths, newPaths, excluded, true)
+			err := c.UpdateCollections(
+				ctx,
+				"driveID1",
+				"General",
+				test.items,
+				paths,
+				newPaths,
+				excluded,
+				map[string]string{},
+				true,
+			)
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
