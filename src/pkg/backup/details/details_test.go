@@ -235,6 +235,9 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "foo.meta",
 				LocationRef: "locationref.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
 			},
 			{
 				RepoRef:     "is-meta-file",
@@ -261,6 +264,9 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "foo.meta",
 				LocationRef: "locationref.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
 			},
 			{
 				RepoRef:     "is-meta-file",
