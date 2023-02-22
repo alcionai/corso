@@ -230,7 +230,7 @@ func (c *onedriveCollection) withPermissions(
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < version.OneDriveDirIncludesPermissions {
+	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
 		return c
 	}
 

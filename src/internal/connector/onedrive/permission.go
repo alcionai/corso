@@ -67,7 +67,7 @@ func getParentAndCollectionPermissions(
 		}
 	}
 
-	if backupVersion < version.OneDriveDirIncludesPermissions {
+	if backupVersion < version.OneDrive4DirIncludesPermissions {
 		colPerms, err = getParentPermissions(collectionPath, permissions)
 		if err != nil {
 			return nil, nil, clues.Wrap(err, "getting collection permissions")

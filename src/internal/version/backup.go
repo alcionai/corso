@@ -23,7 +23,7 @@ const (
 
 	// OneDrive4IncludesPermissions includes permissions for folders in the same
 	// collection as the folder itself.
-	OneDriveDirIncludesPermissions = 4
+	OneDrive4DirIncludesPermissions = 4
 
 	// OneDriveXNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file

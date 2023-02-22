@@ -283,7 +283,7 @@ func RestoreCollection(
 					// Only the version.OneDrive1DataAndMetaFiles needed to deserialize the
 					// permission for child folders here. Later versions can request
 					// permissions inline when processing the collection.
-					if !restorePerms || backupVersion >= version.OneDriveDirIncludesPermissions {
+					if !restorePerms || backupVersion >= version.OneDrive4DirIncludesPermissions {
 						continue
 					}
 
