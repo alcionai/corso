@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -39,9 +38,7 @@ const (
 	// versionWithNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
-	// TODO(ashmrtn): Update this to a real value when we merge the file name
-	// change. Set to MAXINT for now to keep the if-check using it working.
-	versionWithNameInMeta = math.MaxInt
+	versionWithNameInMeta = 5
 	// versionWithDataAndMetaFilesInDir moves the .dirmeta entries to the
 	// directory they belong to instead of being in the parent of the directory
 	// they belong to.
