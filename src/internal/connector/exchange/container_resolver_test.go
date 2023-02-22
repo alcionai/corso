@@ -51,11 +51,11 @@ func strPtr(s string) *string {
 // ---------------------------------------------------------------------------
 
 type FolderCacheUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestFolderCacheUnitSuite(t *testing.T) {
-	suite.Run(t, new(FolderCacheUnitSuite))
+	suite.Run(t, &FolderCacheUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 type containerCheckTestInfo struct {
@@ -121,8 +121,8 @@ var (
 
 func (suite *FolderCacheUnitSuite) TestCheckIDAndName() {
 	for _, test := range containerCheckTests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.check(t, checkIDAndName(test.c))
+		suite.Run(test.name, func() {
+			test.check(suite.T(), checkIDAndName(test.c))
 		})
 	}
 }
@@ -152,8 +152,8 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 	table = append(table, containerCheckTests...)
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.check(t, checkRequiredValues(test.c))
+		suite.Run(test.name, func() {
+			test.check(suite.T(), checkRequiredValues(test.c))
 		})
 	}
 }
@@ -227,9 +227,9 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			fc := newContainerResolver()
-			test.check(t, fc.addFolder(test.cf))
+			test.check(suite.T(), fc.addFolder(test.cf))
 		})
 	}
 }
@@ -311,7 +311,7 @@ func resolverWithContainers(numContainers int, useIDInPath bool) (*containerReso
 
 // TestConfiguredFolderCacheUnitSuite cannot run its tests in parallel.
 type ConfiguredFolderCacheUnitSuite struct {
-	suite.Suite
+	tester.Suite
 
 	fc       *containerResolver
 	fcWithID *containerResolver
@@ -326,7 +326,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) SetupTest() {
 }
 
 func TestConfiguredFolderCacheUnitSuite(t *testing.T) {
-	suite.Run(t, new(ConfiguredFolderCacheUnitSuite))
+	suite.Run(t, &ConfiguredFolderCacheUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
@@ -351,10 +351,10 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			resolver, containers := resolverWithContainers(test.numContainers, false)
 			_, _, err := resolver.IDToPath(ctx, containers[len(containers)-1].id, false)
-			test.check(t, err)
+			test.check(suite.T(), err)
 		})
 	}
 }
@@ -387,7 +387,9 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	defer flush()
 
 	for _, c := range suite.allContainers {
-		suite.T().Run(*c.GetDisplayName(), func(t *testing.T) {
+		suite.Run(*c.GetDisplayName(), func() {
+			t := suite.T()
+
 			p, l, err := suite.fc.IDToPath(ctx, c.id, false)
 			require.NoError(t, err)
 			assert.Equal(t, c.expectedPath, p.String())
@@ -401,7 +403,9 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	defer flush()
 
 	for _, c := range suite.containersWithID {
-		suite.T().Run(*c.GetDisplayName(), func(t *testing.T) {
+		suite.Run(*c.GetDisplayName(), func() {
+			t := suite.T()
+
 			p, l, err := suite.fcWithID.IDToPath(ctx, c.id, true)
 			require.NoError(t, err)
 			assert.Equal(t, c.expectedPath, p.String())
@@ -505,23 +509,24 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 // ---------------------------------------------------------------------------
 
 type FolderCacheIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	credentials account.M365Config
 	gs          graph.Servicer
 }
 
 func TestFolderCacheIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoConnectorExchangeFolderCacheTests)
-
-	suite.Run(t, new(FolderCacheIntegrationSuite))
+	suite.Run(t, &FolderCacheIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests,
+			tester.CorsoConnectorExchangeFolderCacheTests),
+	})
 }
 
 func (suite *FolderCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -652,7 +657,9 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 	)
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			folderID, err := CreateContainerDestination(
 				ctx,
 				m365,

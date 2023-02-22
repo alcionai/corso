@@ -18,7 +18,7 @@ import (
 )
 
 type ItemIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	// site        string
 	// siteDriveID string
 	user        string
@@ -36,13 +36,13 @@ func (suite *ItemIntegrationSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
 }
 
 func TestItemIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorOneDriveTests)
-
-	suite.Run(t, new(ItemIntegrationSuite))
+	suite.Run(t, &ItemIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorOneDriveTests),
+	})
 }
 
 func (suite *ItemIntegrationSuite) SetupSuite() {
@@ -50,8 +50,6 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -174,43 +172,45 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 		// },
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
 			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
 			// Test Requirement 2: "Test Folder" should exist
 			folder, err := getFolder(ctx, suite, test.driveID, *root.GetId(), "Test Folder")
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
-			suite.T().Logf("Test will create folder %s", newFolderName)
+			t.Logf("Test will create folder %s", newFolderName)
 
 			newFolder, err := createItem(ctx, suite, test.driveID, *folder.GetId(), newItem(newFolderName, true))
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
-			require.NotNil(suite.T(), newFolder.GetId())
+			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
-			suite.T().Logf("Test will create item %s", newItemName)
+			t.Logf("Test will create item %s", newItemName)
 
 			newItem, err := createItem(ctx, suite, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
-			require.NotNil(suite.T(), newItem.GetId())
+			require.NotNil(t, newItem.GetId())
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
 			_, err = getFolder(ctx, suite, test.driveID, *newFolder.GetId(), newItemName)
-			require.ErrorIs(suite.T(), err, errFolderNotFound)
+			require.ErrorIs(t, err, errFolderNotFound)
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
 			w, err := driveItemWriter(ctx, suite, test.driveID, *newItem.GetId(), writeSize)
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
 			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
@@ -218,9 +218,9 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			copyBuffer := make([]byte, 32*1024)
 
 			size, err := io.CopyBuffer(w, td, copyBuffer)
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
-			require.Equal(suite.T(), writeSize, size)
+			require.Equal(t, writeSize, size)
 		})
 	}
 }
@@ -245,20 +245,22 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 		// },
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
 			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 
 			// Lookup a folder that doesn't exist
 			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "FolderDoesNotExist")
-			require.ErrorIs(suite.T(), err, errFolderNotFound)
+			require.ErrorIs(t, err, errFolderNotFound)
 
 			// Lookup a folder that does exist
 			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "")
-			require.NoError(suite.T(), err)
+			require.NoError(t, err)
 		})
 	}
 }

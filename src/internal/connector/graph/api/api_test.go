@@ -94,7 +94,9 @@ func (suite *APIUnitSuite) TestNextAndDeltaLink() {
 		for _, delta := range deltaTable {
 			name := strings.Join([]string{next.name, "next", delta.name, "delta"}, "_")
 
-			suite.T().Run(name, func(t *testing.T) {
+			suite.Run(name, func() {
+				t := suite.T()
+
 				l := mockDeltaNextLink{
 					mockNextLink: mockNextLink{nextLink: next.inputLink},
 					deltaLink:    delta.inputLink,
@@ -137,9 +139,9 @@ func (suite *APIUnitSuite) TestIsLinkValid() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			got := api.IsNextLinkValid(test.inputString)
-			test.isValid(t, got)
+			test.isValid(suite.T(), got)
 		})
 	}
 }

@@ -225,7 +225,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			err := verifyBackupInputs(test.excludes(t), sites)
 			test.checkError(t, err)
 			err = verifyBackupInputs(test.filters(t), sites)

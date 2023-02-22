@@ -25,11 +25,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type DataCollectionsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestDataCollectionsUnitSuite(t *testing.T) {
-	suite.Run(t, new(DataCollectionsUnitSuite))
+	suite.Run(t, &DataCollectionsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
@@ -155,7 +155,9 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -207,23 +209,23 @@ func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.Con
 }
 
 type DataCollectionsIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	user string
 	site string
 }
 
 func TestDataCollectionsIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoConnectorCreateExchangeCollectionTests)
-
-	suite.Run(t, new(DataCollectionsIntegrationSuite))
+	suite.Run(t, &DataCollectionsIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests,
+			tester.CorsoConnectorCreateExchangeCollectionTests),
+	})
 }
 
 func (suite *DataCollectionsIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
-
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 
@@ -260,7 +262,9 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			collections, err := createCollections(
 				ctx,
 				acct,
@@ -327,7 +331,9 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			// get collections without providing any delta history (ie: full backup)
 			collections, err := createCollections(
 				ctx,
@@ -420,7 +426,9 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	wg.Add(len(collections))
 
 	for _, edc := range collections {
-		t.Run(edc.FullPath().String(), func(t *testing.T) {
+		suite.Run(edc.FullPath().String(), func() {
+			t := suite.T()
+
 			isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
 			streamChannel := edc.Items(ctx, fault.New(true))
 
@@ -471,8 +479,11 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			var wg sync.WaitGroup
+		suite.Run(test.name, func() {
+			var (
+				wg sync.WaitGroup
+				t  = suite.T()
+			)
 
 			edcs, err := createCollections(
 				ctx,
@@ -579,8 +590,11 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			var wg sync.WaitGroup
+		suite.Run(test.name, func() {
+			var (
+				wg sync.WaitGroup
+				t  = suite.T()
+			)
 
 			collections, err := createCollections(
 				ctx,

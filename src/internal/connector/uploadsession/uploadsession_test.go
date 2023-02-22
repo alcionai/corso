@@ -13,14 +13,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type UploadSessionSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestUploadSessionSuite(t *testing.T) {
-	suite.Run(t, new(UploadSessionSuite))
+	suite.Run(t, &UploadSessionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *UploadSessionSuite) TestWriter() {
