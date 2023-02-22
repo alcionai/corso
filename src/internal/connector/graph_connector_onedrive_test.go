@@ -175,9 +175,7 @@ func (c *onedriveCollection) withFile(
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case 1:
-		fallthrough
-	case 2:
+	case 1, 2, 3:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -209,9 +207,7 @@ func (c *onedriveCollection) withFolder(
 	case 0:
 		return c
 
-	case 1:
-		fallthrough
-	case 2:
+	case 1, 2, 3:
 		c.items = append(
 			c.items,
 			onedriveMetadata(
@@ -237,7 +233,7 @@ func (c *onedriveCollection) withPermissions(
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < 3 {
+	if c.backupVersion < 4 {
 		return c
 	}
 
