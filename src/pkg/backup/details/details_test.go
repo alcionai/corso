@@ -1,6 +1,7 @@
 package details
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -224,6 +225,63 @@ var pathItemsTable = []struct {
 		expectRepoRefs:     []string{"abcde", "12345"},
 		expectLocationRefs: []string{"locationref", "locationref2"},
 	},
+	{
+		name: "multiple entries with meta file",
+		ents: []DetailsEntry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.meta",
+			},
+			{
+				RepoRef:     "is-meta-file",
+				LocationRef: "locationref-meta-file",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde"},
+		expectLocationRefs: []string{"locationref"},
+	},
+	{
+		name: "multiple entries with folder and meta file",
+		ents: []DetailsEntry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "12345",
+				LocationRef: "locationref2",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.meta",
+			},
+			{
+				RepoRef:     "is-meta-file",
+				LocationRef: "locationref-meta-file",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+			{
+				RepoRef:     "deadbeef",
+				LocationRef: "locationref3",
+				ItemInfo: ItemInfo{
+					Folder: &FolderInfo{
+						DisplayName: "test folder",
+					},
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde", "12345"},
+		expectLocationRefs: []string{"locationref", "locationref2"},
+	},
 }
 
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
@@ -256,6 +314,26 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 				assert.Contains(t, test.expectLocationRefs, e.LocationRef)
 			}
 		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsModel_SliceMetaFiles() {
+	t := suite.T()
+
+	d := &DetailsModel{
+		Entries: []DetailsEntry{
+			{RepoRef: "a.data"},
+			{RepoRef: "a.meta"},
+		},
+	}
+
+	d2 := d.SliceMetaFiles()
+
+	assert.Len(t, d2.Entries, 1)
+	assert.Len(t, d.Entries, 2)
+
+	for _, de := range d2.Entries {
+		assert.True(t, !strings.HasSuffix(de.RepoRef, ".meta"), "no meta files")
 	}
 }
 

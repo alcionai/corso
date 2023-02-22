@@ -406,7 +406,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 				// TODO(meain): Remove this once we change to always
 				// backing up permissions. Until then we cannot rely
-				// on weather the previous data is what we need as the
+				// on whether the previous data is what we need as the
 				// user might have not backup up permissions in the
 				// previous run.
 				metaItemInfo := details.ItemInfo{}
@@ -415,6 +415,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					ItemName:   itemInfo.OneDrive.ItemName,
 					DriveName:  itemInfo.OneDrive.DriveName,
 					ItemType:   itemInfo.OneDrive.ItemType,
+					IsMeta:     true,
 					Modified:   time.Now(), // set to current time to always refresh
 					Owner:      itemInfo.OneDrive.Owner,
 					ParentPath: itemInfo.OneDrive.ParentPath,
