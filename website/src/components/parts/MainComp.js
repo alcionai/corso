@@ -4,6 +4,7 @@ import loadable from "@loadable/component";
 import Hero from "./Hero";
 import Demo from "./Demo";
 import CTA from "./CTA";
+import Users from "./Users";
 import Cookies from "./Cookies";
 import KeyLoveFAQ from "./KeyLoveFAQ";
 
@@ -14,6 +15,7 @@ export function MainComp() {
     <>
       <Hero />
       <Demo />
+      <Users />
       <KeyLoveFAQ />
       <CTA />
       <BackToTopComp />
