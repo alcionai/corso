@@ -40,12 +40,7 @@ export default function Hero() {
             >
               Quickstart
             </a>
-            <a
-              href="../docs/setup/download/"
-              className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
-            >
-              Download
-            </a>
+
           </div>
 
           <div
@@ -55,12 +50,9 @@ export default function Hero() {
               animationName: "fadeIn",
             }}
           >
-            <img
-              src="img/cloudbackup.svg"
-              className="w-[70%] inline-block object-contain"
-              alt="Cloud backup and storage"
-            />
+
           </div>
+
         </div>
 
         <div className="bg-indigo-600 w-8 h-16 !z-10 absolute left-8 lg:bottom-28 md:bottom-36 sm:bottom-40 bottom-16"></div>
@@ -69,6 +61,7 @@ export default function Hero() {
         <div className="bg-indigo-600/20 !z-10 w-8 h-16 absolute right-20 xl:bottom-[420px] lg:bottom-[315px] md:bottom-[285px] sm:bottom-80 bottom-32"></div>
         <div className="bg-indigo-600 w-8 h-16 !z-10 absolute right-8 xl:bottom-[440px] lg:bottom-[335px] md:bottom-[305px] sm:bottom-[340px] bottom-36"></div>
       </div>
+      
     </section>
   );
 }
