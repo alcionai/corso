@@ -126,8 +126,8 @@ func (dm DetailsModel) SliceMetaFiles() DetailsModel {
 
 func (de DetailsEntry) isMetaFile() bool {
 	// TODO: this is hazardous.  legitimate files could be suffixed .meta.
-	return de.ItemInfo.OneDrive != nil &&
-		(strings.HasSuffix(de.RepoRef, ".meta") || de.ItemInfo.OneDrive.IsMeta)
+	return strings.HasSuffix(de.RepoRef, ".meta") ||
+		(de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta)
 }
 
 // ---------------------------------------------------------------------------
