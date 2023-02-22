@@ -264,10 +264,8 @@ func (handler *LoggingMiddleware) Intercept(
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
-	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		if strings.Contains(req.URL.String(), "users//") {
-			logger.Ctx(ctx).Errorw("malformed request url: missing user", "url", req.URL)
-		}
+	if strings.Contains(req.URL.String(), "users//") {
+		logger.Ctx(ctx).Errorw("malformed request url: missing resource", "url", req.URL)
 	}
 
 	if resp == nil {

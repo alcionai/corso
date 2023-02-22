@@ -279,12 +279,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		if err != nil {
 			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
 		} else {
-			uri, err := gri.GetUri()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
-			} else {
-				logger.Ctx(ctx).Infow("calendar builder", "user", user, "directoryID", calendarID, "uri", uri)
-			}
+			logger.Ctx(ctx).Warnf("path-parameters %v", gri.PathParameters)
 		}
 	}
 

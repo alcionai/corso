@@ -248,16 +248,11 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	pgr := &contactPager{service, builder, options}
 
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
-		gri, err := builder.ToGetRequestInformation(ctx, options)
+		gri, err := builder.ToGetRequestInformation(ctx, nil)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
 		} else {
-			uri, err := gri.GetUri()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
-			} else {
-				logger.Ctx(ctx).Infow("contact builder", "user", user, "directoryID", directoryID, "uri", uri)
-			}
+			logger.Ctx(ctx).Warnf("path-parameters %v", gri.PathParameters)
 		}
 	}
 
