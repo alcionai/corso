@@ -195,6 +195,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	for _, e := range op.Errors.Errs() {
 		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
 			logger.Ctx(ctx).
+				With("error", e).
+				With(clues.InErr(err).Slice()...).
 				Infow("completed backup; conditional error forcing exit without model persistence",
 					"results", op.Results)
 
