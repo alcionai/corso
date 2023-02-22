@@ -436,30 +436,6 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "moved folder tree with file with file first",
-			items: []models.DriveItemable{
-				driveRootItem("root"),
-				driveItem("file", "file", testBaseDrivePath+"/folder", "folder", true, false, false),
-				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
-			},
-			inputFolderMap: map[string]string{
-				"folder": expectedPath(folder),
-			},
-			scope:  anyFolder,
-			expect: assert.NoError,
-			expectedCollectionIDs: map[string]statePath{
-				"folder": expectedStatePath(data.NotMovedState, folder),
-			},
-			expectedItemCount:      2,
-			expectedFileCount:      1,
-			expectedContainerCount: 1,
-			expectedMetadataPaths: map[string]string{
-				"root":   expectedPath(""),
-				"folder": expectedPath(folder),
-			},
-			expectedExcludes: getDelList("file"),
-		},
-		{
 			testCase: "moved folder tree with file no previous",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
@@ -732,6 +708,27 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"root": expectedPath(""),
 			},
 			expectedExcludes: getDelList("item"),
+		},
+		{
+			testCase: "item before parent errors",
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				driveItem("file", "file", testBaseDrivePath+"/folder", "folder", true, false, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+			},
+			inputFolderMap: map[string]string{},
+			scope:          anyFolder,
+			expect:         assert.Error,
+			expectedCollectionIDs: map[string]statePath{
+				"root": expectedStatePath(data.NotMovedState, ""),
+			},
+			expectedItemCount:      0,
+			expectedFileCount:      0,
+			expectedContainerCount: 1,
+			expectedMetadataPaths: map[string]string{
+				"root": expectedPath(""),
+			},
+			expectedExcludes: map[string]struct{}{},
 		},
 	}
 
