@@ -10,11 +10,10 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-const Version = 2
 
 // Backup represents the result of a backup operation
 type Backup struct {
@@ -72,7 +71,7 @@ func New(
 		Errors:          errs.Data(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
-		Version:         Version,
+		Version:         version.Backup,
 	}
 }
 

@@ -17,8 +17,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -237,7 +237,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 
 	deets, err := suite.connector.RestoreDataCollections(
 		ctx,
-		backup.Version,
+		version.Backup,
 		acct,
 		sel,
 		dest,
@@ -314,7 +314,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 
 			deets, err := suite.connector.RestoreDataCollections(
 				ctx,
-				backup.Version,
+				version.Backup,
 				suite.acct,
 				test.sel,
 				dest,
@@ -527,13 +527,13 @@ func runRestoreBackupTest(
 		t,
 		config,
 		test.collections,
-		backup.Version)
+		version.Backup)
 
 	runRestore(
 		t,
 		ctx,
 		config,
-		backup.Version,
+		version.Backup,
 		collections,
 		totalItems)
 
@@ -590,7 +590,7 @@ func runRestoreBackupTestVersions(
 		t,
 		config,
 		test.collectionsLatest,
-		backup.Version)
+		version.Backup)
 
 	runBackupAndCompare(
 		t,
@@ -930,7 +930,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					suite.user,
 					dest,
 					[]colInfo{collection},
-					backup.Version,
+					version.Backup,
 				)
 				allItems += totalItems
 
@@ -948,7 +948,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
 				deets, err := restoreGC.RestoreDataCollections(
 					ctx,
-					backup.Version,
+					version.Backup,
 					suite.acct,
 					restoreSel,
 					dest,

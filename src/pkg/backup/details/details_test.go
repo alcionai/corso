@@ -234,7 +234,10 @@ var pathItemsTable = []struct {
 			},
 			{
 				RepoRef:     "foo.meta",
-				LocationRef: "locationref.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
 			},
 			{
 				RepoRef:     "is-meta-file",
@@ -244,8 +247,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde"},
-		expectLocationRefs: []string{"locationref"},
+		expectRepoRefs:     []string{"abcde", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
 	},
 	{
 		name: "multiple entries with folder and meta file",
@@ -260,7 +263,10 @@ var pathItemsTable = []struct {
 			},
 			{
 				RepoRef:     "foo.meta",
-				LocationRef: "locationref.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
 			},
 			{
 				RepoRef:     "is-meta-file",
@@ -279,8 +285,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde", "12345"},
-		expectLocationRefs: []string{"locationref", "locationref2"},
+		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
 	},
 }
 
@@ -317,20 +323,36 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 	}
 }
 
-func (suite *DetailsUnitSuite) TestDetailsModel_SliceMetaFiles() {
+func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 	t := suite.T()
 
 	d := &DetailsModel{
 		Entries: []DetailsEntry{
-			{RepoRef: "a.data"},
-			{RepoRef: "a.meta"},
+			{
+				RepoRef: "a.data",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "b.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "c.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
 		},
 	}
 
-	d2 := d.SliceMetaFiles()
+	d2 := d.FilterMetaFiles()
 
-	assert.Len(t, d2.Entries, 1)
-	assert.Len(t, d.Entries, 2)
+	assert.Len(t, d2.Entries, 2)
+	assert.Len(t, d.Entries, 3)
 
 	for _, de := range d2.Entries {
 		assert.True(t, !strings.HasSuffix(de.RepoRef, ".meta"), "no meta files")
