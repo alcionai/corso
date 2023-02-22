@@ -515,6 +515,27 @@ func (c *Collections) UpdateCollections(
 			// following delta incremental backups.
 			updatePath(newPaths, itemID, rootPath.String())
 
+			// Make a colletion for the root so that if we have any items for it we
+			// already have the collection ready. The root won't be renamed at all.
+			if _, ok := c.CollectionMap[itemID]; ok {
+				continue
+			}
+
+			col := NewCollection(
+				c.itemClient,
+				rootPath,
+				rootPath,
+				driveID,
+				c.service,
+				c.statusUpdater,
+				c.source,
+				c.ctrl,
+				invalidPrevDelta,
+			)
+
+			c.CollectionMap[itemID] = col
+			c.NumContainers++
+
 			continue
 		}
 
@@ -635,21 +656,23 @@ func (c *Collections) UpdateCollections(
 				return clues.Stack(err).WithClues(ctx)
 			}
 
-			if !found {
-				col := NewCollection(
-					c.itemClient,
-					itemPath,
-					prevPath,
-					driveID,
-					c.service,
-					c.statusUpdater,
-					c.source,
-					c.ctrl,
-					invalidPrevDelta,
-				)
-				c.CollectionMap[*item.GetId()] = col
-				c.NumContainers++
+			if found {
+				continue
 			}
+
+			col := NewCollection(
+				c.itemClient,
+				itemPath,
+				prevPath,
+				driveID,
+				c.service,
+				c.statusUpdater,
+				c.source,
+				c.ctrl,
+				invalidPrevDelta,
+			)
+			c.CollectionMap[itemID] = col
+			c.NumContainers++
 
 			if c.source != OneDriveSource {
 				continue
@@ -681,52 +704,11 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			oneDrivePath, err := path.ToOneDrivePath(collectionPath)
-			if err != nil {
-				return clues.Wrap(err, "invalid path for backup")
-			}
-
-			if len(oneDrivePath.Folders) == 0 {
-				// path for root will never change
-				prevCollectionPath = collectionPath
-			} else {
-				prevCollectionPathStr, ok := oldPaths[collectionID]
-				if ok {
-					prevCollectionPath, err = path.FromDataLayerPath(prevCollectionPathStr, false)
-					if err != nil {
-						return clues.Wrap(err, "invalid previous path").With("path_string", prevCollectionPathStr)
-					}
-				}
-
-			}
 
 			collection, found := c.CollectionMap[collectionID]
 			if !found {
-				// TODO(ashmrtn): We should probably tighten the restrictions on this
-				// and just make it return an error if the collection doesn't already
-				// exist. Graph seems pretty consistent about returning all folders on
-				// the path from the root to the item in question. Removing this will
-				// also ensure we always add an entry to get the folder metadata.
-				col = NewCollection(
-					c.itemClient,
-					collectionPath,
-					prevCollectionPath,
-					driveID,
-					c.service,
-					c.statusUpdater,
-					c.source,
-					c.ctrl,
-					invalidPrevDelta,
-				)
-
-				c.CollectionMap[collectionID] = col
-				c.NumContainers++
+				return clues.New("item seen before parent folder").With("item_id", itemID)
 			}
-
-			// TODO(meain): If a folder gets renamed/moved multiple
-			// times within a single delta response, we might end up
-			// storing the permissions multiple times. Switching the
-			// files to IDs should fix this.
 
 			// Delete the file from previous collection. This will
 			// only kick in if the file was moved multiple times
