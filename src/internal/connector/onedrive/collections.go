@@ -496,6 +496,7 @@ func (c *Collections) UpdateCollections(
 			prevPath           path.Path
 			prevCollectionPath path.Path
 			ok                 bool
+			itemID             = ptr.Val(item.GetId())
 		)
 
 		if item.GetRoot() != nil {
@@ -512,7 +513,7 @@ func (c *Collections) UpdateCollections(
 			// Add root path so as to have root folder information in
 			// path metadata. Root id -> path map is necessary in
 			// following delta incremental backups.
-			updatePath(newPaths, *item.GetId(), rootPath.String())
+			updatePath(newPaths, itemID, rootPath.String())
 
 			continue
 		}
@@ -566,7 +567,7 @@ func (c *Collections) UpdateCollections(
 		if item.GetDeleted() == nil {
 			name := ptr.Val(item.GetName())
 			if len(name) == 0 {
-				return clues.New("non-deleted item with empty name").With("item_id", name)
+				return clues.New("non-deleted item with empty name").With("item_id", itemID)
 			}
 
 			itemPath, err = collectionPath.Append(name, !isFolder)
@@ -627,9 +628,9 @@ func (c *Collections) UpdateCollections(
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
-			updatePath(newPaths, *item.GetId(), itemPath.String())
+			updatePath(newPaths, itemID, itemPath.String())
 
-			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, itemPath)
+			found, err := updateCollectionPaths(itemID, c.CollectionMap, itemPath)
 			if err != nil {
 				return clues.Stack(err).WithClues(ctx)
 			}
@@ -730,20 +731,20 @@ func (c *Collections) UpdateCollections(
 			// Delete the file from previous collection. This will
 			// only kick in if the file was moved multiple times
 			// within a single delta query
-			itemColID, found := itemCollection[*item.GetId()]
+			itemColID, found := itemCollection[itemID]
 			if found {
 				pcollection, found := c.CollectionMap[itemColID]
 				if !found {
-					return clues.New("previous collection not found").With("item_id", *item.GetId())
+					return clues.New("previous collection not found").With("item_id", itemID)
 				}
 
 				removed := pcollection.Remove(item)
 				if !removed {
-					return clues.New("removing from prev collection").With("item_id", *item.GetId())
+					return clues.New("removing from prev collection").With("item_id", itemID)
 				}
 			}
 
-			itemCollection[*item.GetId()] = collectionID
+			itemCollection[itemID] = collectionID
 
 			if collection.Add(item) {
 				c.NumItems++
