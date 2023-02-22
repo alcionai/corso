@@ -39,7 +39,7 @@ var backupDataSets = []path.CategoryType{email, contacts, events}
 // ---------------------------------------------------------------------------
 
 type NoBackupExchangeIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -50,13 +50,11 @@ type NoBackupExchangeIntegrationSuite struct {
 }
 
 func TestNoBackupExchangeIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
+	suite.Run(t, &NoBackupExchangeIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		tester.CorsoCITests,
+		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)
-
-	suite.Run(t, new(NoBackupExchangeIntegrationSuite))
+		tester.CorsoCLIBackupTests)})
 }
 
 func (suite *NoBackupExchangeIntegrationSuite) SetupSuite() {
@@ -64,8 +62,6 @@ func (suite *NoBackupExchangeIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 
 	defer flush()
-
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -123,7 +119,7 @@ func (suite *NoBackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty()
 // ---------------------------------------------------------------------------
 
 type BackupExchangeIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -133,13 +129,11 @@ type BackupExchangeIntegrationSuite struct {
 }
 
 func TestBackupExchangeIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
+	suite.Run(t, &BackupExchangeIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		tester.CorsoCITests,
+		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)
-
-	suite.Run(t, new(BackupExchangeIntegrationSuite))
+		tester.CorsoCLIBackupTests)})
 }
 
 func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
@@ -147,8 +141,6 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 
 	defer flush()
-
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -179,7 +171,9 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 	for _, set := range backupDataSets {
 		recorder.Reset()
 
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 			defer flush()
@@ -212,7 +206,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 // ---------------------------------------------------------------------------
 
 type PreparedBackupExchangeIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -224,18 +218,15 @@ type PreparedBackupExchangeIntegrationSuite struct {
 }
 
 func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
+	suite.Run(t, &PreparedBackupExchangeIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		tester.CorsoCITests,
+		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)
-
-	suite.Run(t, new(PreparedBackupExchangeIntegrationSuite))
+		tester.CorsoCLIBackupTests)})
 }
 
 func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)
@@ -309,7 +300,9 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
 	for _, set := range backupDataSets {
 		suite.recorder.Reset()
 
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 			defer flush()
@@ -337,7 +330,9 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_singleI
 	for _, set := range backupDataSets {
 		suite.recorder.Reset()
 
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 			defer flush()
@@ -366,7 +361,9 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_singleI
 
 func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_badID() {
 	for _, set := range backupDataSets {
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 			defer flush()
@@ -389,7 +386,9 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 	for _, set := range backupDataSets {
 		suite.recorder.Reset()
 
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 			defer flush()
@@ -427,8 +426,8 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 					continue
 				}
 
-				t.Run(fmt.Sprintf("detail %d", i), func(t *testing.T) {
-					assert.Contains(t, result, ent.ShortRef)
+				suite.Run(fmt.Sprintf("detail %d", i), func() {
+					assert.Contains(suite.T(), result, ent.ShortRef)
 				})
 
 				i++
@@ -445,7 +444,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 // ---------------------------------------------------------------------------
 
 type BackupDeleteExchangeIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct     account.Account
 	st       storage.Storage
 	vpr      *viper.Viper
@@ -455,18 +454,17 @@ type BackupDeleteExchangeIntegrationSuite struct {
 }
 
 func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)
-
-	suite.Run(t, new(BackupDeleteExchangeIntegrationSuite))
+	suite.Run(t, &BackupDeleteExchangeIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCLITests,
+			tester.CorsoCLIBackupTests),
+	})
 }
 
 func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// prepare common details
 	suite.acct = tester.NewM365Account(t)

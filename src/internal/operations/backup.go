@@ -2,8 +2,6 @@ package operations
 
 import (
 	"context"
-	"fmt"
-	"runtime/debug"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -12,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -111,22 +110,8 @@ type detailsWriter interface {
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			var rerr error
-			if re, ok := r.(error); ok {
-				rerr = re
-			} else if re, ok := r.(string); ok {
-				rerr = clues.New(re)
-			} else {
-				rerr = clues.New(fmt.Sprintf("%v", r))
-			}
-
-			err = clues.Wrap(rerr, "panic recovery").
-				WithClues(ctx).
-				With("stacktrace", string(debug.Stack()))
-			logger.Ctx(ctx).
-				With("err", err).
-				Errorw("backup panic", clues.InErr(err).Slice()...)
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
 		}
 	}()
 
@@ -184,6 +169,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats.readErr = op.Errors.Err()
 	}
 
+	// TODO: the consumer (sdk or cli) should run this, not operations.
+	recoverableCount := len(op.Errors.Errs())
+	for i, err := range op.Errors.Errs() {
+		logger.Ctx(ctx).
+			With("error", err).
+			With(clues.InErr(err).Slice()...).
+			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
+	}
+
 	// -----
 	// Persistence
 	// -----
@@ -223,6 +217,7 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	reasons := selectorToReasons(op.Selectors)
+	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1

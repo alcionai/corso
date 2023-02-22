@@ -226,13 +226,14 @@ func RestoreListCollection(
 		directory = dc.FullPath()
 		siteID    = directory.ResourceOwner()
 		items     = dc.Items(ctx, errs)
+		et        = errs.Tracker()
 	)
 
 	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
 
 	for {
-		if errs.Err() != nil {
-			return metrics, errs.Err()
+		if et.Err() != nil {
+			break
 		}
 
 		select {
@@ -252,7 +253,7 @@ func RestoreListCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -260,7 +261,7 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				et.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -275,6 +276,8 @@ func RestoreListCollection(
 			metrics.Successes++
 		}
 	}
+
+	return metrics, et.Err()
 }
 
 // RestorePageCollection handles restoration of an individual site page collection.
@@ -305,14 +308,15 @@ func RestorePageCollection(
 		return metrics, clues.Wrap(err, "constructing graph client")
 	}
 
-	service := discover.NewBetaService(adpt)
-
-	// Restore items from collection
-	items := dc.Items(ctx, errs)
+	var (
+		et      = errs.Tracker()
+		service = discover.NewBetaService(adpt)
+		items   = dc.Items(ctx, errs)
+	)
 
 	for {
-		if errs.Err() != nil {
-			return metrics, errs.Err()
+		if et.Err() != nil {
+			break
 		}
 
 		select {
@@ -332,7 +336,7 @@ func RestorePageCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -340,7 +344,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				et.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -355,4 +359,6 @@ func RestorePageCollection(
 			metrics.Successes++
 		}
 	}
+
+	return metrics, et.Err()
 }

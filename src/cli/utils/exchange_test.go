@@ -8,15 +8,16 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type ExchangeUtilsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestExchangeUtilsSuite(t *testing.T) {
-	suite.Run(t, new(ExchangeUtilsSuite))
+	suite.Run(t, &ExchangeUtilsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
@@ -50,8 +51,8 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, utils.ValidateExchangeRestoreFlags(test.backupID, test.opts))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), utils.ValidateExchangeRestoreFlags(test.backupID, test.opts))
 		})
 	}
 }
@@ -300,9 +301,9 @@ func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			sel := utils.IncludeExchangeRestoreDataSelectors(test.opts)
-			assert.Len(t, sel.Includes, test.expectIncludeLen)
+			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
 		})
 	}
 }
@@ -361,11 +362,11 @@ func (suite *ExchangeUtilsSuite) TestAddExchangeInclude() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			sel := selectors.NewExchangeRestore(nil)
 			// no return, mutates sel as a side effect
 			utils.AddExchangeInclude(sel, test.folders, test.items, eisc)
-			assert.Len(t, sel.Includes, test.expectIncludeLen)
+			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
 		})
 	}
 }
@@ -477,10 +478,10 @@ func (suite *ExchangeUtilsSuite) TestFilterExchangeRestoreInfoSelectors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			sel := selectors.NewExchangeRestore(nil)
 			utils.FilterExchangeRestoreInfoSelectors(sel, test.opts)
-			assert.Len(t, sel.Filters, test.expectFilterLen)
+			assert.Len(suite.T(), sel.Filters, test.expectFilterLen)
 		})
 	}
 }

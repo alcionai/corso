@@ -108,16 +108,19 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 		return nil, clues.Wrap(err, "creating users iterator").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	us := make([]models.Userable, 0)
+	var (
+		us = make([]models.Userable, 0)
+		et = errs.Tracker()
+	)
 
 	iterator := func(item any) bool {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return false
 		}
 
 		u, err := validateUser(item)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "validating user").WithClues(ctx).With(graph.ErrData(err)...))
+			et.Add(clues.Wrap(err, "validating user").WithClues(ctx).With(graph.ErrData(err)...))
 		} else {
 			us = append(us, u)
 		}
@@ -129,7 +132,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 		return nil, clues.Wrap(err, "iterating all users").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return us, errs.Err()
+	return us, et.Err()
 }
 
 func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {

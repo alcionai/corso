@@ -34,7 +34,7 @@ func GetSitePages(
 		col         = make([]models.SitePageable, 0)
 		semaphoreCh = make(chan struct{}, fetchChannelSize)
 		opts        = retrieveSitePageOptions()
-		err         error
+		et          = errs.Tracker()
 		wg          sync.WaitGroup
 		m           sync.Mutex
 	)
@@ -49,7 +49,7 @@ func GetSitePages(
 	}
 
 	for _, entry := range pages {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -61,11 +61,14 @@ func GetSitePages(
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			var page models.SitePageable
+			var (
+				page models.SitePageable
+				err  error
+			)
 
 			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "fetching page").WithClues(ctx).With(graph.ErrData(err)...))
+				et.Add(clues.Wrap(err, "fetching page").WithClues(ctx).With(graph.ErrData(err)...))
 				return
 			}
 
@@ -75,7 +78,7 @@ func GetSitePages(
 
 	wg.Wait()
 
-	return col, errs.Err()
+	return col, et.Err()
 }
 
 // fetchPages utility function to return the tuple of item

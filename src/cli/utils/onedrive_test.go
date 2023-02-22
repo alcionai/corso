@@ -7,14 +7,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type OneDriveUtilsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDriveUtilsSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveUtilsSuite))
+	suite.Run(t, &OneDriveUtilsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
@@ -88,9 +89,9 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			sel := utils.IncludeOneDriveRestoreDataSelectors(test.opts)
-			assert.Len(t, sel.Includes, test.expectIncludeLen)
+			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
 		})
 	}
 }

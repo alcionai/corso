@@ -179,6 +179,7 @@ func defaultItemPager(
 			"package",
 			"parentReference",
 			"root",
+			"sharepointIds",
 			"size",
 			"deleted",
 		},
