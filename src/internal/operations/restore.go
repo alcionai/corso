@@ -219,6 +219,7 @@ func (op *RestoreOperation) do(
 		})
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
+	logger.Ctx(ctx).With("selectors", op.Selectors).Info("restoring selection")
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
 	defer closer()
@@ -347,8 +348,9 @@ func formatDetailsForRestoration(
 	}
 
 	var (
-		fdsPaths = fds.Paths()
-		paths    = make([]path.Path, len(fdsPaths))
+		fdsPaths  = fds.Paths()
+		paths     = make([]path.Path, len(fdsPaths))
+		shortRefs = make([]string, len(fdsPaths))
 	)
 
 	for i := range fdsPaths {
@@ -367,6 +369,7 @@ func formatDetailsForRestoration(
 		}
 
 		paths[i] = p
+		shortRefs[i] = p.ShortRef()
 	}
 
 	// TODO(meain): Move this to onedrive specific component, but as
@@ -379,6 +382,8 @@ func formatDetailsForRestoration(
 	sort.Slice(paths, func(i, j int) bool {
 		return paths[i].String() < paths[j].String()
 	})
+
+	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
 
 	return paths, errs.Err()
 }
