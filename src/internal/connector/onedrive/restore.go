@@ -287,7 +287,7 @@ func RestoreCollection(
 						err      error
 					)
 
-					if backupVersion < version.RestoreCurrNameInMeta {
+					if backupVersion < version.Restore2NameInMeta {
 						itemInfo, err = restoreV1File(
 							ctx,
 							source,

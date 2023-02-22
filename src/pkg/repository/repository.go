@@ -364,7 +364,7 @@ func (r repository) BackupDetails(
 	// Retroactively fill in isMeta information for items in older
 	// backup versions without that info
 	// version.Restore2 introduces the IsMeta flag, so only v1 needs a check.
-	if b.Version == version.Restore1DataAndMetaFiles {
+	if b.Version >= version.Restore1DataAndMetaFiles && b.Version < version.Restore3IsMetaMarker {
 		for _, d := range deets.Entries {
 			if d.OneDrive != nil {
 				if strings.HasSuffix(d.RepoRef, onedrive.MetaFileSuffix) ||
