@@ -36,7 +36,7 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	sl := dm.SliceMetaFiles()
+	sl := dm.FilterMetaFiles()
 
 	if print.JSONFormat() {
 		printJSON(ctx, sl)
@@ -108,9 +108,9 @@ func (dm DetailsModel) Items() []*DetailsEntry {
 	return res
 }
 
-// SliceMetaFiles returns a copy of the Details with all of the
-// .meta files sliced out of the entries.
-func (dm DetailsModel) SliceMetaFiles() DetailsModel {
+// FilterMetaFiles returns a copy of the Details with all of the
+// .meta files removed from the entries.
+func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	d2 := DetailsModel{
 		Entries: []DetailsEntry{},
 	}
