@@ -126,7 +126,7 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 
 func (de DetailsEntry) isMetaFile() bool {
 	// TODO: this is hazardous.  legitimate files could be suffixed .meta.
-	return strings.HasSuffix(de.RepoRef, ".meta") ||
+	return strings.HasSuffix(de.RepoRef, ".meta") || strings.HasSuffix(de.RepoRef, ".dirmeta") ||
 		(de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta)
 }
 
