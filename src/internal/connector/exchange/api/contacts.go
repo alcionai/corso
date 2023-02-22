@@ -252,12 +252,9 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		if err != nil {
 			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
 		} else {
-			uri, err := gri.GetUri()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
-			} else {
-				logger.Ctx(ctx).Infow("contact builder", "user", user, "directoryID", directoryID, "uri", uri)
-			}
+			logger.Ctx(ctx).
+				With("user", user, "container", directoryID).
+				Warnw("builder path-parameters", "path_parameters", gri.PathParameters)
 		}
 	}
 
