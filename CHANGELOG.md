@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Show owner information when doing backup list in json format
 
+### Fixed
+- .Meta files no longer appear in the backup details.
+
 ### Known Issues
 - Folders and Calendars containing zero items or subfolders are not included in the backup.
 
