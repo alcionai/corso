@@ -679,16 +679,9 @@ func (c *Collections) UpdateCollections(
 			}
 
 		case item.GetFile() != nil:
-			if !invalidPrevDelta {
-				// Always add a file to the excluded list. If it was
-				// deleted, we want to avoid it. If it was
-				// renamed/moved/modified, we still have to drop the
-				// original one and download a fresh copy.
+			if item.GetDeleted() != nil {
 				excluded[itemID+DataFileSuffix] = struct{}{}
 				excluded[itemID+MetaFileSuffix] = struct{}{}
-			}
-
-			if item.GetDeleted() != nil {
 				// Exchange counts items streamed through it which includes deletions so
 				// add that here too.
 				c.NumFiles++
@@ -726,6 +719,19 @@ func (c *Collections) UpdateCollections(
 			if collection.Add(item) {
 				c.NumItems++
 				c.NumFiles++
+			}
+
+			// Do this after adding the file to the collection so if we fail to add
+			// the item to the collection for some reason and we're using best effort
+			// we don't just end up deleting the item in the resulting backup. The
+			// resulting backup will be slightly incorrect, but it will have the most
+			// data that we were able to preserve.
+			if !invalidPrevDelta {
+				// Always add a file to the excluded list. The file may have been
+				// renamed/moved/modified, so we still have to drop the
+				// original one and download a fresh copy.
+				excluded[itemID+DataFileSuffix] = struct{}{}
+				excluded[itemID+MetaFileSuffix] = struct{}{}
 			}
 
 		default:
