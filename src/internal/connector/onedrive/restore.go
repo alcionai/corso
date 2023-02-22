@@ -41,7 +41,10 @@ const (
 	// name.
 	// TODO(ashmrtn): Update this to a real value when we merge the file name
 	// change. Set to MAXINT for now to keep the if-check using it working.
-	versionWithNameInMeta            = math.MaxInt
+	versionWithNameInMeta = math.MaxInt
+	// versionWithDataAndMetaFilesInDir moves the .dirmeta entries to the
+	// directory they belong to instead of being in the parent of the directory
+	// they belong to.
 	versionWithDataAndMetaFilesInDir = 3
 )
 

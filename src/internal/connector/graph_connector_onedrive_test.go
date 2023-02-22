@@ -175,11 +175,7 @@ func (c *onedriveCollection) withFile(
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case 1:
-		fallthrough
-	case 2:
-		fallthrough
-	case 3:
+	case 1, 2, 3:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -208,14 +204,10 @@ func (c *onedriveCollection) withFolder(
 	roles []string,
 ) *onedriveCollection {
 	switch c.backupVersion {
-	case 0:
-		fallthrough
-	case 3:
+	case 0, 3:
 		return c
 
-	case 1:
-		fallthrough
-	case 2:
+	case 1, 2:
 		c.items = append(
 			c.items,
 			onedriveMetadata(

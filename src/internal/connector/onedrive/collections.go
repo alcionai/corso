@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -563,19 +564,24 @@ func (c *Collections) UpdateCollections(
 		}
 
 		var (
-			folderPath path.Path
-			isFolder   = item.GetFolder() != nil || item.GetPackage() != nil
+			itemPath path.Path
+			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
 
-		if item.GetName() != nil {
-			folderPath, err = collectionPath.Append(*item.GetName(), !isFolder)
+		if item.GetDeleted() == nil {
+			name := ptr.Val(item.GetName())
+			if len(name) == 0 {
+				return clues.New("non-deleted item with empty name").With("item_id", name)
+			}
+
+			itemPath, err = collectionPath.Append(name, !isFolder)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, folderPath, c.matcher, driveName) &&
+		if shouldSkipDrive(ctx, itemPath, c.matcher, driveName) &&
 			shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
@@ -625,9 +631,9 @@ func (c *Collections) UpdateCollections(
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
-			updatePath(newPaths, *item.GetId(), folderPath.String())
+			updatePath(newPaths, *item.GetId(), itemPath.String())
 
-			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, folderPath)
+			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, itemPath)
 			if err != nil {
 				return err
 			}
@@ -635,7 +641,7 @@ func (c *Collections) UpdateCollections(
 			if !found {
 				col := NewCollection(
 					c.itemClient,
-					folderPath,
+					itemPath,
 					prevPath,
 					driveID,
 					c.service,
