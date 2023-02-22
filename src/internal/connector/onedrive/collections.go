@@ -70,7 +70,7 @@ type Collections struct {
 
 	// collectionMap allows lookup of the data.BackupCollection
 	// for a OneDrive folder
-	CollectionMap map[string]data.BackupCollection
+	CollectionMap map[string]*Collection
 
 	// Not the most ideal, but allows us to change the pager function for testing
 	// as needed. This will allow us to mock out some scenarios during testing.
@@ -107,7 +107,7 @@ func NewCollections(
 		resourceOwner:  resourceOwner,
 		source:         source,
 		matcher:        matcher,
-		CollectionMap:  map[string]data.BackupCollection{},
+		CollectionMap:  map[string]*Collection{},
 		drivePagerFunc: PagerForSource,
 		itemPagerFunc:  defaultItemPager,
 		service:        service,
@@ -433,24 +433,19 @@ func (c *Collections) Get(
 
 func updateCollectionPaths(
 	id string,
-	cmap map[string]data.BackupCollection,
+	cmap map[string]*Collection,
 	curPath path.Path,
 ) (bool, error) {
 	var initialCurPath path.Path
 
 	col, found := cmap[id]
 	if found {
-		ocol, ok := col.(*Collection)
-		if !ok {
-			return found, clues.New("unable to cast onedrive collection")
-		}
-
-		initialCurPath = ocol.FullPath()
+		initialCurPath = col.FullPath()
 		if initialCurPath.String() == curPath.String() {
 			return found, nil
 		}
 
-		ocol.SetFullPath(curPath)
+		col.SetFullPath(curPath)
 	}
 
 	if initialCurPath == nil {
@@ -462,17 +457,12 @@ func updateCollectionPaths(
 			continue
 		}
 
-		ocol, ok := c.(*Collection)
-		if !ok {
-			return found, clues.New("unable to cast onedrive collection")
-		}
-
 		colPath := c.FullPath()
 
 		// Only updates if initialCurPath parent of colPath
 		updated := colPath.UpdateParent(initialCurPath, curPath)
 		if updated {
-			ocol.SetFullPath(colPath)
+			c.SetFullPath(colPath)
 		}
 	}
 
@@ -664,14 +654,11 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			if col := c.CollectionMap[*item.GetId()]; col != nil {
-				// Add an entry to fetch permissions into this collection. This assumes
-				// that OneDrive always returns all folders on the path of an item
-				// before the item. This seems to hold true for now at least.
-				collection := col.(*Collection)
-				if collection.Add(item) {
-					c.NumItems++
-				}
+			// Add an entry to fetch permissions into this collection. This assumes
+			// that OneDrive always returns all folders on the path of an item
+			// before the item. This seems to hold true for now at least.
+			if col.Add(item) {
+				c.NumItems++
 			}
 
 		case item.GetFile() != nil:
@@ -712,7 +699,7 @@ func (c *Collections) UpdateCollections(
 
 			}
 
-			col, found := c.CollectionMap[collectionID]
+			collection, found := c.CollectionMap[collectionID]
 			if !found {
 				// TODO(ashmrtn): We should probably tighten the restrictions on this
 				// and just make it return an error if the collection doesn't already
@@ -745,12 +732,10 @@ func (c *Collections) UpdateCollections(
 			// within a single delta query
 			itemColID, found := itemCollection[*item.GetId()]
 			if found {
-				pcol, found := c.CollectionMap[itemColID]
+				pcollection, found := c.CollectionMap[itemColID]
 				if !found {
 					return clues.New("previous collection not found").With("item_id", *item.GetId())
 				}
-
-				pcollection := pcol.(*Collection)
 
 				removed := pcollection.Remove(item)
 				if !removed {
@@ -759,7 +744,6 @@ func (c *Collections) UpdateCollections(
 			}
 
 			itemCollection[*item.GetId()] = collectionID
-			collection := col.(*Collection)
 
 			if collection.Add(item) {
 				c.NumItems++
