@@ -30,11 +30,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type RestoreOpSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestRestoreOpSuite(t *testing.T) {
-	suite.Run(t, new(RestoreOpSuite))
+	suite.Run(t, &RestoreOpSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
@@ -93,7 +93,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+		suite.Run(test.expectStatus.String(), func() {
+			t := suite.T()
+
 			op, err := NewRestoreOperation(
 				ctx,
 				control.Options{},
@@ -125,7 +127,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 // ---------------------------------------------------------------------------
 
 type RestoreOpIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 
 	backupID    model.StableID
 	numItems    int
@@ -136,19 +138,17 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOperationTests)
-
-	suite.Run(t, new(RestoreOpIntegrationSuite))
+	suite.Run(t, &RestoreOpIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoOperationTests),
+	})
 }
 
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	t := suite.T()
 
@@ -243,7 +243,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -257,7 +257,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			test.errCheck(t, err)
+			test.errCheck(suite.T(), err)
 		})
 	}
 }

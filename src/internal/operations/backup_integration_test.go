@@ -450,23 +450,21 @@ func toDataLayerPath(
 // ---------------------------------------------------------------------------
 
 type BackupOpIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	user, site string
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOperationTests,
-		tester.CorsoOperationBackupTests)
-
-	suite.Run(t, new(BackupOpIntegrationSuite))
+	suite.Run(t, &BackupOpIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoOperationTests,
+			tester.CorsoOperationBackupTests),
+	})
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
-
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 }
@@ -490,7 +488,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -502,7 +500,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
 				evmock.NewBus())
-			test.errCheck(t, err)
+			test.errCheck(suite.T(), err)
 		})
 	}
 }
@@ -566,8 +564,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			var (
+				t   = suite.T()
 				mb  = evmock.NewBus()
 				sel = test.selector().Selector
 				ffs = control.Toggles{}
@@ -1031,8 +1030,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			var (
+				t     = suite.T()
 				incMB = evmock.NewBus()
 				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
 			)

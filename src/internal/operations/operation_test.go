@@ -9,16 +9,17 @@ import (
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
 type OperationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOperationSuite(t *testing.T) {
-	suite.Run(t, new(OperationSuite))
+	suite.Run(t, &OperationSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OperationSuite) TestNewOperation() {
@@ -42,9 +43,9 @@ func (suite *OperationSuite) TestOperation_Validate() {
 		{"missing store wrapper", kwStub, nil, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			op := newOperation(control.Options{}, events.Bus{}, test.kw, test.sw)
-			test.errCheck(t, op.validate())
+			test.errCheck(suite.T(), op.validate())
 		})
 	}
 }
