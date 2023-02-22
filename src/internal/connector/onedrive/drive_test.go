@@ -446,7 +446,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 		},
 		{
 			name: "Test User w/out Drive",
-			user: "testevents@8qzvrj.onmicrosoft.com",
+			user: "testevents@10rqc2.onmicrosoft.com",
 		},
 	}
 
