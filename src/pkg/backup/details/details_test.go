@@ -317,17 +317,27 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 	}
 }
 
-func (suite *DetailsUnitSuite) TestDetailsModel_SliceMetaFiles() {
+func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 	t := suite.T()
 
 	d := &DetailsModel{
 		Entries: []DetailsEntry{
-			{RepoRef: "a.data"},
-			{RepoRef: "a.meta"},
+			{
+				RepoRef: "a.data",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "a.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
 		},
 	}
 
-	d2 := d.SliceMetaFiles()
+	d2 := d.FilterMetaFiles()
 
 	assert.Len(t, d2.Entries, 1)
 	assert.Len(t, d.Entries, 2)

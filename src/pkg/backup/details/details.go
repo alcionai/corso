@@ -3,7 +3,6 @@ package details
 import (
 	"context"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -124,10 +123,11 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 	return d2
 }
 
+// Check if a file is a metadata file. These are used to store
+// additional data like permissions in case of OneDrive and are not to
+// be treated as regular files.
 func (de DetailsEntry) isMetaFile() bool {
-	// TODO: this is hazardous.  legitimate files could be suffixed .meta.
-	return strings.HasSuffix(de.RepoRef, ".meta") || strings.HasSuffix(de.RepoRef, ".dirmeta") ||
-		(de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta)
+	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -9,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -356,6 +358,20 @@ func (r repository) BackupDetails(
 	).ReadBackupDetails(ctx, dID, errs)
 	if err != nil {
 		return nil, nil, errs.Fail(err)
+	}
+
+	// Retroactively fill in isMeta information for items in older
+	// backup versions without that info
+	if b.Version >= onedrive.VersionWithDataAndMetaFiles &&
+		b.Version < onedrive.VersionWithIsMetaMarker {
+		for _, d := range deets.Entries {
+			if d.OneDrive != nil {
+				if strings.HasSuffix(d.RepoRef, onedrive.MetaFileSuffix) ||
+					strings.HasSuffix(d.RepoRef, onedrive.DirMetaFileSuffix) {
+					d.OneDrive.IsMeta = true
+				}
+			}
+		}
 	}
 
 	return deets, b, errs

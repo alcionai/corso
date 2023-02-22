@@ -32,16 +32,20 @@ const (
 	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
 	copyBufferSize = 5 * 1024 * 1024
 
-	// versionWithDataAndMetaFiles is the corso backup format version
+	// VersionWithDataAndMetaFiles is the corso backup format version
 	// in which we split from storing just the data to storing both
 	// the data and metadata in two files.
-	versionWithDataAndMetaFiles = 1
-	// versionWithNameInMeta points to the backup format version where we begin
+	VersionWithDataAndMetaFiles = 1
+	// VersionWithIsMetaMarker is a small improvement on
+	// VersionWithDataAndMetaFiles, but has a marker IsMeta which
+	// specifies if the file is a meta file or a data file.
+	VersionWithIsMetaMarker = 3
+	// VersionWithNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
 	// TODO(ashmrtn): Update this to a real value when we merge the file name
 	// change. Set to MAXINT for now to keep the if-check using it working.
-	versionWithNameInMeta = math.MaxInt
+	VersionWithNameInMeta = math.MaxInt
 )
 
 func getParentPermissions(
@@ -270,7 +274,7 @@ func RestoreCollection(
 				continue
 			}
 
-			if source == OneDriveSource && backupVersion >= versionWithDataAndMetaFiles {
+			if source == OneDriveSource && backupVersion >= VersionWithDataAndMetaFiles {
 				name := itemData.UUID()
 				if strings.HasSuffix(name, DataFileSuffix) {
 					metrics.Objects++
@@ -281,7 +285,7 @@ func RestoreCollection(
 						err      error
 					)
 
-					if backupVersion < versionWithNameInMeta {
+					if backupVersion < VersionWithNameInMeta {
 						itemInfo, err = restoreV1File(
 							ctx,
 							source,
