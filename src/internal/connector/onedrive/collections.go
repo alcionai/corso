@@ -493,10 +493,8 @@ func (c *Collections) UpdateCollections(
 		}
 
 		var (
-			prevPath           path.Path
-			prevCollectionPath path.Path
-			ok                 bool
-			itemID             = ptr.Val(item.GetId())
+			itemID = ptr.Val(item.GetId())
+			ictx   = clues.Add(ctx, "update_item_id", itemID)
 		)
 
 		if item.GetRoot() != nil {
@@ -539,11 +537,6 @@ func (c *Collections) UpdateCollections(
 			continue
 		}
 
-		var (
-			itemID = ptr.Val(item.GetId())
-			ictx   = clues.Add(ctx, "update_item_id", itemID)
-		)
-
 		if item.GetParentReference() == nil ||
 			item.GetParentReference().GetId() == nil ||
 			(item.GetDeleted() == nil && item.GetParentReference().GetPath() == nil) {
@@ -555,14 +548,12 @@ func (c *Collections) UpdateCollections(
 			continue
 		}
 
-		// Create a collection for the parent of this item
-		collectionID := ptr.Val(item.GetParentReference().GetId())
-		ictx = clues.Add(ictx, "collection_id", collectionID)
-
 		var collectionPathStr string
 		if item.GetDeleted() == nil {
 			collectionPathStr = ptr.Val(item.GetParentReference().GetPath())
 		} else {
+			var ok bool
+
 			collectionPathStr, ok = oldPaths[ptr.Val(item.GetParentReference().GetId())]
 			if !ok {
 				// This collection was created and destroyed in
@@ -605,7 +596,9 @@ func (c *Collections) UpdateCollections(
 		}
 
 		switch {
-		case item.GetFolder() != nil, item.GetPackage() != nil:
+		case isFolder:
+			var prevPath path.Path
+
 			prevPathStr, ok := oldPaths[itemID]
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
@@ -653,7 +646,7 @@ func (c *Collections) UpdateCollections(
 
 			found, err := updateCollectionPaths(itemID, c.CollectionMap, itemPath)
 			if err != nil {
-				return clues.Stack(err).WithClues(ctx)
+				return clues.Stack(err).WithClues(ictx)
 			}
 
 			if found {
@@ -686,7 +679,7 @@ func (c *Collections) UpdateCollections(
 			}
 
 		case item.GetFile() != nil:
-			if !invalidPrevDelta && item.GetFile() != nil {
+			if !invalidPrevDelta {
 				// Always add a file to the excluded list. If it was
 				// deleted, we want to avoid it. If it was
 				// renamed/moved/modified, we still have to drop the
@@ -704,6 +697,8 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
+			// Get the collection for this item.
+			collectionID := ptr.Val(item.GetParentReference().GetId())
 
 			collection, found := c.CollectionMap[collectionID]
 			if !found {
@@ -734,7 +729,7 @@ func (c *Collections) UpdateCollections(
 			}
 
 		default:
-			return clues.New("item type not supported").WithClues(ctx)
+			return clues.New("item type not supported").WithClues(ictx)
 		}
 	}
 
