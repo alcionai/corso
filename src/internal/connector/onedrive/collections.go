@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
@@ -28,7 +29,11 @@ const (
 	OneDriveSource
 	SharePointSource
 )
-const restrictedDirectory = "Site Pages"
+
+const (
+	restrictedDirectory = "Site Pages"
+	rootDrivePattern    = "/drives/%s/root:"
+)
 
 func (ds driveSource) toPathServiceCat() (path.ServiceType, path.CategoryType) {
 	switch ds {
@@ -123,7 +128,7 @@ func deserializeMetadata(
 	prevFolders := map[string]map[string]string{}
 
 	for _, col := range cols {
-		items := col.Items()
+		items := col.Items(ctx, nil) // TODO: fault.Errors instead of nil
 
 		for breakLoop := false; !breakLoop; {
 			select {
@@ -251,7 +256,7 @@ func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
-	prevDeltas, _, err := deserializeMetadata(ctx, prevMetadata)
+	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -288,6 +293,19 @@ func (c *Collections) Get(
 		driveName := *d.GetName()
 
 		prevDelta := prevDeltas[driveID]
+		oldPaths := oldPathsByDriveID[driveID]
+
+		numOldDelta := 0
+		if len(prevDelta) > 0 {
+			numOldDelta++
+		}
+
+		logger.Ctx(ctx).Infow(
+			"previous metadata for drive",
+			"num_paths_entries",
+			len(oldPaths),
+			"num_deltas_entries",
+			numOldDelta)
 
 		delta, paths, excluded, err := collectItems(
 			ctx,
@@ -299,11 +317,15 @@ func (c *Collections) Get(
 			driveID,
 			driveName,
 			c.UpdateCollections,
+			oldPaths,
 			prevDelta,
 		)
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// Used for logging below.
+		numDeltas := 0
 
 		// It's alright to have an empty folders map (i.e. no folders found) but not
 		// an empty delta token. This is because when deserializing the metadata we
@@ -312,6 +334,7 @@ func (c *Collections) Get(
 		// for collections when not actually getting delta results.
 		if len(delta.URL) > 0 {
 			deltaURLs[driveID] = delta.URL
+			numDeltas++
 		}
 
 		// Avoid the edge case where there's no paths but we do have a valid delta
@@ -321,7 +344,59 @@ func (c *Collections) Get(
 		folderPaths[driveID] = map[string]string{}
 		maps.Copy(folderPaths[driveID], paths)
 
-		maps.Copy(excludedItems, excluded)
+		logger.Ctx(ctx).Infow(
+			"persisted metadata for drive",
+			"num_paths_entries",
+			len(paths),
+			"num_deltas_entries",
+			numDeltas)
+
+		if !delta.Reset {
+			maps.Copy(excludedItems, excluded)
+			continue
+		}
+
+		// Set all folders in previous backup but not in the current
+		// one with state deleted
+		modifiedPaths := map[string]struct{}{}
+		for _, p := range c.CollectionMap {
+			modifiedPaths[p.FullPath().String()] = struct{}{}
+		}
+
+		for i, p := range oldPaths {
+			_, found := paths[i]
+			if found {
+				continue
+			}
+
+			_, found = modifiedPaths[p]
+			if found {
+				// Original folder was deleted and new folder with the
+				// same name/path was created in its place
+				continue
+			}
+
+			delete(paths, i)
+
+			prevPath, err := path.FromDataLayerPath(p, false)
+			if err != nil {
+				return nil, map[string]struct{}{},
+					clues.Wrap(err, "invalid previous path").WithClues(ctx).With("deleted_path", p)
+			}
+
+			col := NewCollection(
+				c.itemClient,
+				nil,
+				prevPath,
+				driveID,
+				c.service,
+				c.statusUpdater,
+				c.source,
+				c.ctrl,
+				true,
+			)
+			c.CollectionMap[i] = col
+		}
 	}
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
@@ -362,6 +437,54 @@ func (c *Collections) Get(
 	return collections, excludedItems, nil
 }
 
+func updateCollectionPaths(
+	id string,
+	cmap map[string]data.BackupCollection,
+	curPath path.Path,
+) (bool, error) {
+	var initialCurPath path.Path
+
+	col, found := cmap[id]
+	if found {
+		ocol, ok := col.(*Collection)
+		if !ok {
+			return found, clues.New("unable to cast onedrive collection")
+		}
+
+		initialCurPath = ocol.FullPath()
+		if initialCurPath.String() == curPath.String() {
+			return found, nil
+		}
+
+		ocol.SetFullPath(curPath)
+	}
+
+	if initialCurPath == nil {
+		return found, nil
+	}
+
+	for i, c := range cmap {
+		if i == id {
+			continue
+		}
+
+		ocol, ok := c.(*Collection)
+		if !ok {
+			return found, clues.New("unable to cast onedrive collection")
+		}
+
+		colPath := c.FullPath()
+
+		// Only updates if initialCurPath parent of colPath
+		updated := colPath.UpdateParent(initialCurPath, curPath)
+		if updated {
+			ocol.SetFullPath(colPath)
+		}
+	}
+
+	return found, nil
+}
+
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package).
 // oldPaths is the unchanged data that was loaded from the metadata file.
@@ -374,21 +497,63 @@ func (c *Collections) UpdateCollections(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	itemCollection map[string]string,
 	invalidPrevDelta bool,
 ) error {
 	for _, item := range items {
+		var (
+			prevPath           path.Path
+			prevCollectionPath path.Path
+			ok                 bool
+		)
+
 		if item.GetRoot() != nil {
-			// Skip the root item
+			rootPath, err := GetCanonicalPath(
+				fmt.Sprintf(rootDrivePattern, driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source,
+			)
+			if err != nil {
+				return err
+			}
+
+			// Add root path so as to have root folder information in
+			// path metadata. Root id -> path map is necessary in
+			// following delta incremental backups.
+			updatePath(newPaths, *item.GetId(), rootPath.String())
+
 			continue
 		}
 
-		if item.GetParentReference() == nil || item.GetParentReference().GetPath() == nil {
-			return errors.Errorf("item does not have a parent reference. item name : %s", *item.GetName())
+		if item.GetParentReference() == nil ||
+			item.GetParentReference().GetId() == nil ||
+			(item.GetDeleted() == nil && item.GetParentReference().GetPath() == nil) {
+			err := clues.New("no parent reference").With("item_id", *item.GetId())
+			if item.GetName() != nil {
+				err = err.With("item_name", *item.GetName())
+			}
+
+			return err
 		}
 
 		// Create a collection for the parent of this item
+		collectionID := *item.GetParentReference().GetId()
+
+		var collectionPathStr string
+		if item.GetDeleted() == nil {
+			collectionPathStr = *item.GetParentReference().GetPath()
+		} else {
+			collectionPathStr, ok = oldPaths[*item.GetParentReference().GetId()]
+			if !ok {
+				// This collection was created and destroyed in
+				// between the current and previous invocation
+				continue
+			}
+		}
+
 		collectionPath, err := GetCanonicalPath(
-			*item.GetParentReference().GetPath(),
+			collectionPathStr,
 			c.tenant,
 			c.resourceOwner,
 			c.source,
@@ -405,13 +570,48 @@ func (c *Collections) UpdateCollections(
 
 		switch {
 		case item.GetFolder() != nil, item.GetPackage() != nil:
+			prevPathStr, ok := oldPaths[*item.GetId()]
+			if ok {
+				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
+				if err != nil {
+					return clues.Wrap(err, "invalid previous path").With("path_string", prevPathStr)
+				}
+			}
+
 			if item.GetDeleted() != nil {
 				// Nested folders also return deleted delta results so we don't have to
 				// worry about doing a prefix search in the map to remove the subtree of
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
 
-				// TODO(ashmrtn): Create a collection with state Deleted.
+				// TODO(meain): Directory metadata files should be
+				// moved into the directory instead of having a
+				// `.dirmeta` file at the same level as the
+				// directory. This way we can make sure it is moved
+				// and deleted along with the directory and don't have
+				// to be handled separately.
+
+				if prevPath == nil {
+					// It is possible that an item was created and
+					// deleted between two delta invocations. In
+					// that case, it will only produce a single
+					// delete entry in the delta response.
+					continue
+				}
+
+				col := NewCollection(
+					c.itemClient,
+					nil,
+					prevPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+					c.source,
+					c.ctrl,
+					invalidPrevDelta,
+				)
+
+				c.CollectionMap[*item.GetId()] = col
 
 				break
 			}
@@ -428,11 +628,33 @@ func (c *Collections) UpdateCollections(
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
-			//
-			// TODO(ashmrtn): Since we're also getting notifications about folder
-			// moves we may need to handle updates to a path of a collection we've
-			// already created and partially populated.
 			updatePath(newPaths, *item.GetId(), folderPath.String())
+
+			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, folderPath)
+			if err != nil {
+				return err
+			}
+
+			if !found {
+				// We only create collections for folder that are not
+				// new. This is so as to not create collections for
+				// new folders without any files within them.
+				if prevPath != nil {
+					col := NewCollection(
+						c.itemClient,
+						folderPath,
+						prevPath,
+						driveID,
+						c.service,
+						c.statusUpdater,
+						c.source,
+						c.ctrl,
+						invalidPrevDelta,
+					)
+					c.CollectionMap[*item.GetId()] = col
+					c.NumContainers++
+				}
+			}
 
 			if c.source != OneDriveSource {
 				continue
@@ -441,8 +663,16 @@ func (c *Collections) UpdateCollections(
 			fallthrough
 
 		case item.GetFile() != nil:
+			if !invalidPrevDelta && item.GetFile() != nil {
+				// Always add a file to the excluded list. If it was
+				// deleted, we want to avoid it. If it was
+				// renamed/moved/modified, we still have to drop the
+				// original one and download a fresh copy.
+				excluded[*item.GetId()+DataFileSuffix] = struct{}{}
+				excluded[*item.GetId()+MetaFileSuffix] = struct{}{}
+			}
+
 			if item.GetDeleted() != nil {
-				excluded[*item.GetId()] = struct{}{}
 				// Exchange counts items streamed through it which includes deletions so
 				// add that here too.
 				c.NumFiles++
@@ -451,17 +681,31 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			// TODO(ashmrtn): Figure what when an item was moved (maybe) and add it to
-			// the exclude list.
+			oneDrivePath, err := path.ToOneDrivePath(collectionPath)
+			if err != nil {
+				return clues.Wrap(err, "invalid path for backup")
+			}
 
-			col, found := c.CollectionMap[collectionPath.String()]
+			if len(oneDrivePath.Folders) == 0 {
+				// path for root will never change
+				prevCollectionPath = collectionPath
+			} else {
+				prevCollectionPathStr, ok := oldPaths[collectionID]
+				if ok {
+					prevCollectionPath, err = path.FromDataLayerPath(prevCollectionPathStr, false)
+					if err != nil {
+						return clues.Wrap(err, "invalid previous path").With("path_string", prevCollectionPathStr)
+					}
+				}
 
+			}
+
+			col, found := c.CollectionMap[collectionID]
 			if !found {
-				// TODO(ashmrtn): Compare old and new path and set collection state
-				// accordingly.
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
+					prevCollectionPath,
 					driveID,
 					c.service,
 					c.statusUpdater,
@@ -470,18 +714,51 @@ func (c *Collections) UpdateCollections(
 					invalidPrevDelta,
 				)
 
-				c.CollectionMap[collectionPath.String()] = col
+				c.CollectionMap[collectionID] = col
 				c.NumContainers++
 			}
 
-			collection := col.(*Collection)
-			collection.Add(item)
+			// TODO(meain): If a folder gets renamed/moved multiple
+			// times within a single delta response, we might end up
+			// storing the permissions multiple times. Switching the
+			// files to IDs should fix this.
 
-			c.NumItems++
-			if item.GetFile() != nil {
-				// This is necessary as we have a fallthrough for
-				// folders and packages
-				c.NumFiles++
+			// Delete the file from previous collection. This will
+			// only kick in if the file was moved multiple times
+			// within a single delta query
+			itemColID, found := itemCollection[*item.GetId()]
+			if found {
+				pcol, found := c.CollectionMap[itemColID]
+				if !found {
+					return clues.New("previous collection not found").With("item_id", *item.GetId())
+				}
+
+				pcollection := pcol.(*Collection)
+
+				removed := pcollection.Remove(item)
+				if !removed {
+					return clues.New("removing from prev collection").With("item_id", *item.GetId())
+				}
+
+				// If that was the only item in that collection and is
+				// not getting added back, delete the collection
+				if itemColID != collectionID &&
+					pcollection.IsEmpty() &&
+					pcollection.State() == data.NewState {
+					delete(c.CollectionMap, itemColID)
+				}
+			}
+
+			itemCollection[*item.GetId()] = collectionID
+			collection := col.(*Collection)
+
+			if collection.Add(item) {
+				c.NumItems++
+				if item.GetFile() != nil {
+					// This is necessary as we have a fallthrough for
+					// folders and packages
+					c.NumFiles++
+				}
 			}
 
 		default:

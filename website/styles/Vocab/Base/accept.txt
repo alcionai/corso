@@ -40,3 +40,6 @@ stderr
 backoff
 Greenlake   
 subfolder
+[zZ]une
+Nica
+gif

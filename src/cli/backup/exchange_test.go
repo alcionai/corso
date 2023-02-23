@@ -14,11 +14,11 @@ import (
 )
 
 type ExchangeSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestExchangeSuite(t *testing.T) {
-	suite.Run(t, new(ExchangeSuite))
+	suite.Run(t, &ExchangeSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
@@ -49,7 +49,9 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addExchangeCommands(cmd)
@@ -94,7 +96,9 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			test.expect(t, validateExchangeBackupCreateFlags(test.user, test.data))
 		})
 	}
@@ -206,7 +210,9 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sel := exchangeBackupCreateSelectors(test.user, test.data)
 			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
 		})
@@ -218,7 +224,9 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 	defer flush()
 
 	for _, test := range testdata.ExchangeOptionDetailLookups {
-		suite.T().Run(test.Name, func(t *testing.T) {
+		suite.Run(test.Name, func() {
+			t := suite.T()
+
 			output, err := runDetailsExchangeCmd(
 				ctx,
 				test.BackupGetter,
@@ -235,7 +243,9 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 	defer flush()
 
 	for _, test := range testdata.BadExchangeOptionsFormats {
-		suite.T().Run(test.Name, func(t *testing.T) {
+		suite.Run(test.Name, func() {
+			t := suite.T()
+
 			output, err := runDetailsExchangeCmd(
 				ctx,
 				test.BackupGetter,

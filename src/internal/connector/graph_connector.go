@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/hashicorp/go-multierror"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -25,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
 
@@ -68,6 +68,7 @@ func NewGraphConnector(
 	itemClient *http.Client,
 	acct account.Account,
 	r resource,
+	errs *fault.Errors,
 ) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
@@ -97,13 +98,13 @@ func NewGraphConnector(
 	// For now this keeps things functioning if callers do pass in a selector like
 	// "*" instead of.
 	if r == AllResources || r == Users {
-		if err = gc.setTenantUsers(ctx); err != nil {
+		if err = gc.setTenantUsers(ctx, errs); err != nil {
 			return nil, errors.Wrap(err, "retrieving tenant user list")
 		}
 	}
 
 	if r == AllResources || r == Sites {
-		if err = gc.setTenantSites(ctx); err != nil {
+		if err = gc.setTenantSites(ctx, errs); err != nil {
 			return nil, errors.Wrap(err, "retrieveing tenant site list")
 		}
 	}
@@ -128,11 +129,11 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the returned error is nil
-func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
+func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
-	users, err := discovery.Users(ctx, gc.Owners.Users())
+	users, err := discovery.Users(ctx, gc.Owners.Users(), errs)
 	if err != nil {
 		return err
 	}
@@ -146,20 +147,10 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context) error {
 	return nil
 }
 
-// GetUsers returns the email address of users within the tenant.
-func (gc *GraphConnector) GetUsers() []string {
-	return maps.Keys(gc.Users)
-}
-
-// GetUsersIds returns the M365 id for the user
-func (gc *GraphConnector) GetUsersIds() []string {
-	return maps.Values(gc.Users)
-}
-
 // setTenantSites queries the M365 to identify the sites in the
 // workspace. The sites field is updated during this method
 // iff the returned error is nil.
-func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
+func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Errors) error {
 	gc.Sites = map[string]string{}
 
 	ctx, end := D.Span(ctx, "gc:setTenantSites")
@@ -171,7 +162,8 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context) error {
 		gc.tenant,
 		sharepoint.GetAllSitesForTenant,
 		models.CreateSiteCollectionResponseFromDiscriminatorValue,
-		identifySite)
+		identifySite,
+		errs)
 	if err != nil {
 		return err
 	}
@@ -190,7 +182,7 @@ const personalSitePath = "sharepoint.com/personal/"
 func identifySite(item any) (string, string, error) {
 	m, ok := item.(models.Siteable)
 	if !ok {
-		return "", "", clues.New("iteration retrieved non-Site item").With("item_type", fmt.Sprintf("%T", item))
+		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
 	}
 
 	if m.GetName() == nil {
@@ -227,9 +219,13 @@ func (gc *GraphConnector) GetSiteIDs() []string {
 // each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
 // but not match "www.ex.com/foobar".
 // The returned IDs are reduced to a set of unique values.
-func (gc *GraphConnector) UnionSiteIDsAndWebURLs(ctx context.Context, ids, urls []string) ([]string, error) {
+func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
+	ctx context.Context,
+	ids, urls []string,
+	errs *fault.Errors,
+) ([]string, error) {
 	if len(gc.Sites) == 0 {
-		if err := gc.setTenantSites(ctx); err != nil {
+		if err := gc.setTenantSites(ctx, errs); err != nil {
 			return nil, err
 		}
 	}
@@ -308,6 +304,7 @@ func getResources(
 	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
 	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
 	identify func(any) (string, string, error),
+	errs *fault.Errors,
 ) (map[string]string, error) {
 	resources := map[string]string{}
 
@@ -315,21 +312,25 @@ func getResources(
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving tenant's resources").
 			WithClues(ctx).
-			WithAll(graph.ErrData(err)...)
+			With(graph.ErrData(err)...)
 	}
-
-	errs := &multierror.Error{}
 
 	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
+	et := errs.Tracker()
+
 	callbackFunc := func(item any) bool {
+		if et.Err() != nil {
+			return false
+		}
+
 		k, v, err := identify(item)
 		if err != nil {
 			if !errors.Is(err, errKnownSkippableCase) {
-				errs = multierror.Append(errs, clues.Stack(err).
+				et.Add(clues.Stack(err).
 					WithClues(ctx).
 					With("query_url", gs.Adapter().GetBaseUrl()))
 			}
@@ -343,8 +344,8 @@ func getResources(
 	}
 
 	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return resources, errs.ErrorOrNil()
+	return resources, et.Err()
 }

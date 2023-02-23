@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -105,9 +106,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				nil,
 				connector.credentials,
 				connector.UpdateStatus,
-				control.Options{})
+				control.Options{},
+				fault.New(true))
 			require.NoError(t, err)
-
 			assert.Empty(t, excludes)
 
 			for range collections {
@@ -120,7 +121,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
 
 			for _, col := range collections {
-				for object := range col.Items() {
+				for object := range col.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
 					assert.NoError(t, err, "received a buf.Read error")
@@ -201,7 +202,12 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			collections, excludes, err := connector.DataCollections(ctx, test.getSelector(t), nil, control.Options{})
+			collections, excludes, err := connector.DataCollections(
+				ctx,
+				test.getSelector(t),
+				nil,
+				control.Options{},
+				fault.New(true))
 			assert.Error(t, err)
 			assert.Empty(t, collections)
 			assert.Empty(t, excludes)
@@ -249,10 +255,11 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
 				test.getSelector(),
-				connector.credentials.AzureTenantID,
+				connector.credentials,
 				connector.Service,
 				connector,
-				control.Options{})
+				control.Options{},
+				fault.New(true))
 			require.NoError(t, err)
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
@@ -266,7 +273,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			assert.Less(t, test.expected, len(collections))
 
 			for _, coll := range collections {
-				for object := range coll.Items() {
+				for object := range coll.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
 					assert.NoError(t, err, "reading item")
@@ -325,7 +332,12 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Libraries([]string{"foo"}, selectors.PrefixMatch()))
 
-	cols, excludes, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	cols, excludes, err := gc.DataCollections(
+		ctx,
+		sel.Selector,
+		nil,
+		control.Options{},
+		fault.New(true))
 	require.NoError(t, err)
 	assert.Len(t, cols, 1)
 	// No excludes yet as this isn't an incremental backup.
@@ -351,7 +363,12 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
 
-	cols, excludes, err := gc.DataCollections(ctx, sel.Selector, nil, control.Options{})
+	cols, excludes, err := gc.DataCollections(
+		ctx,
+		sel.Selector,
+		nil,
+		control.Options{},
+		fault.New(true))
 	require.NoError(t, err)
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
@@ -360,7 +377,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
 
-		for item := range collection.Items() {
+		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.UUID())
 
 			bs, err := io.ReadAll(item.ToReader())

@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -41,6 +43,9 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 }
 
 func (suite *MetadataCollectionUnitSuite) TestItems() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 
 	itemNames := []string{
@@ -87,7 +92,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 	gotData := [][]byte{}
 	gotNames := []string{}
 
-	for s := range c.Items() {
+	for s := range c.Items(ctx, fault.New(true)) {
 		gotNames = append(gotNames, s.UUID())
 
 		buf, err := io.ReadAll(s.ToReader())
@@ -152,14 +157,16 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			col, err := MakeMetadataCollection(
 				tenant,
 				user,
 				test.service,
 				test.cat,
 				[]MetadataCollectionEntry{test.metadata},
-				func(*support.ConnectorOperationStatus) {},
-			)
+				func(*support.ConnectorOperationStatus) {})
 
 			test.errCheck(t, err)
 			if err != nil {
@@ -172,7 +179,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			}
 
 			itemCount := 0
-			for item := range col.Items() {
+			for item := range col.Items(ctx, fault.New(true)) {
 				assert.Equal(t, test.metadata.fileName, item.UUID())
 
 				gotMap := map[string]string{}

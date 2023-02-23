@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -131,7 +132,10 @@ func (md MetadataCollection) DoNotMergeItems() bool {
 	return false
 }
 
-func (md MetadataCollection) Items() <-chan data.Stream {
+func (md MetadataCollection) Items(
+	ctx context.Context,
+	errs *fault.Errors,
+) <-chan data.Stream {
 	res := make(chan data.Stream)
 
 	go func() {
@@ -142,7 +146,7 @@ func (md MetadataCollection) Items() <-chan data.Stream {
 			// statusUpdater may not have accounted for the fact that this collection
 			// will be running.
 			status := support.CreateStatus(
-				context.TODO(),
+				ctx,
 				support.Backup,
 				1,
 				support.CollectionMetrics{
@@ -151,7 +155,7 @@ func (md MetadataCollection) Items() <-chan data.Stream {
 					TotalBytes: totalBytes,
 				},
 				nil,
-				md.fullPath.Folder(),
+				md.fullPath.Folder(false),
 			)
 
 			md.statusUpdater(status)

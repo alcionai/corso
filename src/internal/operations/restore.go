@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 	"sort"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -111,22 +111,8 @@ type restorer interface {
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			var rerr error
-			if re, ok := r.(error); ok {
-				rerr = re
-			} else if re, ok := r.(string); ok {
-				rerr = clues.New(re)
-			} else {
-				rerr = clues.New(fmt.Sprintf("%v", r))
-			}
-
-			err = clues.Wrap(rerr, "panic recovery").
-				WithClues(ctx).
-				With("stacktrace", string(debug.Stack()))
-			logger.Ctx(ctx).
-				With("err", err).
-				Errorw("backup panic", clues.InErr(err).Slice()...)
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
 		}
 	}()
 
@@ -150,7 +136,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		observe.Complete()
 	}()
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
 		"backup_id", op.BackupID,
@@ -168,6 +154,15 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			Errorw("doing restore", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
 		opStats.readErr = op.Errors.Err()
+	}
+
+	// TODO: the consumer (sdk or cli) should run this, not operations.
+	recoverableCount := len(op.Errors.Errs())
+	for i, err := range op.Errors.Errs() {
+		logger.Ctx(ctx).
+			With("error", err).
+			With(clues.InErr(err).Slice()...).
+			Errorf("doing restore: recoverable error %d of %d", i+1, recoverableCount)
 	}
 
 	// -----
@@ -208,7 +203,7 @@ func (op *RestoreOperation) do(
 		return nil, errors.Wrap(err, "formatting paths from details")
 	}
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"resource_owner", bup.Selector.DiscreteOwner,
 		"details_paths", len(paths))
@@ -224,6 +219,7 @@ func (op *RestoreOperation) do(
 		})
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
+	logger.Ctx(ctx).With("selectors", op.Selectors).Info("restoring selection")
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
 	defer closer()
@@ -242,7 +238,7 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account)
+	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to M365")
 	}
@@ -258,7 +254,8 @@ func (op *RestoreOperation) do(
 		op.Selectors,
 		op.Destination,
 		op.Options,
-		dcs)
+		dcs,
+		op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "restoring collections")
 	}
@@ -351,18 +348,20 @@ func formatDetailsForRestoration(
 	}
 
 	var (
-		fdsPaths = fds.Paths()
-		paths    = make([]path.Path, len(fdsPaths))
+		fdsPaths  = fds.Paths()
+		paths     = make([]path.Path, len(fdsPaths))
+		shortRefs = make([]string, len(fdsPaths))
+		et        = errs.Tracker()
 	)
 
 	for i := range fdsPaths {
-		if errs.Err() != nil {
-			return nil, errs.Err()
+		if et.Err() != nil {
+			break
 		}
 
 		p, err := path.FromDataLayerPath(fdsPaths[i], true)
 		if err != nil {
-			errs.Add(clues.
+			et.Add(clues.
 				Wrap(err, "parsing details path after reduction").
 				WithMap(clues.In(ctx)).
 				With("path", fdsPaths[i]))
@@ -371,6 +370,7 @@ func formatDetailsForRestoration(
 		}
 
 		paths[i] = p
+		shortRefs[i] = p.ShortRef()
 	}
 
 	// TODO(meain): Move this to onedrive specific component, but as
@@ -384,5 +384,7 @@ func formatDetailsForRestoration(
 		return paths[i].String() < paths[j].String()
 	})
 
-	return paths, errs.Err()
+	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
+
+	return paths, et.Err()
 }

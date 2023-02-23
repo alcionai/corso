@@ -114,6 +114,13 @@ type IncrementalBase struct {
 	SubtreePaths []*path.Builder
 }
 
+// PrevRefs hold the repoRef and locationRef from the items
+// that need to be merged in from prior snapshots.
+type PrevRefs struct {
+	Repo     path.Path
+	Location path.Path
+}
+
 // BackupCollections takes a set of collections and creates a kopia snapshot
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
@@ -128,7 +135,7 @@ func (w Wrapper) BackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Errors,
-) (*BackupStats, *details.Builder, map[string]path.Path, error) {
+) (*BackupStats, *details.Builder, map[string]PrevRefs, error) {
 	if w.c == nil {
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
@@ -143,7 +150,7 @@ func (w Wrapper) BackupCollections(
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
-		toMerge: map[string]path.Path{},
+		toMerge: map[string]PrevRefs{},
 		errs:    errs,
 	}
 
@@ -324,7 +331,7 @@ func getItemStream(
 		encodeElements(itemPath.PopFront().Elements()...),
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "entry not found") {
+		if isErrEntryNotFound(err) {
 			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
 		}
 
@@ -390,23 +397,26 @@ func (w Wrapper) RestoreMultipleItems(
 		return nil, err
 	}
 
-	// Maps short ID of parent path to data collection for that folder.
-	cols := map[string]*kopiaDataCollection{}
+	var (
+		// Maps short ID of parent path to data collection for that folder.
+		cols = map[string]*kopiaDataCollection{}
+		et   = errs.Tracker()
+	)
 
 	for _, itemPath := range paths {
-		if errs.Err() != nil {
-			return nil, errs.Err()
+		if et.Err() != nil {
+			return nil, et.Err()
 		}
 
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
-			errs.Add(err)
+			et.Add(err)
 			continue
 		}
 
 		parentPath, err := itemPath.Dir()
 		if err != nil {
-			errs.Add(clues.Wrap(err, "making directory collection").WithClues(ctx))
+			et.Add(clues.Wrap(err, "making directory collection").WithClues(ctx))
 			continue
 		}
 
@@ -430,7 +440,7 @@ func (w Wrapper) RestoreMultipleItems(
 		res = append(res, c)
 	}
 
-	return res, errs.Err()
+	return res, et.Err()
 }
 
 // DeleteSnapshot removes the provided manifest from kopia.
@@ -484,4 +494,9 @@ func (w Wrapper) FetchPrevSnapshotManifests(
 	}
 
 	return fetchPrevSnapshotManifests(ctx, w.c, reasons, tags), nil
+}
+
+func isErrEntryNotFound(err error) bool {
+	return strings.Contains(err.Error(), "entry not found") &&
+		!strings.Contains(err.Error(), "parent is not a directory")
 }

@@ -4,17 +4,21 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
+	"sync"
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
@@ -24,45 +28,87 @@ func GetSitePages(
 	serv *discover.BetaService,
 	siteID string,
 	pages []string,
+	errs *fault.Errors,
 ) ([]models.SitePageable, error) {
-	col := make([]models.SitePageable, 0)
-	opts := retrieveSitePageOptions()
+	var (
+		col         = make([]models.SitePageable, 0)
+		semaphoreCh = make(chan struct{}, fetchChannelSize)
+		opts        = retrieveSitePageOptions()
+		et          = errs.Tracker()
+		wg          sync.WaitGroup
+		m           sync.Mutex
+	)
 
-	for _, entry := range pages {
-		page, err := serv.Client().SitesById(siteID).PagesById(entry).Get(ctx, opts)
-		if err != nil {
-			return nil, support.ConnectorStackErrorTraceWrap(err, "fetching page: "+entry)
-		}
+	defer close(semaphoreCh)
+
+	updatePages := func(page models.SitePageable) {
+		m.Lock()
+		defer m.Unlock()
 
 		col = append(col, page)
 	}
 
-	return col, nil
+	for _, entry := range pages {
+		if et.Err() != nil {
+			break
+		}
+
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(pageID string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			var (
+				page models.SitePageable
+				err  error
+			)
+
+			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
+			if err != nil {
+				et.Add(clues.Wrap(err, "fetching page").WithClues(ctx).With(graph.ErrData(err)...))
+				return
+			}
+
+			updatePages(page)
+		}(entry)
+	}
+
+	wg.Wait()
+
+	return col, et.Err()
 }
 
 // fetchPages utility function to return the tuple of item
-func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([]Tuple, error) {
+func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([]NameID, error) {
 	var (
-		builder    = bs.Client().SitesById(siteID).Pages()
-		opts       = fetchPageOptions()
-		pageTuples = make([]Tuple, 0)
+		builder = bs.Client().SitesById(siteID).Pages()
+		opts    = fetchPageOptions()
+		pages   = make([]NameID, 0)
+		resp    models.SitePageCollectionResponseable
+		err     error
 	)
 
 	for {
-		resp, err := builder.Get(ctx, opts)
+		resp, err = builder.Get(ctx, opts)
 		if err != nil {
-			return nil, support.ConnectorStackErrorTraceWrap(err, "failed fetching site page")
+			return nil, clues.Wrap(err, "fetching site page").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, entry := range resp.GetValue() {
-			pid := *entry.GetId()
-			temp := Tuple{pid, pid}
+			var (
+				pid  = *entry.GetId()
+				temp = NameID{pid, pid}
+			)
 
-			if entry.GetName() != nil {
-				temp.Name = *entry.GetName()
+			name, ok := ptr.ValOK(entry.GetName())
+			if ok {
+				temp.Name = name
 			}
 
-			pageTuples = append(pageTuples, temp)
+			pages = append(pages, temp)
 		}
 
 		if resp.GetOdataNextLink() == nil {
@@ -72,7 +118,7 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 		builder = sites.NewItemPagesRequestBuilder(*resp.GetOdataNextLink(), bs.Client().Adapter())
 	}
 
-	return pageTuples, nil
+	return pages, nil
 }
 
 // fetchPageOptions is used to return minimal information reltating to Site Pages
@@ -97,7 +143,7 @@ func DeleteSitePage(
 ) error {
 	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
 	if err != nil {
-		return support.ConnectorStackErrorTraceWrap(err, "deleting page: "+pageID)
+		return clues.Wrap(err, "deleting page").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return nil
@@ -130,9 +176,11 @@ func RestoreSitePage(
 		pageName = pageID
 	)
 
+	ctx = clues.Add(ctx, "page_id", pageID)
+
 	byteArray, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
-		return dii, errors.Wrap(err, "reading sharepoint page bytes from stream")
+		return dii, clues.Wrap(err, "reading sharepoint data").WithClues(ctx)
 	}
 
 	// Hydrate Page
@@ -141,9 +189,9 @@ func RestoreSitePage(
 		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
 	}
 
-	pageNamePtr := page.GetName()
-	if pageNamePtr != nil {
-		pageName = *pageNamePtr
+	name, ok := ptr.ValOK(page.GetName())
+	if ok {
+		pageName = name
 	}
 
 	newName := fmt.Sprintf("%s_%s", destName, pageName)
@@ -155,19 +203,16 @@ func RestoreSitePage(
 	// See: https://learn.microsoft.com/en-us/graph/api/sitepage-create?view=graph-rest-beta
 	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
 	if err != nil {
-		sendErr := support.ConnectorStackErrorTraceWrap(
-			err,
-			"creating page from ID: %s"+pageName+" API Error Details",
-		)
-
-		return dii, sendErr
+		return dii, clues.Wrap(err, "creating page").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	pageID = *restoredPage.GetId()
+	pageID = ptr.Val(restoredPage.GetId())
+	ctx = clues.Add(ctx, "restored_page_id", pageID)
+
 	// Publish page to make visible
 	// See https://learn.microsoft.com/en-us/graph/api/sitepage-publish?view=graph-rest-beta
 	if restoredPage.GetWebUrl() == nil {
-		return dii, fmt.Errorf("creating page %s incomplete. Field  `webURL` not populated", pageID)
+		return dii, clues.New("webURL not populated during page creation").WithClues(ctx)
 	}
 
 	err = service.Client().
@@ -176,10 +221,7 @@ func RestoreSitePage(
 		Publish().
 		Post(ctx, nil)
 	if err != nil {
-		return dii, support.ConnectorStackErrorTraceWrap(
-			err,
-			"publishing page ID: "+*restoredPage.GetId()+" API Error Details",
-		)
+		return dii, clues.Wrap(err, "publishing page").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	dii.SharePoint = PageInfo(restoredPage, int64(len(byteArray)))
@@ -195,25 +237,11 @@ func RestoreSitePage(
 // PageInfo extracts useful metadata into struct for book keeping
 func PageInfo(page models.SitePageable, size int64) *details.SharePointInfo {
 	var (
-		name, webURL      string
-		created, modified time.Time
+		name     = ptr.Val(page.GetTitle())
+		webURL   = ptr.Val(page.GetWebUrl())
+		created  = ptr.Val(page.GetCreatedDateTime())
+		modified = ptr.Val(page.GetLastModifiedDateTime())
 	)
-
-	if page.GetTitle() != nil {
-		name = *page.GetTitle()
-	}
-
-	if page.GetWebUrl() != nil {
-		webURL = *page.GetWebUrl()
-	}
-
-	if page.GetCreatedDateTime() != nil {
-		created = *page.GetCreatedDateTime()
-	}
-
-	if page.GetLastModifiedDateTime() != nil {
-		modified = *page.GetLastModifiedDateTime()
-	}
 
 	return &details.SharePointInfo{
 		ItemType: details.SharePointItem,

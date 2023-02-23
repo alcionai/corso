@@ -144,7 +144,7 @@ func validateServiceAndCategory(service ServiceType, category CategoryType) erro
 
 	if _, ok := cats[category]; !ok {
 		return clues.New("unknown service/category combination").
-			WithAll("service", fmt.Sprintf("%q", service), "category", fmt.Sprintf("%q", category))
+			With("service", fmt.Sprintf("%q", service), "category", fmt.Sprintf("%q", category))
 	}
 
 	return nil
@@ -201,13 +201,20 @@ func (rp dataLayerResourcePath) lastFolderIdx() int {
 }
 
 // Folder returns the folder segment embedded in the dataLayerResourcePath.
-func (rp dataLayerResourcePath) Folder() string {
+func (rp dataLayerResourcePath) Folder(escape bool) string {
 	endIdx := rp.lastFolderIdx()
 	if endIdx == 4 {
 		return ""
 	}
 
-	return rp.Builder.join(4, endIdx)
+	fs := rp.Folders()
+
+	if !escape {
+		return join(fs)
+	}
+
+	// builder.String() will escape all individual elements.
+	return Builder{}.Append(fs...).String()
 }
 
 // Folders returns the individual folder elements embedded in the
@@ -263,4 +270,27 @@ func (rp dataLayerResourcePath) Append(
 func (rp dataLayerResourcePath) ToBuilder() *Builder {
 	// Safe to directly return the Builder because Builders are immutable.
 	return &rp.Builder
+}
+
+func (rp *dataLayerResourcePath) UpdateParent(prev, cur Path) bool {
+	if prev == cur || len(prev.Elements()) > len(rp.Elements()) {
+		return false
+	}
+
+	parent := true
+
+	for i, e := range prev.Elements() {
+		if rp.elements[i] != e {
+			parent = false
+			break
+		}
+	}
+
+	if !parent {
+		return false
+	}
+
+	rp.elements = append(cur.Elements(), rp.elements[len(prev.Elements()):]...)
+
+	return true
 }

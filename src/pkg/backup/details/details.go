@@ -15,11 +15,12 @@ import (
 )
 
 type folderEntry struct {
-	RepoRef   string
-	ShortRef  string
-	ParentRef string
-	Updated   bool
-	Info      ItemInfo
+	RepoRef     string
+	ShortRef    string
+	ParentRef   string
+	LocationRef string
+	Updated     bool
+	Info        ItemInfo
 }
 
 // --------------------------------------------------------------------------------
@@ -34,10 +35,12 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	sl := dm.FilterMetaFiles()
+
 	if print.JSONFormat() {
-		printJSON(ctx, dm)
+		printJSON(ctx, sl)
 	} else {
-		printTable(ctx, dm)
+		printTable(ctx, sl)
 	}
 }
 
@@ -70,13 +73,13 @@ func printJSON(ctx context.Context, dm DetailsModel) {
 	print.All(ctx, ents...)
 }
 
-// Paths returns the list of Paths for non-folder items extracted from the
-// Entries slice.
+// Paths returns the list of Paths for non-folder and non-meta items extracted
+// from the Entries slice.
 func (dm DetailsModel) Paths() []string {
 	r := make([]string, 0, len(dm.Entries))
 
 	for _, ent := range dm.Entries {
-		if ent.Folder != nil {
+		if ent.Folder != nil || ent.isMetaFile() {
 			continue
 		}
 
@@ -88,20 +91,48 @@ func (dm DetailsModel) Paths() []string {
 
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
-// paths.
+// paths, and we want to slice out metadata.
 func (dm DetailsModel) Items() []*DetailsEntry {
 	res := make([]*DetailsEntry, 0, len(dm.Entries))
 
 	for i := 0; i < len(dm.Entries); i++ {
-		if dm.Entries[i].Folder != nil {
+		ent := dm.Entries[i]
+		if ent.Folder != nil || ent.isMetaFile() {
 			continue
 		}
 
-		res = append(res, &dm.Entries[i])
+		res = append(res, &ent)
 	}
 
 	return res
 }
+
+// FilterMetaFiles returns a copy of the Details with all of the
+// .meta files removed from the entries.
+func (dm DetailsModel) FilterMetaFiles() DetailsModel {
+	d2 := DetailsModel{
+		Entries: []DetailsEntry{},
+	}
+
+	for _, ent := range dm.Entries {
+		if !ent.isMetaFile() {
+			d2.Entries = append(d2.Entries, ent)
+		}
+	}
+
+	return d2
+}
+
+// Check if a file is a metadata file. These are used to store
+// additional data like permissions in case of OneDrive and are not to
+// be treated as regular files.
+func (de DetailsEntry) isMetaFile() bool {
+	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
+}
+
+// ---------------------------------------------------------------------------
+// Builder
+// ---------------------------------------------------------------------------
 
 // Builder should be used to create a details model.
 type Builder struct {
@@ -110,10 +141,14 @@ type Builder struct {
 	knownFolders map[string]folderEntry `json:"-"`
 }
 
-func (b *Builder) Add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
+func (b *Builder) Add(
+	repoRef, shortRef, parentRef, locationRef string,
+	updated bool,
+	info ItemInfo,
+) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.d.add(repoRef, shortRef, parentRef, updated, info)
+	b.d.add(repoRef, shortRef, parentRef, locationRef, updated, info)
 }
 
 func (b *Builder) Details() *Details {
@@ -131,28 +166,63 @@ func (b *Builder) Details() *Details {
 // TODO(ashmrtn): If we never need to pre-populate the modified time of a folder
 // we should just merge this with AddFoldersForItem, have Add call
 // AddFoldersForItem, and unexport AddFoldersForItem.
-func FolderEntriesForPath(parent *path.Builder) []folderEntry {
+func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	folders := []folderEntry{}
+	lfs := locationRefOf(location)
 
 	for len(parent.Elements()) > 0 {
-		nextParent := parent.Dir()
+		var (
+			nextParent = parent.Dir()
+			lr         string
+			dn         = parent.LastElem()
+		)
+
+		// TODO: We may have future cases where the storage hierarchy
+		// doesn't match the location hierarchy.
+		if lfs != nil {
+			lr = lfs.String()
+
+			if len(lfs.Elements()) > 0 {
+				dn = lfs.LastElem()
+			}
+		}
 
 		folders = append(folders, folderEntry{
-			RepoRef:   parent.String(),
-			ShortRef:  parent.ShortRef(),
-			ParentRef: nextParent.ShortRef(),
+			RepoRef:     parent.String(),
+			ShortRef:    parent.ShortRef(),
+			ParentRef:   nextParent.ShortRef(),
+			LocationRef: lr,
 			Info: ItemInfo{
 				Folder: &FolderInfo{
 					ItemType:    FolderItem,
-					DisplayName: parent.Elements()[len(parent.Elements())-1],
+					DisplayName: dn,
 				},
 			},
 		})
 
 		parent = nextParent
+
+		if lfs != nil {
+			lfs = lfs.Dir()
+		}
 	}
 
 	return folders
+}
+
+// assumes the pb contains a path like:
+// <tenant>/<service>/<owner>/<category>/<logical_containers>...
+// and returns a string with only <logical_containers>/...
+func locationRefOf(pb *path.Builder) *path.Builder {
+	if pb == nil {
+		return nil
+	}
+
+	for i := 0; i < 4; i++ {
+		pb = pb.PopFront()
+	}
+
+	return pb
 }
 
 // AddFoldersForItem adds entries for the given folders. It skips adding entries that
@@ -202,13 +272,18 @@ type Details struct {
 	DetailsModel
 }
 
-func (d *Details) add(repoRef, shortRef, parentRef string, updated bool, info ItemInfo) {
+func (d *Details) add(
+	repoRef, shortRef, parentRef, locationRef string,
+	updated bool,
+	info ItemInfo,
+) {
 	d.Entries = append(d.Entries, DetailsEntry{
-		RepoRef:   repoRef,
-		ShortRef:  shortRef,
-		ParentRef: parentRef,
-		Updated:   updated,
-		ItemInfo:  info,
+		RepoRef:     repoRef,
+		ShortRef:    shortRef,
+		ParentRef:   parentRef,
+		LocationRef: locationRef,
+		Updated:     updated,
+		ItemInfo:    info,
 	})
 }
 
@@ -233,9 +308,21 @@ type DetailsEntry struct {
 	RepoRef   string `json:"repoRef"`
 	ShortRef  string `json:"shortRef"`
 	ParentRef string `json:"parentRef,omitempty"`
+
+	// LocationRef contains the logical path structure by its human-readable
+	// display names.  IE:  If an item is located at "/Inbox/Important", we
+	// hold that string in the LocationRef, while the actual IDs of each
+	// container are used for the RepoRef.
+	// LocationRef only holds the container values, and does not include
+	// the metadata prefixes (tenant, service, owner, etc) found in the
+	// repoRef.
+	// Currently only implemented for Exchange Calendars.
+	LocationRef string `json:"locationRef,omitempty"`
+
 	// Indicates the item was added or updated in this backup
 	// Always `true` for full backups
 	Updated bool `json:"updated"`
+
 	ItemInfo
 }
 
@@ -316,18 +403,21 @@ const (
 	FolderItem ItemType = iota + 300
 )
 
-func UpdateItem(item *ItemInfo, newPath path.Path) error {
+func UpdateItem(item *ItemInfo, repoPath path.Path) error {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
+	var updatePath func(path.Path) error
+
 	switch item.infoType() {
 	case SharePointItem:
-		return item.SharePoint.UpdateParentPath(newPath)
-
+		updatePath = item.SharePoint.UpdateParentPath
 	case OneDriveItem:
-		return item.OneDrive.UpdateParentPath(newPath)
+		updatePath = item.OneDrive.UpdateParentPath
+	default:
+		return nil
 	}
 
-	return nil
+	return updatePath(repoPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -523,6 +613,7 @@ type OneDriveInfo struct {
 	ItemName   string    `json:"itemName,omitempty"`
 	DriveName  string    `json:"driveName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
+	IsMeta     bool      `json:"isMeta,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath"`

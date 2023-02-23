@@ -6,8 +6,9 @@ import (
 	"io"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -24,7 +25,8 @@ const (
 )
 
 func attachmentType(attachment models.Attachmentable) models.AttachmentType {
-	switch *attachment.GetOdataType() {
+	attachmentType := ptr.Val(attachment.GetOdataType())
+	switch attachmentType {
 	case fileAttachmentOdataValue:
 		return models.FILE_ATTACHMENTTYPE
 	case itemAttachmentOdataValue:
@@ -44,49 +46,42 @@ func uploadAttachment(
 	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
-	logger.Ctx(ctx).Debugf("uploading attachment with size %d", *attachment.GetSize())
+	attachmentType := attachmentType(attachment)
 
-	var (
-		attachmentType = attachmentType(attachment)
-		err            error
-	)
+	ctx = clues.Add(
+		ctx,
+		"attachment_size", ptr.Val(attachment.GetSize()),
+		"attachment_id", ptr.Val(attachment.GetId()),
+		"attachment_name", ptr.Val(attachment.GetName()), // TODO: pii
+		"attachment_type", attachmentType,
+		"internal_item_type", getItemAttachmentItemType(attachment),
+		"uploader_item_id", uploader.getItemID())
+
+	logger.Ctx(ctx).Debug("uploading attachment")
+
 	// Reference attachments that are inline() do not need to be recreated. The contents are part of the body.
-	if attachmentType == models.REFERENCE_ATTACHMENTTYPE &&
-		attachment.GetIsInline() != nil && *attachment.GetIsInline() {
-		logger.Ctx(ctx).Debugf("skip uploading inline reference attachment: ", *attachment.GetName())
+	if attachmentType == models.REFERENCE_ATTACHMENTTYPE && ptr.Val(attachment.GetIsInline()) {
+		logger.Ctx(ctx).Debug("skip uploading inline reference attachment")
 		return nil
 	}
 
 	// item Attachments to be skipped until the completion of Issue #2353
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
-		prev := attachment
-
-		attachment, err = support.ToItemAttachment(attachment)
+		a, err := support.ToItemAttachment(attachment)
 		if err != nil {
-			name := ""
-			if prev.GetName() != nil {
-				name = *prev.GetName()
-			}
-
-			// TODO: (rkeepers) Update to support PII protection
-			msg := "item attachment restore not supported for this type. skipping upload."
-			logger.Ctx(ctx).Infow(msg,
-				"err", err,
-				"attachment_name", name,
-				"attachment_type", attachmentType,
-				"internal_item_type", getItemAttachmentItemType(prev),
-				"attachment_id", *prev.GetId(),
-			)
+			logger.Ctx(ctx).
+				With("err", err).
+				Infow("item attachment restore not supported for this type. skipping upload.", clues.InErr(err).Slice()...)
 
 			return nil
 		}
+
+		attachment = a
 	}
 
 	// For Item/Reference attachments *or* file attachments < 3MB, use the attachments endpoint
-	if attachmentType != models.FILE_ATTACHMENTTYPE || *attachment.GetSize() < largeAttachmentSize {
-		err := uploader.uploadSmallAttachment(ctx, attachment)
-
-		return err
+	if attachmentType != models.FILE_ATTACHMENTTYPE || ptr.Val(attachment.GetSize()) < largeAttachmentSize {
+		return uploader.uploadSmallAttachment(ctx, attachment)
 	}
 
 	return uploadLargeAttachment(ctx, uploader, attachment)
@@ -94,27 +89,31 @@ func uploadAttachment(
 
 // uploadLargeAttachment will upload the specified attachment by creating an upload session and
 // doing a chunked upload
-func uploadLargeAttachment(ctx context.Context, uploader attachmentUploadable,
+func uploadLargeAttachment(
+	ctx context.Context,
+	uploader attachmentUploadable,
 	attachment models.Attachmentable,
 ) error {
-	ab := attachmentBytes(attachment)
-	size := int64(len(ab))
+	var (
+		bs   = attachmentBytes(attachment)
+		size = int64(len(bs))
+	)
 
-	session, err := uploader.uploadSession(ctx, *attachment.GetName(), size)
+	session, err := uploader.uploadSession(ctx, ptr.Val(attachment.GetName()), size)
 	if err != nil {
-		return err
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	url := *session.GetUploadUrl()
+	url := ptr.Val(session.GetUploadUrl())
 	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
-	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", uploader.getItemID(), url)
+	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", url) // TODO: url pii
 
 	// Upload the stream data
 	copyBuffer := make([]byte, attachmentChunkSize)
 
-	_, err = io.CopyBuffer(aw, bytes.NewReader(ab), copyBuffer)
+	_, err = io.CopyBuffer(aw, bytes.NewReader(bs), copyBuffer)
 	if err != nil {
-		return errors.Wrapf(err, "failed to upload attachment: item %s", uploader.getItemID())
+		return clues.Wrap(err, "uploading large attachment").WithClues(ctx)
 	}
 
 	return nil
@@ -129,9 +128,6 @@ func getItemAttachmentItemType(query models.Attachmentable) string {
 	}
 
 	item := attachment.GetItem()
-	if item.GetOdataType() == nil {
-		return empty
-	}
 
-	return *item.GetOdataType()
+	return ptr.Val(item.GetOdataType())
 }

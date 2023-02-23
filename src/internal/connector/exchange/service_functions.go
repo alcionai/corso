@@ -2,13 +2,14 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -35,6 +36,7 @@ func createService(credentials account.M365Config) (*graph.Service, error) {
 func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
+	errs *fault.Errors,
 ) (graph.ContainerResolver, error) {
 	var (
 		res       graph.ContainerResolver
@@ -75,55 +77,81 @@ func PopulateExchangeContainerResolver(
 		cacheRoot = DefaultCalendar
 
 	default:
-		return nil, fmt.Errorf("ContainerResolver not present for %s type", qp.Category)
+		return nil, clues.New("no container resolver registered for category").WithClues(ctx)
 	}
 
-	if err := res.Populate(ctx, cacheRoot); err != nil {
-		return nil, errors.Wrap(err, "populating directory resolver")
+	if err := res.Populate(ctx, errs, cacheRoot); err != nil {
+		return nil, clues.Wrap(err, "populating directory resolver").WithClues(ctx)
 	}
 
 	return res, nil
 }
 
 // Returns true if the container passes the scope comparison and should be included.
-// Also returns the path representing the directory.
+// Returns:
+// - the path representing the directory as it should be stored in the repository.
+// - the human-readable path using display names.
+// - true if the path passes the scope comparison.
 func includeContainer(
 	qp graph.QueryParams,
 	c graph.CachedContainer,
 	scope selectors.ExchangeScope,
-) (path.Path, bool) {
+) (path.Path, path.Path, bool) {
 	var (
-		category  = scope.Category().PathType()
 		directory string
+		locPath   path.Path
+		category  = scope.Category().PathType()
 		pb        = c.Path()
+		loc       = c.Location()
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {
-		pb = c.Path().Append(DefaultContactFolder)
+		pb = pb.Append(DefaultContactFolder)
+
+		if loc != nil {
+			loc = loc.Append(DefaultContactFolder)
+		}
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
 		category,
-		false,
-	)
+		false)
 	// Containers without a path (e.g. Root mail folder) always err here.
 	if err != nil {
-		return nil, false
+		return nil, nil, false
 	}
 
-	directory = pb.String()
+	directory = dirPath.Folder(false)
+
+	if loc != nil {
+		locPath, err = loc.ToDataLayerExchangePathForCategory(
+			qp.Credentials.AzureTenantID,
+			qp.ResourceOwner,
+			category,
+			false)
+		// Containers without a path (e.g. Root mail folder) always err here.
+		if err != nil {
+			return nil, nil, false
+		}
+
+		directory = locPath.Folder(false)
+	}
+
+	var ok bool
 
 	switch category {
 	case path.EmailCategory:
-		return dirPath, scope.Matches(selectors.ExchangeMailFolder, directory)
+		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
 	case path.ContactsCategory:
-		return dirPath, scope.Matches(selectors.ExchangeContactFolder, directory)
+		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
 	case path.EventsCategory:
-		return dirPath, scope.Matches(selectors.ExchangeEventCalendar, directory)
+		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
 	default:
-		return dirPath, false
+		return nil, nil, false
 	}
+
+	return dirPath, locPath, ok
 }

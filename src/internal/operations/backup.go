@@ -2,8 +2,6 @@ package operations
 
 import (
 	"context"
-	"fmt"
-	"runtime/debug"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -12,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -111,22 +110,8 @@ type detailsWriter interface {
 // Run begins a synchronous backup operation.
 func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			var rerr error
-			if re, ok := r.(error); ok {
-				rerr = re
-			} else if re, ok := r.(string); ok {
-				rerr = clues.New(re)
-			} else {
-				rerr = clues.New(fmt.Sprintf("%v", r))
-			}
-
-			err = clues.Wrap(rerr, "panic recovery").
-				WithClues(ctx).
-				With("stacktrace", string(debug.Stack()))
-			logger.Ctx(ctx).
-				With("err", err).
-				Errorw("backup panic", clues.InErr(err).Slice()...)
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
 		}
 	}()
 
@@ -149,7 +134,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
 		"resource_owner", op.ResourceOwner, // TODO: pii
@@ -182,6 +167,15 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			Errorw("doing backup", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
 		opStats.readErr = op.Errors.Err()
+	}
+
+	// TODO: the consumer (sdk or cli) should run this, not operations.
+	recoverableCount := len(op.Errors.Errs())
+	for i, err := range op.Errors.Errs() {
+		logger.Ctx(ctx).
+			With("error", err).
+			With(clues.InErr(err).Slice()...).
+			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
 	}
 
 	// -----
@@ -223,6 +217,7 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	reasons := selectorToReasons(op.Selectors)
+	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
@@ -239,12 +234,12 @@ func (op *BackupOperation) do(
 		return nil, errors.Wrap(err, "producing manifests and metadata")
 	}
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account)
+	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "connectng to m365")
 	}
 
-	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options)
+	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "producing backup data collections")
 	}
@@ -313,6 +308,7 @@ func produceBackupDataCollections(
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
@@ -321,9 +317,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	cols, excludes, errs := gc.DataCollections(ctx, sel, metadata, ctrlOpts)
-
-	return cols, excludes, errs
+	return gc.DataCollections(ctx, sel, metadata, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +333,7 @@ type backuper interface {
 		tags map[string]string,
 		buildTreeWithBase bool,
 		errs *fault.Errors,
-	) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error)
+	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
 }
 
 func selectorToReasons(sel selectors.Selector) []kopia.Reason {
@@ -398,7 +392,7 @@ func consumeBackupDataCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Errors,
-) (*kopia.BackupStats, *details.Builder, map[string]path.Path, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
 		complete <- struct{}{}
@@ -504,7 +498,7 @@ func mergeDetails(
 	ms *store.Wrapper,
 	detailsStore detailsReader,
 	mans []*kopia.ManifestEntry,
-	shortRefsFromPrevBackup map[string]path.Path,
+	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
 	deets *details.Builder,
 	errs *fault.Errors,
 ) error {
@@ -560,12 +554,15 @@ func mergeDetails(
 				continue
 			}
 
-			newPath := shortRefsFromPrevBackup[rr.ShortRef()]
-			if newPath == nil {
+			prev, ok := shortRefsFromPrevBackup[rr.ShortRef()]
+			if !ok {
 				// This entry was not sourced from a base snapshot or cached from a
 				// previous backup, skip it.
 				continue
 			}
+
+			newPath := prev.Repo
+			newLoc := prev.Location
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
@@ -575,16 +572,27 @@ func mergeDetails(
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
-			itemUpdated := newPath.String() != rr.String()
+			var (
+				itemUpdated = newPath.String() != rr.String()
+				newLocStr   string
+				locBuilder  *path.Builder
+			)
+
+			if newLoc != nil {
+				locBuilder = newLoc.ToBuilder()
+				newLocStr = newLoc.Folder(true)
+				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
+			}
 
 			deets.Add(
 				newPath.String(),
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
+				newLocStr,
 				itemUpdated,
 				item)
 
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir())
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), locBuilder)
 			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when
@@ -596,7 +604,7 @@ func mergeDetails(
 	if addedEntries != len(shortRefsFromPrevBackup) {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
-			WithAll("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
+			With("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
 	}
 
 	return nil

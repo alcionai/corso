@@ -17,6 +17,7 @@ lint: check-lint-version
 
 fmt:
 	gofumpt -w .
+	goimports -w .
 	gci write --skip-generated -s 'standard,default,prefix(github.com/alcionai/corso)' .
 
 check-lint-version: check-lint

@@ -3,9 +3,8 @@ package exchange
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -15,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -64,6 +64,7 @@ type DeltaPath struct {
 func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
+	errs *fault.Errors,
 ) (CatDeltaPaths, error) {
 	// cdp stores metadata
 	cdp := CatDeltaPaths{
@@ -83,14 +84,14 @@ func parseMetadataCollections(
 	for _, coll := range colls {
 		var (
 			breakLoop bool
-			items     = coll.Items()
+			items     = coll.Items(ctx, errs)
 			category  = coll.FullPath().Category()
 		)
 
 		for {
 			select {
 			case <-ctx.Done():
-				return nil, errors.Wrap(ctx.Err(), "parsing collection metadata")
+				return nil, clues.Wrap(ctx.Err(), "parsing collection metadata").WithClues(ctx)
 
 			case item, ok := <-items:
 				if !ok {
@@ -105,13 +106,13 @@ func parseMetadataCollections(
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
-					return nil, errors.New("decoding metadata json")
+					return nil, clues.New("decoding metadata json").WithClues(ctx)
 				}
 
 				switch item.UUID() {
 				case graph.PreviousPathFileName:
 					if _, ok := found[category]["path"]; ok {
-						return nil, errors.Errorf("multiple versions of %s path metadata", category)
+						return nil, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
 					}
 
 					for k, p := range m {
@@ -122,7 +123,7 @@ func parseMetadataCollections(
 
 				case graph.DeltaURLsFileName:
 					if _, ok := found[category]["delta"]; ok {
-						return nil, errors.Errorf("multiple versions of %s delta metadata", category)
+						return nil, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
 					}
 
 					for k, d := range m {
@@ -167,44 +168,47 @@ func DataCollections(
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "exchangeDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
 	}
 
 	var (
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
-		errs        error
+		et          = errs.Tracker()
 	)
 
-	cdps, err := parseMetadataCollections(ctx, metadata)
+	cdps, err := parseMetadataCollections(ctx, metadata, errs)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	for _, scope := range eb.Scopes() {
-		dps := cdps[scope.Category().PathType()]
+		if et.Err() != nil {
+			break
+		}
 
 		dcs, err := createCollections(
 			ctx,
 			acct,
 			user,
 			scope,
-			dps,
+			cdps[scope.Category().PathType()],
 			ctrlOpts,
-			su)
+			su,
+			errs)
 		if err != nil {
-			return nil, nil, support.WrapAndAppend(user, err, errs)
+			et.Add(err)
+			continue
 		}
 
 		collections = append(collections, dcs...)
 	}
 
-	// Exchange does not require adding items to the global exclude list so always
-	// return nil.
-	return collections, nil, errs
+	return collections, nil, et.Err()
 }
 
 func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
@@ -216,7 +220,7 @@ func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedIte
 	case path.ContactsCategory:
 		return ac.Contacts(), nil
 	default:
-		return nil, fmt.Errorf("category %s not supported by getFetchIDFunc", category)
+		return nil, clues.New("no api client registered for category")
 	}
 }
 
@@ -231,17 +235,19 @@ func createCollections(
 	dps DeltaPaths,
 	ctrlOpts control.Options,
 	su support.StatusUpdater,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, error) {
 	var (
-		errs           *multierror.Error
 		allCollections = make([]data.BackupCollection, 0)
 		ac             = api.Client{Credentials: creds}
 		category       = scope.Category().PathType()
 	)
 
+	ctx = clues.Add(ctx, "category", category)
+
 	getter, err := getterByType(ac, category)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
 	// Create collection of ExchangeDataCollection
@@ -260,9 +266,9 @@ func createCollections(
 	defer closer()
 	defer close(foldersComplete)
 
-	resolver, err := PopulateExchangeContainerResolver(ctx, qp)
+	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting folder cache")
+		return nil, errors.Wrap(err, "populating container cache")
 	}
 
 	err = filterContainersAndFillCollections(
@@ -274,8 +280,8 @@ func createCollections(
 		resolver,
 		scope,
 		dps,
-		ctrlOpts)
-
+		ctrlOpts,
+		errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "filling collections")
 	}
@@ -286,5 +292,5 @@ func createCollections(
 		allCollections = append(allCollections, coll)
 	}
 
-	return allCollections, errs.ErrorOrNil()
+	return allCollections, nil
 }

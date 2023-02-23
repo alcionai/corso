@@ -32,8 +32,8 @@ type Errors struct {
 // ErrorsData provides the errors data alone, without sync
 // controls, allowing the data to be persisted.
 type ErrorsData struct {
-	Err      error   `json:"err"`
-	Errs     []error `json:"errs"`
+	Err      error   `json:"-"`
+	Errs     []error `json:"-"`
 	FailFast bool    `json:"failFast"`
 }
 
@@ -84,11 +84,6 @@ func (e *Errors) Fail(err error) *Errors {
 	return e.setErr(err)
 }
 
-// Failed returns true if e.err != nil, signifying a catastrophic failure.
-func (e *Errors) Failed() bool {
-	return e.err != nil
-}
-
 // setErr handles setting errors.err.  Sync locking gets
 // handled upstream of this call.
 func (e *Errors) setErr(err error) *Errors {
@@ -100,11 +95,6 @@ func (e *Errors) setErr(err error) *Errors {
 	e.errs = append(e.errs, err)
 
 	return e
-}
-
-type Adder interface {
-	Add(err error) *Errors
-	Failed() bool
 }
 
 // Add appends the error to the slice of recoverable and
@@ -133,4 +123,49 @@ func (e *Errors) addErr(err error) *Errors {
 	e.errs = append(e.errs, err)
 
 	return e
+}
+
+// ---------------------------------------------------------------------------
+// Iteration Tracker
+// ---------------------------------------------------------------------------
+
+// Tracker constructs a new errors tracker for aggregating errors
+// in a single iteration loop.  Trackers shouldn't be passed down
+// to other funcs, and the function that spawned the tracker should
+// always return `tracker.Err()` to ensure that hard failures are
+// propagated upstream.
+func (e *Errors) Tracker() *tracker {
+	return &tracker{
+		mu:   &sync.Mutex{},
+		errs: e,
+	}
+}
+
+type tracker struct {
+	mu      *sync.Mutex
+	errs    *Errors
+	current error
+}
+
+func (e *tracker) Add(err error) {
+	if err == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.current == nil && e.errs.failFast {
+		e.current = err
+	}
+
+	e.errs.Add(err)
+}
+
+// Err returns the primary error in the tracker.  Will be nil if the
+// original Errors is set to bestEffort handling.  Does not return the
+// underlying Errors.Err().  Should be called as the return value of
+// any func which created a new tracker.
+func (e *tracker) Err() error {
+	return e.current
 }

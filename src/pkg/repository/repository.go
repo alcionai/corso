@@ -2,18 +2,22 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/streamstore"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -88,12 +92,18 @@ func Initialize(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-) (Repository, error) {
-	ctx = clues.AddAll(
+) (repo Repository, err error) {
+	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
 		"storage_provider", s.Provider.String())
+
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Initialize(ctx); err != nil {
@@ -156,12 +166,18 @@ func Connect(
 	acct account.Account,
 	s storage.Storage,
 	opts control.Options,
-) (Repository, error) {
-	ctx = clues.AddAll(
+) (r Repository, err error) {
+	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
 		"acct_id", acct.ID(), // TODO: pii
 		"storage_provider", s.Provider.String())
+
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	// Close/Reset the progress bar. This ensures callers don't have to worry about
 	// their output getting clobbered (#1720)
@@ -214,6 +230,22 @@ func Connect(
 		dataLayer:  w,
 		modelStore: ms,
 	}, nil
+}
+
+func ConnectAndSendConnectEvent(ctx context.Context,
+	acct account.Account,
+	s storage.Storage,
+	opts control.Options,
+) (Repository, error) {
+	repo, err := Connect(ctx, acct, s, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	r := repo.(*repository)
+	r.Bus.Event(ctx, events.RepoConnect, nil)
+
+	return r, nil
 }
 
 func (r *repository) Close(ctx context.Context) error {
@@ -327,6 +359,20 @@ func (r repository) BackupDetails(
 	).ReadBackupDetails(ctx, dID, errs)
 	if err != nil {
 		return nil, nil, errs.Fail(err)
+	}
+
+	// Retroactively fill in isMeta information for items in older
+	// backup versions without that info
+	// version.Restore2 introduces the IsMeta flag, so only v1 needs a check.
+	if b.Version >= version.OneDrive1DataAndMetaFiles && b.Version < version.OneDrive3IsMetaMarker {
+		for _, d := range deets.Entries {
+			if d.OneDrive != nil {
+				if strings.HasSuffix(d.RepoRef, onedrive.MetaFileSuffix) ||
+					strings.HasSuffix(d.RepoRef, onedrive.DirMetaFileSuffix) {
+					d.OneDrive.IsMeta = true
+				}
+			}
+		}
 	}
 
 	return deets, b, errs

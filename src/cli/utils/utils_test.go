@@ -6,15 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type CliUtilsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCliUtilsSuite(t *testing.T) {
-	suite.Run(t, new(CliUtilsSuite))
+	suite.Run(t, &CliUtilsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *CliUtilsSuite) TestRequireProps() {
@@ -75,7 +76,9 @@ func (suite *CliUtilsSuite) TestSplitFoldersIntoContainsAndPrefix() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			c, p := splitFoldersIntoContainsAndPrefix(test.input)
 			assert.ElementsMatch(t, test.expectC, c, "contains set")
 			assert.ElementsMatch(t, test.expectP, p, "prefix set")

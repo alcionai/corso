@@ -3,10 +3,11 @@ package exchange
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -26,13 +27,15 @@ func (cfc *contactFolderCache) populateContactRoot(
 ) error {
 	f, err := cfc.getter.GetContainerByID(ctx, cfc.userID, directoryID)
 	if err != nil {
-		return support.ConnectorStackErrorTraceWrap(err, "fetching root folder")
+		return clues.Wrap(err, "fetching root folder")
 	}
 
-	temp := graph.NewCacheFolder(f, path.Builder{}.Append(baseContainerPath...))
-
+	temp := graph.NewCacheFolder(
+		f,
+		path.Builder{}.Append(baseContainerPath...), // storage path
+		path.Builder{}.Append(baseContainerPath...)) // display location
 	if err := cfc.addFolder(temp); err != nil {
-		return errors.Wrap(err, "adding resolver dir")
+		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 	}
 
 	return nil
@@ -44,6 +47,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 // as of (Oct-07-2022)
 func (cfc *contactFolderCache) Populate(
 	ctx context.Context,
+	errs *fault.Errors,
 	baseID string,
 	baseContainerPather ...string,
 ) error {
@@ -51,12 +55,12 @@ func (cfc *contactFolderCache) Populate(
 		return errors.Wrap(err, "initializing")
 	}
 
-	err := cfc.enumer.EnumerateContainers(ctx, cfc.userID, baseID, cfc.addFolder)
+	err := cfc.enumer.EnumerateContainers(ctx, cfc.userID, baseID, cfc.addFolder, errs)
 	if err != nil {
 		return errors.Wrap(err, "enumerating containers")
 	}
 
-	if err := cfc.populatePaths(ctx); err != nil {
+	if err := cfc.populatePaths(ctx, false); err != nil {
 		return errors.Wrap(err, "populating paths")
 	}
 
@@ -69,7 +73,7 @@ func (cfc *contactFolderCache) init(
 	baseContainerPath []string,
 ) error {
 	if len(baseNode) == 0 {
-		return errors.New("m365 folderID required for base folder")
+		return clues.New("m365 folderID required for base folder").WithClues(ctx)
 	}
 
 	if cfc.containerResolver == nil {

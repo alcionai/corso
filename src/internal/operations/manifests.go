@@ -135,13 +135,18 @@ func produceManifestsAndMetadata(
 // of manifests, that each manifest's Reason (owner, service, category) is only
 // included once.  If a reason is duplicated by any two manifests, an error is
 // returned.
-func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs fault.Adder) error {
+func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs *fault.Errors) error {
 	var (
 		failed  bool
 		reasons = map[string]manifest.ID{}
+		et      = errs.Tracker()
 	)
 
 	for _, man := range mans {
+		if et.Err() != nil {
+			break
+		}
+
 		// Incomplete snapshots are used only for kopia-assisted incrementals. The
 		// fact that we need this check here makes it seem like this should live in
 		// the kopia code. However, keeping it here allows for better debugging as
@@ -158,7 +163,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 			if b, ok := reasons[reasonKey]; ok {
 				failed = true
 
-				errs.Add(clues.New("manifests have overlapping reasons").
+				et.Add(clues.New("manifests have overlapping reasons").
 					WithClues(ctx).
 					With("other_manifest_id", b))
 
@@ -173,7 +178,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 		return clues.New("multiple base snapshots qualify").WithClues(ctx)
 	}
 
-	return nil
+	return et.Err()
 }
 
 // collectMetadata retrieves all metadata files associated with the manifest.
@@ -200,7 +205,7 @@ func collectMetadata(
 			if err != nil {
 				return nil, clues.
 					Wrap(err, "building metadata path").
-					WithAll("metadata_file", fn, "category", reason.Category)
+					With("metadata_file", fn, "category", reason.Category)
 			}
 
 			paths = append(paths, p)

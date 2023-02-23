@@ -3,14 +3,14 @@ package sharepoint
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"time"
 
+	"github.com/alcionai/clues"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -28,6 +29,7 @@ type DataCategory int
 //go:generate stringer -type=DataCategory
 const (
 	collectionChannelBufferSize              = 50
+	fetchChannelSize                         = 5
 	Unknown                     DataCategory = iota
 	List
 	Drive
@@ -70,6 +72,7 @@ func NewCollection(
 	service graph.Servicer,
 	category DataCategory,
 	statusUpdater support.StatusUpdater,
+	ctrlOpts control.Options,
 ) *Collection {
 	c := &Collection{
 		fullPath:      folderPath,
@@ -78,6 +81,7 @@ func NewCollection(
 		service:       service,
 		statusUpdater: statusUpdater,
 		category:      category,
+		ctrl:          ctrlOpts,
 	}
 
 	return c
@@ -106,8 +110,11 @@ func (sc Collection) DoNotMergeItems() bool {
 	return false
 }
 
-func (sc *Collection) Items() <-chan data.Stream {
-	go sc.populate(context.TODO())
+func (sc *Collection) Items(
+	ctx context.Context,
+	errs *fault.Errors,
+) <-chan data.Stream {
+	go sc.populate(ctx, errs)
 	return sc.data
 }
 
@@ -122,12 +129,10 @@ type Item struct {
 }
 
 func NewItem(name string, d io.ReadCloser) *Item {
-	item := &Item{
+	return &Item{
 		id:   name,
 		data: d,
 	}
-
-	return item
 }
 
 func (sd *Item) UUID() string {
@@ -150,21 +155,26 @@ func (sd *Item) ModTime() time.Time {
 	return sd.modTime
 }
 
-func (sc *Collection) finishPopulation(ctx context.Context, attempts, success int, totalBytes int64, errs error) {
+func (sc *Collection) finishPopulation(
+	ctx context.Context,
+	attempts, success int,
+	totalBytes int64,
+	err error,
+) {
 	close(sc.data)
 
 	attempted := attempts
 	status := support.CreateStatus(
 		ctx,
 		support.Backup,
-		len(sc.jobs),
+		1, // 1 folder
 		support.CollectionMetrics{
 			Objects:    attempted,
 			Successes:  success,
 			TotalBytes: totalBytes,
 		},
-		errs,
-		sc.fullPath.Folder())
+		err,
+		sc.fullPath.Folder(false))
 	logger.Ctx(ctx).Debug(status.String())
 
 	if sc.statusUpdater != nil {
@@ -173,32 +183,35 @@ func (sc *Collection) finishPopulation(ctx context.Context, attempts, success in
 }
 
 // populate utility function to retrieve data from back store for a given collection
-func (sc *Collection) populate(ctx context.Context) {
+func (sc *Collection) populate(ctx context.Context, errs *fault.Errors) {
 	var (
 		metrics numMetrics
-		errs    error
 		writer  = kw.NewJsonSerializationWriter()
+		err     error
 	)
+
+	defer func() {
+		sc.finishPopulation(ctx, metrics.attempts, metrics.success, int64(metrics.totalBytes), err)
+	}()
 
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		sc.fullPath.Category().String(),
 		observe.Safe("name"),
-		observe.PII(sc.fullPath.Folder()))
+		observe.PII(sc.fullPath.Folder(false)))
 	go closer()
 
 	defer func() {
 		close(colProgress)
-		sc.finishPopulation(ctx, metrics.attempts, metrics.success, metrics.totalBytes, errs)
 	}()
 
 	// Switch retrieval function based on category
 	switch sc.category {
 	case List:
-		metrics, errs = sc.retrieveLists(ctx, writer, colProgress)
+		metrics, err = sc.retrieveLists(ctx, writer, colProgress, errs)
 	case Pages:
-		metrics, errs = sc.retrievePages(ctx, writer, colProgress)
+		metrics, err = sc.retrievePages(ctx, writer, colProgress, errs)
 	}
 }
 
@@ -208,46 +221,47 @@ func (sc *Collection) retrieveLists(
 	ctx context.Context,
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
+	errs *fault.Errors,
 ) (numMetrics, error) {
 	var (
-		errs    error
 		metrics numMetrics
+		et      = errs.Tracker()
 	)
 
-	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs)
+	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
-		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
+		return metrics, err
 	}
 
 	metrics.attempts += len(lists)
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
+		if et.Err() != nil {
+			break
+		}
+
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
-			errs = support.WrapAndAppend(*lst.GetId(), err, errs)
-			if sc.ctrl.FailFast {
-				return metrics, errs
-			}
-
+			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
 			continue
 		}
 
-		arrayLength := int64(len(byteArray))
+		size := int64(len(byteArray))
 
-		if arrayLength > 0 {
+		if size > 0 {
 			t := time.Now()
 			if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
 				t = *t1
 			}
 
-			metrics.totalBytes += arrayLength
+			metrics.totalBytes += size
 
 			metrics.success++
 			sc.data <- &Item{
 				id:      *lst.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sharePointListInfo(lst, arrayLength),
+				info:    sharePointListInfo(lst, size),
 				modTime: t,
 			}
 
@@ -255,27 +269,28 @@ func (sc *Collection) retrieveLists(
 		}
 	}
 
-	return metrics, nil
+	return metrics, et.Err()
 }
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
+	errs *fault.Errors,
 ) (numMetrics, error) {
 	var (
-		errs    error
 		metrics numMetrics
+		et      = errs.Tracker()
 	)
 
 	betaService := sc.betaService
 	if betaService == nil {
-		return metrics, fmt.Errorf("beta service not found in collection")
+		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs)
+	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
-		return metrics, errors.Wrap(err, sc.fullPath.ResourceOwner())
+		return metrics, err
 	}
 
 	metrics.attempts = len(pages)
@@ -283,38 +298,33 @@ func (sc *Collection) retrievePages(
 	// Pageable objects are not supported in v1.0 of msgraph at this time.
 	// TODO: Verify Parsable interface supported with modified-Pageable
 	for _, pg := range pages {
+		if et.Err() != nil {
+			break
+		}
+
 		byteArray, err := serializeContent(wtr, pg)
 		if err != nil {
-			errs = support.WrapAndAppend(*pg.GetId(), err, errs)
-			if sc.ctrl.FailFast {
-				return metrics, errs
-			}
-
+			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
 			continue
 		}
 
-		arrayLength := int64(len(byteArray))
+		size := int64(len(byteArray))
 
-		if arrayLength > 0 {
-			t := time.Now()
-			if t1 := pg.GetLastModifiedDateTime(); t1 != nil {
-				t = *t1
-			}
-
-			metrics.totalBytes += arrayLength
+		if size > 0 {
+			metrics.totalBytes += size
 			metrics.success++
 			sc.data <- &Item{
 				id:      *pg.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sharePointPageInfo(pg, arrayLength),
-				modTime: t,
+				info:    sapi.PageInfo(pg, size),
+				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),
 			}
 
 			progress <- struct{}{}
 		}
 	}
 
-	return numMetrics{}, nil
+	return metrics, et.Err()
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {
@@ -322,12 +332,12 @@ func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) (
 
 	err := writer.WriteObjectValue("", obj)
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "writing object").With(graph.ErrData(err)...)
 	}
 
 	byteArray, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "getting content from writer").With(graph.ErrData(err)...)
 	}
 
 	return byteArray, nil

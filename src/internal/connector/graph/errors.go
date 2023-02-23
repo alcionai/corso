@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -25,6 +26,7 @@ const (
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
+	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
@@ -82,6 +84,10 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
 }
 
+func IsErrUserNotFound(err error) bool {
+	return hasErrorCode(err, errCodeRequestResourceNotFound)
+}
+
 // Timeout errors are identified for tracking the need to retry calls.
 // Other delay errors, like throttling, are already handled by the
 // graph client's built-in retries.
@@ -96,7 +102,7 @@ func IsErrTimeout(err error) bool {
 		return true
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+	if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) || errors.Is(err, http.ErrHandlerTimeout) {
 		return true
 	}
 

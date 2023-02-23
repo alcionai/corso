@@ -10,11 +10,10 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-const Version = 1
 
 // Backup represents the result of a backup operation
 type Backup struct {
@@ -72,7 +71,7 @@ func New(
 		Errors:          errs.Data(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
-		Version:         Version,
+		Version:         version.Backup,
 	}
 }
 
@@ -108,6 +107,7 @@ type Printable struct {
 	Version       string         `json:"version"`
 	BytesRead     int64          `json:"bytesRead"`
 	BytesUploaded int64          `json:"bytesUploaded"`
+	Owner         string         `json:"owner"`
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
@@ -120,6 +120,7 @@ func (b Backup) MinimumPrintable() any {
 		Version:       "0",
 		BytesRead:     b.BytesRead,
 		BytesUploaded: b.BytesUploaded,
+		Owner:         b.Selector.DiscreteOwner,
 	}
 }
 

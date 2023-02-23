@@ -3,20 +3,21 @@ package exchange
 import (
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 )
 
 // checkIDAndName is a helper function to ensure that
 // the ID and name pointers are set prior to being called.
 func checkIDAndName(c graph.Container) error {
-	idPtr := c.GetId()
-	if idPtr == nil || len(*idPtr) == 0 {
-		return errors.New("folder without ID")
+	id, ok := ptr.ValOK(c.GetId())
+	if !ok {
+		return errors.New("container missing ID")
 	}
 
-	ptr := c.GetDisplayName()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without display name", *idPtr)
+	if _, ok := ptr.ValOK(c.GetDisplayName()); !ok {
+		return clues.New("container missing display name").With("container_id", id)
 	}
 
 	return nil
@@ -29,9 +30,8 @@ func checkRequiredValues(c graph.Container) error {
 		return err
 	}
 
-	ptr := c.GetParentFolderId()
-	if ptr == nil || len(*ptr) == 0 {
-		return errors.Errorf("folder %s without parent ID", *c.GetId())
+	if _, ok := ptr.ValOK(c.GetParentFolderId()); !ok {
+		return clues.New("container missing parent ID").With("container_id", ptr.Val(c.GetId()))
 	}
 
 	return nil

@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 	"gopkg.in/resty.v1"
 
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -38,7 +38,7 @@ func NewWriter(id, url string, size int64) *writer {
 
 // Write will upload the provided data to M365. It sets the `Content-Length` and `Content-Range` headers based on
 // https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession
-func (iw *writer) Write(p []byte) (n int, err error) {
+func (iw *writer) Write(p []byte) (int, error) {
 	rangeLength := len(p)
 	logger.Ctx(context.Background()).Debugf("WRITE for %s. Size:%d, Offset: %d, TotalSize: %d",
 		iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
@@ -47,7 +47,7 @@ func (iw *writer) Write(p []byte) (n int, err error) {
 
 	// PUT the request - set headers `Content-Range`to describe total size and `Content-Length` to describe size of
 	// data in the current request
-	resp, err := iw.client.R().
+	_, err := iw.client.R().
 		SetHeaders(map[string]string{
 			contentRangeHeaderKey: fmt.Sprintf(contentRangeHeaderValueFmt,
 				iw.lastWrittenOffset,
@@ -57,15 +57,15 @@ func (iw *writer) Write(p []byte) (n int, err error) {
 		}).
 		SetBody(bytes.NewReader(p)).Put(iw.url)
 	if err != nil {
-		return 0, errors.Wrapf(err,
-			"failed to upload item %s. Upload failed at Size:%d, Offset: %d, TotalSize: %d ",
-			iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
+		return 0, clues.Wrap(err, "uploading item").With(
+			"upload_id", iw.id,
+			"upload_chunk_size", rangeLength,
+			"upload_offset", iw.lastWrittenOffset,
+			"upload_size", iw.contentLength)
 	}
 
 	// Update last offset
 	iw.lastWrittenOffset = endOffset
-
-	logger.Ctx(context.Background()).Debugf("Response: %s", resp.String())
 
 	return rangeLength, nil
 }

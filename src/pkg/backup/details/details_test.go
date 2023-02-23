@@ -39,8 +39,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "no info",
 			entry: DetailsEntry{
-				RepoRef:  "reporef",
-				ShortRef: "deadbeef",
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
 			},
 			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
@@ -48,8 +49,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "exchange event info",
 			entry: DetailsEntry{
-				RepoRef:  "reporef",
-				ShortRef: "deadbeef",
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:    ExchangeEvent,
@@ -67,8 +69,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "exchange contact info",
 			entry: DetailsEntry{
-				RepoRef:  "reporef",
-				ShortRef: "deadbeef",
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:    ExchangeContact,
@@ -82,8 +85,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "exchange mail info",
 			entry: DetailsEntry{
-				RepoRef:  "reporef",
-				ShortRef: "deadbeef",
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType: ExchangeMail,
@@ -99,8 +103,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "sharepoint info",
 			entry: DetailsEntry{
-				RepoRef:  "reporef",
-				ShortRef: "deadbeef",
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemName:   "itemName",
@@ -128,8 +133,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		{
 			name: "oneDrive info",
 			entry: DetailsEntry{
-				RepoRef:  "reporef",
-				ShortRef: "deadbeef",
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{
 						ItemName:   "itemName",
@@ -157,37 +163,57 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 }
 
 var pathItemsTable = []struct {
-	name       string
-	ents       []DetailsEntry
-	expectRefs []string
+	name               string
+	ents               []DetailsEntry
+	expectRepoRefs     []string
+	expectLocationRefs []string
 }{
 	{
-		name:       "nil entries",
-		ents:       nil,
-		expectRefs: []string{},
+		name:               "nil entries",
+		ents:               nil,
+		expectRepoRefs:     []string{},
+		expectLocationRefs: []string{},
 	},
 	{
 		name: "single entry",
 		ents: []DetailsEntry{
-			{RepoRef: "abcde"},
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
 		},
-		expectRefs: []string{"abcde"},
+		expectRepoRefs:     []string{"abcde"},
+		expectLocationRefs: []string{"locationref"},
 	},
 	{
 		name: "multiple entries",
 		ents: []DetailsEntry{
-			{RepoRef: "abcde"},
-			{RepoRef: "12345"},
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "12345",
+				LocationRef: "locationref2",
+			},
 		},
-		expectRefs: []string{"abcde", "12345"},
+		expectRepoRefs:     []string{"abcde", "12345"},
+		expectLocationRefs: []string{"locationref", "locationref2"},
 	},
 	{
 		name: "multiple entries with folder",
 		ents: []DetailsEntry{
-			{RepoRef: "abcde"},
-			{RepoRef: "12345"},
 			{
-				RepoRef: "deadbeef",
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "12345",
+				LocationRef: "locationref2",
+			},
+			{
+				RepoRef:     "deadbeef",
+				LocationRef: "locationref3",
 				ItemInfo: ItemInfo{
 					Folder: &FolderInfo{
 						DisplayName: "test folder",
@@ -195,7 +221,71 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRefs: []string{"abcde", "12345"},
+		expectRepoRefs:     []string{"abcde", "12345"},
+		expectLocationRefs: []string{"locationref", "locationref2"},
+	},
+	{
+		name: "multiple entries with meta file",
+		ents: []DetailsEntry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef:     "is-meta-file",
+				LocationRef: "locationref-meta-file",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
+	},
+	{
+		name: "multiple entries with folder and meta file",
+		ents: []DetailsEntry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "12345",
+				LocationRef: "locationref2",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef:     "is-meta-file",
+				LocationRef: "locationref-meta-file",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+			{
+				RepoRef:     "deadbeef",
+				LocationRef: "locationref3",
+				ItemInfo: ItemInfo{
+					Folder: &FolderInfo{
+						DisplayName: "test folder",
+					},
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
 	},
 }
 
@@ -207,7 +297,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 					Entries: test.ents,
 				},
 			}
-			assert.Equal(t, test.expectRefs, d.Paths())
+			assert.ElementsMatch(t, test.expectRepoRefs, d.Paths())
 		})
 	}
 }
@@ -222,13 +312,46 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 			}
 
 			ents := d.Items()
-			assert.Len(t, ents, len(test.expectRefs))
+			assert.Len(t, ents, len(test.expectRepoRefs))
 
 			for _, e := range ents {
-				assert.Contains(t, test.expectRefs, e.RepoRef)
+				assert.Contains(t, test.expectRepoRefs, e.RepoRef)
+				assert.Contains(t, test.expectLocationRefs, e.LocationRef)
 			}
 		})
 	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
+	t := suite.T()
+
+	d := &DetailsModel{
+		Entries: []DetailsEntry{
+			{
+				RepoRef: "a.data",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "b.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "c.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+		},
+	}
+
+	d2 := d.FilterMetaFiles()
+
+	assert.Len(t, d2.Entries, 2)
+	assert.Len(t, d.Entries, 3)
 }
 
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
@@ -253,9 +376,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 			name: "MultipleFolders",
 			folders: []folderEntry{
 				{
-					RepoRef:   "rr1",
-					ShortRef:  "sr1",
-					ParentRef: "pr1",
+					RepoRef:     "rr1",
+					ShortRef:    "sr1",
+					ParentRef:   "pr1",
+					LocationRef: "lr1",
 					Info: ItemInfo{
 						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
@@ -263,9 +387,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					},
 				},
 				{
-					RepoRef:   "rr2",
-					ShortRef:  "sr2",
-					ParentRef: "pr2",
+					RepoRef:     "rr2",
+					ShortRef:    "sr2",
+					ParentRef:   "pr2",
+					LocationRef: "lr2",
 					Info: ItemInfo{
 						Folder: &FolderInfo{
 							Modified: folderTimeNewerThanItem,
@@ -283,9 +408,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 			name: "MultipleFoldersWithRepeats",
 			folders: []folderEntry{
 				{
-					RepoRef:   "rr1",
-					ShortRef:  "sr1",
-					ParentRef: "pr1",
+					RepoRef:     "rr1",
+					ShortRef:    "sr1",
+					ParentRef:   "pr1",
+					LocationRef: "lr1",
 					Info: ItemInfo{
 						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
@@ -293,9 +419,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					},
 				},
 				{
-					RepoRef:   "rr2",
-					ShortRef:  "sr2",
-					ParentRef: "pr2",
+					RepoRef:     "rr2",
+					ShortRef:    "sr2",
+					ParentRef:   "pr2",
+					LocationRef: "lr2",
 					Info: ItemInfo{
 						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
@@ -303,9 +430,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					},
 				},
 				{
-					RepoRef:   "rr1",
-					ShortRef:  "sr1",
-					ParentRef: "pr1",
+					RepoRef:     "rr1",
+					ShortRef:    "sr1",
+					ParentRef:   "pr1",
+					LocationRef: "lr1",
 					Info: ItemInfo{
 						Folder: &FolderInfo{
 							Modified: folderTimeOlderThanItem,
@@ -313,9 +441,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 					},
 				},
 				{
-					RepoRef:   "rr3",
-					ShortRef:  "sr3",
-					ParentRef: "pr3",
+					RepoRef:     "rr3",
+					ShortRef:    "sr3",
+					ParentRef:   "pr3",
+					LocationRef: "lr3",
 					Info: ItemInfo{
 						Folder: &FolderInfo{
 							Modified: folderTimeNewerThanItem,
@@ -363,18 +492,20 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersUpdate() {
 			name: "ItemNotUpdated_NoChange",
 			folders: []folderEntry{
 				{
-					RepoRef:   "rr1",
-					ShortRef:  "sr1",
-					ParentRef: "pr1",
+					RepoRef:     "rr1",
+					ShortRef:    "sr1",
+					ParentRef:   "pr1",
+					LocationRef: "lr1",
 					Info: ItemInfo{
 						Folder: &FolderInfo{},
 					},
 					Updated: true,
 				},
 				{
-					RepoRef:   "rr2",
-					ShortRef:  "sr2",
-					ParentRef: "pr2",
+					RepoRef:     "rr2",
+					ShortRef:    "sr2",
+					ParentRef:   "pr2",
+					LocationRef: "lr2",
 					Info: ItemInfo{
 						Folder: &FolderInfo{},
 					},
@@ -390,17 +521,19 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersUpdate() {
 			name: "ItemUpdated",
 			folders: []folderEntry{
 				{
-					RepoRef:   "rr1",
-					ShortRef:  "sr1",
-					ParentRef: "pr1",
+					RepoRef:     "rr1",
+					ShortRef:    "sr1",
+					ParentRef:   "pr1",
+					LocationRef: "lr1",
 					Info: ItemInfo{
 						Folder: &FolderInfo{},
 					},
 				},
 				{
-					RepoRef:   "rr2",
-					ShortRef:  "sr2",
-					ParentRef: "pr2",
+					RepoRef:     "rr2",
+					ShortRef:    "sr2",
+					ParentRef:   "pr2",
+					LocationRef: "lr2",
 					Info: ItemInfo{
 						Folder: &FolderInfo{},
 					},
@@ -482,9 +615,10 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			folder := folderEntry{
-				RepoRef:   "rr1",
-				ShortRef:  "sr1",
-				ParentRef: "pr1",
+				RepoRef:     "rr1",
+				ShortRef:    "sr1",
+				ParentRef:   "pr1",
+				LocationRef: "lr1",
 				Info: ItemInfo{
 					Folder: &FolderInfo{},
 				},
@@ -562,7 +696,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	table := []struct {
 		name         string
 		input        ItemInfo
-		newPath      path.Path
+		repoPath     path.Path
+		locPath      path.Path
 		errCheck     assert.ErrorAssertionFunc
 		expectedItem ItemInfo
 	}{
@@ -616,7 +751,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  newOneDrivePath,
+			repoPath: newOneDrivePath,
+			locPath:  newOneDrivePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				OneDrive: &OneDriveInfo{
@@ -633,7 +769,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  newOneDrivePath,
+			repoPath: newOneDrivePath,
+			locPath:  newOneDrivePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
@@ -650,7 +787,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  badOneDrivePath,
+			repoPath: badOneDrivePath,
+			locPath:  badOneDrivePath,
 			errCheck: assert.Error,
 		},
 		{
@@ -661,7 +799,8 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ParentPath: folder1,
 				},
 			},
-			newPath:  badOneDrivePath,
+			repoPath: badOneDrivePath,
+			locPath:  badOneDrivePath,
 			errCheck: assert.Error,
 		},
 	}
@@ -669,7 +808,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			item := test.input
-			err := UpdateItem(&item, test.newPath)
+			err := UpdateItem(&item, test.repoPath)
 			test.errCheck(t, err)
 
 			if err != nil {
@@ -677,6 +816,165 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			}
 
 			assert.Equal(t, test.expectedItem, item)
+		})
+	}
+}
+
+var (
+	basePath       = path.Builder{}.Append("ten", "serv", "user", "type")
+	baseFolderEnts = []folderEntry{
+		{
+			RepoRef:     basePath.String(),
+			ShortRef:    basePath.ShortRef(),
+			ParentRef:   basePath.Dir().ShortRef(),
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "type",
+				},
+			},
+		},
+		{
+			RepoRef:     basePath.Dir().String(),
+			ShortRef:    basePath.Dir().ShortRef(),
+			ParentRef:   basePath.Dir().Dir().ShortRef(),
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "user",
+				},
+			},
+		},
+		{
+			RepoRef:     basePath.Dir().Dir().String(),
+			ShortRef:    basePath.Dir().Dir().ShortRef(),
+			ParentRef:   basePath.Dir().Dir().Dir().ShortRef(),
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "serv",
+				},
+			},
+		},
+		{
+			RepoRef:     basePath.Dir().Dir().Dir().String(),
+			ShortRef:    basePath.Dir().Dir().Dir().ShortRef(),
+			ParentRef:   "",
+			LocationRef: "",
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: "ten",
+				},
+			},
+		},
+	}
+)
+
+func folderEntriesFor(pathElems []string, locElems []string) []folderEntry {
+	p := basePath.Append(pathElems...)
+	l := path.Builder{}.Append(locElems...)
+
+	ents := make([]folderEntry, 0, len(pathElems)+4)
+
+	for range pathElems {
+		dn := p.LastElem()
+		if l != nil && len(l.Elements()) > 0 {
+			dn = l.LastElem()
+		}
+
+		fe := folderEntry{
+			RepoRef:     p.String(),
+			ShortRef:    p.ShortRef(),
+			ParentRef:   p.Dir().ShortRef(),
+			LocationRef: l.String(),
+			Info: ItemInfo{
+				Folder: &FolderInfo{
+					ItemType:    FolderItem,
+					DisplayName: dn,
+				},
+			},
+		}
+
+		l = l.Dir()
+		p = p.Dir()
+
+		ents = append(ents, fe)
+	}
+
+	return append(ents, baseFolderEnts...)
+}
+
+func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
+	var (
+		fnords = []string{"fnords"}
+		smarf  = []string{"fnords", "smarf"}
+		beau   = []string{"beau"}
+		regard = []string{"beau", "regard"}
+	)
+
+	table := []struct {
+		name     string
+		parent   *path.Builder
+		location *path.Builder
+		expect   []folderEntry
+	}{
+		{
+			name:   "base path, parent only",
+			parent: basePath,
+			expect: baseFolderEnts,
+		},
+		{
+			name:     "base path with location",
+			parent:   basePath,
+			location: basePath,
+			expect:   baseFolderEnts,
+		},
+		{
+			name:   "single depth parent only",
+			parent: basePath.Append(fnords...),
+			expect: folderEntriesFor(fnords, nil),
+		},
+		{
+			name:     "single depth with location",
+			parent:   basePath.Append(fnords...),
+			location: basePath.Append(beau...),
+			expect:   folderEntriesFor(fnords, beau),
+		},
+		{
+			name:   "two depth parent only",
+			parent: basePath.Append(smarf...),
+			expect: folderEntriesFor(smarf, nil),
+		},
+		{
+			name:     "two depth with location",
+			parent:   basePath.Append(smarf...),
+			location: basePath.Append(regard...),
+			expect:   folderEntriesFor(smarf, regard),
+		},
+		{
+			name:     "mismatched depth, parent longer",
+			parent:   basePath.Append(smarf...),
+			location: basePath.Append(beau...),
+			expect:   folderEntriesFor(smarf, beau),
+		},
+		// We can't handle this right now.  But we don't have any cases
+		// which immediately require it, either.  Keeping in the test
+		// as a reminder that this might be required at some point.
+		// {
+		// 	name:     "mismatched depth, location longer",
+		// 	parent:   basePath.Append(fnords...),
+		// 	location: basePath.Append(regard...),
+		// 	expect:   folderEntriesFor(fnords, regard),
+		// },
+	}
+	for _, test := range table {
+		suite.T().Run(test.name, func(t *testing.T) {
+			result := FolderEntriesForPath(test.parent, test.location)
+			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
 }

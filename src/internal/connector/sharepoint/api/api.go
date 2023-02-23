@@ -1,6 +1,8 @@
 package api
 
-type Tuple struct {
+type NameID struct {
 	Name string
 	ID   string
 }
+
+const fetchChannelSize = 5

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -32,7 +33,7 @@ type Collection interface {
 	// Each returned struct contains the next item in the collection
 	// The channel is closed when there are no more items in the collection or if
 	// an unrecoverable error caused an early termination in the sender.
-	Items() <-chan Stream
+	Items(ctx context.Context, errs *fault.Errors) <-chan Stream
 	// FullPath returns a path struct that acts as a metadata tag for this
 	// Collection.
 	FullPath() path.Path
@@ -96,6 +97,12 @@ type Stream interface {
 	Deleted() bool
 }
 
+// LocationPather provides a LocationPath describing the path with Display Names
+// instead of canonical IDs
+type LocationPather interface {
+	LocationPath() path.Path
+}
+
 // StreamInfo is used to provide service specific
 // information about the Stream
 type StreamInfo interface {
@@ -111,4 +118,22 @@ type StreamSize interface {
 // StreamModTime is used to provide the modified time of the stream's data.
 type StreamModTime interface {
 	ModTime() time.Time
+}
+
+// StateOf lets us figure out the state of the collection from the
+// previous and current path
+func StateOf(prev, curr path.Path) CollectionState {
+	if curr == nil || len(curr.String()) == 0 {
+		return DeletedState
+	}
+
+	if prev == nil || len(prev.String()) == 0 {
+		return NewState
+	}
+
+	if curr.Folder(false) != prev.Folder(false) {
+		return MovedState
+	}
+
+	return NotMovedState
 }

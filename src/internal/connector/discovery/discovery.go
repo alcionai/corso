@@ -2,11 +2,14 @@ package discovery
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 // ---------------------------------------------------------------------------
@@ -14,7 +17,7 @@ import (
 // ---------------------------------------------------------------------------
 
 type getAller interface {
-	GetAll(context.Context) ([]models.Userable, error)
+	GetAll(context.Context, *fault.Errors) ([]models.Userable, error)
 }
 
 type getter interface {
@@ -35,13 +38,17 @@ type getWithInfoer interface {
 // ---------------------------------------------------------------------------
 
 // Users fetches all users in the tenant.
-func Users(ctx context.Context, ga getAller) ([]models.Userable, error) {
-	return ga.GetAll(ctx)
+func Users(ctx context.Context, ga getAller, errs *fault.Errors) ([]models.Userable, error) {
+	return ga.GetAll(ctx, errs)
 }
 
 func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userable, *api.UserInfo, error) {
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
+		if graph.IsErrUserNotFound(err) {
+			return nil, nil, fmt.Errorf("resource owner [%s] not found within tenant", userID)
+		}
+
 		return nil, nil, errors.Wrap(err, "getting user")
 	}
 

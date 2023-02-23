@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -29,12 +30,17 @@ type mockItemer struct {
 func (mi *mockItemer) GetItem(
 	context.Context,
 	string, string,
+	*fault.Errors,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mi.getCount++
 	return nil, nil, mi.getErr
 }
 
-func (mi *mockItemer) Serialize(context.Context, serialization.Parsable, string, string) ([]byte, error) {
+func (mi *mockItemer) Serialize(
+	context.Context,
+	serialization.Parsable,
+	string, string,
+) ([]byte, error) {
 	mi.serializeCount++
 	return nil, mi.serializeErr
 }
@@ -127,28 +133,36 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 		Append("bar").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
 	require.NoError(suite.T(), err)
+	locP, err := path.Builder{}.
+		Append("human-readable").
+		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name   string
 		prev   path.Path
 		curr   path.Path
+		loc    path.Path
 		expect data.CollectionState
 	}{
 		{
 			name:   "new",
 			curr:   fooP,
+			loc:    locP,
 			expect: data.NewState,
 		},
 		{
 			name:   "not moved",
 			prev:   fooP,
 			curr:   fooP,
+			loc:    locP,
 			expect: data.NotMovedState,
 		},
 		{
 			name:   "moved",
 			prev:   fooP,
 			curr:   barP,
+			loc:    locP,
 			expect: data.MovedState,
 		},
 		{
@@ -161,12 +175,15 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 		suite.T().Run(test.name, func(t *testing.T) {
 			c := NewCollection(
 				"u",
-				test.curr, test.prev,
+				test.curr, test.prev, test.loc,
 				0,
 				&mockItemer{}, nil,
 				control.Options{},
 				false)
-			assert.Equal(t, test.expect, c.State())
+			assert.Equal(t, test.expect, c.State(), "collection state")
+			assert.Equal(t, test.curr, c.fullPath, "full path")
+			assert.Equal(t, test.prev, c.prevPath, "prev path")
+			assert.Equal(t, test.loc, c.locationPath, "location path")
 		})
 	}
 }
@@ -213,7 +230,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items)
+			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items, fault.New(true))
 			test.expectErr(t, err)
 		})
 	}

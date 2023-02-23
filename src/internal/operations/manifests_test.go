@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/fault/mock"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -54,7 +53,7 @@ type mockColl struct {
 	p  path.Path
 }
 
-func (mc mockColl) Items() <-chan data.Stream {
+func (mc mockColl) Items(context.Context, *fault.Errors) <-chan data.Stream {
 	return nil
 }
 
@@ -392,7 +391,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			err := verifyDistinctBases(ctx, test.mans, mock.NewAdder())
+			err := verifyDistinctBases(ctx, test.mans, fault.New(true))
 			test.expect(t, err)
 		})
 	}
@@ -834,7 +833,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			test.errCheck(t, verifyDistinctBases(ctx, test.input, mock.NewAdder()))
+			test.errCheck(t, verifyDistinctBases(ctx, test.input, fault.New(true)))
 		})
 	}
 }
