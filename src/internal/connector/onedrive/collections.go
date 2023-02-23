@@ -695,7 +695,9 @@ func (c *Collections) UpdateCollections(
 
 			collection, found := c.CollectionMap[collectionID]
 			if !found {
-				return clues.New("item seen before parent folder").With("item_id", itemID)
+				return clues.New("item seen before parent folder").
+					WithClues(ictx).
+					With("collection_id", collectionID)
 			}
 
 			// Delete the file from previous collection. This will
@@ -705,12 +707,12 @@ func (c *Collections) UpdateCollections(
 			if found {
 				pcollection, found := c.CollectionMap[itemColID]
 				if !found {
-					return clues.New("previous collection not found").With("item_id", itemID)
+					return clues.New("previous collection not found").WithClues(ictx)
 				}
 
 				removed := pcollection.Remove(item)
 				if !removed {
-					return clues.New("removing from prev collection").With("item_id", itemID)
+					return clues.New("removing from prev collection").WithClues(ictx)
 				}
 			}
 

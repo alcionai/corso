@@ -1264,7 +1264,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {"root": rootFolderPath1},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NotMovedState: {}},
+				rootFolderPath1: {data.NotMovedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1290,10 +1290,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			errCheck: assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
-				driveID1: {"root": expectedPath1("")},
+				driveID1: {"root": rootFolderPath1},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NotMovedState: {"file"}},
+				rootFolderPath1: {data.NotMovedState: {"file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1323,8 +1323,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NewState: {}},
-				folderPath1:       {data.NewState: {"folder", "file"}},
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1358,8 +1358,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NewState: {}},
-				folderPath1:       {data.NewState: {"folder", "file"}},
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1427,8 +1427,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NewState: {}},
-				folderPath1:       {data.NewState: {"folder", "file"}},
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file"}},
 			},
 			expectedDeltaURLs:   map[string]string{},
 			expectedFolderPaths: map[string]map[string]string{},
@@ -1462,8 +1462,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NewState: {}},
-				folderPath1:       {data.NewState: {"folder", "file", "file2"}},
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1510,10 +1510,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID2: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NewState: {}},
-				folderPath1:       {data.NewState: {"folder", "file"}},
-				expectedPath2(""): {data.NewState: {}},
-				folderPath2:       {data.NewState: {"folder2", "file2"}},
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file"}},
+				rootFolderPath2: {data.NewState: {}},
+				folderPath2:     {data.NewState: {"folder2", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1569,7 +1569,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			errCheck: assert.NoError,
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""): {data.NotMovedState: {"file"}},
+				rootFolderPath1: {data.NotMovedState: {"file"}},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
@@ -1609,7 +1609,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			errCheck: assert.NoError,
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):        {data.NotMovedState: {"file"}},
+				rootFolderPath1:          {data.NotMovedState: {"file"}},
 				expectedPath1("/folder"): {data.NewState: {"folder", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
@@ -1651,7 +1651,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):        {data.NotMovedState: {"file"}},
+				rootFolderPath1:          {data.NotMovedState: {"file"}},
 				expectedPath1("/folder"): {data.NewState: {"folder", "file2"}},
 			},
 			expectedDeltaURLs: map[string]string{
@@ -1692,7 +1692,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):         {data.NewState: {}},
+				rootFolderPath1:           {data.NewState: {}},
 				expectedPath1("/folder"):  {data.DeletedState: {}},
 				expectedPath1("/folder2"): {data.NewState: {"folder2", "file"}},
 			},
@@ -1734,7 +1734,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				expectedPath1(""):        {data.NewState: {}},
+				rootFolderPath1:          {data.NewState: {}},
 				expectedPath1("/folder"): {data.NewState: {"folder2", "file"}},
 			},
 			expectedDeltaURLs: map[string]string{
