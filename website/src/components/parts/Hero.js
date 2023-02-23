@@ -40,26 +40,34 @@ export default function Hero() {
             >
               Quickstart
             </a>
-            <a
-              href="../docs/setup/download/"
-              className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
-            >
-              Download
-            </a>
           </div>
 
           <div
-            className="home-dashboard mt-8 !z-10 wow animate__ animate__fadeIn animated"
+            className="home-dashboard mt-8 !z-10 wow animate__ animate__fadeIn animated w-[80%]"
             style={{
               visibility: "visible",
               animationName: "fadeIn",
             }}
           >
-            <img
-              src="img/cloudbackup.svg"
-              className="w-[70%] inline-block object-contain"
-              alt="Cloud backup and storage"
-            />
+
+            <div className="flex flex-row items-center bg-gray-200 rounded-t-lg h-6">
+              <div className="align-middle flex flex-col items-center justify-center">
+                <img className="h-4 px-2" src="assets/images/powershell.svg" alt="Powershell logo"/>
+              </div>
+            </div>
+            <div
+              className="!p-2 relative rounded-b-lg overflow-clip"
+              style={{
+                borderLeft: "2px solid #e5e7eb",
+                borderRight: "2px solid #e5e7eb",
+                borderBottom: "2px solid #e5e7eb",
+                backgroundColor: "#121831",
+              }}
+            >
+              <video className="w-full inline-block object-contain" poster="assets/images/corso_demo_thumbnail.png" muted loop autoPlay playsInline>
+                <source src="assets/images/corso_demo.mp4" type="video/mp4" />
+              </video>
+            </div>
           </div>
         </div>
 

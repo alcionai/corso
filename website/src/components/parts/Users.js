@@ -24,10 +24,9 @@ export default function Users() {
                 <div className="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
                   <i className="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
                   <p className="text-slate-400">
-                    "It seems that only fragments of the original text remain
-                    in the Lorem Ipsum texts used today. "
+                    “Documentation is great... initial steps for setup are really useful.”
                   </p>
-                  <h6 className="mt-2 font-semibold">Calvin Carlo, Manager</h6>
+                  <h6 className="mt-2 font-semibold">Microsoft 365 Administrator</h6>
                 </div>
               </div>
             </div>
@@ -37,10 +36,11 @@ export default function Users() {
                 <div className="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
                   <i className="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
                   <p className="text-slate-400">
-                    "The most well-known dummy text is the 'Lorem Ipsum', which
-                    is said to have originated in the 16th century."
+                  "I liked the tool a lot. But once I connected with the team on Discord,
+                    I could see that this team really knows what they're doing.
+                    That made me a lot more confident."
                   </p>
-                  <h6 className="mt-2 font-semibold">Christa Smith, Manager</h6>
+                  <h6 className="mt-2 font-semibold">Kias Hanifa, CTO, Fonicom</h6>
                 </div>
               </div>
             </div>
@@ -51,10 +51,10 @@ export default function Users() {
                 <div className="content relative rounded shadow dark:shadow-gray-800 m-2 p-6 bg-white dark:bg-slate-900">
                   <i className="mdi mdi-format-quote-open mdi-48px text-indigo-600"></i>
                   <p className="text-slate-400">
-                    "According to most sources, Lorum Ipsum can be traced back
-                    to a text composed by Cicero."
+                    "Corso is a fantastic tool,
+                    especially the backend logic with Kopia that lets me run incremental backups"
                   </p>
-                  <h6 className="mt-2 font-semibold">Cristino Murfi, Manager</h6>
+                  <h6 className="mt-2 font-semibold">Backup Administrator</h6>
                 </div>
               </div>
             </div>

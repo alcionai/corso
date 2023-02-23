@@ -14,7 +14,6 @@ export function MainComp() {
   return (
     <>
       <Hero />
-      <Demo />
       <Users />
       <KeyLoveFAQ />
       <CTA />
