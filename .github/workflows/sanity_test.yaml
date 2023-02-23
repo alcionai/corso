@@ -30,20 +30,48 @@ jobs:
 
       - run: mkdir test_results
 
+# TODO: correct creds
+      # - name: Login to tenant
+      #   uses: pnp/action-cli-login@v2.2.1
+      #   with:
+      #     APP_ID: ${{ secrets.APP_ID }}
+      #     ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+      #     ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
+
       # run the tests
       - name: Version Test
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+           # TODO: check the commit ID
         run: |
           if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
           then
               echo "valid version not found"
+              exit 1
+          fi
+
+      - name: Repo init test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+
+        run: |
+          touch $TEST_RESULT/initrepo.txt
+          prefix=`date +"%Y-%m-%d-%T"`
+          ./corso repo init s3 --hide-progress --bucket   ${CORSO_BUCKET}  --prefix "${prefix}"  2>&1 | tee $TEST_RESULT/initrepo.txt 
+          valid_num=$(grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "repo could not be initiated"
               exit 1
           fi
 
@@ -52,9 +80,10 @@ jobs:
       - name: Repo connect test
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -71,3 +100,195 @@ jobs:
               echo "repo could not be connected"
               exit 1
           fi
+
+      # run the tests
+      - name: Backup exchange test
+        id: exchange-test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          TEST_RESULT: "test_results"
+
+        run: |
+          ./corso backup create exchange --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "backup was not successfull"
+              exit 1
+          fi
+
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # list the backup exhange
+      - name: Backup exchange list test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+
+        run: |
+          touch $TEST_RESULT/backup_exchange_list.txt
+          ./corso backup list exchange --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_list.txt 
+          valid_num=$(grep -i -e ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "listing of backup was not successfull"
+              exit 1
+          fi
+
+      # test incremental backup exhange
+      - name: Backup exchange incremental
+        id: exchange-incremental-test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+# TODO: add backup time check
+        run: |
+          ./corso backup create exchange --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "backup was not successful"
+              exit 1
+          fi
+
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # test exchange restore
+      - name: Backup exchange restore
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+        # TODO: check the folders on endpoint
+        run: |
+          ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 
+          
+# Onedrive test
+
+      # run the tests
+      - name: Backup onedrive test
+        id: onedrive-test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          TEST_RESULT: "test_results"
+
+        run: |
+          ./corso backup create onedrive --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
+          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "backup was not successfull"
+              exit 1
+          fi
+
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # list the bakcup onedrive
+      - name: Backup onedrive list test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+
+        run: |
+          touch $TEST_RESULT/backup_onedrive_list.txt
+          ./corso backup list onedrive --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
+          valid_num=$(grep -i -e ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "listing of backup was not successfull"
+              exit 1
+          fi
+
+      # test onedrive incremental
+      - name: Backup onedrive test
+        id: onedrive-incremental-test
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          TEST_RESULT: "test_results"
+
+# TODO: check incremental time was smaller
+        run: |
+          ./corso backup create onedrive --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
+          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt | wc -l)
+
+          if [ $valid_num -ne 1 ]
+          then
+              echo "backup was not successfull"
+              exit 1
+          fi
+
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # test onedrive restore
+      - name: Backup onedrive restore
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
+          TEST_RESULT: "test_results"
+        run: |
+          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}" 
