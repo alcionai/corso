@@ -87,11 +87,11 @@ func getExpectedPathGenerator(t *testing.T,
 }
 
 type OneDriveCollectionsSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDriveCollectionsSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveCollectionsSuite))
+	suite.Run(t, &OneDriveCollectionsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
@@ -126,7 +126,9 @@ func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			p := strings.Join(test.dir, "/")
 			result, err := GetCanonicalPath(p, tenant, resourceOwner, test.source)
 			test.expectErr(t, err)
@@ -712,7 +714,9 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	}
 
 	for _, tt := range tests {
-		suite.T().Run(tt.testCase, func(t *testing.T) {
+		suite.Run(tt.testCase, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1076,7 +1080,8 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1721,7 +1726,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1997,7 +2004,9 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -2028,9 +2037,9 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				test.prevDelta,
 			)
 
-			require.ErrorIs(suite.T(), err, test.err, "delta fetch err")
-			require.Equal(suite.T(), test.deltaURL, delta.URL, "delta url")
-			require.Equal(suite.T(), !test.prevDeltaSuccess, delta.Reset, "delta reset")
+			require.ErrorIs(t, err, test.err, "delta fetch err")
+			require.Equal(t, test.deltaURL, delta.URL, "delta url")
+			require.Equal(t, !test.prevDeltaSuccess, delta.Reset, "delta reset")
 		})
 	}
 }

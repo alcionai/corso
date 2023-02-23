@@ -15,12 +15,12 @@ import (
 )
 
 type GraphUnitSuite struct {
-	suite.Suite
+	tester.Suite
 	credentials account.M365Config
 }
 
 func TestGraphUnitSuite(t *testing.T) {
-	suite.Run(t, new(GraphUnitSuite))
+	suite.Run(t, &GraphUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *GraphUnitSuite) SetupSuite() {
@@ -65,7 +65,9 @@ func (suite *GraphUnitSuite) TestHTTPClient() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cli := HTTPClient(test.opts...)
 			assert.NotNil(t, cli)
 			test.check(t, cli)

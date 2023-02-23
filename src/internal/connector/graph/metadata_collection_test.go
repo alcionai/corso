@@ -17,11 +17,11 @@ import (
 )
 
 type MetadataCollectionUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMetadataCollectionUnitSuite(t *testing.T) {
-	suite.Run(t, new(MetadataCollectionUnitSuite))
+	suite.Run(t, &MetadataCollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *MetadataCollectionUnitSuite) TestFullPath() {
@@ -156,7 +156,9 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

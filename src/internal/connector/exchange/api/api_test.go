@@ -16,24 +16,23 @@ import (
 )
 
 type ExchangeServiceSuite struct {
-	suite.Suite
+	tester.Suite
 	gs          graph.Servicer
 	credentials account.M365Config
 }
 
 func TestExchangeServiceSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(ExchangeServiceSuite))
+	suite.Run(t, &ExchangeServiceSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests),
+	})
 }
 
 func (suite *ExchangeServiceSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -78,9 +77,9 @@ func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			_, err := optionsForCalendars(test.params)
-			test.checkError(t, err)
+			test.checkError(suite.T(), err)
 		})
 	}
 }
@@ -114,11 +113,13 @@ func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			config, err := optionsForMailFolders(test.params)
 			test.checkError(t, err)
 			if err == nil {
-				suite.Equal(test.expected, len(config.QueryParameters.Select))
+				assert.Equal(t, test.expected, len(config.QueryParameters.Select))
 			}
 		})
 	}
@@ -151,11 +152,13 @@ func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			options, err := optionsForContacts(test.params)
 			test.checkError(t, err)
 			if err == nil {
-				suite.Equal(test.expected, len(options.QueryParameters.Select))
+				assert.Equal(t, test.expected, len(options.QueryParameters.Select))
 			}
 		})
 	}
@@ -208,7 +211,9 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			found := HasAttachments(test.getBodyable(t))
 			test.hasAttachment(t, found)
 		})

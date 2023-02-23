@@ -13,18 +13,17 @@ import (
 )
 
 type BetaClientSuite struct {
-	suite.Suite
+	tester.Suite
 	credentials account.M365Config
 }
 
 func TestBetaClientSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-	)
-
-	suite.Run(t, new(BetaClientSuite))
+	suite.Run(t, &BetaClientSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests),
+	})
 }
 
 func (suite *BetaClientSuite) SetupSuite() {

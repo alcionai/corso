@@ -12,15 +12,16 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type EventsAPIUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestEventsAPIUnitSuite(t *testing.T) {
-	suite.Run(t, new(EventsAPIUnitSuite))
+	suite.Run(t, &EventsAPIUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // TestEventInfo verifies that searchable event metadata
@@ -141,7 +142,9 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			event, expected := test.evtAndRP()
 			result := EventInfo(event)
 
