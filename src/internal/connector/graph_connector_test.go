@@ -30,11 +30,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type GraphConnectorUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestGraphConnectorUnitSuite(t *testing.T) {
-	suite.Run(t, new(GraphConnectorUnitSuite))
+	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
@@ -121,7 +121,9 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -137,7 +139,7 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 // ---------------------------------------------------------------------------
 
 type GraphConnectorIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	connector     *GraphConnector
 	user          string
 	secondaryUser string
@@ -145,20 +147,18 @@ type GraphConnectorIntegrationSuite struct {
 }
 
 func TestGraphConnectorIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(GraphConnectorIntegrationSuite))
+	suite.Run(t, &GraphConnectorIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests),
+	})
 }
 
 func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	suite.user = tester.M365UserID(suite.T())
@@ -171,6 +171,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 // TestSetTenantUsers verifies GraphConnector's ability to query
 // the users associated with the credentials
 func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
+	t := suite.T()
 	newConnector := GraphConnector{
 		tenant:      "test_tenant",
 		Users:       make(map[string]string, 0),
@@ -181,16 +182,16 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
 	defer flush()
 
 	owners, err := api.NewClient(suite.connector.credentials)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	newConnector.Owners = owners
-	suite.Empty(len(newConnector.Users))
+	assert.Empty(t, len(newConnector.Users))
 
 	errs := fault.New(true)
 
 	err = newConnector.setTenantUsers(ctx, errs)
-	suite.NoError(err)
-	suite.Less(0, len(newConnector.Users))
+	assert.NoError(t, err)
+	assert.Less(t, 0, len(newConnector.Users))
 }
 
 // TestSetTenantUsers verifies GraphConnector's ability to query
@@ -308,7 +309,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -825,9 +828,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			runRestoreBackupTest(
-				t,
+				suite.T(),
 				suite.acct,
 				test,
 				suite.connector.tenant,
@@ -903,7 +906,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

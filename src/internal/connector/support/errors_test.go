@@ -9,26 +9,30 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type GraphConnectorErrorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestGraphConnectorErrorSuite(t *testing.T) {
-	suite.Run(t, new(GraphConnectorErrorSuite))
+	suite.Run(t, &GraphConnectorErrorSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend() {
+	t := suite.T()
+
 	err1 := fmt.Errorf("New Error")
 	err2 := errors.New("I have two")
 	returnErr := WrapAndAppend("arc376", err2, err1)
-	suite.True(strings.Contains(returnErr.Error(), "arc376"))
-	suite.Error(returnErr)
+	assert.True(t, strings.Contains(returnErr.Error(), "arc376"))
+	assert.Error(t, returnErr)
 
 	multi := &multierror.Error{Errors: []error{err1, err2}}
-	suite.True(strings.Contains(ListErrors(*multi), "two")) // Does not contain the wrapped information
-	suite.T().Log(ListErrors(*multi))
+	assert.True(t, strings.Contains(ListErrors(*multi), "two")) // Does not contain the wrapped information
+	t.Log(ListErrors(*multi))
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {
@@ -38,23 +42,25 @@ func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_OnVar() {
 	)
 
 	received := WrapAndAppend(id, errors.New("network error"), err1)
-	suite.True(strings.Contains(received.Error(), id))
+	assert.True(suite.T(), strings.Contains(received.Error(), id))
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppend_Add3() {
+	t := suite.T()
+
 	errOneTwo := WrapAndAppend("user1", assert.AnError, assert.AnError)
 	combined := WrapAndAppend("unix36", assert.AnError, errOneTwo)
 	allErrors := WrapAndAppend("fxi92874", assert.AnError, combined)
-	suite.True(strings.Contains(combined.Error(), "unix36"))
-	suite.True(strings.Contains(combined.Error(), "user1"))
-	suite.True(strings.Contains(allErrors.Error(), "fxi92874"))
+	assert.True(t, strings.Contains(combined.Error(), "unix36"))
+	assert.True(t, strings.Contains(combined.Error(), "user1"))
+	assert.True(t, strings.Contains(allErrors.Error(), "fxi92874"))
 }
 
 func (suite *GraphConnectorErrorSuite) TestWrapAndAppendf() {
 	err1 := assert.AnError
 	err2 := assert.AnError
 	combined := WrapAndAppendf(134323, err2, err1)
-	suite.True(strings.Contains(combined.Error(), "134323"))
+	assert.True(suite.T(), strings.Contains(combined.Error(), "134323"))
 }
 
 func (suite *GraphConnectorErrorSuite) TestConcatenateStringFromPointers() {
@@ -65,11 +71,12 @@ func (suite *GraphConnectorErrorSuite) TestConcatenateStringFromPointers() {
 		s1        = &v1
 		s2        *string
 		s3        = &v3
+		t         = suite.T()
 	)
 
 	outString = concatenateStringFromPointers(outString, []*string{s1, s2, s3})
-	suite.True(strings.Contains(outString, v1))
-	suite.True(strings.Contains(outString, v3))
+	assert.True(t, strings.Contains(outString, v1))
+	assert.True(t, strings.Contains(outString, v3))
 }
 
 func (suite *GraphConnectorErrorSuite) TestGetNumberOfErrors() {
@@ -95,9 +102,9 @@ func (suite *GraphConnectorErrorSuite) TestGetNumberOfErrors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			result := GetNumberOfErrors(test.errs)
-			suite.Equal(result, test.expected)
+			assert.Equal(suite.T(), result, test.expected)
 		})
 	}
 }

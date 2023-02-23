@@ -84,7 +84,7 @@ func onedriveMetadata(
 }
 
 type GraphConnectorOneDriveIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	connector     *GraphConnector
 	user          string
 	secondaryUser string
@@ -92,20 +92,18 @@ type GraphConnectorOneDriveIntegrationSuite struct {
 }
 
 func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(GraphConnectorOneDriveIntegrationSuite))
+	suite.Run(t, &GraphConnectorOneDriveIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorOneDriveTests),
+	})
 }
 
 func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	suite.user = tester.M365UserID(suite.T())
@@ -465,7 +463,8 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
 		for vn := test.startVersion; vn <= version.Backup; vn++ {
-			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, vn), func(t *testing.T) {
+			suite.Run(fmt.Sprintf("%s_Version%d", test.name, vn), func() {
+				t := suite.T()
 				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{
@@ -689,7 +688,8 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
 		for vn := test.startVersion; vn <= version.Backup; vn++ {
-			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, vn), func(t *testing.T) {
+			suite.Run(fmt.Sprintf("%s_Version%d", test.name, vn), func() {
+				t := suite.T()
 				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{
@@ -762,7 +762,8 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
 		for vn := test.startVersion; vn <= version.Backup; vn++ {
-			suite.T().Run(fmt.Sprintf("Version%d", vn), func(t *testing.T) {
+			suite.Run(fmt.Sprintf("Version%d", vn), func() {
+				t := suite.T()
 				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{

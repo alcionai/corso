@@ -9,27 +9,30 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type SupportTestSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSupportTestSuite(t *testing.T) {
-	suite.Run(t, new(SupportTestSuite))
+	suite.Run(t, &SupportTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SupportTestSuite) TestToMessage() {
+	t := suite.T()
+
 	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
 	message, err := CreateMessageFromBytes(bytes)
 	require.NoError(suite.T(), err)
 
 	clone := ToMessage(message)
-	suite.Equal(message.GetBccRecipients(), clone.GetBccRecipients())
-	suite.Equal(message.GetSubject(), clone.GetSubject())
-	suite.Equal(message.GetSender(), clone.GetSender())
-	suite.Equal(message.GetSentDateTime(), clone.GetSentDateTime())
-	suite.NotEqual(message.GetId(), clone.GetId())
+	assert.Equal(t, message.GetBccRecipients(), clone.GetBccRecipients())
+	assert.Equal(t, message.GetSubject(), clone.GetSubject())
+	assert.Equal(t, message.GetSender(), clone.GetSender())
+	assert.Equal(t, message.GetSentDateTime(), clone.GetSentDateTime())
+	assert.NotEqual(t, message.GetId(), clone.GetId())
 }
 
 func (suite *SupportTestSuite) TestToEventSimplified() {
@@ -139,9 +142,9 @@ func (suite *SupportTestSuite) TestInsertStringToBody() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			result := insertStringToBody(test.input, test.content)
-			assert.Equal(t, test.expect, result)
+			assert.Equal(suite.T(), test.expect, result)
 		})
 	}
 }

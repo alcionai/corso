@@ -46,11 +46,11 @@ func (mi *mockItemer) Serialize(
 }
 
 type ExchangeDataCollectionSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestExchangeDataCollectionSuite(t *testing.T) {
-	suite.Run(t, new(ExchangeDataCollectionSuite))
+	suite.Run(t, &ExchangeDataCollectionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
@@ -70,14 +70,15 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 	var (
 		empty    []byte
 		expected int64
+		t        = suite.T()
 	)
 
 	ed := &Stream{message: empty}
 	buf := &bytes.Buffer{}
 	received, err := buf.ReadFrom(ed.ToReader())
 
-	suite.Equal(expected, received)
-	assert.Nil(suite.T(), err, "received buf.Readfrom error ")
+	assert.Equal(t, expected, received)
+	assert.Nil(t, err, "received buf.Readfrom error ")
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
@@ -103,6 +104,8 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
+	t := suite.T()
+
 	tenant := "a-tenant"
 	user := "a-user"
 	folder := "a-folder"
@@ -114,14 +117,14 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 		path.EmailCategory,
 		false,
 	)
-	require.NoError(suite.T(), err)
+	require.NoError(t, err)
 
 	edc := Collection{
 		user:     name,
 		fullPath: fullPath,
 	}
-	suite.Equal(name, edc.user)
-	suite.Equal(fullPath, edc.FullPath())
+	assert.Equal(t, name, edc.user)
+	assert.Equal(t, fullPath, edc.FullPath())
 }
 
 func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
@@ -172,7 +175,9 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			c := NewCollection(
 				"u",
 				test.curr, test.prev, test.loc,
@@ -225,13 +230,13 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
 			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items, fault.New(true))
-			test.expectErr(t, err)
+			test.expectErr(suite.T(), err)
 		})
 	}
 }

@@ -12,11 +12,11 @@ import (
 )
 
 type GCStatusTestSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestGraphConnectorStatus(t *testing.T) {
-	suite.Run(t, &GCStatusTestSuite{})
+	suite.Run(t, &GCStatusTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // 			operationType, objects, success, folders, errCount int, errStatus string
@@ -51,7 +51,9 @@ func (suite *GCStatusTestSuite) TestCreateStatus() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -144,12 +146,14 @@ func (suite *GCStatusTestSuite) TestMergeStatus() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			returned := MergeStatus(test.one, test.two)
-			suite.Equal(returned.FolderCount, test.expected.folders)
-			suite.Equal(returned.ObjectCount, test.expected.objects)
-			suite.Equal(returned.lastOperation, test.expected.operationType)
-			suite.Equal(returned.Successful, test.expected.success)
+			assert.Equal(t, returned.FolderCount, test.expected.folders)
+			assert.Equal(t, returned.ObjectCount, test.expected.objects)
+			assert.Equal(t, returned.lastOperation, test.expected.operationType)
+			assert.Equal(t, returned.Successful, test.expected.success)
 			test.isIncomplete(t, returned.incomplete)
 		})
 	}
