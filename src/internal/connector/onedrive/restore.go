@@ -170,9 +170,11 @@ func RestoreCollection(
 	logger.Ctx(ctx).Info("restoring onedrive collection")
 
 	parentPerms, colPerms, err := getParentAndCollectionPermissions(
+		ctx,
 		drivePath,
-		dc.FullPath(),
+		dc,
 		parentPermissions,
+		backupVersion,
 		restorePerms)
 	if err != nil {
 		return metrics, folderPerms, permissionIDMappings, clues.Wrap(err, "getting permissions").WithClues(ctx)
@@ -278,7 +280,10 @@ func RestoreCollection(
 					// RestoreOp, so we still need to handle them in some way.
 					continue
 				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
-					if !restorePerms {
+					// Only the version.OneDrive1DataAndMetaFiles needed to deserialize the
+					// permission for child folders here. Later versions can request
+					// permissions inline when processing the collection.
+					if !restorePerms || backupVersion >= version.OneDrive4DirIncludesPermissions {
 						continue
 					}
 

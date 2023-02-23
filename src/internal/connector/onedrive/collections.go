@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -562,8 +563,26 @@ func (c *Collections) UpdateCollections(
 			return err
 		}
 
+		var (
+			itemPath path.Path
+			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
+		)
+
+		if item.GetDeleted() == nil {
+			name := ptr.Val(item.GetName())
+			if len(name) == 0 {
+				return clues.New("non-deleted item with empty name").With("item_id", name)
+			}
+
+			itemPath, err = collectionPath.Append(name, !isFolder)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+		if shouldSkipDrive(ctx, itemPath, c.matcher, driveName) &&
+			shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
 		}
@@ -583,13 +602,6 @@ func (c *Collections) UpdateCollections(
 				// worry about doing a prefix search in the map to remove the subtree of
 				// the deleted folder/package.
 				delete(newPaths, *item.GetId())
-
-				// TODO(meain): Directory metadata files should be
-				// moved into the directory instead of having a
-				// `.dirmeta` file at the same level as the
-				// directory. This way we can make sure it is moved
-				// and deleted along with the directory and don't have
-				// to be handled separately.
 
 				if prevPath == nil {
 					// It is possible that an item was created and
@@ -616,51 +628,45 @@ func (c *Collections) UpdateCollections(
 				break
 			}
 
-			// Deletions of folders are handled in this case so we may as well start
-			// off by saving the path.Path of the item instead of just the OneDrive
-			// parentRef or such.
-			folderPath, err := collectionPath.Append(*item.GetName(), false)
-			if err != nil {
-				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
-				return err
-			}
-
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
-			updatePath(newPaths, *item.GetId(), folderPath.String())
+			updatePath(newPaths, *item.GetId(), itemPath.String())
 
-			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, folderPath)
+			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, itemPath)
 			if err != nil {
 				return err
 			}
 
 			if !found {
-				// We only create collections for folder that are not
-				// new. This is so as to not create collections for
-				// new folders without any files within them.
-				if prevPath != nil {
-					col := NewCollection(
-						c.itemClient,
-						folderPath,
-						prevPath,
-						driveID,
-						c.service,
-						c.statusUpdater,
-						c.source,
-						c.ctrl,
-						invalidPrevDelta,
-					)
-					c.CollectionMap[*item.GetId()] = col
-					c.NumContainers++
-				}
+				col := NewCollection(
+					c.itemClient,
+					itemPath,
+					prevPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+					c.source,
+					c.ctrl,
+					invalidPrevDelta,
+				)
+				c.CollectionMap[*item.GetId()] = col
+				c.NumContainers++
 			}
 
 			if c.source != OneDriveSource {
 				continue
 			}
 
-			fallthrough
+			if col := c.CollectionMap[*item.GetId()]; col != nil {
+				// Add an entry to fetch permissions into this collection. This assumes
+				// that OneDrive always returns all folders on the path of an item
+				// before the item. This seems to hold true for now at least.
+				collection := col.(*Collection)
+				if collection.Add(item) {
+					c.NumItems++
+				}
+			}
 
 		case item.GetFile() != nil:
 			if !invalidPrevDelta && item.GetFile() != nil {
@@ -702,6 +708,11 @@ func (c *Collections) UpdateCollections(
 
 			col, found := c.CollectionMap[collectionID]
 			if !found {
+				// TODO(ashmrtn): We should probably tighten the restrictions on this
+				// and just make it return an error if the collection doesn't already
+				// exist. Graph seems pretty consistent about returning all folders on
+				// the path from the root to the item in question. Removing this will
+				// also ensure we always add an entry to get the folder metadata.
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
@@ -739,14 +750,6 @@ func (c *Collections) UpdateCollections(
 				if !removed {
 					return clues.New("removing from prev collection").With("item_id", *item.GetId())
 				}
-
-				// If that was the only item in that collection and is
-				// not getting added back, delete the collection
-				if itemColID != collectionID &&
-					pcollection.IsEmpty() &&
-					pcollection.State() == data.NewState {
-					delete(c.CollectionMap, itemColID)
-				}
 			}
 
 			itemCollection[*item.GetId()] = collectionID
@@ -754,11 +757,7 @@ func (c *Collections) UpdateCollections(
 
 			if collection.Add(item) {
 				c.NumItems++
-				if item.GetFile() != nil {
-					// This is necessary as we have a fallthrough for
-					// folders and packages
-					c.NumFiles++
-				}
+				c.NumFiles++
 			}
 
 		default:
@@ -770,6 +769,10 @@ func (c *Collections) UpdateCollections(
 }
 
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
+	if drivePath == nil {
+		return false
+	}
+
 	return !includePath(ctx, m, drivePath) ||
 		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }

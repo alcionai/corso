@@ -173,7 +173,7 @@ func (c *onedriveCollection) withFile(
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case 1, 2, 3:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker, version.OneDrive4DirIncludesPermissions:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -202,10 +202,10 @@ func (c *onedriveCollection) withFolder(
 	roles []string,
 ) *onedriveCollection {
 	switch c.backupVersion {
-	case 0:
+	case 0, version.OneDrive4DirIncludesPermissions:
 		return c
 
-	case 1, 2, 3:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
 		c.items = append(
 			c.items,
 			onedriveMetadata(
@@ -230,7 +230,7 @@ func (c *onedriveCollection) withPermissions(
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < version.OneDriveXIncludesPermissions {
+	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
 		return c
 	}
 
@@ -240,15 +240,15 @@ func (c *onedriveCollection) withPermissions(
 		return c
 	}
 
-	c.items = append(
-		c.items,
-		onedriveMetadata(
-			c.t,
-			name,
-			name+onedrive.DirMetaFileSuffix,
-			user,
-			roles),
-	)
+	metadata := onedriveMetadata(
+		c.t,
+		name,
+		name+onedrive.DirMetaFileSuffix,
+		user,
+		roles)
+
+	c.items = append(c.items, metadata)
+	c.aux = append(c.aux, metadata)
 
 	return c
 }
@@ -349,7 +349,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 	table := []onedriveTest{
 		{
 			name:         "WithMetadata",
-			startVersion: 1,
+			startVersion: version.OneDrive1DataAndMetaFiles,
 			cols: []onedriveColInfo{
 				{
 					pathElements: rootPath,
@@ -375,6 +375,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 				},
 				{
 					pathElements: folderBPath,
+					perms: permData{
+						user:  suite.secondaryUser,
+						roles: readPerm,
+					},
 					files: []itemData{
 						{
 							name: fileName,
@@ -516,7 +520,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 		folderBName,
 	}
 
-	startVersion := 1
+	startVersion := version.OneDrive1DataAndMetaFiles
 
 	table := []onedriveTest{
 		{
@@ -731,7 +735,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		suite.user,
 	)
 
-	startVersion := 1
+	startVersion := version.OneDrive1DataAndMetaFiles
 
 	table := []onedriveTest{
 		{
@@ -888,6 +892,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileEData,
+					"",
+					nil,
+				).
+				// Call this to generate a meta file with the folder name that we can
+				// check.
+				withPermissions(
 					"",
 					nil,
 				).
