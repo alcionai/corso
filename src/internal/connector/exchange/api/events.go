@@ -208,7 +208,7 @@ func (c Events) EnumerateContainers(
 		builder = users.NewItemCalendarsRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // ---------------------------------------------------------------------------

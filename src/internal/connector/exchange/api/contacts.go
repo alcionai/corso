@@ -180,7 +180,7 @@ func (c Contacts) EnumerateContainers(
 		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // ---------------------------------------------------------------------------
