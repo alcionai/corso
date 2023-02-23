@@ -6,7 +6,6 @@ import (
 	"io"
 	"testing"
 
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,20 +19,9 @@ import (
 
 type ItemIntegrationSuite struct {
 	tester.Suite
-	// site        string
-	// siteDriveID string
 	user        string
 	userDriveID string
-	client      *msgraphsdk.GraphServiceClient
-	adapter     *msgraphsdk.GraphRequestAdapter
-}
-
-func (suite *ItemIntegrationSuite) Client() *msgraphsdk.GraphServiceClient {
-	return suite.client
-}
-
-func (suite *ItemIntegrationSuite) Adapter() *msgraphsdk.GraphRequestAdapter {
-	return suite.adapter
+	service     graph.Servicer
 }
 
 func TestItemIntegrationSuite(t *testing.T) {
@@ -52,30 +40,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	a := tester.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err)
-
-	adapter, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
-	require.NoError(t, err)
-
-	suite.client = msgraphsdk.NewGraphServiceClient(adapter)
-	suite.adapter = adapter
-
-	// TODO: fulfill file preconditions required for testing (expected files w/in drive
-	// and guarateed drive read-write access)
-	// suite.site = tester.M365SiteID(t)
-	// spDrives, err := drives(ctx, suite, suite.site, SharePointSource)
-	// require.NoError(t, err)
-	// // Test Requirement 1: Need a drive
-	// require.Greaterf(t, len(spDrives), 0, "site %s does not have a drive", suite.site)
-
-	// // Pick the first drive
-	// suite.siteDriveID = *spDrives[0].GetId()
-
+	suite.service = loadTestService(t)
 	suite.user = tester.SecondaryM365UserID(t)
 
-	pager, err := PagerForSource(OneDriveSource, suite, suite.user, nil)
+	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
 	require.NoError(t, err)
 
 	odDrives, err := drives(ctx, pager, true)
@@ -121,7 +89,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	_, _, _, err := collectItems(
 		ctx,
 		defaultItemPager(
-			suite,
+			suite.service,
 			suite.userDriveID,
 			"",
 		),
@@ -175,43 +143,42 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			t := suite.T()
+			srv := suite.service
+
+			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err)
 
 			// Test Requirement 2: "Test Folder" should exist
-			folder, err := getFolder(ctx, suite, test.driveID, *root.GetId(), "Test Folder")
+			folder, err := getFolder(ctx, srv, test.driveID, *root.GetId(), "Test Folder")
 			require.NoError(t, err)
 
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create folder %s", newFolderName)
 
-			newFolder, err := createItem(ctx, suite, test.driveID, *folder.GetId(), newItem(newFolderName, true))
+			newFolder, err := createItem(ctx, srv, test.driveID, *folder.GetId(), newItem(newFolderName, true))
 			require.NoError(t, err)
-
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create item %s", newItemName)
 
-			newItem, err := createItem(ctx, suite, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
+			newItem, err := createItem(ctx, srv, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
 			require.NoError(t, err)
-
 			require.NotNil(t, newItem.GetId())
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
-			_, err = getFolder(ctx, suite, test.driveID, *newFolder.GetId(), newItemName)
+			_, err = getFolder(ctx, srv, test.driveID, *newFolder.GetId(), newItemName)
 			require.ErrorIs(t, err, errFolderNotFound)
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
-			w, err := driveItemWriter(ctx, suite, test.driveID, *newItem.GetId(), writeSize)
+			w, err := driveItemWriter(ctx, srv, test.driveID, *newItem.GetId(), writeSize)
 			require.NoError(t, err)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
@@ -248,20 +215,21 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
+			t := suite.T()
+			srv := suite.service
+
+			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
 			require.NoError(t, err)
 
 			// Lookup a folder that doesn't exist
-			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "FolderDoesNotExist")
+			_, err = getFolder(ctx, srv, test.driveID, *root.GetId(), "FolderDoesNotExist")
 			require.ErrorIs(t, err, errFolderNotFound)
 
 			// Lookup a folder that does exist
-			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "")
+			_, err = getFolder(ctx, srv, test.driveID, *root.GetId(), "")
 			require.NoError(t, err)
 		})
 	}
