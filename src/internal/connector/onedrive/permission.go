@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/path"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -24,7 +23,7 @@ func getParentPermissions(
 		}
 
 		if len(onedrivePath.Folders) != 0 {
-			return nil, errors.Wrap(err, "unable to compute item permissions")
+			return nil, errors.Wrap(err, "computing item permissions")
 		}
 
 		parentPerms = []UserPermission{}
@@ -43,11 +42,7 @@ func getParentAndCollectionPermissions(
 		return nil, nil, nil
 	}
 
-	var (
-		err         error
-		parentPerms []UserPermission
-		colPerms    []UserPermission
-	)
+	var parentPerms []UserPermission
 
 	// Only get parent permissions if we're not restoring the root.
 	if len(drivePath.Folders) > 0 {
@@ -64,7 +59,7 @@ func getParentAndCollectionPermissions(
 
 	// TODO(ashmrtn): For versions after this pull the permissions from the
 	// current collection with Fetch().
-	colPerms, err = getParentPermissions(collectionPath, permissions)
+	colPerms, err := getParentPermissions(collectionPath, permissions)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "getting collection permissions")
 	}
@@ -84,13 +79,13 @@ func createRestoreFoldersWithPermissions(
 	parentPermissions []UserPermission,
 	folderPermissions []UserPermission,
 	permissionIDMappings map[string]string,
-) (string, map[string]string, error) {
+) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, driveID, restoreFolders)
 	if err != nil {
-		return "", permissionIDMappings, err
+		return "", err
 	}
 
-	permissionIDMappings, err = restorePermissions(
+	err = restorePermissions(
 		ctx,
 		service,
 		driveID,
@@ -99,7 +94,7 @@ func createRestoreFoldersWithPermissions(
 		folderPermissions,
 		permissionIDMappings)
 
-	return id, permissionIDMappings, err
+	return id, err
 }
 
 // getChildPermissions is to filter out permissions present in the
@@ -156,19 +151,19 @@ func restorePermissions(
 	parentPerms []UserPermission,
 	childPerms []UserPermission,
 	permissionIDMappings map[string]string,
-) (map[string]string, error) {
+) error {
 	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
 
+	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
 	for _, p := range permRemoved {
-		err := service.Client().DrivesById(driveID).ItemsById(itemID).
-			PermissionsById(permissionIDMappings[p.ID]).Delete(ctx, nil)
+		err := service.Client().
+			DrivesById(driveID).
+			ItemsById(itemID).
+			PermissionsById(permissionIDMappings[p.ID]).
+			Delete(ctx, nil)
 		if err != nil {
-			return permissionIDMappings, errors.Wrapf(
-				err,
-				"failed to remove permission for item %s. details: %s",
-				itemID,
-				support.ConnectorStackErrorTrace(err),
-			)
+			return clues.Wrap(err, "removing permissions").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 	}
 
@@ -193,16 +188,11 @@ func restorePermissions(
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return permissionIDMappings, errors.Wrapf(
-				err,
-				"failed to set permission for item %s. details: %s",
-				itemID,
-				support.ConnectorStackErrorTrace(err),
-			)
+			return clues.Wrap(err, "setting permissions").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
 	}
 
-	return permissionIDMappings, nil
+	return nil
 }

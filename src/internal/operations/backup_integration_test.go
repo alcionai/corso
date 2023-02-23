@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -146,8 +147,7 @@ func runAndCheckBackup(
 		Completed,
 		bo.Status,
 		"backup status should be Completed, got %s",
-		bo.Status,
-	)
+		bo.Status)
 	require.Less(t, 0, bo.Results.ItemsWritten)
 
 	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
@@ -342,7 +342,7 @@ func generateContainerOfItems(
 
 	deets, err := gc.RestoreDataCollections(
 		ctx,
-		backup.Version,
+		version.Backup,
 		acct,
 		sel,
 		dest,

@@ -12,11 +12,11 @@ import (
 )
 
 type S3Suite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestS3Suite(t *testing.T) {
-	suite.Run(t, new(S3Suite))
+	suite.Run(t, &S3Suite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *S3Suite) TestAddS3Commands() {
@@ -33,7 +33,9 @@ func (suite *S3Suite) TestAddS3Commands() {
 		{"connect s3", connectCommand, expectUse, s3ConnectCmd().Short, connectS3Cmd},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addS3Commands(cmd)

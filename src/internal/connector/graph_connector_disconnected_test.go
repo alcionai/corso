@@ -130,67 +130,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	assert.Equal(t, 2, gc.Status().FolderCount)
 }
 
-func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
-	users := []string{
-		"elliotReid@someHospital.org",
-		"chrisTurk@someHospital.org",
-		"carlaEspinosa@someHospital.org",
-		"bobKelso@someHospital.org",
-		"johnDorian@someHospital.org",
-	}
-
-	tests := []struct {
-		name        string
-		getSelector func(t *testing.T) selectors.Selector
-		checkError  assert.ErrorAssertionFunc
-	}{
-		{
-			name:       "No scopes",
-			checkError: assert.Error,
-			getSelector: func(t *testing.T) selectors.Selector {
-				return selectors.NewExchangeBackup(nil).Selector
-			},
-		},
-		{
-			name:       "Valid Single User",
-			checkError: assert.NoError,
-			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup([]string{"bobKelso@someHospital.org"})
-				sel.Include(sel.MailFolders(selectors.Any()))
-				return sel.Selector
-			},
-		},
-		{
-			name:       "Partial invalid user",
-			checkError: assert.Error,
-			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup([]string{"bobkelso@someHospital.org", "janitor@someHospital.org"})
-				sel.Include(sel.MailFolders(selectors.Any()))
-				sel.DiscreteOwner = "janitor@someHospital.org"
-				return sel.Selector
-			},
-		},
-		{
-			name:       "Invalid discrete owner",
-			checkError: assert.Error,
-			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{"janitor@someHospital.org"})
-				sel.Include(sel.AllData())
-				return sel.Selector
-			},
-		},
-	}
-
-	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
-			err := verifyBackupInputs(test.getSelector(t), users, nil)
-			test.checkError(t, err)
-		})
-	}
-}
-
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {
-	users := []string{"elliotReid@someHospital.org"}
 	sites := []string{"abc.site.foo", "bar.site.baz"}
 
 	tests := []struct {
@@ -224,7 +164,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 		},
 		{
 			name:       "Invalid User",
-			checkError: assert.Error,
+			checkError: assert.NoError,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
 				sel.Exclude(sel.Folders(selectors.Any()))
@@ -286,11 +226,11 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
-			err := verifyBackupInputs(test.excludes(t), users, sites)
+			err := verifyBackupInputs(test.excludes(t), sites)
 			test.checkError(t, err)
-			err = verifyBackupInputs(test.filters(t), users, sites)
+			err = verifyBackupInputs(test.filters(t), sites)
 			test.checkError(t, err)
-			err = verifyBackupInputs(test.includes(t), users, sites)
+			err = verifyBackupInputs(test.includes(t), sites)
 			test.checkError(t, err)
 		})
 	}

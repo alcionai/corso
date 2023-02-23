@@ -31,7 +31,7 @@ var (
 var backupDataSets = []path.CategoryType{email, contacts, events}
 
 type RestoreExchangeIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
@@ -42,13 +42,13 @@ type RestoreExchangeIntegrationSuite struct {
 }
 
 func TestRestoreExchangeIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIRestoreTests)
-
-	suite.Run(t, new(RestoreExchangeIntegrationSuite))
+	suite.Run(t, &RestoreExchangeIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCLITests,
+			tester.CorsoCLIRestoreTests),
+	})
 }
 
 func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
@@ -56,8 +56,6 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	// aggregate required details
 	suite.acct = tester.NewM365Account(t)
@@ -119,7 +117,9 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	for _, set := range backupDataSets {
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 
@@ -143,7 +143,9 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 			suite.T().Skip()
 		}
 
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			ctx = config.SetViper(ctx, suite.vpr)
 
@@ -176,7 +178,9 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlag
 			suite.T().Skip()
 		}
 
-		suite.T().Run(set.String(), func(t *testing.T) {
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
 			//nolint:forbidigo
 			ctx := config.SetViper(context.Background(), suite.vpr)
 			ctx, flush := tester.WithContext(ctx)

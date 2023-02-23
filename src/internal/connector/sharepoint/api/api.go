@@ -1,6 +1,6 @@
 package api
 
-type Tuple struct {
+type NameID struct {
 	Name string
 	ID   string
 }

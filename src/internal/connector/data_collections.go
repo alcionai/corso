@@ -2,11 +2,11 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -42,12 +42,16 @@ func (gc *GraphConnector) DataCollections(
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
+	err := verifyBackupInputs(sels, gc.GetSiteIDs())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, err := checkServiceEnabled(ctx, gc.Owners.Users(), path.ServiceType(sels.Service), sels.DiscreteOwner)
+	serviceEnabled, err := checkServiceEnabled(
+		ctx,
+		gc.Owners.Users(),
+		path.ServiceType(sels.Service),
+		sels.DiscreteOwner)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -63,7 +67,6 @@ func (gc *GraphConnector) DataCollections(
 			sels,
 			metadata,
 			gc.credentials,
-			// gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
 			errs)
@@ -118,7 +121,8 @@ func (gc *GraphConnector) DataCollections(
 			gc.credentials,
 			gc.Service,
 			gc,
-			ctrlOpts)
+			ctrlOpts,
+			errs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -128,16 +132,17 @@ func (gc *GraphConnector) DataCollections(
 		return colls, excludes, nil
 
 	default:
-		return nil, nil, errors.Errorf("service %s not supported", sels.Service.String())
+		return nil, nil, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
 	}
 }
 
-func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
+func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	var ids []string
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
-		ids = userPNs
+		// Exchange and OneDrive user existence now checked in checkServiceEnabled.
+		return nil
 
 	case selectors.ServiceSharePoint:
 		ids = siteIDs
@@ -155,7 +160,7 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 	}
 
 	if !found {
-		return fmt.Errorf("resource owner [%s] not found within tenant", sels.DiscreteOwner)
+		return clues.New("resource owner not found within tenant").With("missing_resource_owner", sels.DiscreteOwner)
 	}
 
 	return nil
@@ -202,7 +207,6 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	var (
 		status *support.ConnectorOperationStatus
-		err    error
 		deets  = &details.Builder{}
 	)
 
@@ -215,11 +219,11 @@ func (gc *GraphConnector) RestoreDataCollections(
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
+		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets, errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets)
+		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets, errs)
 	default:
-		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
+		err = clues.Wrap(clues.New(selector.Service.String()), "service not supported")
 	}
 
 	gc.incrementAwaitingMessages()

@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 )
 
@@ -44,14 +44,13 @@ func DataCollections(
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)
 	}
 
 	var (
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]struct{}{}
-		errs        error
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -69,7 +68,7 @@ func DataCollections(
 			ctrlOpts,
 		).Get(ctx, metadata)
 		if err != nil {
-			return nil, nil, support.WrapAndAppend(user, err, errs)
+			return nil, nil, err
 		}
 
 		collections = append(collections, odcs...)
@@ -77,5 +76,5 @@ func DataCollections(
 		maps.Copy(allExcludes, excludes)
 	}
 
-	return collections, allExcludes, errs
+	return collections, allExcludes, nil
 }

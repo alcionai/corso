@@ -1,7 +1,9 @@
 package fault_test
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -203,4 +205,75 @@ func (suite *FaultErrorsUnitSuite) TestData() {
 	assert.Equal(t, n.Err(), d.Err)
 	assert.ElementsMatch(t, n.Errs(), d.Errs)
 	assert.True(t, d.FailFast)
+}
+
+func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
+	t := suite.T()
+
+	// not fail-fast
+	n := fault.New(false)
+	require.NotNil(t, n)
+
+	n.Add(errors.New("1"))
+	n.Add(errors.New("2"))
+
+	data := n.Data()
+
+	jsonStr, err := json.Marshal(data)
+	require.NoError(t, err)
+
+	um := fault.ErrorsData{}
+
+	err = json.Unmarshal(jsonStr, &um)
+	require.NoError(t, err)
+}
+
+type legacyErrorsData struct {
+	Err      error   `json:"err"`
+	Errs     []error `json:"errs"`
+	FailFast bool    `json:"failFast"`
+}
+
+func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
+	t := suite.T()
+
+	oldData := &legacyErrorsData{
+		Errs: []error{fmt.Errorf("foo error"), fmt.Errorf("foo error"), fmt.Errorf("foo error")},
+	}
+
+	jsonStr, err := json.Marshal(oldData)
+	require.NoError(t, err)
+
+	t.Logf("jsonStr is %s\n", jsonStr)
+
+	um := fault.ErrorsData{}
+
+	err = json.Unmarshal(jsonStr, &um)
+	require.NoError(t, err)
+}
+
+func (suite *FaultErrorsUnitSuite) TestTracker() {
+	t := suite.T()
+
+	be := fault.New(false)
+
+	ba := be.Tracker()
+	assert.NoError(t, ba.Err())
+	assert.Empty(t, be.Errs())
+
+	ba.Add(assert.AnError)
+	assert.NoError(t, ba.Err())
+	assert.NoError(t, be.Err())
+	assert.NotEmpty(t, be.Errs())
+
+	fe := fault.New(true)
+
+	fa := fe.Tracker()
+	assert.NoError(t, fa.Err())
+	assert.Empty(t, fe.Errs())
+
+	fa.Add(assert.AnError)
+	assert.Error(t, fa.Err())
+	assert.Error(t, fe.Err())
+	assert.NotEmpty(t, fe.Errs())
 }
