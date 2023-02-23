@@ -173,7 +173,7 @@ func (c *onedriveCollection) withFile(
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case 1, 2, 3, 4:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker, version.OneDrive4DirIncludesPermissions:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -202,10 +202,10 @@ func (c *onedriveCollection) withFolder(
 	roles []string,
 ) *onedriveCollection {
 	switch c.backupVersion {
-	case 0, 4:
+	case 0, version.OneDrive4DirIncludesPermissions:
 		return c
 
-	case 1, 2, 3:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
 		c.items = append(
 			c.items,
 			onedriveMetadata(
@@ -349,7 +349,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 	table := []onedriveTest{
 		{
 			name:         "WithMetadata",
-			startVersion: 1,
+			startVersion: version.OneDrive1DataAndMetaFiles,
 			cols: []onedriveColInfo{
 				{
 					pathElements: rootPath,
@@ -520,7 +520,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 		folderBName,
 	}
 
-	startVersion := 1
+	startVersion := version.OneDrive1DataAndMetaFiles
 
 	table := []onedriveTest{
 		{
@@ -735,7 +735,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		suite.user,
 	)
 
-	startVersion := 1
+	startVersion := version.OneDrive1DataAndMetaFiles
 
 	table := []onedriveTest{
 		{
