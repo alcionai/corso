@@ -288,6 +288,13 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
+	parent, err := sapi.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	if err != nil {
+		return metrics, err
+	}
+
+	root := ptr.Val(parent.GetWebUrl())
+
 	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
 		return metrics, err
@@ -316,7 +323,7 @@ func (sc *Collection) retrievePages(
 			sc.data <- &Item{
 				id:      *pg.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sapi.PageInfo(pg, size),
+				info:    sharePointPageInfo(pg, root, size),
 				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),
 			}
 
