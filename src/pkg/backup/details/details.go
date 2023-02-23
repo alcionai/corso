@@ -35,10 +35,12 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
+	sl := dm.FilterMetaFiles()
+
 	if print.JSONFormat() {
-		printJSON(ctx, dm)
+		printJSON(ctx, sl)
 	} else {
-		printTable(ctx, dm)
+		printTable(ctx, sl)
 	}
 }
 
@@ -71,13 +73,13 @@ func printJSON(ctx context.Context, dm DetailsModel) {
 	print.All(ctx, ents...)
 }
 
-// Paths returns the list of Paths for non-folder items extracted from the
-// Entries slice.
+// Paths returns the list of Paths for non-folder and non-meta items extracted
+// from the Entries slice.
 func (dm DetailsModel) Paths() []string {
 	r := make([]string, 0, len(dm.Entries))
 
 	for _, ent := range dm.Entries {
-		if ent.Folder != nil {
+		if ent.Folder != nil || ent.isMetaFile() {
 			continue
 		}
 
@@ -89,20 +91,48 @@ func (dm DetailsModel) Paths() []string {
 
 // Items returns a slice of *ItemInfo that does not contain any FolderInfo
 // entries. Required because not all folders in the details are valid resource
-// paths.
+// paths, and we want to slice out metadata.
 func (dm DetailsModel) Items() []*DetailsEntry {
 	res := make([]*DetailsEntry, 0, len(dm.Entries))
 
 	for i := 0; i < len(dm.Entries); i++ {
-		if dm.Entries[i].Folder != nil {
+		ent := dm.Entries[i]
+		if ent.Folder != nil || ent.isMetaFile() {
 			continue
 		}
 
-		res = append(res, &dm.Entries[i])
+		res = append(res, &ent)
 	}
 
 	return res
 }
+
+// FilterMetaFiles returns a copy of the Details with all of the
+// .meta files removed from the entries.
+func (dm DetailsModel) FilterMetaFiles() DetailsModel {
+	d2 := DetailsModel{
+		Entries: []DetailsEntry{},
+	}
+
+	for _, ent := range dm.Entries {
+		if !ent.isMetaFile() {
+			d2.Entries = append(d2.Entries, ent)
+		}
+	}
+
+	return d2
+}
+
+// Check if a file is a metadata file. These are used to store
+// additional data like permissions in case of OneDrive and are not to
+// be treated as regular files.
+func (de DetailsEntry) isMetaFile() bool {
+	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
+}
+
+// ---------------------------------------------------------------------------
+// Builder
+// ---------------------------------------------------------------------------
 
 // Builder should be used to create a details model.
 type Builder struct {
@@ -583,6 +613,7 @@ type OneDriveInfo struct {
 	ItemName   string    `json:"itemName,omitempty"`
 	DriveName  string    `json:"driveName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
+	IsMeta     bool      `json:"isMeta,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath"`

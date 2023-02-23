@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/alcionai/clues"
 
@@ -73,14 +74,14 @@ func getItemsAddedAndRemovedFromContainer(
 		// get the next page of data, check for standard errors
 		resp, err := pager.getPage(ctx)
 		if err != nil {
-			return nil, nil, deltaURL, clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, nil, deltaURL, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		// each category type responds with a different interface, but all
 		// of them comply with GetValue, which is where we'll get our item data.
 		items, err := pager.valuesIn(resp)
 		if err != nil {
-			return nil, nil, "", clues.Stack(err).WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, nil, "", clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		itemCount += len(items)
@@ -104,6 +105,11 @@ func getItemsAddedAndRemovedFromContainer(
 		}
 
 		nextLink, delta := api.NextAndDeltaLink(resp)
+		if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
+			if !api.IsNextLinkValid(nextLink) || api.IsNextLinkValid(delta) {
+				logger.Ctx(ctx).Infof("Received invalid link from M365:\nNext Link: %s\nDelta Link: %s\n", nextLink, delta)
+			}
+		}
 
 		// the deltaLink is kind of like a cursor for overall data state.
 		// once we run through pages of nextLinks, the last query will

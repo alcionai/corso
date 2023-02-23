@@ -26,6 +26,7 @@ const (
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
+	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
@@ -81,6 +82,10 @@ func IsErrInvalidDelta(err error) bool {
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
 	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
+}
+
+func IsErrUserNotFound(err error) bool {
+	return hasErrorCode(err, errCodeRequestResourceNotFound)
 }
 
 // Timeout errors are identified for tracking the need to retry calls.

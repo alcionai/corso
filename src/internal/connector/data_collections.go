@@ -2,12 +2,11 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -20,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -44,12 +42,16 @@ func (gc *GraphConnector) DataCollections(
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetUsers(), gc.GetSiteIDs())
+	err := verifyBackupInputs(sels, gc.GetSiteIDs())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, err := checkServiceEnabled(ctx, gc.Owners.Users(), path.ServiceType(sels.Service), sels.DiscreteOwner)
+	serviceEnabled, err := checkServiceEnabled(
+		ctx,
+		gc.Owners.Users(),
+		path.ServiceType(sels.Service),
+		sels.DiscreteOwner)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -65,7 +67,6 @@ func (gc *GraphConnector) DataCollections(
 			sels,
 			metadata,
 			gc.credentials,
-			// gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
 			errs)
@@ -88,7 +89,27 @@ func (gc *GraphConnector) DataCollections(
 		return colls, excludes, nil
 
 	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels, metadata, ctrlOpts)
+		colls, excludes, err := onedrive.DataCollections(
+			ctx,
+			sels, metadata,
+			gc.credentials.AzureTenantID,
+			gc.itemClient,
+			gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, c := range colls {
+			// kopia doesn't stream Items() from deleted collections.
+			if c.State() != data.DeletedState {
+				gc.incrementAwaitingMessages()
+			}
+		}
+
+		return colls, excludes, nil
 
 	case selectors.ServiceSharePoint:
 		colls, excludes, err := sharepoint.DataCollections(
@@ -98,28 +119,28 @@ func (gc *GraphConnector) DataCollections(
 			gc.credentials,
 			gc.Service,
 			gc,
-			ctrlOpts)
+			ctrlOpts,
+			errs)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		for range colls {
-			gc.incrementAwaitingMessages()
-		}
+		gc.incrementMessagesBy(len(colls))
 
 		return colls, excludes, nil
 
 	default:
-		return nil, nil, errors.Errorf("service %s not supported", sels.Service.String())
+		return nil, nil, clues.Wrap(clues.New(sels.Service.String()), "service not supported").WithClues(ctx)
 	}
 }
 
-func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) error {
+func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	var ids []string
 
 	switch sels.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
-		ids = userPNs
+		// Exchange and OneDrive user existence now checked in checkServiceEnabled.
+		return nil
 
 	case selectors.ServiceSharePoint:
 		ids = siteIDs
@@ -137,7 +158,7 @@ func verifyBackupInputs(sels selectors.Selector, userPNs, siteIDs []string) erro
 	}
 
 	if !found {
-		return fmt.Errorf("resource owner [%s] not found within tenant", sels.DiscreteOwner)
+		return clues.New("resource owner not found within tenant").With("missing_resource_owner", sels.DiscreteOwner)
 	}
 
 	return nil
@@ -166,72 +187,6 @@ func checkServiceEnabled(
 	return true, nil
 }
 
-// ---------------------------------------------------------------------------
-// OneDrive
-// ---------------------------------------------------------------------------
-
-type odFolderMatcher struct {
-	scope selectors.OneDriveScope
-}
-
-func (fm odFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.OneDriveFolder)
-}
-
-func (fm odFolderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, dir)
-}
-
-// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
-// for the specified user
-func (gc *GraphConnector) OneDriveDataCollections(
-	ctx context.Context,
-	selector selectors.Selector,
-	metadata []data.RestoreCollection,
-	ctrlOpts control.Options,
-) ([]data.BackupCollection, map[string]struct{}, error) {
-	odb, err := selector.ToOneDriveBackup()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "oneDriveDataCollection: parsing selector")
-	}
-
-	var (
-		user        = selector.DiscreteOwner
-		collections = []data.BackupCollection{}
-		allExcludes = map[string]struct{}{}
-		errs        error
-	)
-
-	// for each scope that includes oneDrive items, get all
-	for _, scope := range odb.Scopes() {
-		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
-
-		odcs, excludes, err := onedrive.NewCollections(
-			gc.itemClient,
-			gc.credentials.AzureTenantID,
-			user,
-			onedrive.OneDriveSource,
-			odFolderMatcher{scope},
-			gc.Service,
-			gc.UpdateStatus,
-			ctrlOpts,
-		).Get(ctx, metadata)
-		if err != nil {
-			return nil, nil, support.WrapAndAppend(user, err, errs)
-		}
-
-		collections = append(collections, odcs...)
-
-		maps.Copy(allExcludes, excludes)
-	}
-
-	for range collections {
-		gc.incrementAwaitingMessages()
-	}
-
-	return collections, allExcludes, errs
-}
-
 // RestoreDataCollections restores data from the specified collections
 // into M365 using the GraphAPI.
 // SideEffect: gc.status is updated at the completion of operation
@@ -250,7 +205,6 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	var (
 		status *support.ConnectorOperationStatus
-		err    error
 		deets  = &details.Builder{}
 	)
 
@@ -263,11 +217,11 @@ func (gc *GraphConnector) RestoreDataCollections(
 	case selectors.ServiceExchange:
 		status, err = exchange.RestoreExchangeDataCollections(ctx, creds, gc.Service, dest, dcs, deets, errs)
 	case selectors.ServiceOneDrive:
-		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets)
+		status, err = onedrive.RestoreCollections(ctx, backupVersion, gc.Service, dest, opts, dcs, deets, errs)
 	case selectors.ServiceSharePoint:
-		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets)
+		status, err = sharepoint.RestoreCollections(ctx, backupVersion, creds, gc.Service, dest, dcs, deets, errs)
 	default:
-		err = errors.Errorf("restore data from service %s not supported", selector.Service.String())
+		err = clues.Wrap(clues.New(selector.Service.String()), "service not supported")
 	}
 
 	gc.incrementAwaitingMessages()

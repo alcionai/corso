@@ -2,6 +2,7 @@ package mockconnector
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"math/rand"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -107,7 +109,10 @@ func (medc MockExchangeDataCollection) DoNotMergeItems() bool       { return med
 
 // Items returns a channel that has the next items in the collection. The
 // channel is closed when there are no more items available.
-func (medc *MockExchangeDataCollection) Items() <-chan data.Stream {
+func (medc *MockExchangeDataCollection) Items(
+	ctx context.Context,
+	_ *fault.Errors, // unused
+) <-chan data.Stream {
 	res := make(chan data.Stream)
 
 	go func() {

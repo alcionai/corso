@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
@@ -126,7 +127,7 @@ func drives(
 
 		drives = append(drives, tmp...)
 
-		nextLink := gapi.NextLink(page)
+		nextLink := ptr.Val(page.GetOdataNextLink())
 		if len(nextLink) == 0 {
 			break
 		}
@@ -147,6 +148,7 @@ type itemCollector func(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	fileCollectionMap map[string]string,
 	validPrevDelta bool,
 ) error
 
@@ -177,7 +179,9 @@ func defaultItemPager(
 			"package",
 			"parentReference",
 			"root",
+			"sharepointIds",
 			"size",
+			"deleted",
 		},
 	)
 }
@@ -189,21 +193,24 @@ func collectItems(
 	pager itemPager,
 	driveID, driveName string,
 	collector itemCollector,
+	oldPaths map[string]string,
 	prevDelta string,
 ) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
 	var (
-		newDeltaURL = ""
-		// TODO(ashmrtn): Eventually this should probably be a parameter so we can
-		// take in previous paths.
-		oldPaths         = map[string]string{}
+		newDeltaURL      = ""
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = len(prevDelta) == 0
+
+		// itemCollection is used to identify which collection a
+		// file belongs to. This is useful to delete a file from the
+		// collection it was previously in, in case it was moved to a
+		// different collection within the same delta query
+		itemCollection = map[string]string{}
 	)
 
-	maps.Copy(newPaths, oldPaths)
-
-	if len(prevDelta) != 0 {
+	if !invalidPrevDelta {
+		maps.Copy(newPaths, oldPaths)
 		pager.SetNext(prevDelta)
 	}
 
@@ -214,6 +221,7 @@ func collectItems(
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
 
 			invalidPrevDelta = true
+			newPaths = map[string]string{}
 
 			pager.Reset()
 
@@ -233,7 +241,17 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
 		}
 
-		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded, invalidPrevDelta)
+		err = collector(
+			ctx,
+			driveID,
+			driveName,
+			vals,
+			oldPaths,
+			newPaths,
+			excluded,
+			itemCollection,
+			invalidPrevDelta,
+		)
 		if err != nil {
 			return DeltaUpdate{}, nil, nil, err
 		}
@@ -382,6 +400,7 @@ func GetAllFolders(
 				oldPaths map[string]string,
 				newPaths map[string]string,
 				excluded map[string]struct{},
+				itemCollection map[string]string,
 				doNotMergeItems bool,
 			) error {
 				for _, item := range items {
@@ -411,6 +430,7 @@ func GetAllFolders(
 
 				return nil
 			},
+			map[string]string{},
 			"",
 		)
 		if err != nil {

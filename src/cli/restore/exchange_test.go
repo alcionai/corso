@@ -12,11 +12,11 @@ import (
 )
 
 type ExchangeSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestExchangeSuite(t *testing.T) {
-	suite.Run(t, new(ExchangeSuite))
+	suite.Run(t, &ExchangeSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ExchangeSuite) TestAddExchangeCommands() {
@@ -32,7 +32,9 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		{"restore exchange", restoreCommand, expectUse, exchangeRestoreCmd().Short, restoreExchangeCmd},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addExchangeCommands(cmd)
