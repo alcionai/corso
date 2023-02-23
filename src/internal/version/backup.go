@@ -16,15 +16,15 @@ const (
 	// the data and metadata in two files.
 	OneDrive1DataAndMetaFiles = 1
 
-	// OneDrive2NameInMeta points to the backup format version where we begin
-	// storing files in kopia with their item ID instead of their OneDrive file
-	// name.
-	// TODO(ashmrtn): Update this to a real value when we merge the file name
-	// change. Set to MAXINT for now to keep the if-check using it working.
-	OneDrive2NameInMeta = math.MaxInt
-
 	// OneDrive3IsMetaMarker is a small improvement on
 	// VersionWithDataAndMetaFiles, but has a marker IsMeta which
 	// specifies if the file is a meta file or a data file.
 	OneDrive3IsMetaMarker = 3
+
+	// OneDriveXNameInMeta points to the backup format version where we begin
+	// storing files in kopia with their item ID instead of their OneDrive file
+	// name.
+	// TODO(ashmrtn): Update this to a real value when we merge the file name
+	// change. Set to MAXINT for now to keep the if-check using it working.
+	OneDriveXNameInMeta = math.MaxInt
 )
