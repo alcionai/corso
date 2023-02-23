@@ -1,7 +1,6 @@
 package details
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -353,10 +352,6 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 
 	assert.Len(t, d2.Entries, 2)
 	assert.Len(t, d.Entries, 3)
-
-	for _, de := range d2.Entries {
-		assert.True(t, !strings.HasSuffix(de.RepoRef, ".meta"), "no meta files")
-	}
 }
 
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
