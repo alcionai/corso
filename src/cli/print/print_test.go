@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -24,7 +25,7 @@ func (suite *PrintUnitSuite) TestOnly() {
 	// cannot use tester.NewContext() here: circular imports
 	//nolint:forbidigo
 	ctx := SetRootCmd(context.Background(), c)
-	assert.NoError(t, Only(ctx, nil))
+	aw.NoErr(t, Only(ctx, nil))
 	assert.True(t, c.SilenceUsage)
 }
 

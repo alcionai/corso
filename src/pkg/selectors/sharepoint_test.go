@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -33,7 +34,7 @@ func (suite *SharePointSelectorSuite) TestToSharePointBackup() {
 	ob := NewSharePointBackup(nil)
 	s := ob.Selector
 	ob, err := s.ToSharePointBackup()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, ob.Service, ServiceSharePoint)
 	assert.NotZero(t, ob.Scopes())
 }
@@ -187,7 +188,7 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 	eb := NewSharePointRestore(nil)
 	s := eb.Selector
 	or, err := s.ToSharePointRestore()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, or.Service, ServiceSharePoint)
 	assert.NotZero(t, or.Scopes())
 }
@@ -347,7 +348,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				"site",
 				test.sc.PathType(),
 				true)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			r, l := test.sc.pathValues(itemPath, itemPath)
 			assert.Equal(t, test.expected, r)
 			assert.Equal(t, test.expected, l)

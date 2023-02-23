@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -77,23 +78,23 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 	}{
 		{
 			name:   "no sites or urls",
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name:   "sites",
 			site:   []string{"smarf"},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name:   "urls",
 			weburl: []string{"fnord"},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name:   "both",
 			site:   []string{"smarf"},
 			weburl: []string{"fnord"},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 	}
 	for _, test := range table {
@@ -196,7 +197,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			defer flush()
 
 			sel, err := sharePointBackupCreateSelectors(ctx, test.site, test.weburl, test.data, gc)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			assert.ElementsMatch(t, test.expect, sel.DiscreteResourceOwners())
 		})
@@ -214,7 +215,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -231,7 +232,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err)
+			aw.Err(t, err)
 			assert.Empty(t, output)
 		})
 	}

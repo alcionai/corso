@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -50,7 +51,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 			},
 			expect:      map[string]DeltaPath{},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "multiple delta urls",
@@ -58,7 +59,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.DeltaURLsFileName, "delta-link"},
 				{graph.DeltaURLsFileName, "delta-link-2"},
 			},
-			expectError: assert.Error,
+			expectError: aw.Err,
 		},
 		{
 			name: "previous path only",
@@ -66,7 +67,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.PreviousPathFileName, "prev-path"},
 			},
 			expect:      map[string]DeltaPath{},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "multiple previous paths",
@@ -74,7 +75,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.PreviousPathFileName, "prev-path"},
 				{graph.PreviousPathFileName, "prev-path-2"},
 			},
-			expectError: assert.Error,
+			expectError: aw.Err,
 		},
 		{
 			name: "delta urls and previous paths",
@@ -88,7 +89,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "delta urls and empty previous paths",
@@ -97,7 +98,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.PreviousPathFileName, ""},
 			},
 			expect:      map[string]DeltaPath{},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "empty delta urls and previous paths",
@@ -106,7 +107,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				{graph.PreviousPathFileName, "prev-path"},
 			},
 			expect:      map[string]DeltaPath{},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "delta urls with special chars",
@@ -120,7 +121,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "delta urls with escaped chars",
@@ -134,7 +135,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 		{
 			name: "delta urls with newline char runes",
@@ -151,7 +152,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					path:  "prev-path",
 				},
 			},
-			expectError: assert.NoError,
+			expectError: aw.NoErr,
 		},
 	}
 	for _, test := range table {
@@ -174,7 +175,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				entries,
 				func(cos *support.ConnectorOperationStatus) {},
 			)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NotFoundRestoreCollection{Collection: coll},
@@ -239,7 +240,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
 	)
 
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	tests := []struct {
 		name        string
@@ -269,7 +270,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			for _, c := range collections {
 				if c.FullPath().Service() == path.ExchangeMetadataService {
@@ -297,7 +298,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
 	)
 
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	tests := []struct {
 		name  string
@@ -337,7 +338,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
 			var metadata data.BackupCollection
@@ -353,7 +354,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NotFoundRestoreCollection{Collection: metadata},
 			}, fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			dps := cdps[test.scope.Category().PathType()]
 
@@ -368,7 +369,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
 			// investigate the items in the original and delta collections to at least
@@ -400,7 +401,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	)
 
 	acct, err := tester.NewM365Account(t).M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
@@ -414,7 +415,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		control.Options{},
 		newStatusUpdater(t, &wg),
 		fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	wg.Add(len(collections))
 
@@ -428,7 +429,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 				buf := &bytes.Buffer{}
 
 				read, err := buf.ReadFrom(stream.ToReader())
-				assert.NoError(t, err)
+				aw.NoErr(t, err)
 				assert.NotZero(t, read)
 
 				if isMetadata {
@@ -437,7 +438,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				assert.NotNil(t, message)
-				assert.NoError(t, err)
+				aw.NoErr(t, err)
 			}
 		})
 	}
@@ -453,7 +454,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	defer flush()
 
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	users := []string{suite.user}
 
@@ -482,7 +483,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				control.Options{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			wg.Add(len(edcs))
 
@@ -496,7 +497,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				for stream := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					read, err := buf.ReadFrom(stream.ToReader())
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					assert.NotZero(t, read)
 
 					if isMetadata {
@@ -505,7 +506,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 
 					contact, err := support.CreateContactFromBytes(buf.Bytes())
 					assert.NotNil(t, contact)
-					assert.NoError(t, err, "error on converting contact bytes: "+buf.String())
+					aw.NoErr(t, err, "error on converting contact bytes: "+buf.String())
 					count++
 				}
 
@@ -529,12 +530,12 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	defer flush()
 
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	users := []string{suite.user}
 
 	ac, err := api.NewClient(acct)
-	require.NoError(suite.T(), err, "creating client")
+	aw.MustNoErr(suite.T(), err, "creating client")
 
 	var (
 		calID  string
@@ -553,7 +554,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		return nil
 	}
 
-	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true)))
+	aw.MustNoErr(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true)))
 
 	tests := []struct {
 		name, expected string
@@ -590,7 +591,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				control.Options{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			require.Len(t, collections, 2)
 
 			wg.Add(len(collections))
@@ -609,7 +610,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 					buf := &bytes.Buffer{}
 
 					read, err := buf.ReadFrom(item.ToReader())
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					assert.NotZero(t, read)
 
 					if isMetadata {
@@ -618,7 +619,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 					event, err := support.CreateEventFromBytes(buf.Bytes())
 					assert.NotNil(t, event)
-					assert.NoError(t, err, "creating event from bytes: "+buf.String())
+					aw.NoErr(t, err, "creating event from bytes: "+buf.String())
 				}
 			}
 

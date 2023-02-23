@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type ExchangeSuite struct {
@@ -74,23 +75,23 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 	}{
 		{
 			name:   "no users or data",
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name:   "no users only data",
 			data:   []string{dataEmail},
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name:   "unrecognized data category",
 			user:   []string{"fnord"},
 			data:   []string{"smurfs"},
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name:   "only users no data",
 			user:   []string{"fnord"},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 	}
 	for _, test := range table {
@@ -224,7 +225,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err, "failure")
+			aw.NoErr(t, err, "failure")
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -241,7 +242,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err, "failure")
+			aw.Err(t, err, "failure")
 			assert.Empty(t, output)
 		})
 	}

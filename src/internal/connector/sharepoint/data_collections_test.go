@@ -5,12 +5,12 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -74,7 +74,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				driveItem("file", testBaseDrivePath, "root", true),
 			},
 			scope:                 anyFolder,
-			expect:                assert.NoError,
+			expect:                aw.NoErr,
 			expectedCollectionIDs: []string{"root"},
 			expectedCollectionPaths: expectedPathAsSlice(
 				suite.T(),
@@ -169,7 +169,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	siteID := tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	account, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	col, err := collectPages(
 		ctx,
@@ -179,6 +179,6 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		&MockGraphService{},
 		control.Defaults(),
 		fault.New(true))
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	assert.NotEmpty(t, col)
 }

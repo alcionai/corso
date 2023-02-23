@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -36,7 +37,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategoryBadStringEr
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, _, err := validateServiceAndCategoryStrings(test.service, test.category)
-			assert.Error(suite.T(), err)
+			aw.Err(suite.T(), err)
 		})
 	}
 }
@@ -54,25 +55,25 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			name:     "UnknownService",
 			service:  UnknownService.String(),
 			category: EmailCategory.String(),
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			name:     "UnknownCategory",
 			service:  ExchangeService.String(),
 			category: UnknownCategory.String(),
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			name:     "BadServiceString",
 			service:  "foo",
 			category: EmailCategory.String(),
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			name:     "BadCategoryString",
 			service:  ExchangeService.String(),
 			category: "foo",
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			name:             "ExchangeEmail",
@@ -80,7 +81,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			category:         EmailCategory.String(),
 			expectedService:  ExchangeService,
 			expectedCategory: EmailCategory,
-			check:            assert.NoError,
+			check:            aw.NoErr,
 		},
 		{
 			name:             "ExchangeContacts",
@@ -88,7 +89,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			category:         ContactsCategory.String(),
 			expectedService:  ExchangeService,
 			expectedCategory: ContactsCategory,
-			check:            assert.NoError,
+			check:            aw.NoErr,
 		},
 		{
 			name:             "ExchangeEvents",
@@ -96,7 +97,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			category:         EventsCategory.String(),
 			expectedService:  ExchangeService,
 			expectedCategory: EventsCategory,
-			check:            assert.NoError,
+			check:            aw.NoErr,
 		},
 		{
 			name:             "OneDriveFiles",
@@ -104,7 +105,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			category:         FilesCategory.String(),
 			expectedService:  OneDriveService,
 			expectedCategory: FilesCategory,
-			check:            assert.NoError,
+			check:            aw.NoErr,
 		},
 		{
 			name:             "SharePointLibraries",
@@ -112,7 +113,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			category:         LibrariesCategory.String(),
 			expectedService:  SharePointService,
 			expectedCategory: LibrariesCategory,
-			check:            assert.NoError,
+			check:            aw.NoErr,
 		},
 	}
 	for _, test := range table {

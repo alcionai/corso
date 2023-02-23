@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -31,7 +32,7 @@ func (suite *BetaClientSuite) SetupSuite() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.credentials = m365
 }
@@ -44,7 +45,7 @@ func (suite *BetaClientSuite) TestCreateBetaClient() {
 		suite.credentials.AzureClientSecret,
 	)
 
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	client := NewBetaClient(adpt)
 	assert.NotNil(t, client)
@@ -64,7 +65,7 @@ func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 		suite.credentials.AzureClientSecret,
 	)
 
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	client := NewBetaClient(adpt)
 	require.NotNil(t, client)
 
@@ -73,7 +74,7 @@ func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 	collection, err := client.SitesById(siteID).Pages().Get(ctx, nil)
 	// Ensures that the client is able to receive data from beta
 	// Not Registered Error: content type application/json does not have a factory registered to be parsed
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	for _, page := range collection.GetValue() {
 		assert.NotNil(t, page, "betasdk call for page does not return value.")

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -28,7 +29,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	initial := time.Now()
 	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	table := []struct {
 		name     string
@@ -558,7 +559,7 @@ func makeItemPath(
 			category,
 			true,
 		)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return p
 }
@@ -613,7 +614,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ItemType: ExchangeEvent,
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
 					ItemType: ExchangeEvent,
@@ -627,7 +628,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ItemType: ExchangeContact,
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
 					ItemType: ExchangeContact,
@@ -641,7 +642,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 					ItemType: ExchangeMail,
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
 					ItemType: ExchangeMail,
@@ -658,7 +659,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			},
 			repoPath: newOneDrivePath,
 			locPath:  newOneDrivePath,
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedItem: ItemInfo{
 				OneDrive: &OneDriveInfo{
 					ItemType:   OneDriveItem,
@@ -676,7 +677,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			},
 			repoPath: newOneDrivePath,
 			locPath:  newOneDrivePath,
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
 					ItemType:   SharePointItem,
@@ -694,7 +695,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			},
 			repoPath: badOneDrivePath,
 			locPath:  badOneDrivePath,
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "SharePointBadPath",
@@ -706,7 +707,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			},
 			repoPath: badOneDrivePath,
 			locPath:  badOneDrivePath,
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 	}
 

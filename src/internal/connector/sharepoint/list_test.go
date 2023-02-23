@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -21,7 +21,7 @@ func (suite *SharePointSuite) SetupSuite() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.creds = m365
 }
@@ -52,11 +52,11 @@ func (suite *SharePointSuite) TestLoadList() {
 	t := suite.T()
 	service := createTestService(t, suite.creds)
 	tuples, err := preFetchLists(ctx, service, "root")
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	job := []string{tuples[0].id}
 	lists, err := loadSiteLists(ctx, service, "root", job, fault.New(true))
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	assert.Greater(t, len(lists), 0)
 	t.Logf("Length: %d\n", len(lists))
 }

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -44,11 +45,11 @@ func (suite *UploadSessionSuite) TestWriter() {
 		// Extract the Content-Range components
 		matches := contentRangeRegex.FindStringSubmatch(r.Header[contentRangeHeaderKey][0])
 		rangeStart, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("rangestart")])
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 		rangeEnd, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("rangeend")])
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 		length, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("length")])
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 
 		// Validate total size and range start/end
 		assert.Equal(t, int(writeSize), length)
@@ -70,7 +71,7 @@ func (suite *UploadSessionSuite) TestWriter() {
 	copyBuffer := make([]byte, 32*1024)
 
 	size, err := io.CopyBuffer(writer, td, copyBuffer)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	require.Equal(suite.T(), writeSize, size)
 }
 

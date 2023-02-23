@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -28,7 +29,7 @@ import (
 
 func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return p
 }
@@ -111,7 +112,7 @@ func expectFileData(
 	}
 
 	r, err := f.GetReader(ctx)
-	if !assert.NoErrorf(t, err, "getting reader for file: %s", name) {
+	if !aw.NoErr(t, err, "getting reader for file", name) {
 		return
 	}
 
@@ -122,7 +123,7 @@ func expectFileData(
 	}
 
 	got, err := io.ReadAll(r)
-	if !assert.NoErrorf(t, err, "reading data in file: %s", name) {
+	if !assert.NoError(t, err, "reading data in file", name) {
 		return
 	}
 
@@ -203,7 +204,7 @@ func getDirEntriesForEntry(
 	require.True(t, ok, "entry is not a directory")
 
 	entries, err := fs.GetAllEntries(ctx, d)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return entries
 }
@@ -250,13 +251,13 @@ func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
 			name:         "SameVersionSucceeds",
 			readVersion:  42,
 			writeVersion: 42,
-			check:        assert.NoError,
+			check:        aw.NoErr,
 		},
 		{
 			name:         "DifferentVersionsFail",
 			readVersion:  7,
 			writeVersion: 42,
-			check:        assert.Error,
+			check:        aw.Err,
 		},
 	}
 
@@ -303,7 +304,7 @@ func readAllInParts(
 			break
 		}
 
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		read += n
 		res = append(res, tmp[:n]...)
@@ -361,7 +362,7 @@ func (suite *CorsoProgressUnitSuite) SetupSuite() {
 		path.EmailCategory,
 		true,
 	)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	suite.targetFilePath = p
 	suite.targetFileName = suite.targetFilePath.ToBuilder().Dir().String()
@@ -518,7 +519,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 
 	assert.Empty(t, cp.pending)
 	assert.Empty(t, bd.Details().Entries)
-	assert.Error(t, cp.errs.Failure())
+	aw.Err(t, cp.errs.Failure())
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
@@ -724,12 +725,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//         - Inbox
 	//           - 42 separate files
 	dirTree, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 	entries, err := fs.GetAllEntries(ctx, dirTree)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	expectDirs(t, entries, encodeElements(service), true)
 
@@ -820,12 +821,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 			}
 
 			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
 
 			entries, err := fs.GetAllEntries(ctx, dirTree)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			expectDirs(t, entries, encodeElements(service), true)
 
@@ -921,7 +922,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 			t := suite.T()
 
 			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
-			assert.Error(t, err)
+			aw.Err(t, err)
 		})
 	}
 }
@@ -1033,7 +1034,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 			}
 
 			_, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
-			require.Error(t, err)
+			aw.MustErr(t, err)
 		})
 	}
 }
@@ -1317,7 +1318,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				nil,
 				progress,
 			)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			expectTree(t, ctx, test.expected, dirTree)
 		})
@@ -2093,7 +2094,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				test.inputCollections(t),
 				test.inputExcludes,
 				progress)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			expectTree(t, ctx, test.expected, dirTree)
 		})
@@ -2256,7 +2257,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 		collections,
 		nil,
 		progress)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	expectTree(t, ctx, expected, dirTree)
 }
@@ -2360,7 +2361,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 		collections,
 		nil,
 		progress)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	expectTree(t, ctx, expected, dirTree)
 }
@@ -2611,7 +2612,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 		nil,
 		progress,
 	)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	expectTree(t, ctx, expected, dirTree)
 }

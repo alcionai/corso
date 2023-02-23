@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type OneDriveSuite struct {
@@ -73,12 +74,12 @@ func (suite *OneDriveSuite) TestValidateOneDriveBackupCreateFlags() {
 	}{
 		{
 			name:   "no users",
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name:   "users",
 			user:   []string{"fnord"},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 	}
 	for _, test := range table {
@@ -99,7 +100,7 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -116,7 +117,7 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 				test.BackupGetter,
 				"backup-ID",
 				test.Opts)
-			assert.Error(t, err)
+			aw.Err(t, err)
 			assert.Empty(t, output)
 		})
 	}

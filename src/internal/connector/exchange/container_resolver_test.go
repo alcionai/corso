@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -78,7 +79,7 @@ var (
 				displayName: &testName,
 				parentID:    &testParentID,
 			},
-			check: assert.Error,
+			check: aw.Err,
 		},
 		{
 			name: "NilDisplayName",
@@ -87,7 +88,7 @@ var (
 				displayName: nil,
 				parentID:    &testParentID,
 			},
-			check: assert.Error,
+			check: aw.Err,
 		},
 		{
 			name: "EmptyID",
@@ -96,7 +97,7 @@ var (
 				displayName: &testName,
 				parentID:    &testParentID,
 			},
-			check: assert.NoError,
+			check: aw.NoErr,
 		},
 		{
 			name: "EmptyDisplayName",
@@ -105,7 +106,7 @@ var (
 				displayName: &emptyString,
 				parentID:    &testParentID,
 			},
-			check: assert.NoError,
+			check: aw.NoErr,
 		},
 		{
 			name: "AllValues",
@@ -114,7 +115,7 @@ var (
 				displayName: &testName,
 				parentID:    &testParentID,
 			},
-			check: assert.NoError,
+			check: aw.NoErr,
 		},
 	}
 )
@@ -136,7 +137,7 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 				displayName: &testName,
 				parentID:    nil,
 			},
-			check: assert.Error,
+			check: aw.Err,
 		},
 		{
 			name: "EmptyParentFolderID",
@@ -145,7 +146,7 @@ func (suite *FolderCacheUnitSuite) TestCheckRequiredValues() {
 				displayName: &testName,
 				parentID:    &emptyString,
 			},
-			check: assert.NoError,
+			check: aw.NoErr,
 		},
 	}
 
@@ -174,7 +175,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 				},
 				nil,
 				nil),
-			check: assert.Error,
+			check: aw.Err,
 		},
 		{
 			name: "NoParentPath",
@@ -186,7 +187,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 				},
 				path.Builder{}.Append("foo"),
 				path.Builder{}.Append("loc")),
-			check: assert.NoError,
+			check: aw.NoErr,
 		},
 		{
 			name: "NoName",
@@ -198,7 +199,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 				},
 				path.Builder{}.Append("foo"),
 				path.Builder{}.Append("loc")),
-			check: assert.Error,
+			check: aw.Err,
 		},
 		{
 			name: "NoID",
@@ -210,7 +211,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 				},
 				path.Builder{}.Append("foo"),
 				path.Builder{}.Append("loc")),
-			check: assert.Error,
+			check: aw.Err,
 		},
 		{
 			name: "NoPath",
@@ -222,7 +223,7 @@ func (suite *FolderCacheUnitSuite) TestAddFolder() {
 				},
 				nil,
 				nil),
-			check: assert.NoError,
+			check: aw.NoErr,
 		},
 	}
 
@@ -341,12 +342,12 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestDepthLimit() {
 		{
 			name:          "AtLimit",
 			numContainers: maxIterations,
-			check:         assert.NoError,
+			check:         aw.NoErr,
 		},
 		{
 			name:          "OverLimit",
 			numContainers: maxIterations + 1,
-			check:         assert.Error,
+			check:         aw.Err,
 		},
 	}
 
@@ -365,7 +366,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestPopulatePaths() {
 
 	t := suite.T()
 
-	require.NoError(t, suite.fc.populatePaths(ctx, false))
+	aw.MustNoErr(t, suite.fc.populatePaths(ctx, false))
 
 	items := suite.fc.Items()
 	gotPaths := make([]string, 0, len(items))
@@ -389,7 +390,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	for _, c := range suite.allContainers {
 		suite.T().Run(*c.GetDisplayName(), func(t *testing.T) {
 			p, l, err := suite.fc.IDToPath(ctx, c.id, false)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, c.expectedPath, p.String())
 			assert.Equal(t, c.expectedLocation, l.String())
 		})
@@ -403,7 +404,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	for _, c := range suite.containersWithID {
 		suite.T().Run(*c.GetDisplayName(), func(t *testing.T) {
 			p, l, err := suite.fcWithID.IDToPath(ctx, c.id, true)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, c.expectedPath, p.String())
 			assert.Equal(t, c.expectedLocation, l.String())
 		})
@@ -418,14 +419,14 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths()
 	c := suite.allContainers[len(suite.allContainers)-1]
 
 	p, l, err := suite.fc.IDToPath(ctx, c.id, false)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, c.expectedPath, p.String())
 	assert.Equal(t, c.expectedLocation, l.String())
 
 	c.parentID = "foo"
 
 	p, l, err = suite.fc.IDToPath(ctx, c.id, false)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, c.expectedPath, p.String())
 	assert.Equal(t, c.expectedLocation, l.String())
 }
@@ -438,14 +439,14 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderCachesPaths_u
 	c := suite.containersWithID[len(suite.containersWithID)-1]
 
 	p, l, err := suite.fcWithID.IDToPath(ctx, c.id, true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, c.expectedPath, p.String())
 	assert.Equal(t, c.expectedLocation, l.String())
 
 	c.parentID = "foo"
 
 	p, l, err = suite.fcWithID.IDToPath(ctx, c.id, true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, c.expectedPath, p.String())
 	assert.Equal(t, c.expectedLocation, l.String())
 }
@@ -461,7 +462,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsParentN
 	delete(suite.fc.cache, almostLast.id)
 
 	_, _, err := suite.fc.IDToPath(ctx, last.id, false)
-	assert.Error(t, err)
+	aw.Err(t, err)
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsNotFound() {
@@ -471,7 +472,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderErrorsNotFoun
 	t := suite.T()
 
 	_, _, err := suite.fc.IDToPath(ctx, "foo", false)
-	assert.Error(t, err)
+	aw.Err(t, err)
 }
 
 func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
@@ -490,12 +491,12 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	m.expectedLocation = stdpath.Join(last.expectedPath, m.displayName)
 
 	require.Empty(t, suite.fc.DestinationNameToID(dest), "destination not yet added to cache")
-	require.NoError(t, suite.fc.AddToCache(ctx, m, false))
+	aw.MustNoErr(t, suite.fc.AddToCache(ctx, m, false))
 	require.Empty(t, suite.fc.DestinationNameToID(dest),
 		"destination id from cache, still empty, because this is not a calendar")
 
 	p, l, err := suite.fc.IDToPath(ctx, m.id, false)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, m.expectedPath, p.String())
 	assert.Equal(t, m.expectedLocation, l.String())
 }
@@ -525,7 +526,7 @@ func (suite *FolderCacheIntegrationSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.credentials = m365
 
@@ -533,11 +534,11 @@ func (suite *FolderCacheIntegrationSuite) SetupSuite() {
 		m365.AzureTenantID,
 		m365.AzureClientID,
 		m365.AzureClientSecret)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.gs = graph.NewService(adpt)
 
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 }
 
 // Testing to ensure that cache system works for in multiple different environments
@@ -547,7 +548,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 
 	a := tester.NewM365Account(suite.T())
 	m365, err := a.M365Config()
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	var (
 		user            = tester.M365UserID(suite.T())
@@ -573,7 +574,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 							user,
 							path.EmailCategory,
 							false)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					return pth
 				},
@@ -586,7 +587,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 							user,
 							path.EmailCategory,
 							false)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					return pth
 				},
@@ -602,7 +603,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 							user,
 							path.ContactsCategory,
 							false)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					return aPath
 				},
@@ -614,7 +615,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 							user,
 							path.ContactsCategory,
 							false)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					return aPath
 				},
@@ -631,7 +632,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 							user,
 							path.EventsCategory,
 							false)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					return aPath
 				},
@@ -643,7 +644,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 							user,
 							path.EventsCategory,
 							false)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					return aPath
 				},
@@ -660,12 +661,12 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				folderName,
 				directoryCaches,
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			resolver := directoryCaches[test.category]
 
 			_, _, err = resolver.IDToPath(ctx, folderID, test.useIDForPath)
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 
 			parentContainer := folderName
 			if test.useIDForPath {
@@ -679,10 +680,10 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				parentContainer,
 				directoryCaches,
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			_, _, err = resolver.IDToPath(ctx, secondID, test.useIDForPath)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			p := stdpath.Join(test.folderPrefix, parentContainer)
 			_, ok := resolver.PathInCache(p)

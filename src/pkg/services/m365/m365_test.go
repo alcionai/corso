@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -34,7 +35,7 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	)
 
 	users, err := Users(ctx, acct, fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	require.NotNil(t, users)
 	require.Greater(t, len(users), 0)
 

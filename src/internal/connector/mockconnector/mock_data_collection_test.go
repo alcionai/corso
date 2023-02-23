@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -35,7 +36,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 
 	for item := range mdc.Items(ctx, fault.New(true)) {
 		_, err := io.ReadAll(item.ToReader())
-		assert.NoError(suite.T(), err)
+		aw.NoErr(suite.T(), err)
 		messagesRead++
 	}
 
@@ -52,7 +53,7 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 
 	for item := range mdc.Items(ctx, fault.New(true)) {
 		buf, err := io.ReadAll(item.ToReader())
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 
 		assert.Implements(t, (*data.StreamSize)(nil), item)
 		s := item.(data.StreamSize)
@@ -72,11 +73,11 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchange
 
 	for stream := range mdc.Items(ctx, fault.New(true)) {
 		_, err := buf.ReadFrom(stream.ToReader())
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 
 		byteArray := buf.Bytes()
 		something, err := support.CreateFromBytes(byteArray, models.CreateMessageFromDiscriminatorValue)
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 		assert.NotNil(t, something)
 	}
 }
@@ -104,7 +105,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 				ID:     id,
 				Reader: io.NopCloser(bytes.NewReader(itemData)),
 			},
-			check: require.NoError,
+			check: aw.MustNoErr,
 		},
 		{
 			name: "Error",
@@ -112,7 +113,7 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 				ID:      id,
 				ReadErr: assert.AnError,
 			},
-			check: require.Error,
+			check: aw.MustErr,
 		},
 	}
 
@@ -192,10 +193,10 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 				temp := mockconnector.GetMockList(subject, "Artist", emptyMap)
 				writer := kioser.NewJsonSerializationWriter()
 				err := writer.WriteObjectValue("", temp)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				bytes, err := writer.GetSerializedContent()
-				require.NoError(suite.T(), err)
+				aw.MustNoErr(suite.T(), err)
 
 				_, err = support.CreateListFromBytes(bytes)
 
@@ -206,7 +207,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 			name: "SharePoint: List 6 Items",
 			transformation: func(t *testing.T) error {
 				bytes, err := mockconnector.GetMockListBytes(subject)
-				require.NoError(suite.T(), err)
+				aw.MustNoErr(suite.T(), err)
 				_, err = support.CreateListFromBytes(bytes)
 				return err
 			},
@@ -225,7 +226,7 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			err := test.transformation(t)
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 		})
 	}
 }

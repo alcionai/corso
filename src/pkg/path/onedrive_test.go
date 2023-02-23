@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -28,25 +28,25 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 		{
 			name:         "Not enough path elements",
 			pathElements: []string{"drive", "driveID"},
-			errCheck:     assert.Error,
+			errCheck:     aw.Err,
 		},
 		{
 			name:         "Root path",
 			pathElements: []string{"drive", "driveID", "root:"},
 			expected:     &path.DrivePath{DriveID: "driveID", Folders: []string{}},
-			errCheck:     assert.NoError,
+			errCheck:     aw.NoErr,
 		},
 		{
 			name:         "Deeper path",
 			pathElements: []string{"drive", "driveID", "root:", "folder1", "folder2"},
 			expected:     &path.DrivePath{DriveID: "driveID", Folders: []string{"folder1", "folder2"}},
-			errCheck:     assert.NoError,
+			errCheck:     aw.NoErr,
 		},
 	}
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			p, err := path.Builder{}.Append(tt.pathElements...).ToDataLayerOneDrivePath("tenant", "user", false)
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			got, err := path.ToOneDrivePath(p)
 			tt.errCheck(t, err)

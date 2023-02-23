@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -56,10 +57,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	adapter, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.client = msgraphsdk.NewGraphServiceClient(adapter)
 	suite.adapter = adapter
@@ -68,7 +69,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	// and guarateed drive read-write access)
 	// suite.site = tester.M365SiteID(t)
 	// spDrives, err := drives(ctx, suite, suite.site, SharePointSource)
-	// require.NoError(t, err)
+	// aw.MustNoErr(t, err)
 	// // Test Requirement 1: Need a drive
 	// require.Greaterf(t, len(spDrives), 0, "site %s does not have a drive", suite.site)
 
@@ -78,10 +79,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.user = tester.SecondaryM365UserID(t)
 
 	pager, err := PagerForSource(OneDriveSource, suite, suite.user, nil)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	odDrives, err := drives(ctx, pager, true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
 
@@ -132,7 +133,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		map[string]string{},
 		"",
 		fault.New(true))
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
@@ -146,12 +147,12 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	// Read data for the file
 	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.HTTPClient(graph.NoTimeout()), driveItem)
 
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)
 
 	size, err := io.Copy(io.Discard, itemData)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	require.NotZero(suite.T(), size)
 	require.Equal(suite.T(), size, itemInfo.OneDrive.Size)
 	suite.T().Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
@@ -180,17 +181,17 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			defer flush()
 
 			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			// Test Requirement 2: "Test Folder" should exist
 			folder, err := getFolder(ctx, suite, test.driveID, *root.GetId(), "Test Folder")
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
 			suite.T().Logf("Test will create folder %s", newFolderName)
 
 			newFolder, err := createItem(ctx, suite, test.driveID, *folder.GetId(), newItem(newFolderName, true))
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			require.NotNil(suite.T(), newFolder.GetId())
 
@@ -198,20 +199,20 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			suite.T().Logf("Test will create item %s", newItemName)
 
 			newItem, err := createItem(ctx, suite, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			require.NotNil(suite.T(), newItem.GetId())
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
 			_, err = getFolder(ctx, suite, test.driveID, *newFolder.GetId(), newItemName)
-			require.ErrorIs(suite.T(), err, errFolderNotFound)
+			aw.MustErrIs(suite.T(), err, errFolderNotFound)
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
 			w, err := driveItemWriter(ctx, suite, test.driveID, *newItem.GetId(), writeSize)
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
 			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
@@ -219,7 +220,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			copyBuffer := make([]byte, 32*1024)
 
 			size, err := io.CopyBuffer(w, td, copyBuffer)
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			require.Equal(suite.T(), writeSize, size)
 		})
@@ -251,15 +252,15 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			defer flush()
 
 			root, err := suite.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 
 			// Lookup a folder that doesn't exist
 			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "FolderDoesNotExist")
-			require.ErrorIs(suite.T(), err, errFolderNotFound)
+			aw.MustErrIs(suite.T(), err, errFolderNotFound)
 
 			// Lookup a folder that does exist
 			_, err = getFolder(ctx, suite, test.driveID, *root.GetId(), "")
-			require.NoError(suite.T(), err)
+			aw.MustNoErr(suite.T(), err)
 		})
 	}
 }

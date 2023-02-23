@@ -6,11 +6,11 @@ import (
 	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type DataSupportSuite struct {
@@ -38,13 +38,13 @@ func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
 		{
 			name:        "Empty Bytes",
 			byteArray:   make([]byte, 0),
-			checkError:  assert.Error,
+			checkError:  aw.Err,
 			checkObject: assert.Nil,
 		},
 		{
 			name:        "aMessage bytes",
 			byteArray:   mockconnector.GetMockMessageBytes("m365 mail support test"),
-			checkError:  assert.NoError,
+			checkError:  aw.NoErr,
 			checkObject: assert.NotNil,
 		},
 	}
@@ -69,19 +69,19 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 		{
 			name:       empty,
 			byteArray:  make([]byte, 0),
-			checkError: assert.Error,
+			checkError: aw.Err,
 			isNil:      assert.Nil,
 		},
 		{
 			name:       invalid,
 			byteArray:  []byte("A random sentence doesn't make an object"),
-			checkError: assert.Error,
+			checkError: aw.Err,
 			isNil:      assert.Nil,
 		},
 		{
 			name:       "Valid Contact",
 			byteArray:  mockconnector.GetMockContactBytes("Support Test"),
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			isNil:      assert.NotNil,
 		},
 	}
@@ -104,19 +104,19 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 		{
 			name:       empty,
 			byteArray:  make([]byte, 0),
-			checkError: assert.Error,
+			checkError: aw.Err,
 			isNil:      assert.Nil,
 		},
 		{
 			name:       invalid,
 			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
-			checkError: assert.Error,
+			checkError: aw.Err,
 			isNil:      assert.Nil,
 		},
 		{
 			name:       "Valid Event",
 			byteArray:  mockconnector.GetDefaultMockEventBytes("Event Test"),
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			isNil:      assert.NotNil,
 		},
 	}
@@ -131,7 +131,7 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 
 func (suite *DataSupportSuite) TestCreateListFromBytes() {
 	listBytes, err := mockconnector.GetMockListBytes("DataSupportSuite")
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	tests := []struct {
 		name       string
@@ -142,19 +142,19 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 		{
 			name:       empty,
 			byteArray:  make([]byte, 0),
-			checkError: assert.Error,
+			checkError: aw.Err,
 			isNil:      assert.Nil,
 		},
 		{
 			name:       invalid,
 			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
-			checkError: assert.Error,
+			checkError: aw.Err,
 			isNil:      assert.Nil,
 		},
 		{
 			name:       "Valid List",
 			byteArray:  listBytes,
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			isNil:      assert.NotNil,
 		},
 	}
@@ -177,7 +177,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 	}{
 		{
 			empty,
-			assert.Error,
+			aw.Err,
 			assert.Nil,
 			func(t *testing.T) []byte {
 				return make([]byte, 0)
@@ -185,7 +185,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 		},
 		{
 			invalid,
-			assert.Error,
+			aw.Err,
 			assert.Nil,
 			func(t *testing.T) []byte {
 				return []byte("snarf")
@@ -193,7 +193,7 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 		},
 		{
 			"Valid Page",
-			assert.NoError,
+			aw.NoErr,
 			assert.NotNil,
 			func(t *testing.T) []byte {
 				pg := bmodels.NewSitePage()
@@ -204,10 +204,10 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 
 				writer := kioser.NewJsonSerializationWriter()
 				err := pg.Serialize(writer)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				byteArray, err := writer.GetSerializedContent()
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				return byteArray
 			},
@@ -239,7 +239,7 @@ func (suite *DataSupportSuite) TestHasAttachments() {
 					"This is testing",
 				)
 				message, err := CreateMessageFromBytes(byteArray)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 				return message.GetBody()
 			},
 		},
@@ -249,7 +249,7 @@ func (suite *DataSupportSuite) TestHasAttachments() {
 			getBodyable: func(t *testing.T) models.ItemBodyable {
 				byteArray := mockconnector.GetMessageWithOneDriveAttachment("Test legacy")
 				message, err := CreateMessageFromBytes(byteArray)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 				return message.GetBody()
 			},
 		},

@@ -8,9 +8,9 @@ import (
 
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -159,7 +159,7 @@ func GetMockListBytes(title string) ([]byte, error) {
 // of the Mocked SharePoint List
 func GetMockListStream(t *testing.T, title string, numOfItems int) *MockListData {
 	byteArray, err := GetMockListBytes(title)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	listData := &MockListData{
 		ID:     title,

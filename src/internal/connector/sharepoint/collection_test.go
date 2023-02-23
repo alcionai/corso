@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -37,7 +38,7 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 	suite.siteID = tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.creds = m365
 }
@@ -61,7 +62,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 		data: io.NopCloser(bytes.NewReader(m)),
 	}
 	readData, err := io.ReadAll(sc.ToReader())
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	assert.Equal(t, name, sc.id)
 	assert.Equal(t, readData, m)
@@ -91,7 +92,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 						user,
 						path.ListsCategory,
 						false)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				return dir
 			},
@@ -101,10 +102,10 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				listing.SetDisplayName(&name)
 
 				err := ow.WriteObjectValue("", listing)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				byteArray, err := ow.GetSerializedContent()
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				data := &Item{
 					id:   name,
@@ -126,14 +127,14 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 						user,
 						path.PagesCategory,
 						false)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				return dir
 			},
 			getItem: func(t *testing.T, itemName string) *Item {
 				byteArray := mockconnector.GetMockPage(itemName)
 				page, err := support.CreatePageFromBytes(byteArray)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				data := &Item{
 					id:   itemName,
@@ -183,7 +184,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 	byteArray, err := service.Serialize(listing)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	listData := &Item{
 		id:   testName,
@@ -194,7 +195,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
 	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
 
 	// Clean-Up
@@ -206,7 +207,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	for {
 		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "getting site lists")
+		aw.NoErr(t, err, "getting site lists")
 
 		for _, temp := range resp.GetValue() {
 			if *temp.GetDisplayName() == deets.SharePoint.ItemName {
@@ -227,7 +228,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	if isFound {
 		err := DeleteList(ctx, service, suite.siteID, deleteID)
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 	}
 }
 
@@ -242,17 +243,17 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	service := createTestService(t, suite.creds)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	t.Log("FolderID: " + folderID)
 
 	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 
 	// CleanUp
 	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	driveID := *siteDrive.GetId()
 	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 }

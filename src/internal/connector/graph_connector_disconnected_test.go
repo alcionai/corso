@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -53,7 +53,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 						AzureTenantID: "data",
 					},
 				)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 				return a
 			},
 		},
@@ -139,14 +139,14 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 	}{
 		{
 			name:       "No scopes",
-			checkError: assert.Error,
+			checkError: aw.Err,
 			getSelector: func(t *testing.T) selectors.Selector {
 				return selectors.NewExchangeBackup(nil).Selector
 			},
 		},
 		{
 			name:       "Valid Single User",
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup([]string{"bobKelso@someHospital.org"})
 				sel.Include(sel.MailFolders(selectors.Any()))
@@ -155,7 +155,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 		},
 		{
 			name:       "Partial invalid user",
-			checkError: assert.Error,
+			checkError: aw.Err,
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup([]string{"bobkelso@someHospital.org", "janitor@someHospital.org"})
 				sel.Include(sel.MailFolders(selectors.Any()))
@@ -165,7 +165,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs() {
 		},
 		{
 			name:       "Invalid discrete owner",
-			checkError: assert.Error,
+			checkError: aw.Err,
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"janitor@someHospital.org"})
 				sel.Include(sel.AllData())
@@ -195,7 +195,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 	}{
 		{
 			name:       "Valid User",
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"elliotReid@someHospital.org", "foo@SomeCompany.org"})
 				sel.Exclude(sel.Folders(selectors.Any()))
@@ -217,7 +217,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 		},
 		{
 			name:       "Invalid User",
-			checkError: assert.Error,
+			checkError: aw.Err,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{"foo@SomeCompany.org"})
 				sel.Exclude(sel.Folders(selectors.Any()))
@@ -236,7 +236,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 		},
 		{
 			name:       "valid sites",
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
 				sel.DiscreteOwner = "abc.site.foo"
@@ -258,7 +258,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 		},
 		{
 			name:       "invalid sites",
-			checkError: assert.Error,
+			checkError: aw.Err,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
 				sel.Exclude(sel.AllData())

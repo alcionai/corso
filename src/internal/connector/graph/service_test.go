@@ -7,10 +7,10 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -27,7 +27,7 @@ func (suite *GraphUnitSuite) SetupSuite() {
 	t := suite.T()
 	a := tester.NewMockM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.credentials = m365
 }
@@ -39,7 +39,7 @@ func (suite *GraphUnitSuite) TestCreateAdapter() {
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret)
 
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	assert.NotNil(t, adpt)
 }
 
@@ -79,7 +79,7 @@ func (suite *GraphUnitSuite) TestSerializationEndPoint() {
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	serv := NewService(adpt)
 	email := models.NewMessage()
@@ -87,7 +87,7 @@ func (suite *GraphUnitSuite) TestSerializationEndPoint() {
 	email.SetSubject(&subject)
 
 	byteArray, err := serv.Serialize(email)
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	assert.NotNil(t, byteArray)
 	t.Log(string(byteArray))
 }

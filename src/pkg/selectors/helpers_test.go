@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -189,7 +189,7 @@ func stubPath(t *testing.T, user string, s []string, cat path.CategoryType) path
 	pth, err := path.Builder{}.
 		Append(s...).
 		ToDataLayerExchangePathForCategory("tid", user, cat, true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return pth
 }

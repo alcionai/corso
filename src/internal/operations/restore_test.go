@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -57,7 +58,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	}{
 		{
 			expectStatus: Completed,
-			expectErr:    assert.NoError,
+			expectErr:    aw.NoErr,
 			stats: restoreStats{
 				resourceCount: 1,
 				bytesRead: &stats.ByteCounter{
@@ -78,7 +79,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		},
 		{
 			expectStatus: Failed,
-			expectErr:    assert.Error,
+			expectErr:    aw.Err,
 			fail:         assert.AnError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
@@ -87,7 +88,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		},
 		{
 			expectStatus: NoData,
-			expectErr:    assert.NoError,
+			expectErr:    aw.NoErr,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.RestoreCollection{},
@@ -107,7 +108,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			op.Errors.Fail(test.fail)
 
@@ -163,19 +164,19 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+	aw.MustNoErr(t, k.Initialize(ctx))
 
 	suite.kopiaCloser = func(ctx context.Context) {
 		k.Close(ctx)
 	}
 
 	kw, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.kw = kw
 
 	ms, err := kopia.NewModelStore(k)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.ms = ms
 
@@ -200,8 +201,8 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		acct,
 		bsel.Selector,
 		evmock.NewBus())
-	require.NoError(t, err)
-	require.NoError(t, bo.Run(ctx))
+	aw.MustNoErr(t, err)
+	aw.MustNoErr(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results.BackupID)
 
 	suite.backupID = bo.Results.BackupID
@@ -242,9 +243,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, acct, nil, aw.NoErr},
+		{"missing kopia", control.Options{}, nil, sw, acct, nil, aw.Err},
+		{"missing modelstore", control.Options{}, kw, nil, acct, nil, aw.Err},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -289,11 +290,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		rsel.Selector,
 		dest,
 		mb)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	ds, err := ro.Run(ctx)
 
-	require.NoError(t, err, "restoreOp.Run()")
+	aw.MustNoErr(t, err, "restoreOp.Run()")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	require.NotNil(t, ds, "restored details")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
@@ -302,7 +303,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
 	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
+	aw.NoErr(t, ro.Errors.Failure(), "non-recoverable error")
 	assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
@@ -331,10 +332,10 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		rsel.Selector,
 		dest,
 		mb)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	ds, err := ro.Run(ctx)
-	require.Error(t, err, "restoreOp.Run() should have errored")
+	aw.MustErr(t, err, "restoreOp.Run() should have errored")
 	require.Nil(t, ds, "restoreOp.Run() should not produce details")
 	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
 	assert.Zero(t, ro.Results.BytesRead, "bytes read")

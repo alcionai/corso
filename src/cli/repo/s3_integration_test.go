@@ -3,13 +3,12 @@ package repo_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -55,7 +54,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 
 			st := tester.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -69,12 +68,12 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			aw.MustNoErr(t, cmd.ExecuteContext(ctx))
 
 			// a second initialization should result in an error
 			err = cmd.ExecuteContext(ctx)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists)
+			aw.Err(t, err)
+			aw.ErrIs(t, err, repository.ErrorRepoAlreadyExists)
 		})
 	}
 }
@@ -87,7 +86,7 @@ func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -104,7 +103,7 @@ func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 		cli.BuildCommandTree(cmd)
 
 		// run the command
-		require.NoError(t, cmd.ExecuteContext(ctx))
+		aw.MustNoErr(t, cmd.ExecuteContext(ctx))
 	}
 }
 
@@ -116,7 +115,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -129,7 +128,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.Error(t, cmd.ExecuteContext(ctx))
+	aw.MustErr(t, cmd.ExecuteContext(ctx))
 }
 
 func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
@@ -154,7 +153,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 
 			st := tester.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			force := map[string]string{
 				tester.TestCfgAccountProvider: "M365",
@@ -167,7 +166,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 
 			// init the repo first
 			_, err = repository.Initialize(ctx, account.Account{}, st, control.Options{})
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			// then test it
 			cmd := tester.StubRootCmd(
@@ -179,7 +178,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			assert.NoError(t, cmd.ExecuteContext(ctx))
+			aw.NoErr(t, cmd.ExecuteContext(ctx))
 		})
 	}
 }
@@ -192,7 +191,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -206,7 +205,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.Error(t, cmd.ExecuteContext(ctx))
+	aw.MustErr(t, cmd.ExecuteContext(ctx))
 }
 
 func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
@@ -217,7 +216,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -231,5 +230,5 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.Error(t, cmd.ExecuteContext(ctx))
+	aw.MustErr(t, cmd.ExecuteContext(ctx))
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -117,7 +118,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					ps = append(ps, p)
 				}
 
@@ -140,7 +141,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					ps = append(ps, p)
 				}
 
@@ -168,10 +169,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					ps = append(ps, p)
 					p, err = contactPath.Append(f, true)
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					ps = append(ps, p)
 				}
 
@@ -199,10 +200,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					ps = append(ps, p)
 					p, err = contactPath.Append(f, true)
-					assert.NoError(t, err)
+					aw.NoErr(t, err)
 					ps = append(ps, p)
 				}
 
@@ -227,7 +228,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			}
 
 			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
-			assert.ErrorIs(t, err, test.expectErr)
+			aw.ErrIs(t, err, test.expectErr)
 		})
 	}
 }
@@ -254,7 +255,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					},
 				},
 			},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name: "one incomplete manifest",
@@ -263,7 +264,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					Manifest: &snapshot.Manifest{IncompleteReason: "ir"},
 				},
 			},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name: "one manifest, multiple reasons",
@@ -284,7 +285,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					},
 				},
 			},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name: "one manifest, duplicate reasons",
@@ -305,7 +306,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					},
 				},
 			},
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name: "two manifests, non-overlapping reasons",
@@ -331,7 +332,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					},
 				},
 			},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name: "two manifests, overlapping reasons",
@@ -357,7 +358,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					},
 				},
 			},
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name: "two manifests, overlapping reasons, one snapshot incomplete",
@@ -383,7 +384,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 					},
 				},
 			},
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 	}
 	for _, test := range table {
@@ -446,7 +447,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.False,
 			expectDCS: nil,
 		},
@@ -459,7 +460,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.False,
 			expectDCS: nil,
 		},
@@ -472,7 +473,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.False,
 			expectDCS: nil,
 		},
@@ -485,7 +486,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.Error,
+			assertErr: aw.Err,
 			assertB:   assert.False,
 			expectDCS: nil,
 		},
@@ -501,7 +502,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError, // No error, even though verify failed.
+			assertErr: aw.NoErr, // No error, even though verify failed.
 			assertB:   assert.False,
 			expectDCS: nil,
 		},
@@ -514,7 +515,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.True,
 			expectDCS: nil,
 		},
@@ -530,7 +531,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.True,
 			expectDCS: nil,
 		},
@@ -545,7 +546,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:           mockGetDetailsIDer{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
-			assertErr:     assert.Error,
+			assertErr:     aw.Err,
 			assertB:       assert.False,
 			expectNilMans: true,
 		},
@@ -558,7 +559,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.False,
 		},
 		{
@@ -576,7 +577,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id_coll"}},
 		},
@@ -591,7 +592,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id_coll"}},
 		},
@@ -610,7 +611,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:       mockGetDetailsIDer{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
-			assertErr: assert.NoError,
+			assertErr: aw.NoErr,
 			assertB:   assert.True,
 			expectDCS: []mockColl{
 				{id: "mail_coll"},
@@ -626,7 +627,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			gdi:           mockGetDetailsIDer{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
-			assertErr:     assert.Error,
+			assertErr:     aw.Err,
 			assertB:       assert.False,
 			expectDCS:     nil,
 			expectNilMans: true,
@@ -733,7 +734,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 		},
 		{
 			name: "MultipleManifestsDistinctReason",
@@ -763,7 +764,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 		},
 		{
 			name: "MultipleManifestsSameReason",
@@ -793,7 +794,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "MultipleManifestsSameReasonOneIncomplete",
@@ -824,7 +825,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 		},
 	}
 
@@ -952,7 +953,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
 			mr := &mockRestorer{}
 
 			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 
 			checkPaths(t, test.expected, mr.gotPaths)
 		})

@@ -5,13 +5,13 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -37,7 +37,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.credentials = m365
 
@@ -45,7 +45,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 		m365.AzureTenantID,
 		m365.AzureClientID,
 		m365.AzureClientSecret)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.gs = graph.NewService(adpt)
 }
@@ -59,22 +59,22 @@ func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
 		{
 			name:       "Empty Literal",
 			params:     []string{},
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 		},
 		{
 			name:       "Invalid Parameter",
 			params:     []string{"status"},
-			checkError: assert.Error,
+			checkError: aw.Err,
 		},
 		{
 			name:       "Invalid Parameters",
 			params:     []string{"status", "height", "month"},
-			checkError: assert.Error,
+			checkError: aw.Err,
 		},
 		{
 			name:       "Valid Parameters",
 			params:     []string{"changeKey", "events", "owner"},
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 		},
 	}
 	for _, test := range tests {
@@ -98,19 +98,19 @@ func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 		{
 			name:       "Valid Folder Option",
 			params:     []string{"parentFolderId"},
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			expected:   2,
 		},
 		{
 			name:       "Multiple Folder Options: Valid",
 			params:     []string{"displayName", "isHidden"},
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			expected:   3,
 		},
 		{
 			name:       "Invalid Folder option param",
 			params:     []string{"status"},
-			checkError: assert.Error,
+			checkError: aw.Err,
 		},
 	}
 	for _, test := range tests {
@@ -135,19 +135,19 @@ func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 		{
 			name:       "Valid Contact Option",
 			params:     []string{"displayName"},
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			expected:   2,
 		},
 		{
 			name:       "Multiple Contact Options: Valid",
 			params:     []string{"displayName", "parentFolderId"},
-			checkError: assert.NoError,
+			checkError: aw.NoErr,
 			expected:   3,
 		},
 		{
 			name:       "Invalid Contact Option param",
 			params:     []string{"status"},
-			checkError: assert.Error,
+			checkError: aw.Err,
 		},
 	}
 	for _, test := range tests {
@@ -180,7 +180,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 					"This is testing",
 				)
 				message, err := support.CreateMessageFromBytes(byteArray)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 				return message.GetBody()
 			},
 		},
@@ -190,7 +190,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 			getBodyable: func(t *testing.T) models.ItemBodyable {
 				byteArray := mockconnector.GetMessageWithOneDriveAttachment("Test legacy")
 				message, err := support.CreateMessageFromBytes(byteArray)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 				return message.GetBody()
 			},
 		},

@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
@@ -30,7 +30,7 @@ var goodM365Config = account.M365Config{
 func (suite *M365CfgSuite) TestM365Config_Config() {
 	m365 := goodM365Config
 	c, err := m365.StringConfig()
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	table := []struct {
 		key    string
@@ -50,9 +50,9 @@ func (suite *M365CfgSuite) TestAccount_M365Config() {
 
 	in := goodM365Config
 	a, err := account.NewAccount(account.ProviderM365, in)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	out, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	assert.Equal(t, in.AzureClientID, out.AzureClientID)
 	assert.Equal(t, in.AzureClientSecret, out.AzureClientSecret)
@@ -82,7 +82,7 @@ func (suite *M365CfgSuite) TestAccount_M365Config_InvalidCases() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			_, err := account.NewAccount(account.ProviderUnknown, test.cfg)
-			assert.Error(t, err)
+			aw.Err(t, err)
 		})
 	}
 
@@ -113,10 +113,10 @@ func (suite *M365CfgSuite) TestAccount_M365Config_InvalidCases() {
 	for _, test := range table2 {
 		suite.T().Run(test.name, func(t *testing.T) {
 			st, err := account.NewAccount(account.ProviderUnknown, goodM365Config)
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 			test.amend(st)
 			_, err = st.M365Config()
-			assert.Error(t, err)
+			aw.Err(t, err)
 		})
 	}
 }

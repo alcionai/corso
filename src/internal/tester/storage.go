@@ -3,8 +3,7 @@ package tester
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -27,7 +26,7 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 	now := LogTimeOfTest(t)
 
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "configuring storage from test file")
+	aw.MustNoErr(t, err, "configuring storage from test file")
 
 	prefix := testRepoRootPrefix + t.Name() + "-" + now
 	t.Logf("testing at s3 bucket [%s] prefix [%s]", cfg[TestCfgBucket], prefix)
@@ -43,7 +42,7 @@ func NewPrefixedS3Storage(t *testing.T) storage.Storage {
 			KopiaCfgDir: t.TempDir(),
 		},
 	)
-	require.NoError(t, err, "creating storage")
+	aw.MustNoErr(t, err, "creating storage")
 
 	return st
 }

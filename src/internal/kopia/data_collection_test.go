@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -41,7 +42,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 		path.EmailCategory,
 		false,
 	)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	c := kopiaDataCollection{
 		streams: []data.Stream{},
@@ -112,7 +113,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 				assert.Equal(t, returnedStream.UUID(), uuids[count])
 
 				buf, err := io.ReadAll(returnedStream.ToReader())
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 				assert.Equal(t, buf, testData[count])
 				require.Implements(t, (*data.StreamSize)(nil), returnedStream)
 				ss := returnedStream.(data.StreamSize)
@@ -217,7 +218,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 		category,
 		false,
 	)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	table := []struct {
 		name                      string
@@ -233,28 +234,28 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 			inputName:                 noErrFileName,
 			inputSerializationVersion: serializationVersion,
 			expectedData:              []byte(noErrFileData),
-			lookupErr:                 assert.NoError,
-			readErr:                   assert.NoError,
+			lookupErr:                 aw.NoErr,
+			readErr:                   aw.NoErr,
 		},
 		{
 			name:                      "FileFound_ReadError",
 			inputName:                 errFileName,
 			inputSerializationVersion: serializationVersion,
-			lookupErr:                 assert.NoError,
-			readErr:                   assert.Error,
+			lookupErr:                 aw.NoErr,
+			readErr:                   aw.Err,
 		},
 		{
 			name:                      "FileFound_VersionError",
 			inputName:                 noErrFileName,
 			inputSerializationVersion: serializationVersion + 1,
-			lookupErr:                 assert.NoError,
-			readErr:                   assert.Error,
+			lookupErr:                 aw.NoErr,
+			readErr:                   aw.Err,
 		},
 		{
 			name:                      "FileNotFound",
 			inputName:                 "foo",
 			inputSerializationVersion: serializationVersion + 1,
-			lookupErr:                 assert.Error,
+			lookupErr:                 aw.Err,
 			notFoundErr:               true,
 		},
 	}
@@ -276,7 +277,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 
 			if err != nil {
 				if test.notFoundErr {
-					assert.ErrorIs(t, err, data.ErrNotFound)
+					aw.ErrIs(t, err, data.ErrNotFound)
 				}
 
 				return

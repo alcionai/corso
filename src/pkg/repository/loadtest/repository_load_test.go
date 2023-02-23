@@ -15,6 +15,7 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -98,7 +99,7 @@ func initM365Repo(t *testing.T) (
 	}
 
 	repo, err := repository.Initialize(ctx, ac, st, opts)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return ctx, repo, ac, st
 }
@@ -120,7 +121,7 @@ func runLoadTest(
 	//revive:enable:context-as-argument
 	t.Run(prefix+"_load_test_main", func(t *testing.T) {
 		b, err := r.NewBackup(ctx, bupSel)
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
 		bid := string(b.Results.BackupID)
@@ -152,7 +153,7 @@ func runRestoreLoadTest(
 		dest := tester.DefaultTestRestoreDestination()
 
 		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		doRestoreLoadTest(t, ctx, rst, service, bup.Results.ItemsWritten, usersUnderTest)
 	})
@@ -177,7 +178,7 @@ func runBackupLoadTest(
 			err = b.Run(ctx)
 		})
 
-		require.NoError(t, err, "running backup")
+		aw.MustNoErr(t, err, "running backup")
 		require.NotEmpty(t, b.Results, "has results after run")
 		assert.NotEmpty(t, b.Results.BackupID, "has an ID after run")
 		assert.Equal(t, b.Status, operations.Completed, "backup status")
@@ -185,7 +186,7 @@ func runBackupLoadTest(
 		assert.Less(t, 0, b.Results.ItemsWritten, "items written")
 		assert.Less(t, int64(0), b.Results.BytesUploaded, "bytes uploaded")
 		assert.Equal(t, len(users), b.Results.ResourceOwners, "resource owners")
-		assert.NoError(t, b.Errors.Failure(), "non-recoverable error")
+		aw.NoErr(t, b.Errors.Failure(), "non-recoverable error")
 		assert.Empty(t, b.Errors.Recovered(), "recoverable errors")
 	})
 }
@@ -209,7 +210,7 @@ func runBackupListLoadTest(
 			bs, err = r.BackupsByTag(ctx)
 		})
 
-		require.NoError(t, err, "retrieving backups")
+		aw.MustNoErr(t, err, "retrieving backups")
 		require.Less(t, 0, len(bs), "at least one backup is recorded")
 
 		var found bool
@@ -250,7 +251,7 @@ func runBackupDetailsLoadTest(
 			ds, b, errs = r.BackupDetails(ctx, backupID)
 		})
 
-		require.NoError(t, errs.Failure(), "retrieving details in backup "+backupID)
+		aw.MustNoErr(t, errs.Failure(), "retrieving details in backup "+backupID)
 		require.Empty(t, errs.Recovered(), "retrieving details in backup "+backupID)
 		require.NotNil(t, ds, "backup details must exist")
 		require.NotNil(t, b, "backup must exist")
@@ -284,7 +285,7 @@ func doRestoreLoadTest(
 			ds, err = r.Run(ctx)
 		})
 
-		require.NoError(t, err, "running restore")
+		aw.MustNoErr(t, err, "running restore")
 		require.NotEmpty(t, r.Results, "has results after run")
 		require.NotNil(t, ds, "has restored details")
 		assert.Equal(t, r.Status, operations.Completed, "restore status")
@@ -292,7 +293,7 @@ func doRestoreLoadTest(
 		assert.Less(t, 0, r.Results.ItemsRead, "items read")
 		assert.Less(t, 0, r.Results.ItemsWritten, "items written")
 		assert.Equal(t, len(users), r.Results.ResourceOwners, "resource owners")
-		assert.NoError(t, r.Errors.Failure(), "non-recoverable error")
+		aw.NoErr(t, r.Errors.Failure(), "non-recoverable error")
 		assert.Empty(t, r.Errors.Recovered(), "recoverable errors")
 		assert.Equal(t, expectItemCount, r.Results.ItemsWritten, "backup and restore wrote the same count of items")
 
@@ -338,7 +339,7 @@ func ensureAllUsersInDetails(
 			rr := e.RepoRef
 
 			p, err := path.FromDataLayerPath(rr, true)
-			if !assert.NoError(t, err, "converting to path: "+rr) {
+			if !aw.NoErr(t, err, "converting to path: "+rr) {
 				continue
 			}
 

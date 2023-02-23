@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -25,11 +26,11 @@ func (suite *CliUtilsSuite) TestRequireProps() {
 	}{
 		{
 			props:    map[string]string{"exists": "I have seen the fnords!"},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 		},
 		{
 			props:    map[string]string{"not-exists": ""},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 	}
 	for _, test := range table {

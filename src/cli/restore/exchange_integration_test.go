@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -64,7 +65,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -78,7 +79,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)
 
@@ -102,17 +103,17 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 		sel.Include(scopes)
 
 		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
-		require.NoError(t, bop.Run(ctx))
-		require.NoError(t, err)
+		aw.MustNoErr(t, bop.Run(ctx))
+		aw.MustNoErr(t, err)
 
 		suite.backupOps[set] = bop
 
 		// sanity check, ensure we can find the backup and its details immediately
 		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
-		require.NoError(t, err, "retrieving recent backup by ID")
+		aw.MustNoErr(t, err, "retrieving recent backup by ID")
 
 		_, _, errs := suite.repo.BackupDetails(ctx, string(bop.Results.BackupID))
-		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID")
+		aw.MustNoErr(t, errs.Failure(), "retrieving recent backup details by ID")
 		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
 	}
 }
@@ -132,7 +133,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			aw.MustNoErr(t, cmd.ExecuteContext(ctx))
 		})
 	}
 }
@@ -165,7 +166,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.Error(t, cmd.ExecuteContext(ctx))
+			aw.MustErr(t, cmd.ExecuteContext(ctx))
 		})
 	}
 }
@@ -196,7 +197,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlag
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.Error(t, cmd.ExecuteContext(ctx))
+			aw.MustErr(t, cmd.ExecuteContext(ctx))
 		})
 	}
 }

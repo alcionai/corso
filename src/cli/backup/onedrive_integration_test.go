@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
@@ -17,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -58,7 +58,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -79,7 +79,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 		control.Options{
 			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 }
 
 func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
@@ -101,7 +101,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty()
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	aw.MustNoErr(t, cmd.ExecuteContext(ctx))
 
 	result := suite.recorder.String()
 
@@ -143,7 +143,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -165,7 +165,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 		control.Options{
 			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	m365UserID := tester.M365UserID(t)
 	users := []string{m365UserID}
@@ -175,8 +175,8 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	sel.Include(sel.Folders(selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
-	require.NoError(t, suite.backupOp.Run(ctx))
-	require.NoError(t, err)
+	aw.MustNoErr(t, suite.backupOp.Run(ctx))
+	aw.MustNoErr(t, err)
 }
 
 func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd() {
@@ -198,7 +198,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	aw.MustNoErr(t, cmd.ExecuteContext(ctx))
 
 	result := suite.recorder.String()
 
@@ -211,7 +211,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 		"--backup", string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
-	require.Error(t, cmd.ExecuteContext(ctx))
+	aw.MustErr(t, cmd.ExecuteContext(ctx))
 }
 
 func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_unknownID() {
@@ -228,5 +228,5 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_u
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
-	require.Error(t, cmd.ExecuteContext(ctx))
+	aw.MustErr(t, cmd.ExecuteContext(ctx))
 }

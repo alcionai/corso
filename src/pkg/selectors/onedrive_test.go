@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,7 +36,7 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	ob := NewOneDriveBackup(Any())
 	s := ob.Selector
 	ob, err := s.ToOneDriveBackup()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
@@ -153,7 +154,7 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 	eb := NewOneDriveRestore(Any())
 	s := eb.Selector
 	or, err := s.ToOneDriveRestore()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, or.Service, ServiceOneDrive)
 	assert.NotZero(t, or.Scopes())
 }
@@ -255,7 +256,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 
 	pathBuilder := path.Builder{}.Append("drive", "driveID", "root:", "dir1", "dir2", "file")
 	filePath, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	expected := map[categorizer]string{
 		OneDriveFolder: "dir1/dir2",

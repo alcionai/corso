@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type CommonConfigsSuite struct {
@@ -49,9 +50,9 @@ func (suite *CommonConfigsSuite) TestUnionConfigs_string() {
 		bc       stringConfig2
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"no error", stringConfig{keyExpect, nil}, stringConfig2{keyExpect2, nil}, assert.NoError},
-		{"tc error", stringConfig{keyExpect, assert.AnError}, stringConfig2{keyExpect2, nil}, assert.Error},
-		{"fc error", stringConfig{keyExpect, nil}, stringConfig2{keyExpect2, assert.AnError}, assert.Error},
+		{"no error", stringConfig{keyExpect, nil}, stringConfig2{keyExpect2, nil}, aw.NoErr},
+		{"tc error", stringConfig{keyExpect, assert.AnError}, stringConfig2{keyExpect2, nil}, aw.Err},
+		{"fc error", stringConfig{keyExpect, nil}, stringConfig2{keyExpect2, assert.AnError}, aw.Err},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

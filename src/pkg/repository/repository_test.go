@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -40,7 +41,7 @@ func (suite *RepositorySuite) TestInitialize() {
 				return storage.NewStorage(storage.ProviderUnknown)
 			},
 			account.Account{},
-			assert.Error,
+			aw.Err,
 		},
 	}
 	for _, test := range table {
@@ -49,7 +50,7 @@ func (suite *RepositorySuite) TestInitialize() {
 			defer flush()
 
 			st, err := test.storage()
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 			_, err = repository.Initialize(ctx, test.account, st, control.Options{})
 			test.errCheck(t, err, "")
 		})
@@ -71,7 +72,7 @@ func (suite *RepositorySuite) TestConnect() {
 				return storage.NewStorage(storage.ProviderUnknown)
 			},
 			account.Account{},
-			assert.Error,
+			aw.Err,
 		},
 	}
 	for _, test := range table {
@@ -80,7 +81,7 @@ func (suite *RepositorySuite) TestConnect() {
 			defer flush()
 
 			st, err := test.storage()
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 			_, err = repository.Connect(ctx, test.account, st, control.Options{})
 			test.errCheck(t, err)
 		})
@@ -122,7 +123,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 		{
 			name:     "success",
 			storage:  tester.NewPrefixedS3Storage,
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 		},
 	}
 	for _, test := range table {
@@ -131,7 +132,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			r, err := repository.Initialize(ctx, test.account, st, control.Options{})
 			if err == nil {
 				defer func() {
-					assert.NoError(t, r.Close(ctx))
+					aw.NoErr(t, r.Close(ctx))
 				}()
 			}
 
@@ -150,11 +151,11 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	_, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	// now re-connect
 	_, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
@@ -167,15 +168,15 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	r, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	oldID := r.GetID()
 
-	require.NoError(t, r.Close(ctx))
+	aw.MustNoErr(t, r.Close(ctx))
 
 	// now re-connect
 	r, err = repository.Connect(ctx, account.Account{}, st, control.Options{})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, oldID, r.GetID())
 }
 
@@ -191,10 +192,10 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	require.NotNil(t, bo)
 }
 
@@ -211,9 +212,9 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, dest)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	require.NotNil(t, ro)
 }

@@ -3,6 +3,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -31,10 +32,10 @@ func (suite *StorageSuite) TestNewStorage() {
 		c        testConfig
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"unknown no error", ProviderUnknown, testConfig{"configVal", nil}, assert.NoError},
-		{"s3 no error", ProviderS3, testConfig{"configVal", nil}, assert.NoError},
-		{"unknown w/ error", ProviderUnknown, testConfig{"configVal", assert.AnError}, assert.Error},
-		{"s3 w/ error", ProviderS3, testConfig{"configVal", assert.AnError}, assert.Error},
+		{"unknown no error", ProviderUnknown, testConfig{"configVal", nil}, aw.NoErr},
+		{"s3 no error", ProviderS3, testConfig{"configVal", nil}, aw.NoErr},
+		{"unknown w/ error", ProviderUnknown, testConfig{"configVal", assert.AnError}, aw.Err},
+		{"s3 w/ error", ProviderS3, testConfig{"configVal", assert.AnError}, aw.Err},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

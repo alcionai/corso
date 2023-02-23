@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -36,7 +37,7 @@ func (suite *ExchangeSelectorSuite) TestToExchangeBackup() {
 	eb := NewExchangeBackup(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeBackup()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }
@@ -53,7 +54,7 @@ func (suite *ExchangeSelectorSuite) TestToExchangeRestore() {
 	eb := NewExchangeRestore(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeRestore()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }

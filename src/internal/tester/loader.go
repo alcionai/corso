@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 func LoadAFile(t *testing.T, fileName string) []byte {
@@ -13,7 +13,7 @@ func LoadAFile(t *testing.T, fileName string) []byte {
 	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		f, err := os.Open(fileName)
-		require.NoError(t, err, "opening file: "+fileName)
+		aw.MustNoErr(t, err, "opening file: "+fileName)
 
 		defer f.Close()
 
@@ -25,7 +25,7 @@ func LoadAFile(t *testing.T, fileName string) []byte {
 			buffer = append(buffer, temp...)
 		}
 
-		require.NoError(t, reader.Err(), "reading file: "+fileName)
+		aw.MustNoErr(t, reader.Err(), "reading file: "+fileName)
 
 		return buffer
 	}

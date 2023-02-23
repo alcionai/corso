@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -36,7 +36,7 @@ func (suite *CacheResolverSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.credentials = m365
 }
@@ -46,10 +46,10 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	defer flush()
 
 	ac, err := api.NewClient(suite.credentials)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	cal, err := ac.Events().GetContainerByID(ctx, tester.M365UserID(suite.T()), DefaultCalendar)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventCalendarCache{
@@ -120,7 +120,7 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			resolver := test.resolverFunc(t)
-			require.NoError(t, resolver.Populate(ctx, fault.New(true), test.root, test.basePath))
+			aw.MustNoErr(t, resolver.Populate(ctx, fault.New(true), test.root, test.basePath))
 
 			_, isFound := resolver.PathInCache(test.folderInCache)
 			test.canFind(t, isFound)

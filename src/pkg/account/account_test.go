@@ -3,6 +3,7 @@ package account
 import (
 	"testing"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -36,10 +37,10 @@ func (suite *AccountSuite) TestNewAccount() {
 		c        testConfig
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"unknown no error", ProviderUnknown, testConfig{"configVal", "", nil}, assert.NoError},
-		{"m365 no error", ProviderM365, testConfig{"configVal", "", nil}, assert.NoError},
-		{"unknown w/ error", ProviderUnknown, testConfig{"configVal", "", assert.AnError}, assert.Error},
-		{"m365 w/ error", ProviderM365, testConfig{"configVal", "", assert.AnError}, assert.Error},
+		{"unknown no error", ProviderUnknown, testConfig{"configVal", "", nil}, aw.NoErr},
+		{"m365 no error", ProviderM365, testConfig{"configVal", "", nil}, aw.NoErr},
+		{"unknown w/ error", ProviderUnknown, testConfig{"configVal", "", assert.AnError}, aw.Err},
+		{"m365 w/ error", ProviderM365, testConfig{"configVal", "", assert.AnError}, aw.Err},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

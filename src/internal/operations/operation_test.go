@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -37,9 +38,9 @@ func (suite *OperationSuite) TestOperation_Validate() {
 		sw       *store.Wrapper
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kwStub, swStub, assert.NoError},
-		{"missing kopia wrapper", nil, swStub, assert.Error},
-		{"missing store wrapper", kwStub, nil, assert.Error},
+		{"good", kwStub, swStub, aw.NoErr},
+		{"missing kopia wrapper", nil, swStub, aw.Err},
+		{"missing store wrapper", kwStub, nil, aw.Err},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {

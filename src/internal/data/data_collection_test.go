@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -22,11 +22,11 @@ func (suite *DataCollectionSuite) TestStateOf() {
 	fooP, err := path.Builder{}.
 		Append("foo").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	barP, err := path.Builder{}.
 		Append("bar").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	table := []struct {
 		name   string

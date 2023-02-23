@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type PathEncoderSuite struct {
@@ -29,7 +29,7 @@ func (suite *PathEncoderSuite) TestEncodeDecode() {
 
 	for _, e := range encoded {
 		dec, err := decodeElement(e)
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		decoded = append(decoded, dec)
 	}
@@ -80,7 +80,7 @@ func (suite *PathEncoderSuite) TestEncodeAsPathDecode() {
 
 			for _, e := range strings.Split(encoded, "/") {
 				dec, err := decodeElement(e)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				decoded = append(decoded, dec)
 			}
@@ -97,7 +97,7 @@ func FuzzEncodeDecodeSingleString(f *testing.F) {
 		assert.False(t, strings.ContainsRune(encoded[0], '/'))
 
 		decoded, err := decodeElement(encoded[0])
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 		assert.Equal(t, in, decoded)
 	})
 }

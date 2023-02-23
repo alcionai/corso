@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -48,7 +48,7 @@ func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.credentials = m365
 }
@@ -83,7 +83,7 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	for _, test := range tests {
 		suite.T().Run(test.name, func(t *testing.T) {
 			ac, err := api.NewClient(suite.credentials)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			acm := ac.Mail()
 
@@ -93,10 +93,10 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 				getter: acm,
 			}
 
-			require.NoError(t, mfc.Populate(ctx, fault.New(true), test.root, test.path...))
+			aw.MustNoErr(t, mfc.Populate(ctx, fault.New(true), test.root, test.path...))
 
 			p, l, err := mfc.IDToPath(ctx, testFolderID, true)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			t.Logf("Path: %s\n", p.String())
 			t.Logf("Location: %s\n", l.String())
 

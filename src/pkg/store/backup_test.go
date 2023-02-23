@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/store"
 	storeMock "github.com/alcionai/corso/src/pkg/store/mock"
@@ -53,12 +54,12 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 		{
 			name:   "gets backup",
 			mock:   storeMock.NewMock(&bu, nil),
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name:   "errors",
 			mock:   storeMock.NewMock(&bu, assert.AnError),
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 	}
 	for _, test := range table {
@@ -86,12 +87,12 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 		{
 			name:   "gets backups",
 			mock:   storeMock.NewMock(&bu, nil),
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name:   "errors",
 			mock:   storeMock.NewMock(&bu, assert.AnError),
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 	}
 	for _, test := range table {
@@ -120,12 +121,12 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 		{
 			name:   "deletes backup",
 			mock:   storeMock.NewMock(&bu, nil),
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name:   "errors",
 			mock:   storeMock.NewMock(&bu, assert.AnError),
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 	}
 	for _, test := range table {
@@ -149,12 +150,12 @@ func (suite *StoreBackupUnitSuite) TestGetDetailsIDFromBackupID() {
 		{
 			name:   "gets details from backup id",
 			mock:   storeMock.NewMock(&bu, nil),
-			expect: assert.NoError,
+			expect: aw.NoErr,
 		},
 		{
 			name:   "errors",
 			mock:   storeMock.NewMock(&bu, assert.AnError),
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 	}
 	for _, test := range table {

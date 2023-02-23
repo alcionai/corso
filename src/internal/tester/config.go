@@ -8,9 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -159,7 +159,7 @@ func readTestConfig() (map[string]string, error) {
 // Returns a filepath string pointing to the location of the temp file.
 func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.Viper, string) {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "reading tester config")
+	aw.MustNoErr(t, err, "reading tester config")
 
 	fName := filepath.Base(os.Getenv(EnvCorsoTestConfigFilePath))
 	if len(fName) == 0 || fName == "." || fName == "/" {
@@ -170,7 +170,7 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 	tDirFp := filepath.Join(tDir, fName)
 
 	_, err = os.Create(tDirFp)
-	require.NoError(t, err, "creating temp test dir")
+	aw.MustNoErr(t, err, "creating temp test dir")
 
 	ext := filepath.Ext(fName)
 	vpr := viper.New()
@@ -188,7 +188,7 @@ func MakeTempTestConfigClone(t *testing.T, overrides map[string]string) (*viper.
 		vpr.Set(k, v)
 	}
 
-	require.NoError(t, vpr.WriteConfig(), "writing temp dir viper config file")
+	aw.MustNoErr(t, vpr.WriteConfig(), "writing temp dir viper config file")
 
 	return vpr, tDirFp
 }

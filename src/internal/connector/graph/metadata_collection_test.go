@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -35,7 +36,7 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 			path.EmailCategory,
 			false,
 		)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	c := NewMetadataCollection(p, nil, nil)
 
@@ -78,7 +79,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 			path.EmailCategory,
 			false,
 		)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	c := NewMetadataCollection(
 		p,
@@ -96,7 +97,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		gotNames = append(gotNames, s.UUID())
 
 		buf, err := io.ReadAll(s.ToReader())
-		if !assert.NoError(t, err) {
+		if !aw.NoErr(t, err) {
 			continue
 		}
 
@@ -125,7 +126,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			cat:             path.EmailCategory,
 			metadata:        NewMetadataEntry("", nil),
 			collectionCheck: assert.Nil,
-			errCheck:        assert.Error,
+			errCheck:        aw.Err,
 		},
 		{
 			name:    "Tokens",
@@ -138,7 +139,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 					"hola":  "mundo",
 				}),
 			collectionCheck: assert.NotNil,
-			errCheck:        assert.NoError,
+			errCheck:        aw.NoErr,
 		},
 		{
 			name:    "BadCategory",
@@ -151,7 +152,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 					"hola":  "mundo",
 				}),
 			collectionCheck: assert.Nil,
-			errCheck:        assert.Error,
+			errCheck:        aw.Err,
 		},
 	}
 
@@ -187,7 +188,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 				itemCount++
 
 				err := decoder.Decode(&gotMap)
-				if !assert.NoError(t, err) {
+				if !aw.NoErr(t, err) {
 					continue
 				}
 

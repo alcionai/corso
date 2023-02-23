@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -62,14 +63,14 @@ func prepNewTestBackupOp(
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+	aw.MustNoErr(t, k.Initialize(ctx))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again so safe
 	// to close here.
 	closer := func() { k.Close(ctx) }
 
 	kw, err := kopia.NewWrapper(k)
-	if !assert.NoError(t, err) {
+	if !aw.NoErr(t, err) {
 		closer()
 		t.FailNow()
 	}
@@ -80,7 +81,7 @@ func prepNewTestBackupOp(
 	}
 
 	ms, err := kopia.NewModelStore(k)
-	if !assert.NoError(t, err) {
+	if !aw.NoErr(t, err) {
 		closer()
 		t.FailNow()
 	}
@@ -122,7 +123,7 @@ func newTestBackupOp(
 	opts.ToggleFeatures = featureToggles
 
 	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, bus)
-	if !assert.NoError(t, err) {
+	if !aw.NoErr(t, err) {
 		closer()
 		t.FailNow()
 	}
@@ -138,7 +139,7 @@ func runAndCheckBackup(
 	mb *evmock.Bus,
 ) {
 	//revive:enable:context-as-argument
-	require.NoError(t, bo.Run(ctx))
+	aw.MustNoErr(t, bo.Run(ctx))
 	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
 	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
 	require.Equalf(
@@ -153,7 +154,7 @@ func runAndCheckBackup(
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
-	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error")
+	aw.NoErr(t, bo.Errors.Failure(), "incremental non-recoverable error")
 	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
@@ -188,7 +189,7 @@ func checkBackupIsInManifests(
 			)
 
 			mans, err := kw.FetchPrevSnapshotManifests(ctx, reasons, tags)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			for _, man := range mans {
 				bID, ok := man.GetTag(kopia.TagBackupID)
@@ -224,7 +225,7 @@ func checkMetadataFilesExist(
 			bup := &backup.Backup{}
 
 			err := ms.Get(ctx, model.BackupSchema, backupID, bup)
-			if !assert.NoError(t, err) {
+			if !aw.NoErr(t, err) {
 				return
 			}
 
@@ -235,12 +236,12 @@ func checkMetadataFilesExist(
 				p, err := path.Builder{}.
 					Append(fName).
 					ToServiceCategoryMetadataPath(tenant, user, service, category, true)
-				if !assert.NoError(t, err, "bad metadata path") {
+				if !aw.NoErr(t, err, "bad metadata path") {
 					continue
 				}
 
 				dir, err := p.Dir()
-				if !assert.NoError(t, err, "parent path") {
+				if !aw.NoErr(t, err, "parent path") {
 					continue
 				}
 
@@ -249,7 +250,7 @@ func checkMetadataFilesExist(
 			}
 
 			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, fault.New(true))
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 
 			for _, col := range cols {
 				itemNames := []string{}
@@ -346,7 +347,7 @@ func generateContainerOfItems(
 		control.Options{RestorePermissions: true},
 		dataColls,
 		fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return deets
 }
@@ -438,7 +439,7 @@ func toDataLayerPath(
 		err = errors.Errorf("unknown service %s", service.String())
 	}
 
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return p
 }
@@ -483,9 +484,9 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, acct, nil, aw.NoErr},
+		{"missing kopia", control.Options{}, nil, sw, acct, nil, aw.Err},
+		{"missing modelstore", control.Options{}, kw, nil, acct, nil, aw.Err},
 	}
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
@@ -575,7 +576,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			defer closer()
 
 			m365, err := acct.M365Config()
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			// run the tests
 			runAndCheckBackup(t, ctx, &bo, mb)
@@ -624,7 +625,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
 			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
 			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
-			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
+			aw.NoErr(t, incBO.Errors.Failure(), "incremental non-recoverable error")
 			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
@@ -663,7 +664,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	)
 
 	m365, err := acct.M365Config()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
@@ -671,10 +672,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		acct,
 		connector.Users,
 		fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	ac, err := api.NewClient(m365)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	// generate 3 new folders with two items each.
 	// Only the first two folders will be part of the initial backup and
@@ -767,11 +768,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			Credentials:   m365,
 		}
 		cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
-		require.NoError(t, err, "populating %s container resolver", category)
+		aw.MustNoErr(t, err, "populating %s container resolver", category)
 
 		for destName, dest := range gen.dests {
 			p, err := path.FromDataLayerPath(dest.deets.Entries[0].RepoRef, true)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			id, ok := cr.PathInCache(p.Folder(false))
 			require.True(t, ok, "dir %s found in %s cache", p.Folder(false), category)
@@ -831,7 +832,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					MailFoldersById(fromContainer).
 					Move().
 					Post(ctx, body, nil)
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 			},
 			itemsRead:    0, // zero because we don't count container reads
 			itemsWritten: 2,
@@ -844,17 +845,17 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 					switch category {
 					case path.EmailCategory:
-						require.NoError(
+						aw.MustNoErr(
 							t,
 							ac.Mail().DeleteContainer(ctx, suite.user, containerID),
 							"deleting an email folder")
 					case path.ContactsCategory:
-						require.NoError(
+						aw.MustNoErr(
 							t,
 							ac.Contacts().DeleteContainer(ctx, suite.user, containerID),
 							"deleting a contacts folder")
 					case path.EventsCategory:
-						require.NoError(
+						aw.MustNoErr(
 							t,
 							ac.Events().DeleteContainer(ctx, suite.user, containerID),
 							"deleting a calendar")
@@ -886,10 +887,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						Credentials:   m365,
 					}
 					cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
-					require.NoError(t, err, "populating %s container resolver", category)
+					aw.MustNoErr(t, err, "populating %s container resolver", category)
 
 					p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					id, ok := cr.PathInCache(p.Folder(false))
 					require.True(t, ok, "dir %s found in %s cache", p.Folder(false), category)
@@ -920,31 +921,31 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						cmf := cli.MailFoldersById(containerID)
 
 						body, err := cmf.Get(ctx, nil)
-						require.NoError(t, err, "getting mail folder")
+						aw.MustNoErr(t, err, "getting mail folder")
 
 						body.SetDisplayName(&containerRename)
 						_, err = cmf.Patch(ctx, body, nil)
-						require.NoError(t, err, "updating mail folder name")
+						aw.MustNoErr(t, err, "updating mail folder name")
 
 					case path.ContactsCategory:
 						ccf := cli.ContactFoldersById(containerID)
 
 						body, err := ccf.Get(ctx, nil)
-						require.NoError(t, err, "getting contact folder")
+						aw.MustNoErr(t, err, "getting contact folder")
 
 						body.SetDisplayName(&containerRename)
 						_, err = ccf.Patch(ctx, body, nil)
-						require.NoError(t, err, "updating contact folder name")
+						aw.MustNoErr(t, err, "updating contact folder name")
 
 					case path.EventsCategory:
 						cbi := cli.CalendarsById(containerID)
 
 						body, err := cbi.Get(ctx, nil)
-						require.NoError(t, err, "getting calendar")
+						aw.MustNoErr(t, err, "getting calendar")
 
 						body.SetName(&containerRename)
 						_, err = cbi.Patch(ctx, body, nil)
-						require.NoError(t, err, "updating calendar name")
+						aw.MustNoErr(t, err, "updating calendar name")
 					}
 				}
 			},
@@ -962,26 +963,26 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					case path.EmailCategory:
 						_, itemData := generateItemData(t, category, suite.user, mailDBF)
 						body, err := support.CreateMessageFromBytes(itemData)
-						require.NoError(t, err, "transforming mail bytes to messageable")
+						aw.MustNoErr(t, err, "transforming mail bytes to messageable")
 
 						_, err = cli.MailFoldersById(containerID).Messages().Post(ctx, body, nil)
-						require.NoError(t, err, "posting email item")
+						aw.MustNoErr(t, err, "posting email item")
 
 					case path.ContactsCategory:
 						_, itemData := generateItemData(t, category, suite.user, contactDBF)
 						body, err := support.CreateContactFromBytes(itemData)
-						require.NoError(t, err, "transforming contact bytes to contactable")
+						aw.MustNoErr(t, err, "transforming contact bytes to contactable")
 
 						_, err = cli.ContactFoldersById(containerID).Contacts().Post(ctx, body, nil)
-						require.NoError(t, err, "posting contact item")
+						aw.MustNoErr(t, err, "posting contact item")
 
 					case path.EventsCategory:
 						_, itemData := generateItemData(t, category, suite.user, eventDBF)
 						body, err := support.CreateEventFromBytes(itemData)
-						require.NoError(t, err, "transforming event bytes to eventable")
+						aw.MustNoErr(t, err, "transforming event bytes to eventable")
 
 						_, err = cli.CalendarsById(containerID).Events().Post(ctx, body, nil)
-						require.NoError(t, err, "posting events item")
+						aw.MustNoErr(t, err, "posting events item")
 					}
 				}
 			},
@@ -998,27 +999,27 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					switch category {
 					case path.EmailCategory:
 						ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
-						require.NoError(t, err, "getting message ids")
+						aw.MustNoErr(t, err, "getting message ids")
 						require.NotEmpty(t, ids, "message ids in folder")
 
 						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting email item")
+						aw.MustNoErr(t, err, "deleting email item")
 
 					case path.ContactsCategory:
 						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
-						require.NoError(t, err, "getting contact ids")
+						aw.MustNoErr(t, err, "getting contact ids")
 						require.NotEmpty(t, ids, "contact ids in folder")
 
 						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting contact item")
+						aw.MustNoErr(t, err, "deleting contact item")
 
 					case path.EventsCategory:
 						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
-						require.NoError(t, err, "getting event ids")
+						aw.MustNoErr(t, err, "getting event ids")
 						require.NotEmpty(t, ids, "event ids in folder")
 
 						err = cli.CalendarsById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting calendar")
+						aw.MustNoErr(t, err, "deleting calendar")
 					}
 				}
 			},
@@ -1034,7 +1035,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			)
 
 			test.updateUserData(t)
-			require.NoError(t, incBO.Run(ctx))
+			aw.MustNoErr(t, incBO.Run(ctx))
 			checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, suite.user, maps.Keys(categories)...)
 			checkMetadataFilesExist(
 				t,
@@ -1052,7 +1053,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
 			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
 			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
-			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
+			aw.NoErr(t, incBO.Errors.Failure(), "incremental non-recoverable error")
 			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")

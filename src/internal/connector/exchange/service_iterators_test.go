@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -109,7 +110,7 @@ func TestServiceIteratorsSuite(t *testing.T) {
 func (suite *ServiceIteratorsSuite) SetupSuite() {
 	a := tester.NewMockM365Account(suite.T())
 	m365, err := a.M365Config()
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	suite.creds = m365
 }
 
@@ -171,7 +172,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1),
 			scope:               allScope,
-			expectErr:           assert.NoError,
+			expectErr:           aw.NoErr,
 			expectNewColls:      1,
 			expectMetadataColls: 1,
 		},
@@ -183,7 +184,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
-			expectErr:           assert.NoError,
+			expectErr:           aw.NoErr,
 			expectNewColls:      2,
 			expectMetadataColls: 1,
 		},
@@ -195,7 +196,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
-			expectErr:           assert.NoError,
+			expectErr:           aw.NoErr,
 			expectNewColls:      2,
 			expectMetadataColls: 1,
 		},
@@ -207,7 +208,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               selectors.NewExchangeBackup(nil).MailFolders(selectors.None())[0],
-			expectErr:           assert.NoError,
+			expectErr:           aw.NoErr,
 			expectNewColls:      0,
 			expectMetadataColls: 1,
 		},
@@ -218,7 +219,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:              newMockResolver(container1),
 			scope:                 allScope,
-			expectErr:             assert.NoError,
+			expectErr:             aw.NoErr,
 			expectNewColls:        1,
 			expectMetadataColls:   1,
 			expectDoNotMergeColls: 1,
@@ -230,7 +231,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1),
 			scope:               allScope,
-			expectErr:           assert.NoError,
+			expectErr:           aw.NoErr,
 			expectNewColls:      0,
 			expectMetadataColls: 1,
 		},
@@ -242,7 +243,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:              newMockResolver(container1, container2),
 			scope:                 allScope,
-			expectErr:             assert.NoError,
+			expectErr:             aw.NoErr,
 			expectNewColls:        2,
 			expectMetadataColls:   1,
 			expectDoNotMergeColls: 1,
@@ -255,7 +256,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
-			expectErr:           assert.NoError,
+			expectErr:           aw.NoErr,
 			expectNewColls:      1,
 			expectMetadataColls: 1,
 		},
@@ -268,7 +269,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			resolver:              newMockResolver(container1, container2),
 			scope:                 allScope,
 			failFast:              true,
-			expectErr:             assert.NoError,
+			expectErr:             aw.NoErr,
 			expectNewColls:        2,
 			expectMetadataColls:   1,
 			expectDoNotMergeColls: 1,
@@ -282,7 +283,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
 			failFast:            true,
-			expectErr:           assert.Error,
+			expectErr:           aw.Err,
 			expectNewColls:      0,
 			expectMetadataColls: 0,
 		},
@@ -458,7 +459,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				dps,
 				control.Options{FailFast: true},
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			// collection assertions
 
@@ -533,7 +534,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		p, err := path.Builder{}.
 			Append(at...).
 			ToDataLayerExchangePathForCategory(tenantID, userID, cat, false)
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		return p
 	}
@@ -810,7 +811,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				test.dps,
 				control.Options{},
 				fault.New(true))
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 
 			metadatas := 0
 			for _, c := range collections {

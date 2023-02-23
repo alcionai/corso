@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type ObserveProgressUnitSuite struct {
@@ -71,7 +72,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 			break
 		}
 
-		assert.NoError(t, err)
+		aw.NoErr(t, err)
 		assert.Equal(t, 25, n)
 		i++
 	}

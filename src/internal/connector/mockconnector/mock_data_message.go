@@ -9,9 +9,9 @@ import (
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 //nolint:lll
@@ -693,10 +693,10 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, subject string) []byte {
 	base := GetMockMessageBytes(subject)
 	message, err := hydrateMessage(base)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	nestedMessage, err := hydrateMessage(nested)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	iaNode := models.NewItemAttachment()
 	attachmentSize := int32(len(nested))
@@ -713,13 +713,13 @@ func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, sub
 func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject string) []byte {
 	base := GetMockMessageBytes(subject)
 	message, err := hydrateMessage(base)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	anObject, err := parseNode.GetObjectValue(models.CreateContactFromDiscriminatorValue)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	contact := anObject.(models.Contactable)
 	internalName := "Nested Contact"
@@ -736,10 +736,10 @@ func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, 
 func serialize(t *testing.T, item absser.Parsable) []byte {
 	wtr := js.NewJsonSerializationWriter()
 	err := wtr.WriteObjectValue("", item)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	byteArray, err := wtr.GetSerializedContent()
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return byteArray
 }

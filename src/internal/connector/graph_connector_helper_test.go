@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -58,7 +59,7 @@ func mustToDataLayerPath(
 		err = errors.Errorf("bad service type %s", service.String())
 	}
 
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return res
 }
@@ -600,12 +601,12 @@ func compareExchangeEmail(
 	item data.Stream,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+	if !aw.NoErr(t, err, "reading collection item: %s", item.UUID()) {
 		return
 	}
 
 	itemMessage, err := support.CreateMessageFromBytes(itemData)
-	if !assert.NoError(t, err, "deserializing backed up message") {
+	if !aw.NoErr(t, err, "deserializing backed up message") {
 		return
 	}
 
@@ -615,7 +616,7 @@ func compareExchangeEmail(
 	}
 
 	expectedMessage, err := support.CreateMessageFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source message")
+	aw.NoErr(t, err, "deserializing source message")
 
 	checkMessage(t, expectedMessage, itemMessage)
 }
@@ -626,12 +627,12 @@ func compareExchangeContact(
 	item data.Stream,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+	if !aw.NoErr(t, err, "reading collection item: %s", item.UUID()) {
 		return
 	}
 
 	itemContact, err := support.CreateContactFromBytes(itemData)
-	if !assert.NoError(t, err, "deserializing backed up contact") {
+	if !aw.NoErr(t, err, "deserializing backed up contact") {
 		return
 	}
 
@@ -641,7 +642,7 @@ func compareExchangeContact(
 	}
 
 	expectedContact, err := support.CreateContactFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source contact")
+	aw.NoErr(t, err, "deserializing source contact")
 
 	checkContact(t, expectedContact, itemContact)
 }
@@ -652,12 +653,12 @@ func compareExchangeEvent(
 	item data.Stream,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+	if !aw.NoErr(t, err, "reading collection item: %s", item.UUID()) {
 		return
 	}
 
 	itemEvent, err := support.CreateEventFromBytes(itemData)
-	if !assert.NoError(t, err, "deserializing backed up contact") {
+	if !aw.NoErr(t, err, "deserializing backed up contact") {
 		return
 	}
 
@@ -667,7 +668,7 @@ func compareExchangeEvent(
 	}
 
 	expectedEvent, err := support.CreateEventFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source contact")
+	aw.NoErr(t, err, "deserializing source contact")
 
 	checkEvent(t, expectedEvent, itemEvent)
 }
@@ -715,7 +716,7 @@ func compareOneDriveItem(
 	}
 
 	buf, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err) {
+	if !aw.NoErr(t, err) {
 		return
 	}
 
@@ -1108,7 +1109,7 @@ func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r
 	a := tester.NewM365Account(t)
 
 	connector, err := NewGraphConnector(ctx, itemClient, a, r, fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return connector
 }

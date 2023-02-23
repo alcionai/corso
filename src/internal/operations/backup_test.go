@@ -10,7 +10,6 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -213,7 +213,7 @@ func makeMetadataBasePath(
 		service,
 		category,
 		false)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return p
 }
@@ -234,7 +234,7 @@ func makeMetadataPath(
 		service,
 		category,
 		true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return p
 }
@@ -269,7 +269,7 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 	t.Helper()
 
 	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return p
 }
@@ -314,7 +314,7 @@ func makeDetailsEntry(
 
 	case path.OneDriveService:
 		parent, err := path.GetDriveFolderPath(p)
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		res.OneDrive = &details.OneDriveInfo{
 			ItemType:   details.OneDriveItem,
@@ -383,7 +383,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	}{
 		{
 			expectStatus: Completed,
-			expectErr:    assert.NoError,
+			expectErr:    aw.NoErr,
 			stats: backupStats{
 				resourceCount: 1,
 				k: &kopia.BackupStats{
@@ -398,7 +398,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		},
 		{
 			expectStatus: Failed,
-			expectErr:    assert.Error,
+			expectErr:    aw.Err,
 			fail:         assert.AnError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
@@ -407,7 +407,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		},
 		{
 			expectStatus: NoData,
-			expectErr:    assert.NoError,
+			expectErr:    aw.NoErr,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
 				gc: &support.ConnectorOperationStatus{},
@@ -427,7 +427,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 				acct,
 				sel,
 				evmock.NewBus())
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			op.Errors.Fail(test.fail)
 
@@ -713,7 +713,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	table := []struct {
 		name                         string
@@ -727,14 +727,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	}{
 		{
 			name:     "NilShortRefsFromPrevBackup",
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			// Use empty slice so we don't error out on nil != empty.
 			expectedEntries: []*details.DetailsEntry{},
 		},
 		{
 			name:                         "EmptyShortRefsFromPrevBackup",
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{},
-			errCheck:                     assert.NoError,
+			errCheck:                     aw.NoErr,
 			// Use empty slice so we don't error out on nil != empty.
 			expectedEntries: []*details.DetailsEntry{},
 		},
@@ -754,7 +754,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "DetailsIDNotFound",
@@ -780,7 +780,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					DetailsID: "foo",
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "BaseMissingItems",
@@ -814,7 +814,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "TooManyItems",
@@ -850,7 +850,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "BadBaseRepoRef",
@@ -899,7 +899,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "BadOneDrivePath",
@@ -939,7 +939,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.Error,
+			errCheck: aw.Err,
 		},
 		{
 			name: "ItemMerged",
@@ -969,7 +969,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
@@ -1001,7 +1001,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
 			},
@@ -1034,7 +1034,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
 			},
@@ -1068,7 +1068,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
@@ -1101,7 +1101,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath2, locationPath2, 42, true),
 			},
@@ -1155,7 +1155,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 				makeDetailsEntry(suite.T(), itemPath3, locationPath3, 37, false),
@@ -1204,7 +1204,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 					},
 				},
 			},
-			errCheck: assert.NoError,
+			errCheck: aw.NoErr,
 			expectedEntries: []*details.DetailsEntry{
 				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
@@ -1342,6 +1342,6 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		inputToMerge,
 		&deets,
 		fault.New(true))
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
 }

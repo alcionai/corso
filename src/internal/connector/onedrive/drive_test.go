@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -133,7 +134,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           false,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: resultDrives,
 		},
 		{
@@ -146,7 +147,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           false,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: resultDrives,
 		},
 		{
@@ -164,7 +165,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           false,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: resultDrives,
 		},
 		{
@@ -182,7 +183,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           false,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: resultDrives,
 		},
 		{
@@ -200,7 +201,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           true,
-			expectedErr:     assert.Error,
+			expectedErr:     aw.Err,
 			expectedResults: nil,
 		},
 		{
@@ -213,7 +214,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           true,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: nil,
 		},
 		{
@@ -226,7 +227,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           true,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: nil,
 		},
 		{
@@ -249,7 +250,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           true,
-			expectedErr:     assert.NoError,
+			expectedErr:     aw.NoErr,
 			expectedResults: resultDrives,
 		},
 		{
@@ -272,7 +273,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				},
 			},
 			retry:           false,
-			expectedErr:     assert.Error,
+			expectedErr:     aw.Err,
 			expectedResults: nil,
 		},
 		{
@@ -288,7 +289,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				tooManyRetries...,
 			),
 			retry:           true,
-			expectedErr:     assert.Error,
+			expectedErr:     aw.Err,
 			expectedResults: nil,
 		},
 	}
@@ -340,10 +341,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	gs := loadTestService(t)
 
 	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	drives, err := drives(ctx, pager, true)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	require.NotEmpty(t, drives)
 
 	// TODO: Verify the intended drive
@@ -359,7 +360,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	}()
 
 	folderID, err := CreateRestoreFolders(ctx, gs, driveID, folderElements)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	folderIDs = append(folderIDs, folderID)
 
@@ -367,7 +368,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderElements = append(folderElements, folderName2)
 
 	folderID, err = CreateRestoreFolders(ctx, gs, driveID, folderElements)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	folderIDs = append(folderIDs, folderID)
 
@@ -388,10 +389,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix, fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			foundFolderIDs := []string{}
 
@@ -426,7 +427,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 	defer flush()
 
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	tests := []struct {
 		name, user string
@@ -457,7 +458,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service.updateStatus,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
 			).Get(ctx, nil, fault.New(true))
-			assert.NoError(t, err)
+			aw.NoErr(t, err)
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 

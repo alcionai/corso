@@ -7,12 +7,12 @@ import (
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -91,7 +91,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 		path.EmailCategory,
 		false,
 	)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	edc := Collection{
 		user:     user,
@@ -113,7 +113,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 		path.EmailCategory,
 		false,
 	)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	edc := Collection{
 		user:     name,
@@ -127,15 +127,15 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 	fooP, err := path.Builder{}.
 		Append("foo").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	barP, err := path.Builder{}.
 		Append("bar").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 	locP, err := path.Builder{}.
 		Append("human-readable").
 		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	table := []struct {
 		name   string
@@ -198,7 +198,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			name:  "happy",
 			items: &mockItemer{},
 			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err)
+				aw.NoErr(t, err)
 			},
 			expectGetCalls: 1,
 		},
@@ -206,7 +206,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			name:  "an error",
 			items: &mockItemer{getErr: assert.AnError},
 			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err)
+				aw.Err(t, err)
 			},
 			expectGetCalls: 3,
 		},

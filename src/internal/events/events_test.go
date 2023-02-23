@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -36,7 +37,7 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 			Prefix: "prfx",
 		},
 	)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	a, err := account.NewAccount(
 		account.ProviderM365,
@@ -48,15 +49,15 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 			AzureTenantID: "tid",
 		},
 	)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	b, err := events.NewBus(ctx, s, a.ID(), control.Options{})
 	require.NotEmpty(t, b)
-	require.NoError(t, err)
-	require.NoError(t, b.Close())
+	aw.MustNoErr(t, err)
+	aw.MustNoErr(t, b.Close())
 
 	b2, err := events.NewBus(ctx, s, a.ID(), control.Options{DisableMetrics: true})
 	require.Empty(t, b2)
-	require.NoError(t, err)
-	require.NoError(t, b2.Close())
+	aw.MustNoErr(t, err)
+	aw.MustNoErr(t, b2.Close())
 }

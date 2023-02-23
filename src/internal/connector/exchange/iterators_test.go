@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type ExchangeIteratorSuite struct {
@@ -31,7 +31,7 @@ func (suite *ExchangeIteratorSuite) TestDisplayable() {
 	t := suite.T()
 	bytes := mockconnector.GetMockContactBytes("Displayable")
 	contact, err := support.CreateContactFromBytes(bytes)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	aDisplayable, ok := contact.(graph.Displayable)
 	assert.True(t, ok)
@@ -43,7 +43,7 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 	t := suite.T()
 	bytes := mockconnector.GetMockMessageBytes("Descendable")
 	message, err := support.CreateMessageFromBytes(bytes)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	aDescendable, ok := message.(graph.Descendable)
 	assert.True(t, ok)

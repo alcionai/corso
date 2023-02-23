@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup"
 )
 
@@ -26,7 +27,7 @@ type fooModel struct {
 //revive:disable-next-line:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
 	c, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return &ModelStore{c: c, modelVersion: globalModelVersion}
 }
@@ -79,7 +80,7 @@ func (suite *ModelStoreIntegrationSuite) SetupTest() {
 
 func (suite *ModelStoreIntegrationSuite) TearDownTest() {
 	defer suite.flush()
-	assert.NoError(suite.T(), suite.m.Close(suite.ctx))
+	aw.NoErr(suite.T(), suite.m.Close(suite.ctx))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
@@ -114,7 +115,7 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 			foo := &fooModel{Bar: uuid.NewString()}
 			foo.Tags = test.tags
 
-			assert.ErrorIs(
+			aw.ErrIs(
 				t,
 				suite.m.Put(suite.ctx, model.BackupOpSchema, foo),
 				errBadTagKey,
@@ -122,13 +123,13 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 
 			// Add model for update/get ID checks.
 			foo.Tags = map[string]string{}
-			require.NoError(
+			aw.MustNoErr(
 				t,
 				suite.m.Put(suite.ctx, model.BackupOpSchema, foo),
 			)
 
 			foo.Tags = test.tags
-			assert.ErrorIs(
+			aw.ErrIs(
 				t,
 				suite.m.Update(suite.ctx, model.BackupOpSchema, foo),
 				errBadTagKey,
@@ -139,7 +140,7 @@ func (suite *ModelStoreIntegrationSuite) TestBadTagsErrors() {
 				model.BackupOpSchema,
 				test.tags,
 			)
-			assert.ErrorIs(t, err, errBadTagKey)
+			aw.ErrIs(t, err, errBadTagKey)
 		})
 	}
 }
@@ -156,14 +157,14 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	noModelStoreID.ID = model.StableID(uuid.NewString())
 	noModelStoreID.ModelStoreID = ""
 
-	assert.Error(t, suite.m.Update(suite.ctx, theModelType, noStableID))
-	assert.Error(t, suite.m.Update(suite.ctx, theModelType, noModelStoreID))
+	aw.Err(t, suite.m.Update(suite.ctx, theModelType, noStableID))
+	aw.Err(t, suite.m.Update(suite.ctx, theModelType, noModelStoreID))
 
-	assert.Error(t, suite.m.Get(suite.ctx, theModelType, "", nil))
-	assert.Error(t, suite.m.GetWithModelStoreID(suite.ctx, theModelType, "", nil))
+	aw.Err(t, suite.m.Get(suite.ctx, theModelType, "", nil))
+	aw.Err(t, suite.m.GetWithModelStoreID(suite.ctx, theModelType, "", nil))
 
-	assert.Error(t, suite.m.Delete(suite.ctx, theModelType, ""))
-	assert.Error(t, suite.m.DeleteWithModelStoreID(suite.ctx, ""))
+	aw.Err(t, suite.m.Delete(suite.ctx, theModelType, ""))
+	aw.Err(t, suite.m.DeleteWithModelStoreID(suite.ctx, ""))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadModelTypeErrors() {
@@ -171,16 +172,16 @@ func (suite *ModelStoreIntegrationSuite) TestBadModelTypeErrors() {
 
 	foo := &fooModel{Bar: uuid.NewString()}
 
-	assert.ErrorIs(
+	aw.ErrIs(
 		t,
 		suite.m.Put(suite.ctx, model.UnknownSchema, foo),
 		errUnrecognizedSchema,
 	)
 
-	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
+	aw.MustNoErr(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
 	_, err := suite.m.GetIDsForType(suite.ctx, model.UnknownSchema, nil)
-	assert.ErrorIs(t, err, errUnrecognizedSchema)
+	aw.ErrIs(t, err, errUnrecognizedSchema)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
@@ -188,22 +189,22 @@ func (suite *ModelStoreIntegrationSuite) TestBadTypeErrors() {
 
 	foo := &fooModel{Bar: uuid.NewString()}
 
-	require.NoError(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
+	aw.MustNoErr(t, suite.m.Put(suite.ctx, model.BackupOpSchema, foo))
 
 	returned := &fooModel{}
-	assert.ErrorIs(
+	aw.ErrIs(
 		t,
 		suite.m.Get(suite.ctx, model.RestoreOpSchema, foo.ID, returned),
 		errModelTypeMismatch,
 	)
 
-	assert.ErrorIs(
+	aw.ErrIs(
 		t,
 		suite.m.GetWithModelStoreID(suite.ctx, model.RestoreOpSchema, foo.ModelStoreID, returned),
 		errModelTypeMismatch,
 	)
 
-	assert.ErrorIs(
+	aw.ErrIs(
 		t,
 		suite.m.Delete(suite.ctx, model.RestoreOpSchema, foo.ID),
 		errModelTypeMismatch,
@@ -218,13 +219,13 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetBadVersion() {
 	foo.Tags = map[string]string{}
 
 	err := suite.m.Put(suite.ctx, schema, foo)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.m.modelVersion = 42
 
 	returned := &fooModel{}
 	err = suite.m.Get(suite.ctx, schema, foo.ID, returned)
-	assert.Error(t, err)
+	aw.Err(t, err)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGet() {
@@ -235,22 +236,22 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 	}{
 		{
 			s:      model.UnknownSchema,
-			check:  require.Error,
+			check:  aw.MustErr,
 			hasErr: true,
 		},
 		{
 			s:      model.BackupOpSchema,
-			check:  require.NoError,
+			check:  aw.MustNoErr,
 			hasErr: false,
 		},
 		{
 			s:      model.RestoreOpSchema,
-			check:  require.NoError,
+			check:  aw.MustNoErr,
 			hasErr: false,
 		},
 		{
 			s:      model.BackupSchema,
-			check:  require.NoError,
+			check:  aw.MustNoErr,
 			hasErr: false,
 		},
 	}
@@ -276,11 +277,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 
 			returned := &fooModel{}
 			err = suite.m.Get(suite.ctx, test.s, foo.ID, returned)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, foo, returned)
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, test.s, foo.ModelStoreID, returned)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, foo, returned)
 		})
 	}
@@ -318,7 +319,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 			foo.Tags = map[string]string{}
 
 			err := suite.m.Put(suite.ctx, mdl, foo)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			test.expect(t, model.StableID(test.baseID), foo.ID)
 			require.NotEmpty(t, foo.ModelStoreID)
@@ -326,11 +327,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 
 			returned := &fooModel{}
 			err = suite.m.Get(suite.ctx, mdl, foo.ID, returned)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, foo, returned)
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, mdl, foo.ModelStoreID, returned)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, foo, returned)
 		})
 	}
@@ -345,26 +346,26 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 		"bar": "baz",
 	}
 
-	require.NoError(t, suite.m.Put(suite.ctx, theModelType, foo))
+	aw.MustNoErr(t, suite.m.Put(suite.ctx, theModelType, foo))
 
 	require.NotEmpty(t, foo.ModelStoreID)
 	require.NotEmpty(t, foo.ID)
 
 	returned := &fooModel{}
 	err := suite.m.Get(suite.ctx, theModelType, foo.ID, returned)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, foo, returned)
 
 	err = suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, foo, returned)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	t := suite.T()
 
-	assert.ErrorIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), data.ErrNotFound)
-	assert.ErrorIs(
+	aw.ErrIs(t, suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil), data.ErrNotFound)
+	aw.ErrIs(
 		t, suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil), data.ErrNotFound)
 }
 
@@ -375,12 +376,12 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetOfTypeBadVersion() {
 	foo := &fooModel{Bar: uuid.NewString()}
 
 	err := suite.m.Put(suite.ctx, schema, foo)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	suite.m.modelVersion = 42
 
 	ids, err := suite.m.GetIDsForType(suite.ctx, schema, nil)
-	assert.Error(t, err)
+	aw.Err(t, err)
 	assert.Empty(t, ids)
 }
 
@@ -392,22 +393,22 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
 	}{
 		{
 			s:      model.UnknownSchema,
-			check:  require.Error,
+			check:  aw.MustErr,
 			hasErr: true,
 		},
 		{
 			s:      model.BackupOpSchema,
-			check:  require.NoError,
+			check:  aw.MustNoErr,
 			hasErr: false,
 		},
 		{
 			s:      model.RestoreOpSchema,
-			check:  require.NoError,
+			check:  aw.MustNoErr,
 			hasErr: false,
 		},
 		{
 			s:      model.BackupSchema,
-			check:  require.NoError,
+			check:  aw.MustNoErr,
 			hasErr: false,
 		},
 	}
@@ -426,7 +427,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGetOfType() {
 			}
 
 			ids, err := suite.m.GetIDsForType(suite.ctx, test.s, nil)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			assert.Len(t, ids, 1)
 		})
@@ -545,7 +546,7 @@ func (suite *ModelStoreIntegrationSuite) TestGetOfTypeWithTags() {
 
 	// Setup the store by adding all the inputs.
 	for _, in := range inputs {
-		require.NoError(suite.T(), suite.m.Put(suite.ctx, in.schema, in.dataModel))
+		aw.MustNoErr(suite.T(), suite.m.Put(suite.ctx, in.schema, in.dataModel))
 	}
 
 	// Check we can properly execute our tests.
@@ -559,7 +560,7 @@ func (suite *ModelStoreIntegrationSuite) TestGetOfTypeWithTags() {
 			}
 
 			ids, err := suite.m.GetIDsForType(suite.ctx, test.s, test.tags)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			assert.ElementsMatch(t, expected, ids)
 		})
@@ -601,14 +602,14 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			m := getModelStore(t, ctx)
 			defer func() {
-				assert.NoError(t, m.c.Close(ctx))
+				aw.NoErr(t, m.c.Close(ctx))
 			}()
 
 			foo := &fooModel{Bar: uuid.NewString()}
 			// Avoid some silly test errors from comparing nil to empty map.
 			foo.Tags = map[string]string{}
 
-			require.NoError(t, m.Put(ctx, theModelType, foo))
+			aw.MustNoErr(t, m.Put(ctx, theModelType, foo))
 
 			oldModelID := foo.ModelStoreID
 			oldStableID := foo.ID
@@ -616,19 +617,19 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			test.mutator(foo)
 
-			require.NoError(t, m.Update(ctx, theModelType, foo))
+			aw.MustNoErr(t, m.Update(ctx, theModelType, foo))
 			assert.Equal(t, oldStableID, foo.ID)
 			// The version in the model store has not changed so we get the old
 			// version back.
 			assert.Equal(t, oldVersion, foo.Version)
 
 			returned := &fooModel{}
-			require.NoError(
+			aw.MustNoErr(
 				t, m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned))
 			assert.Equal(t, foo, returned)
 
 			ids, err := m.GetIDsForType(ctx, theModelType, nil)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			require.Len(t, ids, 1)
 			assert.Equal(t, globalModelVersion, ids[0].Version)
 
@@ -639,7 +640,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			}
 
 			err = m.GetWithModelStoreID(ctx, theModelType, oldModelID, nil)
-			assert.ErrorIs(t, err, data.ErrNotFound)
+			aw.ErrIs(t, err, data.ErrNotFound)
 		})
 	}
 }
@@ -676,16 +677,16 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 
 			m := getModelStore(t, ctx)
 			defer func() {
-				assert.NoError(t, m.c.Close(ctx))
+				aw.NoErr(t, m.c.Close(ctx))
 			}()
 
 			foo := &fooModel{Bar: uuid.NewString()}
 
-			require.NoError(t, m.Put(ctx, startModelType, foo))
+			aw.MustNoErr(t, m.Put(ctx, startModelType, foo))
 
 			test.mutator(foo)
 
-			assert.Error(t, m.Update(ctx, test.s, foo))
+			aw.Err(t, m.Update(ctx, test.s, foo))
 		})
 	}
 }
@@ -696,20 +697,20 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 
 	foo := &fooModel{Bar: uuid.NewString()}
 
-	require.NoError(t, suite.m.Put(suite.ctx, theModelType, foo))
+	aw.MustNoErr(t, suite.m.Put(suite.ctx, theModelType, foo))
 
-	require.NoError(t, suite.m.Delete(suite.ctx, theModelType, foo.ID))
+	aw.MustNoErr(t, suite.m.Delete(suite.ctx, theModelType, foo.ID))
 
 	returned := &fooModel{}
 	err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
-	assert.ErrorIs(t, err, data.ErrNotFound)
+	aw.ErrIs(t, err, data.ErrNotFound)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
 	t := suite.T()
 
-	assert.NoError(t, suite.m.Delete(suite.ctx, model.BackupOpSchema, "foo"))
-	assert.NoError(t, suite.m.DeleteWithModelStoreID(suite.ctx, "foo"))
+	aw.NoErr(t, suite.m.Delete(suite.ctx, model.BackupOpSchema, "foo"))
+	aw.NoErr(t, suite.m.DeleteWithModelStoreID(suite.ctx, "foo"))
 }
 
 // ---------------
@@ -742,7 +743,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 
 	m := getModelStore(t, ctx)
 	defer func() {
-		assert.NoError(t, m.c.Close(ctx))
+		aw.NoErr(t, m.c.Close(ctx))
 	}()
 
 	foo := &fooModel{Bar: uuid.NewString()}
@@ -753,7 +754,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 
 	theModelType := model.BackupOpSchema
 
-	require.NoError(t, m.Put(ctx, theModelType, foo))
+	aw.MustNoErr(t, m.Put(ctx, theModelType, foo))
 
 	newID := manifest.ID("")
 	err := repo.WriteSession(
@@ -772,7 +773,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 			}()
 
 			innerErr = putInner(innerCtx, w, theModelType, foo, false)
-			require.NoError(t, innerErr)
+			aw.MustNoErr(t, innerErr)
 
 			newID = foo.ModelStoreID
 
@@ -780,13 +781,13 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 		},
 	)
 
-	assert.ErrorIs(t, err, assert.AnError)
+	aw.ErrIs(t, err, assert.AnError)
 
 	err = m.GetWithModelStoreID(ctx, theModelType, newID, nil)
-	assert.ErrorIs(t, err, data.ErrNotFound)
+	aw.ErrIs(t, err, data.ErrNotFound)
 
 	returned := &fooModel{}
-	require.NoError(
+	aw.MustNoErr(
 		t, m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned))
 	assert.Equal(t, foo, returned)
 }
@@ -798,14 +799,14 @@ func openConnAndModelStore(
 	st := tester.NewPrefixedS3Storage(t)
 	c := NewConn(st)
 
-	require.NoError(t, c.Initialize(ctx))
+	aw.MustNoErr(t, c.Initialize(ctx))
 
 	defer func() {
-		require.NoError(t, c.Close(ctx))
+		aw.MustNoErr(t, c.Close(ctx))
 	}()
 
 	ms, err := NewModelStore(c)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return c, ms
 }
@@ -815,14 +816,14 @@ func reconnectToModelStore(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	c *conn,
 ) *ModelStore {
-	require.NoError(t, c.Connect(ctx))
+	aw.MustNoErr(t, c.Connect(ctx))
 
 	defer func() {
-		assert.NoError(t, c.Close(ctx))
+		aw.NoErr(t, c.Close(ctx))
 	}()
 
 	ms, err := NewModelStore(c)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return ms
 }
@@ -840,8 +841,8 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 
 	conn1, ms1 := openConnAndModelStore(t, ctx)
 
-	require.NoError(t, ms1.Put(ctx, model.BackupSchema, &backupModel))
-	require.NoError(t, ms1.Close(ctx))
+	aw.MustNoErr(t, ms1.Put(ctx, model.BackupSchema, &backupModel))
+	aw.MustNoErr(t, ms1.Close(ctx))
 
 	start := make(chan struct{})
 	ready := sync.WaitGroup{}
@@ -871,11 +872,11 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 	ready.Wait()
 
 	defer func() {
-		assert.NoError(t, ms2.Close(ctx))
+		aw.NoErr(t, ms2.Close(ctx))
 	}()
 
 	defer func() {
-		assert.NoError(t, ms1.Close(ctx))
+		aw.NoErr(t, ms1.Close(ctx))
 	}()
 
 	// New instance should not have model we added.
@@ -886,7 +887,7 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		backupModel.ModelStoreID,
 		&gotBackup,
 	)
-	assert.Error(t, err)
+	aw.Err(t, err)
 
 	// Old instance should still be able to access added model.
 	gotBackup = backup.Backup{}
@@ -896,5 +897,5 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		backupModel.ModelStoreID,
 		&gotBackup,
 	)
-	assert.NoError(t, err)
+	aw.NoErr(t, err)
 }

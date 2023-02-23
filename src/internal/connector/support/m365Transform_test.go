@@ -5,10 +5,10 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type SupportTestSuite struct {
@@ -22,7 +22,7 @@ func TestSupportTestSuite(t *testing.T) {
 func (suite *SupportTestSuite) TestToMessage() {
 	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
 	message, err := CreateMessageFromBytes(bytes)
-	require.NoError(suite.T(), err)
+	aw.MustNoErr(suite.T(), err)
 
 	clone := ToMessage(message)
 	suite.Equal(message.GetBccRecipients(), clone.GetBccRecipients())
@@ -36,7 +36,7 @@ func (suite *SupportTestSuite) TestToEventSimplified() {
 	t := suite.T()
 	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
 	event, err := CreateEventFromBytes(bytes)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	attendees := event.GetAttendees()
 	newEvent := ToEventSimplified(event)

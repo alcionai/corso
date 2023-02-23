@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -162,9 +163,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -240,7 +241,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, now, mt.ModTime())
 
 			readData, err := io.ReadAll(readItem.ToReader())
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			name, parentPath := test.infoFrom(t, readItemInfo.Info())
 
@@ -254,7 +255,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
 
 				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
-				require.NoError(t, err)
+				aw.MustNoErr(t, err)
 
 				tm, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -301,7 +302,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -343,7 +344,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
-			assert.Error(t, err)
+			aw.Err(t, err)
 
 			wg.Wait()
 
@@ -380,7 +381,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -435,7 +436,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
 			for _, i := range readItems {
 				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 					require.Equal(t, content, []byte("{}"))
 				}
 			}
@@ -471,7 +472,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -526,7 +527,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			for _, i := range readItems {
 				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 					require.Equal(t, content, []byte("{}"))
 					im, ok := i.(data.StreamModTime)
 					require.Equal(t, ok, true, "modtime interface")

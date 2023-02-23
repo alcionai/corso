@@ -6,12 +6,12 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
@@ -128,7 +128,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 					event, err   = support.CreateEventFromBytes(bytes)
 				)
 
-				require.NoError(suite.T(), err)
+				aw.MustNoErr(suite.T(), err)
 
 				return event, &details.ExchangeInfo{
 					ItemType:   details.ExchangeEvent,

@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -149,7 +149,7 @@ func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 								test.user,
 								m.isItem,
 							)
-							assert.Error(t, err)
+							aw.Err(t, err)
 						})
 					}
 				})
@@ -170,7 +170,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 				testUser,
 				true,
 			)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			assert.Empty(t, p.Folder(false))
 			assert.Empty(t, p.Folders())
@@ -194,7 +194,7 @@ func (suite *DataLayerResourcePath) TestPopFront() {
 				path.EmailCategory,
 				m.isItem,
 			)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 
 			b := p.PopFront()
 			assert.Equal(t, expected.String(), b.String())
@@ -219,12 +219,12 @@ func (suite *DataLayerResourcePath) TestDir() {
 				path.EmailCategory,
 				m.isItem,
 			)
-			require.NoError(t1, err)
+			aw.MustNoErr(t1, err)
 
 			for i := 1; i <= len(rest); i++ {
 				t1.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 					p, err = p.Dir()
-					require.NoError(t, err)
+					aw.MustNoErr(t, err)
 
 					expected := path.Builder{}.Append(elements...).Append(rest[:len(rest)-i]...)
 					assert.Equal(t, expected.String(), p.String())
@@ -234,7 +234,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 
 			t1.Run("All", func(t *testing.T) {
 				p, err = p.Dir()
-				assert.Error(t, err)
+				aw.Err(t, err)
 			})
 		})
 	}
@@ -256,7 +256,7 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			service:         path.ExchangeService,
 			category:        path.EmailCategory,
 			expectedService: path.ExchangeMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:            "PostfixPasses",
@@ -264,55 +264,55 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			category:        path.EmailCategory,
 			postfix:         []string{"a", "b"},
 			expectedService: path.ExchangeMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:     "Fails",
 			service:  path.ExchangeService,
 			category: path.FilesCategory,
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			name:            "Passes",
 			service:         path.ExchangeService,
 			category:        path.ContactsCategory,
 			expectedService: path.ExchangeMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:            "Passes",
 			service:         path.ExchangeService,
 			category:        path.EventsCategory,
 			expectedService: path.ExchangeMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:            "Passes",
 			service:         path.OneDriveService,
 			category:        path.FilesCategory,
 			expectedService: path.OneDriveMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:            "Passes",
 			service:         path.SharePointService,
 			category:        path.LibrariesCategory,
 			expectedService: path.SharePointMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:            "Passes",
 			service:         path.SharePointService,
 			category:        path.ListsCategory,
 			expectedService: path.SharePointMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 		{
 			name:            "Passes",
 			service:         path.SharePointService,
 			category:        path.PagesCategory,
 			expectedService: path.SharePointMetadataService,
-			check:           assert.NoError,
+			check:           aw.NoErr,
 		},
 	}
 
@@ -350,23 +350,23 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 	}{
 		{
 			category: path.UnknownCategory,
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			category: path.CategoryType(-1),
-			check:    assert.Error,
+			check:    aw.Err,
 		},
 		{
 			category: path.EmailCategory,
-			check:    assert.NoError,
+			check:    aw.NoErr,
 		},
 		{
 			category: path.ContactsCategory,
-			check:    assert.NoError,
+			check:    aw.NoErr,
 		},
 		{
 			category: path.EventsCategory,
-			check:    assert.NoError,
+			check:    aw.NoErr,
 		},
 	}
 
@@ -421,7 +421,7 @@ func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 			path.EmailCategory,
 			t,
 		)
-		require.NoError(suite.T(), err)
+		aw.MustNoErr(suite.T(), err)
 
 		suite.paths[t] = p
 	}
@@ -521,7 +521,7 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 
 					// Items don't allow appending.
 					if m.isItem {
-						assert.Error(t, err)
+						aw.Err(t, err)
 						return
 					}
 
@@ -587,7 +587,7 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
 	buildPath := func(t *testing.T, pth string, isItem bool) path.Path {
 		pathBuilder := path.Builder{}.Append(strings.Split(pth, "/")...)
 		item, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", isItem)
-		require.NoError(t, err, "err building path")
+		aw.MustNoErr(t, err, "err building path")
 
 		return item
 	}

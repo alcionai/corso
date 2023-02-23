@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -33,12 +34,12 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 	st := tester.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+	aw.MustNoErr(t, k.Initialize(ctx))
 
 	defer k.Close(ctx)
 
 	kw, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	defer kw.Close(ctx)
 
@@ -55,11 +56,11 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 	ss := New(kw, "tenant", path.ExchangeService)
 
 	id, err := ss.WriteBackupDetails(ctx, deets, fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	require.NotNil(t, id)
 
 	readDeets, err := ss.ReadBackupDetails(ctx, id, fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	require.NotNil(t, readDeets)
 
 	assert.Equal(t, len(deets.Entries), len(readDeets.Entries))

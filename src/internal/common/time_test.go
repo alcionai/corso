@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 )
 
 type CommonTimeUnitSuite struct {
@@ -48,14 +48,14 @@ func (suite *CommonTimeUnitSuite) TestParseTime() {
 
 	nowStr := now.Format(time.RFC3339Nano)
 	result, err := common.ParseTime(nowStr)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Equal(t, now.UTC(), result)
 
 	_, err = common.ParseTime("")
-	require.Error(t, err)
+	aw.MustErr(t, err)
 
 	_, err = common.ParseTime("flablabls")
-	require.Error(t, err)
+	aw.MustErr(t, err)
 }
 
 func (suite *CommonTimeUnitSuite) TestExtractTime() {
@@ -68,14 +68,14 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 
 		c, err := common.ParseTime(ts)
 
-		require.NoError(t, err)
+		aw.MustNoErr(t, err)
 
 		return c
 	}
 
 	parseT := func(v string) time.Time {
 		t, err := time.Parse(time.RFC3339, v)
-		require.NoError(suite.T(), err)
+		aw.MustNoErr(suite.T(), err)
 
 		return t
 	}
@@ -151,7 +151,7 @@ func (suite *CommonTimeUnitSuite) TestExtractTime() {
 			t := suite.T()
 
 			result, err := common.ExtractTime(test.input)
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Equal(t, test.expect, comparable(t, result, test.clippedFormat))
 		})
 	}

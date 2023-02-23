@@ -3,10 +3,9 @@ package api_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -16,7 +15,7 @@ func createTestBetaService(t *testing.T, credentials account.M365Config) *discov
 		credentials.AzureClientID,
 		credentials.AzureClientSecret,
 	)
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 
 	return discover.NewBetaService(adapter)
 }

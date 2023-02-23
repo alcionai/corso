@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -30,23 +31,23 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 			name:     "with backupid",
 			backupID: "bid",
 			opts:     utils.ExchangeOpts{},
-			expect:   assert.NoError,
+			expect:   aw.NoErr,
 		},
 		{
 			name:   "no backupid",
 			opts:   utils.ExchangeOpts{},
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 		{
 			name:     "valid time",
 			backupID: "bid",
 			opts:     utils.ExchangeOpts{EmailReceivedAfter: common.Now()},
-			expect:   assert.NoError,
+			expect:   aw.NoErr,
 		},
 		{
 			name:   "invalid time",
 			opts:   utils.ExchangeOpts{EmailReceivedAfter: "fnords"},
-			expect: assert.Error,
+			expect: aw.Err,
 		},
 	}
 	for _, test := range table {

@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/aw"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -108,7 +108,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				connector.UpdateStatus,
 				control.Options{},
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			assert.Empty(t, excludes)
 
 			for range collections {
@@ -124,7 +124,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				for object := range col.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "received a buf.Read error")
+					aw.NoErr(t, err, "received a buf.Read error")
 				}
 			}
 
@@ -208,7 +208,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 				nil,
 				control.Options{},
 				fault.New(true))
-			assert.Error(t, err)
+			aw.Err(t, err)
 			assert.Empty(t, collections)
 			assert.Empty(t, excludes)
 		})
@@ -260,7 +260,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector,
 				control.Options{},
 				fault.New(true))
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 
@@ -276,7 +276,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				for object := range coll.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "reading item")
+					aw.NoErr(t, err, "reading item")
 				}
 			}
 
@@ -338,7 +338,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		nil,
 		control.Options{},
 		fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Len(t, cols, 1)
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -369,7 +369,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		nil,
 		control.Options{},
 		fault.New(true))
-	require.NoError(t, err)
+	aw.MustNoErr(t, err)
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -381,7 +381,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			t.Log("File: " + item.UUID())
 
 			bs, err := io.ReadAll(item.ToReader())
-			require.NoError(t, err)
+			aw.MustNoErr(t, err)
 			t.Log(string(bs))
 		}
 	}
