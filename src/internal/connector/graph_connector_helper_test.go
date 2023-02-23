@@ -712,6 +712,7 @@ func compareOneDriveItem(
 	}
 
 	name := item.UUID()
+
 	if strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
 		strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
 		var (
@@ -1050,10 +1051,12 @@ func collectionsForInfo(
 	allInfo []colInfo,
 	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
-	collections := make([]data.RestoreCollection, 0, len(allInfo))
-	expectedData := make(map[string]map[string][]byte, len(allInfo))
-	totalItems := 0
-	kopiaEntries := 0
+	var (
+		collections  = make([]data.RestoreCollection, 0, len(allInfo))
+		expectedData = make(map[string]map[string][]byte, len(allInfo))
+		totalItems   = 0
+		kopiaEntries = 0
+	)
 
 	for _, info := range allInfo {
 		pth := mustToDataLayerPath(

@@ -14,8 +14,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -175,9 +175,7 @@ func (c *onedriveCollection) withFile(
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case 1:
-		fallthrough
-	case 2:
+	case 1, 2, 3:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -209,9 +207,7 @@ func (c *onedriveCollection) withFolder(
 	case 0:
 		return c
 
-	case 1:
-		fallthrough
-	case 2:
+	case 1, 2, 3:
 		c.items = append(
 			c.items,
 			onedriveMetadata(
@@ -219,8 +215,7 @@ func (c *onedriveCollection) withFolder(
 				"",
 				name+onedrive.DirMetaFileSuffix,
 				user,
-				roles),
-		)
+				roles))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -237,7 +232,7 @@ func (c *onedriveCollection) withPermissions(
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < 3 {
+	if c.backupVersion < version.OneDriveXIncludesPermissions {
 		return c
 	}
 
@@ -281,7 +276,7 @@ type onedriveColInfo struct {
 type onedriveTest struct {
 	name string
 	// Version this test first be run for. Will run from
-	// [startVersion, backup.Version] inclusive.
+	// [startVersion, version.Backup] inclusive.
 	startVersion int
 	cols         []onedriveColInfo
 }
@@ -467,17 +462,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 	}
 
 	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, backup.Version)
+		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
-		for version := test.startVersion; version <= backup.Version; version++ {
-			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, version), func(t *testing.T) {
-				input := testDataForInfo(t, test.cols, version)
+		for vn := test.startVersion; vn <= version.Backup; vn++ {
+			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, vn), func(t *testing.T) {
+				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{
 					service:             path.OneDriveService,
 					resource:            Users,
-					backupVersion:       version,
-					countMeta:           version == 0,
+					backupVersion:       vn,
+					countMeta:           vn == 0,
 					collectionsPrevious: input,
 					collectionsLatest:   expected,
 				}
@@ -691,17 +686,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 	}
 
 	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, backup.Version)
+		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
-		for version := test.startVersion; version <= backup.Version; version++ {
-			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, version), func(t *testing.T) {
-				input := testDataForInfo(t, test.cols, version)
+		for vn := test.startVersion; vn <= version.Backup; vn++ {
+			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, vn), func(t *testing.T) {
+				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{
 					service:             path.OneDriveService,
 					resource:            Users,
-					backupVersion:       version,
-					countMeta:           version == 0,
+					backupVersion:       vn,
+					countMeta:           vn == 0,
 					collectionsPrevious: input,
 					collectionsLatest:   expected,
 				}
@@ -764,17 +759,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 	}
 
 	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, backup.Version)
+		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
-		for version := test.startVersion; version <= backup.Version; version++ {
-			suite.T().Run(fmt.Sprintf("Version%d", version), func(t *testing.T) {
-				input := testDataForInfo(t, test.cols, version)
+		for vn := test.startVersion; vn <= version.Backup; vn++ {
+			suite.T().Run(fmt.Sprintf("Version%d", vn), func(t *testing.T) {
+				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{
 					service:             path.OneDriveService,
 					resource:            Users,
-					backupVersion:       version,
-					countMeta:           version == 0,
+					backupVersion:       vn,
+					countMeta:           vn == 0,
 					collectionsPrevious: input,
 					collectionsLatest:   expected,
 				}
@@ -811,7 +806,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 	test := restoreBackupInfoMultiVersion{
 		service:       path.OneDriveService,
 		resource:      Users,
-		backupVersion: backup.Version,
+		backupVersion: version.Backup,
 		countMeta:     false,
 		collectionsPrevious: []colInfo{
 			newOneDriveCollection(
@@ -821,7 +816,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					driveID,
 					"root:",
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
@@ -843,7 +838,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					"root:",
 					folderBName,
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
@@ -865,7 +860,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					driveID,
 					"root:",
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
@@ -887,7 +882,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					"root:",
 					folderBName,
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
