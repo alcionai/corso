@@ -206,7 +206,6 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]struct{}{}
 		categories  = map[path.CategoryType]struct{}{}
-		errs        error
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -243,7 +242,7 @@ func (gc *GraphConnector) OneDriveDataCollections(
 		gc.UpdateStatus)
 
 	if baseErrs != nil {
-		errs = support.WrapAndAppend(user, baseErrs, errs)
+		return collections, allExcludes, baseErrs
 	}
 
 	collections = append(collections, baseCols...)

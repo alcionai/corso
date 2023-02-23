@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -47,7 +48,6 @@ func DataCollections(
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
 		categories  = map[path.CategoryType]struct{}{}
-		errs        error
 	)
 
 	for _, scope := range b.Scopes() {
@@ -123,7 +123,7 @@ func DataCollections(
 		su.UpdateStatus)
 
 	if baseErrs != nil {
-		return collections, nil, support.WrapAndAppend(site, baseErrs, errs)
+		return collections, nil, baseErrs
 	}
 
 	collections = append(collections, baseCols...)

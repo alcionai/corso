@@ -63,7 +63,7 @@ func BaseCollections(
 			// Shouldn't happen.
 			errs = append(
 				errs,
-				clues.Wrap(err, "making path").WithAll("service", service, "category", cat))
+				clues.Wrap(err, "making path").With("service", service, "category", cat))
 
 			continue
 		}
@@ -73,7 +73,7 @@ func BaseCollections(
 			// Shouldn't happen.
 			errs = append(
 				errs,
-				clues.Wrap(err, "getting base prefix").WithAll("serivce", service, "category", cat))
+				clues.Wrap(err, "getting base prefix").With("serivce", service, "category", cat))
 
 			continue
 		}
@@ -82,5 +82,5 @@ func BaseCollections(
 		res = append(res, emptyCollection{p: p, su: su})
 	}
 
-	return res, clues.Stack(errs...)
+	return res, nil
 }
