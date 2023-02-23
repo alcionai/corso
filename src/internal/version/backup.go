@@ -21,6 +21,13 @@ const (
 	// specifies if the file is a meta file or a data file.
 	OneDrive3IsMetaMarker = 3
 
+	// OneDrive4IncludesPermissions includes permissions in the backup.
+	// Note that this is larger than the current backup version.  That's
+	// because it isn't implemented yet.  But we have tests based on this,
+	// so maybe we just keep bumping the verson ahead of the backup until
+	// it gets implemented.
+	OneDriveXIncludesPermissions = Backup + 1
+
 	// OneDriveXNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.

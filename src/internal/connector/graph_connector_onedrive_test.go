@@ -215,8 +215,7 @@ func (c *onedriveCollection) withFolder(
 				"",
 				name+onedrive.DirMetaFileSuffix,
 				user,
-				roles),
-		)
+				roles))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -233,7 +232,7 @@ func (c *onedriveCollection) withPermissions(
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < 3 {
+	if c.backupVersion < version.OneDriveXIncludesPermissions {
 		return c
 	}
 
