@@ -1,7 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "animate.css";
+import { tns } from "tiny-slider/src/tiny-slider";
 
 export default function Users() {
+  useEffect(function () {
+    if (typeof window !== "undefined") {
+      window.tns = tns;
+    }
+  });
+
   return (
     <section className="relative !tracking-wide flex flex-col home-wrapper items-center overflow-hidden">
       <div className="container md:mt-24 mt-16">

@@ -3,7 +3,6 @@ import Layout from "@theme/Layout";
 import { MainComp } from "@site/src/components/parts/MainComp";
 import { useColorMode } from '@docusaurus/theme-common';
 import Head from "@docusaurus/Head";
-import { tns } from "tiny-slider/src/tiny-slider";
 
 const ThemeColor = () => {
   const { colorMode, setColorMode } = useColorMode();
@@ -15,11 +14,7 @@ const ThemeColor = () => {
         setColorMode('dark', { persist: false })
       }
     } else {
-      setColorMode(localStorage.getItem('theme'))
-    }
-
-    if (typeof window !== "undefined") {
-      window.tns = tns;
+      setColorMode(localStorage.getItem("theme"));
     }
   });
 
