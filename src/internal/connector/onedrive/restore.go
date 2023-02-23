@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"math"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -27,23 +27,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-const (
-	// copyBufferSize is used for chunked upload
-	// Microsoft recommends 5-10MB buffers
-	// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
-	copyBufferSize = 5 * 1024 * 1024
-
-	// versionWithDataAndMetaFiles is the corso backup format version
-	// in which we split from storing just the data to storing both
-	// the data and metadata in two files.
-	versionWithDataAndMetaFiles = 1
-	// versionWithNameInMeta points to the backup format version where we begin
-	// storing files in kopia with their item ID instead of their OneDrive file
-	// name.
-	// TODO(ashmrtn): Update this to a real value when we merge the file name
-	// change. Set to MAXINT for now to keep the if-check using it working.
-	versionWithNameInMeta = math.MaxInt
-)
+// copyBufferSize is used for chunked upload
+// Microsoft recommends 5-10MB buffers
+// https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0#best-practices
+const copyBufferSize = 5 * 1024 * 1024
 
 func getParentPermissions(
 	parentPath path.Path,
@@ -288,7 +275,7 @@ func RestoreCollection(
 				continue
 			}
 
-			if source == OneDriveSource && backupVersion >= versionWithDataAndMetaFiles {
+			if source == OneDriveSource && backupVersion >= version.OneDrive1DataAndMetaFiles {
 				name := itemData.UUID()
 
 				if strings.HasSuffix(name, DataFileSuffix) {
@@ -300,7 +287,7 @@ func RestoreCollection(
 						err      error
 					)
 
-					if backupVersion < versionWithNameInMeta {
+					if backupVersion < version.OneDriveXNameInMeta {
 						itemInfo, err = restoreV1File(
 							ctx,
 							source,
