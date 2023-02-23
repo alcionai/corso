@@ -109,8 +109,6 @@ func (gc *GraphConnector) DataCollections(
 			}
 		}
 
-		gc.incrementMessagesBy(len(colls))
-
 		return colls, excludes, nil
 
 	case selectors.ServiceSharePoint:
