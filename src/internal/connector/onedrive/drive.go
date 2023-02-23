@@ -294,7 +294,6 @@ func getFolder(
 	)
 
 	foundItem, err = builder.Get(ctx, nil)
-
 	if err != nil {
 		if graph.IsErrDeletedInFlight(err) {
 			return nil, clues.Stack(errFolderNotFound, err).WithClues(ctx).With(graph.ErrData(err)...)

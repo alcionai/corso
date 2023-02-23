@@ -972,7 +972,7 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 			},
 			expectedDeltas: map[string]string{},
 			expectedPaths:  map[string]map[string]string{},
-			errCheck:       assert.NoError,
+			errCheck:       assert.Error,
 		},
 		{
 			// Unexpected files are logged and skipped. They don't cause an error to
@@ -1095,8 +1095,7 @@ func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
 					path.OneDriveService,
 					path.FilesCategory,
 					c(),
-					func(*support.ConnectorOperationStatus) {},
-				)
+					func(*support.ConnectorOperationStatus) {})
 				require.NoError(t, err)
 
 				cols = append(cols, data.NotFoundRestoreCollection{Collection: mc})

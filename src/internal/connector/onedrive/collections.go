@@ -230,8 +230,7 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 
 	tmp := map[string]T{}
 
-	err := json.NewDecoder(reader).Decode(&tmp)
-	if err != nil {
+	if err := json.NewDecoder(reader).Decode(&tmp); err != nil {
 		return errors.Wrap(err, "deserializing file contents")
 	}
 
