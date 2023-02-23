@@ -82,5 +82,9 @@ func BaseCollections(
 		res = append(res, emptyCollection{p: p, su: su})
 	}
 
+	if len(errs) > 0 {
+		return res, clues.Stack(errs...)
+	}
+
 	return res, nil
 }
