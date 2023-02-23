@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
@@ -20,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -91,7 +89,27 @@ func (gc *GraphConnector) DataCollections(
 		return colls, excludes, nil
 
 	case selectors.ServiceOneDrive:
-		return gc.OneDriveDataCollections(ctx, sels, metadata, ctrlOpts)
+		colls, excludes, err := onedrive.DataCollections(
+			ctx,
+			sels, metadata,
+			gc.credentials.AzureTenantID,
+			gc.itemClient,
+			gc.Service,
+			gc.UpdateStatus,
+			ctrlOpts,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, c := range colls {
+			// kopia doesn't stream Items() from deleted collections.
+			if c.State() != data.DeletedState {
+				gc.incrementAwaitingMessages()
+			}
+		}
+
+		return colls, excludes, nil
 
 	case selectors.ServiceSharePoint:
 		colls, excludes, err := sharepoint.DataCollections(
@@ -107,9 +125,7 @@ func (gc *GraphConnector) DataCollections(
 			return nil, nil, err
 		}
 
-		for range colls {
-			gc.incrementAwaitingMessages()
-		}
+		gc.incrementMessagesBy(len(colls))
 
 		return colls, excludes, nil
 
@@ -169,74 +185,6 @@ func checkServiceEnabled(
 	}
 
 	return true, nil
-}
-
-// ---------------------------------------------------------------------------
-// OneDrive
-// ---------------------------------------------------------------------------
-
-type odFolderMatcher struct {
-	scope selectors.OneDriveScope
-}
-
-func (fm odFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.OneDriveFolder)
-}
-
-func (fm odFolderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.OneDriveFolder, dir)
-}
-
-// OneDriveDataCollections returns a set of DataCollection which represents the OneDrive data
-// for the specified user
-func (gc *GraphConnector) OneDriveDataCollections(
-	ctx context.Context,
-	selector selectors.Selector,
-	metadata []data.RestoreCollection,
-	ctrlOpts control.Options,
-) ([]data.BackupCollection, map[string]struct{}, error) {
-	odb, err := selector.ToOneDriveBackup()
-	if err != nil {
-		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)
-	}
-
-	var (
-		user        = selector.DiscreteOwner
-		collections = []data.BackupCollection{}
-		allExcludes = map[string]struct{}{}
-	)
-
-	// for each scope that includes oneDrive items, get all
-	for _, scope := range odb.Scopes() {
-		logger.Ctx(ctx).Debug("creating OneDrive collections")
-
-		odcs, excludes, err := onedrive.NewCollections(
-			gc.itemClient,
-			gc.credentials.AzureTenantID,
-			user,
-			onedrive.OneDriveSource,
-			odFolderMatcher{scope},
-			gc.Service,
-			gc.UpdateStatus,
-			ctrlOpts,
-		).Get(ctx, metadata)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		collections = append(collections, odcs...)
-
-		maps.Copy(allExcludes, excludes)
-	}
-
-	for _, c := range collections {
-		if c.State() != data.DeletedState {
-			// kopia doesn't stream Items() from deleted collections
-			gc.incrementAwaitingMessages()
-		}
-	}
-
-	return collections, allExcludes, nil
 }
 
 // RestoreDataCollections restores data from the specified collections
