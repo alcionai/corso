@@ -73,7 +73,7 @@ func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 	collection, err := client.SitesById(siteID).Pages().Get(ctx, nil)
 	// Ensures that the client is able to receive data from beta
 	// Not Registered Error: content type application/json does not have a factory registered to be parsed
-	require.NoError(t, err)
+	require.NoError(t, err, "getting SharePoint site pages")
 
 	for _, page := range collection.GetValue() {
 		assert.NotNil(t, page, "betasdk call for page does not return value.")

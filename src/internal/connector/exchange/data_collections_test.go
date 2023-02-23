@@ -515,7 +515,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				}
 
 				assert.Equal(t, edc.FullPath().Folder(false), DefaultContactFolder)
-				assert.NotZero(t, count)
+				assert.NotZero(t, count, "contacts in collection")
 			}
 
 			wg.Wait()
