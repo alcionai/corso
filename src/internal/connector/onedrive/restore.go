@@ -586,7 +586,7 @@ func CreateRestoreFolders(
 			continue
 		}
 
-		if errors.Is(err, errFolderNotFound) {
+		if !errors.Is(err, errFolderNotFound) {
 			return "", clues.Wrap(err, "folder not found").With("folder_id", folder).WithClues(ctx)
 		}
 
@@ -595,9 +595,9 @@ func CreateRestoreFolders(
 			return "", clues.Wrap(err, "creating folder")
 		}
 
-		logger.Ctx(ctx).Debugw("resolved restore destination", "dest_id", *folderItem.GetId())
+		parentFolderID = ptr.Val(folderItem.GetId())
 
-		parentFolderID = *folderItem.GetId()
+		logger.Ctx(ctx).Debugw("resolved restore destination", "dest_id", parentFolderID)
 	}
 
 	return parentFolderID, nil
