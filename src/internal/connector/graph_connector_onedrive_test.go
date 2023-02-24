@@ -425,7 +425,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 				service:             path.OneDriveService,
 				resource:            Users,
 				backupVersion:       vn,
-				countMeta:           vn == 0,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
 			}
@@ -626,7 +625,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 				service:             path.OneDriveService,
 				resource:            Users,
 				backupVersion:       vn,
-				countMeta:           vn == 0,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
 			}
@@ -748,7 +746,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		service:       path.OneDriveService,
 		resource:      Users,
 		backupVersion: version.Backup,
-		countMeta:     false,
 		collectionsPrevious: []colInfo{
 			newOneDriveCollection(
 				suite.T(),
