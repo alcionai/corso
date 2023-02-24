@@ -6,6 +6,7 @@ import Demo from "./Demo";
 import CTA from "./CTA";
 import Cookies from "./Cookies";
 import KeyLoveFAQ from "./KeyLoveFAQ";
+import UsersTestimonials from "./UsersTestimonials";
 
 const BackToTopComp = loadable(() => import("./BackToTop"));
 
@@ -17,6 +18,7 @@ export function MainComp() {
       <KeyLoveFAQ />
       <CTA />
       <BackToTopComp />
+      <UsersTestimonials />
       <Cookies />
     </>
   );
