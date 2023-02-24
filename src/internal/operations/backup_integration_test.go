@@ -456,12 +456,7 @@ type BackupOpIntegrationSuite struct {
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOperationTests,
-		tester.CorsoOperationBackupTests)
-
+	tester.RunOnAny(t, tester.CorsoCITests)
 	suite.Run(t, new(BackupOpIntegrationSuite))
 }
 

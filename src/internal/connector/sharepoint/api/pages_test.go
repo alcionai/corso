@@ -40,11 +40,7 @@ func (suite *SharePointPageSuite) SetupSuite() {
 
 func TestSharePointPageSuite(t *testing.T) {
 	suite.Run(t, &SharePointPageSuite{
-		Suite: tester.NewIntegrationSuite(
-			t,
-			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoGraphConnectorSharePointTests),
+		Suite: tester.NewIntegrationSuite(t, [][]string{tester.M365AcctCredEnvs}),
 	})
 }
 

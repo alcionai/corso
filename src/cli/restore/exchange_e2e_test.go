@@ -47,8 +47,7 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIRestoreTests),
+		),
 	})
 }
 

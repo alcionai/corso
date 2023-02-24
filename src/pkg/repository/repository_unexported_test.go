@@ -16,11 +16,7 @@ type RepositoryModelSuite struct {
 }
 
 func TestRepositoryModelSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoRepositoryTests)
-
+	tester.RunOnAny(t, tester.CorsoCITests)
 	suite.Run(t, new(RepositoryModelSuite))
 }
 

@@ -136,10 +136,7 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOperationTests)
+	tester.RunOnAny(t, tester.CorsoCITests)
 
 	suite.Run(t, new(RestoreOpIntegrationSuite))
 }

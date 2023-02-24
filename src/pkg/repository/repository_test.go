@@ -96,11 +96,7 @@ type RepositoryIntegrationSuite struct {
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoRepositoryTests)
-
+	tester.RunOnAny(t, tester.CorsoCITests)
 	suite.Run(t, new(RepositoryIntegrationSuite))
 }
 
