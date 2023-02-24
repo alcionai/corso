@@ -79,7 +79,8 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			// TODO: turn back on when this stops throttling-out the tests.
+			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err)
 }
@@ -164,7 +165,8 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			// TODO: turn back on when this stops throttling-out the tests.
+			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err)
 
