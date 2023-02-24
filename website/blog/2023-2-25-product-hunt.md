@@ -5,10 +5,10 @@ description: "Corso is a free and open-source tool to back up your Microsoft 365
 authors: nica
 tags: [corso, microsoft 365, backups]
 date: 2023-2-25
-image: ./images/falcons.jpg
+image: ./images/rocket.jpg
 ---
 
-![Falcon Heavy Side Boosters landing on LZ1 and LZ2 By SpaceX - Falcon Heavy Demo Mission, CC0, https://commons.wikimedia.org/w/index.php?curid=66196684](./images/falcons.jpg)
+![Photo by SpaceX on Unsplash](./images/rocket.jpg)
 Corso is a free and open-source tool to back up your Microsoft 365 data. For
 Microsoft Office 365 administrators, it backs up user data to any S3 compliant
 storage. Leaving you in control of when your data is backed up, and how it’s
