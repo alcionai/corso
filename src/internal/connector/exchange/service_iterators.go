@@ -102,7 +102,7 @@ func filterContainersAndFillCollections(
 		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
-				et.Add(err)
+				et.Add(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
