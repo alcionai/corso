@@ -66,12 +66,19 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(avoidTheseCommands, cc.Use) {
-		s, acct, repoid, err := config.GetStorageRepoAndAccount(ctx)
+		cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 		if err != nil {
-			log.Debug(ctx, "Error while triggering event for ", cc.Use)
+			log.Error("Error while getting config info to run command: ", cc.Use)
+			return err
 		}
 
-		utils.SendStartCorsoEvent(ctx, s, acct.ID(), map[string]any{"command": cc.Use}, repoid, options.Control())
+		utils.SendStartCorsoEvent(
+			ctx,
+			cfg.Storage,
+			cfg.Account.ID(),
+			map[string]any{"command": cc.Use},
+			cfg.RepoID,
+			options.Control())
 	}
 
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())

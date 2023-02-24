@@ -109,25 +109,31 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, err := config.GetStorageAndAccount(ctx, false, s3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, false, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
-	utils.SendStartCorsoEvent(ctx, s, a.ID(), map[string]any{"command": "init repo"}, a.ID(), options.Control())
+	utils.SendStartCorsoEvent(
+		ctx,
+		cfg.Storage,
+		cfg.Account.ID(),
+		map[string]any{"command": "init repo"},
+		cfg.Account.ID(),
+		options.Control())
 
-	s3Cfg, err := s.S3Config()
+	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 
-	m365, err := a.M365Config()
+	m365, err := cfg.Account.M365Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, a, s, options.Control())
+	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
 		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -140,7 +146,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
 	}
 
@@ -171,22 +177,22 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, a, err := config.GetStorageAndAccount(ctx, true, s3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, s3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	s3Cfg, err := s.S3Config()
+	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 
-	m365, err := a.M365Config()
+	m365, err := cfg.Account.M365Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, a, s, options.Control())
+	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to the S3 repository"))
 	}
@@ -195,7 +201,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
 	}
 

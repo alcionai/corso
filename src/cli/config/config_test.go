@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,18 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
-	"github.com/alcionai/corso/src/pkg/store"
 )
 
 const (
@@ -96,7 +87,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 
 	s3Cfg := storage.S3Config{Bucket: bkt, DoNotUseTLS: true, DoNotVerifyTLS: true}
 	m365 := account.M365Config{AzureTenantID: tid}
-	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, mockRepo{}), "writing repo config")
+	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid"), "writing repo config")
 	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
 
 	readS3Cfg, err := s3ConfigsFromViper(vpr)
@@ -128,7 +119,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	s3Cfg := storage.S3Config{Bucket: bkt}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, mockRepo{}), "writing repo config")
+	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid"), "writing repo config")
 	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
 
 	table := []struct {
@@ -201,56 +192,6 @@ func TestConfigIntegrationSuite(t *testing.T) {
 		tester.CorsoCLIConfigTests)})
 }
 
-// mockRepo implementing Repository for test
-type mockRepo struct{}
-
-func (repo mockRepo) GetID() string { return "repoid" }
-
-func (repo mockRepo) Close(context.Context) error { return nil }
-
-func (repo mockRepo) NewBackup(
-	ctx context.Context,
-	self selectors.Selector,
-) (operations.BackupOperation, error) {
-	return operations.BackupOperation{}, nil
-}
-
-func (repo mockRepo) NewRestore(
-	ctx context.Context,
-	backupID string,
-	sel selectors.Selector,
-	dest control.RestoreDestination,
-) (operations.RestoreOperation, error) {
-	return operations.RestoreOperation{}, nil
-}
-
-func (repo mockRepo) DeleteBackup(ctx context.Context, id model.StableID) error { return nil }
-
-// backups lists a backup by id
-func (repo mockRepo) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
-	return &backup.Backup{}, nil
-}
-
-func (repo mockRepo) BackupDetails(
-	ctx context.Context,
-	backupID string,
-) (*details.Details, *backup.Backup, *fault.Errors) {
-	return nil, nil, nil
-}
-
-func (repo mockRepo) Backups(
-	context.Context,
-	[]model.StableID,
-) ([]*backup.Backup, *fault.Errors) {
-	return nil, nil
-}
-
-// backups lists backups in a repository
-func (repo mockRepo) BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error) {
-	// sw := store.NewKopiaStore(r.modelStore)
-	return []*backup.Backup{}, nil
-}
-
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	t := suite.T()
 	vpr := viper.New()
@@ -275,26 +216,26 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, mockRepo{}), "writing repo config")
+	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid"), "writing repo config")
 	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
 
-	st, ac, repoID, err := getStorageAndAccountWithViper(vpr, true, nil)
+	config, err := getStorageAndAccountWithViper(vpr, true, nil)
 	require.NoError(t, err, "getting storage and account from config")
 
-	readS3Cfg, err := st.S3Config()
+	readS3Cfg, err := config.Storage.S3Config()
 	require.NoError(t, err, "reading s3 config from storage")
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
 	assert.Equal(t, readS3Cfg.DoNotUseTLS, s3Cfg.DoNotUseTLS)
 	assert.Equal(t, readS3Cfg.DoNotVerifyTLS, s3Cfg.DoNotVerifyTLS)
-	assert.Equal(t, repoID, "repoid")
+	assert.Equal(t, config.RepoID, "repoid")
 
-	common, err := st.CommonConfig()
+	common, err := config.Storage.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")
 	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
-	readM365, err := ac.M365Config()
+	readM365, err := config.Account.M365Config()
 	require.NoError(t, err, "reading m365 config from account")
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))
@@ -325,23 +266,23 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	st, ac, repoid, err := getStorageAndAccountWithViper(vpr, false, overrides)
+	config, err := getStorageAndAccountWithViper(vpr, false, overrides)
 	require.NoError(t, err, "getting storage and account from config")
 
-	readS3Cfg, err := st.S3Config()
+	readS3Cfg, err := config.Storage.S3Config()
 	require.NoError(t, err, "reading s3 config from storage")
 	assert.Equal(t, readS3Cfg.Bucket, bkt)
-	assert.Equal(t, repoid, "")
+	assert.Equal(t, config.RepoID, "")
 	assert.Equal(t, readS3Cfg.Endpoint, end)
 	assert.Equal(t, readS3Cfg.Prefix, pfx)
 	assert.True(t, readS3Cfg.DoNotUseTLS)
 	assert.True(t, readS3Cfg.DoNotVerifyTLS)
 
-	common, err := st.CommonConfig()
+	common, err := config.Storage.CommonConfig()
 	require.NoError(t, err, "reading common config from storage")
 	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
-	readM365, err := ac.M365Config()
+	readM365, err := config.Account.M365Config()
 	require.NoError(t, err, "reading m365 config from account")
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))

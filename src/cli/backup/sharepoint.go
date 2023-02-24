@@ -199,14 +199,14 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -214,7 +214,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), cfg.Account, connector.Sites, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
@@ -369,14 +369,14 @@ func sharePointListCmd() *cobra.Command {
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -429,14 +429,14 @@ func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -473,14 +473,14 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)

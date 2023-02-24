@@ -182,14 +182,14 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -199,7 +199,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, acct, errs)
+	users, err := m365.UserPNs(ctx, cfg.Account, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -283,14 +283,14 @@ func oneDriveListCmd() *cobra.Command {
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -343,14 +343,14 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -430,14 +430,14 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)

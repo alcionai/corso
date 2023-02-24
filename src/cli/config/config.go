@@ -13,7 +13,6 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -38,6 +37,13 @@ var (
 	configDir          string
 	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
 )
+
+// RepoDetails config read using viper
+type RepoDetails struct {
+	Storage storage.Storage
+	Account account.Account
+	RepoID  string
+}
 
 // Attempts to set the default dir and config file path.
 // Default is always $HOME.
@@ -180,20 +186,22 @@ func Read(ctx context.Context) error {
 
 // WriteRepoConfig currently just persists corso config to the config file
 // It does not check for conflicts or existing data.
-func WriteRepoConfig(ctx context.Context,
+func WriteRepoConfig(
+	ctx context.Context,
 	s3Config storage.S3Config,
 	m365Config account.M365Config,
-	repo repository.Repository,
+	repoID string,
 ) error {
-	return writeRepoConfigWithViper(GetViper(ctx), s3Config, m365Config, repo)
+	return writeRepoConfigWithViper(GetViper(ctx), s3Config, m365Config, repoID)
 }
 
 // writeRepoConfigWithViper implements WriteRepoConfig, but takes in a viper
 // struct for testing.
-func writeRepoConfigWithViper(vpr *viper.Viper,
+func writeRepoConfigWithViper(
+	vpr *viper.Viper,
 	s3Config storage.S3Config,
 	m365Config account.M365Config,
-	repo repository.Repository,
+	repoID string,
 ) error {
 	s3Config = s3Config.Normalize()
 	// Rudimentary support for persisting repo config
@@ -204,7 +212,7 @@ func writeRepoConfigWithViper(vpr *viper.Viper,
 	vpr.Set(PrefixKey, s3Config.Prefix)
 	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
 	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
-	vpr.Set(RepoID, repo.GetID())
+	vpr.Set(RepoID, repoID)
 
 	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
 	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)
@@ -222,22 +230,16 @@ func writeRepoConfigWithViper(vpr *viper.Viper,
 
 // GetStorageAndAccount creates a storage and account instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) and the config file.
-func GetStorageRepoAndAccount(ctx context.Context) (storage.Storage, account.Account, string, error) {
-	return getStorageAndAccountWithViper(GetViper(ctx), true, make(map[string]string))
-}
-
-// GetStorageAndAccount creates a storage and account instance by mediating all the possible
-// data sources (config file, env vars, flag overrides) and the config file.
-func GetStorageAndAccount(
+func GetConfigRepoDetails(
 	ctx context.Context,
 	readFromFile bool,
 	overrides map[string]string,
-) (storage.Storage,
-	account.Account,
+) (
+	RepoDetails,
 	error,
 ) {
-	s, acc, _, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, overrides)
-	return s, acc, err
+	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, overrides)
+	return config, err
 }
 
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper
@@ -246,16 +248,13 @@ func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
 	readFromFile bool,
 	overrides map[string]string,
-) (storage.Storage,
-	account.Account,
-	string,
+) (
+	RepoDetails,
 	error,
 ) {
 	var (
-		store  storage.Storage
-		acct   account.Account
+		config RepoDetails
 		err    error
-		repoid string
 	)
 
 	readConfigFromViper := readFromFile
@@ -265,27 +264,27 @@ func getStorageAndAccountWithViper(
 		err = vpr.ReadInConfig()
 		if err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return store, acct, repoid, errors.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
+				return config, errors.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
 
 			readConfigFromViper = false
 		}
 
 		// in case of existing config, fetch repoid from config file
-		repoid = vpr.GetString(RepoID)
+		config.RepoID = vpr.GetString(RepoID)
 	}
 
-	acct, err = configureAccount(vpr, readConfigFromViper, overrides)
+	config.Account, err = configureAccount(vpr, readConfigFromViper, overrides)
 	if err != nil {
-		return store, acct, repoid, errors.Wrap(err, "retrieving account configuration details")
+		return config, errors.Wrap(err, "retrieving account configuration details")
 	}
 
-	store, err = configureStorage(vpr, readConfigFromViper, overrides)
+	config.Storage, err = configureStorage(vpr, readConfigFromViper, overrides)
 	if err != nil {
-		return store, acct, repoid, errors.Wrap(err, "retrieving storage provider details")
+		return config, errors.Wrap(err, "retrieving storage provider details")
 	}
 
-	return store, acct, repoid, nil
+	return config, nil
 }
 
 // ---------------------------------------------------------------------------
