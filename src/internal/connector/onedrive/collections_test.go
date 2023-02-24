@@ -304,18 +304,16 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:          (&selectors.OneDriveBackup{}).Folders([]string{"folder"})[0],
 			expect:         assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
 				"folder":    expectedStatePath(data.NewState, folder),
 				"subfolder": expectedStatePath(data.NewState, folderSub),
 				"folder2":   expectedStatePath(data.NewState, folderSub+folder),
 			},
 			expectedItemCount:      5,
 			expectedFileCount:      2,
-			expectedContainerCount: 4,
+			expectedContainerCount: 3,
 			// just "folder" isn't added here because the include check is done on the
 			// parent path since we only check later if something is a folder or not.
 			expectedMetadataPaths: map[string]string{
-				"root":      expectedPath(""),
 				"folder":    expectedPath(folder),
 				"subfolder": expectedPath(folderSub),
 				"folder2":   expectedPath(folderSub + folder),
@@ -340,15 +338,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				Folders([]string{"/folder/subfolder"}, selectors.PrefixMatch())[0],
 			expect: assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
 				"subfolder": expectedStatePath(data.NewState, folderSub),
 				"folder2":   expectedStatePath(data.NewState, folderSub+folder),
 			},
 			expectedItemCount:      3,
 			expectedFileCount:      1,
-			expectedContainerCount: 3,
+			expectedContainerCount: 2,
 			expectedMetadataPaths: map[string]string{
-				"root":      expectedPath(""),
 				"subfolder": expectedPath(folderSub),
 				"folder2":   expectedPath(folderSub + folder),
 			},
@@ -370,15 +366,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			scope:          (&selectors.OneDriveBackup{}).Folders([]string{"folder/subfolder"})[0],
 			expect:         assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				"root":      expectedStatePath(data.NotMovedState, ""),
 				"subfolder": expectedStatePath(data.NewState, folderSub),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
-			expectedContainerCount: 2,
+			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.
 			expectedMetadataPaths: map[string]string{
-				"root":      expectedPath(""),
 				"subfolder": expectedPath(folderSub),
 			},
 			expectedExcludes: getDelList("fileInSubfolder"),
@@ -1926,6 +1920,7 @@ func driveRootItem(id string) models.DriveItemable {
 	item.SetName(&name)
 	item.SetId(&id)
 	item.SetRoot(models.NewRoot())
+	item.SetFolder(models.NewFolder())
 
 	return item
 }
