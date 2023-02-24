@@ -28,7 +28,7 @@ const (
 	// during incremental backups.
 	OneDrive5DirMetaNoName = 5
 
-	// OneDriveXNameInMeta points to the backup format version where we begin
+	// OneDrive6NameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
 	OneDrive6NameInMeta = 6
