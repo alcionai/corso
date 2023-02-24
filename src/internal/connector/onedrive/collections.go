@@ -537,7 +537,8 @@ func (c *Collections) UpdateCollections(
 			(item.GetDeleted() == nil && item.GetParentReference().GetPath() == nil) {
 			et.Add(clues.New("item missing parent reference").
 				WithClues(ictx).
-				With("item_id", itemID, "item_name", ptr.Val(item.GetName())))
+				With("item_id", itemID, "item_name", ptr.Val(item.GetName())).
+				Label(fault.LabelForceNoBackupCreation))
 
 			continue
 		}

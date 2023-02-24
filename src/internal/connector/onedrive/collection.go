@@ -449,7 +449,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {
 	close(oc.data)
 
-	// TODO: add Label(fault.LabelForceNoBackupCreation) to errs
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
