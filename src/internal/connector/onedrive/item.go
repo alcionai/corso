@@ -278,8 +278,8 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 // TODO: Update drive name during Issue #2071
 func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
 	var (
-		id, parent, url string
-		reference       = di.GetParentReference()
+		id, parentID, displayName, url string
+		reference                      = di.GetParentReference()
 	)
 
 	// TODO: we rely on this info for details/restore lookups,
@@ -297,24 +297,20 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 	}
 
 	if reference != nil {
-		parent = ptr.Val(reference.GetDriveId())
-		temp := ptr.Val(reference.GetName())
-		temp = strings.TrimSpace(temp)
-
-		if temp != "" {
-			parent = temp
-		}
+		parentID = ptr.Val(reference.GetDriveId())
+		displayName = strings.TrimSpace(ptr.Val(reference.GetName()))
 	}
 
 	return &details.SharePointInfo{
-		ItemType:  details.OneDriveItem,
-		ItemName:  ptr.Val(di.GetName()),
-		Created:   ptr.Val(di.GetCreatedDateTime()),
-		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
-		DriveName: parent,
-		Size:      itemSize,
-		Owner:     id,
-		WebURL:    url,
+		ItemType:    details.OneDriveItem,
+		ItemName:    ptr.Val(di.GetName()),
+		Created:     ptr.Val(di.GetCreatedDateTime()),
+		Modified:    ptr.Val(di.GetLastModifiedDateTime()),
+		DriveName:   parentID,
+		DisplayName: displayName,
+		Size:        itemSize,
+		Owner:       id,
+		WebURL:      url,
 	}
 }
 
@@ -377,4 +373,30 @@ func constructWebURL(adtl map[string]any) string {
 	url = temp[0]
 
 	return url
+}
+
+func fetchParentReference(
+	ctx context.Context,
+	service graph.Servicer,
+	orig models.ItemReferenceable,
+) (models.ItemReferenceable, error) {
+	if ptr.Val(orig.GetName()) != "" {
+		return orig, nil
+	}
+
+	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
+			Select: []string{"driveId"},
+		},
+	}
+
+	drive, err := service.Client().DrivesById(*orig.GetDriveId()).Get(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	orig.SetName(drive.GetName())
+	orig.SetDriveType(drive.GetDriveType())
+
+	return orig, nil
 }
