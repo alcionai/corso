@@ -2,12 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/alcionai/clues"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
 	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
@@ -16,10 +17,7 @@ import (
 func getValues[T any](l api.PageLinker) ([]T, error) {
 	page, ok := l.(interface{ GetValue() []T })
 	if !ok {
-		return nil, errors.Errorf(
-			"response of type [%T] does not comply with GetValue() interface",
-			l,
-		)
+		return nil, clues.New("page does not comply with GetValue() interface").With("page_item_type", fmt.Sprintf("%T", l))
 	}
 
 	return page.GetValue(), nil
@@ -69,8 +67,11 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *driveItemPager) SetNext(link string) {
@@ -163,8 +164,11 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *siteDrivePager) SetNext(link string) {
