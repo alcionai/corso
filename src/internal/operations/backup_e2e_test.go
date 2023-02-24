@@ -447,27 +447,30 @@ func toDataLayerPath(
 }
 
 // ---------------------------------------------------------------------------
-// integration tests
+// e2e tests
 // ---------------------------------------------------------------------------
 
-type BackupOpIntegrationSuite struct {
-	suite.Suite
+type BackupOpE2ESuite struct {
+	tester.Suite
 	user, site string
 }
 
-func TestBackupOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoCITests)
-	suite.Run(t, new(BackupOpIntegrationSuite))
+func TestBackupOpE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupOpE2ESuite{
+		Suite: tester.NewE2ESuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCITests,
+		),
+	})
 }
 
-func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
-
+func (suite *BackupOpE2ESuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 }
 
-func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
+func (suite *BackupOpE2ESuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
@@ -509,7 +512,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
+func (suite *BackupOpE2ESuite) TestBackup_Run_exchange() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -637,7 +640,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
+func (suite *BackupOpE2ESuite) TestBackup_Run_exchangeIncrementals() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -1069,7 +1072,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 // OneDrive
 // ---------------------------------------------------------------------------
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
+func (suite *BackupOpE2ESuite) TestBackup_Run_oneDrive() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -1092,7 +1095,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 // SharePoint
 // ---------------------------------------------------------------------------
 
-func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
+func (suite *BackupOpE2ESuite) TestBackup_Run_sharePoint() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
