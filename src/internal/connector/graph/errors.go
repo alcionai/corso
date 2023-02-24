@@ -21,6 +21,7 @@ import (
 const (
 	errCodeActivityLimitReached        = "activityLimitReached"
 	errCodeItemNotFound                = "ErrorItemNotFound"
+	errCodeItemNotFoundShort           = "itemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
@@ -53,7 +54,12 @@ func IsErrDeletedInFlight(err error) bool {
 		return true
 	}
 
-	if hasErrorCode(err, errCodeItemNotFound, errCodeSyncFolderNotFound) {
+	if hasErrorCode(
+		err,
+		errCodeItemNotFound,
+		errCodeItemNotFoundShort,
+		errCodeSyncFolderNotFound,
+	) {
 		return true
 	}
 

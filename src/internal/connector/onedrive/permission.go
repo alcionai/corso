@@ -126,9 +126,13 @@ func createRestoreFoldersWithPermissions(
 // cannot avoid storing the nested permissions as it is possible that
 // a file in a folder can remove the nested permission that is present
 // on itself.
-func getChildPermissions(childPermissions, parentPermissions []UserPermission) ([]UserPermission, []UserPermission) {
-	addedPermissions := []UserPermission{}
-	removedPermissions := []UserPermission{}
+func getChildPermissions(
+	childPermissions, parentPermissions []UserPermission,
+) ([]UserPermission, []UserPermission) {
+	var (
+		addedPermissions   = []UserPermission{}
+		removedPermissions = []UserPermission{}
+	)
 
 	for _, cp := range childPermissions {
 		found := false

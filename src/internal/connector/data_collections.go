@@ -97,7 +97,7 @@ func (gc *GraphConnector) DataCollections(
 			gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
-		)
+			errs)
 		if err != nil {
 			return nil, nil, err
 		}
