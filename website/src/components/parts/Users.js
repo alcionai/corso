@@ -4,7 +4,7 @@ import "animate.css";
 export default function Users() {
   useEffect(() => {
     if (typeof window !== "undefined") {
-      tns = require("tiny-slider").tns;
+      const tns = require("tiny-slider/src/tiny-slider").tns;
       window.tns = tns;
     }
   }, []);
