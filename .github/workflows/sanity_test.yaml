@@ -1,5 +1,5 @@
 name: Sanity Testing
-on: workflow_dispatch
+on: [push,workflow_dispatch]
 
 permissions:
   # required to retrieve AWS credentials
@@ -30,14 +30,15 @@ jobs:
 
       - run: mkdir test_results
 
-# TODO: correct creds
-      # - name: Login to tenant
-      #   uses: pnp/action-cli-login@v2.2.1
-      #   with:
-      #     APP_ID: ${{ secrets.APP_ID }}
-      #     ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-      #     ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
+# # TODO: correct creds
+#       - name: Login to tenant
+#         uses: pnp/action-cli-login@v2.2.1
+#         with:
+#           APP_ID: ${{ secrets.APP_ID }}
+#           ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+#           ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
 
+# m365 outlook message list --folderName Inbox 
       # run the tests
       - name: Version Test
         env:
