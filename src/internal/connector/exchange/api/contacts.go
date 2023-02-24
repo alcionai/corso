@@ -126,24 +126,33 @@ func (c Contacts) EnumerateContainers(
 			With("options_fields", fields)
 	}
 
+	et := errs.Tracker()
 	builder := service.Client().
 		UsersById(userID).
 		ContactFoldersById(baseDirID).
 		ChildFolders()
 
 	for {
+		if et.Err() != nil {
+			break
+		}
+
 		resp, err := builder.Get(ctx, ofcf)
 		if err != nil {
 			return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, fold := range resp.GetValue() {
-			if errs.Err() != nil {
-				return errs.Err()
+			if et.Err() != nil {
+				break
 			}
 
 			if err := checkIDAndName(fold); err != nil {
-				errs.Add(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
+				et.Add(clues.Stack(err).
+					WithClues(ctx).
+					With(graph.ErrData(err)...).
+					Label(fault.LabelForceNoBackupCreation))
+
 				continue
 			}
 
@@ -154,7 +163,11 @@ func (c Contacts) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
+				et.Add(clues.Stack(err).
+					WithClues(fctx).
+					With(graph.ErrData(err)...).
+					Label(fault.LabelForceNoBackupCreation))
+
 				continue
 			}
 		}
@@ -167,7 +180,7 @@ func (c Contacts) EnumerateContainers(
 		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // ---------------------------------------------------------------------------

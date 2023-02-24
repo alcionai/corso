@@ -264,7 +264,8 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
 	cp.errs.Add(clues.Wrap(err, "kopia reported error").
-		With("is_ignored", isIgnored, "relative_path", relpath))
+		With("is_ignored", isIgnored, "relative_path", relpath).
+		Label(fault.LabelForceNoBackupCreation))
 }
 
 func (cp *corsoProgress) put(k string, v *itemDetails) {

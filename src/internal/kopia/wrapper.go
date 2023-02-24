@@ -410,13 +410,16 @@ func (w Wrapper) RestoreMultipleItems(
 
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
-			et.Add(err)
+			et.Add(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
 		parentPath, err := itemPath.Dir()
 		if err != nil {
-			et.Add(clues.Wrap(err, "making directory collection").WithClues(ctx))
+			et.Add(clues.Wrap(err, "making directory collection").
+				WithClues(ctx).
+				Label(fault.LabelForceNoBackupCreation))
+
 			continue
 		}
 

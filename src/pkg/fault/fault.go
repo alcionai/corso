@@ -169,3 +169,7 @@ func (e *tracker) Add(err error) {
 func (e *tracker) Err() error {
 	return e.current
 }
+
+// temporary hack identifier
+// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
+const LabelForceNoBackupCreation = "label_forces_no_backup_creations"
