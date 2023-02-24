@@ -189,7 +189,7 @@ func TestConfigIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ConfigIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCLIConfigTests)})
+	)})
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {

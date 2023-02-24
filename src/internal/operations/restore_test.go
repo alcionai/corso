@@ -151,8 +151,7 @@ func TestRestoreOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RestoreOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoOperationTests),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 

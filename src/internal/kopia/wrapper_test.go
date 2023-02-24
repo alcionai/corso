@@ -159,7 +159,6 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
-			tester.CorsoKopiaWrapperTests,
 		),
 	})
 }
@@ -740,7 +739,6 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
-			tester.CorsoKopiaWrapperTests,
 		),
 	})
 }

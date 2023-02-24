@@ -54,8 +54,7 @@ func TestNoBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
@@ -134,8 +133,7 @@ func TestBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *BackupExchangeE2ESuite) SetupSuite() {
@@ -265,8 +263,7 @@ func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
@@ -503,8 +500,7 @@ func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 

@@ -67,7 +67,6 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
-			tester.CorsoModelStoreTests,
 		),
 	})
 }
@@ -724,7 +723,6 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
-			tester.CorsoModelStoreTests,
 		),
 	})
 }

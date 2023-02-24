@@ -63,7 +63,6 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs},
-			tester.CorsoKopiaWrapperTests,
 		),
 	})
 }

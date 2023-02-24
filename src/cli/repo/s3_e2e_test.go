@@ -25,8 +25,7 @@ func TestS3E2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIRepoTests)})
+	)})
 }
 
 func (suite *S3E2ESuite) TestInitS3Cmd() {

@@ -15,28 +15,6 @@ const (
 	CorsoCITests   = "CORSO_CI_TESTS"
 	CorsoE2ETests  = "CORSO_E2E_TESTS"
 	CorsoLoadTests = "CORSO_LOAD_TESTS"
-
-	CorsoCLIBackupTests                           = "CORSO_COMMAND_LINE_BACKUP_TESTS"
-	CorsoCLIConfigTests                           = "CORSO_COMMAND_LINE_CONFIG_TESTS"
-	CorsoCLIRepoTests                             = "CORSO_COMMAND_LINE_REPO_TESTS"
-	CorsoCLIRestoreTests                          = "CORSO_COMMAND_LINE_RESTORE_TESTS"
-	CorsoCLITests                                 = "CORSO_COMMAND_LINE_TESTS"
-	CorsoConnectorCreateCollectionTests           = "CORSO_CONNECTOR_CREATE_COLLECTION_TESTS"
-	CorsoConnectorCreateExchangeCollectionTests   = "CORSO_CONNECTOR_CREATE_EXCHANGE_COLLECTION_TESTS"
-	CorsoConnectorCreateSharePointCollectionTests = "CORSO_CONNECTOR_CREATE_SHAREPOINT_COLLECTION_TESTS"
-	CorsoConnectorDataCollectionTests             = "CORSO_CONNECTOR_DATA_COLLECTION_TESTS"
-	CorsoConnectorExchangeFolderCacheTests        = "CORSO_CONNECTOR_EXCHANGE_FOLDER_CACHE_TESTS"
-	CorsoConnectorRestoreExchangeCollectionTests  = "CORSO_CONNECTOR_RESTORE_EXCHANGE_COLLECTION_TESTS"
-	CorsoGraphConnectorTests                      = "CORSO_GRAPH_CONNECTOR_TESTS"
-	CorsoGraphConnectorExchangeTests              = "CORSO_GRAPH_CONNECTOR_EXCHANGE_TESTS"
-	CorsoGraphConnectorOneDriveTests              = "CORSO_GRAPH_CONNECTOR_ONE_DRIVE_TESTS"
-	CorsoGraphConnectorSharePointTests            = "CORSO_GRAPH_CONNECTOR_SHAREPOINT_TESTS"
-	CorsoKopiaWrapperTests                        = "CORSO_KOPIA_WRAPPER_TESTS"
-	CorsoModelStoreTests                          = "CORSO_MODEL_STORE_TESTS"
-	CorsoOneDriveTests                            = "CORSO_ONE_DRIVE_TESTS"
-	CorsoOperationTests                           = "CORSO_OPERATION_TESTS"
-	CorsoOperationBackupTests                     = "CORSO_OPERATION_BACKUP_TESTS"
-	CorsoRepositoryTests                          = "CORSO_REPOSITORY_TESTS"
 )
 
 type Suite interface {
