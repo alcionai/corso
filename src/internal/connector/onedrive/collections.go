@@ -469,6 +469,120 @@ func updateCollectionPaths(
 	return found, nil
 }
 
+func (c *Collections) handleDelete(
+	itemID, driveID string,
+	oldPaths, newPaths map[string]string,
+	isFolder bool,
+	excluded map[string]struct{},
+) error {
+	if !isFolder {
+		excluded[itemID+DataFileSuffix] = struct{}{}
+		excluded[itemID+MetaFileSuffix] = struct{}{}
+		// Exchange counts items streamed through it which includes deletions so
+		// add that here too.
+		c.NumFiles++
+		c.NumItems++
+
+		return nil
+	}
+
+	var prevPath path.Path
+
+	prevPathStr, ok := oldPaths[itemID]
+	if ok {
+		var err error
+
+		prevPath, err = path.FromDataLayerPath(prevPathStr, false)
+		if err != nil {
+			return clues.Wrap(err, "invalid previous path").
+				With("collection_id", itemID, "path_string", prevPathStr)
+		}
+	}
+
+	// Nested folders also return deleted delta results so we don't have to
+	// worry about doing a prefix search in the map to remove the subtree of
+	// the deleted folder/package.
+	delete(newPaths, itemID)
+
+	if prevPath == nil {
+		// It is possible that an item was created and
+		// deleted between two delta invocations. In
+		// that case, it will only produce a single
+		// delete entry in the delta response.
+		return nil
+	}
+
+	col := NewCollection(
+		c.itemClient,
+		nil,
+		prevPath,
+		driveID,
+		c.service,
+		c.statusUpdater,
+		c.source,
+		c.ctrl,
+		// DoNotMerge is not checked for deleted items.
+		false,
+	)
+
+	c.CollectionMap[itemID] = col
+
+	return nil
+}
+
+func (c *Collections) getCollectionPath(
+	driveID string,
+	item models.DriveItemable,
+) (path.Path, error) {
+	var (
+		collectionPathStr string
+		itemID            = ptr.Val(item.GetId())
+		isNonRootFolder   = item.GetRoot() == nil &&
+			(item.GetFolder() != nil || item.GetPackage() != nil)
+	)
+
+	if item.GetRoot() != nil {
+		collectionPathStr = fmt.Sprintf(rootDrivePattern, driveID)
+	} else {
+		if item.GetParentReference() == nil ||
+			item.GetParentReference().GetPath() == nil {
+			err := clues.New("no parent reference").With("item_id", itemID)
+			if item.GetName() != nil {
+				err = err.With("item_name", ptr.Val(item.GetName()))
+			}
+
+			return nil, err
+		}
+
+		collectionPathStr = ptr.Val(item.GetParentReference().GetPath())
+	}
+
+	collectionPath, err := GetCanonicalPath(
+		collectionPathStr,
+		c.tenant,
+		c.resourceOwner,
+		c.source,
+	)
+	if err != nil {
+		return nil, clues.Wrap(err, "making item path").
+			With("item_id", ptr.Val(item.GetId()))
+	}
+
+	if isNonRootFolder {
+		name := ptr.Val(item.GetName())
+		if len(name) == 0 {
+			return nil, clues.New("folder with empty name").With("item_id", itemID)
+		}
+
+		collectionPath, err = collectionPath.Append(name, false)
+		if err != nil {
+			return nil, clues.Wrap(err, "making non-root folder path").With("item_id", itemID)
+		}
+	}
+
+	return collectionPath, nil
+}
+
 // UpdateCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder (or package).
 // oldPaths is the unchanged data that was loaded from the metadata file.
@@ -493,110 +607,41 @@ func (c *Collections) UpdateCollections(
 		}
 
 		var (
-			itemID = ptr.Val(item.GetId())
-			ictx   = clues.Add(ctx, "update_item_id", itemID)
+			itemID   = ptr.Val(item.GetId())
+			ictx     = clues.Add(ctx, "update_item_id", itemID)
+			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
 
-		if item.GetRoot() != nil {
-			rootPath, err := GetCanonicalPath(
-				fmt.Sprintf(rootDrivePattern, driveID),
-				c.tenant,
-				c.resourceOwner,
-				c.source,
-			)
-			if err != nil {
-				return err
-			}
-
-			// Add root path so as to have root folder information in
-			// path metadata. Root id -> path map is necessary in
-			// following delta incremental backups.
-			updatePath(newPaths, itemID, rootPath.String())
-
-			// Make a colletion for the root so that if we have any items for it we
-			// already have the collection ready. The root won't be renamed at all.
-			if _, ok := c.CollectionMap[itemID]; ok {
-				continue
-			}
-
-			col := NewCollection(
-				c.itemClient,
-				rootPath,
-				rootPath,
+		// Deleted file or folder.
+		if item.GetDeleted() != nil {
+			if err := c.handleDelete(
+				itemID,
 				driveID,
-				c.service,
-				c.statusUpdater,
-				c.source,
-				c.ctrl,
-				invalidPrevDelta,
-			)
-
-			c.CollectionMap[itemID] = col
-			c.NumContainers++
-
-			continue
-		}
-
-		if item.GetParentReference() == nil ||
-			item.GetParentReference().GetId() == nil ||
-			(item.GetDeleted() == nil && item.GetParentReference().GetPath() == nil) {
-			et.Add(clues.New("item missing parent reference").
-				WithClues(ictx).
-				With("item_id", itemID, "item_name", ptr.Val(item.GetName())).
-				Label(fault.LabelForceNoBackupCreation))
-
-			continue
-		}
-
-		var collectionPathStr string
-		if item.GetDeleted() == nil {
-			collectionPathStr = ptr.Val(item.GetParentReference().GetPath())
-		} else {
-			var ok bool
-
-			collectionPathStr, ok = oldPaths[ptr.Val(item.GetParentReference().GetId())]
-			if !ok {
-				// This collection was created and destroyed in
-				// between the current and previous invocation
-				continue
+				oldPaths,
+				newPaths,
+				isFolder,
+				excluded,
+			); err != nil {
+				return clues.Stack(err).WithClues(ictx)
 			}
+
+			continue
 		}
 
-		collectionPath, err := GetCanonicalPath(
-			collectionPathStr,
-			c.tenant,
-			c.resourceOwner,
-			c.source)
+		collectionPath, err := c.getCollectionPath(driveID, item)
 		if err != nil {
 			return clues.Stack(err).WithClues(ictx)
 		}
 
-		var (
-			itemPath path.Path
-			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
-		)
-
-		if item.GetDeleted() == nil {
-			name := ptr.Val(item.GetName())
-			if len(name) == 0 {
-				return clues.New("non-deleted item with empty name").With("item_id", itemID)
-			}
-
-			itemPath, err = collectionPath.Append(name, !isFolder)
-			if err != nil {
-				return err
-			}
-		}
-
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, itemPath, c.matcher, driveName) &&
-			shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ictx).Infow("Skipping path", "skipped_path", collectionPath.String())
 			continue
 		}
 
 		switch {
 		case isFolder:
+			// Deletions are handled above so this is just moves/renames.
 			var prevPath path.Path
 
 			prevPathStr, ok := oldPaths[itemID]
@@ -607,44 +652,17 @@ func (c *Collections) UpdateCollections(
 						WithClues(ictx).
 						With("path_string", prevPathStr))
 				}
-			}
-
-			if item.GetDeleted() != nil {
-				// Nested folders also return deleted delta results so we don't have to
-				// worry about doing a prefix search in the map to remove the subtree of
-				// the deleted folder/package.
-				delete(newPaths, itemID)
-
-				if prevPath == nil {
-					// It is possible that an item was created and
-					// deleted between two delta invocations. In
-					// that case, it will only produce a single
-					// delete entry in the delta response.
-					continue
-				}
-
-				col := NewCollection(
-					c.itemClient,
-					nil,
-					prevPath,
-					driveID,
-					c.service,
-					c.statusUpdater,
-					c.source,
-					c.ctrl,
-					invalidPrevDelta)
-
-				c.CollectionMap[itemID] = col
-
-				break
+			} else if item.GetRoot() != nil {
+				// Root doesn't move or get renamed.
+				prevPath = collectionPath
 			}
 
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
-			updatePath(newPaths, itemID, itemPath.String())
+			updatePath(newPaths, itemID, collectionPath.String())
 
-			found, err := updateCollectionPaths(itemID, c.CollectionMap, itemPath)
+			found, err := updateCollectionPaths(itemID, c.CollectionMap, collectionPath)
 			if err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}
@@ -655,7 +673,7 @@ func (c *Collections) UpdateCollections(
 
 			col := NewCollection(
 				c.itemClient,
-				itemPath,
+				collectionPath,
 				prevPath,
 				driveID,
 				c.service,
@@ -667,7 +685,7 @@ func (c *Collections) UpdateCollections(
 			c.CollectionMap[itemID] = col
 			c.NumContainers++
 
-			if c.source != OneDriveSource {
+			if c.source != OneDriveSource || item.GetRoot() != nil {
 				continue
 			}
 
@@ -679,15 +697,9 @@ func (c *Collections) UpdateCollections(
 			}
 
 		case item.GetFile() != nil:
-			if item.GetDeleted() != nil {
-				excluded[itemID+DataFileSuffix] = struct{}{}
-				excluded[itemID+MetaFileSuffix] = struct{}{}
-				// Exchange counts items streamed through it which includes deletions so
-				// add that here too.
-				c.NumFiles++
-				c.NumItems++
-
-				continue
+			// Deletions are handled above so this is just moves/renames.
+			if len(ptr.Val(item.GetParentReference().GetId())) == 0 {
+				return clues.New("file without parent ID").With("item_id", itemID)
 			}
 
 			// Get the collection for this item.
@@ -745,10 +757,6 @@ func (c *Collections) UpdateCollections(
 }
 
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
-	if drivePath == nil {
-		return false
-	}
-
 	return !includePath(ctx, m, drivePath) ||
 		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }
