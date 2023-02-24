@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -35,7 +33,12 @@ func getDriveItem(
 	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
-	return srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting item").WithClues(ctx).With(graph.ErrData(err)...)
+	}
+
+	return di, nil
 }
 
 // sharePointItemReader will return a io.ReadCloser for the specified item
@@ -130,12 +133,12 @@ func oneDriveItemReader(
 func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
-		return nil, fmt.Errorf("extracting file url: file %s", *item.GetId())
+		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
 	}
 
 	req, err := http.NewRequest(http.MethodGet, *url, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "new request")
+		return nil, clues.Wrap(err, "new request").With(graph.ErrData(err)...)
 	}
 
 	//nolint:lll
@@ -168,7 +171,7 @@ func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, e
 		return resp, graph.Err503ServiceUnavailable
 	}
 
-	return resp, errors.New("non-2xx http response: " + resp.Status)
+	return resp, clues.Wrap(clues.New(resp.Status), "non-2xx http response")
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
@@ -217,16 +220,19 @@ func oneDriveItemPermissionInfo(
 		return nil, nil
 	}
 
+	id := ptr.Val(di.GetId())
+
 	perm, err := service.
 		Client().
 		DrivesById(driveID).
-		ItemsById(*di.GetId()).
+		ItemsById(id).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		msg := support.ConnectorStackErrorTrace(err)
-		err = clues.Wrap(err, "fetching item permissions: "+msg).
-			With("item_id", *di.GetId())
+		err = clues.Wrap(err, "fetching item permissions").
+			WithClues(ctx).
+			With("item_id", id).
+			With(graph.ErrData(err)...)
 
 		return nil, err
 	}
@@ -260,7 +266,7 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 		}
 
 		up = append(up, UserPermission{
-			ID:         *p.GetId(),
+			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
 			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
 			Expiration: p.GetExpirationDateTime(),
@@ -328,20 +334,18 @@ func driveItemWriter(
 	itemSize int64,
 ) (io.Writer, error) {
 	session := msdrives.NewItemItemsItemCreateUploadSessionPostRequestBody()
+	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to create upload session for item %s. details: %s",
-			itemID,
-			support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "creating item upload session").
+			WithClues(ctx).
+			With(graph.ErrData(err)...)
 	}
 
-	url := *r.GetUploadUrl()
+	logger.Ctx(ctx).Debug("created an upload session")
 
-	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", itemID, url)
+	url := ptr.Val(r.GetUploadUrl())
 
 	return uploadsession.NewWriter(itemID, url, itemSize), nil
 }

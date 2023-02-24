@@ -247,7 +247,14 @@ func Seed(ctx context.Context, lvl, logfile string) (context.Context, *zap.Sugar
 func SeedLevel(ctx context.Context, level logLevel) (context.Context, *zap.SugaredLogger) {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		zsl := singleton(level, defaultLogLocation())
+		logfile := os.Getenv("CORSO_LOG_FILE")
+
+		if len(logfile) == 0 {
+			logfile = defaultLogLocation()
+		}
+
+		zsl := singleton(level, logfile)
+
 		return Set(ctx, zsl), zsl
 	}
 
