@@ -1,11 +1,257 @@
 import React, { useEffect } from "react";
 import "animate.css";
+import BrowserOnly from "@docusaurus/BrowserOnly";
 
 export default function Users() {
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const tns = require("tiny-slider/src/tiny-slider").tns;
-      window.tns = tns;
+      const tns = require("tiny-slider").tns;
+
+      if (document.getElementsByClassName("tiny-single-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-single-item",
+          items: 1,
+          controls: false,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          speed: 400,
+          gutter: 16,
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-one-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-one-item",
+          items: 1,
+          controls: true,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          controlsText: [
+            '<i class="mdi mdi-chevron-left "></i>',
+            '<i class="mdi mdi-chevron-right"></i>',
+          ],
+          nav: false,
+          speed: 400,
+          gutter: 0,
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-two-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-two-item",
+          controls: true,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          controlsText: [
+            '<i class="mdi mdi-chevron-left "></i>',
+            '<i class="mdi mdi-chevron-right"></i>',
+          ],
+          nav: false,
+          speed: 400,
+          gutter: 0,
+          responsive: {
+            768: {
+              items: 2,
+            },
+          },
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-three-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-three-item",
+          controls: false,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          speed: 400,
+          gutter: 12,
+          responsive: {
+            992: {
+              items: 3,
+            },
+
+            767: {
+              items: 2,
+            },
+
+            320: {
+              items: 1,
+            },
+          },
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-six-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-six-item",
+          controls: true,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          controlsText: [
+            '<i class="mdi mdi-chevron-left "></i>',
+            '<i class="mdi mdi-chevron-right"></i>',
+          ],
+          nav: false,
+          speed: 400,
+          gutter: 0,
+          responsive: {
+            1025: {
+              items: 6,
+            },
+
+            992: {
+              items: 4,
+            },
+
+            767: {
+              items: 3,
+            },
+
+            320: {
+              items: 1,
+            },
+          },
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-twelve-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-twelve-item",
+          controls: true,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          controlsText: [
+            '<i class="mdi mdi-chevron-left "></i>',
+            '<i class="mdi mdi-chevron-right"></i>',
+          ],
+          nav: false,
+          speed: 400,
+          gutter: 0,
+          responsive: {
+            1025: {
+              items: 12,
+            },
+
+            992: {
+              items: 8,
+            },
+
+            767: {
+              items: 6,
+            },
+
+            320: {
+              items: 2,
+            },
+          },
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-five-item").length > 0) {
+        var slider = tns({
+          container: ".tiny-five-item",
+          controls: true,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          controlsText: [
+            '<i class="mdi mdi-chevron-left "></i>',
+            '<i class="mdi mdi-chevron-right"></i>',
+          ],
+          nav: false,
+          speed: 400,
+          gutter: 0,
+          responsive: {
+            1025: {
+              items: 5,
+            },
+
+            992: {
+              items: 4,
+            },
+
+            767: {
+              items: 3,
+            },
+
+            425: {
+              items: 1,
+            },
+          },
+        });
+      }
+
+      if (document.getElementsByClassName("tiny-home-slide-four").length > 0) {
+        var slider = tns({
+          container: ".tiny-home-slide-four",
+          controls: true,
+          mouseDrag: true,
+          loop: true,
+          rewind: true,
+          autoplay: true,
+          autoplayButtonOutput: false,
+          autoplayTimeout: 3000,
+          navPosition: "bottom",
+          controlsText: [
+            '<i class="mdi mdi-chevron-left "></i>',
+            '<i class="mdi mdi-chevron-right"></i>',
+          ],
+          nav: false,
+          speed: 400,
+          gutter: 0,
+          responsive: {
+            1025: {
+              items: 4,
+            },
+
+            992: {
+              items: 3,
+            },
+
+            767: {
+              items: 2,
+            },
+
+            320: {
+              items: 1,
+            },
+          },
+        });
+      }
     }
   }, []);
 
