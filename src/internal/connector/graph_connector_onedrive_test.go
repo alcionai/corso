@@ -79,7 +79,7 @@ func onedriveItemWithData(
 
 func onedriveMetadata(
 	t *testing.T,
-	fileName, itemID string,
+	fileName, itemID, lookupKey string,
 	perm permData,
 	permUseID bool,
 ) itemInfo {
@@ -93,7 +93,7 @@ func onedriveMetadata(
 	return itemInfo{
 		name:      itemID,
 		data:      testMetaJSON,
-		lookupKey: itemID,
+		lookupKey: lookupKey,
 	}
 }
 
@@ -203,6 +203,24 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 			c.t,
 			"",
 			name+onedrive.MetaFileSuffix,
+			name+onedrive.MetaFileSuffix,
+			perm,
+			c.backupVersion >= versionPermissionSwitchedToID)
+		c.items = append(c.items, metadata)
+		c.aux = append(c.aux, metadata)
+
+	case version.OneDrive5NameInMeta:
+		c.items = append(c.items, onedriveItemWithData(
+			c.t,
+			name+onedrive.DataFileSuffix,
+			name+onedrive.DataFileSuffix,
+			fileData))
+
+		metadata := onedriveMetadata(
+			c.t,
+			name,
+			name+onedrive.MetaFileSuffix,
+			name,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
 		c.items = append(c.items, metadata)
@@ -217,7 +235,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
-	case 0, version.OneDrive4DirIncludesPermissions:
+	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5NameInMeta:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
@@ -226,6 +244,7 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 			onedriveMetadata(
 				c.t,
 				"",
+				name+onedrive.DirMetaFileSuffix,
 				name+onedrive.DirMetaFileSuffix,
 				perm,
 				c.backupVersion >= versionPermissionSwitchedToID))
@@ -255,6 +274,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	metadata := onedriveMetadata(
 		c.t,
 		name,
+		name+onedrive.DirMetaFileSuffix,
 		name+onedrive.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
