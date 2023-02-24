@@ -48,6 +48,8 @@ var (
 	_ data.Stream           = &Item{}
 	_ data.StreamInfo       = &Item{}
 	_ data.StreamModTime    = &Item{}
+	_ data.Stream           = &metadataItem{}
+	_ data.StreamModTime    = &metadataItem{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -217,9 +219,6 @@ type Item struct {
 	id   string
 	data io.ReadCloser
 	info details.ItemInfo
-
-	// true if the item was marked by graph as deleted.
-	deleted bool
 }
 
 func (od *Item) UUID() string {
@@ -230,9 +229,11 @@ func (od *Item) ToReader() io.ReadCloser {
 	return od.data
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+// Deleted implements an interface function. However, OneDrive items are marked
+// as deleted by adding them to the exclude list so this can always return
+// false.
 func (od Item) Deleted() bool {
-	return od.deleted
+	return false
 }
 
 func (od *Item) Info() details.ItemInfo {
@@ -241,6 +242,31 @@ func (od *Item) Info() details.ItemInfo {
 
 func (od *Item) ModTime() time.Time {
 	return od.info.Modified()
+}
+
+type metadataItem struct {
+	id      string
+	data    io.ReadCloser
+	modTime time.Time
+}
+
+func (od *metadataItem) UUID() string {
+	return od.id
+}
+
+func (od *metadataItem) ToReader() io.ReadCloser {
+	return od.data
+}
+
+// Deleted implements an interface function. However, OneDrive items are marked
+// as deleted by adding them to the exclude list so this can always return
+// false.
+func (od metadataItem) Deleted() bool {
+	return false
+}
+
+func (od *metadataItem) ModTime() time.Time {
+	return od.modTime
 }
 
 // populateItems iterates through items added to the collection
@@ -410,28 +436,10 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					return progReader, nil
 				})
 
-				// TODO(meain): Remove this once we change to always
-				// backing up permissions. Until then we cannot rely
-				// on whether the previous data is what we need as the
-				// user might have not backup up permissions in the
-				// previous run.
-				metaItemInfo := details.ItemInfo{}
-				metaItemInfo.OneDrive = &details.OneDriveInfo{
-					Created:    itemInfo.OneDrive.Created,
-					ItemName:   itemInfo.OneDrive.ItemName,
-					DriveName:  itemInfo.OneDrive.DriveName,
-					ItemType:   itemInfo.OneDrive.ItemType,
-					IsMeta:     true,
-					Modified:   time.Now(), // set to current time to always refresh
-					Owner:      itemInfo.OneDrive.Owner,
-					ParentPath: itemInfo.OneDrive.ParentPath,
-					Size:       itemInfo.OneDrive.Size,
-				}
-
-				oc.data <- &Item{
-					id:   itemName + metaSuffix,
-					data: metaReader,
-					info: metaItemInfo,
+				oc.data <- &metadataItem{
+					id:      itemName + metaSuffix,
+					data:    metaReader,
+					modTime: time.Now(),
 				}
 			}
 
