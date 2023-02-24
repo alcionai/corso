@@ -536,20 +536,17 @@ func (c *Collections) getCollectionPath(
 ) (path.Path, error) {
 	var (
 		collectionPathStr string
-		itemID            = ptr.Val(item.GetId())
-		isNonRootFolder   = item.GetRoot() == nil &&
-			(item.GetFolder() != nil || item.GetPackage() != nil)
+		isRoot            = item.GetRoot() != nil
+		isFile            = item.GetFile() != nil
 	)
 
-	if item.GetRoot() != nil {
+	if isRoot {
 		collectionPathStr = fmt.Sprintf(rootDrivePattern, driveID)
 	} else {
 		if item.GetParentReference() == nil ||
 			item.GetParentReference().GetPath() == nil {
-			err := clues.New("no parent reference").With("item_id", itemID)
-			if item.GetName() != nil {
-				err = err.With("item_name", ptr.Val(item.GetName()))
-			}
+			err := clues.New("no parent reference").
+				With("item_name", ptr.Val(item.GetName()))
 
 			return nil, err
 		}
@@ -564,20 +561,25 @@ func (c *Collections) getCollectionPath(
 		c.source,
 	)
 	if err != nil {
-		return nil, clues.Wrap(err, "making item path").
-			With("item_id", ptr.Val(item.GetId()))
+		return nil, clues.Wrap(err, "making item path")
 	}
 
-	if isNonRootFolder {
-		name := ptr.Val(item.GetName())
-		if len(name) == 0 {
-			return nil, clues.New("folder with empty name").With("item_id", itemID)
-		}
+	if isRoot || isFile {
+		return collectionPath, nil
+	}
 
-		collectionPath, err = collectionPath.Append(name, false)
-		if err != nil {
-			return nil, clues.Wrap(err, "making non-root folder path").With("item_id", itemID)
-		}
+	// Append folder name to path since we want the path for the collection, not
+	// the path for the parent of the collection. The root and files don't need
+	// to append an extra element because the root already refers to itself and
+	// the collection containing the item is the parent path.
+	name := ptr.Val(item.GetName())
+	if len(name) == 0 {
+		return nil, clues.New("folder with empty name")
+	}
+
+	collectionPath, err = collectionPath.Append(name, false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making non-root folder path")
 	}
 
 	return collectionPath, nil
