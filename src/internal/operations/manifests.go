@@ -70,7 +70,7 @@ func produceManifestsAndMetadata(
 	//
 	// TODO(ashmrtn): This may need updating if we start sourcing item backup
 	// details from previous snapshots when using kopia-assisted incrementals.
-	if err := verifyDistinctBases(ctx, ms, errs); err != nil {
+	if err := verifyDistinctBases(ctx, ms); err != nil {
 		logger.Ctx(ctx).With("error", err).Infow(
 			"base snapshot collision, falling back to full backup",
 			clues.In(ctx).Slice()...)
@@ -135,18 +135,10 @@ func produceManifestsAndMetadata(
 // of manifests, that each manifest's Reason (owner, service, category) is only
 // included once.  If a reason is duplicated by any two manifests, an error is
 // returned.
-func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs *fault.Bus) error {
-	var (
-		failed  bool
-		reasons = map[string]manifest.ID{}
-		el      = errs.Local()
-	)
+func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry) error {
+	reasons := map[string]manifest.ID{}
 
 	for _, man := range mans {
-		if el.Failure() != nil {
-			break
-		}
-
 		// Incomplete snapshots are used only for kopia-assisted incrementals. The
 		// fact that we need this check here makes it seem like this should live in
 		// the kopia code. However, keeping it here allows for better debugging as
@@ -161,24 +153,16 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry, errs 
 			reasonKey := reason.ResourceOwner + reason.Service.String() + reason.Category.String()
 
 			if b, ok := reasons[reasonKey]; ok {
-				failed = true
-
-				el.AddRecoverable(clues.New("manifests have overlapping reasons").
+				return clues.New("manifests have overlapping reasons").
 					WithClues(ctx).
-					With("other_manifest_id", b))
-
-				continue
+					With("other_manifest_id", b)
 			}
 
 			reasons[reasonKey] = man.ID
 		}
 	}
 
-	if failed {
-		return clues.New("multiple base snapshots qualify").WithClues(ctx)
-	}
-
-	return el.Failure()
+	return nil
 }
 
 // collectMetadata retrieves all metadata files associated with the manifest.

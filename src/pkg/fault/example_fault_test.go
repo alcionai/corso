@@ -80,7 +80,7 @@ func ExampleBus_Fail() {
 		fmt.Println(errs.Failure())
 	}
 
-	// Only the topmost func in the stack should set the failure.
+	// Only the top-most func in the stack should set the failure.
 	// IE: Fail() is not Wrap().  In lower levels, errors should get
 	// wrapped and returned like normal, and only handled by fault
 	// at the end.
@@ -259,7 +259,7 @@ func ExampleBus_Local() {
 		return el.Failure()
 	}()
 	if err != nil {
-		// handle the Faiulre() that appeared in the local bus.
+		// handle the Failure() that appeared in the local bus.
 		fmt.Println("failure occurred", errs.Failure())
 	}
 }
@@ -334,7 +334,7 @@ func Example_e2e() {
 			}
 		}
 
-		// at the end of the func, we need to return trkr.Failure()
+		// at the end of the func, we need to return local.Failure()
 		// just in case the local bus promoted an error to the failure
 		// position.  If we don't return it like normal error handling,
 		// then we'll lose scope of that error.

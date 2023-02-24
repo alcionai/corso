@@ -393,7 +393,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			err := verifyDistinctBases(ctx, test.mans, fault.New(true))
+			err := verifyDistinctBases(ctx, test.mans)
 			test.expect(suite.T(), err)
 		})
 	}
@@ -837,7 +837,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			test.errCheck(suite.T(), verifyDistinctBases(ctx, test.input, fault.New(true)))
+			test.errCheck(suite.T(), verifyDistinctBases(ctx, test.input))
 		})
 	}
 }

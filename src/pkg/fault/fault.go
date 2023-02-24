@@ -9,13 +9,14 @@ import (
 type Bus struct {
 	mu *sync.Mutex
 
-	// failure identifies non-recoverable errors.  This includes
-	// non-start cases (ex: cannot connect to client), hard-
-	// stop issues (ex: credentials expired) or conscious exit
-	// cases (ex: iteration error + failFast config).
+	// Failure probably identifies errors that were added to the bus
+	// or localBus via AddRecoverable, but which were promoted
+	// to the failure position due to failFast=true configuration.
+	// Alternatively, the process controller might have set failure
+	// by calling Fail(err).
 	failure error
 
-	// recoverable is the accumulation of recoverable errors
+	// recoverable is the accumulation of recoverable errors.
 	// Eg: if a process is retrieving N items, and 1 of the
 	// items fails to be retrieved, but the rest of them succeed,
 	// we'd expect to see 1 error added to this slice.
@@ -31,9 +32,24 @@ type Bus struct {
 // Errors provides the errors data alone, without sync
 // controls, allowing the data to be persisted.
 type Errors struct {
-	Failure   error   `json:"failure"`
+	// Failure identifies a non-recoverable error.  This includes
+	// non-start cases (ex: cannot connect to client), hard-
+	// stop issues (ex: credentials expired) or conscious exit
+	// cases (ex: iteration error + failFast config).
+	Failure error `json:"failure"`
+
+	// Recovered errors accumulate through a runtime under
+	// best-effort processing conditions.  They imply that an
+	// error occurred, but the process was able to move on and
+	// complete afterwards.
+	// Eg: if a process is retrieving N items, and 1 of the
+	// items fails to be retrieved, but the rest of them succeed,
+	// we'd expect to see 1 error added to this slice.
 	Recovered []error `json:"-"`
-	FailFast  bool    `json:"failFast"`
+
+	// If FailFast is true, then the first Recoverable error will
+	// promote to the Failure spot, causing processing to exit.
+	FailFast bool `json:"failFast"`
 }
 
 // New constructs a new error with default values in place.
@@ -70,7 +86,7 @@ func (e *Bus) Errors() Errors {
 }
 
 // Fail sets the non-recoverable error (ie: bus.failure)
-// in thebus.  If a failure error is already present,
+// in the bus.  If a failure error is already present,
 // the error gets added to the recoverable slice for
 // purposes of tracking.
 //
