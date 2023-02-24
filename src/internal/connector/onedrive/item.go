@@ -380,7 +380,7 @@ func fetchParentReference(
 	service graph.Servicer,
 	orig models.ItemReferenceable,
 ) (models.ItemReferenceable, error) {
-	if ptr.Val(orig.GetName()) != "" {
+	if orig == nil || ptr.Val(orig.GetName()) != "" {
 		return orig, nil
 	}
 
