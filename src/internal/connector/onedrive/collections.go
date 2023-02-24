@@ -701,17 +701,16 @@ func (c *Collections) UpdateCollections(
 		case item.GetFile() != nil:
 			// Deletions are handled above so this is just moves/renames.
 			if len(ptr.Val(item.GetParentReference().GetId())) == 0 {
-				return clues.New("file without parent ID").With("item_id", itemID)
+				return clues.New("file without parent ID").WithClues(ictx)
 			}
 
 			// Get the collection for this item.
 			collectionID := ptr.Val(item.GetParentReference().GetId())
+			ictx = clues.Add(ictx, "collection_id", collectionID)
 
 			collection, found := c.CollectionMap[collectionID]
 			if !found {
-				return clues.New("item seen before parent folder").
-					WithClues(ictx).
-					With("collection_id", collectionID)
+				return clues.New("item seen before parent folder").WithClues(ictx)
 			}
 
 			// Delete the file from previous collection. This will
