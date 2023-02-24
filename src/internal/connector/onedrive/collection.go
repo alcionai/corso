@@ -333,10 +333,10 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemID       = ptr.Val(item.GetId())
 				itemName     = ptr.Val(item.GetName())
 				itemSize     = ptr.Val(item.GetSize())
-				metaFileName = itemID
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
+				metaFileName string
 				metaSuffix   string
 			)
 
@@ -362,6 +362,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
 
+				metaFileName = itemID
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
