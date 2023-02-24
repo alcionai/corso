@@ -15,24 +15,22 @@ import (
 )
 
 type CacheResolverSuite struct {
-	suite.Suite
+	tester.Suite
 	credentials account.M365Config
 }
 
 func TestCacheResolverIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(CacheResolverSuite))
+	suite.Run(t, &CacheResolverSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests),
+	})
 }
 
 func (suite *CacheResolverSuite) SetupSuite() {
 	t := suite.T()
-
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -118,7 +116,9 @@ func (suite *CacheResolverSuite) TestPopulate() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			resolver := test.resolverFunc(t)
 			require.NoError(t, resolver.Populate(ctx, fault.New(true), test.root, test.basePath))
 

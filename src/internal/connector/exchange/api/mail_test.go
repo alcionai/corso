@@ -5,17 +5,19 @@ import (
 	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type MailAPIUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMailAPIUnitSuite(t *testing.T) {
-	suite.Run(t, new(MailAPIUnitSuite))
+	suite.Run(t, &MailAPIUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *MailAPIUnitSuite) TestMailInfo() {
@@ -124,9 +126,9 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 		},
 	}
 	for _, tt := range tests {
-		suite.T().Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
-			suite.Equal(expected, MailInfo(msg))
+			assert.Equal(suite.T(), expected, MailInfo(msg))
 		})
 	}
 }

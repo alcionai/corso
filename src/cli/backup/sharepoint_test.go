@@ -16,11 +16,11 @@ import (
 )
 
 type SharePointSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, new(SharePointSuite))
+	suite.Run(t, &SharePointSuite{tester.NewUnitSuite(t)})
 }
 
 func (suite *SharePointSuite) TestAddSharePointCommands() {
@@ -51,7 +51,9 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			cmd := &cobra.Command{Use: test.use}
 
 			c := addSharePointCommands(cmd)
@@ -97,8 +99,8 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, validateSharePointBackupCreateFlags(test.site, test.weburl, nil))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), validateSharePointBackupCreateFlags(test.site, test.weburl, nil))
 		})
 	}
 }
@@ -191,7 +193,9 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -208,7 +212,9 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 	defer flush()
 
 	for _, test := range testdata.SharePointOptionDetailLookups {
-		suite.T().Run(test.Name, func(t *testing.T) {
+		suite.Run(test.Name, func() {
+			t := suite.T()
+
 			output, err := runDetailsSharePointCmd(
 				ctx,
 				test.BackupGetter,
@@ -225,7 +231,9 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 	defer flush()
 
 	for _, test := range testdata.BadSharePointOptionsFormats {
-		suite.T().Run(test.Name, func(t *testing.T) {
+		suite.Run(test.Name, func() {
+			t := suite.T()
+
 			output, err := runDetailsSharePointCmd(
 				ctx,
 				test.BackupGetter,

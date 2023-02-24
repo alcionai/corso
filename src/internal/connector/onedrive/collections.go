@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -344,14 +345,59 @@ func (c *Collections) Get(
 		folderPaths[driveID] = map[string]string{}
 		maps.Copy(folderPaths[driveID], paths)
 
-		maps.Copy(excludedItems, excluded)
-
 		logger.Ctx(ctx).Infow(
 			"persisted metadata for drive",
 			"num_paths_entries",
 			len(paths),
 			"num_deltas_entries",
 			numDeltas)
+
+		if !delta.Reset {
+			maps.Copy(excludedItems, excluded)
+			continue
+		}
+
+		// Set all folders in previous backup but not in the current
+		// one with state deleted
+		modifiedPaths := map[string]struct{}{}
+		for _, p := range c.CollectionMap {
+			modifiedPaths[p.FullPath().String()] = struct{}{}
+		}
+
+		for i, p := range oldPaths {
+			_, found := paths[i]
+			if found {
+				continue
+			}
+
+			_, found = modifiedPaths[p]
+			if found {
+				// Original folder was deleted and new folder with the
+				// same name/path was created in its place
+				continue
+			}
+
+			delete(paths, i)
+
+			prevPath, err := path.FromDataLayerPath(p, false)
+			if err != nil {
+				return nil, map[string]struct{}{},
+					clues.Wrap(err, "invalid previous path").WithClues(ctx).With("deleted_path", p)
+			}
+
+			col := NewCollection(
+				c.itemClient,
+				nil,
+				prevPath,
+				driveID,
+				c.service,
+				c.statusUpdater,
+				c.source,
+				c.ctrl,
+				true,
+			)
+			c.CollectionMap[i] = col
+		}
 	}
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
@@ -452,6 +498,7 @@ func (c *Collections) UpdateCollections(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	itemCollection map[string]string,
 	invalidPrevDelta bool,
 ) error {
 	for _, item := range items {
@@ -516,8 +563,26 @@ func (c *Collections) UpdateCollections(
 			return err
 		}
 
+		var (
+			itemPath path.Path
+			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
+		)
+
+		if item.GetDeleted() == nil {
+			name := ptr.Val(item.GetName())
+			if len(name) == 0 {
+				return clues.New("non-deleted item with empty name").With("item_id", name)
+			}
+
+			itemPath, err = collectionPath.Append(name, !isFolder)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Skip items that don't match the folder selectors we were given.
-		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
+		if shouldSkipDrive(ctx, itemPath, c.matcher, driveName) &&
+			shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
 			logger.Ctx(ctx).Infof("Skipping path %s", collectionPath.String())
 			continue
 		}
@@ -563,51 +628,45 @@ func (c *Collections) UpdateCollections(
 				break
 			}
 
-			// Deletions of folders are handled in this case so we may as well start
-			// off by saving the path.Path of the item instead of just the OneDrive
-			// parentRef or such.
-			folderPath, err := collectionPath.Append(*item.GetName(), false)
-			if err != nil {
-				logger.Ctx(ctx).Errorw("failed building collection path", "error", err)
-				return err
-			}
-
 			// Moved folders don't cause delta results for any subfolders nested in
 			// them. We need to go through and update paths to handle that. We only
 			// update newPaths so we don't accidentally clobber previous deletes.
-			updatePath(newPaths, *item.GetId(), folderPath.String())
+			updatePath(newPaths, *item.GetId(), itemPath.String())
 
-			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, folderPath)
+			found, err := updateCollectionPaths(*item.GetId(), c.CollectionMap, itemPath)
 			if err != nil {
 				return err
 			}
 
 			if !found {
-				// We only create collections for folder that are not
-				// new. This is so as to not create collections for
-				// new folders without any files within them.
-				if prevPath != nil {
-					col := NewCollection(
-						c.itemClient,
-						folderPath,
-						prevPath,
-						driveID,
-						c.service,
-						c.statusUpdater,
-						c.source,
-						c.ctrl,
-						invalidPrevDelta,
-					)
-					c.CollectionMap[*item.GetId()] = col
-					c.NumContainers++
-				}
+				col := NewCollection(
+					c.itemClient,
+					itemPath,
+					prevPath,
+					driveID,
+					c.service,
+					c.statusUpdater,
+					c.source,
+					c.ctrl,
+					invalidPrevDelta,
+				)
+				c.CollectionMap[*item.GetId()] = col
+				c.NumContainers++
 			}
 
 			if c.source != OneDriveSource {
 				continue
 			}
 
-			fallthrough
+			if col := c.CollectionMap[*item.GetId()]; col != nil {
+				// Add an entry to fetch permissions into this collection. This assumes
+				// that OneDrive always returns all folders on the path of an item
+				// before the item. This seems to hold true for now at least.
+				collection := col.(*Collection)
+				if collection.Add(item) {
+					c.NumItems++
+				}
+			}
 
 		case item.GetFile() != nil:
 			if !invalidPrevDelta && item.GetFile() != nil {
@@ -615,7 +674,8 @@ func (c *Collections) UpdateCollections(
 				// deleted, we want to avoid it. If it was
 				// renamed/moved/modified, we still have to drop the
 				// original one and download a fresh copy.
-				excluded[*item.GetId()] = struct{}{}
+				excluded[*item.GetId()+DataFileSuffix] = struct{}{}
+				excluded[*item.GetId()+MetaFileSuffix] = struct{}{}
 			}
 
 			if item.GetDeleted() != nil {
@@ -648,6 +708,11 @@ func (c *Collections) UpdateCollections(
 
 			col, found := c.CollectionMap[collectionID]
 			if !found {
+				// TODO(ashmrtn): We should probably tighten the restrictions on this
+				// and just make it return an error if the collection doesn't already
+				// exist. Graph seems pretty consistent about returning all folders on
+				// the path from the root to the item in question. Removing this will
+				// also ensure we always add an entry to get the folder metadata.
 				col = NewCollection(
 					c.itemClient,
 					collectionPath,
@@ -668,13 +733,30 @@ func (c *Collections) UpdateCollections(
 			// times within a single delta response, we might end up
 			// storing the permissions multiple times. Switching the
 			// files to IDs should fix this.
-			collection := col.(*Collection)
-			collection.Add(item)
 
-			c.NumItems++
-			if item.GetFile() != nil {
-				// This is necessary as we have a fallthrough for
-				// folders and packages
+			// Delete the file from previous collection. This will
+			// only kick in if the file was moved multiple times
+			// within a single delta query
+			itemColID, found := itemCollection[*item.GetId()]
+			if found {
+				pcol, found := c.CollectionMap[itemColID]
+				if !found {
+					return clues.New("previous collection not found").With("item_id", *item.GetId())
+				}
+
+				pcollection := pcol.(*Collection)
+
+				removed := pcollection.Remove(item)
+				if !removed {
+					return clues.New("removing from prev collection").With("item_id", *item.GetId())
+				}
+			}
+
+			itemCollection[*item.GetId()] = collectionID
+			collection := col.(*Collection)
+
+			if collection.Add(item) {
+				c.NumItems++
 				c.NumFiles++
 			}
 
@@ -687,6 +769,10 @@ func (c *Collections) UpdateCollections(
 }
 
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {
+	if drivePath == nil {
+		return false
+	}
+
 	return !includePath(ctx, m, drivePath) ||
 		(drivePath.Category() == path.LibrariesCategory && restrictedDirectory == driveName)
 }

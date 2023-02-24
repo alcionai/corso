@@ -223,7 +223,10 @@ func (sc *Collection) retrieveLists(
 	progress chan<- struct{},
 	errs *fault.Errors,
 ) (numMetrics, error) {
-	var metrics numMetrics
+	var (
+		metrics numMetrics
+		et      = errs.Tracker()
+	)
 
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
@@ -234,13 +237,13 @@ func (sc *Collection) retrieveLists(
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
+			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx))
 			continue
 		}
 
@@ -266,7 +269,7 @@ func (sc *Collection) retrieveLists(
 		}
 	}
 
-	return metrics, errs.Err()
+	return metrics, et.Err()
 }
 
 func (sc *Collection) retrievePages(
@@ -275,12 +278,22 @@ func (sc *Collection) retrievePages(
 	progress chan<- struct{},
 	errs *fault.Errors,
 ) (numMetrics, error) {
-	var metrics numMetrics
+	var (
+		metrics numMetrics
+		et      = errs.Tracker()
+	)
 
 	betaService := sc.betaService
 	if betaService == nil {
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
+
+	parent, err := sapi.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	if err != nil {
+		return metrics, err
+	}
+
+	root := ptr.Val(parent.GetWebUrl())
 
 	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
@@ -292,13 +305,13 @@ func (sc *Collection) retrievePages(
 	// Pageable objects are not supported in v1.0 of msgraph at this time.
 	// TODO: Verify Parsable interface supported with modified-Pageable
 	for _, pg := range pages {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
 		byteArray, err := serializeContent(wtr, pg)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
+			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx))
 			continue
 		}
 
@@ -310,7 +323,7 @@ func (sc *Collection) retrievePages(
 			sc.data <- &Item{
 				id:      *pg.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    sapi.PageInfo(pg, size),
+				info:    sharePointPageInfo(pg, root, size),
 				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),
 			}
 
@@ -318,7 +331,7 @@ func (sc *Collection) retrievePages(
 		}
 	}
 
-	return metrics, errs.Err()
+	return metrics, et.Err()
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {

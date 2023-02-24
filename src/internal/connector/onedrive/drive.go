@@ -148,6 +148,7 @@ type itemCollector func(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
+	fileCollectionMap map[string]string,
 	validPrevDelta bool,
 ) error
 
@@ -178,6 +179,7 @@ func defaultItemPager(
 			"package",
 			"parentReference",
 			"root",
+			"sharepointIds",
 			"size",
 			"deleted",
 		},
@@ -199,6 +201,12 @@ func collectItems(
 		newPaths         = map[string]string{}
 		excluded         = map[string]struct{}{}
 		invalidPrevDelta = len(prevDelta) == 0
+
+		// itemCollection is used to identify which collection a
+		// file belongs to. This is useful to delete a file from the
+		// collection it was previously in, in case it was moved to a
+		// different collection within the same delta query
+		itemCollection = map[string]string{}
 	)
 
 	if !invalidPrevDelta {
@@ -213,6 +221,7 @@ func collectItems(
 			logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
 
 			invalidPrevDelta = true
+			newPaths = map[string]string{}
 
 			pager.Reset()
 
@@ -232,7 +241,17 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
 		}
 
-		err = collector(ctx, driveID, driveName, vals, oldPaths, newPaths, excluded, invalidPrevDelta)
+		err = collector(
+			ctx,
+			driveID,
+			driveName,
+			vals,
+			oldPaths,
+			newPaths,
+			excluded,
+			itemCollection,
+			invalidPrevDelta,
+		)
 		if err != nil {
 			return DeltaUpdate{}, nil, nil, err
 		}
@@ -381,6 +400,7 @@ func GetAllFolders(
 				oldPaths map[string]string,
 				newPaths map[string]string,
 				excluded map[string]struct{},
+				itemCollection map[string]string,
 				doNotMergeItems bool,
 			) error {
 				for _, item := range items {

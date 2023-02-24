@@ -78,6 +78,12 @@ func ToEventSimplified(orig models.Eventable) models.Eventable {
 	newBody.SetOdataType(origBody.GetOdataType())
 	newBody.SetContent(&newContent)
 	orig.SetBody(newBody)
+	// Sanitation steps for Events
+	// See: https://github.com/alcionai/corso/issues/2490
+	orig.SetTransactionId(nil)
+	orig.SetWebLink(nil)
+	orig.SetICalUId(nil)
+	orig.SetId(nil)
 
 	return orig
 }

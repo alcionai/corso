@@ -397,23 +397,26 @@ func (w Wrapper) RestoreMultipleItems(
 		return nil, err
 	}
 
-	// Maps short ID of parent path to data collection for that folder.
-	cols := map[string]*kopiaDataCollection{}
+	var (
+		// Maps short ID of parent path to data collection for that folder.
+		cols = map[string]*kopiaDataCollection{}
+		et   = errs.Tracker()
+	)
 
 	for _, itemPath := range paths {
-		if errs.Err() != nil {
-			return nil, errs.Err()
+		if et.Err() != nil {
+			return nil, et.Err()
 		}
 
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
-			errs.Add(err)
+			et.Add(err)
 			continue
 		}
 
 		parentPath, err := itemPath.Dir()
 		if err != nil {
-			errs.Add(clues.Wrap(err, "making directory collection").WithClues(ctx))
+			et.Add(clues.Wrap(err, "making directory collection").WithClues(ctx))
 			continue
 		}
 
@@ -437,7 +440,7 @@ func (w Wrapper) RestoreMultipleItems(
 		res = append(res, c)
 	}
 
-	return res, errs.Err()
+	return res, et.Err()
 }
 
 // DeleteSnapshot removes the provided manifest from kopia.
