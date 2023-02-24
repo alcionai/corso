@@ -10,9 +10,9 @@ export default function Hero() {
           left: "-20rem",
           right: 0,
           zIndex: 1,
-          top: "-30%",
+          top: "-45%",
           height: "62rem",
-          width: "140rem",
+          width: "calculate(200%)",
           transform: "rotate(-12deg)",
         }}
       ></div>

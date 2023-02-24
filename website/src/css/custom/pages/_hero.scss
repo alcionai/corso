@@ -189,7 +189,7 @@
 
 /* Saas */
 .home-wrapper {
-    @apply before:content-[''] before:absolute before:-top-[30%] before:-left-80 before:right-0 before:w-[140rem] before:h-[65rem] before:-rotate-12 before:bg-indigo-600/5 dark:before:bg-indigo-600/10 before:z-1;
+    @apply before:content-[''] before:absolute before:-top-[30%] before:-left-80 before:right-0 before:w-[140rem] before:h-[65rem] before:-rotate-12 before:z-1;
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
