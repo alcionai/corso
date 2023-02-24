@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import "animate.css";
-import { tns } from "tiny-slider/src/tiny-slider";
 
 export default function Users() {
-  useEffect(function () {
+  useEffect(() => {
     if (typeof window !== "undefined") {
+      tns = require("tiny-slider").tns;
       window.tns = tns;
     }
   }, []);
