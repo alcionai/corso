@@ -357,7 +357,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
 
-				metaFileName = itemName
+				metaFileName = itemID
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
@@ -443,7 +443,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
-						observe.PII(itemName+dataSuffix),
+						observe.PII(itemID+dataSuffix),
 						itemSize)
 					go closer()
 
@@ -461,7 +461,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 					progReader, closer := observe.ItemProgress(
 						ctx, itemMeta, observe.ItemBackupMsg,
-						observe.PII(itemName+metaSuffix), int64(itemMetaSize))
+						observe.PII(metaFileName+metaSuffix), int64(itemMetaSize))
 					go closer()
 					return progReader, nil
 				})
