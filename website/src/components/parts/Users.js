@@ -13,7 +13,7 @@ export default function Users() {
     <section className="relative !tracking-wide flex flex-col items-center overflow-hidden">
       <div className="container md:mt-24 mt-16">
         <div className="grid grid-cols-1 mt-8">
-          <h3 className="text-center mb-4 md:text-3xl md:leading-normal text-2xl leading-normal font-semibold">
+          <h3 className="mb-6 mt-8 md:text-4xl text-white text-3xl md:leading-normal leading-normal font-bold text-center">
             What Corso Users Say
           </h3>
           <div
