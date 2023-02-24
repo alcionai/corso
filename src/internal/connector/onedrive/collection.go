@@ -302,6 +302,13 @@ func (oc *Collection) populateItems(ctx context.Context) {
 				err          error
 			)
 
+			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
+			if err != nil {
+				errUpdater(itemID, clues.Wrap(err, "getting parent reference"))
+			}
+
+			item.SetParentReference(pr)
+
 			isFile := item.GetFile() != nil
 
 			if isFile {
