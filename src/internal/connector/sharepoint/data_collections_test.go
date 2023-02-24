@@ -117,7 +117,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				excluded,
 				map[string]string{},
 				true,
-			)
+				fault.New(true))
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
