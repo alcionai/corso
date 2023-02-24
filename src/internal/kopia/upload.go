@@ -22,6 +22,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -448,16 +449,21 @@ func streamBaseEntries(
 			return errors.Wrap(err, "getting previous full item path for base entry")
 		}
 
-		// All items have item info in the base backup. However, we need to make
-		// sure we have enough metadata to find those entries. To do that we add the
-		// item to progress and having progress aggregate everything for later.
-		d := &itemDetails{
-			info:         nil,
-			repoPath:     itemPath,
-			prevPath:     prevItemPath,
-			locationPath: locationPath,
+		// Meta files aren't in backup details since it's the set of items the user
+		// sees.
+		if !onedrive.IsMetaFile(itemPath.String()) {
+			// All items have item info in the base backup. However, we need to make
+			// sure we have enough metadata to find those entries. To do that we add
+			// the item to progress and having progress aggregate everything for
+			// later.
+			d := &itemDetails{
+				info:         nil,
+				repoPath:     itemPath,
+				prevPath:     prevItemPath,
+				locationPath: locationPath,
+			}
+			progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 		}
-		progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
 		if err := cb(ctx, entry); err != nil {
 			return errors.Wrapf(err, "executing callback on item %q", itemPath)
