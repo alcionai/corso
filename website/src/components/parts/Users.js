@@ -258,8 +258,8 @@ export default function Users() {
   return (
     <section className="relative !tracking-wide flex flex-col items-center overflow-hidden">
       <div className="container md:mt-24 mt-16">
-        <div className="grid grid-cols-1 mt-8">
-          <h3 className="mb-6 mt-8 md:text-4xl text-white text-3xl md:leading-normal leading-normal font-bold text-center">
+        <div className="grid grid-cols-1 mt-2">
+          <h3 className="mb-6 mt-2 md:text-4xl text-white text-3xl md:leading-normal leading-normal font-bold text-center">
             What Corso Users Say
           </h3>
           <div

@@ -22,7 +22,7 @@ export default function Hero() {
         }}
         className="!container relative !z-10"
       >
-        <div className="grid !z-10 grid-cols-1 mt-28 text-center">
+        <div className="grid !z-10 grid-cols-1 mt-24 text-center">
           <div className="wow !z-10 animate__animated animate__fadeIn">
             <h4 className="font-bold !text-white !z-10 !leading-normal text-4xl lg:text-5xl mb-5">
               Free, Secure, and Open-Source
@@ -38,7 +38,7 @@ export default function Hero() {
               href="../docs/quickstart/"
               className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
             >
-              Quickstart
+              Quick Start
             </a>
           </div>
 
