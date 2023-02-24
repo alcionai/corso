@@ -14,6 +14,8 @@ Microsoft Office 365 administrators, it backs up user data to any S3 compliant
 storage. Leaving you in control of when your data is backed up, and how it’s
 restored.
 
+<!-- truncate -->
+
 ### We love our users
 
 Since our release in late 2022, we’ve been really happy to see how many people
@@ -27,7 +29,7 @@ users!
 ### Simplicity is key
 
 One of the most gratifying things working on Corso, especially working in
-Developer Relations as I do, is having a tool be easy enough for people to just
+Developer Relations as I do, is having a tool be straightforward enough for people to just
 pick it up and use it. To see that most of the people who look at our
 [Quick Start](https://corsobackup.io/docs/quickstart/) guide end up successfully
 backing up their Microsoft 365 data is hugely gratifying. I’ve been able to make
@@ -37,19 +39,19 @@ every new user how to get the tool working.
 
 ## Key Lessons
 
-Bigger M365 domains, of course, brought use cases that we weren’t expecting. And
+Bigger M365 domains brought use cases that we weren’t expecting. And
 early users helped find these problems before they affected more users. If you
 look at our
-[releases page on Github](https://github.com/alcionai/corso/releases/), most of
+[releases page on GitHub](https://github.com/alcionai/corso/releases/), most of
 the bug fixes we’ve released in the last two months have been things that were
-initially reported by our users. That’s so cool! Corso is not yet at V1, so
+initially reported by our users. That’s so cool! Corso isn't yet at V1, so
 having a community of Operations engineers who were willing to test out early
-versions of the tool was an enormously generous experience. Of course, these
-users taught us great things
+versions of the tool was an enormously generous experience. These
+users taught us great things.
 
 ### Microsoft 365 domains come in a variety of shapes
 
-Inherently, a backup toon for Microsoft Office 365 is going to be directly
+Inherently, a backup tool for Microsoft Office 365 is going to be directly
 dependent on the Microsoft Graph API. While the graph API is uniform, Microsoft
 365 has gone through a number of iterations over the years resulting in bespoke
 configuration. A recent bug we investigated involved users that had two
@@ -82,6 +84,6 @@ you’ve used the tool
 some swag. For the next month we’ll also be selecting one response from our
 feedback form to send a Microsoft Zune (yes, THAT Zune, we got one restored).
 
-So, a warm welcome to the Product Hunt community, thank you for checking out
-Corso! And, a big thanks to all our existing users who have helped us take the
+Thank you again to the Product Hunt community for checking out
+Corso. And a big thanks to all our existing users who have helped us take the
 tool so far, so fast. We appreciate you!
