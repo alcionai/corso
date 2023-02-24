@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,6 +38,10 @@ const (
 	DirMetaFileSuffix = ".dirmeta"
 	DataFileSuffix    = ".data"
 )
+
+func IsMetaFile(name string) bool {
+	return strings.HasSuffix(name, MetaFileSuffix) || strings.HasSuffix(name, DirMetaFileSuffix)
+}
 
 var (
 	_ data.BackupCollection = &Collection{}
