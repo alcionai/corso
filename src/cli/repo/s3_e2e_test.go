@@ -15,19 +15,20 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
-type S3IntegrationSuite struct {
+type S3E2ESuite struct {
 	tester.Suite
 }
 
-func TestS3IntegrationSuite(t *testing.T) {
-	suite.Run(t, &S3IntegrationSuite{Suite: tester.NewIntegrationSuite(
+func TestS3E2ESuite(t *testing.T) {
+	suite.Run(t, &S3E2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		tester.CorsoCITests,
 		tester.CorsoCLITests,
 		tester.CorsoCLIRepoTests)})
 }
 
-func (suite *S3IntegrationSuite) TestInitS3Cmd() {
+func (suite *S3E2ESuite) TestInitS3Cmd() {
 	table := []struct {
 		name         string
 		bucketPrefix string
@@ -75,7 +76,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd() {
 	}
 }
 
-func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
+func (suite *S3E2ESuite) TestInitMultipleTimes() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -104,7 +105,7 @@ func (suite *S3IntegrationSuite) TestInitMultipleTimes() {
 	}
 }
 
-func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
+func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -128,7 +129,7 @@ func (suite *S3IntegrationSuite) TestInitS3Cmd_missingBucket() {
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
+func (suite *S3E2ESuite) TestConnectS3Cmd() {
 	table := []struct {
 		name         string
 		bucketPrefix string
@@ -182,7 +183,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd() {
 	}
 }
 
-func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
+func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -207,7 +208,7 @@ func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadBucket() {
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *S3IntegrationSuite) TestConnectS3Cmd_BadPrefix() {
+func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 

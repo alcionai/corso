@@ -30,7 +30,7 @@ var (
 
 var backupDataSets = []path.CategoryType{email, contacts, events}
 
-type RestoreExchangeIntegrationSuite struct {
+type RestoreExchangeE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -41,17 +41,18 @@ type RestoreExchangeIntegrationSuite struct {
 	backupOps  map[path.CategoryType]operations.BackupOperation
 }
 
-func TestRestoreExchangeIntegrationSuite(t *testing.T) {
-	suite.Run(t, &RestoreExchangeIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
+func TestRestoreExchangeE2ESuite(t *testing.T) {
+	suite.Run(t, &RestoreExchangeE2ESuite{
+		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCITests,
 			tester.CorsoCLITests,
 			tester.CorsoCLIRestoreTests),
 	})
 }
 
-func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
+func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext()
@@ -115,7 +116,7 @@ func (suite *RestoreExchangeIntegrationSuite) SetupSuite() {
 	}
 }
 
-func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
+func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 	for _, set := range backupDataSets {
 		suite.Run(set.String(), func() {
 			t := suite.T()
@@ -137,7 +138,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd() {
 	}
 }
 
-func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlags() {
+func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 	for _, set := range backupDataSets {
 		if set == contacts {
 			suite.T().Skip()
@@ -172,7 +173,7 @@ func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badTimeFlag
 	}
 }
 
-func (suite *RestoreExchangeIntegrationSuite) TestExchangeRestoreCmd_badBoolFlags() {
+func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 	for _, set := range backupDataSets {
 		if set != events {
 			suite.T().Skip()
