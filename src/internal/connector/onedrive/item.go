@@ -380,23 +380,28 @@ func fetchParentReference(
 	service graph.Servicer,
 	orig models.ItemReferenceable,
 ) (models.ItemReferenceable, error) {
-	if orig == nil || ptr.Val(orig.GetName()) != "" {
+	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
 		return orig, nil
 	}
 
 	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-			Select: []string{"driveId"},
+			Select: []string{"name"},
 		},
 	}
 
-	drive, err := service.Client().DrivesById(*orig.GetDriveId()).Get(ctx, options)
+	driveID := ptr.Val(orig.GetDriveId())
+
+	if driveID == "" {
+		return orig, nil
+	}
+
+	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
 	if err != nil {
-		return nil, err
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	orig.SetName(drive.GetName())
-	orig.SetDriveType(drive.GetDriveType())
 
 	return orig, nil
 }
