@@ -72,7 +72,7 @@ func DataCollections(
 
 		odcs, excludes, err := nc.Get(ctx, metadata, errs)
 		if err != nil {
-			et.Add(err)
+			et.Add(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
 
 		collections = append(collections, odcs...)
