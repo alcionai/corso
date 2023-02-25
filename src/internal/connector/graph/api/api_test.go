@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type mockNextLink struct {
@@ -59,20 +60,14 @@ var (
 )
 
 type APIUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestAPIUnitSuite(t *testing.T) {
-	suite.Run(t, new(APIUnitSuite))
-}
-
-func (suite *APIUnitSuite) TestNextLink() {
-	for _, test := range nextLinkInputs {
-		suite.T().Run(test.name, func(t *testing.T) {
-			l := mockNextLink{nextLink: test.inputLink}
-			assert.Equal(t, test.expectedLink, api.NextLink(l))
-		})
+	s := &APIUnitSuite{
+		Suite: tester.NewUnitSuite(t),
 	}
+	suite.Run(t, s)
 }
 
 func (suite *APIUnitSuite) TestNextAndDeltaLink() {
@@ -99,7 +94,9 @@ func (suite *APIUnitSuite) TestNextAndDeltaLink() {
 		for _, delta := range deltaTable {
 			name := strings.Join([]string{next.name, "next", delta.name, "delta"}, "_")
 
-			suite.T().Run(name, func(t *testing.T) {
+			suite.Run(name, func() {
+				t := suite.T()
+
 				l := mockDeltaNextLink{
 					mockNextLink: mockNextLink{nextLink: next.inputLink},
 					deltaLink:    delta.inputLink,
@@ -110,5 +107,41 @@ func (suite *APIUnitSuite) TestNextAndDeltaLink() {
 				assert.Equal(t, delta.expectedLink, gotDelta)
 			})
 		}
+	}
+}
+
+// TestIsLinkValid check to verify is nextLink guard check for logging
+// Related to: https://github.com/alcionai/corso/issues/2520
+//
+//nolint:lll
+func (suite *APIUnitSuite) TestIsLinkValid() {
+	invalidString := `https://graph.microsoft.com/v1.0/users//mailFolders//messages/microsoft.graph.delta()?$select=id%2CisRead`
+	tests := []struct {
+		name        string
+		inputString string
+		isValid     assert.BoolAssertionFunc
+	}{
+		{
+			name:        "Empty",
+			inputString: emptyLink,
+			isValid:     assert.True,
+		},
+		{
+			name:        "Invalid",
+			inputString: invalidString,
+			isValid:     assert.False,
+		},
+		{
+			name:        "Valid",
+			inputString: `https://graph.microsoft.com/v1.0/users/aPerson/mailFolders/AMessage/messages/microsoft.graph.delta()?$select=id%2CisRead`,
+			isValid:     assert.True,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			got := api.IsNextLinkValid(test.inputString)
+			test.isValid(suite.T(), got)
+		})
 	}
 }

@@ -22,24 +22,25 @@ import (
 )
 
 type ExchangeRestoreSuite struct {
-	suite.Suite
+	tester.Suite
 	gs          graph.Servicer
 	credentials account.M365Config
 	ac          api.Client
 }
 
 func TestExchangeRestoreSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoConnectorRestoreExchangeCollectionTests)
-
-	suite.Run(t, new(ExchangeRestoreSuite))
+	suite.Run(t, &ExchangeRestoreSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests,
+			tester.CorsoConnectorRestoreExchangeCollectionTests),
+	})
 }
 
 func (suite *ExchangeRestoreSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -335,7 +336,9 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

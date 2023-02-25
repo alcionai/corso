@@ -16,10 +16,11 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type SharePointPageSuite struct {
-	suite.Suite
+	tester.Suite
 	siteID  string
 	creds   account.M365Config
 	service *discover.BetaService
@@ -27,7 +28,6 @@ type SharePointPageSuite struct {
 
 func (suite *SharePointPageSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	suite.siteID = tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
@@ -39,11 +39,13 @@ func (suite *SharePointPageSuite) SetupSuite() {
 }
 
 func TestSharePointPageSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorSharePointTests)
-	suite.Run(t, new(SharePointPageSuite))
+	suite.Run(t, &SharePointPageSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorSharePointTests),
+	})
 }
 
 func (suite *SharePointPageSuite) TestFetchPages() {
@@ -71,7 +73,7 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 	require.NotNil(t, tuples)
 
 	jobs := []string{tuples[0].ID}
-	pages, err := api.GetSitePages(ctx, suite.service, suite.siteID, jobs)
+	pages, err := api.GetSitePages(ctx, suite.service, suite.siteID, jobs, fault.New(true))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pages)
 }

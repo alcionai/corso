@@ -5,13 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] (alpha)
+## [Unreleased] (beta)
+
 ### Added
+- Show owner information when doing backup list in json format
+
+### Fixed
+- Corso-generated .meta files and permissions no longer appear in the backup details.
+
+### Known Issues
+- Folders and Calendars containing zero items or subfolders are not included in the backup.
+
+## [v0.4.0] (beta) - 2023-2-20
 
 ### Fixed
 - Support for item.Attachment:Mail restore
 - Errors from duplicate names in Exchange Calendars
 - Resolved an issue where progress bar displays could fail to exit, causing unbounded CPU consumption.
+- Fix Corso panic within Docker images
+- Debugging with the CORSO_URL_LOGGING env variable no longer causes accidental request failures.
 
 ### Changed
 - When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or a Microsoft 365 ID.
@@ -20,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Issues
 - Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
 - Breaking changes to Exchange Calendar backups.
+- The debugging env variable CORSO_URL_LOGGING causes exchange get requests to fail.
 
 ## [v0.3.0] (alpha) - 2023-2-07
 
@@ -173,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.4.0...HEAD
+[v0.4.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.3.0
 [v0.3.0]: https://github.com/alcionai/corso/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/alcionai/corso/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/alcionai/corso/compare/v0.0.4...v0.1.0

@@ -111,35 +111,35 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
 		vpr.GetString(TestCfgUserID),
-		"conneri@8qzvrj.onmicrosoft.com",
+		"LynneR@10rqc2.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
 		TestCfgSecondaryUserID,
 		os.Getenv(EnvCorsoSecondaryM365TestUserID),
 		vpr.GetString(TestCfgSecondaryUserID),
-		"lidiah@8qzvrj.onmicrosoft.com",
+		"AdeleV@10rqc2.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
 		TestCfgLoadTestUserID,
 		os.Getenv(EnvCorsoM365LoadTestUserID),
 		vpr.GetString(TestCfgLoadTestUserID),
-		"leeg@8qzvrj.onmicrosoft.com",
+		"leeg@10rqc2.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
 		TestCfgLoadTestOrgUsers,
 		os.Getenv(EnvCorsoM365LoadTestOrgUsers),
 		vpr.GetString(TestCfgLoadTestOrgUsers),
-		"lidiah@8qzvrj.onmicrosoft.com,conneri@8qzvrj.onmicrosoft.com",
+		"AdeleV@10rqc2.onmicrosoft.com,LynneR@10rqc2.onmicrosoft.com",
 	)
 	fallbackTo(
 		testEnv,
 		TestCfgSiteID,
 		os.Getenv(EnvCorsoM365TestSiteID),
 		vpr.GetString(TestCfgSiteID),
-		"8qzvrj.sharepoint.com,1c9ef309-f47c-4e69-832b-a83edd69fa7f,c57f6e0e-3e4b-472c-b528-b56a2ccd0507",
+		"10rqc2.sharepoint.com,bb5d5b4a-e089-4e66-9868-9e263ecc635d,4fa3a2c0-fa81-4e6f-8e8b-1479a8927bc6",
 	)
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)

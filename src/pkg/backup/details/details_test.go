@@ -227,6 +227,69 @@ var pathItemsTable = []struct {
 		expectRepoRefs:     []string{"abcde", "12345"},
 		expectLocationRefs: []string{"locationref", "locationref2"},
 	},
+	{
+		name: "multiple entries with meta file",
+		ents: []DetailsEntry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef:     "is-meta-file",
+				LocationRef: "locationref-meta-file",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
+	},
+	{
+		name: "multiple entries with folder and meta file",
+		ents: []DetailsEntry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "12345",
+				LocationRef: "locationref2",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef:     "is-meta-file",
+				LocationRef: "locationref-meta-file",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+			{
+				RepoRef:     "deadbeef",
+				LocationRef: "locationref3",
+				ItemInfo: ItemInfo{
+					Folder: &FolderInfo{
+						DisplayName: "test folder",
+					},
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
+	},
 }
 
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
@@ -264,6 +327,38 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 			}
 		})
 	}
+}
+
+func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
+	t := suite.T()
+
+	d := &DetailsModel{
+		Entries: []DetailsEntry{
+			{
+				RepoRef: "a.data",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "b.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "c.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+		},
+	}
+
+	d2 := d.FilterMetaFiles()
+
+	assert.Len(t, d2.Entries, 2)
+	assert.Len(t, d.Entries, 3)
 }
 
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {

@@ -10,10 +10,10 @@ import (
 // sharePointPageInfo propagates metadata from  the SharePoint Page data type
 // into searchable content.
 // Page Details: https://learn.microsoft.com/en-us/graph/api/resources/sitepage?view=graph-rest-beta
-func sharePointPageInfo(page models.SitePageable, size int64) *details.SharePointInfo {
+func sharePointPageInfo(page models.SitePageable, root string, size int64) *details.SharePointInfo {
 	var (
-		name, webURL      string
-		created, modified time.Time
+		name, prefix, webURL string
+		created, modified    time.Time
 	)
 
 	if page.GetTitle() != nil {
@@ -21,7 +21,11 @@ func sharePointPageInfo(page models.SitePageable, size int64) *details.SharePoin
 	}
 
 	if page.GetWebUrl() != nil {
-		webURL = *page.GetWebUrl()
+		if len(root) > 0 {
+			prefix = root + "/"
+		}
+
+		webURL = prefix + *page.GetWebUrl()
 	}
 
 	if page.GetCreatedDateTime() != nil {
@@ -33,11 +37,12 @@ func sharePointPageInfo(page models.SitePageable, size int64) *details.SharePoin
 	}
 
 	return &details.SharePointInfo{
-		ItemType: details.SharePointItem,
-		ItemName: name,
-		Created:  created,
-		Modified: modified,
-		WebURL:   webURL,
-		Size:     size,
+		ItemType:   details.SharePointItem,
+		ItemName:   name,
+		ParentPath: root,
+		Created:    created,
+		Modified:   modified,
+		WebURL:     webURL,
+		Size:       size,
 	}
 }

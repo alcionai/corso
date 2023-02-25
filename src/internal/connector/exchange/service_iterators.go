@@ -50,6 +50,11 @@ func filterContainersAndFillCollections(
 		tombstones = makeTombstones(dps)
 	)
 
+	logger.Ctx(ctx).Infow(
+		"filling collections",
+		"metadata_count",
+		len(dps))
+
 	// TODO(rkeepers): this should be passed in from the caller, probably
 	// as an interface that satisfies the NewCollection requirements.
 	// But this will work for the short term.
@@ -63,9 +68,11 @@ func filterContainersAndFillCollections(
 		return err
 	}
 
+	et := errs.Tracker()
+
 	for _, c := range resolver.Items() {
-		if errs.Err() != nil {
-			return errs.Err()
+		if et.Err() != nil {
+			return et.Err()
 		}
 
 		cID := *c.GetId()
@@ -95,7 +102,7 @@ func filterContainersAndFillCollections(
 		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
-				errs.Add(err)
+				et.Add(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -150,8 +157,12 @@ func filterContainersAndFillCollections(
 	// in the `previousPath` set, but does not exist in the current container
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
+		if et.Err() != nil {
+			return et.Err()
+		}
+
 		if collections[id] != nil {
-			errs.Add(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ctx))
+			et.Add(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ctx))
 			continue
 		}
 
@@ -185,6 +196,11 @@ func filterContainersAndFillCollections(
 		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
 	}
 
+	logger.Ctx(ctx).Infow(
+		"adding metadata collection entries",
+		"num_paths_entries", len(currPaths),
+		"num_deltas_entries", len(deltaURLs))
+
 	if len(deltaURLs) > 0 {
 		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
 	}
@@ -195,15 +211,14 @@ func filterContainersAndFillCollections(
 		path.ExchangeService,
 		qp.Category,
 		entries,
-		statusUpdater,
-	)
+		statusUpdater)
 	if err != nil {
 		return clues.Wrap(err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
 
-	return errs.Err()
+	return et.Err()
 }
 
 // produces a set of id:path pairs from the deltapaths map.

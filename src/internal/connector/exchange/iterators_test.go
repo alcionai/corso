@@ -14,17 +14,11 @@ import (
 )
 
 type ExchangeIteratorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestExchangeIteratorSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(ExchangeIteratorSuite))
+	suite.Run(t, &ExchangeIteratorSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ExchangeIteratorSuite) TestDisplayable() {

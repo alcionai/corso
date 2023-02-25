@@ -5,21 +5,23 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -81,7 +83,7 @@ type Collection struct {
 type itemReaderFunc func(
 	hc *http.Client,
 	item models.DriveItemable,
-) (itemInfo details.ItemInfo, itemData io.ReadCloser, err error)
+) (details.ItemInfo, io.ReadCloser, error)
 
 // itemMetaReaderFunc returns a reader for the metadata of the
 // specified item
@@ -90,6 +92,7 @@ type itemMetaReaderFunc func(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
+	fetchPermissions bool,
 ) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
@@ -131,15 +134,40 @@ func NewCollection(
 	return c
 }
 
-// Adds an itemID to the collection
-// This will make it eligible to be populated
-func (oc *Collection) Add(item models.DriveItemable) {
+// Adds an itemID to the collection.  This will make it eligible to be
+// populated. The return values denotes if the item was previously
+// present or is new one.
+func (oc *Collection) Add(item models.DriveItemable) bool {
+	_, found := oc.driveItems[*item.GetId()]
 	oc.driveItems[*item.GetId()] = item
+
+	return !found // !found = new
+}
+
+// Remove removes a item from the collection
+func (oc *Collection) Remove(item models.DriveItemable) bool {
+	_, found := oc.driveItems[*item.GetId()]
+	if !found {
+		return false
+	}
+
+	delete(oc.driveItems, *item.GetId())
+
+	return true
+}
+
+// IsEmpty check if a collection does not contain any items
+// TODO(meain): Should we just have function that returns driveItems?
+func (oc *Collection) IsEmpty() bool {
+	return len(oc.driveItems) == 0
 }
 
 // Items() returns the channel containing M365 Exchange objects
-func (oc *Collection) Items() <-chan data.Stream {
-	go oc.populateItems(context.Background())
+func (oc *Collection) Items(
+	ctx context.Context,
+	errs *fault.Errors, // TODO: currently unused while onedrive isn't up to date with clues/fault
+) <-chan data.Stream {
+	go oc.populateItems(ctx, errs)
 	return oc.data
 }
 
@@ -176,6 +204,7 @@ type UserPermission struct {
 // ItemMeta contains metadata about the Item. It gets stored in a
 // separate file in kopia
 type Metadata struct {
+	FileName    string           `json:"filename,omitempty"`
 	Permissions []UserPermission `json:"permissions,omitempty"`
 }
 
@@ -212,23 +241,22 @@ func (od *Item) ModTime() time.Time {
 
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
-func (oc *Collection) populateItems(ctx context.Context) {
+func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 	var (
-		errs       error
 		byteCount  int64
 		itemsRead  int64
 		dirsRead   int64
 		itemsFound int64
 		dirsFound  int64
 		wg         sync.WaitGroup
-		m          sync.Mutex
+		et         = errs.Tracker()
 	)
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, 0, err)
+		oc.reportAsCompleted(ctx, 0, 0, 0, clues.Wrap(err, "getting drive path").WithClues(ctx))
 		return
 	}
 
@@ -243,14 +271,8 @@ func (oc *Collection) populateItems(ctx context.Context) {
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
-	errUpdater := func(id string, err error) {
-		m.Lock()
-		errs = support.WrapAndAppend(id, err, errs)
-		m.Unlock()
-	}
-
 	for _, item := range oc.driveItems {
-		if oc.ctrl.FailFast && errs != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -258,21 +280,26 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 		wg.Add(1)
 
-		go func(item models.DriveItemable) {
+		go func(ctx context.Context, item models.DriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
 			// Read the item
 			var (
-				itemID       = *item.GetId()
-				itemName     = *item.GetName()
-				itemSize     = *item.GetSize()
+				itemID       = ptr.Val(item.GetId())
+				itemName     = ptr.Val(item.GetName())
+				itemSize     = ptr.Val(item.GetSize())
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
 				metaSuffix   string
-				err          error
 			)
+
+			ctx = clues.Add(ctx,
+				"restore_item_id", itemID,
+				"restore_item_name", itemName,
+				"restore_item_size", itemSize,
+				"restore_item_info", itemInfo)
 
 			isFile := item.GetFile() != nil
 
@@ -288,20 +315,16 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 			if oc.source == OneDriveSource {
 				// Fetch metadata for the file
-				if !oc.ctrl.ToggleFeatures.EnablePermissionsBackup {
-					// We are still writing the metadata file but with
-					// empty permissions as we don't have a way to
-					// signify that the permissions was explicitly
-					// not added.
-					itemMeta = io.NopCloser(strings.NewReader("{}"))
-					itemMetaSize = 2
-				} else {
-					itemMeta, itemMetaSize, err = oc.itemMetaReader(ctx, oc.service, oc.driveID, item)
+				itemMeta, itemMetaSize, err = oc.itemMetaReader(
+					ctx,
+					oc.service,
+					oc.driveID,
+					item,
+					oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
 
-					if err != nil {
-						errUpdater(*item.GetId(), errors.Wrap(err, "failed to get item permissions"))
-						return
-					}
+				if err != nil {
+					et.Add(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+					return
 				}
 			}
 
@@ -347,7 +370,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 					// check for errors following retries
 					if err != nil {
-						errUpdater(itemID, err)
+						et.Add(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
 
@@ -357,8 +380,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 						itemData,
 						observe.ItemBackupMsg,
 						observe.PII(itemName+dataSuffix),
-						itemSize,
-					)
+						itemSize)
 					go closer()
 
 					return progReader, nil
@@ -382,7 +404,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 
 				// TODO(meain): Remove this once we change to always
 				// backing up permissions. Until then we cannot rely
-				// on weather the previous data is what we need as the
+				// on whether the previous data is what we need as the
 				// user might have not backup up permissions in the
 				// previous run.
 				metaItemInfo := details.ItemInfo{}
@@ -391,6 +413,7 @@ func (oc *Collection) populateItems(ctx context.Context) {
 					ItemName:   itemInfo.OneDrive.ItemName,
 					DriveName:  itemInfo.OneDrive.DriveName,
 					ItemType:   itemInfo.OneDrive.ItemType,
+					IsMeta:     true,
 					Modified:   time.Now(), // set to current time to always refresh
 					Owner:      itemInfo.OneDrive.Owner,
 					ParentPath: itemInfo.OneDrive.ParentPath,
@@ -415,15 +438,15 @@ func (oc *Collection) populateItems(ctx context.Context) {
 			atomic.AddInt64(&byteCount, itemSize)
 
 			folderProgress <- struct{}{}
-		}(item)
+		}(ctx, item)
 	}
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, errs)
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, et.Err())
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, errs error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
@@ -433,7 +456,7 @@ func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRe
 			Successes:  itemsRead,  // items read successfully,
 			TotalBytes: byteCount,  // Number of bytes read in the operation,
 		},
-		errs,
+		err,
 		oc.folderPath.Folder(false), // Additional details
 	)
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())

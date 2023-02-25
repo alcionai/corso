@@ -103,4 +103,5 @@ func (suite *BackupSuite) TestBackup_MinimumPrintable() {
 	assert.Equal(t, b.Status, result.Status, "status")
 	assert.Equal(t, b.BytesRead, result.BytesRead, "size")
 	assert.Equal(t, b.BytesUploaded, result.BytesUploaded, "stored size")
+	assert.Equal(t, b.Selector.DiscreteOwner, result.Owner, "owner")
 }

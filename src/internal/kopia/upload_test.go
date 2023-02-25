@@ -93,15 +93,12 @@ func expectedTreeWithChildren(
 
 // Currently only works for files that Corso has serialized as it expects a
 // version specifier at the start of the file.
-//
-//revive:disable:context-as-argument
 func expectFileData(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expected []byte,
 	f fs.StreamingFile,
 ) {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	if len(expected) == 0 {
@@ -132,14 +129,12 @@ func expectFileData(
 	assert.Equalf(t, expected, got, "data in file: %s", name)
 }
 
-//revive:disable:context-as-argument
 func expectTree(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expected *expectedNode,
 	got fs.Entry,
 ) {
-	//revive:enable:context-as-argument
 	t.Helper()
 
 	if expected == nil {
@@ -199,13 +194,11 @@ func expectDirs(
 	assert.Subset(t, names, dirs)
 }
 
-//revive:disable:context-as-argument
 func getDirEntriesForEntry(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	entry fs.Entry,
 ) []fs.Entry {
-	//revive:enable:context-as-argument
 	d, ok := entry.(fs.Directory)
 	require.True(t, ok, "entry is not a directory")
 
@@ -238,11 +231,11 @@ func (lrr *limitedRangeReader) Read(p []byte) (int, error) {
 }
 
 type VersionReadersUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestVersionReadersUnitSuite(t *testing.T) {
-	suite.Run(t, new(VersionReadersUnitSuite))
+	suite.Run(t, &VersionReadersUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
@@ -268,7 +261,9 @@ func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			baseReader := bytes.NewReader(inputData)
 
 			reversible := &restoreStreamReader{
@@ -347,13 +342,13 @@ func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
 }
 
 type CorsoProgressUnitSuite struct {
-	suite.Suite
+	tester.Suite
 	targetFilePath path.Path
 	targetFileName string
 }
 
 func TestCorsoProgressUnitSuite(t *testing.T) {
-	suite.Run(t, new(CorsoProgressUnitSuite))
+	suite.Run(t, &CorsoProgressUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *CorsoProgressUnitSuite) SetupSuite() {
@@ -449,9 +444,11 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 	}
 
 	for _, cachedTest := range table {
-		suite.T().Run(cachedTest.name, func(outerT *testing.T) {
+		suite.Run(cachedTest.name, func() {
 			for _, test := range finishedFileTable {
-				outerT.Run(test.name, func(t *testing.T) {
+				suite.Run(test.name, func() {
+					t := suite.T()
+
 					bd := &details.Builder{}
 					cp := corsoProgress{
 						UploadProgress: &snapshotfs.NullUploadProgress{},
@@ -632,7 +629,9 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 	for _, test := range finishedFileTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			bd := &details.Builder{}
 			cp := corsoProgress{
 				UploadProgress: &snapshotfs.NullUploadProgress{},
@@ -654,7 +653,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 }
 
 type HierarchyBuilderUnitSuite struct {
-	suite.Suite
+	tester.Suite
 	testStoragePath  path.Path
 	testLocationPath path.Path
 }
@@ -671,7 +670,7 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 }
 
 func TestHierarchyBuilderUnitSuite(t *testing.T) {
-	suite.Run(t, new(HierarchyBuilderUnitSuite))
+	suite.Run(t, &HierarchyBuilderUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
@@ -812,7 +811,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
 				errs:    fault.New(true),
@@ -916,7 +917,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		ctx, flush := tester.NewContext()
 		defer flush()
 
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
 			assert.Error(t, err)
 		})
@@ -997,7 +1000,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			tester.LogTimeOfTest(t)
 
 			ctx, flush := tester.NewContext()
@@ -1286,7 +1291,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			tester.LogTimeOfTest(t)
 
 			ctx, flush := tester.NewContext()
@@ -1740,6 +1747,40 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			),
 		},
 		{
+			name: "ReplaceDeletedSubtreeWithNew",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				oldInbox := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 0)
+				oldInbox.PrevPath = inboxStorePath
+				oldInbox.ColState = data.DeletedState
+
+				newCol := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 1)
+				newCol.ColState = data.NewState
+				newCol.Names[0] = workFileName2
+				newCol.Data[0] = workFileData2
+
+				return []data.BackupCollection{oldInbox, newCol}
+			},
+			expected: expectedTreeWithChildren(
+				[]string{
+					testTenant,
+					service,
+					testUser,
+					category,
+				},
+				[]*expectedNode{
+					{
+						name: testInboxID,
+						children: []*expectedNode{
+							{
+								name: workFileName2,
+								data: workFileData2,
+							},
+						},
+					},
+				},
+			),
+		},
+		{
 			name: "ReplaceMovedDirectory",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
 				newPersonalStorePath := makePath(
@@ -2027,7 +2068,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			tester.LogTimeOfTest(t)
 
 			ctx, flush := tester.NewContext()
@@ -2204,6 +2247,110 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	//             - file3
 	//           - work
 	//             - file4
+	dirTree, err := inflateDirTree(
+		ctx,
+		msw,
+		[]IncrementalBase{
+			mockIncrementalBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		},
+		collections,
+		nil,
+		progress)
+	require.NoError(t, err)
+
+	expectTree(t, ctx, expected, dirTree)
+}
+
+func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase() {
+	tester.LogTimeOfTest(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		archiveStorePath = makePath(
+			suite.T(),
+			[]string{testTenant, service, testUser, category, testArchiveID},
+			false)
+		archiveLocPath = makePath(
+			suite.T(),
+			[]string{testTenant, service, testUser, category, testArchiveDir},
+			false)
+	)
+
+	// baseSnapshot with the following layout:
+	// - a-tenant
+	//   - exchangeMetadata
+	//     - user1
+	//       - email
+	//         - file1
+	getBaseSnapshot := func() fs.Entry {
+		return baseWithChildren(
+			[]string{
+				testTenant,
+				path.ExchangeMetadataService.String(),
+				testUser,
+				category,
+			},
+			[]fs.Entry{
+				virtualfs.StreamingFileWithModTimeFromReader(
+					encodeElements(testFileName)[0],
+					time.Time{},
+					io.NopCloser(bytes.NewReader(testFileData)),
+				),
+			},
+		)
+	}
+
+	// Metadata subtree doesn't appear because we don't select it as one of the
+	// subpaths and we're not passing in a metadata collection.
+	expected := expectedTreeWithChildren(
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+		},
+		[]*expectedNode{
+			{
+				name: testArchiveID,
+				children: []*expectedNode{
+					{
+						name:     testFileName2,
+						children: []*expectedNode{},
+					},
+				},
+			},
+		},
+	)
+
+	progress := &corsoProgress{
+		pending: map[string]*itemDetails{},
+		errs:    fault.New(true),
+	}
+	mc := mockconnector.NewMockExchangeCollection(archiveStorePath, archiveLocPath, 1)
+	mc.ColState = data.NewState
+	mc.Names[0] = testFileName2
+	mc.Data[0] = testFileData2
+
+	msw := &mockSnapshotWalker{
+		snapshotRoot: getBaseSnapshot(),
+	}
+
+	collections := []data.BackupCollection{mc}
+
+	// Returned directory structure should look like:
+	// - a-tenant
+	//   - exchangeMetadata
+	//     - user1
+	//       - emails
+	//         - file1
+	//   - exchange
+	//     - user1
+	//       - emails
+	//         - Archive
+	//           - file2
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,

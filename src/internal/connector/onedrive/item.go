@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/alcionai/clues"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -33,7 +33,12 @@ func getDriveItem(
 	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
-	return srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting item").WithClues(ctx).With(graph.ErrData(err)...)
+	}
+
+	return di, nil
 }
 
 // sharePointItemReader will return a io.ReadCloser for the specified item
@@ -61,18 +66,40 @@ func oneDriveItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
+	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
-	meta, err := oneDriveItemMetaInfo(ctx, service, driveID, item)
+	meta := Metadata{
+		FileName: *item.GetName(),
+	}
+
+	perms, err := oneDriveItemPermissionInfo(ctx, service, driveID, item, fetchPermissions)
 	if err != nil {
+		// Keep this in an if-block because if it's not then we have a weird issue
+		// of having no value in error but golang thinking it's non nil because of
+		// the way interfaces work.
+		err = clues.Wrap(err, "fetching item permissions")
+	} else {
+		meta.Permissions = perms
+	}
+
+	metaJSON, serializeErr := json.Marshal(meta)
+	if serializeErr != nil {
+		serializeErr = clues.Wrap(serializeErr, "serializing item metadata")
+
+		// Need to check if err was already non-nil since it doesn't filter nil
+		// values out in calls to Stack().
+		if err != nil {
+			err = clues.Stack(err, serializeErr)
+		} else {
+			err = serializeErr
+		}
+
 		return nil, 0, err
 	}
 
-	metaJSON, err := json.Marshal(meta)
-	if err != nil {
-		return nil, 0, err
-	}
+	r := io.NopCloser(bytes.NewReader(metaJSON))
 
-	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+	return r, len(metaJSON), err
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -106,12 +133,12 @@ func oneDriveItemReader(
 func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
-		return nil, fmt.Errorf("extracting file url: file %s", *item.GetId())
+		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
 	}
 
 	req, err := http.NewRequest(http.MethodGet, *url, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "new request")
+		return nil, clues.Wrap(err, "new request").With(graph.ErrData(err)...)
 	}
 
 	//nolint:lll
@@ -144,7 +171,7 @@ func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, e
 		return resp, graph.Err503ServiceUnavailable
 	}
 
-	return resp, errors.New("non-2xx http response: " + resp.Status)
+	return resp, clues.Wrap(clues.New(resp.Status), "non-2xx http response")
 }
 
 // oneDriveItemInfo will populate a details.OneDriveInfo struct
@@ -171,32 +198,48 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 
 	return &details.OneDriveInfo{
 		ItemType:  details.OneDriveItem,
-		ItemName:  *di.GetName(),
-		Created:   *di.GetCreatedDateTime(),
-		Modified:  *di.GetLastModifiedDateTime(),
+		ItemName:  ptr.Val(di.GetName()),
+		Created:   ptr.Val(di.GetCreatedDateTime()),
+		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
 		DriveName: parent,
 		Size:      itemSize,
 		Owner:     email,
 	}
 }
 
-// oneDriveItemMetaInfo will fetch the meta information for a drive
-// item. As of now, it only adds the permissions applicable for a
-// onedrive item.
-func oneDriveItemMetaInfo(
-	ctx context.Context, service graph.Servicer,
-	driveID string, di models.DriveItemable,
-) (Metadata, error) {
-	itemID := di.GetId()
+// oneDriveItemPermissionInfo will fetch the permission information for a drive
+// item.
+func oneDriveItemPermissionInfo(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	di models.DriveItemable,
+	fetchPermissions bool,
+) ([]UserPermission, error) {
+	if !fetchPermissions {
+		return nil, nil
+	}
 
-	perm, err := service.Client().DrivesById(driveID).ItemsById(*itemID).Permissions().Get(ctx, nil)
+	id := ptr.Val(di.GetId())
+
+	perm, err := service.
+		Client().
+		DrivesById(driveID).
+		ItemsById(id).
+		Permissions().
+		Get(ctx, nil)
 	if err != nil {
-		return Metadata{}, err
+		err = clues.Wrap(err, "fetching item permissions").
+			WithClues(ctx).
+			With("item_id", id).
+			With(graph.ErrData(err)...)
+
+		return nil, err
 	}
 
 	uperms := filterUserPermissions(perm.GetValue())
 
-	return Metadata{Permissions: uperms}, nil
+	return uperms, nil
 }
 
 func filterUserPermissions(perms []models.Permissionable) []UserPermission {
@@ -223,7 +266,7 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 		}
 
 		up = append(up, UserPermission{
-			ID:         *p.GetId(),
+			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
 			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
 			Expiration: p.GetExpirationDateTime(),
@@ -248,36 +291,32 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
 	// way to source the data.
+
 	gsi := di.GetSharepointIds()
 	if gsi != nil {
-		if gsi.GetSiteId() != nil {
-			id = *gsi.GetSiteId()
-		}
+		id = ptr.Val(gsi.GetSiteId())
+		url = ptr.Val(gsi.GetSiteUrl())
 
-		if gsi.GetSiteUrl() != nil {
-			url = *gsi.GetSiteUrl()
+		if len(url) == 0 {
+			url = constructWebURL(di.GetAdditionalData())
 		}
 	}
 
 	if reference != nil {
-		parent = *reference.GetDriveId()
+		parent = ptr.Val(reference.GetDriveId())
+		temp := ptr.Val(reference.GetName())
+		temp = strings.TrimSpace(temp)
 
-		if reference.GetName() != nil {
-			// EndPoint is not always populated from external apps
-			temp := *reference.GetName()
-			temp = strings.TrimSpace(temp)
-
-			if temp != "" {
-				parent = temp
-			}
+		if temp != "" {
+			parent = temp
 		}
 	}
 
 	return &details.SharePointInfo{
 		ItemType:  details.OneDriveItem,
-		ItemName:  *di.GetName(),
-		Created:   *di.GetCreatedDateTime(),
-		Modified:  *di.GetLastModifiedDateTime(),
+		ItemName:  ptr.Val(di.GetName()),
+		Created:   ptr.Val(di.GetCreatedDateTime()),
+		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
 		DriveName: parent,
 		Size:      itemSize,
 		Owner:     id,
@@ -295,20 +334,51 @@ func driveItemWriter(
 	itemSize int64,
 ) (io.Writer, error) {
 	session := msdrives.NewItemItemsItemCreateUploadSessionPostRequestBody()
+	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to create upload session for item %s. details: %s",
-			itemID,
-			support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "creating item upload session").
+			WithClues(ctx).
+			With(graph.ErrData(err)...)
 	}
 
-	url := *r.GetUploadUrl()
+	logger.Ctx(ctx).Debug("created an upload session")
 
-	logger.Ctx(ctx).Debugf("Created an upload session for item %s. URL: %s", itemID, url)
+	url := ptr.Val(r.GetUploadUrl())
 
 	return uploadsession.NewWriter(itemID, url, itemSize), nil
+}
+
+// constructWebURL helper function for recreating the webURL
+// for the originating SharePoint site. Uses additional data map
+// from a models.DriveItemable that possesses a downloadURL within the map.
+// Returns "" if map nil or key is not present.
+func constructWebURL(adtl map[string]any) string {
+	var (
+		desiredKey = "@microsoft.graph.downloadUrl"
+		sep        = `/_layouts`
+		url        string
+	)
+
+	if adtl == nil {
+		return url
+	}
+
+	r := adtl[desiredKey]
+	point, ok := r.(*string)
+
+	if !ok {
+		return url
+	}
+
+	value := ptr.Val(point)
+	if len(value) == 0 {
+		return url
+	}
+
+	temp := strings.Split(value, sep)
+	url = temp[0]
+
+	return url
 }

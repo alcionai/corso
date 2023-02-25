@@ -8,6 +8,7 @@ import (
 	"github.com/kopia/kopia/fs"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -23,7 +24,10 @@ type kopiaDataCollection struct {
 	counter      ByteCounter
 }
 
-func (kdc *kopiaDataCollection) Items() <-chan data.Stream {
+func (kdc *kopiaDataCollection) Items(
+	ctx context.Context,
+	_ *fault.Errors, // unused, just matching the interface
+) <-chan data.Stream {
 	res := make(chan data.Stream)
 
 	go func() {

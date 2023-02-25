@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -34,6 +36,7 @@ func DataCollections(
 	serv graph.Servicer,
 	su statusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
@@ -41,12 +44,16 @@ func DataCollections(
 	}
 
 	var (
+		et          = errs.Tracker()
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
-		errs        error
 	)
 
 	for _, scope := range b.Scopes() {
+		if et.Err() != nil {
+			break
+		}
+
 		foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
 			"%s - %s",
 			observe.Safe(scope.Category().PathType().String()),
@@ -64,9 +71,11 @@ func DataCollections(
 				creds.AzureTenantID,
 				site,
 				su,
-				ctrlOpts)
+				ctrlOpts,
+				errs)
 			if err != nil {
-				return nil, nil, support.WrapAndAppend(site, err, errs)
+				et.Add(err)
+				continue
 			}
 
 		case path.LibrariesCategory:
@@ -78,10 +87,13 @@ func DataCollections(
 				site,
 				scope,
 				su,
-				ctrlOpts)
+				ctrlOpts,
+				errs)
 			if err != nil {
-				return nil, nil, support.WrapAndAppend(site, err, errs)
+				et.Add(err)
+				continue
 			}
+
 		case path.PagesCategory:
 			spcs, err = collectPages(
 				ctx,
@@ -89,9 +101,11 @@ func DataCollections(
 				serv,
 				site,
 				su,
-				ctrlOpts)
+				ctrlOpts,
+				errs)
 			if err != nil {
-				return nil, nil, support.WrapAndAppend(site, err, errs)
+				et.Add(err)
+				continue
 			}
 		}
 
@@ -99,7 +113,7 @@ func DataCollections(
 		foldersComplete <- struct{}{}
 	}
 
-	return collections, nil, errs
+	return collections, nil, et.Err()
 }
 
 func collectLists(
@@ -108,17 +122,25 @@ func collectLists(
 	tenantID, siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
 
-	spcs := make([]data.BackupCollection, 0)
+	var (
+		et   = errs.Tracker()
+		spcs = make([]data.BackupCollection, 0)
+	)
 
-	tuples, err := preFetchLists(ctx, serv, siteID)
+	lists, err := preFetchLists(ctx, serv, siteID)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, tuple := range tuples {
+	for _, tuple := range lists {
+		if et.Err() != nil {
+			break
+		}
+
 		dir, err := path.Builder{}.Append(tuple.name).
 			ToDataLayerSharePointPath(
 				tenantID,
@@ -126,7 +148,7 @@ func collectLists(
 				path.ListsCategory,
 				false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+			et.Add(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
@@ -135,7 +157,7 @@ func collectLists(
 		spcs = append(spcs, collection)
 	}
 
-	return spcs, nil
+	return spcs, et.Err()
 }
 
 // collectLibraries constructs a onedrive Collections struct and Get()s
@@ -148,32 +170,31 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
+	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
+
 	var (
 		collections = []data.BackupCollection{}
-		errs        error
+		colls       = onedrive.NewCollections(
+			itemClient,
+			tenantID,
+			siteID,
+			onedrive.SharePointSource,
+			folderMatcher{scope},
+			serv,
+			updater.UpdateStatus,
+			ctrlOpts)
 	)
-
-	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Library collections")
-
-	colls := onedrive.NewCollections(
-		itemClient,
-		tenantID,
-		siteID,
-		onedrive.SharePointSource,
-		folderMatcher{scope},
-		serv,
-		updater.UpdateStatus,
-		ctrlOpts)
 
 	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
 	// token-based incrementals.
-	odcs, excludes, err := colls.Get(ctx, nil)
+	odcs, excludes, err := colls.Get(ctx, nil, errs)
 	if err != nil {
-		return nil, nil, support.WrapAndAppend(siteID, err, errs)
+		return nil, nil, clues.Wrap(err, "getting library").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return append(collections, odcs...), excludes, errs
+	return append(collections, odcs...), excludes, nil
 }
 
 // collectPages constructs a sharepoint Collections struct and Get()s the associated
@@ -185,16 +206,20 @@ func collectPages(
 	siteID string,
 	updater statusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, error) {
-	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint Pages collections")
+	logger.Ctx(ctx).Debug("creating SharePoint Pages collections")
 
-	spcs := make([]data.BackupCollection, 0)
+	var (
+		et   = errs.Tracker()
+		spcs = make([]data.BackupCollection, 0)
+	)
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
 	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 	if err != nil {
-		return nil, errors.New("unable to create adapter w/ env credentials")
+		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
 	betaService := api.NewBetaService(adpt)
@@ -205,6 +230,10 @@ func collectPages(
 	}
 
 	for _, tuple := range tuples {
+		if et.Err() != nil {
+			break
+		}
+
 		dir, err := path.Builder{}.Append(tuple.Name).
 			ToDataLayerSharePointPath(
 				creds.AzureTenantID,
@@ -212,7 +241,7 @@ func collectPages(
 				path.PagesCategory,
 				false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create collection path for site: %s", siteID)
+			et.Add(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
@@ -222,7 +251,7 @@ func collectPages(
 		spcs = append(spcs, collection)
 	}
 
-	return spcs, nil
+	return spcs, et.Err()
 }
 
 type folderMatcher struct {

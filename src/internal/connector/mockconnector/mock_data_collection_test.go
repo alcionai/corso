@@ -14,22 +14,26 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type MockExchangeCollectionSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMockExchangeCollectionSuite(t *testing.T) {
-	suite.Run(t, new(MockExchangeCollectionSuite))
+	suite.Run(t, &MockExchangeCollectionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
-	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
+	ctx, flush := tester.NewContext()
+	defer flush()
 
+	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
 	messagesRead := 0
 
-	for item := range mdc.Items() {
+	for item := range mdc.Items(ctx, fault.New(true)) {
 		_, err := io.ReadAll(item.ToReader())
 		assert.NoError(suite.T(), err)
 		messagesRead++
@@ -39,12 +43,14 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
 }
 
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 2)
-
 	mdc.Data[1] = []byte("This is some buffer of data so that the size is different than the default")
 
-	for item := range mdc.Items() {
+	for item := range mdc.Items(ctx, fault.New(true)) {
 		buf, err := io.ReadAll(item.ToReader())
 		assert.NoError(t, err)
 
@@ -57,11 +63,14 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollectionItemSize() {
 // NewExchangeCollectionMail_Hydration tests that mock exchange mail data collection can be used for restoration
 // functions by verifying no failures on (de)serializing steps using kiota serialization library
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchangeCollectionMail_Hydration() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	t := suite.T()
 	mdc := mockconnector.NewMockExchangeCollection(nil, nil, 3)
 	buf := &bytes.Buffer{}
 
-	for stream := range mdc.Items() {
+	for stream := range mdc.Items(ctx, fault.New(true)) {
 		_, err := buf.ReadFrom(stream.ToReader())
 		assert.NoError(t, err)
 
@@ -73,11 +82,11 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchange
 }
 
 type MockExchangeDataSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMockExchangeDataSuite(t *testing.T) {
-	suite.Run(t, new(MockExchangeDataSuite))
+	suite.Run(t, &MockExchangeDataSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *MockExchangeDataSuite) TestMockExchangeData() {
@@ -108,7 +117,9 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, id, test.reader.UUID())
 			buf, err := io.ReadAll(test.reader.ToReader())
 
@@ -214,7 +225,9 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			err := test.transformation(t)
 			assert.NoError(t, err)
 		})

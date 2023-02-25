@@ -21,11 +21,13 @@ import (
 const (
 	errCodeActivityLimitReached        = "activityLimitReached"
 	errCodeItemNotFound                = "ErrorItemNotFound"
+	errCodeItemNotFoundShort           = "itemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
+	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
 )
 
@@ -52,7 +54,12 @@ func IsErrDeletedInFlight(err error) bool {
 		return true
 	}
 
-	if hasErrorCode(err, errCodeItemNotFound, errCodeSyncFolderNotFound) {
+	if hasErrorCode(
+		err,
+		errCodeItemNotFound,
+		errCodeItemNotFoundShort,
+		errCodeSyncFolderNotFound,
+	) {
 		return true
 	}
 
@@ -81,6 +88,10 @@ func IsErrInvalidDelta(err error) bool {
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
 	return hasErrorCode(err, errCodeResourceNotFound, errCodeMailboxNotEnabledForRESTAPI)
+}
+
+func IsErrUserNotFound(err error) bool {
+	return hasErrorCode(err, errCodeRequestResourceNotFound)
 }
 
 // Timeout errors are identified for tracking the need to retry calls.

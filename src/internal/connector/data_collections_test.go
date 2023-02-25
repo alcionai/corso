@@ -24,26 +24,25 @@ import (
 // ---------------------------------------------------------------------------
 
 type ConnectorDataCollectionIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	connector *GraphConnector
 	user      string
 	site      string
 }
 
 func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(t,
-		tester.CorsoCITests,
-		tester.CorsoConnectorDataCollectionTests,
-	)
-
-	suite.Run(t, new(ConnectorDataCollectionIntegrationSuite))
+	suite.Run(t, &ConnectorDataCollectionIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoConnectorDataCollectionTests),
+	})
 }
 
 func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvVars(suite.T(), tester.M365AcctCredEnvs...)
 
 	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), AllResources)
 	suite.user = tester.M365UserID(suite.T())
@@ -99,7 +98,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			collections, excludes, err := exchange.DataCollections(
 				ctx,
 				test.getSelector(t),
@@ -109,7 +110,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				control.Options{},
 				fault.New(true))
 			require.NoError(t, err)
-
 			assert.Empty(t, excludes)
 
 			for range collections {
@@ -122,7 +122,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
 
 			for _, col := range collections {
-				for object := range col.Items() {
+				for object := range col.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
 					assert.NoError(t, err, "received a buf.Read error")
@@ -202,7 +202,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			collections, excludes, err := connector.DataCollections(
 				ctx,
 				test.getSelector(t),
@@ -251,7 +253,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
@@ -259,7 +263,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector.credentials,
 				connector.Service,
 				connector,
-				control.Options{})
+				control.Options{},
+				fault.New(true))
 			require.NoError(t, err)
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
@@ -273,7 +278,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			assert.Less(t, test.expected, len(collections))
 
 			for _, coll := range collections {
-				for object := range coll.Items() {
+				for object := range coll.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
 					assert.NoError(t, err, "reading item")
@@ -292,25 +297,24 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 // ---------------------------------------------------------------------------
 
 type ConnectorCreateSharePointCollectionIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	connector *GraphConnector
 	user      string
 }
 
 func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoConnectorCreateSharePointCollectionTests)
-
-	suite.Run(t, new(ConnectorCreateSharePointCollectionIntegrationSuite))
+	suite.Run(t, &ConnectorCreateSharePointCollectionIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoConnectorCreateSharePointCollectionTests),
+	})
 }
 
 func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites)
 	suite.user = tester.M365UserID(suite.T())
@@ -345,7 +349,10 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
-		assert.Equal(t, path.SharePointMetadataService, collection.FullPath().Service())
+		assert.Equal(
+			t,
+			path.SharePointMetadataService.String(),
+			collection.FullPath().Service().String())
 	}
 }
 
@@ -377,7 +384,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
 
-		for item := range collection.Items() {
+		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.UUID())
 
 			bs, err := io.ReadAll(item.ToReader())

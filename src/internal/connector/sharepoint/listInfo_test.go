@@ -7,15 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type SharePointInfoSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointInfoSuite(t *testing.T) {
-	suite.Run(t, new(SharePointInfoSuite))
+	suite.Run(t, &SharePointInfoSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SharePointInfoSuite) TestSharePointInfo() {
@@ -45,7 +46,9 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			list, expected := test.listAndDeets()
 			info := sharePointListInfo(list, 10)
 			assert.Equal(t, expected.ItemType, info.ItemType)

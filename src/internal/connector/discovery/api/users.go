@@ -97,7 +97,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 	resp, err = service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
 
 	if err != nil {
-		return nil, clues.Wrap(err, "getting all users").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "getting all users").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	iter, err := msgraphgocore.NewPageIterator(
@@ -105,19 +105,22 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 		service.Adapter(),
 		models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating users iterator").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "creating users iterator").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	us := make([]models.Userable, 0)
+	var (
+		us = make([]models.Userable, 0)
+		et = errs.Tracker()
+	)
 
 	iterator := func(item any) bool {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			return false
 		}
 
 		u, err := validateUser(item)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "validating user").WithClues(ctx).WithAll(graph.ErrData(err)...))
+			et.Add(clues.Wrap(err, "validating user").WithClues(ctx).With(graph.ErrData(err)...))
 		} else {
 			us = append(us, u)
 		}
@@ -126,10 +129,10 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Errors) ([]models.Userabl
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, clues.Wrap(err, "iterating all users").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "iterating all users").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return us, errs.Err()
+	return us, et.Err()
 }
 
 func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {
@@ -141,7 +144,7 @@ func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, err
 	resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
 
 	if err != nil {
-		return nil, clues.Wrap(err, "getting user").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "getting user").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return resp, err
@@ -160,7 +163,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
-			return nil, clues.Wrap(err, "getting user's mail folder").WithClues(ctx).WithAll(graph.ErrData(err)...)
+			return nil, clues.Wrap(err, "getting user's mail folder").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		delete(userInfo.DiscoveredServices, path.ExchangeService)

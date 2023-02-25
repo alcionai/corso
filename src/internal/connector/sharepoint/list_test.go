@@ -9,10 +9,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type SharePointSuite struct {
-	suite.Suite
+	tester.Suite
 	creds account.M365Config
 }
 
@@ -26,11 +27,13 @@ func (suite *SharePointSuite) SetupSuite() {
 }
 
 func TestSharePointSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorSharePointTests)
-	suite.Run(t, new(SharePointSuite))
+	suite.Run(t, &SharePointSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorSharePointTests),
+	})
 }
 
 // Test LoadList --> Retrieves all data from backStore
@@ -54,7 +57,7 @@ func (suite *SharePointSuite) TestLoadList() {
 	require.NoError(t, err)
 
 	job := []string{tuples[0].id}
-	lists, err := loadSiteLists(ctx, service, "root", job)
+	lists, err := loadSiteLists(ctx, service, "root", job, fault.New(true))
 	assert.NoError(t, err)
 	assert.Greater(t, len(lists), 0)
 	t.Logf("Length: %d\n", len(lists))

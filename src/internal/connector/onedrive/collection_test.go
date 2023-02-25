@@ -20,13 +20,15 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type CollectionUnitTestSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 // Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
@@ -41,7 +43,7 @@ func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter 
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {
-	suite.Run(t, new(CollectionUnitTestSuite))
+	suite.Run(t, &CollectionUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
@@ -149,8 +151,12 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
+				t          = suite.T()
 				wg         = sync.WaitGroup{}
 				collStatus = support.ConnectorOperationStatus{}
 				readItems  = []data.Stream{}
@@ -192,6 +198,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
+				_ bool,
 			) (io.ReadCloser, int, error) {
 				metaJSON, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -204,7 +211,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			// Read items from the collection
 			wg.Add(1)
 
-			for item := range coll.Items() {
+			for item := range coll.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
 			}
 
@@ -283,10 +290,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			var (
-				testItemID = "fakeItemID"
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
 
+			var (
+				t          = suite.T()
+				testItemID = "fakeItemID"
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
 			)
@@ -324,11 +334,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
+				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
 
-			collItem, ok := <-coll.Items()
+			collItem, ok := <-coll.Items(ctx, fault.New(true))
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
@@ -339,92 +350,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			// Expect no items
 			require.Equal(t, 1, collStatus.ObjectCount, "only one object should be counted")
 			require.Equal(t, 1, collStatus.Successful, "TODO: should be 0, but allowing 1 to reduce async management")
-		})
-	}
-}
-
-func (suite *CollectionUnitTestSuite) TestCollectionDisablePermissionsBackup() {
-	table := []struct {
-		name   string
-		source driveSource
-	}{
-		{
-			name:   "oneDrive",
-			source: OneDriveSource,
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			var (
-				testItemID   = "fakeItemID"
-				testItemName = "Fake Item"
-				testItemSize = int64(10)
-
-				collStatus = support.ConnectorOperationStatus{}
-				wg         = sync.WaitGroup{}
-			)
-
-			wg.Add(1)
-
-			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
-
-			coll := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
-				folderPath,
-				nil,
-				"fakeDriveID",
-				suite,
-				suite.testStatusUpdater(&wg, &collStatus),
-				test.source,
-				control.Options{ToggleFeatures: control.Toggles{}},
-				true)
-
-			now := time.Now()
-			mockItem := models.NewDriveItem()
-			mockItem.SetFile(models.NewFile())
-			mockItem.SetId(&testItemID)
-			mockItem.SetName(&testItemName)
-			mockItem.SetSize(&testItemSize)
-			mockItem.SetCreatedDateTime(&now)
-			mockItem.SetLastModifiedDateTime(&now)
-			coll.Add(mockItem)
-
-			coll.itemReader = func(
-				*http.Client,
-				models.DriveItemable,
-			) (details.ItemInfo, io.ReadCloser, error) {
-				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
-					io.NopCloser(strings.NewReader("Fake Data!")),
-					nil
-			}
-
-			coll.itemMetaReader = func(_ context.Context,
-				_ graph.Servicer,
-				_ string,
-				_ models.DriveItemable,
-			) (io.ReadCloser, int, error) {
-				return io.NopCloser(strings.NewReader(`{"key": "value"}`)), 16, nil
-			}
-
-			readItems := []data.Stream{}
-			for item := range coll.Items() {
-				readItems = append(readItems, item)
-			}
-
-			wg.Wait()
-
-			// Expect no items
-			require.Equal(t, 1, collStatus.ObjectCount)
-			require.Equal(t, 1, collStatus.Successful)
-
-			for _, i := range readItems {
-				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
-					content, err := io.ReadAll(i.ToReader())
-					require.NoError(t, err)
-					require.Equal(t, content, []byte("{}"))
-				}
-			}
 		})
 	}
 }
@@ -441,8 +366,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
+				t            = suite.T()
 				testItemID   = "fakeItemID"
 				testItemName = "Fake Item"
 				testItemSize = int64(10)
@@ -490,12 +419,13 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
+				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 16, nil
 			}
 
 			readItems := []data.Stream{}
-			for item := range coll.Items() {
+			for item := range coll.Items(ctx, fault.New(true)) {
 				readItems = append(readItems, item)
 			}
 

@@ -77,7 +77,7 @@ func RestoreExchangeContact(
 
 	response, err := service.Client().UsersById(user).ContactFoldersById(destination).Contacts().Post(ctx, contact, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "uploading Contact").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "uploading Contact").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	if response == nil {
@@ -112,6 +112,7 @@ func RestoreExchangeEvent(
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
 	var (
+		et               = errs.Tracker()
 		transformedEvent = support.ToEventSimplified(event)
 		attached         []models.Attachmentable
 	)
@@ -124,7 +125,7 @@ func RestoreExchangeEvent(
 
 	response, err := service.Client().UsersById(user).CalendarsById(destination).Events().Post(ctx, transformedEvent, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "uploading event").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return nil, clues.Wrap(err, "uploading event").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	if response == nil {
@@ -139,19 +140,19 @@ func RestoreExchangeEvent(
 	}
 
 	for _, attach := range attached {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
 		if err := uploadAttachment(ctx, uploader, attach); err != nil {
-			errs.Add(err)
+			et.Add(err)
 		}
 	}
 
 	info := api.EventInfo(event)
 	info.Size = int64(len(bits))
 
-	return info, errs.Err()
+	return info, et.Err()
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -248,24 +249,26 @@ func SendMailToBackStore(
 
 	response, err := service.Client().UsersById(user).MailFoldersById(destination).Messages().Post(ctx, message, nil)
 	if err != nil {
-		return clues.Wrap(err, "restoring mail").WithClues(ctx).WithAll(graph.ErrData(err)...)
+		return clues.Wrap(err, "restoring mail").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	if response == nil {
 		return clues.New("nil response from post").WithClues(ctx)
 	}
 
-	id := ptr.Val(response.GetId())
-
-	uploader := &mailAttachmentUploader{
-		userID:   user,
-		folderID: destination,
-		itemID:   id,
-		service:  service,
-	}
+	var (
+		et       = errs.Tracker()
+		id       = ptr.Val(response.GetId())
+		uploader = &mailAttachmentUploader{
+			userID:   user,
+			folderID: destination,
+			itemID:   id,
+			service:  service,
+		}
+	)
 
 	for _, attachment := range attached {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -280,13 +283,13 @@ func SendMailToBackStore(
 				continue
 			}
 
-			errs.Add(errors.Wrap(err, "uploading mail attachment"))
+			et.Add(errors.Wrap(err, "uploading mail attachment"))
 
 			break
 		}
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // RestoreExchangeDataCollections restores M365 objects in data.RestoreCollection to MSFT
@@ -307,6 +310,7 @@ func RestoreExchangeDataCollections(
 		userID          string
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
+		et     = errs.Tracker()
 	)
 
 	if len(dcs) > 0 {
@@ -315,8 +319,8 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		if errs.Err() != nil {
-			return nil, errs.Err()
+		if et.Err() != nil {
+			break
 		}
 
 		userCaches := directoryCaches[userID]
@@ -333,7 +337,7 @@ func RestoreExchangeDataCollections(
 			userCaches,
 			errs)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "creating destination").WithClues(ctx))
+			et.Add(clues.Wrap(err, "creating destination").WithClues(ctx))
 			continue
 		}
 
@@ -351,10 +355,10 @@ func RestoreExchangeDataCollections(
 		support.Restore,
 		len(dcs),
 		metrics,
-		errs.Err(),
+		et.Err(),
 		dest.ContainerName)
 
-	return status, errs.Err()
+	return status, et.Err()
 }
 
 // restoreCollection handles restoration of an individual collection.
@@ -372,14 +376,14 @@ func restoreCollection(
 
 	var (
 		metrics   support.CollectionMetrics
-		items     = dc.Items()
+		items     = dc.Items(ctx, errs)
 		directory = dc.FullPath()
 		service   = directory.Service()
 		category  = directory.Category()
 		user      = directory.ResourceOwner()
 	)
 
-	ctx = clues.AddAll(
+	ctx = clues.Add(
 		ctx,
 		"full_path", directory,
 		"service", service,

@@ -99,12 +99,12 @@ func (m mockResolver) Populate(context.Context, *fault.Errors, string, ...string
 // ---------------------------------------------------------------------------
 
 type ServiceIteratorsSuite struct {
-	suite.Suite
+	tester.Suite
 	creds account.M365Config
 }
 
 func TestServiceIteratorsSuite(t *testing.T) {
-	suite.Run(t, new(ServiceIteratorsSuite))
+	suite.Run(t, &ServiceIteratorsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ServiceIteratorsSuite) SetupSuite() {
@@ -289,7 +289,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -424,7 +426,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -794,7 +798,9 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
