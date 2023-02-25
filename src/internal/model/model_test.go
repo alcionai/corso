@@ -8,14 +8,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type ModelUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestModelUnitSuite(t *testing.T) {
-	suite.Run(t, new(ModelUnitSuite))
+	suite.Run(t, &ModelUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ModelUnitSuite) TestValid() {
@@ -34,8 +35,8 @@ func (suite *ModelUnitSuite) TestValid() {
 		{model.Schema(100), assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.mt.String(), func(t *testing.T) {
-			test.expect(t, test.mt.Valid())
+		suite.Run(test.mt.String(), func() {
+			test.expect(suite.T(), test.mt.Valid())
 		})
 	}
 }
