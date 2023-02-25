@@ -100,7 +100,6 @@ type RepositoryIntegrationSuite struct {
 }
 
 func TestRepositoryIntegrationSuite(t *testing.T) {
-
 	suite.Run(t, &RepositoryIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
