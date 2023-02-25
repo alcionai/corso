@@ -394,7 +394,7 @@ type mockBackupCollection struct {
 	streams []data.Stream
 }
 
-func (c *mockBackupCollection) Items(context.Context, *fault.Errors) <-chan data.Stream {
+func (c *mockBackupCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
 	res := make(chan data.Stream)
 
 	go func() {

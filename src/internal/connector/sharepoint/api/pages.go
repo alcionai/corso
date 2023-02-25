@@ -30,13 +30,13 @@ func GetSitePages(
 	serv *discover.BetaService,
 	siteID string,
 	pages []string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]models.SitePageable, error) {
 	var (
 		col         = make([]models.SitePageable, 0)
 		semaphoreCh = make(chan struct{}, fetchChannelSize)
 		opts        = retrieveSitePageOptions()
-		et          = errs.Tracker()
+		el          = errs.Local()
 		wg          sync.WaitGroup
 		m           sync.Mutex
 	)
@@ -51,7 +51,7 @@ func GetSitePages(
 	}
 
 	for _, entry := range pages {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -70,7 +70,7 @@ func GetSitePages(
 
 			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
 			if err != nil {
-				et.Add(clues.Wrap(err, "fetching page").WithClues(ctx).With(graph.ErrData(err)...))
+				el.AddRecoverable(clues.Wrap(err, "fetching page").WithClues(ctx).With(graph.ErrData(err)...))
 				return
 			}
 
@@ -80,7 +80,7 @@ func GetSitePages(
 
 	wg.Wait()
 
-	return col, et.Err()
+	return col, el.Failure()
 }
 
 // GetSite returns a minimal Site with the SiteID and the WebURL

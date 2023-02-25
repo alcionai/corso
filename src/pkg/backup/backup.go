@@ -37,8 +37,8 @@ type Backup struct {
 	Version int `json:"version"`
 
 	// Errors contains all errors aggregated during a backup operation.
-	Errors     fault.ErrorsData `json:"errors"`
-	ErrorCount int              `json:"errorCount"`
+	Errors     fault.Errors `json:"errors"`
+	ErrorCount int          `json:"errorCount"`
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.Errs // Deprecated, replaced with Errors.
@@ -55,12 +55,12 @@ func New(
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) *Backup {
-	errData := errs.Data()
+	errData := errs.Errors()
 
-	errCount := len(errs.Data().Errs)
-	if errData.Err != nil {
+	errCount := len(errs.Errors().Recovered)
+	if errData.Failure != nil {
 		errCount++
 	}
 
@@ -169,12 +169,12 @@ func (b Backup) countErrors() int {
 	}
 
 	// future tracking
-	if b.Errors.Err != nil || len(b.Errors.Errs) > 0 {
-		if b.Errors.Err != nil {
+	if b.Errors.Failure != nil || len(b.Errors.Recovered) > 0 {
+		if b.Errors.Failure != nil {
 			errCount++
 		}
 
-		errCount += len(b.Errors.Errs)
+		errCount += len(b.Errors.Recovered)
 	}
 
 	return errCount

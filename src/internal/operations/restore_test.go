@@ -290,7 +290,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	ds, err := ro.Run(ctx)
 
 	require.NoError(t, err, "restoreOp.Run()")
-	require.Empty(t, ro.Errors.Errs(), "restoreOp.Run() recoverable errors")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	require.NotNil(t, ds, "restored details")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
@@ -299,8 +298,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
 	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-	assert.NoError(t, ro.Errors.Err(), "non-recoverable error")
-	assert.Empty(t, ro.Errors.Errs(), "recoverable errors")
+	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
+	assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
 	assert.NoError(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.NoError(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")

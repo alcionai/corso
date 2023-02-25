@@ -72,7 +72,7 @@ func (c Contacts) DeleteContainer(
 func (c Contacts) GetItem(
 	ctx context.Context,
 	user, itemID string,
-	_ *fault.Errors, // no attachments to iterate over, so this goes unused
+	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
@@ -109,7 +109,7 @@ func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	service, err := c.service()
 	if err != nil {
@@ -126,14 +126,14 @@ func (c Contacts) EnumerateContainers(
 			With("options_fields", fields)
 	}
 
-	et := errs.Tracker()
+	el := errs.Local()
 	builder := service.Client().
 		UsersById(userID).
 		ContactFoldersById(baseDirID).
 		ChildFolders()
 
 	for {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -143,12 +143,12 @@ func (c Contacts) EnumerateContainers(
 		}
 
 		for _, fold := range resp.GetValue() {
-			if et.Err() != nil {
-				break
+			if el.Failure() != nil {
+				return el.Failure()
 			}
 
 			if err := checkIDAndName(fold); err != nil {
-				et.Add(clues.Stack(err).
+				el.AddRecoverable(clues.Stack(err).
 					WithClues(ctx).
 					With(graph.ErrData(err)...).
 					Label(fault.LabelForceNoBackupCreation))
@@ -163,7 +163,7 @@ func (c Contacts) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(fold, nil, nil)
 			if err := fn(temp); err != nil {
-				et.Add(clues.Stack(err).
+				el.AddRecoverable(clues.Stack(err).
 					WithClues(fctx).
 					With(graph.ErrData(err)...).
 					Label(fault.LabelForceNoBackupCreation))
@@ -180,7 +180,7 @@ func (c Contacts) EnumerateContainers(
 		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(link, service.Adapter())
 	}
 
-	return et.Err()
+	return el.Failure()
 }
 
 // ---------------------------------------------------------------------------

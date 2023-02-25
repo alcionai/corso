@@ -63,7 +63,7 @@ func (mr *mockRestorer) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bc kopia.ByteCounter,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
@@ -99,7 +99,7 @@ func (mbu mockBackuper) BackupCollections(
 	excluded map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
@@ -117,7 +117,7 @@ type mockDetailsReader struct {
 func (mdr mockDetailsReader) ReadBackupDetails(
 	ctx context.Context,
 	detailsID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	r := mdr.entries[detailsID]
 
