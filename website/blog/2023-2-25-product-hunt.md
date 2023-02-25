@@ -4,7 +4,7 @@ title: "Welcome Product Hunt community! We launched Corso 3 months ago, here’s
 description: "Corso is a free and open-source tool to back up your Microsoft 365 data. For Microsoft Office 365 administrators, it backs up user data to any S3 compliant storage. Leaving you in control of when your data is backed up, and how it’s restored."
 authors: nica
 tags: [corso, microsoft 365, backups]
-date: 2023-2-25
+date: 2023-2-27
 image: ./images/rocket.png
 ---
 
