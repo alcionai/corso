@@ -719,7 +719,7 @@ func (s ExchangeScope) setDefaults() {
 func (s exchange) Reduce(
 	ctx context.Context,
 	deets *details.Details,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) *details.Details {
 	return reduce[ExchangeScope](
 		ctx,

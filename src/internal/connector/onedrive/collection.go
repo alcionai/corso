@@ -165,7 +165,7 @@ func (oc *Collection) IsEmpty() bool {
 // Items() returns the channel containing M365 Exchange objects
 func (oc *Collection) Items(
 	ctx context.Context,
-	errs *fault.Errors, // TODO: currently unused while onedrive isn't up to date with clues/fault
+	errs *fault.Bus, // TODO: currently unused while onedrive isn't up to date with clues/fault
 ) <-chan data.Stream {
 	go oc.populateItems(ctx, errs)
 	return oc.data
@@ -241,7 +241,7 @@ func (od *Item) ModTime() time.Time {
 
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
-func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
+func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		byteCount  int64
 		itemsRead  int64
@@ -249,7 +249,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 		itemsFound int64
 		dirsFound  int64
 		wg         sync.WaitGroup
-		et         = errs.Tracker()
+		el         = errs.Local()
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -272,7 +272,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -323,7 +323,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 					oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
 
 				if err != nil {
-					et.Add(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+					el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 					return
 				}
 			}
@@ -370,7 +370,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 
 					// check for errors following retries
 					if err != nil {
-						et.Add(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
 
@@ -443,7 +443,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, et.Err())
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, el.Failure())
 }
 
 func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {

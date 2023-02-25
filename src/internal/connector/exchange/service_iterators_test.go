@@ -91,8 +91,8 @@ func (m mockResolver) DestinationNameToID(dest string) string { return m.added[d
 func (m mockResolver) IDToPath(context.Context, string, bool) (*path.Builder, *path.Builder, error) {
 	return nil, nil, nil
 }
-func (m mockResolver) PathInCache(string) (string, bool)                                { return "", false }
-func (m mockResolver) Populate(context.Context, *fault.Errors, string, ...string) error { return nil }
+func (m mockResolver) PathInCache(string) (string, bool)                             { return "", false }
+func (m mockResolver) Populate(context.Context, *fault.Bus, string, ...string) error { return nil }
 
 // ---------------------------------------------------------------------------
 // tests

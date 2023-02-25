@@ -93,7 +93,7 @@ func runDisplayM365JSON(
 	ctx context.Context,
 	creds account.M365Config,
 	user, itemID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	var (
 		bs  []byte
@@ -143,7 +143,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
@@ -156,7 +156,7 @@ func getItem(
 	ctx context.Context,
 	itm itemer,
 	user, itemID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]byte, error) {
 	sp, _, err := itm.GetItem(ctx, user, itemID, errs)
 	if err != nil {

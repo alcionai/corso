@@ -62,7 +62,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 // @param baseID: ignored. Present to conform to interface
 func (ecc *eventCalendarCache) Populate(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 	baseID string,
 	baseContainerPath ...string,
 ) error {

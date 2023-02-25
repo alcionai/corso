@@ -36,7 +36,7 @@ func createService(credentials account.M365Config) (*graph.Service, error) {
 func PopulateExchangeContainerResolver(
 	ctx context.Context,
 	qp graph.QueryParams,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (graph.ContainerResolver, error) {
 	var (
 		res       graph.ContainerResolver

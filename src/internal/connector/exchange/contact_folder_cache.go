@@ -47,7 +47,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 // as of (Oct-07-2022)
 func (cfc *contactFolderCache) Populate(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 	baseID string,
 	baseContainerPather ...string,
 ) error {
