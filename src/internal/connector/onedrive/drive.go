@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
@@ -17,10 +17,11 @@ import (
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var errFolderNotFound = errors.New("folder not found")
+var errFolderNotFound = clues.New("folder not found")
 
 const (
 	getDrivesRetries = 3
@@ -77,8 +78,6 @@ func drives(
 	retry bool,
 ) ([]models.Driveable, error) {
 	var (
-		err             error
-		page            gapi.PageLinker
 		numberOfRetries = getDrivesRetries
 		drives          = []models.Driveable{}
 	)
@@ -89,30 +88,31 @@ func drives(
 
 	// Loop through all pages returned by Graph API.
 	for {
+		var (
+			err  error
+			page gapi.PageLinker
+		)
+
 		// Retry Loop for Drive retrieval. Request can timeout
 		for i := 0; i <= numberOfRetries; i++ {
 			page, err = pager.GetPage(ctx)
 			if err != nil {
 				// Various error handling. May return an error or perform a retry.
-				detailedError := support.ConnectorStackErrorTraceWrap(err, "").Error()
-				if strings.Contains(detailedError, userMysiteURLNotFound) ||
-					strings.Contains(detailedError, userMysiteURLNotFoundMsg) ||
-					strings.Contains(detailedError, userMysiteNotFound) ||
-					strings.Contains(detailedError, userMysiteNotFoundMsg) {
+				errMsg := support.ConnectorStackErrorTraceWrap(err, "").Error()
+				if strings.Contains(errMsg, userMysiteURLNotFound) ||
+					strings.Contains(errMsg, userMysiteURLNotFoundMsg) ||
+					strings.Contains(errMsg, userMysiteNotFound) ||
+					strings.Contains(errMsg, userMysiteNotFoundMsg) {
 					logger.Ctx(ctx).Infof("resource owner does not have a drive")
 					return make([]models.Driveable, 0), nil // no license or drives.
 				}
 
-				if strings.Contains(detailedError, contextDeadlineExceeded) && i < numberOfRetries {
+				if strings.Contains(errMsg, contextDeadlineExceeded) && i < numberOfRetries {
 					time.Sleep(time.Duration(3*(i+1)) * time.Second)
 					continue
 				}
 
-				return nil, errors.Wrapf(
-					err,
-					"failed to retrieve drives. details: %s",
-					detailedError,
-				)
+				return nil, clues.Wrap(err, "retrieving drives").WithClues(ctx).With(graph.ErrData(err)...)
 			}
 
 			// No error encountered, break the retry loop so we can extract results
@@ -122,7 +122,7 @@ func drives(
 
 		tmp, err := pager.ValuesIn(page)
 		if err != nil {
-			return nil, errors.Wrap(err, "extracting drives from response")
+			return nil, clues.Wrap(err, "extracting drives from response").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		drives = append(drives, tmp...)
@@ -135,7 +135,7 @@ func drives(
 		pager.SetNext(nextLink)
 	}
 
-	logger.Ctx(ctx).Debugf("Found %d drives", len(drives))
+	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(drives))
 
 	return drives, nil
 }
@@ -150,6 +150,7 @@ type itemCollector func(
 	excluded map[string]struct{},
 	fileCollectionMap map[string]string,
 	validPrevDelta bool,
+	errs *fault.Errors,
 ) error
 
 type itemPager interface {
@@ -179,6 +180,7 @@ func defaultItemPager(
 			"package",
 			"parentReference",
 			"root",
+			"sharepointIds",
 			"size",
 			"deleted",
 		},
@@ -194,6 +196,7 @@ func collectItems(
 	collector itemCollector,
 	oldPaths map[string]string,
 	prevDelta string,
+	errs *fault.Errors,
 ) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
 	var (
 		newDeltaURL      = ""
@@ -228,16 +231,14 @@ func collectItems(
 		}
 
 		if err != nil {
-			return DeltaUpdate{}, nil, nil, errors.Wrapf(
-				err,
-				"failed to query drive items. details: %s",
-				support.ConnectorStackErrorTrace(err),
-			)
+			return DeltaUpdate{}, nil, nil, clues.Wrap(err, "getting page").WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		vals, err := pager.ValuesIn(page)
 		if err != nil {
-			return DeltaUpdate{}, nil, nil, errors.Wrap(err, "extracting items from response")
+			return DeltaUpdate{}, nil, nil, clues.Wrap(err, "extracting items from response").
+				WithClues(ctx).
+				With(graph.ErrData(err)...)
 		}
 
 		err = collector(
@@ -250,7 +251,7 @@ func collectItems(
 			excluded,
 			itemCollection,
 			invalidPrevDelta,
-		)
+			errs)
 		if err != nil {
 			return DeltaUpdate{}, nil, nil, err
 		}
@@ -293,27 +294,17 @@ func getFolder(
 	)
 
 	foundItem, err = builder.Get(ctx, nil)
-
 	if err != nil {
-		var oDataError *odataerrors.ODataError
-		if errors.As(err, &oDataError) &&
-			oDataError.GetError() != nil &&
-			oDataError.GetError().GetCode() != nil &&
-			*oDataError.GetError().GetCode() == itemNotFoundErrorCode {
-			return nil, errors.WithStack(errFolderNotFound)
+		if graph.IsErrDeletedInFlight(err) {
+			return nil, clues.Stack(errFolderNotFound, err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
-		return nil, errors.Wrapf(err,
-			"failed to get folder %s/%s. details: %s",
-			parentFolderID,
-			folderName,
-			support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "getting folder").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	// Check if the item found is a folder, fail the call if not
 	if foundItem.GetFolder() == nil {
-		return nil, errors.WithStack(errFolderNotFound)
+		return nil, clues.Stack(errFolderNotFound).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return foundItem, nil
@@ -329,16 +320,11 @@ func createItem(
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-
 	builder := msdrive.NewItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to create item. details: %s",
-			support.ConnectorStackErrorTrace(err),
-		)
+		return nil, clues.Wrap(err, "creating item").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	return newItem, nil
@@ -374,66 +360,72 @@ func GetAllFolders(
 	gs graph.Servicer,
 	pager drivePager,
 	prefix string,
+	errs *fault.Errors,
 ) ([]*Displayable, error) {
 	drives, err := drives(ctx, pager, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}
 
-	folders := map[string]*Displayable{}
+	var (
+		folders = map[string]*Displayable{}
+		et      = errs.Tracker()
+	)
 
 	for _, d := range drives {
-		_, _, _, err = collectItems(
-			ctx,
-			defaultItemPager(
-				gs,
-				*d.GetId(),
-				"",
-			),
-			*d.GetId(),
-			*d.GetName(),
-			func(
-				innerCtx context.Context,
-				driveID, driveName string,
-				items []models.DriveItemable,
-				oldPaths map[string]string,
-				newPaths map[string]string,
-				excluded map[string]struct{},
-				itemCollection map[string]string,
-				doNotMergeItems bool,
-			) error {
-				for _, item := range items {
-					// Skip the root item.
-					if item.GetRoot() != nil {
-						continue
-					}
+		if et.Err() != nil {
+			break
+		}
 
-					// Only selecting folders right now, not packages.
-					if item.GetFolder() == nil {
-						continue
-					}
+		var (
+			id   = ptr.Val(d.GetId())
+			name = ptr.Val(d.GetName())
+		)
 
-					if item.GetId() == nil || len(*item.GetId()) == 0 {
-						logger.Ctx(ctx).Warn("folder without ID")
-						continue
-					}
-
-					if !strings.HasPrefix(*item.GetName(), prefix) {
-						continue
-					}
-
-					// Add the item instead of the folder because the item has more
-					// functionality.
-					folders[*item.GetId()] = &Displayable{item}
+		ictx := clues.Add(ctx, "drive_id", id, "drive_name", name) // TODO: pii
+		collector := func(
+			innerCtx context.Context,
+			driveID, driveName string,
+			items []models.DriveItemable,
+			oldPaths map[string]string,
+			newPaths map[string]string,
+			excluded map[string]struct{},
+			itemCollection map[string]string,
+			doNotMergeItems bool,
+			errs *fault.Errors,
+		) error {
+			for _, item := range items {
+				// Skip the root item.
+				if item.GetRoot() != nil {
+					continue
 				}
 
-				return nil
-			},
-			map[string]string{},
-			"",
-		)
+				// Only selecting folders right now, not packages.
+				if item.GetFolder() == nil {
+					continue
+				}
+
+				itemID := ptr.Val(item.GetId())
+				if len(itemID) == 0 {
+					logger.Ctx(ctx).Info("folder missing ID")
+					continue
+				}
+
+				if !strings.HasPrefix(*item.GetName(), prefix) {
+					continue
+				}
+
+				// Add the item instead of the folder because the item has more
+				// functionality.
+				folders[itemID] = &Displayable{item}
+			}
+
+			return nil
+		}
+
+		_, _, _, err = collectItems(ictx, defaultItemPager(gs, id, ""), id, name, collector, map[string]string{}, "", errs)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting items for drive %s", *d.GetName())
+			et.Add(clues.Wrap(err, "enumerating items in drive"))
 		}
 	}
 
@@ -443,7 +435,7 @@ func GetAllFolders(
 		res = append(res, f)
 	}
 
-	return res, nil
+	return res, et.Err()
 }
 
 func DeleteItem(
@@ -454,7 +446,10 @@ func DeleteItem(
 ) error {
 	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
 	if err != nil {
-		return errors.Wrapf(err, "deleting item with ID %s", itemID)
+		return clues.Wrap(err, "deleting item").
+			WithClues(ctx).
+			With("item_id", itemID).
+			With(graph.ErrData(err)...)
 	}
 
 	return nil

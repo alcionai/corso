@@ -19,11 +19,11 @@ import (
 )
 
 type MockExchangeCollectionSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMockExchangeCollectionSuite(t *testing.T) {
-	suite.Run(t, new(MockExchangeCollectionSuite))
+	suite.Run(t, &MockExchangeCollectionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection() {
@@ -82,11 +82,11 @@ func (suite *MockExchangeCollectionSuite) TestMockExchangeCollection_NewExchange
 }
 
 type MockExchangeDataSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMockExchangeDataSuite(t *testing.T) {
-	suite.Run(t, new(MockExchangeDataSuite))
+	suite.Run(t, &MockExchangeDataSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *MockExchangeDataSuite) TestMockExchangeData() {
@@ -117,7 +117,9 @@ func (suite *MockExchangeDataSuite) TestMockExchangeData() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, id, test.reader.UUID())
 			buf, err := io.ReadAll(test.reader.ToReader())
 
@@ -223,7 +225,9 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			err := test.transformation(t)
 			assert.NoError(t, err)
 		})

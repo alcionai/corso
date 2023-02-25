@@ -14,8 +14,8 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -84,7 +84,7 @@ func onedriveMetadata(
 }
 
 type GraphConnectorOneDriveIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	connector     *GraphConnector
 	user          string
 	secondaryUser string
@@ -92,20 +92,18 @@ type GraphConnectorOneDriveIntegrationSuite struct {
 }
 
 func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(GraphConnectorOneDriveIntegrationSuite))
+	suite.Run(t, &GraphConnectorOneDriveIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorOneDriveTests),
+	})
 }
 
 func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
 	suite.user = tester.M365UserID(suite.T())
@@ -175,9 +173,7 @@ func (c *onedriveCollection) withFile(
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case 1:
-		fallthrough
-	case 2:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker, version.OneDrive4DirIncludesPermissions:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -206,12 +202,10 @@ func (c *onedriveCollection) withFolder(
 	roles []string,
 ) *onedriveCollection {
 	switch c.backupVersion {
-	case 0:
+	case 0, version.OneDrive4DirIncludesPermissions:
 		return c
 
-	case 1:
-		fallthrough
-	case 2:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
 		c.items = append(
 			c.items,
 			onedriveMetadata(
@@ -219,8 +213,7 @@ func (c *onedriveCollection) withFolder(
 				"",
 				name+onedrive.DirMetaFileSuffix,
 				user,
-				roles),
-		)
+				roles))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -237,7 +230,7 @@ func (c *onedriveCollection) withPermissions(
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
-	if c.backupVersion < 3 {
+	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
 		return c
 	}
 
@@ -247,15 +240,15 @@ func (c *onedriveCollection) withPermissions(
 		return c
 	}
 
-	c.items = append(
-		c.items,
-		onedriveMetadata(
-			c.t,
-			name,
-			name+onedrive.DirMetaFileSuffix,
-			user,
-			roles),
-	)
+	metadata := onedriveMetadata(
+		c.t,
+		name,
+		name+onedrive.DirMetaFileSuffix,
+		user,
+		roles)
+
+	c.items = append(c.items, metadata)
+	c.aux = append(c.aux, metadata)
 
 	return c
 }
@@ -279,9 +272,8 @@ type onedriveColInfo struct {
 }
 
 type onedriveTest struct {
-	name string
 	// Version this test first be run for. Will run from
-	// [startVersion, backup.Version] inclusive.
+	// [startVersion, version.Backup] inclusive.
 	startVersion int
 	cols         []onedriveColInfo
 }
@@ -308,7 +300,7 @@ func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int) []
 	return res
 }
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders() {
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -353,148 +345,103 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 		folderBName,
 	}
 
-	table := []onedriveTest{
-		{
-			name:         "WithMetadata",
-			startVersion: 1,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileAData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: writePerm,
-							},
-						},
-					},
-					folders: []itemData{
-						{
-							name: folderBName,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
-						},
+	test := onedriveTest{
+		startVersion: 0,
+		cols: []onedriveColInfo{
+			{
+				pathElements: rootPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileAData,
 					},
 				},
-				{
-					pathElements: folderBPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileEData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
-						},
+				folders: []itemData{
+					{
+						name: folderAName,
+					},
+					{
+						name: folderBName,
 					},
 				},
 			},
-		},
-		{
-			name:         "NoMetadata",
-			startVersion: 0,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileAData,
-						},
-					},
-					folders: []itemData{
-						{
-							name: folderAName,
-						},
-						{
-							name: folderBName,
-						},
+			{
+				pathElements: folderAPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileBData,
 					},
 				},
-				{
-					pathElements: folderAPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileBData,
-						},
-					},
-					folders: []itemData{
-						{
-							name: folderBName,
-						},
+				folders: []itemData{
+					{
+						name: folderBName,
 					},
 				},
-				{
-					pathElements: subfolderBPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileCData,
-						},
-					},
-					folders: []itemData{
-						{
-							name: folderAName,
-						},
+			},
+			{
+				pathElements: subfolderBPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileCData,
 					},
 				},
-				{
-					pathElements: subfolderAPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileDData,
-						},
+				folders: []itemData{
+					{
+						name: folderAName,
 					},
 				},
-				{
-					pathElements: folderBPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileEData,
-						},
+			},
+			{
+				pathElements: subfolderAPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileDData,
+					},
+				},
+			},
+			{
+				pathElements: folderBPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileEData,
 					},
 				},
 			},
 		},
 	}
 
-	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, backup.Version)
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
-		for version := test.startVersion; version <= backup.Version; version++ {
-			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, version), func(t *testing.T) {
-				input := testDataForInfo(t, test.cols, version)
+	for vn := test.startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+			t := suite.T()
+			input := testDataForInfo(t, test.cols, vn)
 
-				testData := restoreBackupInfoMultiVersion{
-					service:             path.OneDriveService,
-					resource:            Users,
-					backupVersion:       version,
-					countMeta:           version == 0,
-					collectionsPrevious: input,
-					collectionsLatest:   expected,
-				}
+			testData := restoreBackupInfoMultiVersion{
+				service:             path.OneDriveService,
+				resource:            Users,
+				backupVersion:       vn,
+				countMeta:           vn == 0,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
 
-				runRestoreBackupTestVersions(
-					t,
-					suite.acct,
-					testData,
-					suite.connector.tenant,
-					[]string{suite.user},
-					control.Options{
-						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
-					},
-				)
-			})
-		}
+			runRestoreBackupTestVersions(
+				t,
+				suite.acct,
+				testData,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
 	}
 }
 
@@ -510,215 +457,192 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 		suite.user,
 	)
 
+	fileName2 := "test-file2.txt"
+	folderCName := "folder-c"
+
 	rootPath := []string{
 		"drives",
 		driveID,
 		"root:",
 	}
-	folderPath := []string{
+	folderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+	}
+	folderBPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderBName,
 	}
+	subfolderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderBName,
+		folderAName,
+	}
+	folderCPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderCName,
+	}
 
-	startVersion := 1
+	startVersion := version.OneDrive1DataAndMetaFiles
 
-	table := []onedriveTest{
-		{
-			name:         "FilePermissionsRestore",
-			startVersion: startVersion,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileAData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: writePerm,
-							},
+	test := onedriveTest{
+		startVersion: startVersion,
+		cols: []onedriveColInfo{
+			{
+				pathElements: rootPath,
+				files: []itemData{
+					{
+						// Test restoring a file that doesn't inherit permissions.
+						name: fileName,
+						data: fileAData,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: writePerm,
+						},
+					},
+					{
+						// Test restoring a file that doesn't inherit permissions and has
+						// no permissions.
+						name: fileName2,
+						data: fileBData,
+					},
+				},
+				folders: []itemData{
+					{
+						name: folderBName,
+					},
+					{
+						name: folderAName,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: readPerm,
+						},
+					},
+					{
+						name: folderCName,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: readPerm,
 						},
 					},
 				},
 			},
-		},
-		{
-			name:         "FileInsideFolderPermissionsRestore",
-			startVersion: startVersion,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileAData,
-						},
-					},
-					folders: []itemData{
-						{
-							name: folderBName,
+			{
+				pathElements: folderBPath,
+				files: []itemData{
+					{
+						// Test restoring a file in a non-root folder that doesn't inherit
+						// permissions.
+						name: fileName,
+						data: fileBData,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: readPerm,
 						},
 					},
 				},
-				{
-					pathElements: folderPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileEData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
+				folders: []itemData{
+					{
+						name: folderAName,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: readPerm,
 						},
 					},
 				},
 			},
-		},
-		{
-			name:         "FilesAndFolderPermissionsRestore",
-			startVersion: startVersion,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileAData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: writePerm,
-							},
-						},
-					},
-					folders: []itemData{
-						{
-							name: folderBName,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
+			{
+				// Tests a folder that has permissions with an item in the folder with
+				// the same permissions.
+				pathElements: subfolderAPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileDData,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: readPerm,
 						},
 					},
 				},
-				{
-					pathElements: folderPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileEData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
-						},
-					},
-					perms: permData{
-						user:  suite.secondaryUser,
-						roles: readPerm,
-					},
+				perms: permData{
+					user:  suite.secondaryUser,
+					roles: readPerm,
 				},
 			},
-		},
-		{
-			name:         "FilesAndFolderSeparatePermissionsRestore",
-			startVersion: startVersion,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					folders: []itemData{
-						{
-							name: folderBName,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
+			{
+				// Tests a folder that has permissions with an item in the folder with
+				// the different permissions.
+				pathElements: folderAPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileEData,
+						perms: permData{
+							user:  suite.secondaryUser,
+							roles: writePerm,
 						},
 					},
 				},
-				{
-					pathElements: folderPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileEData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: writePerm,
-							},
-						},
-					},
-					perms: permData{
-						user:  suite.secondaryUser,
-						roles: readPerm,
-					},
+				perms: permData{
+					user:  suite.secondaryUser,
+					roles: readPerm,
 				},
 			},
-		},
-		{
-			name:         "FolderAndNoChildPermissionsRestore",
-			startVersion: startVersion,
-			cols: []onedriveColInfo{
-				{
-					pathElements: rootPath,
-					folders: []itemData{
-						{
-							name: folderBName,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: readPerm,
-							},
-						},
+			{
+				// Tests a folder that has permissions with an item in the folder with
+				// no permissions.
+				pathElements: folderCPath,
+				files: []itemData{
+					{
+						name: fileName,
+						data: fileAData,
 					},
 				},
-				{
-					pathElements: folderPath,
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileEData,
-						},
-					},
-					perms: permData{
-						user:  suite.secondaryUser,
-						roles: readPerm,
-					},
+				perms: permData{
+					user:  suite.secondaryUser,
+					roles: readPerm,
 				},
 			},
 		},
 	}
 
-	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, backup.Version)
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
-		for version := test.startVersion; version <= backup.Version; version++ {
-			suite.T().Run(fmt.Sprintf("%s_Version%d", test.name, version), func(t *testing.T) {
-				input := testDataForInfo(t, test.cols, version)
+	for vn := test.startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+			t := suite.T()
+			input := testDataForInfo(t, test.cols, vn)
 
-				testData := restoreBackupInfoMultiVersion{
-					service:             path.OneDriveService,
-					resource:            Users,
-					backupVersion:       version,
-					countMeta:           version == 0,
-					collectionsPrevious: input,
-					collectionsLatest:   expected,
-				}
+			testData := restoreBackupInfoMultiVersion{
+				service:             path.OneDriveService,
+				resource:            Users,
+				backupVersion:       vn,
+				countMeta:           vn == 0,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
 
-				runRestoreBackupTestVersions(
-					t,
-					suite.acct,
-					testData,
-					suite.connector.tenant,
-					[]string{suite.user},
-					control.Options{
-						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
-					},
-				)
-			})
-		}
+			runRestoreBackupTestVersions(
+				t,
+				suite.acct,
+				testData,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
 	}
 }
 
@@ -736,7 +660,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		suite.user,
 	)
 
-	startVersion := 1
+	startVersion := version.OneDrive1DataAndMetaFiles
 
 	table := []onedriveTest{
 		{
@@ -764,17 +688,18 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 	}
 
 	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, backup.Version)
+		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
-		for version := test.startVersion; version <= backup.Version; version++ {
-			suite.T().Run(fmt.Sprintf("Version%d", version), func(t *testing.T) {
-				input := testDataForInfo(t, test.cols, version)
+		for vn := test.startVersion; vn <= version.Backup; vn++ {
+			suite.Run(fmt.Sprintf("Version%d", vn), func() {
+				t := suite.T()
+				input := testDataForInfo(t, test.cols, vn)
 
 				testData := restoreBackupInfoMultiVersion{
 					service:             path.OneDriveService,
 					resource:            Users,
-					backupVersion:       version,
-					countMeta:           version == 0,
+					backupVersion:       vn,
+					countMeta:           vn == 0,
 					collectionsPrevious: input,
 					collectionsLatest:   expected,
 				}
@@ -795,6 +720,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 	}
 }
 
+// TestPermissionsRestoreAndNoBackup checks that even if permissions exist
+// not setting EnablePermissionsBackup results in empty permissions. This test
+// only needs to run on the current version.Backup because it's about backup
+// behavior not restore behavior (restore behavior is checked in other tests).
 func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNoBackup() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -811,7 +740,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 	test := restoreBackupInfoMultiVersion{
 		service:       path.OneDriveService,
 		resource:      Users,
-		backupVersion: backup.Version,
+		backupVersion: version.Backup,
 		countMeta:     false,
 		collectionsPrevious: []colInfo{
 			newOneDriveCollection(
@@ -821,7 +750,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					driveID,
 					"root:",
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
@@ -843,7 +772,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					"root:",
 					folderBName,
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
@@ -865,7 +794,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					driveID,
 					"root:",
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
@@ -887,11 +816,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					"root:",
 					folderBName,
 				},
-				backup.Version,
+				version.Backup,
 			).
 				withFile(
 					fileName,
 					fileEData,
+					"",
+					nil,
+				).
+				// Call this to generate a meta file with the folder name that we can
+				// check.
+				withPermissions(
 					"",
 					nil,
 				).

@@ -11,14 +11,15 @@ import (
 
 	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type DataSupportSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestDataSupportSuite(t *testing.T) {
-	suite.Run(t, new(DataSupportSuite))
+	suite.Run(t, &DataSupportSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 var (
@@ -49,7 +50,9 @@ func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := CreateMessageFromBytes(test.byteArray)
 			test.checkError(t, err)
 			test.checkObject(t, result)
@@ -86,7 +89,9 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := CreateContactFromBytes(test.byteArray)
 			test.checkError(t, err)
 			test.isNil(t, result)
@@ -121,7 +126,9 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := CreateEventFromBytes(test.byteArray)
 			test.checkError(t, err)
 			test.isNil(t, result)
@@ -160,7 +167,9 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := CreateListFromBytes(test.byteArray)
 			test.checkError(t, err)
 			test.isNil(t, result)
@@ -215,7 +224,9 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := CreatePageFromBytes(test.getBytes(t))
 			test.checkError(t, err)
 			test.isNil(t, result)
@@ -269,7 +280,9 @@ func (suite *DataSupportSuite) TestHasAttachments() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			found := HasAttachments(test.getBodyable(t))
 			test.hasAttachment(t, found)
 		})

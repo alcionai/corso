@@ -704,14 +704,22 @@ func compareOneDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
+	dest control.RestoreDestination,
 	restorePermissions bool,
-) {
+) bool {
+	// Skip OneDrive permissions in the folder that used to be the root. We don't
+	// have a good way to materialize these in the test right now.
+	if item.UUID() == dest.ContainerName+onedrive.DirMetaFileSuffix {
+		return false
+	}
+
 	buf, err := io.ReadAll(item.ToReader())
 	if !assert.NoError(t, err) {
-		return
+		return true
 	}
 
 	name := item.UUID()
+
 	if strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
 		strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
 		var (
@@ -721,7 +729,7 @@ func compareOneDriveItem(
 
 		err = json.Unmarshal(buf, &itemMeta)
 		if !assert.NoErrorf(t, err, "unmarshalling retrieved metadata for file %s", name) {
-			return
+			return true
 		}
 
 		expectedData := expected[name]
@@ -731,12 +739,12 @@ func compareOneDriveItem(
 			"unexpected metadata file with name %s",
 			name,
 		) {
-			return
+			return true
 		}
 
 		err = json.Unmarshal(expectedData, &expectedMeta)
 		if !assert.NoError(t, err, "unmarshalling expected metadata") {
-			return
+			return true
 		}
 
 		// Only compare file names if we're using a version that expects them to be
@@ -747,7 +755,7 @@ func compareOneDriveItem(
 
 		if !restorePermissions {
 			assert.Equal(t, 0, len(itemMeta.Permissions))
-			return
+			return true
 		}
 
 		testElementsMatch(
@@ -757,19 +765,19 @@ func compareOneDriveItem(
 			permissionEqual,
 		)
 
-		return
+		return true
 	}
 
 	var fileData testOneDriveData
 
 	err = json.Unmarshal(buf, &fileData)
 	if !assert.NoErrorf(t, err, "unmarshalling file data for file %s", name) {
-		return
+		return true
 	}
 
 	expectedData := expected[fileData.FileName]
 	if !assert.NotNil(t, expectedData, "unexpected file with name %s", name) {
-		return
+		return true
 	}
 
 	// OneDrive data items are just byte buffers of the data. Nothing special to
@@ -778,16 +786,22 @@ func compareOneDriveItem(
 	// Compare against the version with the file name embedded because that's what
 	// the auto-generated expected data has.
 	assert.Equal(t, expectedData, buf)
+
+	return true
 }
 
+// compareItem compares the data returned by backup with the expected data.
+// Returns true if a comparison was done else false. Bool return is mostly used
+// to exclude OneDrive permissions for the root right now.
 func compareItem(
 	t *testing.T,
 	expected map[string][]byte,
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
+	dest control.RestoreDestination,
 	restorePermissions bool,
-) {
+) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
 		assert.NotZero(t, mt.ModTime())
 	}
@@ -806,11 +820,13 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		compareOneDriveItem(t, expected, item, restorePermissions)
+		return compareOneDriveItem(t, expected, item, dest, restorePermissions)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
 	}
+
+	return true
 }
 
 func checkHasCollections(
@@ -831,7 +847,7 @@ func checkHasCollections(
 		gotNames = append(gotNames, g.FullPath().String())
 	}
 
-	assert.ElementsMatch(t, expectedNames, gotNames)
+	assert.ElementsMatch(t, expectedNames, gotNames, "returned collections")
 }
 
 //revive:disable:context-as-argument
@@ -841,6 +857,7 @@ func checkCollections(
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
+	dest control.RestoreDestination,
 	restorePermissions bool,
 ) int {
 	//revive:enable:context-as-argument
@@ -850,10 +867,12 @@ func checkCollections(
 	gotItems := 0
 
 	for _, returned := range got {
-		startingItems := gotItems
-		service := returned.FullPath().Service()
-		category := returned.FullPath().Category()
-		expectedColData := expected[returned.FullPath().String()]
+		var (
+			hasItems        bool
+			service         = returned.FullPath().Service()
+			category        = returned.FullPath().Category()
+			expectedColData = expected[returned.FullPath().String()]
+		)
 
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
@@ -871,16 +890,19 @@ func checkCollections(
 				continue
 			}
 
+			hasItems = true
 			gotItems++
 
 			if expectedColData == nil {
 				continue
 			}
 
-			compareItem(t, expectedColData, service, category, item, restorePermissions)
+			if !compareItem(t, expectedColData, service, category, item, dest, restorePermissions) {
+				gotItems--
+			}
 		}
 
-		if gotItems != startingItems {
+		if hasItems {
 			collectionsWithItems = append(collectionsWithItems, returned)
 		}
 	}
@@ -1050,10 +1072,12 @@ func collectionsForInfo(
 	allInfo []colInfo,
 	backupVersion int,
 ) (int, int, []data.RestoreCollection, map[string]map[string][]byte) {
-	collections := make([]data.RestoreCollection, 0, len(allInfo))
-	expectedData := make(map[string]map[string][]byte, len(allInfo))
-	totalItems := 0
-	kopiaEntries := 0
+	var (
+		collections  = make([]data.RestoreCollection, 0, len(allInfo))
+		expectedData = make(map[string]map[string][]byte, len(allInfo))
+		totalItems   = 0
+		kopiaEntries = 0
+	)
 
 	for _, info := range allInfo {
 		pth := mustToDataLayerPath(

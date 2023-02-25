@@ -41,11 +41,11 @@ func (fm testFolderMatcher) Matches(path string) bool {
 // ---------------------------------------------------------------------------
 
 type SharePointLibrariesSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointLibrariesSuite(t *testing.T) {
-	suite.Run(t, new(SharePointLibrariesSuite))
+	suite.Run(t, &SharePointLibrariesSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
@@ -89,7 +89,9 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.testCase, func(t *testing.T) {
+		suite.Run(test.testCase, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -115,7 +117,7 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				excluded,
 				map[string]string{},
 				true,
-			)
+				fault.New(true))
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
@@ -154,21 +156,23 @@ func driveRootItem(id string) models.DriveItemable {
 	item.SetName(&name)
 	item.SetId(&id)
 	item.SetRoot(models.NewRoot())
+	item.SetFolder(models.NewFolder())
 
 	return item
 }
 
 type SharePointPagesSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointPagesSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorSharePointTests)
-	suite.Run(t, new(SharePointPagesSuite))
+	suite.Run(t, &SharePointPagesSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorSharePointTests),
+	})
 }
 
 func (suite *SharePointPagesSuite) TestCollectPages() {

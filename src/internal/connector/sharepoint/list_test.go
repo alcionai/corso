@@ -13,7 +13,7 @@ import (
 )
 
 type SharePointSuite struct {
-	suite.Suite
+	tester.Suite
 	creds account.M365Config
 }
 
@@ -27,11 +27,13 @@ func (suite *SharePointSuite) SetupSuite() {
 }
 
 func TestSharePointSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorSharePointTests)
-	suite.Run(t, new(SharePointSuite))
+	suite.Run(t, &SharePointSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorSharePointTests),
+	})
 }
 
 // Test LoadList --> Retrieves all data from backStore

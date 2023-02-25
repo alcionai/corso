@@ -97,6 +97,7 @@ func loadSiteLists(
 	var (
 		results     = make([]models.Listable, 0)
 		semaphoreCh = make(chan struct{}, fetchChannelSize)
+		et          = errs.Tracker()
 		wg          sync.WaitGroup
 		m           sync.Mutex
 	)
@@ -111,8 +112,8 @@ func loadSiteLists(
 	}
 
 	for _, listID := range listIDs {
-		if errs.Err() != nil {
-			return nil, errs.Err()
+		if et.Err() != nil {
+			break
 		}
 
 		semaphoreCh <- struct{}{}
@@ -130,13 +131,13 @@ func loadSiteLists(
 
 			entry, err = gs.Client().SitesById(siteID).ListsById(id).Get(ctx, nil)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "getting site list").WithClues(ctx).With(graph.ErrData(err)...))
+				et.Add(clues.Wrap(err, "getting site list").WithClues(ctx).With(graph.ErrData(err)...))
 				return
 			}
 
 			cols, cTypes, lItems, err := fetchListContents(ctx, gs, siteID, id, errs)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "getting list contents"))
+				et.Add(clues.Wrap(err, "getting list contents"))
 				return
 			}
 
@@ -149,7 +150,7 @@ func loadSiteLists(
 
 	wg.Wait()
 
-	return results, errs.Err()
+	return results, et.Err()
 }
 
 // fetchListContents utility function to retrieve associated M365 relationships
@@ -198,6 +199,7 @@ func fetchListItems(
 		prefix  = gs.Client().SitesById(siteID).ListsById(listID)
 		builder = prefix.Items()
 		itms    = make([]models.ListItemable, 0)
+		et      = errs.Tracker()
 	)
 
 	for {
@@ -211,7 +213,7 @@ func fetchListItems(
 		}
 
 		for _, itm := range resp.GetValue() {
-			if errs.Err() != nil {
+			if et.Err() != nil {
 				break
 			}
 
@@ -219,7 +221,7 @@ func fetchListItems(
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "getting list fields").WithClues(ctx).With(graph.ErrData(err)...))
+				et.Add(clues.Wrap(err, "getting list fields").WithClues(ctx).With(graph.ErrData(err)...))
 				continue
 			}
 
@@ -235,7 +237,7 @@ func fetchListItems(
 		builder = mssite.NewItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
-	return itms, errs.Err()
+	return itms, et.Err()
 }
 
 // fetchColumns utility function to return columns from a site.
@@ -301,6 +303,7 @@ func fetchContentTypes(
 	errs *fault.Errors,
 ) ([]models.ContentTypeable, error) {
 	var (
+		et      = errs.Tracker()
 		cTypes  = make([]models.ContentTypeable, 0)
 		builder = gs.Client().SitesById(siteID).ListsById(listID).ContentTypes()
 	)
@@ -316,7 +319,7 @@ func fetchContentTypes(
 		}
 
 		for _, cont := range resp.GetValue() {
-			if errs.Err() != nil {
+			if et.Err() != nil {
 				break
 			}
 
@@ -324,7 +327,7 @@ func fetchContentTypes(
 
 			links, err := fetchColumnLinks(ctx, gs, siteID, listID, id)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -332,7 +335,7 @@ func fetchContentTypes(
 
 			cs, err := fetchColumns(ctx, gs, siteID, listID, id)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -348,7 +351,7 @@ func fetchContentTypes(
 		builder = mssite.NewItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
 	}
 
-	return cTypes, errs.Err()
+	return cTypes, et.Err()
 }
 
 func fetchColumnLinks(

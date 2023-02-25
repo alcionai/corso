@@ -25,14 +25,13 @@ import (
 )
 
 type SharePointCollectionSuite struct {
-	suite.Suite
+	tester.Suite
 	siteID string
 	creds  account.M365Config
 }
 
 func (suite *SharePointCollectionSuite) SetupSuite() {
 	t := suite.T()
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	suite.siteID = tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
@@ -43,13 +42,13 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 }
 
 func TestSharePointCollectionSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorSharePointTests)
-
-	suite.Run(t, new(SharePointCollectionSuite))
+	suite.Run(t, &SharePointCollectionSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorSharePointTests),
+	})
 }
 
 func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
@@ -70,7 +69,6 @@ func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
 func (suite *SharePointCollectionSuite) TestCollection_Items() {
-	t := suite.T()
 	tenant := "some"
 	user := "user"
 	dirRoot := "directory"
@@ -147,7 +145,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 	}
 
 	for _, test := range tables {
-		t.Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -242,11 +242,11 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	service := createTestService(t, suite.creds)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Log("FolderID: " + folderID)
 
 	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// CleanUp
 	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)

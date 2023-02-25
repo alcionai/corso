@@ -27,24 +27,22 @@ const (
 )
 
 type MailFolderCacheIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	credentials account.M365Config
 }
 
 func TestMailFolderCacheIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoGraphConnectorTests,
-		tester.CorsoGraphConnectorExchangeTests)
-
-	suite.Run(t, new(MailFolderCacheIntegrationSuite))
+	suite.Run(t, &MailFolderCacheIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorExchangeTests),
+	})
 }
 
 func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
-
-	tester.MustGetEnvSets(t, tester.M365AcctCredEnvs)
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
@@ -81,7 +79,9 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 	userID := tester.M365UserID(suite.T())
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ac, err := api.NewClient(suite.credentials)
 			require.NoError(t, err)
 

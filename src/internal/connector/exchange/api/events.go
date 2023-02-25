@@ -153,18 +153,31 @@ func (c Events) EnumerateContainers(
 		return clues.Wrap(err, "setting calendar options").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
+	et := errs.Tracker()
 	builder := service.Client().UsersById(userID).Calendars()
 
 	for {
+		if et.Err() != nil {
+			break
+		}
+
 		resp, err := builder.Get(ctx, ofc)
 		if err != nil {
 			return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, cal := range resp.GetValue() {
+			if et.Err() != nil {
+				break
+			}
+
 			cd := CalendarDisplayable{Calendarable: cal}
 			if err := checkIDAndName(cd); err != nil {
-				errs.Add(clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...))
+				et.Add(clues.Stack(err).
+					WithClues(ctx).
+					With(graph.ErrData(err)...).
+					Label(fault.LabelForceNoBackupCreation))
+
 				continue
 			}
 
@@ -178,7 +191,11 @@ func (c Events) EnumerateContainers(
 				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
 				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
+				et.Add(clues.Stack(err).
+					WithClues(fctx).
+					With(graph.ErrData(err)...).
+					Label(fault.LabelForceNoBackupCreation))
+
 				continue
 			}
 		}
@@ -191,7 +208,7 @@ func (c Events) EnumerateContainers(
 		builder = users.NewItemCalendarsRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -279,12 +296,9 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		if err != nil {
 			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
 		} else {
-			uri, err := gri.GetUri()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
-			} else {
-				logger.Ctx(ctx).Infow("calendar builder", "user", user, "directoryID", calendarID, "uri", uri)
-			}
+			logger.Ctx(ctx).
+				With("user", user, "container", calendarID).
+				Warnw("builder path-parameters", "path_parameters", gri.PathParameters)
 		}
 	}
 

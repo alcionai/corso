@@ -190,6 +190,20 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		return op.Errors.Err()
 	}
 
+	// force exit without backup in certain cases.
+	// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
+	for _, e := range op.Errors.Errs() {
+		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
+			logger.Ctx(ctx).
+				With("error", e).
+				With(clues.InErr(err).Slice()...).
+				Infow("completed backup; conditional error forcing exit without model persistence",
+					"results", op.Results)
+
+			return op.Errors.Fail(errors.Wrap(e, "forced backup")).Err()
+		}
+	}
+
 	err = op.createBackupModels(
 		ctx,
 		detailsStore,
@@ -217,6 +231,7 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	reasons := selectorToReasons(op.Selectors)
+	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1

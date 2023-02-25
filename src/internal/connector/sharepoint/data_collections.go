@@ -44,12 +44,13 @@ func DataCollections(
 	}
 
 	var (
+		et          = errs.Tracker()
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
 	)
 
 	for _, scope := range b.Scopes() {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -73,7 +74,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -86,9 +87,10 @@ func DataCollections(
 				site,
 				scope,
 				su,
-				ctrlOpts)
+				ctrlOpts,
+				errs)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 
@@ -102,7 +104,7 @@ func DataCollections(
 				ctrlOpts,
 				errs)
 			if err != nil {
-				errs.Add(err)
+				et.Add(err)
 				continue
 			}
 		}
@@ -111,7 +113,7 @@ func DataCollections(
 		foldersComplete <- struct{}{}
 	}
 
-	return collections, nil, errs.Err()
+	return collections, nil, et.Err()
 }
 
 func collectLists(
@@ -124,7 +126,10 @@ func collectLists(
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).With("site", siteID).Debug("Creating SharePoint List Collections")
 
-	spcs := make([]data.BackupCollection, 0)
+	var (
+		et   = errs.Tracker()
+		spcs = make([]data.BackupCollection, 0)
+	)
 
 	lists, err := preFetchLists(ctx, serv, siteID)
 	if err != nil {
@@ -132,7 +137,7 @@ func collectLists(
 	}
 
 	for _, tuple := range lists {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -143,7 +148,7 @@ func collectLists(
 				path.ListsCategory,
 				false)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "creating list collection path").WithClues(ctx))
+			et.Add(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(dir, serv, List, updater.UpdateStatus, ctrlOpts)
@@ -152,7 +157,7 @@ func collectLists(
 		spcs = append(spcs, collection)
 	}
 
-	return spcs, errs.Err()
+	return spcs, et.Err()
 }
 
 // collectLibraries constructs a onedrive Collections struct and Get()s
@@ -165,6 +170,7 @@ func collectLibraries(
 	scope selectors.SharePointScope,
 	updater statusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Errors,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
@@ -183,7 +189,7 @@ func collectLibraries(
 
 	// TODO(ashmrtn): Pass previous backup metadata when SharePoint supports delta
 	// token-based incrementals.
-	odcs, excludes, err := colls.Get(ctx, nil)
+	odcs, excludes, err := colls.Get(ctx, nil, errs)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "getting library").WithClues(ctx).With(graph.ErrData(err)...)
 	}
@@ -204,7 +210,10 @@ func collectPages(
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Pages collections")
 
-	spcs := make([]data.BackupCollection, 0)
+	var (
+		et   = errs.Tracker()
+		spcs = make([]data.BackupCollection, 0)
+	)
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
@@ -221,7 +230,7 @@ func collectPages(
 	}
 
 	for _, tuple := range tuples {
-		if errs.Err() != nil {
+		if et.Err() != nil {
 			break
 		}
 
@@ -232,7 +241,7 @@ func collectPages(
 				path.PagesCategory,
 				false)
 		if err != nil {
-			errs.Add(clues.Wrap(err, "creating page collection path").WithClues(ctx))
+			et.Add(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
 
 		collection := NewCollection(dir, serv, Pages, updater.UpdateStatus, ctrlOpts)
@@ -242,7 +251,7 @@ func collectPages(
 		spcs = append(spcs, collection)
 	}
 
-	return spcs, errs.Err()
+	return spcs, et.Err()
 }
 
 type folderMatcher struct {

@@ -171,18 +171,27 @@ func (c Mail) EnumerateContainers(
 		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
+	et := errs.Tracker()
 	builder := service.Client().
 		UsersById(userID).
 		MailFolders().
 		Delta()
 
 	for {
+		if et.Err() != nil {
+			break
+		}
+
 		resp, err := builder.Get(ctx, nil)
 		if err != nil {
 			return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 		}
 
 		for _, v := range resp.GetValue() {
+			if et.Err() != nil {
+				break
+			}
+
 			fctx := clues.Add(
 				ctx,
 				"container_id", ptr.Val(v.GetId()),
@@ -190,7 +199,11 @@ func (c Mail) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(v, nil, nil)
 			if err := fn(temp); err != nil {
-				errs.Add(clues.Stack(err).WithClues(fctx).With(graph.ErrData(err)...))
+				et.Add(clues.Stack(err).
+					WithClues(fctx).
+					With(graph.ErrData(err)...).
+					Label(fault.LabelForceNoBackupCreation))
+
 				continue
 			}
 		}
@@ -203,7 +216,7 @@ func (c Mail) EnumerateContainers(
 		builder = users.NewItemMailFoldersDeltaRequestBuilder(link, service.Adapter())
 	}
 
-	return errs.Err()
+	return et.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -290,12 +303,9 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		if err != nil {
 			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
 		} else {
-			uri, err := gri.GetUri()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("getting builder uri", "error", err)
-			} else {
-				logger.Ctx(ctx).Infow("mail builder", "user", user, "directoryID", directoryID, "uri", uri)
-			}
+			logger.Ctx(ctx).
+				With("user", user, "container", directoryID).
+				Warnw("builder path-parameters", "path_parameters", gri.PathParameters)
 		}
 	}
 

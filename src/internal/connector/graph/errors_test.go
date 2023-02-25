@@ -9,14 +9,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type GraphErrorsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestGraphErrorsUnitSuite(t *testing.T) {
-	suite.Run(t, new(GraphErrorsUnitSuite))
+	suite.Run(t, &GraphErrorsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func odErr(code string) *odataerrors.ODataError {
@@ -66,8 +67,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, IsErrDeletedInFlight(test.err))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrDeletedInFlight(test.err))
 		})
 	}
 }
@@ -105,8 +106,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, IsErrInvalidDelta(test.err))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrInvalidDelta(test.err))
 		})
 	}
 }
@@ -139,8 +140,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, IsErrTimeout(test.err))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrTimeout(test.err))
 		})
 	}
 }
@@ -173,8 +174,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrThrottled() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, IsErrThrottled(test.err))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrThrottled(test.err))
 		})
 	}
 }
@@ -207,8 +208,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, IsErrUnauthorized(test.err))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrUnauthorized(test.err))
 		})
 	}
 }
@@ -241,8 +242,8 @@ func (suite *GraphErrorsUnitSuite) TestIsInternalServerError() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			test.expect(t, IsInternalServerError(test.err))
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsInternalServerError(test.err))
 		})
 	}
 }

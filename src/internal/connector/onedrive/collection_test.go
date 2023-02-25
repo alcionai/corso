@@ -28,7 +28,7 @@ import (
 )
 
 type CollectionUnitTestSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 // Allows `*CollectionUnitTestSuite` to be used as a graph.Servicer
@@ -43,7 +43,7 @@ func (suite *CollectionUnitTestSuite) Adapter() *msgraphsdk.GraphRequestAdapter 
 }
 
 func TestCollectionUnitTestSuite(t *testing.T) {
-	suite.Run(t, new(CollectionUnitTestSuite))
+	suite.Run(t, &CollectionUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
@@ -151,11 +151,12 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
 			var (
+				t          = suite.T()
 				wg         = sync.WaitGroup{}
 				collStatus = support.ConnectorOperationStatus{}
 				readItems  = []data.Stream{}
@@ -289,11 +290,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
 			var (
+				t          = suite.T()
 				testItemID = "fakeItemID"
 				collStatus = support.ConnectorOperationStatus{}
 				wg         = sync.WaitGroup{}
@@ -364,11 +366,12 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
 			var (
+				t            = suite.T()
 				testItemID   = "fakeItemID"
 				testItemName = "Fake Item"
 				testItemSize = int64(10)

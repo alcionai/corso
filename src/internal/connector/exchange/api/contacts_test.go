@@ -8,15 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type ContactsAPIUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestContactsAPIUnitSuite(t *testing.T) {
-	suite.Run(t, new(ContactsAPIUnitSuite))
+	suite.Run(t, &ContactsAPIUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ContactsAPIUnitSuite) TestContactInfo() {
@@ -59,9 +60,9 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			contact, expected := test.contactAndRP()
-			assert.Equal(t, expected, ContactInfo(contact))
+			assert.Equal(suite.T(), expected, ContactInfo(contact))
 		})
 	}
 }

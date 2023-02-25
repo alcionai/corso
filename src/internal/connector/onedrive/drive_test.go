@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -70,11 +71,11 @@ func (p *mockDrivePager) ValuesIn(api.PageLinker) ([]models.Driveable, error) {
 
 // Unit tests
 type OneDriveUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDriveUnitSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveUnitSuite))
+	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func odErr(code string) *odataerrors.ODataError {
@@ -302,7 +303,9 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -321,17 +324,18 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 // Integration tests
 
 type OneDriveSuite struct {
-	suite.Suite
+	tester.Suite
 	userID string
 }
 
 func TestOneDriveDriveSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOneDriveTests)
-
-	suite.Run(t, new(OneDriveSuite))
+	suite.Run(t, &OneDriveSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+			tester.CorsoGraphConnectorTests,
+			tester.CorsoGraphConnectorOneDriveTests),
+	})
 }
 
 func (suite *OneDriveSuite) SetupSuite() {
@@ -395,11 +399,13 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
 			require.NoError(t, err)
 
-			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix)
+			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix, fault.New(true))
 			require.NoError(t, err)
 
 			foundFolderIDs := []string{}
@@ -446,12 +452,14 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 		},
 		{
 			name: "Test User w/out Drive",
-			user: "testevents@8qzvrj.onmicrosoft.com",
+			user: "testevents@10rqc2.onmicrosoft.com",
 		},
 	}
 
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			service := loadTestService(t)
 			scope := selectors.
 				NewOneDriveBackup([]string{test.user}).
@@ -465,7 +473,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service,
 				service.updateStatus,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-			).Get(ctx, nil)
+			).Get(ctx, nil, fault.New(true))
 			assert.NoError(t, err)
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
