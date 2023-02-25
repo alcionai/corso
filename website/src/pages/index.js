@@ -1,23 +1,23 @@
 import React, { useEffect } from "react";
 import Layout from "@theme/Layout";
 import { MainComp } from "@site/src/components/parts/MainComp";
-import { useColorMode } from '@docusaurus/theme-common';
+import { useColorMode } from "@docusaurus/theme-common";
 
 const ThemeColor = () => {
   const { colorMode, setColorMode } = useColorMode();
 
   useEffect(function () {
-    if (window.location.pathname === '/') {
-      if (colorMode !== 'dark') {
+    if (window.location.pathname === "/") {
+      if (colorMode !== "dark") {
         //force dark theme to home page without overriding user settings
-        setColorMode('dark', { persist: false })
+        setColorMode("dark", { persist: false });
       }
     } else {
-      setColorMode(localStorage.getItem('theme'))
+      setColorMode(localStorage.getItem("theme"));
     }
   });
 
-  return null
+  return null;
 };
 
 export default function Home() {

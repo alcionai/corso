@@ -357,11 +357,11 @@ func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string
 // ---------------------------------------------------------------------------
 
 type BackupOpSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestBackupOpSuite(t *testing.T) {
-	suite.Run(t, new(BackupOpSuite))
+	suite.Run(t, &BackupOpSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
@@ -414,7 +414,8 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+		suite.Run(test.expectStatus.String(), func() {
+			t := suite.T()
 			sel := selectors.Selector{}
 			sel.DiscreteOwner = "bombadil"
 
@@ -563,7 +564,9 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1210,7 +1213,9 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
