@@ -401,7 +401,7 @@ func ExampleErrors_Failure_return() {
 			return errs.Fail(err)
 		}
 
-		return nil
+		return errs
 	}
 
 	fbus := operationFn(fault.New(true))
