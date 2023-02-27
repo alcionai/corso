@@ -303,7 +303,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
 			if err != nil {
-				et.Add(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
 				return
 			}
 
