@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -212,8 +213,10 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	// they are not part of the data restored.
 	suite.numItems = bo.Results.ItemsWritten - 6
 
-	sites := []string{tester.M365SiteID(t)}
+	siteID := tester.M365SiteID(t)
+	sites := []string{siteID}
 	csel := selectors.NewSharePointBackup(sites)
+	csel.DiscreteOwner = siteID
 	csel.Include(
 		csel.Libraries(selectors.Any()),
 	)
@@ -345,12 +348,12 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			expectedItems: suite.shareItems,
 			kw:            suite.shareKW,
 			sw:            suite.shareSW,
-			dest:          tester.DefaultTestRestoreDestination(), //control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
+			dest:          control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
 			getSelector: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
-				sel.Include(sel.Libraries(selectors.Any()))
+				bsel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
+				bsel.Include(bsel.AllData())
 
-				return sel.Selector
+				return bsel.Selector
 			},
 		},
 	}
@@ -360,7 +363,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			mb := evmock.NewBus()
 			ro, err := NewRestoreOperation(
 				ctx,
-				control.Options{},
+				control.Options{FailFast: true},
 				test.kw,
 				test.sw,
 				tester.NewM365Account(t),
