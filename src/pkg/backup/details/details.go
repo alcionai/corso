@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -133,8 +134,8 @@ func (de DetailsEntry) isMetaFile() bool {
 	}
 
 	return de.ItemInfo.OneDrive.IsMeta ||
-		strings.HasSuffix(de.RepoRef, ".meta") ||
-		strings.HasSuffix(de.RepoRef, ".dirmeta")
+		strings.HasSuffix(de.RepoRef, onedrive.MetaFileSuffix) ||
+		strings.HasSuffix(de.RepoRef, onedrive.DirMetaFileSuffix)
 }
 
 // ---------------------------------------------------------------------------
