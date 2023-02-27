@@ -296,10 +296,10 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			)
 
 			ctx = clues.Add(ctx,
-				"restore_item_id", itemID,
-				"restore_item_name", itemName,
-				"restore_item_size", itemSize,
-				"restore_item_info", itemInfo)
+				"backup_item_id", itemID,
+				"backup_item_name", itemName,
+				"backup_item_size", itemSize,
+			)
 
 			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
 			if err != nil {
@@ -344,6 +344,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
+			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
+
 			if isFile {
 				dataSuffix := ""
 				if oc.source == OneDriveSource {
@@ -377,6 +379,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 					// check for errors following retries
 					if err != nil {
+						logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
 						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
