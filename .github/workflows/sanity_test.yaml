@@ -30,14 +30,6 @@ jobs:
 
       - run: mkdir test_results
 
-# # TODO: correct creds
-#       - name: Login to tenant
-#         uses: pnp/action-cli-login@v2.2.1
-#         with:
-#           APP_ID: ${{ secrets.APP_ID }}
-#           ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-#           ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
-
 # m365 outlook message list --folderName Inbox 
       # run the tests
       - name: Version Test
@@ -182,6 +174,7 @@ jobs:
 
       # test exchange restore
       - name: Backup exchange restore
+        id: exchange-restore-test
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -195,8 +188,24 @@ jobs:
           TEST_RESULT: "test_results"
         # TODO: check the folders on endpoint
         run: |
-          ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 
+         echo result=Corso_Restore_$(date -u +"%d-%b-%Y_%I:%M:00") >> $GITHUB_OUTPUT
+         ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 
+       
+      - name: Login to tenant
+        uses: pnp/action-cli-login@v2.2.1
+        with:
+          TENANT: ${{ secrets.AZURE_TENANT_ID }}
+          ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
           
+      - name: Check exhange backup
+        env: 
+          TEST_RESULT: "test_results"
+        uses: pnp/action-cli-runscript@v2.0.1
+        with:
+          M365_CLI_SCRIPT: m365 outlook message list --folderName "${{ steps.exchange-restore-test.outputs.result }} 
+ 
+        
 # Onedrive test
 
       # run the tests
@@ -292,4 +301,4 @@ jobs:
           CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
           TEST_RESULT: "test_results"
         run: |
-          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}" 
+          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"   
