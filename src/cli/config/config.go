@@ -38,7 +38,8 @@ var (
 	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
 )
 
-// RepoDetails config read using viper
+// RepoDetails holds the repository configuration retrieved from
+// the .corso.toml configuration file.
 type RepoDetails struct {
 	Storage storage.Storage
 	Account account.Account
