@@ -299,7 +299,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"restore_item_id", itemID,
 				"restore_item_name", itemName,
 				"restore_item_size", itemSize,
-				"restore_item_info", itemInfo)
+			)
 
 			isFile := item.GetFile() != nil
 
@@ -336,6 +336,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
+
+			ctx = clues.Add(ctx, "restore_item_info", itemInfo)
 
 			if isFile {
 				dataSuffix := ""
