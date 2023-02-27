@@ -292,12 +292,20 @@ func (op *BackupOperation) do(
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
-	// Delta-based incrementals currently only supported for Exchange
-	if sel.Service != selectors.ServiceExchange {
+	enabled := !opts.ToggleFeatures.DisableIncrementals
+
+	switch sel.Service {
+	case selectors.ServiceExchange:
+		return enabled
+
+	case selectors.ServiceOneDrive:
+		// TODO(ashmrtn): Remove the && part once we support permissions and
+		// incrementals.
+		return enabled && !opts.ToggleFeatures.EnablePermissionsBackup
+
+	default:
 		return false
 	}
-
-	return !opts.ToggleFeatures.DisableIncrementals
 }
 
 // ---------------------------------------------------------------------------
@@ -458,9 +466,7 @@ func consumeBackupDataCollections(
 		ctx,
 		bases,
 		cs,
-		// TODO(ashmrtn): When we're ready to enable incremental backups for
-		// OneDrive replace this with `excludes`.
-		nil,
+		excludes,
 		tags,
 		isIncremental,
 		errs)
