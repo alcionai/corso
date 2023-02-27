@@ -131,12 +131,17 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 type RestoreOpIntegrationSuite struct {
 	tester.Suite
 
-	backupID    model.StableID
-	numItems    int
-	kopiaCloser func(ctx context.Context)
-	kw          *kopia.Wrapper
-	sw          *store.Wrapper
-	ms          *kopia.ModelStore
+	backupID     model.StableID
+	sharepointID model.StableID
+	shareItems   int
+	numItems     int
+	kopiaCloser  func(ctx context.Context)
+	kw           *kopia.Wrapper
+	sw           *store.Wrapper
+	ms           *kopia.ModelStore
+	shareKW      *kopia.Wrapper
+	shareSW      *store.Wrapper
+	shareMS      *kopia.ModelStore
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
@@ -206,6 +211,39 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	// Discount metadata files (3 paths, 3 deltas) as
 	// they are not part of the data restored.
 	suite.numItems = bo.Results.ItemsWritten - 6
+
+	sites := []string{tester.M365SiteID(t)}
+	csel := selectors.NewSharePointBackup(sites)
+	csel.Include(
+		csel.Libraries(selectors.Any()),
+	)
+
+	kw, err = kopia.NewWrapper(k)
+	require.NoError(t, err)
+
+	suite.shareKW = kw
+	ms, err = kopia.NewModelStore(k)
+	require.NoError(t, err)
+
+	suite.shareMS = ms
+	sw = store.NewKopiaStore(ms)
+	suite.shareSW = sw
+
+	bo, err = NewBackupOperation(
+		ctx,
+		control.Options{},
+		kw,
+		sw,
+		acct,
+		csel.Selector,
+		evmock.NewBus(),
+	)
+	require.NoError(t, err)
+	require.NoError(t, bo.Run(ctx))
+	require.NotEmpty(t, bo.Results.BackupID)
+	suite.sharepointID = bo.Results.BackupID
+	// Discount MetaData files (1 path, 1 delta)
+	suite.shareItems = bo.Results.ItemsWritten - 2
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
@@ -218,6 +256,14 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 
 	if suite.kw != nil {
 		suite.kw.Close(ctx)
+	}
+
+	if suite.shareKW != nil {
+		suite.shareKW.Close(ctx)
+	}
+
+	if suite.shareMS != nil {
+		suite.shareMS.Close(ctx)
 	}
 
 	if suite.kopiaCloser != nil {
@@ -264,49 +310,86 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	}
 }
 
+//nolint:lll
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-	users := []string{tester.M365UserID(t)}
+	tables := []struct {
+		name          string
+		bID           model.StableID
+		expectedItems int
+		kw            *kopia.Wrapper
+		sw            *store.Wrapper
+		dest          control.RestoreDestination
+		getSelector   func(t *testing.T) selectors.Selector
+	}{
+		{
+			name:          "Exchange_Restore",
+			bID:           suite.backupID,
+			expectedItems: suite.numItems,
+			kw:            suite.kw,
+			sw:            suite.sw,
+			dest:          tester.DefaultTestRestoreDestination(),
+			getSelector: func(t *testing.T) selectors.Selector {
+				users := []string{tester.M365UserID(t)}
+				rsel := selectors.NewExchangeRestore(users)
+				rsel.Include(rsel.AllData())
 
-	rsel := selectors.NewExchangeRestore(users)
-	rsel.Include(rsel.AllData())
+				return rsel.Selector
+			},
+		},
+		{
+			name:          "SharePoint_Restore",
+			bID:           suite.sharepointID,
+			expectedItems: suite.shareItems,
+			kw:            suite.shareKW,
+			sw:            suite.shareSW,
+			dest:          tester.DefaultTestRestoreDestination(), //control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
+			getSelector: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
+				sel.Include(sel.Libraries(selectors.Any()))
 
-	dest := tester.DefaultTestRestoreDestination()
-	mb := evmock.NewBus()
+				return sel.Selector
+			},
+		},
+	}
 
-	ro, err := NewRestoreOperation(
-		ctx,
-		control.Options{},
-		suite.kw,
-		suite.sw,
-		tester.NewM365Account(t),
-		suite.backupID,
-		rsel.Selector,
-		dest,
-		mb)
-	require.NoError(t, err)
+	for _, test := range tables {
+		suite.T().Run(test.name, func(t *testing.T) {
+			mb := evmock.NewBus()
+			ro, err := NewRestoreOperation(
+				ctx,
+				control.Options{},
+				test.kw,
+				test.sw,
+				tester.NewM365Account(t),
+				test.bID,
+				test.getSelector(t),
+				test.dest,
+				mb)
+			require.NoError(t, err)
 
-	ds, err := ro.Run(ctx)
+			ds, err := ro.Run(ctx)
 
-	require.NoError(t, err, "restoreOp.Run()")
-	require.NotEmpty(t, ro.Results, "restoreOp results")
-	require.NotNil(t, ds, "restored details")
-	assert.Equal(t, ro.Status, Completed, "restoreOp status")
-	assert.Equal(t, ro.Results.ItemsWritten, len(ds.Entries), "count of items written matches restored entries in details")
-	assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
-	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
-	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
-	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
-	assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
-	assert.NoError(t, ro.Results.ReadErrors, "errors while reading restore data")
-	assert.NoError(t, ro.Results.WriteErrors, "errors while writing restore data")
-	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
-	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
-	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+			require.NoError(t, err, "restoreOp.Run()")
+			require.NotEmpty(t, ro.Results, "restoreOp results")
+			require.NotNil(t, ds, "restored details")
+			assert.Equal(t, ro.Status, Completed, "restoreOp status")
+			assert.Equal(t, ro.Results.ItemsWritten, len(ds.Entries), "count of items written matches restored entries in details")
+			assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
+			assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
+			assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
+			assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
+			assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
+			assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
+			assert.NoError(t, ro.Results.ReadErrors, "errors while reading restore data")
+			assert.NoError(t, ro.Results.WriteErrors, "errors while writing restore data")
+			assert.Equal(t, test.expectedItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
+			assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
+			assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+		})
+	}
 }
 
 func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
