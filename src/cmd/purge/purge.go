@@ -144,8 +144,8 @@ func runPurgeForEachUser(
 		return clues.Wrap(err, "getting users")
 	}
 
-	if len(ferrs.Errs()) > 0 {
-		errs = multierror.Append(errs, ferrs.Errs()...)
+	if len(ferrs.Errors().Recovered) > 0 {
+		errs = multierror.Append(errs, ferrs.Errors().Recovered...)
 	}
 
 	for _, u := range userOrUsers(user, users) {

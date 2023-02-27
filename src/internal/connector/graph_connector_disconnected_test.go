@@ -75,7 +75,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
 				test.acct(t),
-				Users,
+				Sites,
 				fault.New(true))
 			assert.Nil(t, gc, test.name+" failed")
 			assert.NotNil(t, err, test.name+" failed")

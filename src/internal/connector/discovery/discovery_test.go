@@ -37,7 +37,10 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 
 	users, err := discovery.Users(ctx, acct, errs)
 	assert.NoError(t, err)
-	assert.NoError(t, errs.Err())
+
+	ferrs := errs.Errors()
+	assert.NoError(t, ferrs.Failure)
+	assert.Empty(t, ferrs.Recovered)
 
 	assert.Less(t, 0, len(users))
 }
