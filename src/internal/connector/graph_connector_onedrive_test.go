@@ -425,7 +425,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 				service:             path.OneDriveService,
 				resource:            Users,
 				backupVersion:       vn,
-				countMeta:           vn == 0,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
 			}
@@ -626,7 +625,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 				service:             path.OneDriveService,
 				resource:            Users,
 				backupVersion:       vn,
-				countMeta:           vn == 0,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
 			}
@@ -646,8 +644,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 	}
 }
 
-// TODO(ashmrtn): What this test is supposed to do needs investigated. It
-// doesn't seem to do what it says.
 func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoRestore() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -662,61 +658,70 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 
 	startVersion := version.OneDrive1DataAndMetaFiles
 
-	table := []onedriveTest{
+	inputCols := []onedriveColInfo{
 		{
-			startVersion: startVersion,
-			cols: []onedriveColInfo{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+			},
+			files: []itemData{
 				{
-					pathElements: []string{
-						"drives",
-						driveID,
-						"root:",
-					},
-					files: []itemData{
-						{
-							name: fileName,
-							data: fileAData,
-							perms: permData{
-								user:  suite.secondaryUser,
-								roles: writePerm,
-							},
-						},
+					name: fileName,
+					data: fileAData,
+					perms: permData{
+						user:  suite.secondaryUser,
+						roles: writePerm,
 					},
 				},
 			},
 		},
 	}
 
-	for _, test := range table {
-		expected := testDataForInfo(suite.T(), test.cols, version.Backup)
+	expectedCols := []onedriveColInfo{
+		{
+			pathElements: []string{
+				"drives",
+				driveID,
+				"root:",
+			},
+			files: []itemData{
+				{
+					// No permissions on the output since they weren't restored.
+					name: fileName,
+					data: fileAData,
+				},
+			},
+		},
+	}
 
-		for vn := test.startVersion; vn <= version.Backup; vn++ {
-			suite.Run(fmt.Sprintf("Version%d", vn), func() {
-				t := suite.T()
-				input := testDataForInfo(t, test.cols, vn)
+	expected := testDataForInfo(suite.T(), expectedCols, version.Backup)
 
-				testData := restoreBackupInfoMultiVersion{
-					service:             path.OneDriveService,
-					resource:            Users,
-					backupVersion:       vn,
-					countMeta:           vn == 0,
-					collectionsPrevious: input,
-					collectionsLatest:   expected,
-				}
+	for vn := startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+			t := suite.T()
+			input := testDataForInfo(t, inputCols, vn)
 
-				runRestoreBackupTestVersions(
-					t,
-					suite.acct,
-					testData,
-					suite.connector.tenant,
-					[]string{suite.user},
-					control.Options{
-						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
-					},
-				)
-			})
-		}
+			testData := restoreBackupInfoMultiVersion{
+				service:             path.OneDriveService,
+				resource:            Users,
+				backupVersion:       vn,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
+
+			runRestoreBackupTestVersions(
+				t,
+				suite.acct,
+				testData,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: false,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
 	}
 }
 
@@ -741,7 +746,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		service:       path.OneDriveService,
 		resource:      Users,
 		backupVersion: version.Backup,
-		countMeta:     false,
 		collectionsPrevious: []colInfo{
 			newOneDriveCollection(
 				suite.T(),
