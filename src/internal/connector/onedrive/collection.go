@@ -372,7 +372,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 					// check for errors following retries
 					if err != nil {
-						logger.Ctx(ctx).With("error", err.Error()).Infow("unable to download item")
+						logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
 						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
