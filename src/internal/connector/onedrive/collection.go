@@ -301,6 +301,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
+			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+				return
+			}
+
+			item.SetParentReference(pr)
 			isFile := item.GetFile() != nil
 
 			if isFile {
