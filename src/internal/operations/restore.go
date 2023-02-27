@@ -138,7 +138,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
 		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
+		"service", op.Selectors.Service,
+		"destination_container", op.Destination.ContainerName)
 
 	// -----
 	// Execution
