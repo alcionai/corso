@@ -1,24 +1,24 @@
 package api
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type UsersUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestUsersUnitSuite(t *testing.T) {
-	suite.Run(t, new(UsersUnitSuite))
+	suite.Run(t, &UsersUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *UsersUnitSuite) TestValidateUser() {
-	t := suite.T()
-
 	name := "testuser"
 	email := "testuser@foo.com"
 	id := "testID"
@@ -28,20 +28,20 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 	user.SetId(&id)
 
 	tests := []struct {
-		name    string
-		args    interface{}
-		want    models.Userable
-		wantErr bool
+		name     string
+		args     interface{}
+		want     models.Userable
+		errCheck assert.ErrorAssertionFunc
 	}{
 		{
-			name:    "Invalid type",
-			args:    string("invalid type"),
-			wantErr: true,
+			name:     "Invalid type",
+			args:     string("invalid type"),
+			errCheck: assert.Error,
 		},
 		{
-			name:    "No ID",
-			args:    models.NewUser(),
-			wantErr: true,
+			name:     "No ID",
+			args:     models.NewUser(),
+			errCheck: assert.Error,
 		},
 		{
 			name: "No user principal name",
@@ -50,24 +50,23 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 				u.SetId(&id)
 				return u
 			}(),
-			wantErr: true,
+			errCheck: assert.Error,
 		},
 		{
-			name: "Valid User",
-			args: user,
-			want: user,
+			name:     "Valid User",
+			args:     user,
+			want:     user,
+			errCheck: assert.NoError,
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
 			got, err := validateUser(tt.args)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseUser() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseUser() = %v, want %v", got, tt.want)
-			}
+			tt.errCheck(t, err)
+
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
