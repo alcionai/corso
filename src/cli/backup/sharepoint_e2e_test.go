@@ -28,7 +28,7 @@ import (
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
-type NoBackupSharePointIntegrationSuite struct {
+type NoBackupSharePointE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -39,14 +39,16 @@ type NoBackupSharePointIntegrationSuite struct {
 	recorder   strings.Builder
 }
 
-func TestNoBackupSharePointIntegrationSuite(t *testing.T) {
-	suite.Run(t, &NoBackupSharePointIntegrationSuite{Suite: tester.NewIntegrationSuite(
+func TestNoBackupSharePointE2ESuite(t *testing.T) {
+	suite.Run(t, &NoBackupSharePointE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		tester.CorsoCLITests, tester.CorsoCLIBackupTests)})
+		tester.CorsoCITests,
+		tester.CorsoCLITests,
+		tester.CorsoCLIBackupTests)})
 }
 
-func (suite *NoBackupSharePointIntegrationSuite) SetupSuite() {
+func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -75,7 +77,7 @@ func (suite *NoBackupSharePointIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *NoBackupSharePointIntegrationSuite) TestSharePointBackupListCmd_empty() {
+func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -106,7 +108,7 @@ func (suite *NoBackupSharePointIntegrationSuite) TestSharePointBackupListCmd_emp
 // tests for deleting backups
 // ---------------------------------------------------------------------------
 
-type BackupDeleteSharePointIntegrationSuite struct {
+type BackupDeleteSharePointE2ESuite struct {
 	tester.Suite
 	acct     account.Account
 	st       storage.Storage
@@ -117,16 +119,18 @@ type BackupDeleteSharePointIntegrationSuite struct {
 	recorder strings.Builder
 }
 
-func TestBackupDeleteSharePointIntegrationSuite(t *testing.T) {
-	suite.Run(t, &BackupDeleteSharePointIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
+func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupDeleteSharePointE2ESuite{
+		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCLITests, tester.CorsoCLIBackupTests),
+			tester.CorsoCITests,
+			tester.CorsoCLITests,
+			tester.CorsoCLIBackupTests),
 	})
 }
 
-func (suite *BackupDeleteSharePointIntegrationSuite) SetupSuite() {
+func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	t := suite.T()
 
 	// prepare common details
@@ -164,7 +168,7 @@ func (suite *BackupDeleteSharePointIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupDeleteSharePointIntegrationSuite) TestSharePointBackupDeleteCmd() {
+func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -200,7 +204,7 @@ func (suite *BackupDeleteSharePointIntegrationSuite) TestSharePointBackupDeleteC
 
 // require.Error(t, cmd.ExecuteContext(ctx))
 
-func (suite *BackupDeleteSharePointIntegrationSuite) TestSharePointBackupDeleteCmd_unknownID() {
+func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
