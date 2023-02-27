@@ -32,7 +32,7 @@
     "react-dom": "^17.0.2",
     "sass": "^1.58.3",
     "tiny-slider": "^2.9.4",
-    "tw-elements": "^1.0.0-alpha13",
+    "tw-elements": "^1.0.0-beta1",
     "wow.js": "^1.2.2"
   },
   "devDependencies": {
