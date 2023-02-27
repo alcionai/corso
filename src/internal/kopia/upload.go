@@ -22,7 +22,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -451,7 +451,11 @@ func streamBaseEntries(
 
 		// Meta files aren't in backup details since it's the set of items the user
 		// sees.
-		if !onedrive.IsMetaFile(itemPath.String()) {
+		//
+		// TODO(ashmrtn): We may eventually want to make this a function that is
+		// passed in so that we can more easily switch it between different external
+		// service provider implementations.
+		if !metadata.IsMetadataFile(itemPath) {
 			// All items have item info in the base backup. However, we need to make
 			// sure we have enough metadata to find those entries. To do that we add
 			// the item to progress and having progress aggregate everything for
