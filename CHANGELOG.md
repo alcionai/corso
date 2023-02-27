@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Issues
 - Folders and Calendars containing zero items or subfolders are not included in the backup.
+- OneDrive files ending in `.meta` or `.dirmeta` are omitted from details and restores.
 
 ## [v0.4.0] (beta) - 2023-2-20
 

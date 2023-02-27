@@ -20,3 +20,4 @@ Below is a list of known Corso issues and limitations:
   while a backup is being created will be included in the running backup.
   Future backups run when the data isn't modified will include the data.
   
+* OneDrive files ending in `.meta` or `.dirmeta` are omitted from Details and Restore commands.

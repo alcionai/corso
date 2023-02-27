@@ -249,8 +249,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde", "foo.meta"},
-		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
+		expectRepoRefs:     []string{"abcde"},
+		expectLocationRefs: []string{"locationref"},
 	},
 	{
 		name: "multiple entries with folder and meta file",
@@ -287,8 +287,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
-		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
+		expectRepoRefs:     []string{"abcde", "12345"},
+		expectLocationRefs: []string{"locationref", "locationref2"},
 	},
 }
 
@@ -357,7 +357,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 
 	d2 := d.FilterMetaFiles()
 
-	assert.Len(t, d2.Entries, 2)
+	assert.Len(t, d2.Entries, 1)
 	assert.Len(t, d.Entries, 3)
 }
 
