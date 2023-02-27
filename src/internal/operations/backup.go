@@ -95,7 +95,6 @@ type backupStats struct {
 	k             *kopia.BackupStats
 	gc            *support.ConnectorOperationStatus
 	resourceCount int
-	// readErr, writeErr error
 }
 
 type detailsWriter interface {
