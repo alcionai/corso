@@ -469,16 +469,15 @@ func consumeBackupDataCollections(
 			return nil, nil, nil, err
 		}
 
-		return nil, nil, nil, errors.Wrapf(
-			err,
-			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
+		return nil, nil, nil, clues.Stack(err).With(
+			"kopia_errors", kopiaStats.ErrorCount,
+			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
 	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
-		err = errors.Errorf(
-			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
+		err = clues.New("building kopia snapshot").With(
+			"kopia_errors", kopiaStats.ErrorCount,
+			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
