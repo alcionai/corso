@@ -773,42 +773,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 	}
 }
 
-func (suite *ExchangeSelectorSuite) TestIdPath() {
-	table := []struct {
-		cat    exchangeCategory
-		pth    path.Path
-		expect map[exchangeCategory]string
-	}{
-		{
-			ExchangeContact,
-			stubPath(suite.T(), "uid", []string{"cFld", "cid"}, path.ContactsCategory),
-			map[exchangeCategory]string{
-				ExchangeContactFolder: "cFld",
-				ExchangeContact:       "cid",
-			},
-		},
-		{
-			ExchangeEvent,
-			stubPath(suite.T(), "uid", []string{"eCld", "eid"}, path.EventsCategory),
-			map[exchangeCategory]string{
-				ExchangeEventCalendar: "eCld",
-				ExchangeEvent:         "eid",
-			},
-		},
-		{
-			ExchangeMail,
-			stubPath(suite.T(), "uid", []string{"mFld", "mid"}, path.EmailCategory),
-			map[exchangeCategory]string{
-				ExchangeMailFolder: "mFld",
-				ExchangeMail:       "mid",
-			},
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {})
-	}
-}
-
 func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 	var (
 		contact            = stubRepoRef(path.ExchangeService, path.ContactsCategory, "uid", "cfld", "cid")
