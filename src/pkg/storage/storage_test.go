@@ -38,7 +38,9 @@ func (suite *StorageSuite) TestNewStorage() {
 		{"s3 w/ error", ProviderS3, testConfig{"configVal", assert.AnError}, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			s, err := NewStorage(test.p, test.c)
 			test.errCheck(t, err, clues.ToCore(err))
 

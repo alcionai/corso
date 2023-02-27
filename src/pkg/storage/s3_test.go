@@ -85,9 +85,9 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 		{"missing bucket", makeTestS3Cfg("", "end", "pre/")},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			_, err := NewStorage(ProviderUnknown, test.cfg)
-			assert.Error(t, err)
+			assert.Error(suite.T(), err)
 		})
 	}
 
@@ -104,7 +104,9 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 		},
 	}
 	for _, test := range table2 {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			st, err := NewStorage(ProviderUnknown, goodS3Config)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
@@ -149,7 +151,9 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := test.input.StringConfig()
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect, result)
