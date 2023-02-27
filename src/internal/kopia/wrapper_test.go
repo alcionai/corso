@@ -326,6 +326,17 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
+	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerPath(
+		testTenant,
+		testUser,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(suite.T(), err)
+
+	storePath := tmp
+	locPath := tmp
+
 	// tags that are supplied by the caller. This includes basic tags to support
 	// lookups and extra tags the caller may want to apply.
 	tags := map[string]string{
@@ -335,9 +346,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 
 	reasons := []Reason{
 		{
-			ResourceOwner: suite.storePath1.ResourceOwner(),
-			Service:       suite.storePath1.Service(),
-			Category:      suite.storePath1.Category(),
+			ResourceOwner: storePath.ResourceOwner(),
+			Service:       storePath.Service(),
+			Category:      storePath.Category(),
 		},
 	}
 
@@ -368,12 +379,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			hasMetaDeets:    true,
 			cols: func() []data.BackupCollection {
 				mc := mockconnector.NewMockExchangeCollection(
-					suite.storePath1,
-					suite.locPath1,
+					storePath,
+					locPath,
 					3)
 				mc.Names[0] = testFileName
 				mc.Names[1] = testFileName + onedrive.MetaFileSuffix
-				mc.Names[2] = suite.storePath1.Folders()[0] + onedrive.DirMetaFileSuffix
+				mc.Names[2] = storePath.Folders()[0] + onedrive.DirMetaFileSuffix
 
 				return []data.BackupCollection{mc}
 			},
@@ -387,8 +398,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			hasMetaDeets:    false,
 			cols: func() []data.BackupCollection {
 				mc := mockconnector.NewMockExchangeCollection(
-					suite.storePath1,
-					suite.locPath1,
+					storePath,
+					locPath,
 					1)
 				mc.Names[0] = testFileName
 				mc.ColState = data.NotMovedState
@@ -467,7 +478,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			prevSnaps = append(prevSnaps, IncrementalBase{
 				Manifest: snap,
 				SubtreePaths: []*path.Builder{
-					suite.storePath1.ToBuilder().Dir(),
+					storePath.ToBuilder().Dir(),
 				},
 			})
 		})
