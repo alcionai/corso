@@ -156,6 +156,7 @@ func driveRootItem(id string) models.DriveItemable {
 	item.SetName(&name)
 	item.SetId(&id)
 	item.SetRoot(models.NewRoot())
+	item.SetFolder(models.NewFolder())
 
 	return item
 }

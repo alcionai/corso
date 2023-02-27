@@ -288,8 +288,8 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
 		_, b, errs := suite.repo.BackupDetails(ctx, bIDs)
-		require.NoError(t, errs.Err(), "retrieving recent backup details by ID")
-		require.Empty(t, errs.Errs(), "retrieving recent backup details by ID")
+		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID")
+		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo details matches results id")
 
 		suite.backupOps[set] = string(b.ID)
@@ -397,8 +397,8 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 
 			// fetch the details from the repo first
 			deets, _, errs := suite.repo.BackupDetails(ctx, string(bID))
-			require.NoError(t, errs.Err())
-			require.Empty(t, errs.Errs())
+			require.NoError(t, errs.Failure())
+			require.Empty(t, errs.Recovered())
 
 			cmd := tester.StubRootCmd(
 				"backup", "details", "exchange",

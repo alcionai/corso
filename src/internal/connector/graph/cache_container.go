@@ -65,7 +65,7 @@ type ContainerResolver interface {
 	// @param ctx is necessary param for Graph API tracing
 	// @param baseFolderID represents the M365ID base that the resolver will
 	// conclude its search. Default input is "".
-	Populate(ctx context.Context, errs *fault.Errors, baseFolderID string, baseContainerPather ...string) error
+	Populate(ctx context.Context, errs *fault.Bus, baseFolderID string, baseContainerPather ...string) error
 
 	// PathInCache performs a look up of a path reprensentation
 	// and returns the m365ID of directory iff the pathString

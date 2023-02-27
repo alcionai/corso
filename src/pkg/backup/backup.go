@@ -37,7 +37,8 @@ type Backup struct {
 	Version int `json:"version"`
 
 	// Errors contains all errors aggregated during a backup operation.
-	Errors fault.ErrorsData `json:"errors"`
+	Errors     fault.Errors `json:"errors"`
+	ErrorCount int          `json:"errorCount"`
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.Errs // Deprecated, replaced with Errors.
@@ -54,8 +55,15 @@ func New(
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) *Backup {
+	errData := errs.Errors()
+
+	errCount := len(errs.Errors().Recovered)
+	if errData.Failure != nil {
+		errCount++
+	}
+
 	return &Backup{
 		BaseModel: model.BaseModel{
 			ID: id,
@@ -68,7 +76,8 @@ func New(
 		DetailsID:       detailsID,
 		Status:          status,
 		Selector:        selector,
-		Errors:          errs.Data(),
+		Errors:          errData,
+		ErrorCount:      errCount,
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		Version:         version.Backup,
@@ -114,7 +123,7 @@ type Printable struct {
 func (b Backup) MinimumPrintable() any {
 	return Printable{
 		ID:            b.ID,
-		ErrorCount:    b.errorCount(),
+		ErrorCount:    b.countErrors(),
 		StartedAt:     b.StartedAt,
 		Status:        b.Status,
 		Version:       "0",
@@ -138,7 +147,7 @@ func (b Backup) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (b Backup) Values() []string {
-	status := fmt.Sprintf("%s (%d errors)", b.Status, b.errorCount())
+	status := fmt.Sprintf("%s (%d errors)", b.Status, b.countErrors())
 
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),
@@ -148,8 +157,11 @@ func (b Backup) Values() []string {
 	}
 }
 
-func (b Backup) errorCount() int {
-	var errCount int
+func (b Backup) countErrors() int {
+	errCount := b.ErrorCount
+	if errCount > 0 {
+		return errCount
+	}
 
 	// current tracking
 	if b.ReadErrors != nil || b.WriteErrors != nil {
@@ -157,12 +169,12 @@ func (b Backup) errorCount() int {
 	}
 
 	// future tracking
-	if b.Errors.Err != nil || len(b.Errors.Errs) > 0 {
-		if b.Errors.Err != nil {
+	if b.Errors.Failure != nil || len(b.Errors.Recovered) > 0 {
+		if b.Errors.Failure != nil {
 			errCount++
 		}
 
-		errCount += len(b.Errors.Errs)
+		errCount += len(b.Errors.Recovered)
 	}
 
 	return errCount

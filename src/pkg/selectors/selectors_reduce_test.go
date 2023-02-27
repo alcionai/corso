@@ -16,11 +16,11 @@ import (
 )
 
 type SelectorReduceSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSelectorReduceSuite(t *testing.T) {
-	suite.Run(t, new(SelectorReduceSuite))
+	suite.Run(t, &SelectorReduceSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SelectorReduceSuite) TestReduce() {
@@ -264,7 +264,9 @@ func (suite *SelectorReduceSuite) TestReduce() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			output := test.selFunc().Reduce(ctx, allDetails, fault.New(true))
 			assert.ElementsMatch(t, test.expected, output.Entries)
 		})

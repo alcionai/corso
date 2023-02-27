@@ -53,7 +53,7 @@ type mockColl struct {
 	p  path.Path
 }
 
-func (mc mockColl) Items(context.Context, *fault.Errors) <-chan data.Stream {
+func (mc mockColl) Items(context.Context, *fault.Bus) <-chan data.Stream {
 	return nil
 }
 
@@ -66,11 +66,11 @@ func (mc mockColl) FullPath() path.Path {
 // ---------------------------------------------------------------------------
 
 type OperationsManifestsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOperationsManifestsUnitSuite(t *testing.T) {
-	suite.Run(t, new(OperationsManifestsUnitSuite))
+	suite.Run(t, &OperationsManifestsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
@@ -212,7 +212,9 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -387,12 +389,12 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			err := verifyDistinctBases(ctx, test.mans, fault.New(true))
-			test.expect(t, err)
+			err := verifyDistinctBases(ctx, test.mans)
+			test.expect(suite.T(), err)
 		})
 	}
 }
@@ -633,7 +635,9 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -697,11 +701,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 // ---------------------------------------------------------------------------
 
 type BackupManifestSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestBackupManifestSuite(t *testing.T) {
-	suite.Run(t, new(BackupOpSuite))
+	suite.Run(t, &BackupOpSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
@@ -829,11 +833,11 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			test.errCheck(t, verifyDistinctBases(ctx, test.input, fault.New(true)))
+			test.errCheck(suite.T(), verifyDistinctBases(ctx, test.input))
 		})
 	}
 }
@@ -945,7 +949,9 @@ func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

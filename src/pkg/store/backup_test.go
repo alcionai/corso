@@ -34,11 +34,11 @@ var (
 )
 
 type StoreBackupUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestStoreBackupUnitSuite(t *testing.T) {
-	suite.Run(t, new(StoreBackupUnitSuite))
+	suite.Run(t, &StoreBackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackup() {
@@ -62,7 +62,9 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sm := &store.Wrapper{Storer: test.mock}
 			result, err := sm.GetBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err)
@@ -95,7 +97,9 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sm := &store.Wrapper{Storer: test.mock}
 			result, err := sm.GetBackups(ctx)
 			test.expect(t, err)
@@ -129,7 +133,9 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sm := &store.Wrapper{Storer: test.mock}
 			err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err)
@@ -158,7 +164,9 @@ func (suite *StoreBackupUnitSuite) TestGetDetailsIDFromBackupID() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			store := &store.Wrapper{Storer: test.mock}
 			dResult, bResult, err := store.GetDetailsIDFromBackupID(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err)

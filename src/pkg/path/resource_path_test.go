@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -127,20 +128,22 @@ var (
 )
 
 type DataLayerResourcePath struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestDataLayerResourcePath(t *testing.T) {
-	suite.Run(t, new(DataLayerResourcePath))
+	suite.Run(t, &DataLayerResourcePath{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 	for _, types := range serviceCategories {
-		suite.T().Run(types.service.String()+types.category.String(), func(t1 *testing.T) {
+		suite.Run(types.service.String()+types.category.String(), func() {
 			for _, m := range modes {
-				t1.Run(m.name, func(t2 *testing.T) {
+				suite.Run(m.name, func() {
 					for _, test := range missingInfo {
-						t2.Run(test.name, func(t *testing.T) {
+						suite.Run(test.name, func() {
+							t := suite.T()
+
 							b := path.Builder{}.Append(test.rest...)
 
 							_, err := types.pathFunc(
@@ -163,7 +166,9 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 	b := path.Builder{}.Append(item)
 
 	for _, types := range serviceCategories {
-		suite.T().Run(types.service.String()+types.category.String(), func(t *testing.T) {
+		suite.Run(types.service.String()+types.category.String(), func() {
+			t := suite.T()
+
 			p, err := types.pathFunc(
 				b,
 				testTenant,
@@ -186,7 +191,9 @@ func (suite *DataLayerResourcePath) TestPopFront() {
 	)...)
 
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			pb := path.Builder{}.Append(rest...)
 			p, err := pb.ToDataLayerExchangePathForCategory(
 				testTenant,
@@ -211,7 +218,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 	}
 
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t1 *testing.T) {
+		suite.Run(m.name, func() {
 			pb := path.Builder{}.Append(rest...)
 			p, err := pb.ToDataLayerExchangePathForCategory(
 				testTenant,
@@ -219,10 +226,12 @@ func (suite *DataLayerResourcePath) TestDir() {
 				path.EmailCategory,
 				m.isItem,
 			)
-			require.NoError(t1, err)
+			require.NoError(suite.T(), err)
 
 			for i := 1; i <= len(rest); i++ {
-				t1.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+				suite.Run(fmt.Sprintf("%v", i), func() {
+					t := suite.T()
+
 					p, err = p.Dir()
 					require.NoError(t, err)
 
@@ -232,9 +241,9 @@ func (suite *DataLayerResourcePath) TestDir() {
 				})
 			}
 
-			t1.Run("All", func(t *testing.T) {
+			suite.Run("All", func() {
 				p, err = p.Dir()
-				assert.Error(t, err)
+				assert.Error(suite.T(), err)
 			})
 		})
 	}
@@ -317,11 +326,13 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(strings.Join([]string{
+		suite.Run(strings.Join([]string{
 			test.name,
 			test.service.String(),
 			test.category.String(),
-		}, "_"), func(t *testing.T) {
+		}, "_"), func() {
+			t := suite.T()
+
 			pb := path.Builder{}.Append(test.postfix...)
 			p, err := pb.ToServiceCategoryMetadataPath(
 				tenant,
@@ -371,9 +382,11 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 	}
 
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t1 *testing.T) {
+		suite.Run(m.name, func() {
 			for _, test := range table {
-				t1.Run(test.category.String(), func(t *testing.T) {
+				suite.Run(test.category.String(), func() {
+					t := suite.T()
+
 					p, err := b.ToDataLayerExchangePathForCategory(
 						testTenant,
 						testUser,
@@ -401,13 +414,13 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 }
 
 type PopulatedDataLayerResourcePath struct {
-	suite.Suite
+	tester.Suite
 	// Bool value is whether the path is an item path or a folder path.
 	paths map[bool]path.Path
 }
 
 func TestPopulatedDataLayerResourcePath(t *testing.T) {
-	suite.Run(t, new(PopulatedDataLayerResourcePath))
+	suite.Run(t, &PopulatedDataLayerResourcePath{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
@@ -429,7 +442,9 @@ func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 
 func (suite *PopulatedDataLayerResourcePath) TestTenant() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, testTenant, suite.paths[m.isItem].Tenant())
 		})
 	}
@@ -437,7 +452,9 @@ func (suite *PopulatedDataLayerResourcePath) TestTenant() {
 
 func (suite *PopulatedDataLayerResourcePath) TestService() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, path.ExchangeService, suite.paths[m.isItem].Service())
 		})
 	}
@@ -445,7 +462,9 @@ func (suite *PopulatedDataLayerResourcePath) TestService() {
 
 func (suite *PopulatedDataLayerResourcePath) TestCategory() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, path.EmailCategory, suite.paths[m.isItem].Category())
 		})
 	}
@@ -453,7 +472,9 @@ func (suite *PopulatedDataLayerResourcePath) TestCategory() {
 
 func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, testUser, suite.paths[m.isItem].ResourceOwner())
 		})
 	}
@@ -461,7 +482,9 @@ func (suite *PopulatedDataLayerResourcePath) TestResourceOwner() {
 
 func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(
 				t,
 				strings.Join(m.expectedFolders, "/"),
@@ -473,7 +496,9 @@ func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 
 func (suite *PopulatedDataLayerResourcePath) TestFolders() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, m.expectedFolders, suite.paths[m.isItem].Folders())
 		})
 	}
@@ -481,7 +506,9 @@ func (suite *PopulatedDataLayerResourcePath) TestFolders() {
 
 func (suite *PopulatedDataLayerResourcePath) TestItem() {
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t *testing.T) {
+		suite.Run(m.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, m.expectedItem, suite.paths[m.isItem].Item())
 		})
 	}
@@ -514,9 +541,11 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 	}
 
 	for _, m := range modes {
-		suite.T().Run(m.name, func(t1 *testing.T) {
+		suite.Run(m.name, func() {
 			for _, test := range isItem {
-				t1.Run(test.name, func(t *testing.T) {
+				suite.Run(test.name, func() {
+					t := suite.T()
+
 					newPath, err := suite.paths[m.isItem].Append(newElement, test.hasItem)
 
 					// Items don't allow appending.
@@ -593,7 +622,9 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
 	}
 
 	for _, tc := range cases {
-		suite.T().Run(tc.name, func(t *testing.T) {
+		suite.Run(tc.name, func() {
+			t := suite.T()
+
 			item := buildPath(t, tc.item, true)
 			prev := buildPath(t, tc.prev, false)
 			cur := buildPath(t, tc.cur, false)
