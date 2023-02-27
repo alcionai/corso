@@ -34,6 +34,10 @@ linters-settings:
       - '\bpath\.(Ext|Base|Dir|Join)'
       # Don't allow the typo m356 to be used in place of m365.
       - '[Mm]356'
+      # Don't allow use of testify suite directly. Use one of the wrappers from
+      # tester/suite.go instead. Use an ignore lower down to exclude packages
+      # that result in import cycles if they try to use the wrapper.
+      - 'suite\.Suite(# tests should use one of the Suite wrappers in tester package )?'
   lll:
     line-length: 120
   revive:
@@ -115,4 +119,22 @@ issues:
         - gofumpt
         - misspell
         - errcheck
-
+    - path: internal/tester/suite.go
+      linters:
+        - forbidigo
+      text: "suite.Suite"
+    # account package creates an import cycle with tester package.
+    - path: pkg/account
+      linters:
+        - forbidigo
+      text: "suite.Suite"
+    # storage package creates an import cycle with tester package.
+    - path: pkg/storage
+      linters:
+        - forbidigo
+      text: "suite.Suite"
+    # Not yet updated. Unclear if it should be updated.
+    - path: pkg/repository/loadtest
+      linters:
+        - forbidigo
+      text: "suite.Suite"
