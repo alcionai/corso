@@ -49,7 +49,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -59,7 +59,7 @@ jobs:
         run: |
           touch $TEST_RESULT/initrepo.txt
           prefix=`date +"%Y-%m-%d-%T"`
-          ./corso repo init s3 --hide-progress --bucket   ${CORSO_BUCKET}  --prefix "${prefix}"  2>&1 | tee $TEST_RESULT/initrepo.txt 
+          ./corso repo init s3 --hide-progress --bucket   ${CORSO_BUCKET}   2>&1 | tee $TEST_RESULT/initrepo.txt 
           valid_num=$(grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
@@ -76,7 +76,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -101,7 +101,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -127,7 +127,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -152,7 +152,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -179,7 +179,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -197,7 +197,7 @@ jobs:
           TENANT: ${{ secrets.AZURE_TENANT_ID }}
           ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
-          
+
       - name: Check exhange backup
         env: 
           TEST_RESULT: "test_results"
@@ -215,7 +215,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -241,7 +241,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -266,7 +266,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -293,7 +293,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ env.AWS_CORSO_BUCKET }} 
+          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
