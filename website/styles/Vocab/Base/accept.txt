@@ -43,3 +43,5 @@ subfolder
 [zZ]une
 Nica
 gif
+MSP
+MSPs

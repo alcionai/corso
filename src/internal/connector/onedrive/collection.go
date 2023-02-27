@@ -256,7 +256,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, 0, clues.Wrap(err, "getting drive path").WithClues(ctx))
+		oc.reportAsCompleted(ctx, 0, 0, 0)
 		return
 	}
 
@@ -296,11 +296,18 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			)
 
 			ctx = clues.Add(ctx,
-				"restore_item_id", itemID,
-				"restore_item_name", itemName,
-				"restore_item_size", itemSize,
-				"restore_item_info", itemInfo)
+				"backup_item_id", itemID,
+				"backup_item_name", itemName,
+				"backup_item_size", itemSize,
+			)
 
+			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+				return
+			}
+
+			item.SetParentReference(pr)
 			isFile := item.GetFile() != nil
 
 			if isFile {
@@ -337,6 +344,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
 
+			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
+
 			if isFile {
 				dataSuffix := ""
 				if oc.source == OneDriveSource {
@@ -370,6 +379,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 					// check for errors following retries
 					if err != nil {
+						logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
 						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
@@ -443,22 +453,22 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, el.Failure())
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
-			Objects:    itemsFound, // items to read,
-			Successes:  itemsRead,  // items read successfully,
-			TotalBytes: byteCount,  // Number of bytes read in the operation,
+			Objects:   itemsFound,
+			Successes: itemsRead,
+			Bytes:     byteCount,
 		},
-		err,
-		oc.folderPath.Folder(false), // Additional details
-	)
+		oc.folderPath.Folder(false))
+
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+
 	oc.statusUpdater(status)
 }
