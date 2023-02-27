@@ -70,7 +70,7 @@ var (
 const All = "All"
 
 type Reducer interface {
-	Reduce(context.Context, *details.Details, *fault.Errors) *details.Details
+	Reduce(context.Context, *details.Details, *fault.Bus) *details.Details
 }
 
 // selectorResourceOwners aggregates all discrete path category types described
@@ -240,7 +240,7 @@ func (s Selector) PathService() path.ServiceType {
 func (s Selector) Reduce(
 	ctx context.Context,
 	deets *details.Details,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	r, err := selectorAsIface[Reducer](s)
 	if err != nil {

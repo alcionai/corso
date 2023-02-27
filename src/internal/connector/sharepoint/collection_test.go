@@ -242,11 +242,11 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	service := createTestService(t, suite.creds)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Log("FolderID: " + folderID)
 
 	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// CleanUp
 	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)

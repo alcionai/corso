@@ -16,11 +16,11 @@ import (
 )
 
 type OneDriveSelectorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDriveSelectorSuite(t *testing.T) {
-	suite.Run(t, new(OneDriveSelectorSuite))
+	suite.Run(t, &OneDriveSelectorSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OneDriveSelectorSuite) TestNewOneDriveBackup() {
@@ -65,7 +65,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 		{"Filter Scopes", sel.Filters},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			require.Len(t, test.scopesToCheck, 1)
 			for _, scope := range test.scopesToCheck {
 				scopeMustHave(
@@ -238,7 +240,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -307,7 +311,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
 		{"file modified before epoch", ods.ModifiedBefore(common.FormatTime(now)), assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {
 				test.expect(t, scope.matchesInfo(itemInfo))

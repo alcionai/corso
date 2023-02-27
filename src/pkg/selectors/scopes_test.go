@@ -19,11 +19,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type SelectorScopesSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSelectorScopesSuite(t *testing.T) {
-	suite.Run(t, new(SelectorScopesSuite))
+	suite.Run(t, &SelectorScopesSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SelectorScopesSuite) TestContains() {
@@ -94,7 +94,9 @@ func (suite *SelectorScopesSuite) TestContains() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			test.expect(
 				t,
 				matches(test.scope(), rootCatStub, test.check))
@@ -270,7 +272,9 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	}
 
 	for _, test := range reduceTestTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -284,7 +288,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 				dataCats,
 				errs)
 			require.NotNil(t, result)
-			require.NoError(t, errs.Err(), "no recoverable errors")
+			require.NoError(t, errs.Failure(), "no recoverable errors")
 			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}
@@ -314,7 +318,9 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 	}
 
 	for _, test := range reduceTestTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -354,7 +360,9 @@ func (suite *SelectorScopesSuite) TestPasses() {
 	entry := details.DetailsEntry{}
 
 	for _, test := range reduceTestTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sel := test.sel()
 			excl := toMockScope(sel.Excludes)
 			filt := toMockScope(sel.Filters)
@@ -430,7 +438,9 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sc := stubScope("")
 			sc[rootCatStub.String()] = filterize(scopeConfig{}, test.rootVal)
 			sc[leafCatStub.String()] = filterize(scopeConfig{}, test.leafVal)
@@ -478,7 +488,9 @@ func (suite *SelectorScopesSuite) TestClean() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := clean(test.input)
 			assert.Equal(t, result, test.expect)
 		})
@@ -516,7 +528,9 @@ func (suite *SelectorScopesSuite) TestWrapFilter() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ff := wrapFilter(test.filter)(test.input)
 			assert.Equal(t, int(ff.Comparator), test.comparator)
 			assert.Equal(t, ff.Target, test.target)
@@ -544,7 +558,9 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := filterize(test.config, input)
 			assert.Equal(t, test.expect, int(result.Comparator))
 		})

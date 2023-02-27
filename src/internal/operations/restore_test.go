@@ -30,11 +30,11 @@ import (
 // ---------------------------------------------------------------------------
 
 type RestoreOpSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestRestoreOpSuite(t *testing.T) {
-	suite.Run(t, new(RestoreOpSuite))
+	suite.Run(t, &RestoreOpSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
@@ -93,7 +93,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+		suite.Run(test.expectStatus.String(), func() {
+			t := suite.T()
+
 			op, err := NewRestoreOperation(
 				ctx,
 				control.Options{},
@@ -125,7 +127,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 // ---------------------------------------------------------------------------
 
 type RestoreOpIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 
 	backupID    model.StableID
 	numItems    int
@@ -136,19 +138,17 @@ type RestoreOpIntegrationSuite struct {
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOperationTests)
-
-	suite.Run(t, new(RestoreOpIntegrationSuite))
+	suite.Run(t, &RestoreOpIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoOperationTests),
+	})
 }
 
 func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.MustGetEnvSets(suite.T(), tester.M365AcctCredEnvs)
 
 	t := suite.T()
 
@@ -243,7 +243,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -257,7 +257,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			test.errCheck(t, err)
+			test.errCheck(suite.T(), err)
 		})
 	}
 }
@@ -290,7 +290,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	ds, err := ro.Run(ctx)
 
 	require.NoError(t, err, "restoreOp.Run()")
-	require.Empty(t, ro.Errors.Errs(), "restoreOp.Run() recoverable errors")
 	require.NotEmpty(t, ro.Results, "restoreOp results")
 	require.NotNil(t, ds, "restored details")
 	assert.Equal(t, ro.Status, Completed, "restoreOp status")
@@ -299,8 +298,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	assert.Less(t, 0, ro.Results.ItemsWritten, "restored items written")
 	assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-	assert.NoError(t, ro.Errors.Err(), "non-recoverable error")
-	assert.Empty(t, ro.Errors.Errs(), "recoverable errors")
+	assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
+	assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
 	assert.NoError(t, ro.Results.ReadErrors, "errors while reading restore data")
 	assert.NoError(t, ro.Results.WriteErrors, "errors while writing restore data")
 	assert.Equal(t, suite.numItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")

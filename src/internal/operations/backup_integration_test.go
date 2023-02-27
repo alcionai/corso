@@ -154,8 +154,8 @@ func runAndCheckBackup(
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
 	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
-	assert.NoError(t, bo.Errors.Err(), "incremental non-recoverable error")
-	assert.Empty(t, bo.Errors.Errs(), "incremental recoverable/iteration errors")
+	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error")
+	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")
 	assert.NoError(t, bo.Results.ReadErrors, "errors reading data")
 	assert.NoError(t, bo.Results.WriteErrors, "errors writing data")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
@@ -451,23 +451,21 @@ func toDataLayerPath(
 // ---------------------------------------------------------------------------
 
 type BackupOpIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 	user, site string
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoOperationTests,
-		tester.CorsoOperationBackupTests)
-
-	suite.Run(t, new(BackupOpIntegrationSuite))
+	suite.Run(t, &BackupOpIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoOperationTests,
+			tester.CorsoOperationBackupTests),
+	})
 }
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
-
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 }
@@ -491,7 +489,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -503,7 +501,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
 				evmock.NewBus())
-			test.errCheck(t, err)
+			test.errCheck(suite.T(), err)
 		})
 	}
 }
@@ -567,8 +565,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			var (
+				t   = suite.T()
 				mb  = evmock.NewBus()
 				sel = test.selector().Selector
 				ffs = control.Toggles{}
@@ -627,8 +626,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
 			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
 			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
-			assert.NoError(t, incBO.Errors.Err(), "incremental non-recoverable error")
-			assert.Empty(t, incBO.Errors.Errs(), "count incremental recoverable/iteration errors")
+			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
+			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
 			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
@@ -1032,8 +1031,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			var (
+				t     = suite.T()
 				incMB = evmock.NewBus()
 				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
 			)
@@ -1057,8 +1057,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
 			assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
 			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
-			assert.NoError(t, incBO.Errors.Err(), "incremental non-recoverable error")
-			assert.Empty(t, incBO.Errors.Errs(), "incremental recoverable/iteration errors")
+			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
+			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
 			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
 			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")

@@ -501,7 +501,7 @@ func (MockBackupGetter) Backup(
 func (MockBackupGetter) Backups(
 	context.Context,
 	[]model.StableID,
-) ([]*backup.Backup, *fault.Errors) {
+) ([]*backup.Backup, *fault.Bus) {
 	return nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
 }
 
@@ -515,7 +515,7 @@ func (MockBackupGetter) BackupsByTag(
 func (bg *MockBackupGetter) BackupDetails(
 	ctx context.Context,
 	backupID string,
-) (*details.Details, *backup.Backup, *fault.Errors) {
+) (*details.Details, *backup.Backup, *fault.Bus) {
 	if bg == nil {
 		return testdata.GetDetailsSet(), nil, fault.New(true)
 	}

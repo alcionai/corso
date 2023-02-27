@@ -28,7 +28,7 @@ type containersEnumerator interface {
 		ctx context.Context,
 		userID, baseDirID string,
 		fn func(graph.CacheFolder) error,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) error
 }
 

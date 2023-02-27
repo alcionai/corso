@@ -64,7 +64,7 @@ type DeltaPath struct {
 func parseMetadataCollections(
 	ctx context.Context,
 	colls []data.RestoreCollection,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (CatDeltaPaths, error) {
 	// cdp stores metadata
 	cdp := CatDeltaPaths{
@@ -168,7 +168,7 @@ func DataCollections(
 	acct account.M365Config,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
@@ -178,7 +178,7 @@ func DataCollections(
 	var (
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
-		et          = errs.Tracker()
+		el          = errs.Local()
 	)
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
@@ -187,7 +187,7 @@ func DataCollections(
 	}
 
 	for _, scope := range eb.Scopes() {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -201,14 +201,14 @@ func DataCollections(
 			su,
 			errs)
 		if err != nil {
-			et.Add(err)
+			el.AddRecoverable(err)
 			continue
 		}
 
 		collections = append(collections, dcs...)
 	}
 
-	return collections, nil, et.Err()
+	return collections, nil, el.Failure()
 }
 
 func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedItemIDsGetter, error) {
@@ -235,7 +235,7 @@ func createCollections(
 	dps DeltaPaths,
 	ctrlOpts control.Options,
 	su support.StatusUpdater,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	var (
 		allCollections = make([]data.BackupCollection, 0)

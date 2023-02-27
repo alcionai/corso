@@ -6,16 +6,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type SelectorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSelectorSuite(t *testing.T) {
-	suite.Run(t, new(SelectorSuite))
+	suite.Run(t, &SelectorSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SelectorSuite) TestNewSelector() {
@@ -87,7 +88,9 @@ func (suite *SelectorSuite) TestResourceOwnersIn() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := resourceOwnersIn(test.input, rootCat)
 			assert.ElementsMatch(t, test.expect, result)
 		})
@@ -120,7 +123,9 @@ func (suite *SelectorSuite) TestPathCategoriesIn() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := pathCategoriesIn[mockScope, mockCategorizer](test.input)
 			assert.ElementsMatch(t, test.expect, result)
 		})
@@ -218,7 +223,9 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			s := newSelector(ServiceUnknown, test.input)
 			result := splitByResourceOwner[mockScope](s, allOwners, rootCatStub)
 
@@ -356,7 +363,9 @@ func (suite *SelectorSuite) TestPathCategories_includes() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			obj := test.getSelector(t)
 			cats, err := obj.PathCategories()
 			for _, entry := range cats.Includes {

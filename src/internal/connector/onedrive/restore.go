@@ -39,7 +39,7 @@ func RestoreCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		restoreMetrics support.CollectionMetrics
@@ -63,13 +63,13 @@ func RestoreCollections(
 	})
 
 	var (
-		et                = errs.Tracker()
+		el                = errs.Local()
 		parentPermissions = map[string][]UserPermission{}
 	)
 
 	// Iterate through the data collections and restore the contents of each
 	for _, dc := range dcs {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -95,7 +95,7 @@ func RestoreCollections(
 			opts.RestorePermissions,
 			errs)
 		if err != nil {
-			et.Add(err)
+			el.AddRecoverable(err)
 		}
 
 		for k, v := range folderPerms {
@@ -114,10 +114,10 @@ func RestoreCollections(
 		support.Restore,
 		len(dcs),
 		restoreMetrics,
-		et.Err(),
+		el.Failure(),
 		dest.ContainerName)
 
-	return status, et.Err()
+	return status, el.Failure()
 }
 
 // RestoreCollection handles restoration of an individual collection.
@@ -135,7 +135,7 @@ func RestoreCollection(
 	deets *details.Builder,
 	permissionIDMappings map[string]string,
 	restorePerms bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (support.CollectionMetrics, map[string][]UserPermission, map[string]string, error) {
 	var (
 		metrics     = support.CollectionMetrics{}
@@ -195,12 +195,12 @@ func RestoreCollection(
 	}
 
 	var (
-		et    = errs.Tracker()
+		el    = errs.Local()
 		items = dc.Items(ctx, errs)
 	)
 
 	for {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -215,7 +215,7 @@ func RestoreCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				et.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -262,7 +262,7 @@ func RestoreCollection(
 					}
 
 					if err != nil {
-						et.Add(err)
+						el.AddRecoverable(err)
 						continue
 					}
 
@@ -292,7 +292,7 @@ func RestoreCollection(
 
 					meta, err := getMetadata(metaReader)
 					if err != nil {
-						et.Add(clues.Wrap(err, "getting directory metadata").WithClues(ctx))
+						el.AddRecoverable(clues.Wrap(err, "getting directory metadata").WithClues(ctx))
 						continue
 					}
 
@@ -315,7 +315,7 @@ func RestoreCollection(
 					copyBuffer,
 					source)
 				if err != nil {
-					et.Add(err)
+					el.AddRecoverable(err)
 					continue
 				}
 
@@ -331,7 +331,7 @@ func RestoreCollection(
 		}
 	}
 
-	return metrics, folderPerms, permissionIDMappings, et.Err()
+	return metrics, folderPerms, permissionIDMappings, el.Failure()
 }
 
 type fileFetcher interface {

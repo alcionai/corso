@@ -37,7 +37,7 @@ func (gc *GraphConnector) DataCollections(
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
@@ -97,7 +97,7 @@ func (gc *GraphConnector) DataCollections(
 			gc.Service,
 			gc.UpdateStatus,
 			ctrlOpts,
-		)
+			errs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -198,7 +198,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dest control.RestoreDestination,
 	opts control.Options,
 	dcs []data.RestoreCollection,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	ctx, end := D.Span(ctx, "connector:restore")
 	defer end()

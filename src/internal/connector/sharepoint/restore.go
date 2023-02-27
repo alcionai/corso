@@ -46,7 +46,7 @@ func RestoreCollections(
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		err            error
@@ -215,7 +215,7 @@ func RestoreListCollection(
 	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	ctx, end := D.Span(ctx, "gc:sharepoint:restoreListCollection", D.Label("path", dc.FullPath()))
 	defer end()
@@ -225,13 +225,13 @@ func RestoreListCollection(
 		directory = dc.FullPath()
 		siteID    = directory.ResourceOwner()
 		items     = dc.Items(ctx, errs)
-		et        = errs.Tracker()
+		el        = errs.Local()
 	)
 
 	trace.Log(ctx, "gc:sharepoint:restoreListCollection", directory.String())
 
 	for {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -252,7 +252,7 @@ func RestoreListCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				et.Add(err)
+				el.AddRecoverable(err)
 				continue
 			}
 
@@ -260,7 +260,7 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				et.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -276,7 +276,7 @@ func RestoreListCollection(
 		}
 	}
 
-	return metrics, et.Err()
+	return metrics, el.Failure()
 }
 
 // RestorePageCollection handles restoration of an individual site page collection.
@@ -289,7 +289,7 @@ func RestorePageCollection(
 	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	var (
 		metrics   = support.CollectionMetrics{}
@@ -308,13 +308,13 @@ func RestorePageCollection(
 	}
 
 	var (
-		et      = errs.Tracker()
+		el      = errs.Local()
 		service = discover.NewBetaService(adpt)
 		items   = dc.Items(ctx, errs)
 	)
 
 	for {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -335,7 +335,7 @@ func RestorePageCollection(
 				siteID,
 				restoreContainerName)
 			if err != nil {
-				et.Add(err)
+				el.AddRecoverable(err)
 				continue
 			}
 
@@ -343,7 +343,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				et.Add(clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))
 				continue
 			}
 
@@ -359,5 +359,5 @@ func RestorePageCollection(
 		}
 	}
 
-	return metrics, et.Err()
+	return metrics, el.Failure()
 }

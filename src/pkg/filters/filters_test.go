@@ -6,15 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 type FiltersSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestFiltersSuite(t *testing.T) {
-	suite.Run(t, new(FiltersSuite))
+	suite.Run(t, &FiltersSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *FiltersSuite) TestEquals() {
@@ -30,7 +31,9 @@ func (suite *FiltersSuite) TestEquals() {
 		{"bar", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -51,7 +54,9 @@ func (suite *FiltersSuite) TestEquals_any() {
 		{"not includes target", []string{"baz", "qux"}, assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			test.expectF(t, f.CompareAny(test.input...), "filter")
 			test.expectNF(t, nf.CompareAny(test.input...), "negated filter")
 		})
@@ -72,7 +77,9 @@ func (suite *FiltersSuite) TestGreater() {
 		{"6", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -93,7 +100,9 @@ func (suite *FiltersSuite) TestLess() {
 		{"4", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -113,7 +122,9 @@ func (suite *FiltersSuite) TestContains() {
 		{"frum", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -134,7 +145,9 @@ func (suite *FiltersSuite) TestContains_Joined() {
 		{"fnords", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -154,7 +167,9 @@ func (suite *FiltersSuite) TestIn() {
 		{"sfrums", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -174,7 +189,9 @@ func (suite *FiltersSuite) TestIn_Joined() {
 		{"arf,user", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -199,7 +216,9 @@ func (suite *FiltersSuite) TestPrefixes() {
 		{"Should not match substring", "folder1/folderA", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -224,7 +243,9 @@ func (suite *FiltersSuite) TestSuffixes() {
 		{"Should not match substring", "folderB/folder1", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -270,7 +291,9 @@ func (suite *FiltersSuite) TestPathPrefix() {
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathPrefix(test.targets)
 			nf := filters.NotPathPrefix(test.targets)
 
@@ -300,7 +323,9 @@ func (suite *FiltersSuite) TestPathPrefix_NormalizedTargets() {
 		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathPrefix(test.targets)
 			assert.Equal(t, test.expect, f.NormalizedTargets)
 		})
@@ -349,7 +374,9 @@ func (suite *FiltersSuite) TestPathContains() {
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathContains(test.targets)
 			nf := filters.NotPathContains(test.targets)
 
@@ -379,7 +406,9 @@ func (suite *FiltersSuite) TestPathContains_NormalizedTargets() {
 		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathContains(test.targets)
 			assert.Equal(t, test.expect, f.NormalizedTargets)
 		})
@@ -425,7 +454,9 @@ func (suite *FiltersSuite) TestPathSuffix() {
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathSuffix(test.targets)
 			nf := filters.NotPathSuffix(test.targets)
 
@@ -455,7 +486,9 @@ func (suite *FiltersSuite) TestPathSuffix_NormalizedTargets() {
 		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathSuffix(test.targets)
 			assert.Equal(t, test.expect, f.NormalizedTargets)
 		})
@@ -492,7 +525,9 @@ func (suite *FiltersSuite) TestPathEquals() {
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathEquals(test.targets)
 			nf := filters.NotPathEquals(test.targets)
 
@@ -522,7 +557,9 @@ func (suite *FiltersSuite) TestPathEquals_NormalizedTargets() {
 		{"Multi input - both slashes", []string{"/fA/", "/fB/"}, []string{"/fA/", "/fB/"}},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			f := filters.PathEquals(test.targets)
 			assert.Equal(t, test.expect, f.NormalizedTargets)
 		})

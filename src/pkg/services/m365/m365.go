@@ -31,12 +31,12 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 		return nil, err
 	}
 
-	return users, errs.Err()
+	return users, errs.Failure()
 }
 
 // Users returns a list of users in the specified M365 tenant
 // TODO: Implement paging support
-func Users(ctx context.Context, acct account.Account, errs *fault.Errors) ([]*User, error) {
+func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing M365 graph connection")
@@ -61,7 +61,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Errors) ([]*Us
 	return ret, nil
 }
 
-func UserIDs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]string, error) {
+func UserIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	users, err := Users(ctx, acct, errs)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func UserIDs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]s
 
 // UserPNs retrieves all user principleNames in the tenant.  Principle Names
 // can be used analogous userIDs in graph API queries.
-func UserPNs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]string, error) {
+func UserPNs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	users, err := Users(ctx, acct, errs)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func UserPNs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]s
 }
 
 // SiteURLs returns a list of SharePoint site WebURLs in the specified M365 tenant
-func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]string, error) {
+func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing M365 graph connection")
@@ -102,7 +102,7 @@ func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]
 }
 
 // SiteURLs returns a list of SharePoint sites IDs in the specified M365 tenant
-func SiteIDs(ctx context.Context, acct account.Account, errs *fault.Errors) ([]string, error) {
+func SiteIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing graph connection")

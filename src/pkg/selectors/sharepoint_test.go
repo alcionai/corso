@@ -14,11 +14,11 @@ import (
 )
 
 type SharePointSelectorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestSharePointSelectorSuite(t *testing.T) {
-	suite.Run(t, new(SharePointSelectorSuite))
+	suite.Run(t, &SharePointSelectorSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *SharePointSelectorSuite) TestNewSharePointBackup() {
@@ -136,7 +136,9 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			sel := NewSharePointRestore(Any())
 			sel.Include(sel.WebURL(test.in))
 			scopes := sel.Includes
@@ -302,7 +304,9 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -341,7 +345,9 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			itemPath, err := pathBuilder.ToDataLayerSharePointPath(
 				"tenant",
 				"site",
@@ -381,7 +387,9 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		{"host mismatch", host, ods.WebURL([]string{"www.google.com"}), assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			itemInfo := details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType: details.SharePointItem,

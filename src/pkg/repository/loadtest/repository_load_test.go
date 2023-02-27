@@ -185,8 +185,8 @@ func runBackupLoadTest(
 		assert.Less(t, 0, b.Results.ItemsWritten, "items written")
 		assert.Less(t, int64(0), b.Results.BytesUploaded, "bytes uploaded")
 		assert.Equal(t, len(users), b.Results.ResourceOwners, "resource owners")
-		assert.NoError(t, b.Errors.Err(), "non-recoverable error")
-		assert.Empty(t, b.Errors.Errs(), "recoverable errors")
+		assert.NoError(t, b.Errors.Failure(), "non-recoverable error")
+		assert.Empty(t, b.Errors.Recovered(), "recoverable errors")
 		assert.NoError(t, b.Results.ReadErrors, "read errors")
 		assert.NoError(t, b.Results.WriteErrors, "write errors")
 	})
@@ -242,7 +242,7 @@ func runBackupDetailsLoadTest(
 
 	t.Run("backup_details_"+name, func(t *testing.T) {
 		var (
-			errs   *fault.Errors
+			errs   *fault.Bus
 			b      *backup.Backup
 			ds     *details.Details
 			labels = pprof.Labels("details_load_test", name)
@@ -252,8 +252,8 @@ func runBackupDetailsLoadTest(
 			ds, b, errs = r.BackupDetails(ctx, backupID)
 		})
 
-		require.NoError(t, errs.Err(), "retrieving details in backup "+backupID)
-		require.Empty(t, errs.Errs(), "retrieving details in backup "+backupID)
+		require.NoError(t, errs.Failure(), "retrieving details in backup "+backupID)
+		require.Empty(t, errs.Recovered(), "retrieving details in backup "+backupID)
 		require.NotNil(t, ds, "backup details must exist")
 		require.NotNil(t, b, "backup must exist")
 
@@ -294,8 +294,8 @@ func doRestoreLoadTest(
 		assert.Less(t, 0, r.Results.ItemsRead, "items read")
 		assert.Less(t, 0, r.Results.ItemsWritten, "items written")
 		assert.Equal(t, len(users), r.Results.ResourceOwners, "resource owners")
-		assert.NoError(t, r.Errors.Err(), "non-recoverable error")
-		assert.Empty(t, r.Errors.Errs(), "recoverable errors")
+		assert.NoError(t, r.Errors.Failure(), "non-recoverable error")
+		assert.Empty(t, r.Errors.Recovered(), "recoverable errors")
 		assert.NoError(t, r.Results.ReadErrors, "read errors")
 		assert.NoError(t, r.Results.WriteErrors, "write errors")
 		assert.Equal(t, expectItemCount, r.Results.ItemsWritten, "backup and restore wrote the same count of items")
