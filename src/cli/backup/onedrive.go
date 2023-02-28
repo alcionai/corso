@@ -63,11 +63,6 @@ corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
 var (
 	folderPaths []string
 	fileNames   []string
-
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
