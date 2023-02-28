@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Corso-generated .meta files and permissions no longer appear in the backup details.
+- repo.BackupDetails from the SDK now filter out meta and dirmeta files, and empty folders, by standard.
 
 ### Known Issues
 - Folders and Calendars containing zero items or subfolders are not included in the backup.
