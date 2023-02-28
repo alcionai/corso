@@ -3,6 +3,7 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -399,6 +400,10 @@ const (
 	SharePointPage        sharePointCategory = "SharePointPage"
 
 	// filterable topics identified by SharePoint
+	SiteFilterCreatedAfter   sharePointCategory = "FileFilterCreatedAfter"
+	SiteFilterCreatedBefore  sharePointCategory = "FileFilterCreatedBefore"
+	SiteFilterModifiedAfter  sharePointCategory = "FileFilterModifiedAfter"
+	SiteFilterModifiedBefore sharePointCategory = "FileFilterModifiedBefore"
 )
 
 // sharePointLeafProperties describes common metadata of the leaf categories
@@ -432,7 +437,9 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibrary, SharePointLibraryItem:
+	case SharePointLibrary, SharePointLibraryItem,
+		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
+		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
@@ -641,6 +648,10 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	switch filterCat {
 	case SharePointWebURL:
 		i = info.WebURL
+	case SiteFilterCreatedAfter, SiteFilterCreatedBefore:
+		i = common.FormatTime(info.Created)
+	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+		i = common.FormatTime(info.Created)
 	}
 
 	return s.Matches(filterCat, i)
