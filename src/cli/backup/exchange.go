@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -258,14 +257,9 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	r, acct, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -275,7 +269,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, acct, errs)
+	users, err := m365.UserPNs(ctx, *acct, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 user(s)"))
 	}
@@ -426,14 +420,9 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
