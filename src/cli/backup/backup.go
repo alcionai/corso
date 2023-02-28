@@ -1,12 +1,15 @@
 package backup
 
 import (
+	"context"
+
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -160,14 +163,9 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -186,14 +184,9 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -221,4 +214,18 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 	backup.PrintAll(ctx, bs)
 
 	return nil
+}
+
+func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
+	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r, err := repository.Connect(ctx, acct, s, options.Control())
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+	}
+
+	return r, &acct, nil
 }
