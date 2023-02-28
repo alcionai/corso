@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -168,33 +167,7 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
-// TestSetTenantUsers verifies GraphConnector's ability to query
-// the users associated with the credentials
-func (suite *GraphConnectorIntegrationSuite) TestSetTenantUsers() {
-	t := suite.T()
-	newConnector := GraphConnector{
-		tenant:      "test_tenant",
-		Users:       make(map[string]string, 0),
-		credentials: suite.connector.credentials,
-	}
-
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	owners, err := api.NewClient(suite.connector.credentials)
-	require.NoError(t, err)
-
-	newConnector.Owners = owners
-	assert.Empty(t, len(newConnector.Users))
-
-	errs := fault.New(true)
-
-	err = newConnector.setTenantUsers(ctx, errs)
-	assert.NoError(t, err)
-	assert.Less(t, 0, len(newConnector.Users))
-}
-
-// TestSetTenantUsers verifies GraphConnector's ability to query
+// TestSetTenantSites verifies GraphConnector's ability to query
 // the sites associated with the credentials
 func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	newConnector := GraphConnector{
