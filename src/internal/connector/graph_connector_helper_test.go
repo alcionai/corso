@@ -741,9 +741,13 @@ func compareOneDriveItem(
 	}
 
 	name := item.UUID()
+	isMeta := strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
+		strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
 
-	if strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
-		strings.HasSuffix(name, onedrive.DirMetaFileSuffix) {
+	oitem := item.(*onedrive.Item)
+	assert.Equal(t, oitem.Info().OneDrive.IsMeta, isMeta, "meta marker in details for file %s", name)
+
+	if isMeta {
 		var (
 			itemMeta     onedrive.Metadata
 			expectedMeta onedrive.Metadata
