@@ -10,6 +10,7 @@ type Options struct {
 	DisableMetrics     bool            `json:"disableMetrics"`
 	FailFast           bool            `json:"failFast"`
 	RestorePermissions bool            `json:"restorePermissions"`
+	SkipReduce         bool            `json:"skipReduce"`
 	ToggleFeatures     Toggles         `json:"ToggleFeatures"`
 }
 
