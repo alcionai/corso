@@ -46,7 +46,7 @@ var (
 )
 
 var (
-	mysiteURLNotFound = "unable to retrieve user's mysite URL"
+	mysiteURLNotFound = "unable to retrieve user's mysite url"
 	mysiteNotFound    = "user's mysite not found"
 )
 
@@ -255,7 +255,7 @@ func errData(err odataerrors.ODataErrorable) ([]any, string) {
 	data = appendIf(data, "odataerror_code", mainErr.GetCode())
 	data = appendIf(data, "odataerror_message", mainErr.GetMessage())
 	data = appendIf(data, "odataerror_target", mainErr.GetTarget())
-	msgConcat := ptr.Val(mainErr.GetMessage())
+	msgConcat := ptr.Val(mainErr.GetMessage()) + ptr.Val(mainErr.GetCode())
 
 	for i, d := range mainErr.GetDetails() {
 		pfx := fmt.Sprintf("odataerror_details_%d_", i)

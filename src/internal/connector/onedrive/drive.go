@@ -31,8 +31,6 @@ const (
 	itemChildrenRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
 	itemByPathRawURLFmt     = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
 	itemNotFoundErrorCode   = "itemNotFound"
-	userMysiteURLNotFound   = "BadRequest Unable to retrieve user's mysite URL"
-	userMysiteNotFound      = "ResourceNotFound User's mysite not found"
 	contextDeadlineExceeded = "context deadline exceeded"
 )
 

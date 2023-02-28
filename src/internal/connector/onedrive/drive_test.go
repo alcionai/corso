@@ -77,6 +77,11 @@ func TestOneDriveUnitSuite(t *testing.T) {
 	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+const (
+	userMysiteURLNotFound = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteNotFound    = "ResourceNotFound User's mysite not found"
+)
+
 func odErr(code string) *odataerrors.ODataError {
 	odErr := &odataerrors.ODataError{}
 	merr := odataerrors.MainError{}
@@ -87,6 +92,9 @@ func odErr(code string) *odataerrors.ODataError {
 }
 
 func (suite *OneDriveUnitSuite) TestDrives() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	numDriveResults := 4
 	emptyLink := ""
 	link := "foo"
@@ -209,7 +217,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      mySiteURLNotFound,
+					err:      graph.Stack(ctx, mySiteURLNotFound),
 				},
 			},
 			retry:           true,
