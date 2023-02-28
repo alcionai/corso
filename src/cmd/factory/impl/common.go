@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 var (
@@ -53,7 +55,7 @@ func generateAndRestoreItems(
 	howMany int,
 	dbf dataBuilderFunc,
 	opts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	items := make([]item, 0, howMany)
 
@@ -118,20 +120,29 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	// build a graph connector
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
-
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
-	if err != nil {
-		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
-	}
-
 	normUsers := map[string]struct{}{}
 
-	for k := range gc.Users {
+	users, err := m365.UserPNs(ctx, acct, errs)
+	if err != nil {
+		return nil, account.Account{}, clues.Wrap(err, "getting tenant users")
+	}
+
+	for _, k := range users {
 		normUsers[strings.ToLower(k)] = struct{}{}
 	}
 
 	if _, ok := normUsers[strings.ToLower(User)]; !ok {
 		return nil, account.Account{}, errors.New("user not found within tenant")
+	}
+
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		graph.HTTPClient(graph.NoTimeout()),
+		acct,
+		connector.Users,
+		errs)
+	if err != nil {
+		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
 	}
 
 	return gc, acct, nil

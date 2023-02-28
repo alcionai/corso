@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -93,14 +92,13 @@ func (op BackupOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type backupStats struct {
-	k                 *kopia.BackupStats
-	gc                *support.ConnectorOperationStatus
-	resourceCount     int
-	readErr, writeErr error
+	k             *kopia.BackupStats
+	gc            *support.ConnectorOperationStatus
+	resourceCount int
 }
 
 type detailsWriter interface {
-	WriteBackupDetails(context.Context, *details.Details, *fault.Errors) (string, error)
+	WriteBackupDetails(context.Context, *details.Details, *fault.Bus) (string, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -166,12 +164,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			With("err", err).
 			Errorw("doing backup", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
-		opStats.readErr = op.Errors.Err()
 	}
 
 	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Errs())
-	for i, err := range op.Errors.Errs() {
+	recoverableCount := len(op.Errors.Recovered())
+	for i, err := range op.Errors.Recovered() {
 		logger.Ctx(ctx).
 			With("error", err).
 			With(clues.InErr(err).Slice()...).
@@ -185,14 +182,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.persistResults(startTime, &opStats)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
-		opStats.writeErr = op.Errors.Err()
-
-		return op.Errors.Err()
+		return op.Errors.Failure()
 	}
 
 	// force exit without backup in certain cases.
 	// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
-	for _, e := range op.Errors.Errs() {
+	for _, e := range op.Errors.Recovered() {
 		if clues.HasLabel(e, fault.LabelForceNoBackupCreation) {
 			logger.Ctx(ctx).
 				With("error", e).
@@ -200,7 +195,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 				Infow("completed backup; conditional error forcing exit without model persistence",
 					"results", op.Results)
 
-			return op.Errors.Fail(errors.Wrap(e, "forced backup")).Err()
+			return op.Errors.Fail(errors.Wrap(e, "forced backup")).Failure()
 		}
 	}
 
@@ -212,9 +207,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting backup"))
-		opStats.writeErr = op.Errors.Err()
-
-		return op.Errors.Err()
+		return op.Errors.Failure()
 	}
 
 	logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
@@ -290,10 +283,6 @@ func (op *BackupOperation) do(
 	}
 
 	opStats.gc = gc.AwaitStatus()
-	// TODO(keepers): remove when fault.Errors handles all iterable error aggregation.
-	if opStats.gc.ErrorCount > 0 {
-		return nil, opStats.gc.Err
-	}
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
@@ -322,7 +311,7 @@ func produceBackupDataCollections(
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
 	defer func() {
@@ -346,7 +335,7 @@ type backuper interface {
 		excluded map[string]struct{},
 		tags map[string]string,
 		buildTreeWithBase bool,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
 }
 
@@ -405,7 +394,7 @@ func consumeBackupDataCollections(
 	excludes map[string]struct{},
 	backupID model.StableID,
 	isIncremental bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
 	defer func() {
@@ -480,16 +469,15 @@ func consumeBackupDataCollections(
 			return nil, nil, nil, err
 		}
 
-		return nil, nil, nil, errors.Wrapf(
-			err,
-			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
+		return nil, nil, nil, clues.Stack(err).With(
+			"kopia_errors", kopiaStats.ErrorCount,
+			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
 	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
-		err = errors.Errorf(
-			"kopia snapshot failed with %v catastrophic errors and %v ignored errors",
-			kopiaStats.ErrorCount, kopiaStats.IgnoredErrorCount)
+		err = clues.New("building kopia snapshot").With(
+			"kopia_errors", kopiaStats.ErrorCount,
+			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
 	return kopiaStats, deets, itemsSourcedFromBase, err
@@ -514,7 +502,7 @@ func mergeDetails(
 	mans []*kopia.ManifestEntry,
 	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to
 	// merge.
@@ -632,19 +620,16 @@ func (op *BackupOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if opStats.readErr != nil || opStats.writeErr != nil {
+	if op.Errors.Failure() != nil {
 		op.Status = Failed
+	}
 
-		// TODO(keepers): replace with fault.Errors handling.
-		return multierror.Append(
-			errors.New("errors prevented the operation from processing"),
-			opStats.readErr,
-			opStats.writeErr)
+	if opStats.k == nil {
+		op.Status = Failed
+		return errors.New("backup persistence never completed")
 	}
 
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
@@ -657,13 +642,13 @@ func (op *BackupOperation) persistResults(
 		return errors.New("backup population never completed")
 	}
 
-	if opStats.gc.Successful == 0 {
+	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsRead = opStats.gc.Successful
+	op.Results.ItemsRead = opStats.gc.Metrics.Successes
 
-	return nil
+	return op.Errors.Failure()
 }
 
 // stores the operation details, results, and selectors in the backup manifest.

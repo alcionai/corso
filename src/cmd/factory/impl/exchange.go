@@ -79,7 +79,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 	}
 
 	log := logger.Ctx(ctx)
-	for _, e := range errs.Errs() {
+	for _, e := range errs.Recovered() {
 		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
 	}
 
@@ -126,7 +126,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 	}
 
 	log := logger.Ctx(ctx)
-	for _, e := range errs.Errs() {
+	for _, e := range errs.Recovered() {
 		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
 	}
 
@@ -178,7 +178,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 	}
 
 	log := logger.Ctx(ctx)
-	for _, e := range errs.Errs() {
+	for _, e := range errs.Recovered() {
 		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
 	}
 

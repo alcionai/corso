@@ -518,7 +518,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 
 	assert.Empty(t, cp.pending)
 	assert.Empty(t, bd.Details().Entries)
-	assert.Error(t, cp.errs.Err())
+	assert.Error(t, cp.errs.Failure())
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {

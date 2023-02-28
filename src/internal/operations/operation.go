@@ -55,7 +55,7 @@ const (
 type operation struct {
 	CreatedAt time.Time `json:"createdAt"`
 
-	Errors  *fault.Errors   `json:"errors"`
+	Errors  *fault.Bus      `json:"errors"`
 	Options control.Options `json:"options"`
 	Status  opStatus        `json:"status"`
 
@@ -100,7 +100,7 @@ func connectToM365(
 	ctx context.Context,
 	sel selectors.Selector,
 	acct account.Account,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*connector.GraphConnector, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to M365"))
 	defer func() {

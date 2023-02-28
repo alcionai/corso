@@ -17,11 +17,11 @@ import (
 )
 
 type ExchangeSelectorSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestExchangeSelectorSuite(t *testing.T) {
-	suite.Run(t, new(ExchangeSelectorSuite))
+	suite.Run(t, &ExchangeSelectorSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *ExchangeSelectorSuite) TestNewExchangeBackup() {
@@ -693,7 +693,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesInfo() {
 		{"contact with a subname search", details.ExchangeContact, es.ContactName(name[2:5]), assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {
 				test.expect(t, scope.matchesInfo(infoWith(test.itype)))
@@ -750,7 +752,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		{"non-leaf short ref", es.Mails([]string{short}, []string{"foo"}), short, assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			scopes := setScopesToDefault(test.scope)
 			var aMatch bool
 			for _, scope := range scopes {
@@ -766,42 +770,6 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			}
 			test.expect(t, aMatch)
 		})
-	}
-}
-
-func (suite *ExchangeSelectorSuite) TestIdPath() {
-	table := []struct {
-		cat    exchangeCategory
-		pth    path.Path
-		expect map[exchangeCategory]string
-	}{
-		{
-			ExchangeContact,
-			stubPath(suite.T(), "uid", []string{"cFld", "cid"}, path.ContactsCategory),
-			map[exchangeCategory]string{
-				ExchangeContactFolder: "cFld",
-				ExchangeContact:       "cid",
-			},
-		},
-		{
-			ExchangeEvent,
-			stubPath(suite.T(), "uid", []string{"eCld", "eid"}, path.EventsCategory),
-			map[exchangeCategory]string{
-				ExchangeEventCalendar: "eCld",
-				ExchangeEvent:         "eid",
-			},
-		},
-		{
-			ExchangeMail,
-			stubPath(suite.T(), "uid", []string{"mFld", "mid"}, path.EmailCategory),
-			map[exchangeCategory]string{
-				ExchangeMailFolder: "mFld",
-				ExchangeMail:       "mid",
-			},
-		},
-	}
-	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {})
 	}
 }
 
@@ -1034,7 +1002,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1258,7 +1228,9 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce_locationRef() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1315,7 +1287,9 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 		{"all", makeInput(allData, contacts, events, mail), expect{2, 2, 2}},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := scopesByCategory[ExchangeScope](test.scopes, cats, false)
 			assert.Len(t, result[ExchangeContact], test.expect.contact)
 			assert.Len(t, result[ExchangeEvent], test.expect.event)
@@ -1359,7 +1333,9 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		{"filter Other", nil, otherMail, allMail, assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			repoVals, locVals := cat.pathValues(pth, pth)
 
 			result := passes(
@@ -1399,7 +1375,9 @@ func (suite *ExchangeSelectorSuite) TestContains() {
 		{"wrong type but right target", wrongTypeGoodTarget, assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			var result bool
 			for _, scope := range test.scopes {
 				if scope.Matches(ExchangeMail, target) {
@@ -1430,7 +1408,9 @@ func (suite *ExchangeSelectorSuite) TestIsAny() {
 		{"wrong category", anyMail, ExchangeEvent, assert.False},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			var result bool
 			for _, scope := range test.scopes {
 				if scope.IsAny(test.cat) {
@@ -1553,7 +1533,9 @@ func (suite *ExchangeSelectorSuite) TestCategoryFromItemType() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := categoryFromItemType(test.input)
 			assert.Equal(t, test.expect, result)
 		})

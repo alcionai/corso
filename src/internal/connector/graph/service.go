@@ -324,7 +324,9 @@ func (handler *LoggingMiddleware) Intercept(
 				"response", string(respDump),
 			)
 		} else if resp.StatusCode/100 != 2 {
-			logger.Ctx(ctx).Infow("graph api error", "status", resp.Status, "method", req.Method, "url", req.URL)
+			logger.Ctx(ctx).
+				With("status", resp.Status, "method", req.Method, "url", req.URL).
+				Infof("graph api error: %s", resp.Status)
 		}
 	}
 

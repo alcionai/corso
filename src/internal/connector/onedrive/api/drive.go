@@ -2,13 +2,15 @@ package api
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/alcionai/clues"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
 	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 )
@@ -16,10 +18,7 @@ import (
 func getValues[T any](l api.PageLinker) ([]T, error) {
 	page, ok := l.(interface{ GetValue() []T })
 	if !ok {
-		return nil, errors.Errorf(
-			"response of type [%T] does not comply with GetValue() interface",
-			l,
-		)
+		return nil, clues.New("page does not comply with GetValue() interface").With("page_item_type", fmt.Sprintf("%T", l))
 	}
 
 	return page.GetValue(), nil
@@ -69,8 +68,11 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *driveItemPager) SetNext(link string) {
@@ -136,6 +138,11 @@ type siteDrivePager struct {
 	options *mssites.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
+// NewSiteDrivePager is a constructor for creating a siteDrivePager
+// fields are the associated site drive fields that are desired to be returned
+// in a query.  NOTE: Fields are case-sensitive. Incorrect field settings will
+// cause errors during later paging.
+// Available fields: https://learn.microsoft.com/en-us/graph/api/resources/drive?view=graph-rest-1.0
 func NewSiteDrivePager(
 	gs graph.Servicer,
 	siteID string,
@@ -163,8 +170,11 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *siteDrivePager) SetNext(link string) {
@@ -173,4 +183,73 @@ func (p *siteDrivePager) SetNext(link string) {
 
 func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
 	return getValues[models.Driveable](l)
+}
+
+// GetDriveIDByName is a helper function to retrieve the M365ID of a site drive.
+// Returns "" if the folder is not within the drive.
+// Dependency: Requires "name" and "id" to be part of the given options
+func (p *siteDrivePager) GetDriveIDByName(ctx context.Context, driveName string) (string, error) {
+	var empty string
+
+	for {
+		resp, err := p.builder.Get(ctx, p.options)
+		if err != nil {
+			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		}
+
+		for _, entry := range resp.GetValue() {
+			if ptr.Val(entry.GetName()) == driveName {
+				return ptr.Val(entry.GetId()), nil
+			}
+		}
+
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
+			break
+		}
+
+		p.builder = mssites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+	}
+
+	return empty, nil
+}
+
+// GetFolderIDByName is a helper function to retrieve the M365ID of a folder within a site document library.
+// Returns "" if the folder is not within the drive
+func (p *siteDrivePager) GetFolderIDByName(ctx context.Context, driveID, folderName string) (string, error) {
+	var empty string
+
+	// *msdrives.ItemRootChildrenRequestBuilder
+	builder := p.gs.Client().DrivesById(driveID).Root().Children()
+	option := &msdrives.ItemRootChildrenRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.ItemRootChildrenRequestBuilderGetQueryParameters{
+			Select: []string{"id", "name", "folder"},
+		},
+	}
+
+	for {
+		resp, err := builder.Get(ctx, option)
+		if err != nil {
+			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		}
+
+		for _, entry := range resp.GetValue() {
+			if entry.GetFolder() == nil {
+				continue
+			}
+
+			if ptr.Val(entry.GetName()) == folderName {
+				return ptr.Val(entry.GetId()), nil
+			}
+		}
+
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
+			break
+		}
+
+		builder = msdrives.NewItemRootChildrenRequestBuilder(link, p.gs.Adapter())
+	}
+
+	return empty, nil
 }

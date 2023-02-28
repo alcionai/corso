@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 var purgeCmd = &cobra.Command{
@@ -75,13 +77,16 @@ func handleAllFolderPurge(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, t, err := getGCAndBoundaryTime(ctx)
+	acct, gc, t, err := getGCAndBoundaryTime(ctx)
 	if err != nil {
 		return err
 	}
 
 	err = runPurgeForEachUser(
-		ctx, gc, t,
+		ctx,
+		acct,
+		gc,
+		t,
 		purgeOneDriveFolders,
 	)
 	if err != nil {
@@ -98,12 +103,12 @@ func handleOneDriveFolderPurge(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, t, err := getGCAndBoundaryTime(ctx)
+	acct, gc, t, err := getGCAndBoundaryTime(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := runPurgeForEachUser(ctx, gc, t, purgeOneDriveFolders); err != nil {
+	if err := runPurgeForEachUser(ctx, acct, gc, t, purgeOneDriveFolders); err != nil {
 		logger.Ctx(ctx).Error(err)
 		return Only(ctx, errors.Wrap(ErrPurging, "OneDrive folders"))
 	}
@@ -124,17 +129,30 @@ type purger func(context.Context, *connector.GraphConnector, time.Time, string) 
 
 func runPurgeForEachUser(
 	ctx context.Context,
+	acct account.Account,
 	gc *connector.GraphConnector,
 	boundary time.Time,
 	ps ...purger,
 ) error {
-	var errs error
+	var (
+		errs  error
+		ferrs = fault.New(false)
+	)
 
-	for pn, uid := range userOrUsers(user, gc.Users) {
-		Infof(ctx, "\nUser: %s - %s", pn, uid)
+	users, err := m365.Users(ctx, acct, ferrs)
+	if err != nil {
+		return clues.Wrap(err, "getting users")
+	}
+
+	if len(ferrs.Errors().Recovered) > 0 {
+		errs = multierror.Append(errs, ferrs.Errors().Recovered...)
+	}
+
+	for _, u := range userOrUsers(user, users) {
+		Infof(ctx, "\nUser: %s - %s", u.PrincipalName, u.ID)
 
 		for _, p := range ps {
-			if err := p(ctx, gc, boundary, pn); err != nil {
+			if err := p(ctx, gc, boundary, u.PrincipalName); err != nil {
 				errs = multierror.Append(errs, err)
 			}
 		}
@@ -157,7 +175,7 @@ func purgeOneDriveFolders(
 			return nil, err
 		}
 
-		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix)
+		cfs, err := onedrive.GetAllFolders(ctx, gs, pager, prefix, fault.New(true))
 		if err != nil {
 			return nil, err
 		}
@@ -248,7 +266,7 @@ func purgeFolders(
 // Helpers
 // ------------------------------------------------------------------------------------------
 
-func getGC(ctx context.Context) (*connector.GraphConnector, error) {
+func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, error) {
 	// get account info
 	m365Cfg := account.M365Config{
 		M365:          credentials.GetM365(),
@@ -257,7 +275,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, Only(ctx, errors.Wrap(err, "finding m365 account details"))
+		return account.Account{}, nil, Only(ctx, errors.Wrap(err, "finding m365 account details"))
 	}
 
 	// build a graph connector
@@ -266,10 +284,10 @@ func getGC(ctx context.Context) (*connector.GraphConnector, error) {
 
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
-		return nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
+		return account.Account{}, nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
 	}
 
-	return gc, nil
+	return acct, gc, nil
 }
 
 func getBoundaryTime(ctx context.Context) (time.Time, error) {
@@ -289,21 +307,23 @@ func getBoundaryTime(ctx context.Context) (time.Time, error) {
 	return boundaryTime, nil
 }
 
-func getGCAndBoundaryTime(ctx context.Context) (*connector.GraphConnector, time.Time, error) {
-	gc, err := getGC(ctx)
+func getGCAndBoundaryTime(
+	ctx context.Context,
+) (account.Account, *connector.GraphConnector, time.Time, error) {
+	acct, gc, err := getGC(ctx)
 	if err != nil {
-		return nil, time.Time{}, err
+		return account.Account{}, nil, time.Time{}, err
 	}
 
 	t, err := getBoundaryTime(ctx)
 	if err != nil {
-		return nil, time.Time{}, err
+		return account.Account{}, nil, time.Time{}, err
 	}
 
-	return gc, t, nil
+	return acct, gc, t, nil
 }
 
-func userOrUsers(u string, us map[string]string) map[string]string {
+func userOrUsers(u string, us []*m365.User) []*m365.User {
 	if len(u) == 0 {
 		return nil
 	}
@@ -312,5 +332,5 @@ func userOrUsers(u string, us map[string]string) map[string]string {
 		return us
 	}
 
-	return map[string]string{u: u}
+	return []*m365.User{{PrincipalName: u}}
 }

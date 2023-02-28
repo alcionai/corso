@@ -124,7 +124,7 @@ func (c Mail) GetContainerByID(
 func (c Mail) GetItem(
 	ctx context.Context,
 	user, itemID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mail, err := c.stable.Client().UsersById(user).MessagesById(itemID).Get(ctx, nil)
 	if err != nil {
@@ -156,29 +156,28 @@ func (c Mail) GetItem(
 
 // EnumerateContainers iterates through all of the users current
 // mail folders, converting each to a graph.CacheFolder, and calling
-// fn(cf) on each one.  If fn(cf) errors, the error is aggregated
-// into a multierror that gets returned to the caller.
+// fn(cf) on each one.
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
 func (c Mail) EnumerateContainers(
 	ctx context.Context,
 	userID, baseDirID string,
 	fn func(graph.CacheFolder) error,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	service, err := c.service()
 	if err != nil {
 		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	et := errs.Tracker()
+	el := errs.Local()
 	builder := service.Client().
 		UsersById(userID).
 		MailFolders().
 		Delta()
 
 	for {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -188,7 +187,7 @@ func (c Mail) EnumerateContainers(
 		}
 
 		for _, v := range resp.GetValue() {
-			if et.Err() != nil {
+			if el.Failure() != nil {
 				break
 			}
 
@@ -199,7 +198,7 @@ func (c Mail) EnumerateContainers(
 
 			temp := graph.NewCacheFolder(v, nil, nil)
 			if err := fn(temp); err != nil {
-				et.Add(clues.Stack(err).
+				el.AddRecoverable(clues.Stack(err).
 					WithClues(fctx).
 					With(graph.ErrData(err)...).
 					Label(fault.LabelForceNoBackupCreation))
@@ -216,7 +215,7 @@ func (c Mail) EnumerateContainers(
 		builder = users.NewItemMailFoldersDeltaRequestBuilder(link, service.Adapter())
 	}
 
-	return et.Err()
+	return el.Failure()
 }
 
 // ---------------------------------------------------------------------------

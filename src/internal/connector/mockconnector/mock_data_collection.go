@@ -111,7 +111,7 @@ func (medc MockExchangeDataCollection) DoNotMergeItems() bool       { return med
 // channel is closed when there are no more items available.
 func (medc *MockExchangeDataCollection) Items(
 	ctx context.Context,
-	_ *fault.Errors, // unused
+	_ *fault.Bus, // unused
 ) <-chan data.Stream {
 	res := make(chan data.Stream)
 

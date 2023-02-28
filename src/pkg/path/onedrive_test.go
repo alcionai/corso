@@ -7,15 +7,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type OneDrivePathSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestOneDrivePathSuite(t *testing.T) {
-	suite.Run(t, new(OneDrivePathSuite))
+	suite.Run(t, &OneDrivePathSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
@@ -44,7 +45,9 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 		},
 	}
 	for _, tt := range tests {
-		suite.T().Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
 			p, err := path.Builder{}.Append(tt.pathElements...).ToDataLayerOneDrivePath("tenant", "user", false)
 			require.NoError(suite.T(), err)
 

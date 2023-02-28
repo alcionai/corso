@@ -72,7 +72,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 // for the base container in the cache.
 func (mc *mailFolderCache) Populate(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 	baseID string,
 	baseContainerPath ...string,
 ) error {

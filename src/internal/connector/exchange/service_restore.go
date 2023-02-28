@@ -37,7 +37,7 @@ func RestoreExchangeObject(
 	policy control.CollisionPolicy,
 	service graph.Servicer,
 	destination, user string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	if policy != control.Copy {
 		return nil, clues.Wrap(clues.New(policy.String()), "policy not supported for Exchange restore").WithClues(ctx)
@@ -102,7 +102,7 @@ func RestoreExchangeEvent(
 	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	event, err := support.CreateEventFromBytes(bits)
 	if err != nil {
@@ -112,7 +112,7 @@ func RestoreExchangeEvent(
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
 	var (
-		et               = errs.Tracker()
+		el               = errs.Local()
 		transformedEvent = support.ToEventSimplified(event)
 		attached         []models.Attachmentable
 	)
@@ -140,19 +140,19 @@ func RestoreExchangeEvent(
 	}
 
 	for _, attach := range attached {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		if err := uploadAttachment(ctx, uploader, attach); err != nil {
-			et.Add(err)
+			el.AddRecoverable(err)
 		}
 	}
 
 	info := api.EventInfo(event)
 	info.Size = int64(len(bits))
 
-	return info, et.Err()
+	return info, el.Failure()
 }
 
 // RestoreMailMessage utility function to place an exchange.Mail
@@ -167,7 +167,7 @@ func RestoreMailMessage(
 	service graph.Servicer,
 	cp control.CollisionPolicy,
 	destination, user string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.ExchangeInfo, error) {
 	// Creates messageable object from original bytes
 	originalMessage, err := support.CreateMessageFromBytes(bits)
@@ -240,7 +240,7 @@ func SendMailToBackStore(
 	service graph.Servicer,
 	user, destination string,
 	message models.Messageable,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
 	attached := message.GetAttachments()
 
@@ -257,7 +257,7 @@ func SendMailToBackStore(
 	}
 
 	var (
-		et       = errs.Tracker()
+		el       = errs.Local()
 		id       = ptr.Val(response.GetId())
 		uploader = &mailAttachmentUploader{
 			userID:   user,
@@ -268,7 +268,7 @@ func SendMailToBackStore(
 	)
 
 	for _, attachment := range attached {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -283,13 +283,13 @@ func SendMailToBackStore(
 				continue
 			}
 
-			et.Add(errors.Wrap(err, "uploading mail attachment"))
+			el.AddRecoverable(errors.Wrap(err, "uploading mail attachment"))
 
 			break
 		}
 	}
 
-	return et.Err()
+	return el.Failure()
 }
 
 // RestoreExchangeDataCollections restores M365 objects in data.RestoreCollection to MSFT
@@ -302,7 +302,7 @@ func RestoreExchangeDataCollections(
 	dest control.RestoreDestination,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*support.ConnectorOperationStatus, error) {
 	var (
 		directoryCaches = make(map[string]map[path.CategoryType]graph.ContainerResolver)
@@ -310,7 +310,7 @@ func RestoreExchangeDataCollections(
 		userID          string
 		// TODO policy to be updated from external source after completion of refactoring
 		policy = control.Copy
-		et     = errs.Tracker()
+		el     = errs.Local()
 	)
 
 	if len(dcs) > 0 {
@@ -319,7 +319,7 @@ func RestoreExchangeDataCollections(
 	}
 
 	for _, dc := range dcs {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -337,13 +337,13 @@ func RestoreExchangeDataCollections(
 			userCaches,
 			errs)
 		if err != nil {
-			et.Add(clues.Wrap(err, "creating destination").WithClues(ctx))
+			el.AddRecoverable(clues.Wrap(err, "creating destination").WithClues(ctx))
 			continue
 		}
 
 		temp, canceled := restoreCollection(ctx, gs, dc, containerID, policy, deets, errs)
 
-		metrics.Combine(temp)
+		metrics = support.CombineMetrics(metrics, temp)
 
 		if canceled {
 			break
@@ -355,10 +355,9 @@ func RestoreExchangeDataCollections(
 		support.Restore,
 		len(dcs),
 		metrics,
-		et.Err(),
 		dest.ContainerName)
 
-	return status, et.Err()
+	return status, el.Failure()
 }
 
 // restoreCollection handles restoration of an individual collection.
@@ -369,7 +368,7 @@ func restoreCollection(
 	folderID string,
 	policy control.CollisionPolicy,
 	deets *details.Builder,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (support.CollectionMetrics, bool) {
 	ctx, end := D.Span(ctx, "gc:exchange:restoreCollection", D.Label("path", dc.FullPath()))
 	defer end()
@@ -400,11 +399,11 @@ func restoreCollection(
 	for {
 		select {
 		case <-ctx.Done():
-			errs.Add(clues.Wrap(ctx.Err(), "context cancelled").WithClues(ctx))
+			errs.AddRecoverable(clues.Wrap(ctx.Err(), "context cancelled").WithClues(ctx))
 			return metrics, true
 
 		case itemData, ok := <-items:
-			if !ok || errs.Err() != nil {
+			if !ok || errs.Failure() != nil {
 				return metrics, false
 			}
 
@@ -416,7 +415,7 @@ func restoreCollection(
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
-				errs.Add(clues.Wrap(err, "reading item bytes").WithClues(ictx))
+				errs.AddRecoverable(clues.Wrap(err, "reading item bytes").WithClues(ictx))
 				continue
 			}
 
@@ -432,16 +431,16 @@ func restoreCollection(
 				user,
 				errs)
 			if err != nil {
-				errs.Add(err)
+				errs.AddRecoverable(err)
 				continue
 			}
 
-			metrics.TotalBytes += int64(len(byteArray))
+			metrics.Bytes += int64(len(byteArray))
 			metrics.Successes++
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "building full path with item").WithClues(ctx))
+				errs.AddRecoverable(clues.Wrap(err, "building full path with item").WithClues(ctx))
 				continue
 			}
 
@@ -476,7 +475,7 @@ func CreateContainerDestination(
 	directory path.Path,
 	destination string,
 	caches map[path.CategoryType]graph.ContainerResolver,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (string, error) {
 	var (
 		newCache       = false
@@ -589,7 +588,7 @@ func establishMailRestoreLocation(
 	mfc graph.ContainerResolver,
 	user string,
 	isNewCache bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (string, error) {
 	// Process starts with the root folder in order to recreate
 	// the top-level folder with the same tactic
@@ -648,7 +647,7 @@ func establishContactsRestoreLocation(
 	cfc graph.ContainerResolver,
 	user string,
 	isNewCache bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (string, error) {
 	cached, ok := cfc.PathInCache(folders[0])
 	if ok {
@@ -684,7 +683,7 @@ func establishEventsRestoreLocation(
 	ecc graph.ContainerResolver, // eventCalendarCache
 	user string,
 	isNewCache bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (string, error) {
 	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
 	cached, ok := ecc.PathInCache(folders[0])

@@ -6,14 +6,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type ServiceCategoryUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestServiceCategoryUnitSuite(t *testing.T) {
-	suite.Run(t, new(ServiceCategoryUnitSuite))
+	s := &ServiceCategoryUnitSuite{Suite: tester.NewUnitSuite(t)}
+	suite.Run(t, s)
 }
 
 func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategoryBadStringErrors() {
@@ -34,7 +37,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategoryBadStringEr
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			_, _, err := validateServiceAndCategoryStrings(test.service, test.category)
 			assert.Error(suite.T(), err)
 		})
@@ -116,7 +119,9 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			s, c, err := validateServiceAndCategoryStrings(test.service, test.category)
 			test.check(t, err)
 
@@ -148,7 +153,9 @@ func (suite *ServiceCategoryUnitSuite) TestToServiceType() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, test.expected, toServiceType(test.service))
 		})
 	}
@@ -172,7 +179,9 @@ func (suite *ServiceCategoryUnitSuite) TestToCategoryType() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			assert.Equal(t, test.expected, ToCategoryType(test.category))
 		})
 	}

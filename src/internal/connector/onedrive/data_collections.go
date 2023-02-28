@@ -9,14 +9,11 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"golang.org/x/exp/maps"
 )
-
-// ---------------------------------------------------------------------------
-// OneDrive
-// ---------------------------------------------------------------------------
 
 type odFolderMatcher struct {
 	scope selectors.OneDriveScope
@@ -41,6 +38,7 @@ func DataCollections(
 	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
@@ -48,6 +46,7 @@ func DataCollections(
 	}
 
 	var (
+		el          = errs.Local()
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]struct{}{}
@@ -55,9 +54,13 @@ func DataCollections(
 
 	// for each scope that includes oneDrive items, get all
 	for _, scope := range odb.Scopes() {
-		logger.Ctx(ctx).With("user", user).Debug("Creating OneDrive collections")
+		if el.Failure() != nil {
+			break
+		}
 
-		odcs, excludes, err := NewCollections(
+		logger.Ctx(ctx).Debug("creating OneDrive collections")
+
+		nc := NewCollections(
 			itemClient,
 			tenant,
 			user,
@@ -65,10 +68,11 @@ func DataCollections(
 			odFolderMatcher{scope},
 			service,
 			su,
-			ctrlOpts,
-		).Get(ctx, metadata)
+			ctrlOpts)
+
+		odcs, excludes, err := nc.Get(ctx, metadata, errs)
 		if err != nil {
-			return nil, nil, err
+			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
 
 		collections = append(collections, odcs...)
@@ -76,5 +80,5 @@ func DataCollections(
 		maps.Copy(allExcludes, excludes)
 	}
 
-	return collections, allExcludes, nil
+	return collections, allExcludes, el.Failure()
 }

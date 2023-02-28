@@ -15,12 +15,15 @@ import (
 )
 
 type StreamStoreIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestStreamStoreIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoCITests)
-	suite.Run(t, new(StreamStoreIntegrationSuite))
+	suite.Run(t, &StreamStoreIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs}),
+	})
 }
 
 func (suite *StreamStoreIntegrationSuite) TestDetails() {
