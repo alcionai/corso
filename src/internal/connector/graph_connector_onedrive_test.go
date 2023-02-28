@@ -11,26 +11,34 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func getMetadata(fileName, user string, roles []string) onedrive.Metadata {
-	if len(user) == 0 || len(roles) == 0 {
+func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
+	if len(perm.user) == 0 || len(perm.roles) == 0 {
 		return onedrive.Metadata{FileName: fileName}
 	}
 
-	id := base64.StdEncoding.EncodeToString([]byte(user + strings.Join(roles, "+")))
+	id := base64.StdEncoding.EncodeToString([]byte(perm.user + strings.Join(perm.roles, "+")))
+	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
+
+	if permUseID {
+		uperm.EntityID = perm.entityID
+	} else {
+		uperm.Email = perm.user
+	}
+
 	testMeta := onedrive.Metadata{
-		FileName: fileName,
-		Permissions: []onedrive.UserPermission{
-			{ID: id, Roles: roles, Email: user},
-		},
+		FileName:    fileName,
+		Permissions: []onedrive.UserPermission{uperm},
 	}
 
 	return testMeta
@@ -66,12 +74,12 @@ func onedriveItemWithData(
 func onedriveMetadata(
 	t *testing.T,
 	fileName, itemID string,
-	user string,
-	roles []string,
+	perm permData,
+	permUseID bool,
 ) itemInfo {
 	t.Helper()
 
-	testMeta := getMetadata(fileName, user, roles)
+	testMeta := getMetadata(fileName, perm, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
 	require.NoError(t, err, "marshalling metadata")
@@ -85,10 +93,12 @@ func onedriveMetadata(
 
 type GraphConnectorOneDriveIntegrationSuite struct {
 	tester.Suite
-	connector     *GraphConnector
-	user          string
-	secondaryUser string
-	acct          account.Account
+	connector       *GraphConnector
+	user            string
+	userID          string
+	secondaryUser   string
+	secondaryUserID string
+	acct            account.Account
 }
 
 func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
@@ -109,6 +119,26 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
+
+	// Not using m365.Users to avoid cyclic imports
+	users, err := discovery.Users(ctx, suite.connector.Owners.Users(), fault.New(true))
+	require.NoError(suite.T(), err, "fetching users")
+
+	for _, u := range users {
+		if *u.GetUserPrincipalName() == suite.user {
+			suite.userID = *u.GetId()
+		} else if *u.GetUserPrincipalName() == suite.secondaryUser {
+			suite.secondaryUserID = *u.GetId()
+		}
+	}
+
+	if suite.userID == "" {
+		require.FailNowf(suite.T(), "unable to find user id", "user %d", suite.user)
+	}
+
+	if suite.secondaryUserID == "" {
+		require.FailNowf(suite.T(), "unable to find user id", "user %d", suite.secondaryUser)
+	}
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -160,8 +190,8 @@ func (c onedriveCollection) collection() colInfo {
 func (c *onedriveCollection) withFile(
 	name string,
 	fileData []byte,
-	user string,
-	roles []string,
+	perm permData,
+	permUseID bool,
 ) *onedriveCollection {
 	switch c.backupVersion {
 	case 0:
@@ -184,8 +214,8 @@ func (c *onedriveCollection) withFile(
 			c.t,
 			"",
 			name+onedrive.MetaFileSuffix,
-			user,
-			roles)
+			perm,
+			permUseID)
 		c.items = append(c.items, metadata)
 		c.aux = append(c.aux, metadata)
 
@@ -198,8 +228,8 @@ func (c *onedriveCollection) withFile(
 
 func (c *onedriveCollection) withFolder(
 	name string,
-	user string,
-	roles []string,
+	perm permData,
+	permUseID bool,
 ) *onedriveCollection {
 	switch c.backupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions:
@@ -212,8 +242,8 @@ func (c *onedriveCollection) withFolder(
 				c.t,
 				"",
 				name+onedrive.DirMetaFileSuffix,
-				user,
-				roles))
+				perm,
+				permUseID))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -225,8 +255,8 @@ func (c *onedriveCollection) withFolder(
 // withPermissions adds permissions to the folder represented by this
 // onedriveCollection.
 func (c *onedriveCollection) withPermissions(
-	user string,
-	roles []string,
+	perm permData,
+	permUseID bool,
 ) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
@@ -244,8 +274,8 @@ func (c *onedriveCollection) withPermissions(
 		c.t,
 		name,
 		name+onedrive.DirMetaFileSuffix,
-		user,
-		roles)
+		perm,
+		permUseID)
 
 	c.items = append(c.items, metadata)
 	c.aux = append(c.aux, metadata)
@@ -254,8 +284,9 @@ func (c *onedriveCollection) withPermissions(
 }
 
 type permData struct {
-	user  string
-	roles []string
+	user     string // user is only for older versions
+	entityID string
+	roles    []string
 }
 
 type itemData struct {
@@ -278,21 +309,21 @@ type onedriveTest struct {
 	cols         []onedriveColInfo
 }
 
-func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int) []colInfo {
+func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int, permUseID bool) []colInfo {
 	var res []colInfo
 
 	for _, c := range cols {
 		onedriveCol := newOneDriveCollection(t, c.pathElements, backupVersion)
 
 		for _, f := range c.files {
-			onedriveCol.withFile(f.name, f.data, f.perms.user, f.perms.roles)
+			onedriveCol.withFile(f.name, f.data, f.perms, permUseID)
 		}
 
 		for _, d := range c.folders {
-			onedriveCol.withFolder(d.name, d.perms.user, d.perms.roles)
+			onedriveCol.withFolder(d.name, d.perms, permUseID)
 		}
 
-		onedriveCol.withPermissions(c.perms.user, c.perms.roles)
+		onedriveCol.withPermissions(c.perms, permUseID)
 
 		res = append(res, onedriveCol.collection())
 	}
@@ -414,12 +445,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup, true)
 
 	for vn := test.startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, test.cols, vn)
+			input := testDataForInfo(t, test.cols, vn, vn > version.OneDrive3IsMetaMarker)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             path.OneDriveService,
@@ -503,8 +534,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileAData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: writePerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    writePerm,
 						},
 					},
 					{
@@ -521,15 +553,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 					{
 						name: folderAName,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 					{
 						name: folderCName,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
@@ -543,8 +577,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileBData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
@@ -552,8 +587,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 					{
 						name: folderAName,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
@@ -567,14 +603,16 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileDData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
 				perms: permData{
-					user:  suite.secondaryUser,
-					roles: readPerm,
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
 				},
 			},
 			{
@@ -586,14 +624,16 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileEData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: writePerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    writePerm,
 						},
 					},
 				},
 				perms: permData{
-					user:  suite.secondaryUser,
-					roles: readPerm,
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
 				},
 			},
 			{
@@ -607,19 +647,23 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 					},
 				},
 				perms: permData{
-					user:  suite.secondaryUser,
-					roles: readPerm,
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
 				},
 			},
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup, true)
 
 	for vn := test.startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, test.cols, vn)
+			// Ideally this can always be true or false and still
+			// work, but limiting older versions to use emails so as
+			// to validate that flow as well.
+			input := testDataForInfo(t, test.cols, vn, vn > version.OneDrive3IsMetaMarker)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             path.OneDriveService,
@@ -670,8 +714,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 					name: fileName,
 					data: fileAData,
 					perms: permData{
-						user:  suite.secondaryUser,
-						roles: writePerm,
+						user:     suite.secondaryUser,
+						entityID: suite.secondaryUserID,
+						roles:    writePerm,
 					},
 				},
 			},
@@ -695,12 +740,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), expectedCols, version.Backup)
+	expected := testDataForInfo(suite.T(), expectedCols, version.Backup, true)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, inputCols, vn)
+			input := testDataForInfo(t, inputCols, vn, vn > version.OneDrive3IsMetaMarker)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             path.OneDriveService,
@@ -742,6 +787,18 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		suite.user,
 	)
 
+	secondaryUserRead := permData{
+		user:     suite.secondaryUser,
+		entityID: suite.secondaryUserID,
+		roles:    readPerm,
+	}
+
+	secondaryUserWrite := permData{
+		user:     suite.secondaryUser,
+		entityID: suite.secondaryUserID,
+		roles:    writePerm,
+	}
+
 	test := restoreBackupInfoMultiVersion{
 		service:       path.OneDriveService,
 		resource:      Users,
@@ -759,13 +816,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileAData,
-					suite.secondaryUser,
-					writePerm,
+					secondaryUserWrite,
+					true,
 				).
 				withFolder(
 					folderBName,
-					suite.secondaryUser,
-					readPerm,
+					secondaryUserRead,
+					true,
 				).
 				collection(),
 			newOneDriveCollection(
@@ -781,12 +838,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileEData,
-					suite.secondaryUser,
-					readPerm,
+					secondaryUserRead,
+					true,
 				).
 				withPermissions(
-					suite.secondaryUser,
-					readPerm,
+					secondaryUserRead,
+					true,
 				).
 				collection(),
 		},
@@ -803,13 +860,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileAData,
-					"",
-					nil,
+					permData{},
+					true,
 				).
 				withFolder(
 					folderBName,
-					"",
-					nil,
+					permData{},
+					true,
 				).
 				collection(),
 			newOneDriveCollection(
@@ -825,14 +882,14 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileEData,
-					"",
-					nil,
+					permData{},
+					true,
 				).
 				// Call this to generate a meta file with the folder name that we can
 				// check.
 				withPermissions(
-					"",
-					nil,
+					permData{},
+					true,
 				).
 				collection(),
 		},

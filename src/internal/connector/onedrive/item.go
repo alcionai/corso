@@ -272,6 +272,8 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 		} else if gv2.GetGroup() != nil {
 			entityID = *gv2.GetGroup().GetId()
 		} else if gv2.GetApplication() != nil {
+			// TODO(meain): Applications permissions restore not
+			// tested manually
 			entityID = *gv2.GetApplication().GetId()
 		}
 

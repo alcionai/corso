@@ -206,9 +206,6 @@ type UserPermission struct {
 	Roles      []string   `json:"role,omitempty"`
 	Email      string     `json:"email,omitempty"` // DEPRECATED: Replaced with UserID in newer backups
 	EntityID   string     `json:"entityId,omitempty"`
-	// TODO(meain): Should we be storing the type of entity? It is not
-	// needed for restoring, but just as extra info useful for
-	// debugging.
 	Expiration *time.Time `json:"expiration,omitempty"`
 }
 
