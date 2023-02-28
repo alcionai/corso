@@ -325,7 +325,7 @@ func mustGetDefaultDriveID(
 	//revive:enable:context-as-argument
 	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
 	if err != nil {
-		err = clues.Wrap(err, "retrieving drive").WithClues(ctx).With(graph.ErrData(err)...)
+		err = graph.Wrap(ctx, err, "retrieving drive")
 	}
 
 	require.NoError(t, err)

@@ -69,7 +69,7 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, nil
@@ -171,7 +171,7 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, nil
