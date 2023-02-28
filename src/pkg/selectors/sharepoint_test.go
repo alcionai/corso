@@ -2,11 +2,13 @@ package selectors
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -363,10 +365,13 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	var (
-		ods  = NewSharePointRestore(nil)
-		host = "www.website.com"
-		pth  = "/foo"
-		url  = host + pth
+		ods    = NewSharePointRestore(Any())
+		host   = "www.website.com"
+		pth    = "/foo"
+		url    = host + pth
+		epoch  = time.Time{}
+		now    = time.Now()
+		future = now.Add(5 * time.Minute)
 	)
 
 	table := []struct {
@@ -385,6 +390,18 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		{"host does not contain substring", host, ods.WebURL([]string{"website"}), assert.False},
 		{"url does not suffix substring", url, ods.WebURL([]string{"oo"}), assert.False},
 		{"host mismatch", host, ods.WebURL([]string{"www.google.com"}), assert.False},
+		{"file create after the epoch", host, ods.CreatedAfter(common.FormatTime(epoch)), assert.True},
+		{"file create after now", host, ods.CreatedAfter(common.FormatTime(now)), assert.False},
+		{"file create after later", url, ods.CreatedAfter(common.FormatTime(future)), assert.False},
+		{"file create before future", host, ods.CreatedBefore(common.FormatTime(future)), assert.True},
+		{"file create before now", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file create before epoch", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file modified after the epoch", host, ods.ModifiedAfter(common.FormatTime(epoch)), assert.True},
+		{"file modified after now", host, ods.ModifiedAfter(common.FormatTime(now)), assert.False},
+		{"file modified after later", host, ods.ModifiedAfter(common.FormatTime(future)), assert.False},
+		{"file modified before future", host, ods.ModifiedBefore(common.FormatTime(future)), assert.True},
+		{"file modified before now", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"file modified before epoch", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -394,6 +411,8 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 				SharePoint: &details.SharePointInfo{
 					ItemType: details.SharePointItem,
 					WebURL:   test.infoURL,
+					Created:  now,
+					Modified: now,
 				},
 			}
 
