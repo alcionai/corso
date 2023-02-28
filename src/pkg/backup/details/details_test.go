@@ -995,3 +995,103 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		})
 	}
 }
+
+func (suite *DetailsUnitSuite) TestDetails_FilterMetaFiles() {
+	t := suite.T()
+
+	dm := DetailsModel{
+		Entries: []DetailsEntry{
+			{
+				RepoRef: "a.data",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "b.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef: "c.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: true},
+				},
+			},
+		},
+	}
+
+	d := &Details{dm}
+
+	d2 := d.FilterMetaFiles()
+
+	assert.Len(t, d2.DetailsModel.Entries, 1)
+	assert.Len(t, d.DetailsModel.Entries, 3)
+}
+
+func toDetails(fes []folderEntry) *Details {
+	d := &Details{
+		DetailsModel: DetailsModel{
+			Entries: make([]DetailsEntry, len(fes)),
+		},
+	}
+
+	for i, fe := range fes {
+		d.DetailsModel.Entries[i] = DetailsEntry{
+			RepoRef:     fe.RepoRef,
+			ShortRef:    fe.ShortRef,
+			ParentRef:   fe.ParentRef,
+			LocationRef: fe.LocationRef,
+			ItemInfo:    fe.Info,
+		}
+	}
+
+	return d
+}
+
+func (suite *DetailsUnitSuite) TestDetails_FilterEmptyContainers() {
+	var (
+		t     = suite.T()
+		empty = basePath.Append("populated", "empty")
+		fes   = FolderEntriesForPath(empty, empty)
+		d     = toDetails(fes)
+		itemP = basePath.Append("populated", "item")
+	)
+
+	item := DetailsEntry{
+		RepoRef:     itemP.String(),
+		ShortRef:    itemP.ShortRef(),
+		ParentRef:   itemP.Dir().ShortRef(),
+		LocationRef: "todo - not currently needed",
+		ItemInfo: ItemInfo{
+			OneDrive: &OneDriveInfo{
+				ItemName: "item",
+			},
+		},
+	}
+
+	d.DetailsModel.Entries = append(d.DetailsModel.Entries, item)
+
+	var (
+		ds     = d.DetailsModel.Entries
+		result = d.FilterEmptyContainers()
+		rs     = result.DetailsModel.Entries
+	)
+
+	assert.Equal(t, len(ds)-1, len(rs), "one empty folder should have been removed")
+
+	for _, r := range rs {
+		assert.NotEqual(t, empty.String(), r.RepoRef, "the empty path should have been removed")
+	}
+
+	dFilt := make([]DetailsEntry, 0, len(ds)-1)
+
+	for _, d := range ds {
+		if d.RepoRef != empty.String() {
+			dFilt = append(dFilt, d)
+		}
+	}
+
+	assert.ElementsMatch(t, dFilt, rs, "all other paths should be present")
+}

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -10,14 +9,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/streamstore"
-	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -361,21 +358,7 @@ func (r repository) BackupDetails(
 		return nil, nil, errs.Fail(err)
 	}
 
-	// Retroactively fill in isMeta information for items in older
-	// backup versions without that info
-	// version.Restore2 introduces the IsMeta flag, so only v1 needs a check.
-	if b.Version >= version.OneDrive1DataAndMetaFiles && b.Version < version.OneDrive3IsMetaMarker {
-		for _, d := range deets.Entries {
-			if d.OneDrive != nil {
-				if strings.HasSuffix(d.RepoRef, onedrive.MetaFileSuffix) ||
-					strings.HasSuffix(d.RepoRef, onedrive.DirMetaFileSuffix) {
-					d.OneDrive.IsMeta = true
-				}
-			}
-		}
-	}
-
-	return deets, b, errs
+	return deets.FilterMetaFiles().FilterEmptyContainers(), b, errs
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
