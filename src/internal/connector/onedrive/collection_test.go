@@ -52,7 +52,7 @@ func (suite *CollectionUnitTestSuite) testStatusUpdater(
 	statusToUpdate *support.ConnectorOperationStatus,
 ) support.StatusUpdater {
 	return func(s *support.ConnectorOperationStatus) {
-		suite.T().Logf("Update status %v, count %d, success %d", s, s.ObjectCount, s.Successful)
+		suite.T().Logf("Update status %v, count %d, success %d", s, s.Metrics.Objects, s.Metrics.Successes)
 		*statusToUpdate = *s
 
 		wg.Done()
@@ -224,8 +224,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			}
 
 			// Expect only 1 item
-			require.Equal(t, 1, collStatus.ObjectCount)
-			require.Equal(t, 1, collStatus.Successful)
+			require.Equal(t, 1, collStatus.Metrics.Objects)
+			require.Equal(t, 1, collStatus.Metrics.Successes)
 
 			// Validate item info and data
 			readItem := readItems[0]
@@ -348,8 +348,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			wg.Wait()
 
 			// Expect no items
-			require.Equal(t, 1, collStatus.ObjectCount, "only one object should be counted")
-			require.Equal(t, 1, collStatus.Successful, "TODO: should be 0, but allowing 1 to reduce async management")
+			require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
+			require.Equal(t, 1, collStatus.Metrics.Successes, "TODO: should be 0, but allowing 1 to reduce async management")
 		})
 	}
 }
@@ -432,8 +432,8 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			wg.Wait()
 
 			// Expect no items
-			require.Equal(t, 1, collStatus.ObjectCount)
-			require.Equal(t, 1, collStatus.Successful)
+			require.Equal(t, 1, collStatus.Metrics.Objects)
+			require.Equal(t, 1, collStatus.Metrics.Successes)
 
 			for _, i := range readItems {
 				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {

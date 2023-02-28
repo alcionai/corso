@@ -12,17 +12,18 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type BackupSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestBackupSuite(t *testing.T) {
-	suite.Run(t, new(BackupSuite))
+	suite.Run(t, &BackupSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func stubBackup(t time.Time) backup.Backup {
@@ -41,8 +42,8 @@ func stubBackup(t time.Time) backup.Backup {
 		DetailsID:    "details",
 		Status:       "status",
 		Selector:     sel.Selector,
-		Errors: fault.ErrorsData{
-			Errs: []error{errors.New("read"), errors.New("write")},
+		Errors: fault.Errors{
+			Recovered: []error{errors.New("read"), errors.New("write")},
 		},
 		Errs: stats.Errs{
 			ReadErrors:  errors.New("1"),

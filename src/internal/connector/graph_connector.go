@@ -68,7 +68,7 @@ func NewGraphConnector(
 	itemClient *http.Client,
 	acct account.Account,
 	r resource,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*GraphConnector, error) {
 	m365, err := acct.M365Config()
 	if err != nil {
@@ -129,7 +129,7 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 // setTenantUsers queries the M365 to identify the users in the
 // workspace. The users field is updated during this method
 // iff the returned error is nil
-func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors) error {
+func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Bus) error {
 	ctx, end := D.Span(ctx, "gc:setTenantUsers")
 	defer end()
 
@@ -150,7 +150,7 @@ func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Errors
 // setTenantSites queries the M365 to identify the sites in the
 // workspace. The sites field is updated during this method
 // iff the returned error is nil.
-func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Errors) error {
+func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) error {
 	gc.Sites = map[string]string{}
 
 	ctx, end := D.Span(ctx, "gc:setTenantSites")
@@ -222,7 +222,7 @@ func (gc *GraphConnector) GetSiteIDs() []string {
 func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
 	ctx context.Context,
 	ids, urls []string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]string, error) {
 	if len(gc.Sites) == 0 {
 		if err := gc.setTenantSites(ctx, errs); err != nil {
@@ -308,7 +308,7 @@ func getResources(
 	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
 	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
 	identify func(any) (string, string, error),
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (map[string]string, error) {
 	resources := map[string]string{}
 
@@ -324,17 +324,17 @@ func getResources(
 		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	et := errs.Tracker()
+	el := errs.Local()
 
 	callbackFunc := func(item any) bool {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			return false
 		}
 
 		k, v, err := identify(item)
 		if err != nil {
 			if !errors.Is(err, errKnownSkippableCase) {
-				et.Add(clues.Stack(err).
+				el.AddRecoverable(clues.Stack(err).
 					WithClues(ctx).
 					With("query_url", gs.Adapter().GetBaseUrl()))
 			}
@@ -351,5 +351,5 @@ func getResources(
 		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	return resources, et.Err()
+	return resources, el.Failure()
 }

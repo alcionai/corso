@@ -45,7 +45,7 @@ type itemer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
 		ctx context.Context,
@@ -127,7 +127,7 @@ func NewCollection(
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection) Items(ctx context.Context, errs *fault.Errors) <-chan data.Stream {
+func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Stream {
 	go col.streamItems(ctx, errs)
 	return col.data
 }
@@ -163,7 +163,7 @@ func (col Collection) DoNotMergeItems() bool {
 
 // streamItems is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the added field. data channel is closed by this function
-func (col *Collection) streamItems(ctx context.Context, errs *fault.Errors) {
+func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		success     int64
 		totalBytes  int64
@@ -177,7 +177,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Errors) {
 	)
 
 	defer func() {
-		col.finishPopulation(ctx, int(success), totalBytes, errs.Err())
+		col.finishPopulation(ctx, int(success), totalBytes, errs.Failure())
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
@@ -226,7 +226,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Errors) {
 
 	// add any new items
 	for id := range col.added {
-		if errs.Err() != nil {
+		if errs.Failure() != nil {
 			break
 		}
 
@@ -253,7 +253,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Errors) {
 					atomic.AddInt64(&success, 1)
 					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
 				} else {
-					errs.Add(clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
+					errs.AddRecoverable(clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
 				return
@@ -261,7 +261,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Errors) {
 
 			data, err := col.items.Serialize(ctx, item, user, id)
 			if err != nil {
-				errs.Add(clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation))
+				errs.AddRecoverable(clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation))
 				return
 			}
 
@@ -291,7 +291,7 @@ func getItemWithRetries(
 	ctx context.Context,
 	userID, itemID string,
 	items itemer,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	item, info, err := items.GetItem(ctx, userID, itemID, errs)
 	if err != nil {
@@ -316,11 +316,10 @@ func (col *Collection) finishPopulation(
 		support.Backup,
 		1,
 		support.CollectionMetrics{
-			Objects:    attempted,
-			Successes:  success,
-			TotalBytes: totalBytes,
+			Objects:   attempted,
+			Successes: success,
+			Bytes:     totalBytes,
 		},
-		err,
 		col.fullPath.Folder(false))
 
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())

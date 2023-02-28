@@ -43,12 +43,6 @@ var (
 	_ data.StreamModTime    = &Item{}
 )
 
-type numMetrics struct {
-	attempts   int
-	success    int
-	totalBytes int64
-}
-
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
 // by the oneDrive.Collection as the calls are identical for populating the Collection
 type Collection struct {
@@ -112,7 +106,7 @@ func (sc Collection) DoNotMergeItems() bool {
 
 func (sc *Collection) Items(
 	ctx context.Context,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) <-chan data.Stream {
 	go sc.populate(ctx, errs)
 	return sc.data
@@ -157,24 +151,17 @@ func (sd *Item) ModTime() time.Time {
 
 func (sc *Collection) finishPopulation(
 	ctx context.Context,
-	attempts, success int,
-	totalBytes int64,
-	err error,
+	metrics support.CollectionMetrics,
 ) {
 	close(sc.data)
 
-	attempted := attempts
 	status := support.CreateStatus(
 		ctx,
 		support.Backup,
 		1, // 1 folder
-		support.CollectionMetrics{
-			Objects:    attempted,
-			Successes:  success,
-			TotalBytes: totalBytes,
-		},
-		err,
+		metrics,
 		sc.fullPath.Folder(false))
+
 	logger.Ctx(ctx).Debug(status.String())
 
 	if sc.statusUpdater != nil {
@@ -183,16 +170,17 @@ func (sc *Collection) finishPopulation(
 }
 
 // populate utility function to retrieve data from back store for a given collection
-func (sc *Collection) populate(ctx context.Context, errs *fault.Errors) {
-	var (
-		metrics numMetrics
-		writer  = kw.NewJsonSerializationWriter()
-		err     error
-	)
+func (sc *Collection) populate(ctx context.Context, errs *fault.Bus) {
+	metrics, _ := sc.runPopulate(ctx, errs)
+	sc.finishPopulation(ctx, metrics)
+}
 
-	defer func() {
-		sc.finishPopulation(ctx, metrics.attempts, metrics.success, int64(metrics.totalBytes), err)
-	}()
+func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support.CollectionMetrics, error) {
+	var (
+		err     error
+		metrics support.CollectionMetrics
+		writer  = kw.NewJsonSerializationWriter()
+	)
 
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress, closer := observe.CollectionProgress(
@@ -213,6 +201,8 @@ func (sc *Collection) populate(ctx context.Context, errs *fault.Errors) {
 	case Pages:
 		metrics, err = sc.retrievePages(ctx, writer, colProgress, errs)
 	}
+
+	return metrics, err
 }
 
 // retrieveLists utility function for collection that downloads and serializes
@@ -221,11 +211,11 @@ func (sc *Collection) retrieveLists(
 	ctx context.Context,
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
-	errs *fault.Errors,
-) (numMetrics, error) {
+	errs *fault.Bus,
+) (support.CollectionMetrics, error) {
 	var (
-		metrics numMetrics
-		et      = errs.Tracker()
+		metrics support.CollectionMetrics
+		el      = errs.Local()
 	)
 
 	lists, err := loadSiteLists(ctx, sc.service, sc.fullPath.ResourceOwner(), sc.jobs, errs)
@@ -233,17 +223,17 @@ func (sc *Collection) retrieveLists(
 		return metrics, err
 	}
 
-	metrics.attempts += len(lists)
+	metrics.Objects += len(lists)
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
 	for _, lst := range lists {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		byteArray, err := serializeContent(wtr, lst)
 		if err != nil {
-			et.Add(clues.Wrap(err, "serializing list").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(clues.Wrap(err, "serializing list").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
@@ -255,9 +245,9 @@ func (sc *Collection) retrieveLists(
 				t = *t1
 			}
 
-			metrics.totalBytes += size
+			metrics.Bytes += size
 
-			metrics.success++
+			metrics.Successes++
 			sc.data <- &Item{
 				id:      *lst.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
@@ -269,18 +259,18 @@ func (sc *Collection) retrieveLists(
 		}
 	}
 
-	return metrics, et.Err()
+	return metrics, el.Failure()
 }
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
 	wtr *kw.JsonSerializationWriter,
 	progress chan<- struct{},
-	errs *fault.Errors,
-) (numMetrics, error) {
+	errs *fault.Bus,
+) (support.CollectionMetrics, error) {
 	var (
-		metrics numMetrics
-		et      = errs.Tracker()
+		metrics support.CollectionMetrics
+		el      = errs.Local()
 	)
 
 	betaService := sc.betaService
@@ -300,26 +290,26 @@ func (sc *Collection) retrievePages(
 		return metrics, err
 	}
 
-	metrics.attempts = len(pages)
+	metrics.Objects = len(pages)
 	// For each models.Pageable, object is serialize and the metrics are collected and returned.
 	// Pageable objects are not supported in v1.0 of msgraph at this time.
 	// TODO: Verify Parsable interface supported with modified-Pageable
 	for _, pg := range pages {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		byteArray, err := serializeContent(wtr, pg)
 		if err != nil {
-			et.Add(clues.Wrap(err, "serializing page").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(clues.Wrap(err, "serializing page").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
 		size := int64(len(byteArray))
 
 		if size > 0 {
-			metrics.totalBytes += size
-			metrics.success++
+			metrics.Bytes += size
+			metrics.Successes++
 			sc.data <- &Item{
 				id:      *pg.GetId(),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
@@ -331,7 +321,7 @@ func (sc *Collection) retrievePages(
 		}
 	}
 
-	return metrics, et.Err()
+	return metrics, el.Failure()
 }
 
 func serializeContent(writer *kw.JsonSerializationWriter, obj absser.Parsable) ([]byte, error) {

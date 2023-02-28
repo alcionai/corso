@@ -3,6 +3,7 @@ package details
 import (
 	"context"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,7 +128,13 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 // additional data like permissions in case of OneDrive and are not to
 // be treated as regular files.
 func (de DetailsEntry) isMetaFile() bool {
-	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
+	if de.ItemInfo.OneDrive == nil {
+		return false
+	}
+
+	return de.ItemInfo.OneDrive.IsMeta ||
+		strings.HasSuffix(de.RepoRef, ".meta") ||
+		strings.HasSuffix(de.RepoRef, ".dirmeta")
 }
 
 // ---------------------------------------------------------------------------
@@ -565,15 +572,16 @@ func (i ExchangeInfo) Values() []string {
 
 // SharePointInfo describes a sharepoint item
 type SharePointInfo struct {
-	Created    time.Time `json:"created,omitempty"`
-	ItemName   string    `json:"itemName,omitempty"`
-	DriveName  string    `json:"driveName,omitempty"`
-	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `josn:"modified,omitempty"`
-	Owner      string    `json:"owner,omitempty"`
-	ParentPath string    `json:"parentPath,omitempty"`
-	Size       int64     `json:"size,omitempty"`
-	WebURL     string    `json:"webUrl,omitempty"`
+	Created     time.Time `json:"created,omitempty"`
+	ItemName    string    `json:"itemName,omitempty"`
+	DriveName   string    `json:"driveName,omitempty"`
+	DisplayName string    `json:"displayName,omitempty"`
+	ItemType    ItemType  `json:"itemType,omitempty"`
+	Modified    time.Time `josn:"modified,omitempty"`
+	Owner       string    `json:"owner,omitempty"`
+	ParentPath  string    `json:"parentPath,omitempty"`
+	Size        int64     `json:"size,omitempty"`
+	WebURL      string    `json:"webUrl,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -587,7 +595,7 @@ func (i SharePointInfo) Headers() []string {
 func (i SharePointInfo) Values() []string {
 	return []string{
 		i.ItemName,
-		i.DriveName,
+		i.DisplayName,
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.WebURL,

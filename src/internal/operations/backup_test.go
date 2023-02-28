@@ -63,7 +63,7 @@ func (mr *mockRestorer) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bc kopia.ByteCounter,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	mr.gotPaths = append(mr.gotPaths, paths...)
 
@@ -99,7 +99,7 @@ func (mbu mockBackuper) BackupCollections(
 	excluded map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
@@ -117,7 +117,7 @@ type mockDetailsReader struct {
 func (mdr mockDetailsReader) ReadBackupDetails(
 	ctx context.Context,
 	detailsID string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*details.Details, error) {
 	r := mdr.entries[detailsID]
 
@@ -357,11 +357,11 @@ func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string
 // ---------------------------------------------------------------------------
 
 type BackupOpSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestBackupOpSuite(t *testing.T) {
-	suite.Run(t, new(BackupOpSuite))
+	suite.Run(t, &BackupOpSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
@@ -379,6 +379,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		expectStatus opStatus
 		expectErr    assert.ErrorAssertionFunc
 		stats        backupStats
+		fail         error
 	}{
 		{
 			expectStatus: Completed,
@@ -391,17 +392,17 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 					TotalUploadedBytes: 1,
 				},
 				gc: &support.ConnectorOperationStatus{
-					Successful: 1,
+					Metrics: support.CollectionMetrics{Successes: 1},
 				},
 			},
 		},
 		{
 			expectStatus: Failed,
 			expectErr:    assert.Error,
+			fail:         assert.AnError,
 			stats: backupStats{
-				readErr: assert.AnError,
-				k:       &kopia.BackupStats{},
-				gc:      &support.ConnectorOperationStatus{},
+				k:  &kopia.BackupStats{},
+				gc: &support.ConnectorOperationStatus{},
 			},
 		},
 		{
@@ -414,7 +415,8 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.expectStatus.String(), func(t *testing.T) {
+		suite.Run(test.expectStatus.String(), func() {
+			t := suite.T()
 			sel := selectors.Selector{}
 			sel.DiscreteOwner = "bombadil"
 
@@ -427,16 +429,17 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 				sel,
 				evmock.NewBus())
 			require.NoError(t, err)
+
+			op.Errors.Fail(test.fail)
+
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Successful, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
-			assert.Equal(t, test.stats.readErr, op.Results.ReadErrors, "read errors")
-			assert.Equal(t, test.stats.writeErr, op.Results.WriteErrors, "write errors")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
 		})
@@ -563,7 +566,9 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 
@@ -1210,7 +1215,9 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ctx, flush := tester.NewContext()
 			defer flush()
 

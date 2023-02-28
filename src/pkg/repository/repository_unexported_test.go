@@ -12,21 +12,17 @@ import (
 )
 
 type RepositoryModelSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestRepositoryModelSuite(t *testing.T) {
-	tester.RunOnAny(
-		t,
-		tester.CorsoCITests,
-		tester.CorsoRepositoryTests)
-
-	suite.Run(t, new(RepositoryModelSuite))
-}
-
-// ensure all required env values are populated
-func (suite *RepositoryModelSuite) SetupSuite() {
-	tester.MustGetEnvSets(suite.T(), tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
+	suite.Run(t, &RepositoryModelSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoRepositoryTests,
+		),
+	})
 }
 
 func (suite *RepositoryModelSuite) TestWriteGetModel() {

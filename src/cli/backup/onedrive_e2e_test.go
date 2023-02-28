@@ -28,7 +28,7 @@ import (
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
-type NoBackupOneDriveIntegrationSuite struct {
+type NoBackupOneDriveE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -39,17 +39,18 @@ type NoBackupOneDriveIntegrationSuite struct {
 	recorder   strings.Builder
 }
 
-func TestNoBackupOneDriveIntegrationSuite(t *testing.T) {
-	suite.Run(t, &NoBackupOneDriveIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
+func TestNoBackupOneDriveE2ESuite(t *testing.T) {
+	suite.Run(t, &NoBackupOneDriveE2ESuite{
+		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCITests,
 			tester.CorsoCLITests,
 			tester.CorsoCLIBackupTests),
 	})
 }
 
-func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
+func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -79,12 +80,13 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			// TODO: turn back on when this stops throttling-out the tests.
+			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err)
 }
 
-func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
+func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -115,7 +117,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty()
 // tests for deleting backups
 // ---------------------------------------------------------------------------
 
-type BackupDeleteOneDriveIntegrationSuite struct {
+type BackupDeleteOneDriveE2ESuite struct {
 	tester.Suite
 	acct     account.Account
 	st       storage.Storage
@@ -126,17 +128,18 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 	recorder strings.Builder
 }
 
-func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
-	suite.Run(t, &BackupDeleteOneDriveIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
+func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupDeleteOneDriveE2ESuite{
+		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCITests,
 			tester.CorsoCLITests,
 			tester.CorsoCLIBackupTests),
 	})
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
+func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	t := suite.T()
 
 	// prepare common details
@@ -164,7 +167,8 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			// TODO: turn back on when this stops throttling-out the tests.
+			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err)
 
@@ -180,7 +184,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd() {
+func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -215,7 +219,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_unknownID() {
+func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)

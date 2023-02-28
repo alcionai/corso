@@ -498,7 +498,7 @@ func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
 func (s oneDrive) Reduce(
 	ctx context.Context,
 	deets *details.Details,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) *details.Details {
 	return reduce[OneDriveScope](
 		ctx,

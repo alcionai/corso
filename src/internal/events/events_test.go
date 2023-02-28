@@ -15,12 +15,13 @@ import (
 )
 
 type EventsIntegrationSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestMetricsIntegrationSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoCITests)
-	suite.Run(t, new(EventsIntegrationSuite))
+	suite.Run(t, &EventsIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(t, nil),
+	})
 }
 
 func (suite *EventsIntegrationSuite) TestNewBus() {

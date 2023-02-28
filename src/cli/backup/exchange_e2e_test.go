@@ -38,7 +38,7 @@ var backupDataSets = []path.CategoryType{email, contacts, events}
 // tests with no backups
 // ---------------------------------------------------------------------------
 
-type NoBackupExchangeIntegrationSuite struct {
+type NoBackupExchangeE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -49,15 +49,16 @@ type NoBackupExchangeIntegrationSuite struct {
 	recorder   strings.Builder
 }
 
-func TestNoBackupExchangeIntegrationSuite(t *testing.T) {
-	suite.Run(t, &NoBackupExchangeIntegrationSuite{Suite: tester.NewIntegrationSuite(
+func TestNoBackupExchangeE2ESuite(t *testing.T) {
+	suite.Run(t, &NoBackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		tester.CorsoCITests,
 		tester.CorsoCLITests,
 		tester.CorsoCLIBackupTests)})
 }
 
-func (suite *NoBackupExchangeIntegrationSuite) SetupSuite() {
+func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -87,7 +88,7 @@ func (suite *NoBackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *NoBackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty() {
+func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -118,7 +119,7 @@ func (suite *NoBackupExchangeIntegrationSuite) TestExchangeBackupListCmd_empty()
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
-type BackupExchangeIntegrationSuite struct {
+type BackupExchangeE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -128,15 +129,16 @@ type BackupExchangeIntegrationSuite struct {
 	m365UserID string
 }
 
-func TestBackupExchangeIntegrationSuite(t *testing.T) {
-	suite.Run(t, &BackupExchangeIntegrationSuite{Suite: tester.NewIntegrationSuite(
+func TestBackupExchangeE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		tester.CorsoCITests,
 		tester.CorsoCLITests,
 		tester.CorsoCLIBackupTests)})
 }
 
-func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
+func (suite *BackupExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -165,7 +167,7 @@ func (suite *BackupExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
 	recorder := strings.Builder{}
 
 	for _, set := range backupDataSets {
@@ -205,7 +207,7 @@ func (suite *BackupExchangeIntegrationSuite) TestExchangeBackupCmd() {
 // tests prepared with a previous backup
 // ---------------------------------------------------------------------------
 
-type PreparedBackupExchangeIntegrationSuite struct {
+type PreparedBackupExchangeE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
@@ -217,15 +219,16 @@ type PreparedBackupExchangeIntegrationSuite struct {
 	recorder   strings.Builder
 }
 
-func TestPreparedBackupExchangeIntegrationSuite(t *testing.T) {
-	suite.Run(t, &PreparedBackupExchangeIntegrationSuite{Suite: tester.NewIntegrationSuite(
+func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
+	suite.Run(t, &PreparedBackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		tester.CorsoCITests,
 		tester.CorsoCLITests,
 		tester.CorsoCLIBackupTests)})
 }
 
-func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
+func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 
 	// prepare common details
@@ -288,15 +291,15 @@ func (suite *PreparedBackupExchangeIntegrationSuite) SetupSuite() {
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
 		_, b, errs := suite.repo.BackupDetails(ctx, bIDs)
-		require.NoError(t, errs.Err(), "retrieving recent backup details by ID")
-		require.Empty(t, errs.Errs(), "retrieving recent backup details by ID")
+		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID")
+		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo details matches results id")
 
 		suite.backupOps[set] = string(b.ID)
 	}
 }
 
-func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd() {
 	for _, set := range backupDataSets {
 		suite.recorder.Reset()
 
@@ -326,7 +329,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd() {
 	}
 }
 
-func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_singleID() {
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_singleID() {
 	for _, set := range backupDataSets {
 		suite.recorder.Reset()
 
@@ -359,7 +362,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_singleI
 	}
 }
 
-func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_badID() {
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_badID() {
 	for _, set := range backupDataSets {
 		suite.Run(set.String(), func() {
 			t := suite.T()
@@ -382,7 +385,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeListCmd_badID()
 	}
 }
 
-func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd() {
 	for _, set := range backupDataSets {
 		suite.recorder.Reset()
 
@@ -397,8 +400,8 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 
 			// fetch the details from the repo first
 			deets, _, errs := suite.repo.BackupDetails(ctx, string(bID))
-			require.NoError(t, errs.Err())
-			require.Empty(t, errs.Errs())
+			require.NoError(t, errs.Failure())
+			require.Empty(t, errs.Recovered())
 
 			cmd := tester.StubRootCmd(
 				"backup", "details", "exchange",
@@ -443,7 +446,7 @@ func (suite *PreparedBackupExchangeIntegrationSuite) TestExchangeDetailsCmd() {
 // tests for deleting backups
 // ---------------------------------------------------------------------------
 
-type BackupDeleteExchangeIntegrationSuite struct {
+type BackupDeleteExchangeE2ESuite struct {
 	tester.Suite
 	acct     account.Account
 	st       storage.Storage
@@ -453,17 +456,18 @@ type BackupDeleteExchangeIntegrationSuite struct {
 	backupOp operations.BackupOperation
 }
 
-func TestBackupDeleteExchangeIntegrationSuite(t *testing.T) {
-	suite.Run(t, &BackupDeleteExchangeIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
+func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupDeleteExchangeE2ESuite{
+		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCITests,
 			tester.CorsoCLITests,
 			tester.CorsoCLIBackupTests),
 	})
 }
 
-func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
+func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 
 	// prepare common details
@@ -501,7 +505,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd() {
+func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -527,7 +531,7 @@ func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd()
 	require.Error(t, cmd.ExecuteContext(ctx))
 }
 
-func (suite *BackupDeleteExchangeIntegrationSuite) TestExchangeBackupDeleteCmd_UnknownID() {
+func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)

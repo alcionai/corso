@@ -130,7 +130,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			}
 
 			status := connector.AwaitStatus()
-			assert.NotZero(t, status.Successful)
+			assert.NotZero(t, status.Metrics.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -286,7 +286,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			}
 
 			status := connector.AwaitStatus()
-			assert.NotZero(t, status.Successful)
+			assert.NotZero(t, status.Metrics.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -349,7 +349,10 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	for _, collection := range cols {
 		t.Logf("Path: %s\n", collection.FullPath().String())
-		assert.Equal(t, path.SharePointMetadataService, collection.FullPath().Service())
+		assert.Equal(
+			t,
+			path.SharePointMetadataService.String(),
+			collection.FullPath().Service().String())
 	}
 }
 

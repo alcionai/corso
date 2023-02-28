@@ -13,11 +13,11 @@ import (
 )
 
 type BetaUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestBetaUnitSuite(t *testing.T) {
-	suite.Run(t, new(BetaUnitSuite))
+	suite.Run(t, &BetaUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *BetaUnitSuite) TestBetaService_Adapter() {

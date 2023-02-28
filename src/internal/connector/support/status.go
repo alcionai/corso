@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/dustin/go-humanize"
-	multierror "github.com/hashicorp/go-multierror"
 )
 
 // ConnectorOperationStatus is a data type used to describe the state of
@@ -15,27 +14,23 @@ import (
 // @param incomplete: Bool representation of whether all intended items were download or uploaded.
 // @param bytes: represents the total number of bytes that have been downloaded or uploaded.
 type ConnectorOperationStatus struct {
-	lastOperation     Operation
-	ObjectCount       int
-	FolderCount       int
-	Successful        int
-	ErrorCount        int
-	Err               error
-	incomplete        bool
-	incompleteReason  string
-	additionalDetails string
-	bytes             int64
+	Folders int
+	Metrics CollectionMetrics
+	details string
+	op      Operation
 }
 
 type CollectionMetrics struct {
 	Objects, Successes int
-	TotalBytes         int64
+	Bytes              int64
 }
 
-func (cm *CollectionMetrics) Combine(additional CollectionMetrics) {
-	cm.Objects += additional.Objects
-	cm.Successes += additional.Successes
-	cm.TotalBytes += additional.TotalBytes
+func CombineMetrics(a, b CollectionMetrics) CollectionMetrics {
+	return CollectionMetrics{
+		Objects:   a.Objects + b.Objects,
+		Successes: a.Successes + b.Successes,
+		Bytes:     a.Bytes + b.Bytes,
+	}
 }
 
 type Operation int
@@ -53,30 +48,13 @@ func CreateStatus(
 	op Operation,
 	folders int,
 	cm CollectionMetrics,
-	err error,
 	details string,
 ) *ConnectorOperationStatus {
-	var reason string
-
-	if err != nil {
-		reason = err.Error()
-	}
-
-	hasErrors := err != nil
-	// TODO(keeprs): remove
-	numErr := GetNumberOfErrors(err)
-
 	status := ConnectorOperationStatus{
-		lastOperation:     op,
-		ObjectCount:       cm.Objects,
-		FolderCount:       folders,
-		Successful:        cm.Successes,
-		ErrorCount:        numErr,
-		Err:               err,
-		incomplete:        hasErrors,
-		incompleteReason:  reason,
-		bytes:             cm.TotalBytes,
-		additionalDetails: details,
+		Folders: folders,
+		Metrics: cm,
+		details: details,
+		op:      op,
 	}
 
 	return &status
@@ -89,32 +67,19 @@ type StatusUpdater func(*ConnectorOperationStatus)
 
 // MergeStatus combines ConnectorOperationsStatus value into a single status
 func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
-	var hasErrors bool
-
-	if one.lastOperation == OpUnknown {
+	if one.op == OpUnknown {
 		return two
 	}
 
-	if two.lastOperation == OpUnknown {
+	if two.op == OpUnknown {
 		return one
 	}
 
-	if one.incomplete || two.incomplete {
-		hasErrors = true
-	}
-
 	status := ConnectorOperationStatus{
-		lastOperation: one.lastOperation,
-		ObjectCount:   one.ObjectCount + two.ObjectCount,
-		FolderCount:   one.FolderCount + two.FolderCount,
-		Successful:    one.Successful + two.Successful,
-		// TODO: remove in favor of fault.Errors
-		ErrorCount:        one.ErrorCount + two.ErrorCount,
-		Err:               multierror.Append(one.Err, two.Err).ErrorOrNil(),
-		bytes:             one.bytes + two.bytes,
-		incomplete:        hasErrors,
-		incompleteReason:  one.incompleteReason + ", " + two.incompleteReason,
-		additionalDetails: one.additionalDetails + ", " + two.additionalDetails,
+		Folders: one.Folders + two.Folders,
+		Metrics: CombineMetrics(one.Metrics, two.Metrics),
+		details: one.details + ", " + two.details,
+		op:      one.op,
 	}
 
 	return status
@@ -123,23 +88,19 @@ func MergeStatus(one, two ConnectorOperationStatus) ConnectorOperationStatus {
 func (cos *ConnectorOperationStatus) String() string {
 	var operationStatement string
 
-	switch cos.lastOperation {
+	switch cos.op {
 	case Backup:
 		operationStatement = "Downloaded from "
 	case Restore:
 		operationStatement = "Restored content to "
 	}
 
-	message := fmt.Sprintf("Action: %s performed on %d of %d objects (%s) within %d directories.",
-		cos.lastOperation.String(),
-		cos.Successful,
-		cos.ObjectCount,
-		humanize.Bytes(uint64(cos.bytes)),
-		cos.FolderCount)
-
-	if cos.incomplete {
-		message += " " + cos.incompleteReason
-	}
-
-	return message + " " + operationStatement + cos.additionalDetails
+	return fmt.Sprintf("Action: %s performed on %d of %d objects (%s) within %d directories.  %s %s",
+		cos.op.String(),
+		cos.Metrics.Successes,
+		cos.Metrics.Objects,
+		humanize.Bytes(uint64(cos.Metrics.Bytes)),
+		cos.Folders,
+		operationStatement,
+		cos.details)
 }
