@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -332,6 +333,46 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 
 // -------------------
 // Filter Factories
+
+func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterCreatedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterCreatedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
+
+func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterModifiedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterModifiedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Categories
