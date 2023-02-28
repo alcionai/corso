@@ -197,7 +197,7 @@ func (p *siteDrivePager) GetDriveIDByName(ctx context.Context, driveName string)
 	for {
 		resp, err := p.builder.Get(ctx, p.options)
 		if err != nil {
-			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return empty, graph.Stack(ctx, err)
 		}
 
 		for _, entry := range resp.GetValue() {
@@ -233,7 +233,7 @@ func (p *siteDrivePager) GetFolderIDByName(ctx context.Context, driveID, folderN
 	for {
 		resp, err := builder.Get(ctx, option)
 		if err != nil {
-			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return empty, graph.Stack(ctx, err)
 		}
 
 		for _, entry := range resp.GetValue() {
