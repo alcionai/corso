@@ -4,6 +4,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ==============================================
+// Folder Object flags
+// These options are flags for indicating
+// that a time-based filter should be used for
+// within returning objects for details.
+// Used by: OneDrive, SharePoint
+// ================================================
+var (
+	fileCreatedAfter   string
+	fileCreatedBefore  string
+	fileModifiedAfter  string
+	fileModifiedBefore string
+)
+
 var subCommandFuncs = []func() *cobra.Command{
 	createCmd,
 	listCmd,
