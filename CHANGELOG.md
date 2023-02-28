@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Corso-generated .meta files and permissions no longer appear in the backup details.
+- Panic and recovery if a user didn't exist in the tenant.
 
 ### Known Issues
 - Folders and Calendars containing zero items or subfolders are not included in the backup.
