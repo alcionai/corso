@@ -106,6 +106,9 @@ var result *Details
 func BenchmarkDetailsFiltering_512_both(b *testing.B)      { benchmarkBoth(details512k, b) }
 func BenchmarkDetailsFiltering_256_both(b *testing.B)      { benchmarkBoth(details256k, b) }
 func BenchmarkDetailsFiltering_102_both(b *testing.B)      { benchmarkBoth(details102k, b) }
+func BenchmarkDetailsFiltering_512_each(b *testing.B)      { benchmarkEach(details512k, b) }
+func BenchmarkDetailsFiltering_256_each(b *testing.B)      { benchmarkEach(details256k, b) }
+func BenchmarkDetailsFiltering_102_each(b *testing.B)      { benchmarkEach(details102k, b) }
 func BenchmarkDetailsFiltering_512_meta(b *testing.B)      { benchmarkMeta(details512k, b) }
 func BenchmarkDetailsFiltering_256_meta(b *testing.B)      { benchmarkMeta(details256k, b) }
 func BenchmarkDetailsFiltering_102_meta(b *testing.B)      { benchmarkMeta(details102k, b) }
@@ -114,6 +117,16 @@ func BenchmarkDetailsFiltering_256_container(b *testing.B) { benchmarkContainer(
 func BenchmarkDetailsFiltering_102_container(b *testing.B) { benchmarkContainer(details102k, b) }
 
 func benchmarkBoth(d *Details, b *testing.B) {
+	var d2 *Details
+
+	for n := 0; n < b.N; n++ {
+		d2 = d.FilterBoth()
+	}
+
+	result = d2
+}
+
+func benchmarkEach(d *Details, b *testing.B) {
 	var d2 *Details
 
 	for n := 0; n < b.N; n++ {

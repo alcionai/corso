@@ -383,6 +383,80 @@ func (d *Details) FilterEmptyContainers() *Details {
 	}
 }
 
+// FilterEmptyContainers returns a new Details struct all empty (ie: containing no
+// items) stripped out.  If meta files have not been filtered out already, they
+// will continue to count as a "populated" container.
+func (d *Details) FilterBoth() *Details {
+	type entCount struct {
+		ent       DetailsEntry
+		itemCount int
+	}
+
+	var (
+		// shortRef: entCount
+		srec  = map[string]entCount{}
+		items = []DetailsEntry{}
+	)
+
+	// split the entries into items and folders.
+	// folders are stored in a map by their shortRef for lookup.
+	for _, ent := range d.Entries {
+		if ent.isMetaFile() {
+			continue
+		}
+
+		if ent.Folder == nil {
+			items = append(items, ent)
+		} else {
+			srec[ent.ShortRef] = entCount{ent, 0}
+		}
+	}
+
+	// for every item, add a count to the owning folder.
+	// this assumes item parentRef == folder shortRef.
+	for _, ent := range items {
+		if len(ent.ParentRef) == 0 {
+			continue
+		}
+
+		ec := srec[ent.ParentRef]
+		ec.itemCount++
+		srec[ent.ParentRef] = ec
+
+		// to maintain a hierarchical count so that we don't
+		// slice parent folders, this loop walks the tree upward
+		// by parent ref, adding one count to each parent up
+		// to the root.
+		parentRef := ec.ent.ParentRef
+		parentCount := 0
+
+		for len(parentRef) > 0 && parentCount == 0 {
+			ec := srec[parentRef]
+
+			// minor optimization: if the parentCount is already
+			// >zero, then all of its parents are guaranteed >zero.
+			parentCount = ec.itemCount
+
+			ec.itemCount++
+			srec[parentRef] = ec
+
+			parentRef = ec.ent.ParentRef
+		}
+	}
+
+	// walk the map of folder entries; every folder with one or more
+	// items gets added back to the items slice to be returned.
+	for _, ec := range srec {
+		if ec.itemCount > 0 {
+			items = append(items, ec.ent)
+		}
+	}
+
+	return &Details{
+		DetailsModel: DetailsModel{items},
+	}
+}
+
 // --------------------------------------------------------------------------------
 // Entry
 // --------------------------------------------------------------------------------
