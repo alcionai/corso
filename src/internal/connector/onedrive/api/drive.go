@@ -120,8 +120,11 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *userDrivePager) SetNext(link string) {

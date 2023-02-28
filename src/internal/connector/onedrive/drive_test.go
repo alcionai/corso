@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
@@ -434,9 +435,6 @@ func (fm testFolderMatcher) Matches(path string) bool {
 }
 
 func (suite *OneDriveSuite) TestOneDriveNewCollections() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err)
 
@@ -455,13 +453,18 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-			service := loadTestService(t)
-			scope := selectors.
-				NewOneDriveBackup([]string{test.user}).
-				AllData()[0]
-			odcs, excludes, err := NewCollections(
+			var (
+				t       = suite.T()
+				service = loadTestService(t)
+				scope   = selectors.
+					NewOneDriveBackup([]string{test.user}).
+					AllData()[0]
+			)
+
+			colls := NewCollections(
 				graph.HTTPClient(graph.NoTimeout()),
 				creds.AzureTenantID,
 				test.user,
@@ -469,9 +472,12 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				testFolderMatcher{scope},
 				service,
 				service.updateStatus,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-			).Get(ctx, nil, fault.New(true))
-			assert.NoError(t, err)
+				control.Options{
+					ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+				})
+
+			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))
+			assert.NoError(t, err, clues.InErr(err))
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 
