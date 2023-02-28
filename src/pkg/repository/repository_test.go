@@ -262,7 +262,6 @@ func (suite *RepositoryIntegrationSuite) TestBackupDetails_regression() {
 	fld := models.Folder{}
 	fld.SetChildCount(ptr.To[int32](0))
 	body.SetFolder(&fld)
-	// body.SetWebUrl(ptr.To(ptr.Val(d0.GetWebUrl()) + "/" + dest))
 
 	_, err = srv.Client().
 		UsersById(suite.userID).
