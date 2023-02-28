@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -17,14 +18,18 @@ const (
 )
 
 type SharePointOpts struct {
-	LibraryItems []string
-	LibraryPaths []string
-	ListItems    []string
-	ListPaths    []string
-	PageFolders  []string
-	Pages        []string
-	Sites        []string
-	WebURLs      []string
+	LibraryItems       []string
+	LibraryPaths       []string
+	ListItems          []string
+	ListPaths          []string
+	PageFolders        []string
+	Pages              []string
+	Sites              []string
+	WebURLs            []string
+	FileCreatedAfter   string
+	FileCreatedBefore  string
+	FileModifiedAfter  string
+	FileModifiedBefore string
 
 	Populated PopulatedFlags
 }
@@ -35,9 +40,22 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		return errors.New("a backup ID is required")
 	}
 
-	// if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-	// 	return errors.New("invalid time format for created-after")
-	// }
+	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
+		fmt.Printf("What was I sent: %v\n", opts.FileCreatedAfter)
+		return errors.New("invalid time format for created-after")
+	}
+
+	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
+		return errors.New("invalid time format for created-before")
+	}
+
+	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
+		return errors.New("invalid time format for modified-after")
+	}
+
+	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
+		return errors.New("invalid time format for modified-before")
+	}
 
 	return nil
 }
@@ -149,5 +167,8 @@ func FilterSharePointRestoreInfoSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
-	// AddSharePointFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
+	AddSharePointFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
+	AddSharePointFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)
+	AddSharePointFilter(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
+	AddSharePointFilter(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
 }
