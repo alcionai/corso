@@ -395,7 +395,7 @@ func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
 // multiple users
 
 type RepositoryLoadTestExchangeSuite struct {
-	suite.Suite
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use

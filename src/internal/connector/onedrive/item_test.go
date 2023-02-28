@@ -46,7 +46,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
 	require.NoError(t, err)
 
-	odDrives, err := drives(ctx, pager, true)
+	odDrives, err := Drives(ctx, pager, true)
 	require.NoError(t, err)
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)

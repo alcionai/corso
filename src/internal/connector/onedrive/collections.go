@@ -272,7 +272,7 @@ func (c *Collections) Get(
 
 	retry := c.source == OneDriveSource
 
-	drives, err := drives(ctx, pager, retry)
+	drives, err := Drives(ctx, pager, retry)
 	if err != nil {
 		return nil, nil, err
 	}

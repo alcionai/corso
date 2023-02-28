@@ -72,7 +72,7 @@ func PagerForSource(
 	}
 }
 
-func drives(
+func Drives(
 	ctx context.Context,
 	pager drivePager,
 	retry bool,
@@ -362,7 +362,7 @@ func GetAllFolders(
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drives, err := drives(ctx, pager, true)
+	drives, err := Drives(ctx, pager, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting OneDrive folders")
 	}

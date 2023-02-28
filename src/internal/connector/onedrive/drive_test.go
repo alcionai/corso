@@ -313,7 +313,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				toReturn: test.pagerResults,
 			}
 
-			drives, err := drives(ctx, pager, test.retry)
+			drives, err := Drives(ctx, pager, test.retry)
 			test.expectedErr(t, err)
 
 			assert.ElementsMatch(t, test.expectedResults, drives)
@@ -355,7 +355,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
 	require.NoError(t, err)
 
-	drives, err := drives(ctx, pager, true)
+	drives, err := Drives(ctx, pager, true)
 	require.NoError(t, err)
 	require.NotEmpty(t, drives)
 

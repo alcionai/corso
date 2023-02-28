@@ -43,3 +43,10 @@ func OrNow(t *time.Time) time.Time {
 
 	return *t
 }
+
+// To makes it easy to get a pointer to ad-hoc primitives
+// without needing to declare additional variables.
+// ex: ptr.To("a string")
+func To[T any](t T) *T {
+	return &t
+}
