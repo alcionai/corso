@@ -252,6 +252,7 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 			continue
 		}
 
+		gv2 := p.GetGrantedToV2()
 		roles := []string{}
 
 		for _, r := range p.GetRoles() {
@@ -265,10 +266,26 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 			continue
 		}
 
+		entityID := ""
+		if gv2.GetUser() != nil {
+			entityID = *gv2.GetUser().GetId()
+		} else if gv2.GetGroup() != nil {
+			entityID = *gv2.GetGroup().GetId()
+		} else if gv2.GetApplication() != nil {
+			entityID = *gv2.GetApplication().GetId()
+		}
+
+		// Technically GrantedToV2 can also contain devices, but the
+		// documentation does not mention about devices in permissions
+		if entityID == "" {
+			// This should ideally not be hit
+			continue
+		}
+
 		up = append(up, UserPermission{
 			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
-			Email:      *p.GetGrantedToV2().GetUser().GetAdditionalData()["email"].(*string),
+			EntityID:   entityID,
 			Expiration: p.GetExpirationDateTime(),
 		})
 	}
