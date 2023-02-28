@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365"
-	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -381,43 +380,7 @@ func exchangeListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	if len(backupID) > 0 {
-		b, err := r.Backup(ctx, model.StableID(backupID))
-		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
-				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
-			}
-
-			return Only(ctx, errors.Wrap(err, "Failed to find backup "+backupID))
-		}
-
-		b.Print(ctx)
-
-		return nil
-	}
-
-	bs, err := r.BackupsByTag(ctx, store.Service(path.ExchangeService))
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
-	}
-
-	backup.PrintAll(ctx, bs)
-
-	return nil
+	return genericListCommand(cmd, backupID, path.ExchangeService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -535,29 +498,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
-		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
-	}
-
-	Info(ctx, "Deleted Exchange backup ", backupID)
-
-	return nil
+	return genericDeleteCommand(cmd, backupID, "Exchange", args)
 }
