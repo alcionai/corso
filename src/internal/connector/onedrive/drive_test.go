@@ -92,8 +92,8 @@ func odErr(code string) *odataerrors.ODataError {
 }
 
 func (suite *OneDriveUnitSuite) TestDrives() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+	// ctx, flush := tester.NewContext()
+	// defer flush()
 
 	numDriveResults := 4
 	emptyLink := ""
@@ -104,7 +104,6 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 	// details are extracted via support package.
 	mySiteURLNotFound := odErr(userMysiteURLNotFound)
 	mySiteNotFound := odErr(userMysiteNotFound)
-	deadlineExceeded := odErr(contextDeadlineExceeded)
 
 	resultDrives := make([]models.Driveable, 0, numDriveResults)
 
@@ -120,7 +119,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 
 	for i := 0; i < getDrivesRetries+1; i++ {
 		tooManyRetries = append(tooManyRetries, pagerResult{
-			err: deadlineExceeded,
+			err: context.DeadlineExceeded,
 		})
 	}
 
@@ -230,7 +229,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      mySiteNotFound,
+					err:      graph.Stack(ctx, mySiteNotFound),
 				},
 			},
 			retry:           true,
@@ -248,7 +247,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      deadlineExceeded,
+					err:      context.DeadlineExceeded,
 				},
 				{
 					drives:   resultDrives[numDriveResults/2:],

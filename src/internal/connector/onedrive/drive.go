@@ -27,11 +27,10 @@ const (
 
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
-	nextLinkKey             = "@odata.nextLink"
-	itemChildrenRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt     = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-	itemNotFoundErrorCode   = "itemNotFound"
-	contextDeadlineExceeded = "context deadline exceeded"
+	nextLinkKey           = "@odata.nextLink"
+	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	itemNotFoundErrorCode = "itemNotFound"
 )
 
 // DeltaUpdate holds the results of a current delta token.  It normally
@@ -97,7 +96,7 @@ func drives(
 					return make([]models.Driveable, 0), nil // no license or drives.
 				}
 
-				if errors.Is(err, context.DeadlineExceeded) && i < numberOfRetries {
+				if graph.IsErrTimeout(err) && i < numberOfRetries {
 					time.Sleep(time.Duration(3*(i+1)) * time.Second)
 					continue
 				}
