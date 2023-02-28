@@ -11,7 +11,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -142,9 +145,6 @@ type RestoreOpIntegrationSuite struct {
 	kw           *kopia.Wrapper
 	sw           *store.Wrapper
 	ms           *kopia.ModelStore
-	shareKW      *kopia.Wrapper
-	shareSW      *store.Wrapper
-	shareMS      *kopia.ModelStore
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
@@ -223,17 +223,6 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		csel.Libraries(selectors.Any()),
 	)
 
-	kw, err = kopia.NewWrapper(k)
-	require.NoError(t, err)
-
-	suite.shareKW = kw
-	ms, err = kopia.NewModelStore(k)
-	require.NoError(t, err)
-
-	suite.shareMS = ms
-	sw = store.NewKopiaStore(ms)
-	suite.shareSW = sw
-
 	bo, err = NewBackupOperation(
 		ctx,
 		control.Options{},
@@ -261,14 +250,6 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 
 	if suite.kw != nil {
 		suite.kw.Close(ctx)
-	}
-
-	if suite.shareKW != nil {
-		suite.shareKW.Close(ctx)
-	}
-
-	if suite.shareMS != nil {
-		suite.shareMS.Close(ctx)
 	}
 
 	if suite.kopiaCloser != nil {
@@ -324,17 +305,14 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		name          string
 		bID           model.StableID
 		expectedItems int
-		kw            *kopia.Wrapper
-		sw            *store.Wrapper
 		dest          control.RestoreDestination
 		getSelector   func(t *testing.T) selectors.Selector
+		cleanup       func(t *testing.T, dest string)
 	}{
 		{
 			name:          "Exchange_Restore",
 			bID:           suite.backupID,
 			expectedItems: suite.numItems,
-			kw:            suite.kw,
-			sw:            suite.sw,
 			dest:          tester.DefaultTestRestoreDestination(),
 			getSelector: func(t *testing.T) selectors.Selector {
 				users := []string{tester.M365UserID(t)}
@@ -348,14 +326,32 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			name:          "SharePoint_Restore",
 			bID:           suite.sharepointID,
 			expectedItems: suite.shareItems,
-			kw:            suite.shareKW,
-			sw:            suite.shareSW,
 			dest:          control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
 			getSelector: func(t *testing.T) selectors.Selector {
 				bsel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
 				bsel.Include(bsel.AllData())
 
 				return bsel.Selector
+			},
+			cleanup: func(t *testing.T, dest string) {
+				act := tester.NewM365Account(t)
+				m365, err := act.M365Config()
+				require.NoError(t, err)
+
+				adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+				require.NoError(t, err)
+				service := graph.NewService(adpt)
+				pager := api.NewSiteDrivePager(service, tester.M365SiteID(t), []string{"id", "name"})
+				driveID, err := pager.GetDriveIDByName(ctx, "Documents")
+				require.NoError(t, err)
+				require.NotEmpty(t, driveID)
+
+				folderID, err := pager.GetFolderIDByName(ctx, driveID, dest)
+				require.NoError(t, err)
+				require.NotEmpty(t, folderID)
+
+				err = onedrive.DeleteItem(ctx, service, driveID, folderID)
+				assert.NoError(t, err, "failed to delete restore folder: operations_SharePoint_Restore")
 			},
 		},
 	}
@@ -366,8 +362,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			ro, err := NewRestoreOperation(
 				ctx,
 				control.Options{FailFast: true},
-				test.kw,
-				test.sw,
+				suite.kw,
+				suite.sw,
 				tester.NewM365Account(t),
 				test.bID,
 				test.getSelector(t),
@@ -393,6 +389,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			assert.Equal(t, test.expectedItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 			assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 			assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
+
+			// clean up
+			if test.cleanup != nil {
+				test.cleanup(t, test.dest.ContainerName)
+			}
 		})
 	}
 }
