@@ -397,7 +397,7 @@ func fetchParentReference(
 
 	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	orig.SetName(drive.GetName())

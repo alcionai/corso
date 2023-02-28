@@ -216,7 +216,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	data, innerMsg := ErrData(odErr)
+	data, innerMsg := errData(odErr)
 
 	return setLabels(clues.Wrap(e, msg).WithClues(ctx).With(data...), innerMsg)
 }
@@ -233,7 +233,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return clues.Stack(e).WithClues(ctx)
 	}
 
-	data, innerMsg := ErrData(odErr)
+	data, innerMsg := errData(odErr)
 
 	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
 }
@@ -246,7 +246,7 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 	return err
 }
 
-func ErrData(err odataerrors.ODataErrorable) ([]any, string) {
+func errData(err odataerrors.ODataErrorable) ([]any, string) {
 	data := make([]any, 0)
 
 	// Get MainError
