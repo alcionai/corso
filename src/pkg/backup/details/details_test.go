@@ -99,8 +99,8 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					},
 				},
 			},
-			expectHs: []string{"ID", "Sender", "Recipient(s)", "Subject", "Received"},
-			expectVs: []string{"deadbeef", "sender", "receiver", "subject", nowStr},
+			expectHs: []string{"ID", "Sender", "Subject", "Received"},
+			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
 		},
 		{
 			name: "sharepoint info",
