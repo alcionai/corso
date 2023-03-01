@@ -91,15 +91,16 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
-						ItemType: ExchangeMail,
-						Sender:   "sender",
-						Subject:  "subject",
-						Received: now,
+						ItemType:  ExchangeMail,
+						Sender:    "sender",
+						Recipient: "receiver",
+						Subject:   "subject",
+						Received:  now,
 					},
 				},
 			},
-			expectHs: []string{"ID", "Sender", "Subject", "Received"},
-			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
+			expectHs: []string{"ID", "Sender", "Recipient(s)", "Subject", "Received"},
+			expectVs: []string{"deadbeef", "sender", "receiver", "subject", nowStr},
 		},
 		{
 			name: "sharepoint info",
