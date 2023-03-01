@@ -539,7 +539,7 @@ func (i ExchangeInfo) Headers() []string {
 		return []string{"Contact Name"}
 
 	case ExchangeMail:
-		return []string{"Sender", "Recipient(s)", "Subject", "Received"}
+		return []string{"Sender", "Subject", "Received"}
 	}
 
 	return []string{}
@@ -563,7 +563,7 @@ func (i ExchangeInfo) Values() []string {
 
 	case ExchangeMail:
 		return []string{
-			i.Sender, i.Recipient, i.Subject,
+			i.Sender, i.Subject,
 			common.FormatTabularDisplayTime(i.Received),
 		}
 	}
