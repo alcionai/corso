@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -357,22 +358,36 @@ func (c Mail) Serialize(
 // ---------------------------------------------------------------------------
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
-	sender := ""
-	subject := ptr.Val(msg.GetSubject())
-	received := ptr.Val(msg.GetReceivedDateTime())
-	created := ptr.Val(msg.GetCreatedDateTime())
+	var (
+		recipient string
+		sender    = graph.UnwrapAddress(msg.GetSender())
+		subject   = ptr.Val(msg.GetSubject())
+		received  = ptr.Val(msg.GetReceivedDateTime())
+		created   = ptr.Val(msg.GetCreatedDateTime())
+		listing   = make([]string, 0)
+	)
 
-	if msg.GetSender() != nil &&
-		msg.GetSender().GetEmailAddress() != nil {
-		sender = ptr.Val(msg.GetSender().GetEmailAddress().GetAddress())
+	if msg.GetToRecipients() != nil {
+		recipients := msg.GetToRecipients()
+		for _, entry := range recipients {
+			temp := graph.UnwrapAddress(entry)
+			if len(temp) > 0 {
+				listing = append(listing, temp)
+			}
+		}
+	}
+
+	if len(listing) > 0 {
+		recipient = strings.Join(listing, ",")
 	}
 
 	return &details.ExchangeInfo{
-		ItemType: details.ExchangeMail,
-		Sender:   sender,
-		Subject:  subject,
-		Received: received,
-		Created:  created,
-		Modified: ptr.OrNow(msg.GetLastModifiedDateTime()),
+		ItemType:  details.ExchangeMail,
+		Sender:    sender,
+		Recipient: recipient,
+		Subject:   subject,
+		Received:  received,
+		Created:   created,
+		Modified:  ptr.OrNow(msg.GetLastModifiedDateTime()),
 	}
 }
