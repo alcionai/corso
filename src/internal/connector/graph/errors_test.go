@@ -104,6 +104,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			err:    odErr(errCodeResyncRequired),
 			expect: assert.True,
 		},
+		{
+			name:   "resync-required oDataErr",
+			err:    odErr(errCodeResyncRequiredAlt),
+			expect: assert.True,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

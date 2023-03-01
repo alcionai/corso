@@ -24,6 +24,7 @@ const (
 	errCodeItemNotFoundShort           = "itemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired"
+	errCodeResyncRequiredAlt           = "resyncRequired"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
@@ -79,7 +80,7 @@ func IsErrInvalidDelta(err error) bool {
 		return true
 	}
 
-	if hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired) {
+	if hasErrorCode(err, errCodeSyncStateNotFound, errCodeResyncRequired, errCodeResyncRequiredAlt) {
 		return true
 	}
 
