@@ -20,6 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// For any version post this(inclusive), we expect to be using IDs for
+// permission instead of email
+const versionPermissionSwitchedToId = version.OneDrive4DirIncludesPermissions
+
 func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
 	if len(perm.user) == 0 || len(perm.roles) == 0 {
 		return onedrive.Metadata{FileName: fileName}
@@ -173,12 +177,7 @@ func (c onedriveCollection) collection() colInfo {
 	}
 }
 
-func (c *onedriveCollection) withFile(
-	name string,
-	fileData []byte,
-	perm permData,
-	permUseID bool,
-) *onedriveCollection {
+func (c *onedriveCollection) withFile(name string, fileData []byte, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0:
 		// Lookups will occur using the most recent version of things so we need
@@ -201,7 +200,7 @@ func (c *onedriveCollection) withFile(
 			"",
 			name+onedrive.MetaFileSuffix,
 			perm,
-			permUseID)
+			c.backupVersion >= versionPermissionSwitchedToId)
 		c.items = append(c.items, metadata)
 		c.aux = append(c.aux, metadata)
 
@@ -212,11 +211,7 @@ func (c *onedriveCollection) withFile(
 	return c
 }
 
-func (c *onedriveCollection) withFolder(
-	name string,
-	perm permData,
-	permUseID bool,
-) *onedriveCollection {
+func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions:
 		return c
@@ -229,7 +224,7 @@ func (c *onedriveCollection) withFolder(
 				"",
 				name+onedrive.DirMetaFileSuffix,
 				perm,
-				permUseID))
+				c.backupVersion >= versionPermissionSwitchedToId))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -240,10 +235,7 @@ func (c *onedriveCollection) withFolder(
 
 // withPermissions adds permissions to the folder represented by this
 // onedriveCollection.
-func (c *onedriveCollection) withPermissions(
-	perm permData,
-	permUseID bool,
-) *onedriveCollection {
+func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
 	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
@@ -261,7 +253,7 @@ func (c *onedriveCollection) withPermissions(
 		name,
 		name+onedrive.DirMetaFileSuffix,
 		perm,
-		permUseID)
+		c.backupVersion >= versionPermissionSwitchedToId)
 
 	c.items = append(c.items, metadata)
 	c.aux = append(c.aux, metadata)
@@ -295,21 +287,21 @@ type onedriveTest struct {
 	cols         []onedriveColInfo
 }
 
-func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int, permUseID bool) []colInfo {
+func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int) []colInfo {
 	var res []colInfo
 
 	for _, c := range cols {
 		onedriveCol := newOneDriveCollection(t, c.pathElements, backupVersion)
 
 		for _, f := range c.files {
-			onedriveCol.withFile(f.name, f.data, f.perms, permUseID)
+			onedriveCol.withFile(f.name, f.data, f.perms)
 		}
 
 		for _, d := range c.folders {
-			onedriveCol.withFolder(d.name, d.perms, permUseID)
+			onedriveCol.withFolder(d.name, d.perms)
 		}
 
-		onedriveCol.withPermissions(c.perms, permUseID)
+		onedriveCol.withPermissions(c.perms)
 
 		res = append(res, onedriveCol.collection())
 	}
@@ -431,12 +423,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_Multip
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), test.cols, version.Backup, true)
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
 	for vn := test.startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, test.cols, vn, vn > version.OneDrive3IsMetaMarker)
+			input := testDataForInfo(t, test.cols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             path.OneDriveService,
@@ -641,7 +633,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), test.cols, version.Backup, true)
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
 
 	for vn := test.startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
@@ -649,7 +641,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input := testDataForInfo(t, test.cols, vn, vn > version.OneDrive3IsMetaMarker)
+			input := testDataForInfo(t, test.cols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             path.OneDriveService,
@@ -726,12 +718,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), expectedCols, version.Backup, true)
+	expected := testDataForInfo(suite.T(), expectedCols, version.Backup)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, inputCols, vn, vn > version.OneDrive3IsMetaMarker)
+			input := testDataForInfo(t, inputCols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
 				service:             path.OneDriveService,
@@ -803,12 +795,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					fileName,
 					fileAData,
 					secondaryUserWrite,
-					true,
 				).
 				withFolder(
 					folderBName,
 					secondaryUserRead,
-					true,
 				).
 				collection(),
 			newOneDriveCollection(
@@ -825,11 +815,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					fileName,
 					fileEData,
 					secondaryUserRead,
-					true,
 				).
 				withPermissions(
 					secondaryUserRead,
-					true,
 				).
 				collection(),
 		},
@@ -847,12 +835,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					fileName,
 					fileAData,
 					permData{},
-					true,
 				).
 				withFolder(
 					folderBName,
 					permData{},
-					true,
 				).
 				collection(),
 			newOneDriveCollection(
@@ -869,13 +855,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 					fileName,
 					fileEData,
 					permData{},
-					true,
 				).
 				// Call this to generate a meta file with the folder name that we can
 				// check.
 				withPermissions(
 					permData{},
-					true,
 				).
 				collection(),
 		},
