@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -308,6 +310,7 @@ func generateContainerOfItems(
 	sel selectors.Selector,
 	tenantID, userID, destFldr string,
 	howManyItems int,
+	backupVersion int,
 	dbf dataBuilderFunc,
 ) *details.Details {
 	//revive:enable:context-as-argument
@@ -342,7 +345,7 @@ func generateContainerOfItems(
 
 	deets, err := gc.RestoreDataCollections(
 		ctx,
-		version.Backup,
+		backupVersion,
 		acct,
 		sel,
 		dest,
@@ -757,6 +760,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 				selectors.NewExchangeRestore(owners).Selector,
 				m365.AzureTenantID, suite.user, destName,
 				2,
+				version.Backup,
 				gen.dbf)
 
 			dataset[category].dests[destName] = contDeets{"", deets}
@@ -882,6 +886,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						selectors.NewExchangeRestore(owners).Selector,
 						m365.AzureTenantID, suite.user, container3,
 						2,
+						version.Backup,
 						gen.dbf)
 
 					qp := graph.QueryParams{
@@ -1091,6 +1096,325 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
+}
+
+func mustGetDefaultDriveID(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	service graph.Servicer,
+	userID string,
+) string {
+	//revive:enable:context-as-argument
+	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
+	if err != nil {
+		err = errors.Wrapf(
+			err,
+			"failed to retrieve default user drive. user: %s, details: %s",
+			userID,
+			support.ConnectorStackErrorTrace(err),
+		)
+	}
+
+	require.NoError(t, err)
+	require.NotNil(t, d.GetId())
+	require.NotEmpty(t, *d.GetId())
+
+	return *d.GetId()
+}
+
+// TestBackup_Run ensures that Integration Testing works
+// for the following scopes: Contacts, Events, and Mail
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	tester.LogTimeOfTest(suite.T())
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		//ffs        = control.Toggles{}
+		//mb         = evmock.NewBus()
+		now        = common.Now()
+		owners     = []string{suite.user}
+		container1 = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
+		container2 = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
+		//container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
+		//containerRename = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 4, now)
+
+		genDests = []string{container1, container2}
+	)
+
+	m365, err := acct.M365Config()
+	require.NoError(t, err)
+
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		graph.HTTPClient(graph.NoTimeout()),
+		acct,
+		connector.Users,
+		fault.New(true))
+	require.NoError(t, err)
+
+	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
+
+	//ac, err := api.NewClient(m365)
+	//require.NoError(t, err)
+
+	// generate 3 new folders with two items each.
+	// Only the first two folders will be part of the initial backup and
+	// incrementals.  The third folder will be introduced partway through
+	// the changes.
+	// This should be enough to cover most delta actions, since moving one
+	// container into another generates a delta for both addition and deletion.
+	fileDBF := func(id, timeStamp, subject, body string) []byte {
+		return []byte(id + subject)
+	}
+
+	// populate initial test data
+	for _, destName := range genDests {
+		generateContainerOfItems(
+			t,
+			ctx,
+			gc,
+			path.OneDriveService,
+			acct,
+			path.FilesCategory,
+			selectors.NewOneDriveRestore(owners).Selector,
+			m365.AzureTenantID, suite.user, destName,
+			2,
+			// Use an old backup version so we don't need metadata files.
+			0,
+			fileDBF)
+	}
+
+	containerIDs := map[string]string{}
+
+	// verify test data was populated, and track it for comparisons
+	for _, destName := range genDests {
+		// Use path-based indexint to get the folder's ID. This is sourced from the
+		// onedrive package `getFolder` function.
+		itemURL := fmt.Sprintf(
+			"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
+			driveID,
+			destName)
+		resp, err := msdrive.NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+			Get(ctx, nil)
+		require.NoErrorf(t, err, "getting drive folder ID", "folder name: %s", destName)
+
+		containerIDs[destName] = ptr.Val(resp.GetId())
+	}
+
+	//// container3 and containerRename don't exist yet.  Those will get created
+	//// later on during the tests.  Putting their identifiers into the selector
+	//// at this point is harmless.
+	//containers := []string{container1, container2, container3, containerRename}
+	//sel := selectors.NewOneDriveBackup(owners)
+	//sel.Include(
+	//	sel.Folders(containers, selectors.PrefixMatch()),
+	//)
+
+	//bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	//defer closer()
+
+	//// run the initial backup
+	//runAndCheckBackup(t, ctx, &bo, mb)
+
+	//// Although established as a table, these tests are no isolated from each other.
+	//// Assume that every test's side effects cascade to all following test cases.
+	//// The changes are split across the table so that we can monitor the deltas
+	//// in isolation, rather than debugging one change from the rest of a series.
+	//table := []struct {
+	//	name string
+	//	// performs the incremental update required for the test.
+	//	updateUserData func(t *testing.T)
+	//	itemsRead      int
+	//	itemsWritten   int
+	//}{
+	//	{
+	//		name:           "clean incremental, no changes",
+	//		updateUserData: func(t *testing.T) {},
+	//		itemsRead:      0,
+	//		itemsWritten:   0,
+	//	},
+	//	{
+	//		name: "move a folder to a subfolder",
+	//		updateUserData: func(t *testing.T) {
+	//			// contacts and events cannot be sufoldered; this is an email-only change
+	//			toContainer := dataset[path.EmailCategory].dests[container1].containerID
+	//			fromContainer := dataset[path.EmailCategory].dests[container2].containerID
+
+	//			body := users.NewItemMailFoldersItemMovePostRequestBody()
+	//			body.SetDestinationId(&toContainer)
+
+	//			_, err := gc.Service.
+	//				Client().
+	//				UsersById(suite.user).
+	//				MailFoldersById(fromContainer).
+	//				Move().
+	//				Post(ctx, body, nil)
+	//			require.NoError(t, err)
+	//		},
+	//		itemsRead:    0, // zero because we don't count container reads
+	//		itemsWritten: 2,
+	//	},
+	//	{
+	//		name: "delete a folder",
+	//		updateUserData: func(t *testing.T) {
+	//			for category, d := range dataset {
+	//				containerID := d.dests[container2].containerID
+
+	//					require.NoError(
+	//						t,
+	//						ac.Mail().DeleteContainer(ctx, suite.user, containerID),
+	//						"deleting an email folder")
+	//			}
+	//		},
+	//		itemsRead:    0,
+	//		itemsWritten: 0, // deletions are not counted as "writes"
+	//	},
+	//	{
+	//		name: "add a new folder",
+	//		updateUserData: func(t *testing.T) {
+	//			for category, gen := range dataset {
+	//				deets := generateContainerOfItems(
+	//					t,
+	//					ctx,
+	//					gc,
+	//					path.ExchangeService,
+	//					acct,
+	//					category,
+	//					selectors.NewExchangeRestore(owners).Selector,
+	//					m365.AzureTenantID, suite.user, container3,
+	//					2,
+	//					gen.dbf)
+
+	//				qp := graph.QueryParams{
+	//					Category:      category,
+	//					ResourceOwner: suite.user,
+	//					Credentials:   m365,
+	//				}
+	//				cr, err := exchange.PopulateExchangeContainerResolver(ctx, qp, fault.New(true))
+	//				require.NoError(t, err, "populating %s container resolver", category)
+
+	//				p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)
+	//				require.NoError(t, err)
+
+	//				id, ok := cr.PathInCache(p.Folder(false))
+	//				require.True(t, ok, "dir %s found in %s cache", p.Folder(false), category)
+
+	//				dataset[category].dests[container3] = contDeets{id, deets}
+	//			}
+	//		},
+	//		itemsRead:    4,
+	//		itemsWritten: 4,
+	//	},
+	//	{
+	//		name: "rename a folder",
+	//		updateUserData: func(t *testing.T) {
+	//			for category, d := range dataset {
+	//				containerID := d.dests[container3].containerID
+	//				cli := gc.Service.Client().UsersById(suite.user)
+
+	//				// copy the container info, since both names should
+	//				// reference the same container by id.  Though the
+	//				// details refs won't line up, so those get deleted.
+	//				d.dests[containerRename] = contDeets{
+	//					containerID: d.dests[container3].containerID,
+	//					deets:       nil,
+	//				}
+
+	//					cmf := cli.MailFoldersById(containerID)
+
+	//					body, err := cmf.Get(ctx, nil)
+	//					require.NoError(t, err, "getting mail folder")
+
+	//					body.SetDisplayName(&containerRename)
+	//					_, err = cmf.Patch(ctx, body, nil)
+	//					require.NoError(t, err, "updating mail folder name")
+
+	//			}
+	//		},
+	//		itemsRead:    0, // containers are not counted as reads
+	//		itemsWritten: 4, // two items per category
+	//	},
+	//	{
+	//		name: "add a new item",
+	//		updateUserData: func(t *testing.T) {
+	//			for category, d := range dataset {
+	//				containerID := d.dests[container1].containerID
+	//				cli := gc.Service.Client().UsersById(suite.user)
+
+	//					_, itemData := generateItemData(t, category, suite.user, mailDBF)
+	//					body, err := support.CreateMessageFromBytes(itemData)
+	//					require.NoError(t, err, "transforming mail bytes to messageable")
+
+	//					_, err = cli.MailFoldersById(containerID).Messages().Post(ctx, body, nil)
+	//					require.NoError(t, err, "posting email item")
+
+	//			}
+	//		},
+	//		itemsRead:    2,
+	//		itemsWritten: 2,
+	//	},
+	//	{
+	//		name: "delete an existing item",
+	//		updateUserData: func(t *testing.T) {
+	//			for category, d := range dataset {
+	//				containerID := d.dests[container1].containerID
+	//				cli := gc.Service.Client().UsersById(suite.user)
+
+	//					ids, _, _, err := ac.Mail().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
+	//					require.NoError(t, err, "getting message ids")
+	//					require.NotEmpty(t, ids, "message ids in folder")
+
+	//					err = cli.MessagesById(ids[0]).Delete(ctx, nil)
+	//					require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
+
+	//			}
+	//		},
+	//		itemsRead:    2,
+	//		itemsWritten: 0, // deletes are not counted as "writes"
+	//	},
+	//}
+	//for _, test := range table {
+	//	suite.Run(test.name, func() {
+	//		var (
+	//			t     = suite.T()
+	//			incMB = evmock.NewBus()
+	//			incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+	//		)
+
+	//		test.updateUserData(t)
+	//		require.NoError(t, incBO.Run(ctx))
+	//		checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, suite.user, maps.Keys(categories)...)
+	//		checkMetadataFilesExist(
+	//			t,
+	//			ctx,
+	//			incBO.Results.BackupID,
+	//			kw,
+	//			ms,
+	//			m365.AzureTenantID,
+	//			suite.user,
+	//			path.ExchangeService,
+	//			categories,
+	//		)
+
+	//		// do some additional checks to ensure the incremental dealt with fewer items.
+	//		// +4 on read/writes to account for metadata: 1 delta and 1 path for each type.
+	//		assert.Equal(t, test.itemsWritten+4, incBO.Results.ItemsWritten, "incremental items written")
+	//		assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
+	//		assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
+	//		assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
+	//		assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
+	//		assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
+	//		assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
+	//		assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
+	//		assert.Equal(t,
+	//			incMB.CalledWith[events.BackupStart][0][events.BackupID],
+	//			incBO.Results.BackupID, "incremental backupID pre-declaration")
+	//	})
+	//}
 }
 
 // ---------------------------------------------------------------------------
