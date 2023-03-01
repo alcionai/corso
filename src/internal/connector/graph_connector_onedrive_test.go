@@ -11,14 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -120,25 +118,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
 
-	// Not using m365.Users to avoid cyclic imports
-	users, err := discovery.Users(ctx, suite.connector.Owners.Users(), fault.New(true))
-	require.NoError(suite.T(), err, "fetching users")
+	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
+	require.NoErrorf(suite.T(), err, "fetching user %s", suite.user)
+	suite.userID = *user.GetId()
 
-	for _, u := range users {
-		if *u.GetUserPrincipalName() == suite.user {
-			suite.userID = *u.GetId()
-		} else if *u.GetUserPrincipalName() == suite.secondaryUser {
-			suite.secondaryUserID = *u.GetId()
-		}
-	}
-
-	if suite.userID == "" {
-		require.FailNowf(suite.T(), "unable to find user id", "user %d", suite.user)
-	}
-
-	if suite.secondaryUserID == "" {
-		require.FailNowf(suite.T(), "unable to find user id", "user %d", suite.secondaryUser)
-	}
+	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
+	require.NoErrorf(suite.T(), err, "fetching user %s", suite.secondaryUser)
+	suite.secondaryUserID = *secondaryUser.GetId()
 
 	tester.LogTimeOfTest(suite.T())
 }
