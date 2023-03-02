@@ -30,7 +30,7 @@ jobs:
 
       - run: go build -o sanityCheck ./sanity_test/
 
-      # - run: mkdir test_results
+      - run: mkdir test_results
 
 # m365 outlook message list --folderName Inbox 
       # run the tests
