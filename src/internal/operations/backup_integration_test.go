@@ -330,7 +330,7 @@ func generateContainerOfItems(
 		items:       items,
 	}}
 
-	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest := control.DefaultRestoreDestination(ctx, common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 
 	dataColls := buildCollections(

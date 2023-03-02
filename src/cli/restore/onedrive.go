@@ -159,7 +159,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
+	dest := control.DefaultRestoreDestination(ctx, common.SimpleDateTimeOneDrive)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)

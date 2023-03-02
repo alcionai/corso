@@ -149,7 +149,7 @@ func runRestoreLoadTest(
 			t.Skip("restore load test is toggled off")
 		}
 
-		dest := tester.DefaultTestRestoreDestination()
+		dest := tester.DefaultTestRestoreDestination(ctx)
 
 		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
 		require.NoError(t, err)

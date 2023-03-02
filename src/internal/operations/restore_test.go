@@ -50,7 +50,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
 		now  = time.Now()
-		dest = tester.DefaultTestRestoreDestination()
+		dest = tester.DefaultTestRestoreDestination(ctx)
 	)
 
 	table := []struct {
@@ -261,7 +261,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
-	dest := tester.DefaultTestRestoreDestination()
+	dest := tester.DefaultTestRestoreDestination(context.Background())
 
 	table := []struct {
 		name     string
@@ -407,7 +407,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore(selectors.None())
 	rsel.Include(rsel.AllData())
 
-	dest := tester.DefaultTestRestoreDestination()
+	dest := tester.DefaultTestRestoreDestination(ctx)
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(

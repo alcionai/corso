@@ -28,7 +28,9 @@ jobs:
 
       - run: make build
 
-      - run: mkdir test_results
+      - run: go build -o sanityCheck ./sanity_test/
+
+      # - run: mkdir test_results
 
 # m365 outlook message list --folderName Inbox 
       # run the tests
@@ -59,7 +61,7 @@ jobs:
         run: |
           touch $TEST_RESULT/initrepo.txt
           prefix=`date +"%Y-%m-%d-%T"`
-          ./corso repo init s3 --hide-progress --bucket   ${CORSO_BUCKET}   2>&1 | tee $TEST_RESULT/initrepo.txt 
+          ./corso repo init s3 --hide-progress --prefix $prefix --bucket   ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
           valid_num=$(grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
@@ -188,23 +190,21 @@ jobs:
           TEST_RESULT: "test_results"
         # TODO: check the folders on endpoint
         run: |
-         echo result=Corso_Restore_$(date -u +"%d-%b-%Y_%I:%M:00") >> $GITHUB_OUTPUT
-         ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 
-       
-      - name: Login to tenant
-        uses: pnp/action-cli-login@v2.2.1
-        with:
-          TENANT: ${{ secrets.AZURE_TENANT_ID }}
-          ADMIN_USERNAME:  ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          ADMIN_PASSWORD:  ${{ secrets.ADMIN_PASSWORD }}
+         ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
+         echo result=$(grep -i -e 'Restoring to new folder:' $TEST_RESULT/exchange-restore-test.txt | awk -F "::" '{print $2}' )  >> $GITHUB_OUTPUT
+        
+      - name: Restoration check
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
+          EXCHANGE_TEST: "true"
 
-      - name: Check exhange backup
-        env: 
-          TEST_RESULT: "test_results"
-        uses: pnp/action-cli-runscript@v2.0.1
-        with:
-          M365_CLI_SCRIPT: m365 outlook message list --folderName "${{ steps.exchange-restore-test.outputs.result }} 
- 
+        run: |
+          ./sanityCheck
+
         
 # Onedrive test
 

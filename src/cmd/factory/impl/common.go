@@ -81,7 +81,7 @@ func generateAndRestoreItems(
 	}}
 
 	// TODO: fit the destination to the containers
-	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
+	dest := control.DefaultRestoreDestination(ctx, common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
 
 	dataColls, err := buildCollections(

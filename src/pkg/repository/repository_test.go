@@ -207,7 +207,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	t := suite.T()
 
 	acct := tester.NewM365Account(t)
-	dest := tester.DefaultTestRestoreDestination()
+	dest := tester.DefaultTestRestoreDestination(ctx)
 
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
