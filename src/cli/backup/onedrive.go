@@ -350,7 +350,6 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-
 	ctrlOpts := options.Control()
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, ctrlOpts)
