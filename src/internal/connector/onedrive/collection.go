@@ -53,6 +53,14 @@ var (
 	_ data.StreamModTime    = &metadataItem{}
 )
 
+type SharingMode int
+
+const (
+	SharingModeInherited = SharingMode(iota)
+	SharingModeEmpty
+	SharingModeCustom
+)
+
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// configured to handle large item downloads
@@ -213,7 +221,12 @@ type UserPermission struct {
 // ItemMeta contains metadata about the Item. It gets stored in a
 // separate file in kopia
 type Metadata struct {
-	FileName    string           `json:"filename,omitempty"`
+	FileName string `json:"filename,omitempty"`
+	// SharingMode denotes what the current mode of sharing is for the object.
+	// - inherited: permissions same as parent permissions (no "shared" in delta)
+	// - empty: remove all permissions (empty "shared" in delta)
+	// - custom: use Permissions to set correct permissions ("shared" has value in delta)
+	SharingMode SharingMode      `json:"permissionMode,omitempty"` // TODO(meain): SharingModeInherited is removed by omitempty
 	Permissions []UserPermission `json:"permissions,omitempty"`
 }
 

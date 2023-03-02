@@ -73,14 +73,29 @@ func oneDriveItemMetaReader(
 		FileName: *item.GetName(),
 	}
 
-	perms, err := oneDriveItemPermissionInfo(ctx, service, driveID, item, fetchPermissions)
-	if err != nil {
-		// Keep this in an if-block because if it's not then we have a weird issue
-		// of having no value in error but golang thinking it's non nil because of
-		// the way interfaces work.
-		err = clues.Wrap(err, "fetching item permissions")
+	if item.GetShared() == nil {
+		meta.SharingMode = SharingModeInherited
+	} else if item.GetShared().GetScope() == nil {
+		// NOTE(meain): See how this works when we have groups
+		meta.SharingMode = SharingModeEmpty
 	} else {
-		meta.Permissions = perms
+		meta.SharingMode = SharingModeCustom
+	}
+
+	var (
+		perms []UserPermission
+		err   error
+	)
+	if meta.SharingMode == SharingModeCustom {
+		perms, err = oneDriveItemPermissionInfo(ctx, service, driveID, item, fetchPermissions)
+		if err != nil {
+			// Keep this in an if-block because if it's not then we have a weird issue
+			// of having no value in error but golang thinking it's non nil because of
+			// the way interfaces work.
+			err = clues.Wrap(err, "fetching item permissions")
+		} else {
+			meta.Permissions = perms
+		}
 	}
 
 	metaJSON, serializeErr := json.Marshal(meta)
