@@ -113,6 +113,41 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 	assert.Equal(t, "No backups available\n", result)
 }
 
+func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
+	recorder := strings.Builder{}
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	cmd := tester.StubRootCmd(
+		"backup", "create", "onedrive",
+		"--config-file", suite.cfgFP,
+		"--"+utils.UserFN, "foo@nothere.com")
+	cli.BuildCommandTree(cmd)
+
+	cmd.SetOut(&recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err)
+	assert.Contains(
+		t,
+		err.Error(),
+		"not found within tenant", "error missing user not found")
+	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
+
+	t.Logf("backup error message: %s", err.Error())
+
+	result := recorder.String()
+	t.Log("backup results", result)
+}
+
 // ---------------------------------------------------------------------------
 // tests for deleting backups
 // ---------------------------------------------------------------------------

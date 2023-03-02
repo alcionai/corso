@@ -627,6 +627,11 @@ func (op *BackupOperation) persistResults(
 		op.Status = Failed
 	}
 
+	if opStats.k == nil {
+		op.Status = Failed
+		return errors.New("backup persistence never completed")
+	}
+
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount

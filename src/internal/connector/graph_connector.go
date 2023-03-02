@@ -17,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -41,7 +40,6 @@ type GraphConnector struct {
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
-	Users       map[string]string // key<email> value<id>
 	Sites       map[string]string // key<???> value<???>
 	credentials account.M365Config
 
@@ -78,7 +76,6 @@ func NewGraphConnector(
 	gc := GraphConnector{
 		itemClient:  itemClient,
 		tenant:      m365.AzureTenantID,
-		Users:       make(map[string]string, 0),
 		wg:          &sync.WaitGroup{},
 		credentials: m365,
 	}
@@ -91,16 +88,6 @@ func NewGraphConnector(
 	gc.Owners, err = api.NewClient(m365)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
-	}
-
-	// TODO(ashmrtn): When selectors only encapsulate a single resource owner that
-	// is not a wildcard don't populate users or sites when making the connector.
-	// For now this keeps things functioning if callers do pass in a selector like
-	// "*" instead of.
-	if r == AllResources || r == Users {
-		if err = gc.setTenantUsers(ctx, errs); err != nil {
-			return nil, errors.Wrap(err, "retrieving tenant user list")
-		}
 	}
 
 	if r == AllResources || r == Sites {
@@ -124,27 +111,6 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	}
 
 	return graph.NewService(adapter), nil
-}
-
-// setTenantUsers queries the M365 to identify the users in the
-// workspace. The users field is updated during this method
-// iff the returned error is nil
-func (gc *GraphConnector) setTenantUsers(ctx context.Context, errs *fault.Bus) error {
-	ctx, end := D.Span(ctx, "gc:setTenantUsers")
-	defer end()
-
-	users, err := discovery.Users(ctx, gc.Owners.Users(), errs)
-	if err != nil {
-		return err
-	}
-
-	gc.Users = make(map[string]string, len(users))
-
-	for _, u := range users {
-		gc.Users[*u.GetUserPrincipalName()] = *u.GetId()
-	}
-
-	return nil
 }
 
 // setTenantSites queries the M365 to identify the sites in the

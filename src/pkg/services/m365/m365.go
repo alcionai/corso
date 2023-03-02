@@ -37,12 +37,7 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 // Users returns a list of users in the specified M365 tenant
 // TODO: Implement paging support
 func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
-	if err != nil {
-		return nil, errors.Wrap(err, "initializing M365 graph connection")
-	}
-
-	users, err := discovery.Users(ctx, gc.Owners.Users(), errs)
+	users, err := discovery.Users(ctx, acct, errs)
 	if err != nil {
 		return nil, err
 	}
