@@ -14,6 +14,7 @@ func Control() control.Options {
 	opt.FailFast = fastFail
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
+	opt.SkipReduce = skipReduce
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
 	opt.ToggleFeatures.EnablePermissionsBackup = enablePermissionsBackup
 
@@ -28,6 +29,7 @@ var (
 	fastFail           bool
 	noStats            bool
 	restorePermissions bool
+	skipReduce         bool
 )
 
 // AddOperationFlags adds command-local operation flags
@@ -50,6 +52,14 @@ func AddRestorePermissionsFlag(cmd *cobra.Command) {
 	fs.BoolVar(&restorePermissions, "restore-permissions", false, "Restore permissions for files and folders")
 	// TODO: reveal this flag once backing up permissions becomes default
 	cobra.CheckErr(fs.MarkHidden("restore-permissions"))
+}
+
+// AddSkipReduceFlag adds a hidden flag that allows callers to skip the selector
+// reduction step.  Currently only intended for details commands, not restore.
+func AddSkipReduceFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(&skipReduce, "skip-reduce", false, "Skip the selector reduce filtering")
+	cobra.CheckErr(fs.MarkHidden("skip-reduce"))
 }
 
 // ---------------------------------------------------------------------------
