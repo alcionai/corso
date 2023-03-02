@@ -159,6 +159,7 @@ func defaultItemPager(
 		link,
 		[]string{
 			"content.downloadUrl",
+			"content.shareChanged", // NOTE(meain)
 			"createdBy",
 			"createdDateTime",
 			"file",

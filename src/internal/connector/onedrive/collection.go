@@ -56,7 +56,8 @@ var (
 type SharingMode int
 
 const (
-	SharingModeInherited = SharingMode(iota)
+	SharingModeUnknown = SharingMode(iota) // For older versions. This will be treated similar to cutsom
+	SharingModeInherited
 	SharingModeEmpty
 	SharingModeCustom
 )

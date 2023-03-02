@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -40,7 +41,13 @@ func NewItemPager(
 	fields []string,
 ) *driveItemPager {
 	pageCount := pageSize
+
+	headers := abstractions.NewRequestHeaders()
+	headers.Add("Prefer", "deltashowremovedasdeleted,deltatraversepermissiongaps,deltashowsharingchanges,hierarchicalsharing")
+	// headers.Add("Prefer", "deltashowremovedasdeleted", "deltatraversepermissiongaps", "deltashowsharingchanges", "hierarchicalsharing")
+
 	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		Headers: headers,
 		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
 			Top:    &pageCount,
 			Select: fields,

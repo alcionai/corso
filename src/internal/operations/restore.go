@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -107,11 +106,11 @@ type restorer interface {
 
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
-	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
-			err = crErr
-		}
-	}()
+	// defer func() {
+	// 	if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+	// 		err = crErr
+	// 	}
+	// }()
 
 	var (
 		opStats = restoreStats{
