@@ -114,6 +114,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
 
+		options.AddSkipReduceFlag(c)
+
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
@@ -199,14 +201,14 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -214,7 +216,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), cfg.Account, connector.Sites, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
@@ -370,14 +372,14 @@ func sharePointListCmd() *cobra.Command {
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -430,14 +432,14 @@ func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -474,14 +476,16 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	ctrlOpts := options.Control()
+
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, ctrlOpts)
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -495,7 +499,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts)
+	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -518,6 +522,7 @@ func runDetailsSharePointCmd(
 	r repository.BackupGetter,
 	backupID string,
 	opts utils.SharePointOpts,
+	skipReduce bool,
 ) (*details.Details, error) {
 	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
 		return nil, err
@@ -533,8 +538,11 @@ func runDetailsSharePointCmd(
 		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
-	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
-	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+	if !skipReduce {
+		sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+		d = sel.Reduce(ctx, d, errs)
+	}
 
-	return sel.Reduce(ctx, d, errs), nil
+	return d, nil
 }

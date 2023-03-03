@@ -103,6 +103,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
 
+		options.AddSkipReduceFlag(c)
+
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to explore. (required)")
@@ -182,14 +184,14 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -199,7 +201,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, acct, errs)
+	users, err := m365.UserPNs(ctx, cfg.Account, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -283,14 +285,14 @@ func oneDriveListCmd() *cobra.Command {
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -343,14 +345,16 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	ctrlOpts := options.Control()
+
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, ctrlOpts)
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -367,7 +371,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
+	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -390,6 +394,7 @@ func runDetailsOneDriveCmd(
 	r repository.BackupGetter,
 	backupID string,
 	opts utils.OneDriveOpts,
+	skipReduce bool,
 ) (*details.Details, error) {
 	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
 		return nil, err
@@ -405,10 +410,13 @@ func runDetailsOneDriveCmd(
 		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
-	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
-	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
+	if !skipReduce {
+		sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
+		utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
+		d = sel.Reduce(ctx, d, errs)
+	}
 
-	return sel.Reduce(ctx, d, errs), nil
+	return d, nil
 }
 
 // `corso backup delete onedrive [<flag>...]`
@@ -430,14 +438,14 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
