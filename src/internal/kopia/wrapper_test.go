@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -318,6 +319,166 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				Manifest: snap,
 				SubtreePaths: []*path.Builder{
 					suite.storePath1.ToBuilder().Dir(),
+				},
+			})
+		})
+	}
+}
+
+func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
+	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerPath(
+		testTenant,
+		testUser,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(suite.T(), err)
+
+	storePath := tmp
+	locPath := tmp
+
+	// tags that are supplied by the caller. This includes basic tags to support
+	// lookups and extra tags the caller may want to apply.
+	tags := map[string]string{
+		"fnords":    "smarf",
+		"brunhilda": "",
+	}
+
+	reasons := []Reason{
+		{
+			ResourceOwner: storePath.ResourceOwner(),
+			Service:       storePath.Service(),
+			Category:      storePath.Category(),
+		},
+	}
+
+	for _, r := range reasons {
+		for _, k := range r.TagKeys() {
+			tags[k] = ""
+		}
+	}
+
+	expectedTags := map[string]string{}
+
+	maps.Copy(expectedTags, normalizeTagKVs(tags))
+
+	table := []struct {
+		name                  string
+		expectedUploadedFiles int
+		expectedCachedFiles   int
+		numDeetsEntries       int
+		hasMetaDeets          bool
+		cols                  func() []data.BackupCollection
+	}{
+		{
+			name:                  "Uncached",
+			expectedUploadedFiles: 3,
+			expectedCachedFiles:   0,
+			// MockStream implements item info even though OneDrive doesn't.
+			numDeetsEntries: 3,
+			hasMetaDeets:    true,
+			cols: func() []data.BackupCollection {
+				mc := mockconnector.NewMockExchangeCollection(
+					storePath,
+					locPath,
+					3)
+				mc.Names[0] = testFileName
+				mc.Names[1] = testFileName + onedrive.MetaFileSuffix
+				mc.Names[2] = storePath.Folders()[0] + onedrive.DirMetaFileSuffix
+
+				return []data.BackupCollection{mc}
+			},
+		},
+		{
+			name:                  "Cached",
+			expectedUploadedFiles: 1,
+			expectedCachedFiles:   2,
+			// Meta entries are filtered out.
+			numDeetsEntries: 1,
+			hasMetaDeets:    false,
+			cols: func() []data.BackupCollection {
+				mc := mockconnector.NewMockExchangeCollection(
+					storePath,
+					locPath,
+					1)
+				mc.Names[0] = testFileName
+				mc.ColState = data.NotMovedState
+
+				return []data.BackupCollection{mc}
+			},
+		},
+	}
+
+	prevSnaps := []IncrementalBase{}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			collections := test.cols()
+
+			stats, deets, prevShortRefs, err := suite.w.BackupCollections(
+				suite.ctx,
+				prevSnaps,
+				collections,
+				nil,
+				tags,
+				true,
+				fault.New(true))
+			assert.NoError(t, err)
+
+			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
+			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
+			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
+			assert.Equal(t, 5, stats.TotalDirectoryCount)
+			assert.Equal(t, 0, stats.IgnoredErrorCount)
+			assert.Equal(t, 0, stats.ErrorCount)
+			assert.False(t, stats.Incomplete)
+
+			// 47 file and 5 folder entries.
+			details := deets.Details().Entries
+			assert.Len(
+				t,
+				details,
+				test.numDeetsEntries+5,
+			)
+
+			for _, entry := range details {
+				assert.True(t, entry.Updated)
+
+				if test.hasMetaDeets {
+					continue
+				}
+
+				assert.False(t, onedrive.IsMetaFile(entry.RepoRef), "metadata entry in details")
+			}
+
+			assert.Len(t, prevShortRefs, 0)
+			for _, prevRef := range prevShortRefs {
+				assert.False(
+					t,
+					onedrive.IsMetaFile(prevRef.Repo.String()),
+					"metadata entry in base details")
+			}
+
+			checkSnapshotTags(
+				t,
+				suite.ctx,
+				suite.w.c,
+				expectedTags,
+				stats.SnapshotID,
+			)
+
+			snap, err := snapshot.LoadSnapshot(
+				suite.ctx,
+				suite.w.c,
+				manifest.ID(stats.SnapshotID),
+			)
+			require.NoError(t, err)
+
+			prevSnaps = append(prevSnaps, IncrementalBase{
+				Manifest: snap,
+				SubtreePaths: []*path.Builder{
+					storePath.ToBuilder().Dir(),
 				},
 			})
 		})
