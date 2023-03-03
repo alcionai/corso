@@ -313,7 +313,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			name:          "Exchange_Restore",
 			bID:           suite.backupID,
 			expectedItems: suite.numItems,
-			dest:          tester.DefaultTestRestoreDestination(),
+			dest:          tester.DefaultTestRestoreDestination(ctx),
 			getSelector: func(t *testing.T) selectors.Selector {
 				users := []string{tester.M365UserID(t)}
 				rsel := selectors.NewExchangeRestore(users)
@@ -326,7 +326,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			name:          "SharePoint_Restore",
 			bID:           suite.sharepointID,
 			expectedItems: suite.shareItems,
-			dest:          control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
+			dest:          control.DefaultRestoreDestination(ctx, common.SimpleDateTimeOneDrive),
 			getSelector: func(t *testing.T) selectors.Selector {
 				bsel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
 				bsel.Include(bsel.AllData())
