@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -367,10 +366,7 @@ func (r repository) BackupDetails(
 	if b.Version >= version.OneDrive1DataAndMetaFiles && b.Version < version.OneDrive3IsMetaMarker {
 		for _, d := range deets.Entries {
 			if d.OneDrive != nil {
-				if strings.HasSuffix(d.RepoRef, onedrive.MetaFileSuffix) ||
-					strings.HasSuffix(d.RepoRef, onedrive.DirMetaFileSuffix) {
-					d.OneDrive.IsMeta = true
-				}
+				d.OneDrive.IsMeta = onedrive.IsMetaFile(d.RepoRef)
 			}
 		}
 	}
