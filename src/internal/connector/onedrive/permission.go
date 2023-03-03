@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
@@ -161,20 +160,18 @@ func restorePermissions(
 	meta Metadata,
 	permissionIDMappings map[string]string,
 ) error {
-	// NOTE(meain): if custom or empty, fetch
-	fmt.Println("permission.go:163 meta:", meta)
 	if meta.SharingMode == SharingModeInherited {
 		return nil
 	}
 
+	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
 	currentPermissions, err := OneDriveItemPermissionInfo(ctx, service, driveID, itemID)
 	if err != nil {
-		return err
+		return clues.Wrap(err, "fetching current permissions").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
 	permAdded, permRemoved := getPermissionDiff(meta.Permissions, currentPermissions, permissionIDMappings)
-
-	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
 	for _, p := range permRemoved {
 		err := service.Client().

@@ -44,7 +44,6 @@ func NewItemPager(
 
 	headers := abstractions.NewRequestHeaders()
 	headers.Add("Prefer", "deltashowremovedasdeleted,deltatraversepermissiongaps,deltashowsharingchanges,hierarchicalsharing")
-	// headers.Add("Prefer", "deltashowremovedasdeleted", "deltatraversepermissiongaps", "deltashowsharingchanges", "hierarchicalsharing")
 
 	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
 		Headers: headers,
