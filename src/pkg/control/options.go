@@ -1,9 +1,8 @@
 package control
 
 import (
-	"context"
+	"fmt"
 
-	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 )
 
@@ -61,9 +60,9 @@ type RestoreDestination struct {
 	ContainerName string
 }
 
-func DefaultRestoreDestination(ctx context.Context, timeFormat common.TimeFormat) RestoreDestination {
+func DefaultRestoreDestination(timeFormat common.TimeFormat) RestoreDestination {
 	restoreLocation := defaultRestoreLocation + common.FormatNow(timeFormat)
-	print.Info(ctx, "Restoring to new folder:: "+restoreLocation)
+	fmt.Print("Restoring to new folder:: " + restoreLocation)
 	return RestoreDestination{
 		ContainerName: restoreLocation,
 	}

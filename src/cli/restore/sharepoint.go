@@ -170,7 +170,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	dest := control.DefaultRestoreDestination(ctx, common.SimpleDateTimeOneDrive)
+	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)

@@ -50,7 +50,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 		sw   = &store.Wrapper{}
 		acct = account.Account{}
 		now  = time.Now()
-		dest = tester.DefaultTestRestoreDestination(ctx)
+		dest = tester.DefaultTestRestoreDestination()
 	)
 
 	table := []struct {
@@ -261,7 +261,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
 	acct := tester.NewM365Account(suite.T())
-	dest := tester.DefaultTestRestoreDestination(context.Background())
+	dest := tester.DefaultTestRestoreDestination()
 
 	table := []struct {
 		name     string
@@ -313,7 +313,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			name:          "Exchange_Restore",
 			bID:           suite.backupID,
 			expectedItems: suite.numItems,
-			dest:          tester.DefaultTestRestoreDestination(ctx),
+			dest:          tester.DefaultTestRestoreDestination(),
 			getSelector: func(t *testing.T) selectors.Selector {
 				users := []string{tester.M365UserID(t)}
 				rsel := selectors.NewExchangeRestore(users)
@@ -326,7 +326,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			name:          "SharePoint_Restore",
 			bID:           suite.sharepointID,
 			expectedItems: suite.shareItems,
-			dest:          control.DefaultRestoreDestination(ctx, common.SimpleDateTimeOneDrive),
+			dest:          control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
 			getSelector: func(t *testing.T) selectors.Selector {
 				bsel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
 				bsel.Include(bsel.AllData())
@@ -407,7 +407,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 	rsel := selectors.NewExchangeRestore(selectors.None())
 	rsel.Include(rsel.AllData())
 
-	dest := tester.DefaultTestRestoreDestination(ctx)
+	dest := tester.DefaultTestRestoreDestination()
 	mb := evmock.NewBus()
 
 	ro, err := NewRestoreOperation(

@@ -557,7 +557,7 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 	var (
 		user            = tester.M365UserID(suite.T())
 		directoryCaches = make(map[path.CategoryType]graph.ContainerResolver)
-		folderName      = tester.DefaultTestRestoreDestination(ctx).ContainerName
+		folderName      = tester.DefaultTestRestoreDestination().ContainerName
 		tests           = []struct {
 			name         string
 			pathFunc1    func(t *testing.T) path.Path

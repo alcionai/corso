@@ -203,7 +203,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	var (
 		t    = suite.T()
 		acct = tester.NewM365Account(t)
-		dest = tester.DefaultTestRestoreDestination(ctx)
+		dest = tester.DefaultTestRestoreDestination()
 		sel  = selectors.Selector{
 			Service: selectors.ServiceUnknown,
 		}
@@ -231,7 +231,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
-	dest := tester.DefaultTestRestoreDestination(context.Background())
+	dest := tester.DefaultTestRestoreDestination()
 	table := []struct {
 		name string
 		col  []data.RestoreCollection
@@ -499,7 +499,7 @@ func runRestoreBackupTest(
 		service:        test.service,
 		tenant:         tenant,
 		resourceOwners: resourceOwners,
-		dest:           tester.DefaultTestRestoreDestination(ctx),
+		dest:           tester.DefaultTestRestoreDestination(),
 	}
 
 	totalItems, totalKopiaItems, collections, expectedData := getCollectionsAndExpected(
@@ -547,7 +547,7 @@ func runRestoreBackupTestVersions(
 		service:        test.service,
 		tenant:         tenant,
 		resourceOwners: resourceOwners,
-		dest:           tester.DefaultTestRestoreDestination(ctx),
+		dest:           tester.DefaultTestRestoreDestination(),
 	}
 
 	totalItems, _, collections, _ := getCollectionsAndExpected(
@@ -895,7 +895,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			for i, collection := range test.collections {
 				// Get a dest per collection so they're independent.
-				dest := tester.DefaultTestRestoreDestination(ctx)
+				dest := tester.DefaultTestRestoreDestination()
 				expectedDests = append(expectedDests, destAndCats{
 					resourceOwner: suite.user,
 					dest:          dest.ContainerName,
