@@ -167,11 +167,13 @@ func restorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
+	// TODO(meain): Compute this from the data that we have instead of fetching from graph
 	currentPermissions, err := oneDriveItemPermissionInfo(ctx, service, driveID, itemID)
 	if err != nil {
 		return clues.Wrap(err, "fetching current permissions").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
+	// meta.Permissions will be empty for SharingModeEmpty
 	permAdded, permRemoved := getPermissionDiff(meta.Permissions, currentPermissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
