@@ -622,6 +622,11 @@ func (c *Collections) UpdateCollections(
 			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
 
+		// TODO(meain): Use `@microsoft.graph.sharedChanged` in
+		// item.GetAdditionalData() to optimize fetching
+		// permissions. When permissions change, this flags is
+		// present, if only data changes, it is not present.
+
 		// Deleted file or folder.
 		if item.GetDeleted() != nil {
 			if err := c.handleDelete(
