@@ -3,7 +3,6 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"runtime/trace"
 	"sort"
@@ -212,7 +211,6 @@ func RestoreCollection(
 				return metrics, folderMetas, permissionIDMappings, nil
 			}
 
-			fmt.Println(itemData.UUID())
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "appending item to full path").WithClues(ctx))

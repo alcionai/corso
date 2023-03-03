@@ -87,7 +87,7 @@ func oneDriveItemMetaReader(
 	)
 
 	if meta.SharingMode == SharingModeCustom && fetchPermissions {
-		perms, err = OneDriveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
+		perms, err = oneDriveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			// Keep this in an if-block because if it's not then we have a weird issue
 			// of having no value in error but golang thinking it's non nil because of
@@ -236,7 +236,7 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 
 // OneDriveItemPermissionInfo will fetch the permission information
 // for a drive item given a drive and item id.
-func OneDriveItemPermissionInfo(
+func oneDriveItemPermissionInfo(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID string,

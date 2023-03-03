@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -43,7 +44,13 @@ func NewItemPager(
 	pageCount := pageSize
 
 	headers := abstractions.NewRequestHeaders()
-	headers.Add("Prefer", "deltashowremovedasdeleted,deltatraversepermissiongaps,deltashowsharingchanges,hierarchicalsharing")
+	preferHeaderItems := []string{
+		"deltashowremovedasdeleted",
+		"deltatraversepermissiongaps",
+		"deltashowsharingchanges",
+		"hierarchicalsharing",
+	}
+	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
 	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
 		Headers: headers,

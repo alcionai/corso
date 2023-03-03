@@ -62,6 +62,7 @@ func getCollectionMetadata(
 		if err != nil {
 			return Metadata{}, clues.Wrap(err, "collection metadata")
 		}
+
 		return colMeta, nil
 	}
 
@@ -166,7 +167,7 @@ func restorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	currentPermissions, err := OneDriveItemPermissionInfo(ctx, service, driveID, itemID)
+	currentPermissions, err := oneDriveItemPermissionInfo(ctx, service, driveID, itemID)
 	if err != nil {
 		return clues.Wrap(err, "fetching current permissions").WithClues(ctx).With(graph.ErrData(err)...)
 	}
