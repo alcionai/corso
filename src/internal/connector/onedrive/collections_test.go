@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -2007,7 +2006,8 @@ func malwareItem(
 	c := coreItem(id, name, parentPath, parentID, isFile, isFolder, isPackage)
 
 	mal := models.NewMalware()
-	mal.SetDescription(ptr.To("test malware"))
+	malStr := "test malware"
+	mal.SetDescription(&malStr)
 
 	c.SetMalware(mal)
 
