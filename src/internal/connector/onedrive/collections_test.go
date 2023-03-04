@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -723,6 +724,34 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				"root": expectedPath(""),
 			},
 			expectedExcludes: map[string]struct{}{},
+		},
+		{
+			testCase: "1 root file, 1 folder, 1 package, 1 good file, 1 malware",
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
+				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
+				driveItem("goodFile", "goodFile", testBaseDrivePath+folder, "folder", true, false, false),
+				malwareItem("malwareFile", "malwareFile", testBaseDrivePath+folder, "folder", true, false, false),
+			},
+			inputFolderMap: map[string]string{},
+			scope:          anyFolder,
+			expect:         assert.NoError,
+			expectedCollectionIDs: map[string]statePath{
+				"root":    expectedStatePath(data.NotMovedState, ""),
+				"folder":  expectedStatePath(data.NewState, folder),
+				"package": expectedStatePath(data.NewState, pkg),
+			},
+			expectedItemCount:      4,
+			expectedFileCount:      2,
+			expectedContainerCount: 3,
+			expectedMetadataPaths: map[string]string{
+				"root":    expectedPath(""),
+				"folder":  expectedPath("/folder"),
+				"package": expectedPath("/package"),
+			},
+			expectedExcludes: getDelList("fileInRoot", "goodFile"),
 		},
 	}
 
@@ -1743,6 +1772,50 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedDelList: map[string]struct{}{},
 			doNotMergeItems: true,
 		},
+		{
+			name:   "OneDrive Two Item Pages with Malware",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+							malwareItem("malware", "malware", driveBasePath1+"/folder", "folder", true, false, false),
+						},
+						nextLink: &next,
+					},
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file2", "file2", driveBasePath1+"/folder", "folder", true, false, false),
+							malwareItem("malware2", "malware2", driveBasePath1+"/folder", "folder", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file", "file2"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedDelList: getDelList("file", "file2"),
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -1886,13 +1959,13 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 	}
 }
 
-func driveItem(
+func coreItem(
 	id string,
 	name string,
 	parentPath string,
 	parentID string,
 	isFile, isFolder, isPackage bool,
-) models.DriveItemable {
+) *models.DriveItem {
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
@@ -1912,6 +1985,33 @@ func driveItem(
 	}
 
 	return item
+}
+
+func driveItem(
+	id string,
+	name string,
+	parentPath string,
+	parentID string,
+	isFile, isFolder, isPackage bool,
+) models.DriveItemable {
+	return coreItem(id, name, parentPath, parentID, isFile, isFolder, isPackage)
+}
+
+func malwareItem(
+	id string,
+	name string,
+	parentPath string,
+	parentID string,
+	isFile, isFolder, isPackage bool,
+) models.DriveItemable {
+	c := coreItem(id, name, parentPath, parentID, isFile, isFolder, isPackage)
+
+	mal := models.NewMalware()
+	mal.SetDescription(ptr.To("test malware"))
+
+	c.SetMalware(mal)
+
+	return c
 }
 
 func driveRootItem(id string) models.DriveItemable {

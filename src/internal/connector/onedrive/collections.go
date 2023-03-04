@@ -608,6 +608,13 @@ func (c *Collections) UpdateCollections(
 			break
 		}
 
+		if item.GetMalware() != nil {
+			// TODO: track the item as skipped; logging alone might
+			// slice out the data from tracking.
+			logger.Ctx(ctx).Infow("malware detected", "malware_description", item.GetMalware().GetDescription())
+			continue
+		}
+
 		var (
 			itemID   = ptr.Val(item.GetId())
 			ictx     = clues.Add(ctx, "update_item_id", itemID)
