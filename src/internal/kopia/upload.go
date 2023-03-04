@@ -22,6 +22,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -262,6 +263,14 @@ func (cp *corsoProgress) CachedFile(fname string, size int64) {
 // during the upload process. This could be from reading a file or something
 // else.
 func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
+	// The malware case is an artifact of being unable to skip the item
+	// if we catch detection at a late enough stage in collection enumeration.
+	// This is our next point of error handling, where we can identify and
+	// skip over the case.
+	if clues.HasLabel(err, graph.LabelsMalware) {
+		return
+	}
+
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
 	cp.errs.AddRecoverable(clues.Wrap(err, "kopia reported error").
@@ -382,7 +391,8 @@ func collectionEntries(
 				modTime,
 				newBackupStreamReader(serializationVersion, e.ToReader()))
 
-			if err := cb(ctx, entry); err != nil {
+			err = cb(ctx, entry)
+			if err != nil {
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
 				return seen, clues.Wrap(err, "executing callback").WithClues(ctx).With("item_path", itemPath)
