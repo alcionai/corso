@@ -118,20 +118,20 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// onedrive info flags
 
 		fs.StringVar(
-			&fileCreatedAfter,
+			&utils.FileCreatedAfter,
 			utils.FileCreatedAfterFN, "",
 			"Select backup details for files created after this datetime.")
 		fs.StringVar(
-			&fileCreatedBefore,
+			&utils.FileCreatedBefore,
 			utils.FileCreatedBeforeFN, "",
 			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
-			&fileModifiedAfter,
+			&utils.FileModifiedAfter,
 			utils.FileModifiedAfterFN, "",
 			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
-			&fileModifiedBefore,
+			&utils.FileModifiedBefore,
 			utils.FileModifiedBeforeFN, "",
 			"Select backup details for files modified before this datetime.")
 
@@ -350,17 +350,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.OneDriveOpts{
-		Users:              user,
-		Paths:              folderPaths,
-		Names:              fileNames,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.OneDriveOptions(user, folderPaths, fileNames, cmd)
 
 	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
 	if err != nil {
