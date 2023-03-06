@@ -62,7 +62,7 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 
 	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
 		fmt.Printf("What was I sent: %v\n", opts.FileCreatedAfter)
-		return errors.New("invalid time format for created-after")
+		return errors.New("invalid time format for " + utils.FileCreatedAfterFN)
 	}
 
 	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
