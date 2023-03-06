@@ -267,7 +267,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			info.Size = int64(len(data))
-			info.Path = strings.Join(col.fullPath.Folders(), "/")
+			info.ParentPath = strings.Join(col.fullPath.Folders(), "/")
 
 			col.data <- &Stream{
 				id:      id,
