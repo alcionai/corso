@@ -43,7 +43,3 @@ func OrNow(t *time.Time) time.Time {
 
 	return *t
 }
-
-func To[T any](t T) *T {
-	return &t
-}
