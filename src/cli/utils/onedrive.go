@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -23,6 +24,20 @@ type OneDriveOpts struct {
 	FileModifiedBefore string
 
 	Populated PopulatedFlags
+}
+
+// OneDriveOptions constructor for OneDriveOpts
+func OneDriveOptions(users, paths, fileNames []string, command *cobra.Command) OneDriveOpts {
+	return OneDriveOpts{
+		Users:              users,
+		Paths:              paths,
+		Names:              fileNames,
+		FileCreatedAfter:   FileCreatedAfter,
+		FileCreatedBefore:  FileCreatedBefore,
+		FileModifiedAfter:  FileModifiedAfter,
+		FileModifiedBefore: FileModifiedBefore,
+		Populated:          GetPopulatedFlags(command),
+	}
 }
 
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
