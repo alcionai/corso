@@ -34,10 +34,10 @@ func (suite *ItemUnitSuite) TestItem_Error() {
 	assert.Contains(t, i.Error(), fault.ItemKindFile)
 }
 
-func (suite *ItemUnitSuite) TestContainerItem() {
+func (suite *ItemUnitSuite) TestContainerErr() {
 	t := suite.T()
 
-	i := fault.ContainerItem(errors.New("foo"), "id", "name", "containerID", "containerName")
+	i := fault.ContainerErr(errors.New("foo"), "id", "name", "containerID", "containerName")
 
 	expect := fault.Item{
 		ID:            "id",
@@ -51,10 +51,10 @@ func (suite *ItemUnitSuite) TestContainerItem() {
 	assert.Equal(t, expect, *i)
 }
 
-func (suite *ItemUnitSuite) TestFileItem() {
+func (suite *ItemUnitSuite) TestFileErr() {
 	t := suite.T()
 
-	i := fault.FileItem(errors.New("foo"), "id", "name", "containerID", "containerName")
+	i := fault.FileErr(errors.New("foo"), "id", "name", "containerID", "containerName")
 
 	expect := fault.Item{
 		ID:            "id",
@@ -68,10 +68,10 @@ func (suite *ItemUnitSuite) TestFileItem() {
 	assert.Equal(t, expect, *i)
 }
 
-func (suite *ItemUnitSuite) TestOwnerItem() {
+func (suite *ItemUnitSuite) TestOwnerErr() {
 	t := suite.T()
 
-	i := fault.OwnerItem(errors.New("foo"), "id", "name")
+	i := fault.OwnerErr(errors.New("foo"), "id", "name")
 
 	expect := fault.Item{
 		ID:    "id",
