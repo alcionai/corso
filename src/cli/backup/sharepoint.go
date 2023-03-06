@@ -70,7 +70,11 @@ corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
 	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
 
-corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>
+# Find all site files that were created before a certain date.
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+      --web-url https://example.com --file-created-before 2015-01-01T00:00:00
+`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -152,12 +156,26 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
 		)
 
-		// info flags
+		// sharepoint info flags
 
-		// fs.StringVar(
-		// 	&fileCreatedAfter,
-		// 	utils.FileCreatedAfterFN, "",
-		// 	"Select backup details for items created after this datetime.")
+		fs.StringVar(
+			&utils.FileCreatedAfter,
+			utils.FileCreatedAfterFN, "",
+			"Select backup details for items created after this datetime.")
+
+		fs.StringVar(
+			&utils.FileCreatedBefore,
+			utils.FileCreatedBeforeFN, "",
+			"Select backup details for files created before this datetime.")
+
+		fs.StringVar(
+			&utils.FileModifiedAfter,
+			utils.FileModifiedAfterFN, "",
+			"Select backup details for files modified after this datetime.")
+		fs.StringVar(
+			&utils.FileModifiedBefore,
+			utils.FileModifiedBeforeFN, "",
+			"Select backup details for files modified before this datetime.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
@@ -491,12 +509,15 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	opts := utils.SharePointOpts{
-		LibraryItems: libraryItems,
-		LibraryPaths: libraryPaths,
-		Sites:        site,
-		WebURLs:      weburl,
-
-		Populated: utils.GetPopulatedFlags(cmd),
+		LibraryItems:       libraryItems,
+		LibraryPaths:       libraryPaths,
+		Sites:              site,
+		WebURLs:            weburl,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
+		Populated:          utils.GetPopulatedFlags(cmd),
 	}
 
 	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)

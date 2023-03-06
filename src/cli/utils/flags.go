@@ -10,6 +10,20 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ==============================================
+// Folder Object flags
+// These options are flags for indicating
+// that a time-based filter should be used for
+// within returning objects for details.
+// Used by: OneDrive, SharePoint
+// ================================================
+var (
+	FileCreatedAfter   string
+	FileCreatedBefore  string
+	FileModifiedAfter  string
+	FileModifiedBefore string
+)
+
 type PopulatedFlags map[string]struct{}
 
 func (fs PopulatedFlags) populate(pf *pflag.Flag) {

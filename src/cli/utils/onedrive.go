@@ -7,14 +7,10 @@ import (
 )
 
 const (
-	FileFN               = "file"
-	FolderFN             = "folder"
-	NamesFN              = "name"
-	PathsFN              = "path"
-	FileCreatedAfterFN   = "file-created-after"
-	FileCreatedBeforeFN  = "file-created-before"
-	FileModifiedAfterFN  = "file-modified-after"
-	FileModifiedBeforeFN = "file-modified-before"
+	FileFN   = "file"
+	FolderFN = "folder"
+	NamesFN  = "name"
+	PathsFN  = "path"
 )
 
 type OneDriveOpts struct {

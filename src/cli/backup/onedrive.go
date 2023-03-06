@@ -63,11 +63,6 @@ corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
 var (
 	folderPaths []string
 	fileNames   []string
-
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -125,20 +120,20 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// onedrive info flags
 
 		fs.StringVar(
-			&fileCreatedAfter,
+			&utils.FileCreatedAfter,
 			utils.FileCreatedAfterFN, "",
 			"Select backup details for files created after this datetime.")
 		fs.StringVar(
-			&fileCreatedBefore,
+			&utils.FileCreatedBefore,
 			utils.FileCreatedBeforeFN, "",
 			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
-			&fileModifiedAfter,
+			&utils.FileModifiedAfter,
 			utils.FileModifiedAfterFN, "",
 			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
-			&fileModifiedBefore,
+			&utils.FileModifiedBefore,
 			utils.FileModifiedBeforeFN, "",
 			"Select backup details for files modified before this datetime.")
 
@@ -361,12 +356,12 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.OneDriveOpts{
 		Users:              user,
-		Paths:              folderPaths,
 		Names:              fileNames,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
+		Paths:              folderPaths,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
 
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
