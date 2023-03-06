@@ -127,7 +127,7 @@ type Skipped struct {
 	item Item
 }
 
-// String complies with the stringer interface. func (s *Skipped) String() string {
+// String complies with the stringer interface.
 func (s *Skipped) String() string {
 	if s == nil {
 		return "<nil>"
