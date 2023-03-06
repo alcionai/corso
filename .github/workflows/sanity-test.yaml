@@ -1,5 +1,5 @@
 name: Sanity Testing
-on: [push,workflow_dispatch]
+on: [push]
 
 permissions:
   # required to retrieve AWS credentials
