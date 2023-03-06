@@ -203,6 +203,47 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
 	}
 }
 
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
+	recorder := strings.Builder{}
+
+	for _, set := range backupDataSets {
+		recorder.Reset()
+
+		suite.Run(set.String(), func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext()
+			ctx = config.SetViper(ctx, suite.vpr)
+			defer flush()
+
+			cmd := tester.StubRootCmd(
+				"backup", "create", "exchange",
+				"--config-file", suite.cfgFP,
+				"--"+utils.UserFN, "foo@nothere.com",
+				"--"+utils.DataFN, set.String())
+			cli.BuildCommandTree(cmd)
+
+			cmd.SetOut(&recorder)
+
+			ctx = print.SetRootCmd(ctx, cmd)
+
+			// run the command
+			err := cmd.ExecuteContext(ctx)
+			require.Error(t, err)
+			assert.Contains(
+				t,
+				err.Error(),
+				"not found within tenant", "error missing user not found")
+			assert.NotContains(t, err.Error(), "runtime error", "panic happened")
+
+			t.Logf("backup error message: %s", err.Error())
+
+			result := recorder.String()
+			t.Log("backup results", result)
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // tests prepared with a previous backup
 // ---------------------------------------------------------------------------

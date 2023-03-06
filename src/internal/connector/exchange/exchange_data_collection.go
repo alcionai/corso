@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -266,6 +267,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			info.Size = int64(len(data))
+			info.ParentPath = strings.Join(col.fullPath.Folders(), "/")
 
 			col.data <- &Stream{
 				id:      id,

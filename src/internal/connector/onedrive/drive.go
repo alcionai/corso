@@ -183,6 +183,7 @@ func defaultItemPager(
 			"sharepointIds",
 			"size",
 			"deleted",
+			"malware",
 		},
 	)
 }
