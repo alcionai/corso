@@ -45,3 +45,5 @@ Nica
 gif
 MSP
 MSPs
+npm
+Fonicom
