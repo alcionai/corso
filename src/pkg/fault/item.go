@@ -10,17 +10,7 @@ const (
 
 var _ error = &Item{}
 
-// Item contains a concrete reference to a thing that failed
-// during processing.  The categorization of the item is determined
-// by its Type: file, container, or reourceOwner.
-//
-// Item is compliant with the error interface so that it can be
-// aggregated with the fault bus, and deserialized using the
-// errors.As() func.  The idea is that fault,Items, during
-// processing, will get packed into bus.AddRecoverable (or failure)
-// as part of standard error handling, and later deserialized
-// by the end user (cli or sdk) for surfacing human-readable and
-// identifiable points of failure.
+// in pkg fault.  eg: fault.Item{}
 type Item struct {
 	// deduplication identifier; the ID of the observed item.
 	ID string `json:"id"`
@@ -60,7 +50,7 @@ func (i *Item) Error() string {
 // Constructors
 // ---------------------------------------------------------------------------
 
-// ContainerErr produces a Container-type Item.
+// ContainerErr produces a Container-kind Item.
 func ContainerErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
