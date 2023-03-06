@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
@@ -23,7 +24,7 @@ const (
 	errCodeItemNotFound                = "ErrorItemNotFound"
 	errCodeItemNotFoundShort           = "itemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
-	errCodeResyncRequired              = "ResyncRequired"
+	errCodeResyncRequired              = "ResyncRequired" // alt: resyncRequired
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
@@ -187,7 +188,12 @@ func hasErrorCode(err error, codes ...string) bool {
 		return false
 	}
 
-	return slices.Contains(codes, *oDataError.GetError().GetCode())
+	lcodes := []string{}
+	for _, c := range codes {
+		lcodes = append(lcodes, strings.ToLower(c))
+	}
+
+	return slices.Contains(lcodes, strings.ToLower(*oDataError.GetError().GetCode()))
 }
 
 // ErrData is a helper function that extracts ODataError metadata from
