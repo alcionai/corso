@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -193,7 +193,7 @@ func (op *RestoreOperation) do(
 		return nil, errors.Wrap(err, "getting backup and details")
 	}
 
-	paths, err := formatDetailsForRestoration(ctx, op.Selectors, deets, op.Errors)
+	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "formatting paths from details")
 	}
@@ -319,6 +319,7 @@ func (op *RestoreOperation) persistResults(
 // selector specifications.
 func formatDetailsForRestoration(
 	ctx context.Context,
+	backupVersion int,
 	sel selectors.Selector,
 	deets *details.Details,
 	errs *fault.Bus,
@@ -354,16 +355,12 @@ func formatDetailsForRestoration(
 		shortRefs[i] = p.ShortRef()
 	}
 
-	// TODO(meain): Move this to onedrive specific component, but as
-	// of now the paths can technically be from multiple services
-
-	// This sort is done primarily to order `.meta` files after `.data`
-	// files. This is only a necessity for OneDrive as we are storing
-	// metadata for files/folders in separate meta files and we the
-	// data to be restored before we can restore the metadata.
-	sort.Slice(paths, func(i, j int) bool {
-		return paths[i].String() < paths[j].String()
-	})
+	if sel.Service == selectors.ServiceOneDrive {
+		paths, err = onedrive.AugmentRestorePaths(backupVersion, paths)
+		if err != nil {
+			return nil, clues.Wrap(err, "augmenting paths")
+		}
+	}
 
 	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
 

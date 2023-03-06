@@ -599,3 +599,71 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 
 	return meta, nil
 }
+
+// Augment restore path to add extra files(meta) needed for restore as
+// well as do any other ordering operations on the paths
+func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, error) {
+	colPaths := map[string]path.Path{}
+	for _, p := range paths {
+		for {
+			np, err := p.Dir()
+			if err != nil {
+				return nil, err
+			}
+
+			onedrivePath, err := path.ToOneDrivePath(np)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(onedrivePath.Folders) == 0 {
+				break
+			}
+
+			_, found := colPaths[np.String()]
+			if !found {
+				colPaths[np.String()] = np
+			}
+			p = np
+		}
+	}
+
+	// Adds dirmeta files as we need to make sure collections for all
+	// directories involved are created and not just the final one. No
+	// need to add `.meta` files (metadata for files) as they will
+	// anyways be looked up automatically.
+	// TODO: Stop populating .dirmeta for newer versions once we can
+	// get files from parent directory via `Fetch` in a collection.
+	// As of now look up metadata for parent directories from a
+	// collection.
+	for _, p := range colPaths {
+		el := p.Elements()
+		if backupVersion >= version.OneDrive4DirIncludesPermissions {
+			mPath, err := p.Append(el[len(el)-1]+".dirmeta", true)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, mPath)
+		} else if backupVersion >= version.OneDrive1DataAndMetaFiles {
+			pp, err := p.Dir()
+			if err != nil {
+				return nil, err
+			}
+			mPath, err := pp.Append(el[len(el)-1]+".dirmeta", true)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, mPath)
+		}
+	}
+
+	// This sort is done primarily to order `.meta` files after `.data`
+	// files. This is only a necessity for OneDrive as we are storing
+	// metadata for files/folders in separate meta files and we the
+	// data to be restored before we can restore the metadata.
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].String() < paths[j].String()
+	})
+
+	return paths, nil
+}
