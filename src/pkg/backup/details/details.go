@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -128,13 +127,7 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 // additional data like permissions in case of OneDrive and are not to
 // be treated as regular files.
 func (de DetailsEntry) isMetaFile() bool {
-	if de.ItemInfo.OneDrive == nil {
-		return false
-	}
-
-	return de.ItemInfo.OneDrive.IsMeta ||
-		strings.HasSuffix(de.RepoRef, ".meta") ||
-		strings.HasSuffix(de.RepoRef, ".dirmeta")
+	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
 // ---------------------------------------------------------------------------
