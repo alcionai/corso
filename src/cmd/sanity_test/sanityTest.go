@@ -22,7 +22,7 @@ func main() {
 		return
 	}
 
-	testUser := os.Getenv("CORSO_M365_LOAD_TEST_USER_ID")
+	testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
 	folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
 
 	client := msgraphsdk.NewGraphServiceClient(adapter)
@@ -41,7 +41,9 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		restoreFolder models.MailFolderable
 	)
 
-	result, err := client.UsersById(testUser).MailFolders().Get(context.Background(), nil)
+	user := client.UsersById(testUser)
+	mail := user.MailFolders()
+	result, err := mail.Get(context.Background(), nil)
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
 		os.Exit(1)
@@ -60,7 +62,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 	}
 
-	user := client.UsersById(testUser)
+	user = client.UsersById(testUser)
 	folder := user.MailFoldersById(*restoreFolder.GetId())
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
 	if err != nil {
@@ -109,7 +111,10 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 
 	for _, restoreResponse := range restoreResponse.GetValue() {
 		if *restoreResponse.GetSize() != file[*restoreResponse.GetName()] {
-			fmt.Printf("Size of file %s is different in restore folder.", *restoreResponse.GetName())
+			fmt.Printf("Size of file %s is different in drive %d and restored file: %d ",
+				*restoreResponse.GetName(),
+				file[*restoreResponse.GetName()],
+				*restoreResponse.GetSize())
 			os.Exit(1)
 		}
 	}

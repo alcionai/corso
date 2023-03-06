@@ -127,6 +127,14 @@ jobs:
               exit 1
           fi
 
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
       # test incremental backup exhange
       - name: Backup exchange incremental
         id: exchange-incremental-test
@@ -163,7 +171,15 @@ jobs:
           ./sanityCheck
 
         
-# # Onedrive test
+ # Onedrive test
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
 
       # run the tests
       - name: Backup onedrive test
@@ -194,6 +210,14 @@ jobs:
               echo "listing of backup was not successfull"
               exit 1
           fi
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
 
       # test onedrive incremental
       - name: Backup onedrive test
