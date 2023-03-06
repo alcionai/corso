@@ -39,8 +39,8 @@ type Backup struct {
 	// Errors contains all errors aggregated during a backup operation.
 	// the fault.Errors struct is generally unserializable; it's values
 	// get propagated into ErrorCount, Failure, and FailedItems.
-	Errors     fault.Errors `json:"errors"`
-	ErrorCount int          `json:"errorCount"`
+	FailFast   bool `json:"failFast"`
+	ErrorCount int  `json:"errorCount"`
 	// the non-recoverable failure message, only non-zero if one occurred.
 	Failure string `json:"failure"`
 	// individual items (files, containers, resource owners) tracked as failed.
@@ -66,11 +66,11 @@ func New(
 	se stats.StartAndEndTime,
 	errs *fault.Bus,
 ) *Backup {
-	errData := errs.Errors()
+	ee := errs.Errors()
 
 	// TODO: count errData.Items(), not all recovered errors.
 	errCount := len(errs.Errors().Recovered)
-	if errData.Failure != nil {
+	if ee.Failure != nil {
 		errCount++
 	}
 
@@ -86,11 +86,11 @@ func New(
 		DetailsID:       detailsID,
 		Status:          status,
 		Selector:        selector,
-		Errors:          errData,
+		FailFast:        ee.FailFast,
 		ErrorCount:      errCount,
-		Failure:         errData.Failure.Error(),
-		FailedItems:     errData.Items(),
-		SkippedItems:    errData.Skipped,
+		Failure:         ee.Failure.Error(),
+		FailedItems:     ee.Items,
+		SkippedItems:    ee.Skipped,
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		Version:         version.Backup,
@@ -182,12 +182,12 @@ func (b Backup) countErrors() int {
 	}
 
 	// future tracking
-	if b.Errors.Failure != nil || len(b.Errors.Recovered) > 0 {
-		if b.Errors.Failure != nil {
+	if len(b.Failure) > 0 || len(b.FailedItems) > 0 {
+		if len(b.Failure) > 0 {
 			errCount++
 		}
 
-		errCount += len(b.Errors.Recovered)
+		errCount += len(b.FailedItems)
 	}
 
 	return errCount
