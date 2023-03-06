@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -96,6 +95,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
+
+		options.AddSkipReduceFlag(c)
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
@@ -290,24 +291,11 @@ func oneDriveDetailsCmd() *cobra.Command {
 
 // prints the item details for a given backup
 func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
+	ctx := cmd.Context()
 	opts := utils.OneDriveOpts{
 		Users:              user,
 		Paths:              folderPaths,
@@ -320,7 +308,16 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts)
+	r, _, err := getAccountAndConnect(ctx)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	ctrlOpts := options.Control()
+
+	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -343,6 +340,7 @@ func runDetailsOneDriveCmd(
 	r repository.BackupGetter,
 	backupID string,
 	opts utils.OneDriveOpts,
+	skipReduce bool,
 ) (*details.Details, error) {
 	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
 		return nil, err
@@ -358,10 +356,13 @@ func runDetailsOneDriveCmd(
 		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
-	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
-	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
+	if !skipReduce {
+		sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
+		utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
+		d = sel.Reduce(ctx, d, errs)
+	}
 
-	return sel.Reduce(ctx, d, errs), nil
+	return d, nil
 }
 
 // `corso backup delete onedrive [<flag>...]`

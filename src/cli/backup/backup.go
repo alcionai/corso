@@ -217,15 +217,15 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 }
 
 func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.Account, error) {
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	r, err := repository.Connect(ctx, acct, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider)
+		return nil, nil, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider)
 	}
 
-	return r, &acct, nil
+	return r, &cfg.Account, nil
 }

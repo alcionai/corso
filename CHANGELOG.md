@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Show owner information when doing backup list in json format
+- Onedrive files that are flagged as malware get skipped during backup.
 
 ### Fixed
 - Corso-generated .meta files and permissions no longer appear in the backup details.
+- Panic and recovery if a user didn't exist in the tenant.
 
 ### Known Issues
 - Folders and Calendars containing zero items or subfolders are not included in the backup.
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolved an issue where progress bar displays could fail to exit, causing unbounded CPU consumption.
 - Fix Corso panic within Docker images
 - Debugging with the CORSO_URL_LOGGING env variable no longer causes accidental request failures.
+- Don't discover all users when backing up each user in a multi-user backup
 
 ### Changed
 - When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or a Microsoft 365 ID.
@@ -34,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nested attachments are currently not restored due to an [issue](https://github.com/microsoft/kiota-serialization-json-go/issues/61) discovered in the Graph APIs
 - Breaking changes to Exchange Calendar backups.
 - The debugging env variable CORSO_URL_LOGGING causes exchange get requests to fail.
+- Onedrive files that are flagged as Malware consistently fail during backup.
 
 ## [v0.3.0] (alpha) - 2023-2-07
 

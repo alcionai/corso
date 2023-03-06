@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -116,6 +115,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
+
+		options.AddSkipReduceFlag(c)
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
@@ -420,24 +421,11 @@ func sharePointDetailsCmd() *cobra.Command {
 
 // lists the history of backup operations
 func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	s, acct, err := config.GetStorageAndAccount(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, acct, s, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
+	ctx := cmd.Context()
 	opts := utils.SharePointOpts{
 		LibraryItems:       libraryItems,
 		LibraryPaths:       libraryPaths,
@@ -451,7 +439,16 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts)
+	r, _, err := getAccountAndConnect(ctx)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	ctrlOpts := options.Control()
+
+	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -474,6 +471,7 @@ func runDetailsSharePointCmd(
 	r repository.BackupGetter,
 	backupID string,
 	opts utils.SharePointOpts,
+	skipReduce bool,
 ) (*details.Details, error) {
 	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
 		return nil, err
@@ -489,8 +487,11 @@ func runDetailsSharePointCmd(
 		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
-	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
-	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+	if !skipReduce {
+		sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+		d = sel.Reduce(ctx, d, errs)
+	}
 
-	return sel.Reduce(ctx, d, errs), nil
+	return d, nil
 }

@@ -134,6 +134,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
 
+		options.AddSkipReduceFlag(c)
+
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.StringVar(&backupID,
@@ -210,7 +212,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 			&contactFolder,
 			utils.ContactFolderFN, nil,
 			"Select backup details for contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
-
 		fs.StringVar(
 			&contactName,
 			utils.ContactNameFN, "",
@@ -391,7 +392,8 @@ func exchangeDetailsCmd() *cobra.Command {
 	}
 }
 
-// lists the history of backup operations
+// lists all items in the backup, running the results first through
+// selector reduction as a filtering step.
 func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
@@ -427,7 +429,9 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsExchangeCmd(ctx, r, backupID, opts)
+	ctrlOpts := options.Control()
+
+	ds, err := runDetailsExchangeCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -450,6 +454,7 @@ func runDetailsExchangeCmd(
 	r repository.BackupGetter,
 	backupID string,
 	opts utils.ExchangeOpts,
+	skipReduce bool,
 ) (*details.Details, error) {
 	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
 		return nil, err
@@ -465,10 +470,13 @@ func runDetailsExchangeCmd(
 		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
-	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
-	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
+	if !skipReduce {
+		sel := utils.IncludeExchangeRestoreDataSelectors(opts)
+		utils.FilterExchangeRestoreInfoSelectors(sel, opts)
+		d = sel.Reduce(ctx, d, errs)
+	}
 
-	return sel.Reduce(ctx, d, errs), nil
+	return d, nil
 }
 
 // ------------------------------------------------------------------------------------------------
