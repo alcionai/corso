@@ -147,7 +147,7 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		Properties: props,
 	})
 	if err != nil {
-		logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
+		logger.Ctx(ctx).Info("analytics event failure", "err", err)
 	}
 }
 
