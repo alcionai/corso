@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/cli/print"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
@@ -83,6 +84,7 @@ func generateAndRestoreItems(
 	// TODO: fit the destination to the containers
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
+	print.Infof(ctx, "Restoring to:: %s", dest.ContainerName)
 
 	dataColls, err := buildCollections(
 		service,

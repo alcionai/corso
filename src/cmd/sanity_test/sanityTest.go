@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
@@ -11,7 +12,6 @@ import (
 )
 
 func main() {
-
 	adapter, err := graph.CreateAdapter(
 		os.Getenv("AZURE_TENANT_ID"),
 		os.Getenv("AZURE_CLIENT_ID"),
@@ -23,17 +23,19 @@ func main() {
 	}
 
 	testUser := os.Getenv("CORSO_M365_LOAD_TEST_USER_ID")
+	folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
 
 	client := msgraphsdk.NewGraphServiceClient(adapter)
 
 	if os.Getenv("EXCHANGE_TEST") == "true" {
-		checkEmailRestoration(client, testUser)
+		checkEmailRestoration(client, testUser, folder)
 		return
 	}
 
+	checkOnedriveRestoration(client, testUser, folder)
 }
 
-func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser string) {
+func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
 	result, err := client.UsersById(testUser).MailFolders().Get(context.Background(), nil)
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
@@ -47,7 +49,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser strin
 	for _, r := range res {
 		name := *r.GetDisplayName()
 
-		if name == os.Getenv("RESTORE_FOLDER") {
+		if name == folderName {
 			restoreFolder = r
 			continue
 		}
@@ -69,4 +71,41 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser strin
 			os.Exit(1)
 		}
 	}
+}
+
+func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
+	var file = make(map[string]int64)
+	restoreFolderID := ""
+
+	drive, err := client.UsersById(testUser).Drive().Get(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Error getting the drive: %v\n", err)
+		os.Exit(1)
+	}
+
+	response, _ := client.DrivesById(*drive.GetId()).Root().Children().Get(context.Background(), nil)
+	for _, drive := range response.GetValue() {
+		if *drive.GetName() == folderName {
+			restoreFolderID = *drive.GetId()
+			continue
+		}
+
+		size := *drive.GetSize()
+
+		// check if file or folder
+		if size > 0 {
+			file[*drive.GetName()] = *drive.GetSize()
+		}
+	}
+
+	restoreResponse, _ := client.DrivesById(*drive.GetId()).ItemsById(restoreFolderID).Children().Get(context.Background(), nil)
+
+	for _, restoreResponse := range restoreResponse.GetValue() {
+		if *restoreResponse.GetSize() != file[*restoreResponse.GetName()] {
+			fmt.Printf("Size of file %s is different in restore folder.", *restoreResponse.GetName())
+			os.Exit(1)
+		}
+	}
+
+	fmt.Println("Success")
 }

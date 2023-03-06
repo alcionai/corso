@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/print"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
@@ -217,6 +218,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	dest := control.DefaultRestoreDestination(common.SimpleDateTime)
+	print.Infof(ctx, "Restoring to:: %s", dest.ContainerName)
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
