@@ -36,6 +36,11 @@ func main() {
 }
 
 func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
+	var (
+		messageCount  = make(map[string]int32)
+		restoreFolder models.MailFolderable
+	)
+
 	result, err := client.UsersById(testUser).MailFolders().Get(context.Background(), nil)
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
@@ -44,8 +49,6 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 
 	res := result.GetValue()
 
-	var messageCount = make(map[string]int32)
-	var restoreFolder models.MailFolderable
 	for _, r := range res {
 		name := *r.GetDisplayName()
 
@@ -60,6 +63,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(*restoreFolder.GetId())
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
 		os.Exit(1)
@@ -74,7 +78,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 }
 
 func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
-	var file = make(map[string]int64)
+	file := make(map[string]int64)
 	restoreFolderID := ""
 
 	drive, err := client.UsersById(testUser).Drive().Get(context.Background(), nil)
@@ -98,7 +102,11 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 		}
 	}
 
-	restoreResponse, _ := client.DrivesById(*drive.GetId()).ItemsById(restoreFolderID).Children().Get(context.Background(), nil)
+	restoreResponse, _ := client.
+		DrivesById(*drive.GetId()).
+		ItemsById(restoreFolderID).
+		Children().
+		Get(context.Background(), nil)
 
 	for _, restoreResponse := range restoreResponse.GetValue() {
 		if *restoreResponse.GetSize() != file[*restoreResponse.GetName()] {

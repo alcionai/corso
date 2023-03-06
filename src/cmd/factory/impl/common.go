@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/cli/print"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -96,7 +95,7 @@ func generateAndRestoreItems(
 		return nil, err
 	}
 
-	Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
+	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
 	return gc.RestoreDataCollections(ctx, version.Backup, acct, sel, dest, opts, dataColls, errs)
 }

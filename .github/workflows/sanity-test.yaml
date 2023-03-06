@@ -11,6 +11,18 @@ concurrency:
   group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+
+  AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+  AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+  AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+  CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+  CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+  AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
+  TEST_RESULT: "test_results"
+
 jobs:
   Sanity-Tests:
     environment: Testing
@@ -35,16 +47,6 @@ jobs:
 # m365 outlook message list --folderName Inbox 
       # run the tests
       - name: Version Test
-        env:
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          TEST_RESULT: "test_results"
            # TODO: check the commit ID
         run: |
           set -euo pipefail
@@ -74,17 +76,6 @@ jobs:
 
       # run the tests
       - name: Repo connect test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          TEST_RESULT: "test_results"
 
         run: |
           set -euo pipefail
@@ -101,20 +92,9 @@ jobs:
       # run the tests
       - name: Backup exchange test
         id: exchange-test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          TEST_RESULT: "test_results"
 
         run: |
-          ./corso backup create exchange --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+          ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
           valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
@@ -127,16 +107,6 @@ jobs:
 
       # list the backup exhange
       - name: Backup exchange list test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          TEST_RESULT: "test_results"
 
         run: |
           set -euo pipefail
@@ -154,21 +124,10 @@ jobs:
       # test incremental backup exhange
       - name: Backup exchange incremental
         id: exchange-incremental-test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          TEST_RESULT: "test_results"
 # TODO: add backup time check
         run: |
           set -euo pipefail
-          ./corso backup create exchange --user "${CORSO_M365_LOAD_TEST_USER_ID}" --data 'email' --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+          ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --data 'email' --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
           valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
@@ -182,17 +141,6 @@ jobs:
       # test exchange restore
       - name: Backup exchange restore
         id: exchange-restore-test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          TEST_RESULT: "test_results"
         # TODO: check the folders on endpoint
         run: |
           set -euo pipefail
@@ -202,14 +150,8 @@ jobs:
         
       - name: Restoration check
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           RESTORE_FOLDER:  ${{ steps.exchange-restore-test.outputs.result }}
           EXCHANGE_TEST: "true"
-
-
         run: |
           set -euo pipefail
           ./sanityCheck
@@ -220,21 +162,9 @@ jobs:
       # run the tests
       - name: Backup onedrive test
         id: onedrive-test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          TEST_RESULT: "test_results"
-
         run: |
           set -euo pipefail
-          ./corso backup create onedrive --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
+          ./corso backup create onedrive --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
           valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
@@ -247,17 +177,6 @@ jobs:
 
       # list the bakcup onedrive
       - name: Backup onedrive list test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          TEST_RESULT: "test_results"
-
         run: |
           set -euo pipefail
           touch $TEST_RESULT/backup_onedrive_list.txt
@@ -273,22 +192,10 @@ jobs:
       # test onedrive incremental
       - name: Backup onedrive test
         id: onedrive-incremental-test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          TEST_RESULT: "test_results"
-
 # TODO: check incremental time was smaller
         run: |
           set -euo pipefail
-          ./corso backup create onedrive --user "${CORSO_M365_LOAD_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
+          ./corso backup create onedrive --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
@@ -302,17 +209,6 @@ jobs:
       # test onedrive restore
       - name: Backup onedrive restore
         id: onedrive-restore-test
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
-          CORSO_PASSPHRASE: ${{ secrets.CORSO_PASSPHRASE }}
-          TEST_RESULT: "test_results"
         run: |
           set -euo pipefail
           ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
@@ -320,12 +216,7 @@ jobs:
 
       - name: Restoration oneDrive check
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
           RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
-
         run: |
           set -euo pipefail
           ./sanityCheck
