@@ -267,7 +267,15 @@ func getPermsUperms(permID, userID, entity string, scopes []string) (models.Perm
 	return perm, uperm
 }
 
-func TestOneDrivePermissionsFilter(t *testing.T) {
+type ItemUnitTestSuite struct {
+	tester.Suite
+}
+
+func TestItemUnitTestSuite(t *testing.T) {
+	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
 	permID := "fakePermId"
 	userID := "fakeuser@provider.com"
 	userID2 := "fakeuser2@provider.com"
@@ -332,7 +340,12 @@ func TestOneDrivePermissionsFilter(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		actual := filterUserPermissions(tc.graphPermissions)
-		assert.ElementsMatch(t, tc.parsedPermissions, actual)
+		suite.Run(tc.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			actual := filterUserPermissions(ctx, tc.graphPermissions)
+			assert.ElementsMatch(suite.T(), tc.parsedPermissions, actual)
+		})
 	}
 }
