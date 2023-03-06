@@ -157,21 +157,21 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// sharepoint info flags
 
 		fs.StringVar(
-			&fileCreatedAfter,
+			&utils.FileCreatedAfter,
 			utils.FileCreatedAfterFN, "",
 			"Select backup details for items created after this datetime.")
 
 		fs.StringVar(
-			&fileCreatedBefore,
+			&utils.FileCreatedBefore,
 			utils.FileCreatedBeforeFN, "",
 			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
-			&fileModifiedAfter,
+			&utils.FileModifiedAfter,
 			utils.FileModifiedAfterFN, "",
 			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
-			&fileModifiedBefore,
+			&utils.FileModifiedBefore,
 			utils.FileModifiedBeforeFN, "",
 			"Select backup details for files modified before this datetime.")
 
@@ -504,18 +504,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.SharePointOpts{
-		LibraryItems:       libraryItems,
-		LibraryPaths:       libraryPaths,
-		Sites:              site,
-		WebURLs:            weburl,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.SharePointOptions(libraryItems, libraryPaths, site, weburl, cmd)
 
 	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts)
 	if err != nil {
