@@ -651,7 +651,7 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	case SiteFilterCreatedAfter, SiteFilterCreatedBefore:
 		i = common.FormatTime(info.Created)
 	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
-		i = common.FormatTime(info.Created)
+		i = common.FormatTime(info.Modified)
 	}
 
 	return s.Matches(filterCat, i)
