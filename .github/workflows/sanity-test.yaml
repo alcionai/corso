@@ -17,14 +17,11 @@ jobs:
     environment: Testing
     runs-on: ubuntu-latest
     env:
-      AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
-      AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+      AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
       CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-      AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
       TEST_RESULT: "test_results"
 
     defaults:
@@ -43,6 +40,14 @@ jobs:
       - run: go build -o sanityCheck ./cmd/sanity_test
 
       - run: mkdir test_results
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
 
 # m365 outlook message list --folderName Inbox 
       # run the tests
