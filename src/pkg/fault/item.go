@@ -44,8 +44,8 @@ func (i *Item) Error() string {
 	return string("processing " + i.Kind)
 }
 
-// ContainerItem produces a Container-kind Item.
-func ContainerItem(cause error, id, name, containerID, containerName string) *Item {
+// ContainerErr produces a Container-kind Item.
+func ContainerErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
 		Name:          name,
@@ -56,8 +56,8 @@ func ContainerItem(cause error, id, name, containerID, containerName string) *It
 	}
 }
 
-// FileItem produces a File-kind Item.
-func FileItem(cause error, id, name, containerID, containerName string) *Item {
+// FileErr produces a File-kind Item.
+func FileErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
 		Name:          name,
@@ -68,8 +68,8 @@ func FileItem(cause error, id, name, containerID, containerName string) *Item {
 	}
 }
 
-// OnwerItem produces a ResourceOwner-kind Item.
-func OwnerItem(cause error, id, name string) *Item {
+// OnwerErr produces a ResourceOwner-kind Item.
+func OwnerErr(cause error, id, name string) *Item {
 	return &Item{
 		ID:    id,
 		Name:  name,
