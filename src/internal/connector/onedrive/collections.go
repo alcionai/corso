@@ -611,7 +611,8 @@ func (c *Collections) UpdateCollections(
 		if item.GetMalware() != nil {
 			// TODO: track the item as skipped; logging alone might
 			// slice out the data from tracking.
-			logger.Ctx(ctx).Infow("malware detected", "malware_description", item.GetMalware().GetDescription())
+			// https://learn.microsoft.com/en-us/graph/api/resources/malware?view=graph-rest-1.0
+			logger.Ctx(ctx).Infow("malware detected", "malware_description", ptr.Val(item.GetMalware().GetDescription()))
 			continue
 		}
 
