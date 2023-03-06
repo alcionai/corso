@@ -50,7 +50,7 @@ func (i *Item) Error() string {
 // Constructors
 // ---------------------------------------------------------------------------
 
-// ContainerErr produces a Container-kind Item.
+// ContainerErr produces a Container-type Item for tracking erronous items
 func ContainerErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
@@ -62,7 +62,7 @@ func ContainerErr(cause error, id, name, containerID, containerName string) *Ite
 	}
 }
 
-// FileErr constructs a File-type Item.
+// FileErr produces a File-type Item for tracking erronous items.
 func FileErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
@@ -74,12 +74,80 @@ func FileErr(cause error, id, name, containerID, containerName string) *Item {
 	}
 }
 
-// OnwerErr constructs a ResourceOwner-type Item.
+// OnwerErr produces a ResourceOwner-type Item for tracking erronous items.
 func OwnerErr(cause error, id, name string) *Item {
 	return &Item{
 		ID:    id,
 		Name:  name,
 		Type:  ResourceOwnerType,
 		Cause: cause.Error(),
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Skipped Items
+// ---------------------------------------------------------------------------
+
+type skipCause string
+
+const SkipMalware skipCause = "malware_detected"
+
+// Skipped items are permanently unprocessable due to well-known conditions.
+// Instead of attempting to process them, and failing, we instead track them
+// as skipped entries.
+//
+// Skipped wraps Item primarily to minimze confusion when sharing the
+// fault interface.  Skipped items are not errors, and Item{} errors are
+// not the basis for a Skip.
+type Skipped struct {
+	item Item
+}
+
+// String complies with the stringer interface. func (s *Skipped) String() string {
+func (s *Skipped) String() string {
+	if s == nil {
+		return "<nil>"
+	}
+
+	return "skipped " + s.item.Error() + ": " + s.item.Cause
+}
+
+// ContainerSkip produces a Container-kind Item for tracking skipped items.
+func ContainerSkip(cause skipCause, id, name, containerID, containerName string) *Skipped {
+	return &Skipped{
+		item: Item{
+			ID:            id,
+			Name:          name,
+			ContainerID:   containerID,
+			ContainerName: containerName,
+			Type:          ContainerType,
+			Cause:         string(cause),
+		},
+	}
+}
+
+// FileSkip produces a File-kind Item for tracking skipped items.
+func FileSkip(cause skipCause, id, name, containerID, containerName string) *Skipped {
+	return &Skipped{
+		item: Item{
+			ID:            id,
+			Name:          name,
+			ContainerID:   containerID,
+			ContainerName: containerName,
+			Type:          FileType,
+			Cause:         string(cause),
+		},
+	}
+}
+
+// OnwerSkip produces a ResourceOwner-kind Item for tracking skipped items.
+func OwnerSkip(cause skipCause, id, name string) *Skipped {
+	return &Skipped{
+		item: Item{
+			ID:    id,
+			Name:  name,
+			Type:  ResourceOwnerType,
+			Cause: string(cause),
+		},
 	}
 }

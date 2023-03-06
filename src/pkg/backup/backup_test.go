@@ -52,6 +52,11 @@ func stubBackup(t time.Time) backup.Backup {
 			"id", "name",
 			"containerID", "containerName",
 		)},
+		SkippedItems: []fault.Skipped{*fault.FileSkip(
+			fault.SkipMalware,
+			"id", "name",
+			"containerID", "containerName",
+		)},
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,
