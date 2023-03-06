@@ -25,8 +25,12 @@ import (
 const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
 func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
-	if len(perm.user) == 0 || len(perm.roles) == 0 {
-		return onedrive.Metadata{FileName: fileName}
+	if len(perm.user) == 0 || len(perm.roles) == 0 ||
+		perm.sharingMode != onedrive.SharingModeCustom {
+		return onedrive.Metadata{
+			FileName:    fileName,
+			SharingMode: perm.sharingMode,
+		}
 	}
 
 	id := base64.StdEncoding.EncodeToString([]byte(perm.user + strings.Join(perm.roles, "+")))
@@ -262,9 +266,10 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 }
 
 type permData struct {
-	user     string // user is only for older versions
-	entityID string
-	roles    []string
+	user        string // user is only for older versions
+	entityID    string
+	roles       []string
+	sharingMode onedrive.SharingMode
 }
 
 type itemData struct {
@@ -876,4 +881,190 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
 		},
 	)
+}
+
+// This is similar to TestPermissionsRestoreAndBackup but tests purely
+// for inheritance and that too only with newer versions
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceRestoreAndBackup() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	folderAName := "custom"
+	folderBName := "inherited"
+	folderCName := "empty"
+
+	rootPath := []string{
+		"drives",
+		driveID,
+		"root:",
+	}
+	folderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+	}
+	subfolderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderAName,
+	}
+	subfolderBPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderBName,
+	}
+	subfolderCPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderCName,
+	}
+
+	fileSet := []itemData{
+		{
+			name: "file-custom",
+			data: fileAData,
+			perms: permData{
+				user:        suite.secondaryUser,
+				entityID:    suite.secondaryUserID,
+				roles:       writePerm,
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
+		{
+			name: "file-inherited",
+			data: fileAData,
+			perms: permData{
+				sharingMode: onedrive.SharingModeInherited,
+			},
+		},
+		{
+			name: "file-empty",
+			data: fileAData,
+			perms: permData{
+				sharingMode: onedrive.SharingModeEmpty,
+			},
+		},
+	}
+
+	// Here is what this test is testing
+	// - custom-permission-folder
+	//   - custom-permission-file
+	//   - empty-permissions-file
+	//   - inherted-permission-file
+	//   - custom-permission-folder
+	// 	- custom-permission-file
+	// 	- empty-permissions-file
+	// 	- inherted-permission-file
+	//   - empty-permissions-folder
+	// 	- custom-permission-file
+	// 	- empty-permissions-file
+	// 	- inherted-permission-file
+	//   - inherted-permission-folder
+	// 	- custom-permission-file
+	// 	- empty-permissions-file
+	// 	- inherted-permission-file
+
+	// No reason why it couldn't work with previous versions, but this
+	// is when it got introduced.
+	startVersion := version.OneDrive4DirIncludesPermissions
+
+	test := onedriveTest{
+		startVersion: startVersion,
+		cols: []onedriveColInfo{
+			{
+				pathElements: rootPath,
+				files:        []itemData{},
+				folders: []itemData{
+					{
+						name: folderAName,
+					},
+				},
+			},
+			{
+				pathElements: folderAPath,
+				files:        fileSet,
+				folders: []itemData{
+					{name: folderAName},
+					{name: folderBName},
+					{name: folderCName},
+				},
+				perms: permData{
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
+				},
+			},
+			{
+				pathElements: subfolderAPath,
+				files:        fileSet,
+				perms: permData{
+					user:        suite.secondaryUser,
+					entityID:    suite.secondaryUserID,
+					roles:       writePerm,
+					sharingMode: onedrive.SharingModeCustom,
+				},
+			},
+			{
+				pathElements: subfolderBPath,
+				files:        fileSet,
+				perms: permData{
+					sharingMode: onedrive.SharingModeInherited,
+				},
+			},
+			{
+				pathElements: subfolderCPath,
+				files:        fileSet,
+				perms: permData{
+					sharingMode: onedrive.SharingModeEmpty,
+				},
+			},
+		},
+	}
+
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
+
+	for vn := test.startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+			t := suite.T()
+			// Ideally this can always be true or false and still
+			// work, but limiting older versions to use emails so as
+			// to validate that flow as well.
+			input := testDataForInfo(t, test.cols, vn)
+
+			testData := restoreBackupInfoMultiVersion{
+				service:             path.OneDriveService,
+				resource:            Users,
+				backupVersion:       vn,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
+
+			runRestoreBackupTestVersions(
+				t,
+				suite.acct,
+				testData,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
+	}
 }

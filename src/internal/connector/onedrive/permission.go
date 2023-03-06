@@ -180,7 +180,7 @@ func restorePermissions(
 		err := service.Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
-			PermissionsById(permissionIDMappings[p.ID]).
+			PermissionsById(p.ID).
 			Delete(ctx, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "removing permissions")
