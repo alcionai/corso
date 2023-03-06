@@ -365,13 +365,14 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	var (
-		ods    = NewSharePointRestore(Any())
-		host   = "www.website.com"
-		pth    = "/foo"
-		url    = host + pth
-		epoch  = time.Time{}
-		now    = time.Now()
-		future = now.Add(5 * time.Minute)
+		ods          = NewSharePointRestore(Any())
+		host         = "www.website.com"
+		pth          = "/foo"
+		url          = host + pth
+		epoch        = time.Time{}
+		now          = time.Now()
+		modification = now.Add(15 * time.Minute)
+		future       = now.Add(45 * time.Minute)
 	)
 
 	table := []struct {
@@ -395,9 +396,10 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		{"file create after later", url, ods.CreatedAfter(common.FormatTime(future)), assert.False},
 		{"file create before future", host, ods.CreatedBefore(common.FormatTime(future)), assert.True},
 		{"file create before now", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file create before modification", host, ods.CreatedBefore(common.FormatTime(modification)), assert.True},
 		{"file create before epoch", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
 		{"file modified after the epoch", host, ods.ModifiedAfter(common.FormatTime(epoch)), assert.True},
-		{"file modified after now", host, ods.ModifiedAfter(common.FormatTime(now)), assert.False},
+		{"file modified after now", host, ods.ModifiedAfter(common.FormatTime(now)), assert.True},
 		{"file modified after later", host, ods.ModifiedAfter(common.FormatTime(future)), assert.False},
 		{"file modified before future", host, ods.ModifiedBefore(common.FormatTime(future)), assert.True},
 		{"file modified before now", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
@@ -412,7 +414,7 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 					ItemType: details.SharePointItem,
 					WebURL:   test.infoURL,
 					Created:  now,
-					Modified: now,
+					Modified: modification,
 				},
 			}
 
