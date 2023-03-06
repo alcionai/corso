@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -32,6 +33,25 @@ type SharePointOpts struct {
 	FileModifiedBefore string
 
 	Populated PopulatedFlags
+}
+
+// SharePointOptions constructor for SharePointOpts
+func SharePointOptions(
+	libraryItems, libraryPaths, sites, weburls []string,
+	command *cobra.Command,
+) SharePointOpts {
+	return SharePointOpts{
+		LibraryItems:       libraryItems,
+		LibraryPaths:       libraryPaths,
+		Sites:              sites,
+		WebURLs:            weburls,
+		FileCreatedAfter:   FileCreatedAfter,
+		FileCreatedBefore:  FileCreatedBefore,
+		FileModifiedAfter:  FileModifiedAfter,
+		FileModifiedBefore: FileCreatedBefore,
+
+		Populated: GetPopulatedFlags(command),
+	}
 }
 
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
