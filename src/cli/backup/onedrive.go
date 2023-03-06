@@ -354,7 +354,17 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.OneDriveOptions(user, folderPaths, fileNames, cmd)
+	opts := utils.OneDriveOpts{
+		Users:              user,
+		Names:              fileNames,
+		Paths:              folderPaths,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
+
+		Populated: utils.GetPopulatedFlags(cmd),
+	}
 
 	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
