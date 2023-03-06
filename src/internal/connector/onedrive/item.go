@@ -237,12 +237,12 @@ func oneDriveItemPermissionInfo(
 		return nil, err
 	}
 
-	uperms := filterUserPermissions(perm.GetValue())
+	uperms := filterUserPermissions(ctx, perm.GetValue())
 
 	return uperms, nil
 }
 
-func filterUserPermissions(perms []models.Permissionable) []UserPermission {
+func filterUserPermissions(ctx context.Context, perms []models.Permissionable) []UserPermission {
 	up := []UserPermission{}
 
 	for _, p := range perms {
@@ -271,10 +271,17 @@ func filterUserPermissions(perms []models.Permissionable) []UserPermission {
 			entityID = *gv2.GetUser().GetId()
 		} else if gv2.GetGroup() != nil {
 			entityID = *gv2.GetGroup().GetId()
-		} else if gv2.GetApplication() != nil {
-			// TODO(meain): Applications permissions restore not
-			// tested manually
-			entityID = *gv2.GetApplication().GetId()
+		} else {
+			// TODO Add appliction permissions when adding permissions for SharePoint
+			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
+			logm := logger.Ctx(ctx)
+			if gv2.GetApplication() != nil {
+				logm.With("application_id", *gv2.GetApplication().GetId())
+			}
+			if gv2.GetDevice() != nil {
+				logm.With("application_id", *gv2.GetDevice().GetId())
+			}
+			logm.Warn("untracked permission")
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the
