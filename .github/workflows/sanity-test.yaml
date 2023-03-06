@@ -11,22 +11,22 @@ concurrency:
   group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-
-  AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
-  AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
-  AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-  CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
-  CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-  AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
-  TEST_RESULT: "test_results"
 
 jobs:
   Sanity-Tests:
     environment: Testing
     runs-on: ubuntu-latest
+    env:
+      AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+      AWS_CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }} 
+      TEST_RESULT: "test_results"
+
     defaults:
       run:
         working-directory: src
@@ -59,12 +59,12 @@ jobs:
       - name: Repo init test
         env:
           TEST_RESULT: "test_results"
-
+ 
         run: |
           set -euo pipefail
           touch $TEST_RESULT/initrepo.txt
           prefix=`date +"%Y-%m-%d-%T"`
-          ./corso repo init s3 --hide-progress --prefix $prefix --bucket   ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
+          ./corso repo init s3 --hide-progress --prefix $prefix --bucket   ${{ env.CORSO_BUCKET }}  2>&1 | tee $TEST_RESULT/initrepo.txt 
           valid_num=$(grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
