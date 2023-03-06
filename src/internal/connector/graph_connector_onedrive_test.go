@@ -22,7 +22,7 @@ import (
 
 // For any version post this(inclusive), we expect to be using IDs for
 // permission instead of email
-const versionPermissionSwitchedToId = version.OneDrive4DirIncludesPermissions
+const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
 func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
 	if len(perm.user) == 0 || len(perm.roles) == 0 {
@@ -200,7 +200,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 			"",
 			name+onedrive.MetaFileSuffix,
 			perm,
-			c.backupVersion >= versionPermissionSwitchedToId)
+			c.backupVersion >= versionPermissionSwitchedToID)
 		c.items = append(c.items, metadata)
 		c.aux = append(c.aux, metadata)
 
@@ -224,7 +224,7 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 				"",
 				name+onedrive.DirMetaFileSuffix,
 				perm,
-				c.backupVersion >= versionPermissionSwitchedToId))
+				c.backupVersion >= versionPermissionSwitchedToID))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -253,7 +253,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 		name,
 		name+onedrive.DirMetaFileSuffix,
 		perm,
-		c.backupVersion >= versionPermissionSwitchedToId)
+		c.backupVersion >= versionPermissionSwitchedToID)
 
 	c.items = append(c.items, metadata)
 	c.aux = append(c.aux, metadata)

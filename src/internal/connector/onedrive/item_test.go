@@ -241,6 +241,7 @@ func getPermsUperms(permID, userID, entity string, scopes []string) (models.Perm
 	identity.SetAdditionalData(map[string]any{"email": &userID})
 
 	sharepointIdentity := models.NewSharePointIdentitySet()
+
 	switch entity {
 	case "user":
 		sharepointIdentity.SetUser(identity)
