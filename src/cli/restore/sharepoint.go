@@ -140,11 +140,21 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.SharePointOptions(libraryItems, libraryPaths, site, weburl, cmd)
-	opts.ListItems = listItems
-	opts.ListPaths = listPaths
-	opts.PageFolders = pageFolders
-	opts.Pages = pages
+	opts := utils.SharePointOpts{
+		LibraryItems:       libraryItems,
+		LibraryPaths:       libraryPaths,
+		ListItems:          listItems,
+		ListPaths:          listPaths,
+		PageFolders:        pageFolders,
+		Pages:              pages,
+		Sites:              site,
+		WebURLs:            weburl,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
+		Populated:          utils.GetPopulatedFlags(cmd),
+	}
 
 	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
 		return err

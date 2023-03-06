@@ -508,7 +508,17 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.SharePointOptions(libraryItems, libraryPaths, site, weburl, cmd)
+	opts := utils.SharePointOpts{
+		LibraryItems:       libraryItems,
+		LibraryPaths:       libraryPaths,
+		Sites:              site,
+		WebURLs:            weburl,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
+		Populated:          utils.GetPopulatedFlags(cmd),
+	}
 
 	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
