@@ -63,7 +63,6 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(*restoreFolder.GetId())
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
-
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
 		os.Exit(1)
