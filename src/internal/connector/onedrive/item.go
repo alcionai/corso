@@ -75,8 +75,6 @@ func oneDriveItemMetaReader(
 
 	if item.GetShared() == nil {
 		meta.SharingMode = SharingModeInherited
-	} else if item.GetShared().GetScope() == nil {
-		meta.SharingMode = SharingModeEmpty
 	} else {
 		meta.SharingMode = SharingModeCustom
 	}

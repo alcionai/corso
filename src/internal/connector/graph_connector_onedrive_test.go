@@ -885,7 +885,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 
 // This is similar to TestPermissionsRestoreAndBackup but tests purely
 // for inheritance and that too only with newer versions
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceRestoreAndBackup() {
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -899,7 +899,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceR
 
 	folderAName := "custom"
 	folderBName := "inherited"
-	folderCName := "empty"
 
 	rootPath := []string{
 		"drives",
@@ -926,13 +925,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceR
 		folderAName,
 		folderBName,
 	}
-	subfolderCPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderAName,
-		folderCName,
-	}
 
 	fileSet := []itemData{
 		{
@@ -952,32 +944,18 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceR
 				sharingMode: onedrive.SharingModeInherited,
 			},
 		},
-		{
-			name: "file-empty",
-			data: fileAData,
-			perms: permData{
-				sharingMode: onedrive.SharingModeEmpty,
-			},
-		},
 	}
 
 	// Here is what this test is testing
 	// - custom-permission-folder
 	//   - custom-permission-file
-	//   - empty-permissions-file
 	//   - inherted-permission-file
 	//   - custom-permission-folder
-	// 	- custom-permission-file
-	// 	- empty-permissions-file
-	// 	- inherted-permission-file
-	//   - empty-permissions-folder
-	// 	- custom-permission-file
-	// 	- empty-permissions-file
-	// 	- inherted-permission-file
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
 	//   - inherted-permission-folder
-	// 	- custom-permission-file
-	// 	- empty-permissions-file
-	// 	- inherted-permission-file
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
 
 	// No reason why it couldn't work with previous versions, but this
 	// is when it got introduced.
@@ -1001,7 +979,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceR
 				folders: []itemData{
 					{name: folderAName},
 					{name: folderBName},
-					{name: folderCName},
 				},
 				perms: permData{
 					user:     suite.secondaryUser,
@@ -1024,13 +1001,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritenceR
 				files:        fileSet,
 				perms: permData{
 					sharingMode: onedrive.SharingModeInherited,
-				},
-			},
-			{
-				pathElements: subfolderCPath,
-				files:        fileSet,
-				perms: permData{
-					sharingMode: onedrive.SharingModeEmpty,
 				},
 			},
 		},

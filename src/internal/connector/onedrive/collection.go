@@ -58,7 +58,6 @@ type SharingMode int
 const (
 	SharingModeCustom = SharingMode(iota)
 	SharingModeInherited
-	SharingModeEmpty
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365

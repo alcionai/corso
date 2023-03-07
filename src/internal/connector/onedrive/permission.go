@@ -173,7 +173,6 @@ func restorePermissions(
 		return clues.Wrap(err, "fetching current permissions").WithClues(ctx).With(graph.ErrData(err)...)
 	}
 
-	// meta.Permissions will be empty for SharingModeEmpty
 	permAdded, permRemoved := getPermissionDiff(meta.Permissions, currentPermissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
