@@ -1,8 +1,10 @@
 package fault
 
 import (
+	"errors"
 	"sync"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -27,29 +29,6 @@ type Bus struct {
 	// non-recoverable processing state, causing any running
 	// processes to exit.
 	failFast bool
-}
-
-// Errors provides the errors data alone, without sync
-// controls, allowing the data to be persisted.
-type Errors struct {
-	// Failure identifies a non-recoverable error.  This includes
-	// non-start cases (ex: cannot connect to client), hard-
-	// stop issues (ex: credentials expired) or conscious exit
-	// cases (ex: iteration error + failFast config).
-	Failure error `json:"failure"`
-
-	// Recovered errors accumulate through a runtime under
-	// best-effort processing conditions.  They imply that an
-	// error occurred, but the process was able to move on and
-	// complete afterwards.
-	// Eg: if a process is retrieving N items, and 1 of the
-	// items fails to be retrieved, but the rest of them succeed,
-	// we'd expect to see 1 error added to this slice.
-	Recovered []error `json:"-"`
-
-	// If FailFast is true, then the first Recoverable error will
-	// promote to the Failure spot, causing processing to exit.
-	FailFast bool `json:"failFast"`
 }
 
 // New constructs a new error with default values in place.
@@ -148,6 +127,56 @@ func (e *Bus) addRecoverableErr(err error) *Bus {
 	e.recoverable = append(e.recoverable, err)
 
 	return e
+}
+
+// ---------------------------------------------------------------------------
+// Errors Data
+// ---------------------------------------------------------------------------
+
+// Errors provides the errors data alone, without sync
+// controls, allowing the data to be persisted.
+type Errors struct {
+	// Failure identifies a non-recoverable error.  This includes
+	// non-start cases (ex: cannot connect to client), hard-
+	// stop issues (ex: credentials expired) or conscious exit
+	// cases (ex: iteration error + failFast config).
+	Failure error `json:"failure"`
+
+	// Recovered errors accumulate through a runtime under
+	// best-effort processing conditions.  They imply that an
+	// error occurred, but the process was able to move on and
+	// complete afterwards.
+	// Eg: if a process is retrieving N items, and 1 of the
+	// items fails to be retrieved, but the rest of them succeed,
+	// we'd expect to see 1 error added to this slice.
+	Recovered []error `json:"-"`
+
+	// If FailFast is true, then the first Recoverable error will
+	// promote to the Failure spot, causing processing to exit.
+	FailFast bool `json:"failFast"`
+}
+
+// Items reduces all errors (both the failure and recovered values)
+// in the Errors struct into a slice of items, deduplicated by their
+// ID.
+func (e Errors) Items() []Item {
+	is := map[string]Item{}
+
+	for _, err := range e.Recovered {
+		var ie *Item
+		if !errors.As(err, &ie) {
+			continue
+		}
+
+		is[ie.ID] = *ie
+	}
+
+	var ie *Item
+	if errors.As(e.Failure, &ie) {
+		is[ie.ID] = *ie
+	}
+
+	return maps.Values(is)
 }
 
 // ---------------------------------------------------------------------------

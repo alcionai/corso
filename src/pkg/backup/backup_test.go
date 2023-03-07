@@ -45,10 +45,13 @@ func stubBackup(t time.Time) backup.Backup {
 		Errors: fault.Errors{
 			Recovered: []error{errors.New("read"), errors.New("write")},
 		},
-		Errs: stats.Errs{
-			ReadErrors:  errors.New("1"),
-			WriteErrors: errors.New("1"),
-		},
+		ErrorCount: 2,
+		Failure:    "read, write",
+		FailedItems: []fault.Item{*fault.FileErr(
+			errors.New("read"),
+			"id", "name",
+			"containerID", "containerName",
+		)},
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,
@@ -58,6 +61,11 @@ func stubBackup(t time.Time) backup.Backup {
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
 			CompletedAt: t,
+		},
+		// deprecated
+		Errs: stats.Errs{
+			ReadErrors:  errors.New("1"),
+			WriteErrors: errors.New("1"),
 		},
 	}
 }

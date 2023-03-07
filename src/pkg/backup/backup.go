@@ -36,13 +36,21 @@ type Backup struct {
 	Version int `json:"version"`
 
 	// Errors contains all errors aggregated during a backup operation.
+	// the fault.Errors struct is generally unserializable; it's values
+	// get propagated into ErrorCount, Failure, and FailedItems.
 	Errors     fault.Errors `json:"errors"`
 	ErrorCount int          `json:"errorCount"`
+	// the non-recoverable failure message, only non-zero if one occurred.
+	Failure string `json:"failure"`
+	// individual items (files, containers, resource owners) tracked as failed.
+	FailedItems []fault.Item `json:"failedItems"`
 
 	// stats are embedded so that the values appear as top-level properties
-	stats.Errs // Deprecated, replaced with Errors.
 	stats.ReadWrites
 	stats.StartAndEndTime
+
+	// Deprecated
+	stats.Errs // replaced with fault.Errors
 }
 
 // interface compliance checks
@@ -58,6 +66,7 @@ func New(
 ) *Backup {
 	errData := errs.Errors()
 
+	// TODO: count errData.Items(), not all recovered errors.
 	errCount := len(errs.Errors().Recovered)
 	if errData.Failure != nil {
 		errCount++
@@ -77,6 +86,8 @@ func New(
 		Selector:        selector,
 		Errors:          errData,
 		ErrorCount:      errCount,
+		Failure:         errData.Failure.Error(),
+		FailedItems:     errData.Items(),
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		Version:         version.Backup,
