@@ -93,7 +93,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 					Exchange: &ExchangeInfo{
 						ItemType:  ExchangeMail,
 						Sender:    "sender",
-						Recipient: "receiver",
+						Recipient: []string{"receiver"},
 						Subject:   "subject",
 						Received:  now,
 					},

@@ -516,7 +516,7 @@ type ExchangeInfo struct {
 	ItemType    ItemType  `json:"itemType,omitempty"`
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
-	Recipient   string    `json:"recipient,omitempty"`
+	Recipient   []string  `json:"recipient,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
 	EventStart  time.Time `json:"eventStart,omitempty"`
 	EventEnd    time.Time `json:"eventEnd,omitempty"`
