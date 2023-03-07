@@ -82,16 +82,16 @@ func (suite *ItemUnitSuite) TestOwnerErr() {
 	assert.Equal(t, expect, *i)
 }
 
-func (suite *ItemUnitSuite) TestSkipped_Error() {
+func (suite *ItemUnitSuite) TestSkipped_String() {
 	var (
 		t = suite.T()
 		i *Skipped
 	)
 
-	assert.Contains(t, i.item.Error(), "nil")
+	assert.Contains(t, i.String(), "nil")
 
 	i = &Skipped{Item{}}
-	assert.Contains(t, i.item.Error(), "unknown kind")
+	assert.Contains(t, i.String(), "unknown kind")
 
 	i = &Skipped{Item{Type: FileType}}
 	assert.Contains(t, i.item.Error(), FileType)
