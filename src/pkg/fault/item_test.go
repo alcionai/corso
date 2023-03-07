@@ -30,8 +30,8 @@ func (suite *ItemUnitSuite) TestItem_Error() {
 	i = &fault.Item{}
 	assert.Contains(t, i.Error(), "unknown kind")
 
-	i = &fault.Item{Kind: fault.ItemKindFile}
-	assert.Contains(t, i.Error(), fault.ItemKindFile)
+	i = &fault.Item{Type: fault.FileType}
+	assert.Contains(t, i.Error(), fault.FileType)
 }
 
 func (suite *ItemUnitSuite) TestContainerErr() {
@@ -44,7 +44,7 @@ func (suite *ItemUnitSuite) TestContainerErr() {
 		Name:          "name",
 		ContainerID:   "containerID",
 		ContainerName: "containerName",
-		Kind:          fault.ItemKindContainer,
+		Type:          fault.ContainerType,
 		Cause:         "foo",
 	}
 
@@ -61,7 +61,7 @@ func (suite *ItemUnitSuite) TestFileErr() {
 		Name:          "name",
 		ContainerID:   "containerID",
 		ContainerName: "containerName",
-		Kind:          fault.ItemKindFile,
+		Type:          fault.FileType,
 		Cause:         "foo",
 	}
 
@@ -76,7 +76,7 @@ func (suite *ItemUnitSuite) TestOwnerErr() {
 	expect := fault.Item{
 		ID:    "id",
 		Name:  "name",
-		Kind:  fault.ItemKindResourceOwner,
+		Type:  fault.ResourceOwnerType,
 		Cause: "foo",
 	}
 
