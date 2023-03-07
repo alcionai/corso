@@ -403,7 +403,9 @@ const (
 	ExchangeEvent
 	ExchangeMail
 
-	SharePointItem ItemType = iota + 100
+	SharePointLibrary ItemType = iota + 100
+	SharePointList    ItemType = iota + 100
+	SharePointPage    ItemType = iota + 100
 
 	OneDriveItem ItemType = iota + 200
 
@@ -416,7 +418,7 @@ func UpdateItem(item *ItemInfo, repoPath path.Path) error {
 	var updatePath func(path.Path) error
 
 	switch item.infoType() {
-	case SharePointItem:
+	case SharePointLibrary:
 		updatePath = item.SharePoint.UpdateParentPath
 	case OneDriveItem:
 		updatePath = item.OneDrive.UpdateParentPath
