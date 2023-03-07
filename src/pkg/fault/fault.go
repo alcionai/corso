@@ -24,6 +24,11 @@ type Bus struct {
 	// we'd expect to see 1 error added to this slice.
 	recoverable []error
 
+	// skipped is the accumulation of skipped items.  Skipped items
+	// are not errors themselves, but instead represent some permanent
+	// inability to process an item, due to a well-known cause.
+	skipped []Skipped
+
 	// if failFast is true, the first errs addition will
 	// get promoted to the err value.  This signifies a
 	// non-recoverable processing state, causing any running
@@ -52,6 +57,12 @@ func (e *Bus) Failure() error {
 // doesn't require the entire process to end.
 func (e *Bus) Recovered() []error {
 	return e.recoverable
+}
+
+// Skipped returns the slice of items that were permanently
+// skipped during processing.
+func (e *Bus) Skipped() []Skipped {
+	return e.skipped
 }
 
 // Errors returns the plain record of errors that were aggregated
@@ -129,12 +140,39 @@ func (e *Bus) addRecoverableErr(err error) *Bus {
 	return e
 }
 
+// AddSkip appends a record of a Skipped item to the fault bus.
+// Importantly, skipped items are not the same as recoverable
+// errors.  An item should only be skipped under the following
+// conditions.  All other cases should be handled as errors.
+// 1. The conditions for skipping the item are well-known and
+// well-documented.  End users need to be able to understand
+// both the conditions and identifications of skips.
+// 2. Skipping avoids a permanent and consistent failure.  If
+// the underlying reason is transient or otherwise recoverable,
+// the item should not be skipped.
+func (e *Bus) AddSkip(s *Skipped) *Bus {
+	if s == nil {
+		return e
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.addSkip(s)
+}
+
+func (e *Bus) addSkip(s *Skipped) *Bus {
+	e.skipped = append(e.skipped, *s)
+	return e
+}
+
 // ---------------------------------------------------------------------------
 // Errors Data
 // ---------------------------------------------------------------------------
 
-// Errors provides the errors data alone, without sync
-// controls, allowing the data to be persisted.
+// Errors provides the errors data alone, without sync controls
+// or adders/setters.  Expected to get called at the end of processing,
+// as a way to aggregate results.
 type Errors struct {
 	// Failure identifies a non-recoverable error.  This includes
 	// non-start cases (ex: cannot connect to client), hard-
@@ -150,6 +188,11 @@ type Errors struct {
 	// items fails to be retrieved, but the rest of them succeed,
 	// we'd expect to see 1 error added to this slice.
 	Recovered []error `json:"-"`
+
+	// skipped is the accumulation of skipped items.  Skipped items
+	// are not errors themselves, but instead represent some permanent
+	// inability to process an item, due to a well-known cause.
+	Skipped []Skipped `json:"skipped"`
 
 	// If FailFast is true, then the first Recoverable error will
 	// promote to the Failure spot, causing processing to exit.
@@ -214,6 +257,27 @@ func (e *localBus) AddRecoverable(err error) {
 	}
 
 	e.bus.AddRecoverable(err)
+}
+
+// AddSkip appends a record of a Skipped item to the local bus.
+// Importantly, skipped items are not the same as recoverable
+// errors.  An item should only be skipped under the following
+// conditions.  All other cases should be handled as errors.
+// 1. The conditions for skipping the item are well-known and
+// well-documented.  End users need to be able to understand
+// both the conditions and identifications of skips.
+// 2. Skipping avoids a permanent and consistent failure.  If
+// the underlying reason is transient or otherwise recoverable,
+// the item should not be skipped.
+func (e *localBus) AddSkip(s *Skipped) {
+	if s == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.bus.AddSkip(s)
 }
 
 // Failure returns the failure that happened within the local bus.
