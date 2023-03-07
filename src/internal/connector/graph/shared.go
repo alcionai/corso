@@ -1,6 +1,5 @@
 package graph
 
-// shared.go
 // Contains helper methods that are common across multiple
 // Microsoft Graph Applications.
 
