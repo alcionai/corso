@@ -18,12 +18,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-type BackupSuite struct {
+type BackupUnitSuite struct {
 	tester.Suite
 }
 
-func TestBackupSuite(t *testing.T) {
-	suite.Run(t, &BackupSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func stubBackup(t time.Time) backup.Backup {
@@ -72,33 +72,60 @@ func stubBackup(t time.Time) backup.Backup {
 	}
 }
 
-func (suite *BackupSuite) TestBackup_HeadersValues() {
-	t := suite.T()
-	now := time.Now()
-	b := stubBackup(now)
+func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
+	var (
+		t        = suite.T()
+		now      = time.Now()
+		b        = stubBackup(now)
+		expectHs = []string{
+			"Started At",
+			"ID",
+			"Status",
+			"Resource Owner",
+		}
+		nowFmt   = common.FormatTabularDisplayTime(now)
+		expectVs = []string{
+			nowFmt,
+			"id",
+			"status (2 errors, 1 item with malware detected and skipped)",
+			"test",
+		}
+	)
 
-	expectHs := []string{
-		"Started At",
-		"ID",
-		"Status",
-		"Resource Owner",
-	}
+	// single skipped malware
 	hs := b.Headers()
 	assert.Equal(t, expectHs, hs)
 
-	nowFmt := common.FormatTabularDisplayTime(now)
-	expectVs := []string{
+	vs := b.Values()
+	assert.Equal(t, expectVs, vs)
+
+	// multiple skipped malware
+	b.SkippedItems = append(b.SkippedItems, b.SkippedItems...)
+	expectVs = []string{
 		nowFmt,
 		"id",
-		"status (2 errors, 1 skipped)",
+		"status (2 errors, 2 items with malware detected and skipped)",
 		"test",
 	}
 
-	vs := b.Values()
+	vs = b.Values()
 	assert.Equal(t, expectVs, vs)
+
+	// no skips
+	b.SkippedItems = nil
+	expectVs = []string{
+		nowFmt,
+		"id",
+		"status (2 errors)",
+		"test",
+	}
+
+	vs = b.Values()
+	assert.Equal(t, expectVs, vs)
+
 }
 
-func (suite *BackupSuite) TestBackup_MinimumPrintable() {
+func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	t := suite.T()
 	now := time.Now()
 	b := stubBackup(now)

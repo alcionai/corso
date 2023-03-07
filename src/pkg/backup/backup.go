@@ -175,7 +175,12 @@ func (b Backup) Values() []string {
 	}
 
 	if malware > 0 {
-		malStr = fmt.Sprintf(", %d pieces of malware detected and skipped", malware)
+		amt := "item"
+		if malware > 1 {
+			amt = "items"
+		}
+
+		malStr = fmt.Sprintf(", %d %s with malware detected and skipped", malware, amt)
 	}
 
 	if skipped > 0 {
