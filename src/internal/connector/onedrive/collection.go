@@ -418,11 +418,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 					if err != nil {
 						if item.GetMalware() != nil {
 							logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
+							el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, ptr.Val(pr.GetId()), ptr.Val(pr.GetName())))
 						} else {
 							logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
+							el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						}
 
-						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
 

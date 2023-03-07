@@ -159,7 +159,7 @@ func (b Backup) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (b Backup) Values() []string {
-	status := fmt.Sprintf("%s (%d errors)", b.Status, b.countErrors())
+	status := fmt.Sprintf("%s (%d errors, %d skipped)", b.Status, b.countErrors(), len(b.SkippedItems))
 
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),

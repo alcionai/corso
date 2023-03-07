@@ -90,7 +90,7 @@ func (suite *BackupSuite) TestBackup_HeadersValues() {
 	expectVs := []string{
 		nowFmt,
 		"id",
-		"status (2 errors)",
+		"status (2 errors, 1 skipped)",
 		"test",
 	}
 

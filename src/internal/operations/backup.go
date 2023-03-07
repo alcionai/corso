@@ -171,6 +171,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
 	}
 
+	skippedCount := len(op.Errors.Skipped())
+	for i, skip := range op.Errors.Skipped() {
+		logger.Ctx(ctx).With("skip", skip).Infof("doing backup: skipped item %d of %d", i+1, skippedCount)
+	}
+
 	// -----
 	// Persistence
 	// -----
