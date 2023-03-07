@@ -8,17 +8,25 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // common flag names
 const (
-	BackupFN = "backup"
-	DataFN   = "data"
-	SiteFN   = "site"
-	UserFN   = "user"
+	BackupFN             = "backup"
+	DataFN               = "data"
+	SiteFN               = "site"
+	UserFN               = "user"
+	FileCreatedAfterFN   = "file-created-after"
+	FileCreatedBeforeFN  = "file-created-before"
+	FileModifiedAfterFN  = "file-modified-after"
+	FileModifiedBeforeFN = "file-modified-before"
 )
 
 const (
@@ -135,4 +143,22 @@ func splitFoldersIntoContainsAndPrefix(folders []string) ([]string, []string) {
 	}
 
 	return containsFolders, prefixFolders
+}
+
+// SendStartCorsoEvent utility sends corso start event at start of each action
+func SendStartCorsoEvent(
+	ctx context.Context,
+	s storage.Storage,
+	tenID string,
+	data map[string]any,
+	repoID string,
+	opts control.Options,
+) {
+	bus, err := events.NewBus(ctx, s, tenID, opts)
+	if err != nil {
+		logger.Ctx(ctx).Infow("analytics event failure", "err", err)
+	}
+
+	bus.SetRepoID(repoID)
+	bus.Event(ctx, events.CorsoStart, data)
 }

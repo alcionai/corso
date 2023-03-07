@@ -133,12 +133,12 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.OneDriveOpts{
 		Users:              user,
-		Paths:              folderPaths,
 		Names:              fileNames,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
+		Paths:              folderPaths,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
 
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
@@ -147,14 +147,14 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, a, err := config.GetStorageAndAccount(ctx, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	r, err := repository.Connect(ctx, a, s, options.Control())
+	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", s.Provider))
+		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
