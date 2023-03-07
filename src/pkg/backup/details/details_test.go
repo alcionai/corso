@@ -780,7 +780,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			name: "SharePoint",
 			input: ItemInfo{
 				SharePoint: &SharePointInfo{
-					ItemType:   SharePointItem,
+					ItemType:   SharePointLibrary,
 					ParentPath: folder1,
 				},
 			},
@@ -789,7 +789,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
-					ItemType:   SharePointItem,
+					ItemType:   SharePointLibrary,
 					ParentPath: folder2,
 				},
 			},
@@ -810,7 +810,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			name: "SharePointBadPath",
 			input: ItemInfo{
 				SharePoint: &SharePointInfo{
-					ItemType:   SharePointItem,
+					ItemType:   SharePointLibrary,
 					ParentPath: folder1,
 				},
 			},
