@@ -50,10 +50,8 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
-# m365 outlook message list --folderName Inbox 
       # run the tests
       - name: Version Test
-           # TODO: check the commit ID
         run: |
           set -euo pipefail
           if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
@@ -65,7 +63,6 @@ jobs:
       - name: Repo init test
         env:
           TEST_RESULT: "test_results"
- 
         run: |
           set -euo pipefail
           touch $TEST_RESULT/initrepo.txt
@@ -82,7 +79,6 @@ jobs:
 
       # run the tests
       - name: Repo connect test
-
         run: |
           set -euo pipefail
           touch $TEST_RESULT/connect.txt
@@ -98,29 +94,25 @@ jobs:
       # run the tests
       - name: Backup exchange test
         id: exchange-test
-
         run: |
           ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
           valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt | wc -l)
-
           if [ $valid_num -ne 1 ]
           then
               echo "backup was not successfull"
               exit 1
           fi
-
           echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
       # list the backup exhange
       - name: Backup exchange list test
-
         run: |
           set -euo pipefail
           touch $TEST_RESULT/backup_exchange_list.txt
           ./corso backup list exchange --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
           cat $TEST_RESULT/backup_exchange_list.txt 
           valid_num=$(grep -i -e ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt | wc -l)
-
+         
           if [ $valid_num -ne 1 ]
           then
               echo "listing of backup was not successfull"
@@ -155,7 +147,6 @@ jobs:
       # test exchange restore
       - name: Backup exchange restore
         id: exchange-restore-test
-        # TODO: check the folders on endpoint
         run: |
           set -euo pipefail
           ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
