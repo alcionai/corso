@@ -140,8 +140,16 @@ func (e *Bus) addRecoverableErr(err error) *Bus {
 	return e
 }
 
-// AddSkip appends the skipped item to the slice of skipped
-// items (ie: bus.skipped).
+// AddSkip appends a record of a Skipped item to the fault bus.
+// Importantly, skipped items are not the same as recoverable
+// errors.  An item should only be skipped under the following
+// conditions.  All other cases should be handled as errors.
+// 1. The conditions for skipping the item are well-known and
+// well-documented.  End users need to be able to understand
+// both the conditions and identifications of skips.
+// 2. Skipping avoids a permanent and consistent failure.  If
+// the underlying reason is transient or otherwise recoverable,
+// the item should not be skipped.
 func (e *Bus) AddSkip(s *Skipped) *Bus {
 	if s == nil {
 		return e
@@ -251,6 +259,16 @@ func (e *localBus) AddRecoverable(err error) {
 	e.bus.AddRecoverable(err)
 }
 
+// AddSkip appends a record of a Skipped item to the local bus.
+// Importantly, skipped items are not the same as recoverable
+// errors.  An item should only be skipped under the following
+// conditions.  All other cases should be handled as errors.
+// 1. The conditions for skipping the item are well-known and
+// well-documented.  End users need to be able to understand
+// both the conditions and identifications of skips.
+// 2. Skipping avoids a permanent and consistent failure.  If
+// the underlying reason is transient or otherwise recoverable,
+// the item should not be skipped.
 func (e *localBus) AddSkip(s *Skipped) {
 	if s == nil {
 		return
