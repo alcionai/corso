@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -80,6 +81,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 
 func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
 	file := make(map[string]int64)
+	folderPermission := make(map[string][]string)
 	restoreFolderID := ""
 
 	drive, err := client.UsersById(testUser).Drive().Get(context.Background(), nil)
@@ -89,35 +91,68 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 	}
 
 	response, _ := client.DrivesById(*drive.GetId()).Root().Children().Get(context.Background(), nil)
-	for _, drive := range response.GetValue() {
-		if *drive.GetName() == folderName {
-			restoreFolderID = *drive.GetId()
+	for _, driveItem := range response.GetValue() {
+		if *driveItem.GetName() == folderName {
+			restoreFolderID = *driveItem.GetId()
 			continue
 		}
 
-		size := *drive.GetSize()
+		// if it's a file check the size
+		if driveItem.GetFile() != nil {
+			file[*driveItem.GetName()] = *driveItem.GetSize()
+		}
 
-		// check if file or folder
-		if size > 0 {
-			file[*drive.GetName()] = *drive.GetSize()
+		if driveItem.GetFolder() != nil {
+			permission, _ := client.
+				DrivesById(*drive.GetId()).
+				ItemsById(*driveItem.GetId()).
+				Permissions().
+				Get(context.TODO(), nil)
+
+			// check if permission are correct on folder
+			for _, permission := range permission.GetValue() {
+				folderPermission[*driveItem.GetName()] = permission.GetRoles()
+			}
+
+			continue
 		}
 	}
 
-	restoreResponse, _ := client.
-		DrivesById(*drive.GetId()).
-		ItemsById(restoreFolderID).
-		Children().
-		Get(context.Background(), nil)
+	checkFileData(client, *drive.GetId(), restoreFolderID, file, folderPermission)
 
-	for _, restoreResponse := range restoreResponse.GetValue() {
-		if *restoreResponse.GetSize() != file[*restoreResponse.GetName()] {
-			fmt.Printf("Size of file %s is different in drive %d and restored file: %d ",
-				*restoreResponse.GetName(),
-				file[*restoreResponse.GetName()],
-				*restoreResponse.GetSize())
+	fmt.Println("Success")
+}
+
+func checkFileData(client *msgraphsdk.GraphServiceClient, driveID, restoreFolderID string, file map[string]int64, folderPermission map[string][]string) {
+	itemBuilder := client.DrivesById(driveID).ItemsById(restoreFolderID)
+
+	restoreResponses, _ := itemBuilder.Children().Get(context.Background(), nil)
+	for _, restoreData := range restoreResponses.GetValue() {
+		restoreName := *restoreData.GetName()
+
+		if restoreData.GetFile() != nil {
+			if *restoreData.GetSize() != file[restoreName] {
+				fmt.Printf("Size of file %s is different in drive %d and restored file: %d ",
+					restoreName,
+					file[restoreName],
+					*restoreData.GetSize())
+				os.Exit(1)
+			}
+			continue
+		}
+
+		itemBuilder := client.DrivesById(driveID).ItemsById(*restoreData.GetId())
+		permissionColl, _ := itemBuilder.Permissions().Get(context.TODO(), nil)
+
+		userPermission := []string{}
+
+		for _, perm := range permissionColl.GetValue() {
+			userPermission = perm.GetRoles()
+		}
+
+		if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
+			fmt.Printf("Permission mismatch for %s.", restoreName)
 			os.Exit(1)
 		}
 	}
-
-	fmt.Println("Success")
 }
