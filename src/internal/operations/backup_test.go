@@ -18,6 +18,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -106,26 +107,6 @@ func (mbu mockBackuper) BackupCollections(
 	}
 
 	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
-}
-
-// ----- details
-
-type mockDetailsReader struct {
-	entries map[string]*details.Details
-}
-
-func (mdr mockDetailsReader) ReadBackupDetails(
-	ctx context.Context,
-	detailsID string,
-	errs *fault.Bus,
-) (*details.Details, error) {
-	r := mdr.entries[detailsID]
-
-	if r == nil {
-		return nil, errors.Errorf("no details for ID %s", detailsID)
-	}
-
-	return r, nil
 }
 
 // ----- model store for backups
@@ -1221,14 +1202,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mdr := mockDetailsReader{entries: test.populatedDetails}
+			mds := ssmock.DetailsStreamer{Entries: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
 			deets := details.Builder{}
 
 			err := mergeDetails(
 				ctx,
 				w,
-				mdr,
+				mds,
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
 				&deets,
@@ -1335,14 +1316,14 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	mdr := mockDetailsReader{entries: populatedDetails}
+	mds := ssmock.DetailsStreamer{Entries: populatedDetails}
 	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
 	deets := details.Builder{}
 
 	err := mergeDetails(
 		ctx,
 		w,
-		mdr,
+		mds,
 		inputMans,
 		inputToMerge,
 		&deets,
