@@ -307,8 +307,7 @@ func makeDetailsEntry(
 		assert.FailNowf(
 			t,
 			"service %s not supported in helper function",
-			p.Service().String(),
-		)
+			p.Service().String())
 	}
 
 	return res
@@ -337,15 +336,15 @@ func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string
 // unit tests
 // ---------------------------------------------------------------------------
 
-type BackupOpSuite struct {
+type BackupOpUnitSuite struct {
 	tester.Suite
 }
 
-func TestBackupOpSuite(t *testing.T) {
-	suite.Run(t, &BackupOpSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupOpUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -427,7 +426,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
 	var (
 		tenant        = "a-tenant"
 		resourceOwner = "a-user"
@@ -580,7 +579,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	var (
 		tenant = "a-tenant"
 		ro     = "a-user"
@@ -1225,7 +1224,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
 	var (
 		t = suite.T()
 
@@ -1284,41 +1283,43 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 			backup1.ID: backup1,
 		}
 
-		itemSize    = 42
-		itemDetails = makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
-
-		populatedDetails = map[string]*details.Details{
-			backup1.DetailsID: {
-				DetailsModel: details.DetailsModel{
-					Entries: []details.DetailsEntry{
-						*itemDetails,
-					},
-				},
-			},
-		}
-
-		expectedEntries = []details.DetailsEntry{
-			*itemDetails,
-		}
+		itemSize = 42
+		now      = time.Now()
+		// later    = now.Add(42 * time.Minute)
 	)
 
-	itemDetails.Exchange.Modified = time.Now()
+	itemDetails := makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
+	// itemDetails.Exchange.Modified = now
+
+	populatedDetails := map[string]*details.Details{
+		backup1.DetailsID: {
+			DetailsModel: details.DetailsModel{
+				Entries: []details.DetailsEntry{*itemDetails},
+			},
+		},
+	}
+
+	expectedEntries := []details.DetailsEntry{*itemDetails}
+
+	// update the details
+	itemDetails.Exchange.Modified = now
 
 	for i := 1; i < len(pathElems); i++ {
 		expectedEntries = append(expectedEntries, *makeFolderEntry(
 			t,
 			path.Builder{}.Append(pathElems[:i]...),
 			int64(itemSize),
-			itemDetails.Exchange.Modified,
-		))
+			itemDetails.Exchange.Modified))
 	}
 
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	mds := ssmock.DetailsStreamer{Entries: populatedDetails}
-	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
-	deets := details.Builder{}
+	var (
+		mds   = ssmock.DetailsStreamer{Entries: populatedDetails}
+		w     = &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
+		deets = details.Builder{}
+	)
 
 	err := mergeDetails(
 		ctx,
@@ -1329,5 +1330,60 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders()
 		&deets,
 		fault.New(true))
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
+	compareDeetEntries(t, expectedEntries, deets.Details().Entries)
+}
+
+// compares two details slices.  Useful for tests where serializing the
+// entries can produce minor variations in the time struct, causing
+// assert.elementsMatch to fail.
+func compareDeetEntries(t *testing.T, expect, result []details.DetailsEntry) {
+	if !assert.Equal(t, len(expect), len(result), "entry slices should be equal len") {
+		require.ElementsMatch(t, expect, result)
+	}
+
+	var (
+		// repoRef -> modified time
+		eMods = map[string]time.Time{}
+		es    = make([]details.DetailsEntry, 0, len(expect))
+		rs    = make([]details.DetailsEntry, 0, len(expect))
+	)
+
+	for _, e := range expect {
+		eMods[e.RepoRef] = e.Modified()
+		es = append(es, withoutModified(e))
+	}
+
+	for _, r := range result {
+		// this comparison is an artifact of bad comparisons across time.Time
+		// serialization using assert.ElementsMatch.  The time struct can produce
+		// differences in its `ext` value across serialization while the actual time
+		// reference remains the same.  assert handles this poorly, whereas the time
+		// library provides successful comparison.
+		assert.Truef(
+			t,
+			eMods[r.RepoRef].Equal(r.Modified()),
+			"expected modified time %v, got %v", eMods[r.RepoRef], r.Modified())
+
+		rs = append(rs, withoutModified(r))
+	}
+
+	assert.ElementsMatch(t, es, rs)
+}
+
+func withoutModified(de details.DetailsEntry) details.DetailsEntry {
+	switch {
+	case de.Exchange != nil:
+		de.Exchange.Modified = time.Time{}
+
+	case de.OneDrive != nil:
+		de.OneDrive.Modified = time.Time{}
+
+	case de.SharePoint != nil:
+		de.SharePoint.Modified = time.Time{}
+
+	case de.Folder != nil:
+		de.Folder.Modified = time.Time{}
+	}
+
+	return de
 }
