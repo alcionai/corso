@@ -159,7 +159,32 @@ func (b Backup) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (b Backup) Values() []string {
-	status := fmt.Sprintf("%s (%d errors, %d skipped)", b.Status, b.countErrors(), len(b.SkippedItems))
+	var (
+		malware int
+		malStr  string
+		skipped int
+		skipStr string
+	)
+
+	for _, s := range b.SkippedItems {
+		if s.HasCause(fault.SkipMalware) {
+			malware++
+		} else {
+			skipped++
+		}
+	}
+
+	if malware > 0 {
+		malStr = fmt.Sprintf(", %d pieces of malware detected and skipped", malware)
+	}
+
+	if skipped > 0 {
+		skipStr = fmt.Sprintf(", %d skipped items", skipped)
+	}
+
+	status := fmt.Sprintf(
+		"%s (%d errors%s%s)",
+		b.Status, b.countErrors(), malStr, skipStr)
 
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),
