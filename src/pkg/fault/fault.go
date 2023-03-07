@@ -56,23 +56,13 @@ func (e *Bus) Failure() error {
 // iteration where a single failure (ex: retrieving an item),
 // doesn't require the entire process to end.
 func (e *Bus) Recovered() []error {
-	return e.recoverable
+	return slices.Clone(e.recoverable)
 }
 
 // Skipped returns the slice of items that were permanently
 // skipped during processing.
 func (e *Bus) Skipped() []Skipped {
-	return e.skipped
-}
-
-// Errors returns the plain record of errors that were aggregated
-// within a fult Bus.
-func (e *Bus) Errors() Errors {
-	return Errors{
-		Failure:   e.failure,
-		Recovered: slices.Clone(e.recoverable),
-		FailFast:  e.failFast,
-	}
+	return slices.Clone(e.skipped)
 }
 
 // Fail sets the non-recoverable error (ie: bus.failure)
@@ -166,6 +156,18 @@ func (e *Bus) addSkip(s *Skipped) *Bus {
 	return e
 }
 
+// Errors returns the plain record of errors that were aggregated
+// within a fult Bus.
+func (e *Bus) Errors() Errors {
+	return Errors{
+		Failure:   e.failure,
+		Recovered: slices.Clone(e.recoverable),
+		Items:     itemsIn(e.failure, e.recoverable),
+		Skipped:   slices.Clone(e.skipped),
+		FailFast:  e.failFast,
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Errors Data
 // ---------------------------------------------------------------------------
@@ -189,7 +191,12 @@ type Errors struct {
 	// we'd expect to see 1 error added to this slice.
 	Recovered []error `json:"-"`
 
-	// skipped is the accumulation of skipped items.  Skipped items
+	// Items are the reduction of all errors (both the failure and the
+	// recovered values) in the Errors struct into a slice of items,
+	// deduplicated by their ID.
+	Items []Item `json:"items"`
+
+	// Skipped is the accumulation of skipped items.  Skipped items
 	// are not errors themselves, but instead represent some permanent
 	// inability to process an item, due to a well-known cause.
 	Skipped []Skipped `json:"skipped"`
@@ -199,13 +206,13 @@ type Errors struct {
 	FailFast bool `json:"failFast"`
 }
 
-// Items reduces all errors (both the failure and recovered values)
+// itemsIn reduces all errors (both the failure and recovered values)
 // in the Errors struct into a slice of items, deduplicated by their
 // ID.
-func (e Errors) Items() []Item {
+func itemsIn(failure error, recovered []error) []Item {
 	is := map[string]Item{}
 
-	for _, err := range e.Recovered {
+	for _, err := range recovered {
 		var ie *Item
 		if !errors.As(err, &ie) {
 			continue
@@ -215,7 +222,7 @@ func (e Errors) Items() []Item {
 	}
 
 	var ie *Item
-	if errors.As(e.Failure, &ie) {
+	if errors.As(failure, &ie) {
 		is[ie.ID] = *ie
 	}
 

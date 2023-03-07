@@ -42,11 +42,8 @@ func stubBackup(t time.Time) backup.Backup {
 		DetailsID:    "details",
 		Status:       "status",
 		Selector:     sel.Selector,
-		Errors: fault.Errors{
-			Recovered: []error{errors.New("read"), errors.New("write")},
-		},
-		ErrorCount: 2,
-		Failure:    "read, write",
+		ErrorCount:   2,
+		Failure:      "read, write",
 		FailedItems: []fault.Item{*fault.FileErr(
 			errors.New("read"),
 			"id", "name",

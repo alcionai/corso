@@ -320,7 +320,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.ElementsMatch(suite.T(), test.expect, test.errs().Items())
+			assert.ElementsMatch(suite.T(), test.expect, test.errs().Items)
 		})
 	}
 }
