@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -359,32 +358,27 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	var (
-		recipient string
-		sender    = graph.UnwrapAddress(msg.GetSender())
-		subject   = ptr.Val(msg.GetSubject())
-		received  = ptr.Val(msg.GetReceivedDateTime())
-		created   = ptr.Val(msg.GetCreatedDateTime())
-		listing   = make([]string, 0)
+		sender     = graph.UnwrapEmailAddress(msg.GetSender())
+		subject    = ptr.Val(msg.GetSubject())
+		received   = ptr.Val(msg.GetReceivedDateTime())
+		created    = ptr.Val(msg.GetCreatedDateTime())
+		recipients = make([]string, 0)
 	)
 
 	if msg.GetToRecipients() != nil {
-		recipients := msg.GetToRecipients()
-		for _, entry := range recipients {
-			temp := graph.UnwrapAddress(entry)
+		ppl := msg.GetToRecipients()
+		for _, entry := range ppl {
+			temp := graph.UnwrapEmailAddress(entry)
 			if len(temp) > 0 {
-				listing = append(listing, temp)
+				recipients = append(recipients, temp)
 			}
 		}
-	}
-
-	if len(listing) > 0 {
-		recipient = strings.Join(listing, ",")
 	}
 
 	return &details.ExchangeInfo{
 		ItemType:  details.ExchangeMail,
 		Sender:    sender,
-		Recipient: recipient,
+		Recipient: recipients,
 		Subject:   subject,
 		Received:  received,
 		Created:   created,
