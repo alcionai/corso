@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	LibraryItemFN = "library-item"
-	LibraryFN     = "library"
+	LibraryItemFN = "file"
+	LibraryFN     = "folder"
 	ListItemFN    = "list-item"
 	ListFN        = "list"
 	PageFolderFN  = "page-folders"
