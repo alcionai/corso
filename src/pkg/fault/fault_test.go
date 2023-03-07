@@ -212,6 +212,103 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	assert.True(t, d.FailFast)
 }
 
+func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
+	ae := assert.AnError
+
+	table := []struct {
+		name   string
+		errs   func() fault.Errors
+		expect []fault.Item
+	}{
+		{
+			name: "no errors",
+			errs: func() fault.Errors {
+				return fault.New(false).Errors()
+			},
+			expect: []fault.Item{},
+		},
+		{
+			name: "no items",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(ae)
+
+				return b.Errors()
+			},
+			expect: []fault.Item{},
+		},
+		{
+			name: "failure item",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "id", "name"))
+				b.AddRecoverable(ae)
+
+				return b.Errors()
+			},
+			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name")},
+		},
+		{
+			name: "recoverable item",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(fault.OwnerErr(ae, "id", "name"))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name")},
+		},
+		{
+			name: "two items",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "oid", "name"))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", "cid", "cname"))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{
+				*fault.OwnerErr(ae, "oid", "name"),
+				*fault.FileErr(ae, "fid", "name", "cid", "cname"),
+			},
+		},
+		{
+			name: "duplicate items - failure priority",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "id", "name"))
+				b.AddRecoverable(fault.FileErr(ae, "id", "name", "cid", "cname"))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{
+				*fault.OwnerErr(ae, "id", "name"),
+			},
+		},
+		{
+			name: "duplicate items - last recoverable priority",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", "cid", "cname"))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name2", "cid2", "cname2"))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{
+				*fault.FileErr(ae, "fid", "name2", "cid2", "cname2"),
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			assert.ElementsMatch(suite.T(), test.expect, test.errs().Items())
+		})
+	}
+}
+
 func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
 	t := suite.T()
 
