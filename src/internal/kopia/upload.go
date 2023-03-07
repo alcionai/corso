@@ -142,6 +142,18 @@ type corsoProgress struct {
 	mu         sync.RWMutex
 	totalBytes int64
 	errs       *fault.Bus
+	// expectedIgnoredErrors is a count of error cases caught in the Error wrapper
+	// which are well known and actually ignorable.  At the end of a run, if the
+	// manifest ignored error count is equal to this count, then everything is good.
+	expectedIgnoredErrors int
+}
+
+// mutexted wrapper around expectedIgnoredErrors++
+func (cp *corsoProgress) incExpectedErrs() {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+
+	cp.expectedIgnoredErrors++
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -268,6 +280,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	// This is our next point of error handling, where we can identify and
 	// skip over the case.
 	if clues.HasLabel(err, graph.LabelsMalware) {
+		cp.incExpectedErrs()
 		return
 	}
 
