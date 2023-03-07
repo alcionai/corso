@@ -435,7 +435,7 @@ func ExampleBus_AddSkip() {
 	))
 
 	// later on, after processing, end users can scrutinize the skipped items.
-	fmt.Println(errs.Skipped()[0])
+	fmt.Println(errs.Skipped()[0].String())
 
 	// Output: skipped processing file: malware_detected
 }
