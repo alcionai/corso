@@ -18,7 +18,7 @@ func sharePointListInfo(lst models.Listable, size int64) *details.SharePointInfo
 	)
 
 	return &details.SharePointInfo{
-		ItemType: details.SharePointItem,
+		ItemType: details.SharePointList,
 		ItemName: name,
 		Created:  created,
 		Modified: modified,
