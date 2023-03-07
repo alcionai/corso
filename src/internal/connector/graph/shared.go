@@ -9,7 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-func UnwrapAddress(contact models.Recipientable) string {
+func UnwrapEmailAddress(contact models.Recipientable) string {
 	var empty string
 	if contact == nil || contact.GetEmailAddress() == nil {
 		return empty
