@@ -35,9 +35,10 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 				msg.SetLastModifiedDateTime(&initial)
 
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
-					Created:  initial,
-					Modified: initial,
+					ItemType:  details.ExchangeMail,
+					Recipient: []string{},
+					Created:   initial,
+					Modified:  initial,
 				}
 				return msg, i
 			},
@@ -55,10 +56,11 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetSender(sr)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
-					Sender:   sender,
-					Created:  initial,
-					Modified: initial,
+					ItemType:  details.ExchangeMail,
+					Recipient: []string{},
+					Sender:    sender,
+					Created:   initial,
+					Modified:  initial,
 				}
 				return msg, i
 			},
@@ -72,10 +74,11 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
-					Subject:  subject,
-					Created:  initial,
-					Modified: initial,
+					ItemType:  details.ExchangeMail,
+					Subject:   subject,
+					Created:   initial,
+					Recipient: []string{},
+					Modified:  initial,
 				}
 				return msg, i
 			},
@@ -89,10 +92,11 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetReceivedDateTime(&now)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
-					Received: now,
-					Created:  initial,
-					Modified: initial,
+					ItemType:  details.ExchangeMail,
+					Recipient: []string{},
+					Received:  now,
+					Created:   initial,
+					Modified:  initial,
 				}
 				return msg, i
 			},
@@ -101,25 +105,34 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 			name: "All fields",
 			msgAndRP: func() (models.Messageable, *details.ExchangeInfo) {
 				sender := "foo@bar.com"
+				receiver := "foofoo@bar.com"
 				subject := "Hello world"
 				now := time.Now()
 				sr := models.NewRecipient()
 				sea := models.NewEmailAddress()
+				recv := models.NewRecipient()
+				req := models.NewEmailAddress()
+				recvs := make([]models.Recipientable, 0)
 				msg := models.NewMessage()
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				sea.SetAddress(&sender)
 				sr.SetEmailAddress(sea)
 				msg.SetSender(sr)
+				req.SetAddress(&receiver)
+				recv.SetEmailAddress(req)
 				msg.SetSubject(&subject)
 				msg.SetReceivedDateTime(&now)
+				recvs = append(recvs, recv, sr)
+				msg.SetToRecipients(recvs)
 				i := &details.ExchangeInfo{
-					ItemType: details.ExchangeMail,
-					Sender:   sender,
-					Subject:  subject,
-					Received: now,
-					Created:  initial,
-					Modified: initial,
+					ItemType:  details.ExchangeMail,
+					Sender:    sender,
+					Subject:   subject,
+					Recipient: []string{receiver, sender},
+					Received:  now,
+					Created:   initial,
+					Modified:  initial,
 				}
 				return msg, i
 			},
