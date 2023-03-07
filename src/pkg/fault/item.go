@@ -8,6 +8,8 @@ const (
 	ResourceOwnerType itemType = "resource_owner"
 )
 
+var _ error = &Item{}
+
 // Item contains a concrete reference to a thing that failed
 // during processing.  The categorization of the item is determined
 // by its Type: file, container, or reourceOwner.
@@ -54,7 +56,11 @@ func (i *Item) Error() string {
 	return string("processing " + i.Type)
 }
 
-// ContainerErr constructs a Container-type Item.
+// ---------------------------------------------------------------------------
+// Constructors
+// ---------------------------------------------------------------------------
+
+// ContainerErr produces a Container-type Item.
 func ContainerErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
