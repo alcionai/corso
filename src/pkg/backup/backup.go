@@ -44,7 +44,8 @@ type Backup struct {
 	// the non-recoverable failure message, only non-zero if one occurred.
 	Failure string `json:"failure"`
 	// individual items (files, containers, resource owners) tracked as failed.
-	FailedItems []fault.Item `json:"failedItems"`
+	FailedItems  []fault.Item    `json:"failedItems"`
+	SkippedItems []fault.Skipped `json:"skippedItems"`
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.ReadWrites
@@ -89,6 +90,7 @@ func New(
 		ErrorCount:      errCount,
 		Failure:         errData.Failure.Error(),
 		FailedItems:     errData.Items(),
+		SkippedItems:    errData.Skipped,
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		Version:         version.Backup,

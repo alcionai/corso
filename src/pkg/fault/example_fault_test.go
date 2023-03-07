@@ -417,3 +417,25 @@ func ExampleErrors_Failure_return() {
 	// Output: direct: caught one
 	// recoverable: caught one
 }
+
+// ExampleBus_AddSkip showcases when to use AddSkip instead of an error.
+func ExampleBus_AddSkip() {
+	errs := fault.New(false)
+
+	// Some conditions cause well-known problems that we want Corso to skip
+	// over, instead of error out.  An initial case is when Graph API identifies
+	// a file as containing malware.  We can't download the file: it'll always
+	// error.  Our only option is to skip it.
+	errs.AddSkip(fault.FileSkip(
+		fault.SkipMalware,
+		"file-id",
+		"file-name",
+		"parent-folder-id",
+		"parent-folder-name",
+	))
+
+	// later on, after processing, end users can scrutinize the skipped items.
+	fmt.Println(errs.Skipped()[0])
+
+	// Output: skipped processing file: malware_detected
+}

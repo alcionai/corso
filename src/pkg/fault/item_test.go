@@ -1,4 +1,4 @@
-package fault_test
+package fault
 
 import (
 	"testing"
@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type ItemUnitSuite struct {
@@ -22,29 +21,29 @@ func TestItemUnitSuite(t *testing.T) {
 func (suite *ItemUnitSuite) TestItem_Error() {
 	var (
 		t = suite.T()
-		i *fault.Item
+		i *Item
 	)
 
 	assert.Contains(t, i.Error(), "nil")
 
-	i = &fault.Item{}
+	i = &Item{}
 	assert.Contains(t, i.Error(), "unknown kind")
 
-	i = &fault.Item{Type: fault.FileType}
-	assert.Contains(t, i.Error(), fault.FileType)
+	i = &Item{Type: FileType}
+	assert.Contains(t, i.Error(), FileType)
 }
 
 func (suite *ItemUnitSuite) TestContainerErr() {
 	t := suite.T()
 
-	i := fault.ContainerErr(errors.New("foo"), "id", "name", "containerID", "containerName")
+	i := ContainerErr(errors.New("foo"), "id", "name", "containerID", "containerName")
 
-	expect := fault.Item{
+	expect := Item{
 		ID:            "id",
 		Name:          "name",
 		ContainerID:   "containerID",
 		ContainerName: "containerName",
-		Type:          fault.ContainerType,
+		Type:          ContainerType,
 		Cause:         "foo",
 	}
 
@@ -54,14 +53,14 @@ func (suite *ItemUnitSuite) TestContainerErr() {
 func (suite *ItemUnitSuite) TestFileErr() {
 	t := suite.T()
 
-	i := fault.FileErr(errors.New("foo"), "id", "name", "containerID", "containerName")
+	i := FileErr(errors.New("foo"), "id", "name", "containerID", "containerName")
 
-	expect := fault.Item{
+	expect := Item{
 		ID:            "id",
 		Name:          "name",
 		ContainerID:   "containerID",
 		ContainerName: "containerName",
-		Type:          fault.FileType,
+		Type:          FileType,
 		Cause:         "foo",
 	}
 
@@ -71,14 +70,78 @@ func (suite *ItemUnitSuite) TestFileErr() {
 func (suite *ItemUnitSuite) TestOwnerErr() {
 	t := suite.T()
 
-	i := fault.OwnerErr(errors.New("foo"), "id", "name")
+	i := OwnerErr(errors.New("foo"), "id", "name")
 
-	expect := fault.Item{
+	expect := Item{
 		ID:    "id",
 		Name:  "name",
-		Type:  fault.ResourceOwnerType,
+		Type:  ResourceOwnerType,
 		Cause: "foo",
 	}
 
 	assert.Equal(t, expect, *i)
+}
+
+func (suite *ItemUnitSuite) TestSkipped_Error() {
+	var (
+		t = suite.T()
+		i *Skipped
+	)
+
+	assert.Contains(t, i.item.Error(), "nil")
+
+	i = &Skipped{Item{}}
+	assert.Contains(t, i.item.Error(), "unknown kind")
+
+	i = &Skipped{Item{Type: FileType}}
+	assert.Contains(t, i.item.Error(), FileType)
+}
+
+func (suite *ItemUnitSuite) TestContainerSkip() {
+	t := suite.T()
+
+	i := ContainerSkip(SkipMalware, "id", "name", "containerID", "containerName")
+
+	expect := Item{
+		ID:            "id",
+		Name:          "name",
+		ContainerID:   "containerID",
+		ContainerName: "containerName",
+		Type:          ContainerType,
+		Cause:         string(SkipMalware),
+	}
+
+	assert.Equal(t, Skipped{expect}, *i)
+}
+
+func (suite *ItemUnitSuite) TestFileSkip() {
+	t := suite.T()
+
+	i := FileSkip(SkipMalware, "id", "name", "containerID", "containerName")
+
+	expect := Item{
+		ID:            "id",
+		Name:          "name",
+		ContainerID:   "containerID",
+		ContainerName: "containerName",
+		Type:          FileType,
+		Cause:         string(SkipMalware),
+	}
+
+	assert.Equal(t, Skipped{expect}, *i)
+}
+
+func (suite *ItemUnitSuite) TestOwnerSkip() {
+	t := suite.T()
+
+	i := OwnerSkip(SkipMalware, "id", "name")
+
+	expect := Item{
+		ID:    "id",
+		Name:  "name",
+		Type:  ResourceOwnerType,
+		Cause: string(SkipMalware),
+	}
+
+	assert.Equal(t, Skipped{expect}, *i)
 }
