@@ -8,17 +8,27 @@ const (
 	ItemKindResourceOwner itemKind = "resource_owner"
 )
 
-// in pkg fault.  eg: fault.Item{}
+// Item contains a concrete reference to a thing that failed
+// during processing.  The categorization of the item is determined
+// by its Kind: file, container, or reourceOwner.
+//
+// Item is compliant with the error interface so that it can be
+// aggregated with the fault bus, and deserialized using the
+// errors.As() func.  The idea is that fault,Items, during
+// processing, will get packed into bus.AddRecoverable (or failure)
+// as part of standard error handling, and later deserialized
+// by the end user (cli or sdk) for surfacing human-readable and
+// identifiable points of failure.
 type Item struct {
-	// deduplication identifier; the ID of the item under scrutiny.
+	// deduplication identifier; the ID of the observed item.
 	ID string `json:"id"`
 
 	// a human-readable reference: file/container name, email, etc
 	Name string `json:"name"`
 
-	// the name and id of the container inside which this item is
-	// stored.  May be empty if the item is not stored within a
-	// container (ex: resourceOwner)
+	// the name and id of the container holding this item, if the
+	// item is normally stored in a folder.  Ex: a oneDrive file
+	// would be contained in a folder.
 	ContainerName string `json:"containerName"`
 	ContainerID   string `json:"containerID"`
 
@@ -44,7 +54,7 @@ func (i *Item) Error() string {
 	return string("processing " + i.Kind)
 }
 
-// ContainerErr produces a Container-kind Item.
+// ContainerErr constructs a Container-kind Item.
 func ContainerErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
@@ -56,7 +66,7 @@ func ContainerErr(cause error, id, name, containerID, containerName string) *Ite
 	}
 }
 
-// FileErr produces a File-kind Item.
+// FileErr constructs a File-kind Item.
 func FileErr(cause error, id, name, containerID, containerName string) *Item {
 	return &Item{
 		ID:            id,
@@ -68,7 +78,7 @@ func FileErr(cause error, id, name, containerID, containerName string) *Item {
 	}
 }
 
-// OnwerErr produces a ResourceOwner-kind Item.
+// OnwerErr constructs a ResourceOwner-kind Item.
 func OwnerErr(cause error, id, name string) *Item {
 	return &Item{
 		ID:    id,
