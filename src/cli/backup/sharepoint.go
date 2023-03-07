@@ -69,11 +69,7 @@ corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
 
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>
-<<<<<<< HEAD
-# Explore site's files created before end of 2015 from a specific backup
-=======
 # Find all site files that were created before a certain date.
->>>>>>> main
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --web-url https://example.com --file-created-before 2015-01-01T00:00:00
 `
