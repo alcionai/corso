@@ -210,7 +210,14 @@ func restorePermissions(
 		pbody.SetRequireSignIn(&rs)
 
 		rec := models.NewDriveRecipient()
-		rec.SetEmail(&p.Email)
+		if p.EntityID != "" {
+			rec.SetObjectId(&p.EntityID)
+		} else {
+			// Previous versions used to only store email for a
+			// permissions. Use that if id is not found.
+			rec.SetEmail(&p.Email)
+		}
+
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)

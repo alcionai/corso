@@ -204,7 +204,8 @@ func (oc Collection) DoNotMergeItems() bool {
 type UserPermission struct {
 	ID         string     `json:"id,omitempty"`
 	Roles      []string   `json:"role,omitempty"`
-	Email      string     `json:"email,omitempty"`
+	Email      string     `json:"email,omitempty"` // DEPRECATED: Replaced with UserID in newer backups
+	EntityID   string     `json:"entityId,omitempty"`
 	Expiration *time.Time `json:"expiration,omitempty"`
 }
 
