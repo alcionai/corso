@@ -340,10 +340,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemID       = ptr.Val(item.GetId())
 				itemName     = ptr.Val(item.GetName())
 				itemSize     = ptr.Val(item.GetSize())
+				pr           models.ItemReferenceable
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
 				metaSuffix   string
+				err          error
 			)
 
 			ctx = clues.Add(ctx,
@@ -352,12 +354,16 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			l.Lock()
+			if oc.source == SharePointSource {
+				l.Lock()
 
-			pr, err := updateParentReference(ctx, oc.service, item.GetParentReference(), driveMap, l)
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-				return
+				pr, err = updateParentReference(ctx, oc.service, item.GetParentReference(), driveMap, l)
+				if err != nil {
+					el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+					return
+				}
+			} else {
+				pr = updateParentReferenceOneDrive(item.GetParentReference(), oc.driveName)
 			}
 
 			item.SetParentReference(pr)
