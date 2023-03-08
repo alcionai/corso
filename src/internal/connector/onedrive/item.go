@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/alcionai/clues"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -405,33 +407,69 @@ func constructWebURL(adtl map[string]any) string {
 	return url
 }
 
-// func fetchParentReference(
-// 	ctx context.Context,
-// 	service graph.Servicer,
-// 	orig models.ItemReferenceable,
-// ) (models.ItemReferenceable, error) {
-// 	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
-// 		return orig, nil
-// 	}
+func fetchDriveName(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+) (string, error) {
+	if service == nil || driveID == "" {
+		return "", nil
+	}
 
-// 	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
-// 		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-// 			Select: []string{"name"},
-// 		},
-// 	}
+	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
+			Select: []string{"name"},
+		},
+	}
 
-// 	driveID := ptr.Val(orig.GetDriveId())
+	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
+	if err != nil {
+		return "", graph.Stack(ctx, err)
+	}
 
-// 	if driveID == "" {
-// 		return orig, nil
-// 	}
+	return *drive.GetName(), nil
+}
 
-// 	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
-// 	if err != nil {
-// 		return nil, graph.Stack(ctx, err)
-// 	}
+func updateParentReference(
+	ctx context.Context,
+	service graph.Servicer,
+	orig models.ItemReferenceable,
+	driveMap *map[string]string,
+	mu *sync.Mutex,
+) (models.ItemReferenceable, error) {
+	if orig == nil {
+		mu.Unlock()
+		return nil, nil
+	}
 
-// 	orig.SetName(drive.GetName())
+	driveID, ok := ptr.ValOK(orig.GetDriveId())
+	if !ok {
+		mu.Unlock()
+		return orig, nil
+	}
 
-// 	return orig, nil
-// }
+	var (
+		drives      = *driveMap
+		name, inMap = drives[driveID]
+		err         error
+	)
+
+	if inMap {
+		mu.Unlock()
+	} else {
+		logger.Ctx(ctx).Infof("Drive Name not in given map: Retrieving\nID: %s\n Map: %v", driveID, driveMap)
+		fmt.Printf("ID Given: %s\nMap: %v\n", driveID, driveMap)
+
+		name, err = fetchDriveName(ctx, service, driveID)
+		if err != nil {
+			return nil, err
+		}
+
+		drives[driveID] = name
+		mu.Unlock()
+	}
+
+	orig.SetName(&name)
+
+	return orig, nil
+}
