@@ -37,7 +37,7 @@ func Recovery(ctx context.Context, r any) error {
 			err = clues.New(fmt.Sprintf("%v", r))
 		}
 
-		_, file, _, ok := runtime.Caller(2)
+		_, file, _, ok := runtime.Caller(3)
 		if ok {
 			inFile = " in file: " + file
 		}

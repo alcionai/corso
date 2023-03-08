@@ -351,7 +351,7 @@ func (r repository) BackupDetails(
 		return nil, nil, errs.Fail(err)
 	}
 
-	deets, err := streamstore.New(
+	deets, err := streamstore.NewDetails(
 		r.dataLayer,
 		r.Account.ID(),
 		b.Selector.PathService(),

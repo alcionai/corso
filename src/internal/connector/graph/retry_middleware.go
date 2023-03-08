@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
 )
@@ -50,10 +49,7 @@ func (middleware RetryHandler) retryRequest(
 
 		response, err := pipeline.Next(req, middlewareIndex)
 		if err != nil && !IsErrTimeout(err) {
-			return response, clues.Stack(err).
-				WithClues(ctx).
-				With("retry_count", executionCount).
-				With(ErrData(err)...)
+			return response, Stack(ctx, err).With("retry_count", executionCount)
 		}
 
 		return middleware.retryRequest(ctx,
@@ -68,10 +64,7 @@ func (middleware RetryHandler) retryRequest(
 	}
 
 	if respErr != nil {
-		return nil, clues.Stack(respErr).
-			WithClues(ctx).
-			With("retry_count", executionCount).
-			With(ErrData(respErr)...)
+		return nil, Stack(ctx, respErr).With("retry_count", executionCount)
 	}
 
 	return resp, nil

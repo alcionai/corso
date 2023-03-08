@@ -97,7 +97,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 	resp, err = service.Client().Users().Get(ctx, userOptions(&userFilterNoGuests))
 
 	if err != nil {
-		return nil, clues.Wrap(err, "getting all users").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "getting all users")
 	}
 
 	iter, err := msgraphgocore.NewPageIterator(
@@ -105,7 +105,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 		service.Adapter(),
 		models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating users iterator").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "creating users iterator")
 	}
 
 	var (
@@ -120,7 +120,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 
 		u, err := validateUser(item)
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "validating user").WithClues(ctx).With(graph.ErrData(err)...))
+			el.AddRecoverable(graph.Wrap(ctx, err, "validating user"))
 		} else {
 			us = append(us, u)
 		}
@@ -129,7 +129,7 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, clues.Wrap(err, "iterating all users").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "iterating all users")
 	}
 
 	return us, el.Failure()
@@ -144,7 +144,7 @@ func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, err
 	resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
 
 	if err != nil {
-		return nil, clues.Wrap(err, "getting user").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "getting user")
 	}
 
 	return resp, err
@@ -163,7 +163,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 
 	if err != nil {
 		if !graph.IsErrExchangeMailFolderNotFound(err) {
-			return nil, clues.Wrap(err, "getting user's mail folder").WithClues(ctx).With(graph.ErrData(err)...)
+			return nil, graph.Wrap(ctx, err, "getting user's mail folder")
 		}
 
 		delete(userInfo.DiscoveredServices, path.ExchangeService)
