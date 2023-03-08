@@ -400,33 +400,33 @@ func constructWebURL(adtl map[string]any) string {
 	return url
 }
 
-func fetchParentReference(
-	ctx context.Context,
-	service graph.Servicer,
-	orig models.ItemReferenceable,
-) (models.ItemReferenceable, error) {
-	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
-		return orig, nil
-	}
+// func fetchParentReference(
+// 	ctx context.Context,
+// 	service graph.Servicer,
+// 	orig models.ItemReferenceable,
+// ) (models.ItemReferenceable, error) {
+// 	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
+// 		return orig, nil
+// 	}
 
-	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-			Select: []string{"name"},
-		},
-	}
+// 	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
+// 		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
+// 			Select: []string{"name"},
+// 		},
+// 	}
 
-	driveID := ptr.Val(orig.GetDriveId())
+// 	driveID := ptr.Val(orig.GetDriveId())
 
-	if driveID == "" {
-		return orig, nil
-	}
+// 	if driveID == "" {
+// 		return orig, nil
+// 	}
 
-	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
+// 	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
+// 	if err != nil {
+// 		return nil, graph.Stack(ctx, err)
+// 	}
 
-	orig.SetName(drive.GetName())
+// 	orig.SetName(drive.GetName())
 
-	return orig, nil
-}
+// 	return orig, nil
+// }
