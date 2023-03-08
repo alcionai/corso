@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -716,9 +717,14 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 
 	var (
 		repo  = stubPath(suite.T(), usr, []string{fID1, fID2, mail}, path.EmailCategory)
-		loc   = stubPath(suite.T(), usr, []string{fld1, fld2, mail}, path.EmailCategory)
+		loc   = strings.Join([]string{fld1, fld2, mail}, "/")
 		short = "thisisahashofsomekind"
 		es    = NewExchangeRestore(Any())
+		ent   = details.DetailsEntry{
+			RepoRef:     repo.String(),
+			ShortRef:    short,
+			LocationRef: loc,
+		}
 	)
 
 	table := []struct {
@@ -758,12 +764,12 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			scopes := setScopesToDefault(test.scope)
 			var aMatch bool
 			for _, scope := range scopes {
-				repoVals, locVals := ExchangeMail.pathValues(repo, loc)
-				if matchesPathValues(scope, ExchangeMail, repoVals, short) {
+				pvs := ExchangeMail.pathValues(repo, ent)
+				if matchesPathValues(scope, ExchangeMail, pvs, short) {
 					aMatch = true
 					break
 				}
-				if matchesPathValues(scope, ExchangeMail, locVals, short) {
+				if matchesPathValues(scope, ExchangeMail, pvs, short) {
 					aMatch = true
 					break
 				}
@@ -1313,7 +1319,10 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		mail      = setScopesToDefault(es.Mails(Any(), []string{mid}))
 		noMail    = setScopesToDefault(es.Mails(Any(), None()))
 		allMail   = setScopesToDefault(es.Mails(Any(), Any()))
-		pth       = stubPath(suite.T(), "user", []string{"folder", mid}, path.EmailCategory)
+		repo      = stubPath(suite.T(), "user", []string{"folder", mid}, path.EmailCategory)
+		ent       = details.DetailsEntry{
+			RepoRef: repo.String(),
+		}
 	)
 
 	table := []struct {
@@ -1336,12 +1345,11 @@ func (suite *ExchangeSelectorSuite) TestPasses() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			repoVals, locVals := cat.pathValues(pth, pth)
+			pvs := cat.pathValues(repo, ent)
 
 			result := passes(
 				cat,
-				repoVals,
-				locVals,
+				pvs,
 				entry,
 				test.excludes,
 				test.filters,
@@ -1447,25 +1455,25 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 	t := suite.T()
 
 	contactPath := stubPath(t, "user", []string{"cfolder", "contactitem"}, path.ContactsCategory)
-	contactMap := map[categorizer]string{
-		ExchangeContactFolder: contactPath.Folder(false),
-		ExchangeContact:       contactPath.Item(),
+	contactMap := map[categorizer][]string{
+		ExchangeContactFolder: {contactPath.Folder(false)},
+		ExchangeContact:       {contactPath.Item(), "short"},
 	}
 	eventPath := stubPath(t, "user", []string{"ecalendar", "eventitem"}, path.EventsCategory)
-	eventMap := map[categorizer]string{
-		ExchangeEventCalendar: eventPath.Folder(false),
-		ExchangeEvent:         eventPath.Item(),
+	eventMap := map[categorizer][]string{
+		ExchangeEventCalendar: {eventPath.Folder(false)},
+		ExchangeEvent:         {eventPath.Item(), "short"},
 	}
 	mailPath := stubPath(t, "user", []string{"mfolder", "mailitem"}, path.EmailCategory)
-	mailMap := map[categorizer]string{
-		ExchangeMailFolder: mailPath.Folder(false),
-		ExchangeMail:       mailPath.Item(),
+	mailMap := map[categorizer][]string{
+		ExchangeMailFolder: {mailPath.Folder(false)},
+		ExchangeMail:       {mailPath.Item(), "short"},
 	}
 
 	table := []struct {
 		cat    exchangeCategory
 		path   path.Path
-		expect map[categorizer]string
+		expect map[categorizer][]string
 	}{
 		{ExchangeContact, contactPath, contactMap},
 		{ExchangeEvent, eventPath, eventMap},
@@ -1473,9 +1481,13 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 	}
 	for _, test := range table {
 		suite.T().Run(string(test.cat), func(t *testing.T) {
-			r, l := test.cat.pathValues(test.path, test.path)
-			assert.Equal(t, test.expect, r)
-			assert.Equal(t, test.expect, l)
+			ent := details.DetailsEntry{
+				RepoRef:  test.path.String(),
+				ShortRef: "short",
+			}
+
+			pvs := test.cat.pathValues(test.path, ent)
+			assert.Equal(t, test.expect, pvs)
 		})
 	}
 }

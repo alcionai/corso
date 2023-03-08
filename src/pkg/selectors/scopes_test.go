@@ -354,10 +354,14 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 }
 
 func (suite *SelectorScopesSuite) TestPasses() {
-	cat := rootCatStub
-	pth := stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
-	repoVals, locVals := cat.pathValues(pth, pth)
-	entry := details.DetailsEntry{}
+	var (
+		cat   = rootCatStub
+		pth   = stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
+		entry = details.DetailsEntry{
+			RepoRef: pth.String(),
+		}
+		pvs = cat.pathValues(pth, entry)
+	)
 
 	for _, test := range reduceTestTable {
 		suite.Run(test.name, func() {
@@ -369,8 +373,7 @@ func (suite *SelectorScopesSuite) TestPasses() {
 			incl := toMockScope(sel.Includes)
 			result := passes(
 				cat,
-				repoVals,
-				locVals,
+				pvs,
 				entry,
 				excl, filt, incl)
 			test.expectPasses(t, result)
@@ -394,7 +397,6 @@ func toMockScope(sc []scope) []mockScope {
 
 func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	cat := rootCatStub
-	pvs := stubPathValues()
 	short := "brunheelda"
 
 	table := []struct {
@@ -440,6 +442,8 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			pvs := stubPathValues()
+			pvs[leafCatStub] = append(pvs[leafCatStub], test.shortRef)
 
 			sc := stubScope("")
 			sc[rootCatStub.String()] = filterize(scopeConfig{}, test.rootVal)
