@@ -326,22 +326,22 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	table := []struct {
 		name     string
 		sc       sharePointCategory
-		expected map[categorizer]string
+		expected map[categorizer][]string
 	}{
 		{
 			name: "SharePoint Libraries",
 			sc:   SharePointLibraryItem,
-			expected: map[categorizer]string{
-				SharePointLibrary:     "dir1/dir2",
-				SharePointLibraryItem: "item",
+			expected: map[categorizer][]string{
+				SharePointLibrary:     {"dir1/dir2"},
+				SharePointLibraryItem: {"item", "short"},
 			},
 		},
 		{
 			name: "SharePoint Lists",
 			sc:   SharePointListItem,
-			expected: map[categorizer]string{
-				SharePointList:     "dir1/dir2",
-				SharePointListItem: "item",
+			expected: map[categorizer][]string{
+				SharePointList:     {"dir1/dir2"},
+				SharePointListItem: {"item", "short"},
 			},
 		},
 	}
@@ -356,9 +356,14 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				test.sc.PathType(),
 				true)
 			require.NoError(t, err)
-			r, l := test.sc.pathValues(itemPath, itemPath)
-			assert.Equal(t, test.expected, r)
-			assert.Equal(t, test.expected, l)
+
+			ent := details.DetailsEntry{
+				RepoRef:  itemPath.String(),
+				ShortRef: "short",
+			}
+
+			pv := test.sc.pathValues(itemPath, ent)
+			assert.Equal(t, test.expected, pv)
 		})
 	}
 }

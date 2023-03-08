@@ -261,14 +261,18 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	filePath, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", true)
 	require.NoError(t, err)
 
-	expected := map[categorizer]string{
-		OneDriveFolder: "dir1/dir2",
-		OneDriveItem:   "file",
+	expected := map[categorizer][]string{
+		OneDriveFolder: {"dir1/dir2"},
+		OneDriveItem:   {"file", "short"},
 	}
 
-	r, l := OneDriveItem.pathValues(filePath, filePath)
+	ent := details.DetailsEntry{
+		RepoRef:  filePath.String(),
+		ShortRef: "short",
+	}
+
+	r := OneDriveItem.pathValues(filePath, ent)
 	assert.Equal(t, expected, r)
-	assert.Equal(t, expected, l)
 }
 
 func (suite *OneDriveSelectorSuite) TestOneDriveScope_MatchesInfo() {
