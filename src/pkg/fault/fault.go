@@ -1,7 +1,9 @@
 package fault
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"sync"
 
 	"golang.org/x/exp/maps"
@@ -232,6 +234,19 @@ func itemsIn(failure error, recovered []error) []Item {
 	}
 
 	return maps.Values(is)
+}
+
+// Marshal runs json.Marshal on the errors.
+func (e Errors) Marshal() ([]byte, error) {
+	return json.Marshal(e)
+}
+
+// UnmarshalErrorsTo produces a func that complies with the unmarshaller
+// type in streamStore.
+func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
+	return func(rc io.ReadCloser) error {
+		return json.NewDecoder(rc).Decode(e)
+	}
 }
 
 // ---------------------------------------------------------------------------
