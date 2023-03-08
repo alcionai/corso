@@ -388,13 +388,6 @@ func (c *Collections) Get(
 					clues.Wrap(err, "invalid previous path").WithClues(ctx).With("deleted_path", p)
 			}
 
-			// driveName, err := fetchDriveName(ctx, c.service, driveID)
-			// if err != nil {
-			// 	return nil, map[string]struct{}{},
-			// 		clues.Wrap(err, "unable to get driveMap information").
-			// 			With("driveID", driveID)
-			// }
-
 			col := NewCollection(
 				c.itemClient,
 				nil,
@@ -407,7 +400,6 @@ func (c *Collections) Get(
 				true,
 			)
 
-			col.driveName = driveName
 			c.CollectionMap[i] = col
 		}
 	}
@@ -717,7 +709,6 @@ func (c *Collections) UpdateCollections(
 				invalidPrevDelta,
 			)
 
-			col.driveName = driveName
 			c.CollectionMap[itemID] = col
 			c.NumContainers++
 
@@ -746,6 +737,8 @@ func (c *Collections) UpdateCollections(
 			if !found {
 				return clues.New("item seen before parent folder").WithClues(ictx)
 			}
+
+			//collection.driveName = driveName
 
 			// Delete the file from previous collection. This will
 			// only kick in if the file was moved multiple times
