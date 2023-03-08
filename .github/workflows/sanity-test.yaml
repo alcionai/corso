@@ -79,7 +79,7 @@ jobs:
               exit 1
           fi
           
-          echo result=$(prefix) >> $GITHUB_OUTPUT 
+          echo result="$prefix" >> $GITHUB_OUTPUT 
 
       # run the tests
       - name: Repo connect test
@@ -87,7 +87,8 @@ jobs:
           set -euo pipefail
           ./corso repo connect s3 \
           --hide-progress \
-          --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt
+          --prefix ${{ steps.repo-init.outputs.result }} \
+          --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
 
           if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
           then
