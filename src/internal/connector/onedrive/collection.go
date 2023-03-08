@@ -72,11 +72,11 @@ type Collection struct {
 	folderPath path.Path
 	// M365 IDs of file items within this collection
 	driveItems map[string]models.DriveItemable
-	// Map of M365 Drive/Names associated with collection
-	// key M365ID: Value DriveName
-	driveMap map[string]string
+
 	// Primary M365 ID of the drive this collection was created from
-	driveID        string
+	driveID string
+	// Display Name of the associated drive
+	driveName      string
 	source         driveSource
 	service        graph.Servicer
 	statusUpdater  support.StatusUpdater
@@ -130,7 +130,6 @@ func NewCollection(
 		folderPath:      folderPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
-		driveMap:        make(map[string]string),
 		driveID:         driveID,
 		source:          source,
 		service:         service,
@@ -291,14 +290,15 @@ func (od *metadataItem) ModTime() time.Time {
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	var (
-		byteCount  int64
-		itemsRead  int64
-		dirsRead   int64
-		itemsFound int64
-		dirsFound  int64
-		wg         sync.WaitGroup
-		lock       sync.Mutex
-		el         = errs.Local()
+		byteCount   int64
+		itemsRead   int64
+		dirsRead    int64
+		itemsFound  int64
+		dirsFound   int64
+		mapOfDrives = make(map[string]string)
+		wg          sync.WaitGroup
+		lock        sync.Mutex
+		el          = errs.Local()
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -319,6 +319,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
+
+	mapOfDrives[oc.driveID] = oc.driveName
 
 	for _, item := range oc.driveItems {
 		if el.Failure() != nil {
@@ -490,7 +492,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			atomic.AddInt64(&byteCount, itemSize)
 
 			folderProgress <- struct{}{}
-		}(ctx, item, &oc.driveMap, &lock)
+		}(ctx, item, &mapOfDrives, &lock)
 	}
 
 	wg.Wait()
