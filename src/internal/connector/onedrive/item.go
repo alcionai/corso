@@ -471,3 +471,16 @@ func updateParentReference(
 
 	return orig, nil
 }
+
+func updateParentReferenceOneDrive(
+	orig models.ItemReferenceable,
+	driveName string,
+) models.ItemReferenceable {
+	if orig == nil {
+		return nil
+	}
+
+	orig.SetName(&driveName)
+
+	return orig
+}
