@@ -12,14 +12,37 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-const (
-	// detailsItemName is the name of the stream used to store
-	// backup details
-	detailsItemName = "details"
-	// collectionPurposeDetails is used to indicate
-	// what the collection is being used for
-	collectionPurposeDetails = "details"
-)
+// ---------------------------------------------------------------------------
+// interfaces
+// ---------------------------------------------------------------------------
+
+// Streamer is the core interface for all types of data streamed to and
+// from the store.
+type Streamer interface {
+	Writer
+	Reader
+	Delete(context.Context, string) error
+}
+
+type Reader interface {
+	Read(context.Context, string, Unmarshaller, *fault.Bus) error
+}
+
+type Writer interface {
+	Write(context.Context, Marshaller, *fault.Bus) (string, error)
+}
+
+// Marshallers are used to convert structs into bytes to be persisted in the store.
+type Marshaller interface {
+	Marshal() ([]byte, error)
+}
+
+// Unmarshallers are used to serialize the bytes in the store into the original struct.
+type Unmarshaller func(io.ReadCloser) error
+
+// ---------------------------------------------------------------------------
+// collection
+// ---------------------------------------------------------------------------
 
 // streamCollection is a data.BackupCollection used to persist
 // a single data stream
@@ -55,6 +78,10 @@ func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Strea
 
 	return items
 }
+
+// ---------------------------------------------------------------------------
+// item
+// ---------------------------------------------------------------------------
 
 type streamItem struct {
 	name string

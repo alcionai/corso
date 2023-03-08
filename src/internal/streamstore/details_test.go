@@ -54,16 +54,19 @@ func (suite *StreamDetailsIntegrationSuite) TestDetails() {
 			},
 		})
 
-	deets := deetsBuilder.Details()
-	nd := NewDetails(kw, "tenant", path.ExchangeService)
+	var (
+		deets = deetsBuilder.Details()
+		sd    = NewDetails(kw, "tenant", path.ExchangeService)
+	)
 
-	id, err := nd.WriteBackupDetails(ctx, deets, fault.New(true))
+	id, err := sd.Write(ctx, deets, fault.New(true))
 	require.NoError(t, err)
 	require.NotNil(t, id)
 
-	readDeets, err := nd.ReadBackupDetails(ctx, id, fault.New(true))
+	var readDeets details.Details
+	err = sd.Read(ctx, id, details.UnmarshalTo(&readDeets), fault.New(true))
 	require.NoError(t, err)
-	require.NotNil(t, readDeets)
+	require.NotEmpty(t, readDeets)
 
 	assert.Equal(t, len(deets.Entries), len(readDeets.Entries))
 	assert.Equal(t, deets.Entries[0].ParentRef, readDeets.Entries[0].ParentRef)
