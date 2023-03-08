@@ -700,15 +700,15 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 // older tests
 // ---------------------------------------------------------------------------
 
-type BackupManifestSuite struct {
+type BackupManifestUnitSuite struct {
 	tester.Suite
 }
 
-func TestBackupManifestSuite(t *testing.T) {
-	suite.Run(t, &BackupOpSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupManifestUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupManifestUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
+func (suite *BackupManifestUnitSuite) TestBackupOperation_VerifyDistinctBases() {
 	const user = "a-user"
 
 	table := []struct {
@@ -842,7 +842,7 @@ func (suite *BackupManifestSuite) TestBackupOperation_VerifyDistinctBases() {
 	}
 }
 
-func (suite *BackupManifestSuite) TestBackupOperation_CollectMetadata() {
+func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
 	var (
 		tenant        = "a-tenant"
 		resourceOwner = "a-user"
