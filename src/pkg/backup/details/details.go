@@ -395,6 +395,15 @@ func (de DetailsEntry) Values() []string {
 
 type ItemType int
 
+// ItemTypes are enumerated by service (hundredth digit) and data type (ones digit).
+// Ex: exchange is 00x where x is the data type.  Sharepoint is 10x, and etc.
+// Every item info struct should get its own hundredth enumeration entry.
+// Every item category for that service should get its own entry (even if differences
+// between types aren't apparent on initial implementation, this future-proofs
+// against breaking changes).
+// Entries should not be rearranged.
+// Additionally, any itemType directly assigned a number should not be altered.
+// This applies to  OneDriveItem and FolderItem
 const (
 	UnknownType ItemType = iota
 
@@ -402,14 +411,14 @@ const (
 	ExchangeContact
 	ExchangeEvent
 	ExchangeMail
+	// SharePoint (10x)
+	SharePointLibrary ItemType = iota + 97
+	SharePointList
+	SharePointPage
 
-	SharePointLibrary ItemType = iota + 100
-	SharePointList    ItemType = iota + 100
-	SharePointPage    ItemType = iota + 100
+	OneDriveItem ItemType = 205
 
-	OneDriveItem ItemType = iota + 200
-
-	FolderItem ItemType = iota + 300
+	FolderItem ItemType = 306
 )
 
 func UpdateItem(item *ItemInfo, repoPath path.Path) error {
