@@ -48,7 +48,6 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
-	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
@@ -97,10 +96,6 @@ type backupStats struct {
 	resourceCount int
 }
 
-type detailsWriter interface {
-	WriteBackupDetails(context.Context, *details.Details, *fault.Bus) (string, error)
-}
-
 // ---------------------------------------------------------------------------
 // Primary Controller
 // ---------------------------------------------------------------------------
@@ -127,7 +122,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	var (
 		opStats      backupStats
 		startTime    = time.Now()
-		detailsStore = streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
+		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -220,7 +215,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 func (op *BackupOperation) do(
 	ctx context.Context,
 	opStats *backupStats,
-	detailsStore detailsReader,
+	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	reasons := selectorToReasons(op.Selectors)
@@ -474,7 +469,8 @@ func consumeBackupDataCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+	if kopiaStats.ErrorCount > 0 ||
+		(kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount) {
 		err = clues.New("building kopia snapshot").With(
 			"kopia_errors", kopiaStats.ErrorCount,
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
@@ -498,7 +494,7 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
-	detailsStore detailsReader,
+	detailsStore streamstore.Streamer,
 	mans []*kopia.ManifestEntry,
 	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
 	deets *details.Builder,
@@ -654,7 +650,7 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
-	detailsStore detailsWriter,
+	detailsStore streamstore.Writer,
 	snapID string,
 	backupID model.StableID,
 	backupDetails *details.Details,
@@ -665,7 +661,7 @@ func (op *BackupOperation) createBackupModels(
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
-	detailsID, err := detailsStore.WriteBackupDetails(ctx, backupDetails, op.Errors)
+	detailsID, err := detailsStore.Write(ctx, backupDetails, op.Errors)
 	if err != nil {
 		return clues.Wrap(err, "creating backupDetails model").WithClues(ctx)
 	}

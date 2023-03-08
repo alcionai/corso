@@ -14,19 +14,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type StreamStoreIntegrationSuite struct {
+type StreamDetailsIntegrationSuite struct {
 	tester.Suite
 }
 
-func TestStreamStoreIntegrationSuite(t *testing.T) {
-	suite.Run(t, &StreamStoreIntegrationSuite{
+func TestStreamDetailsIntegrationSuite(t *testing.T) {
+	suite.Run(t, &StreamDetailsIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *StreamStoreIntegrationSuite) TestDetails() {
+func (suite *StreamDetailsIntegrationSuite) TestDetails() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext()
@@ -54,16 +54,19 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 			},
 		})
 
-	deets := deetsBuilder.Details()
-	ss := New(kw, "tenant", path.ExchangeService)
+	var (
+		deets = deetsBuilder.Details()
+		sd    = NewDetails(kw, "tenant", path.ExchangeService)
+	)
 
-	id, err := ss.WriteBackupDetails(ctx, deets, fault.New(true))
+	id, err := sd.Write(ctx, deets, fault.New(true))
 	require.NoError(t, err)
 	require.NotNil(t, id)
 
-	readDeets, err := ss.ReadBackupDetails(ctx, id, fault.New(true))
+	var readDeets details.Details
+	err = sd.Read(ctx, id, details.UnmarshalTo(&readDeets), fault.New(true))
 	require.NoError(t, err)
-	require.NotNil(t, readDeets)
+	require.NotEmpty(t, readDeets)
 
 	assert.Equal(t, len(deets.Entries), len(readDeets.Entries))
 	assert.Equal(t, deets.Entries[0].ParentRef, readDeets.Entries[0].ParentRef)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -12,7 +13,10 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -25,6 +29,7 @@ const (
 	errCodeItemNotFoundShort           = "itemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired" // alt: resyncRequired
+	errCodeMalwareDetected             = "malwareDetected"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
@@ -41,6 +46,16 @@ var (
 	Err503ServiceUnavailable  = errors.New("503 Service Unavailable")
 	Err504GatewayTimeout      = errors.New("504 Gateway Timeout")
 	Err500InternalServerError = errors.New("500 Internal Server Error")
+)
+
+var (
+	mysiteURLNotFound = "unable to retrieve user's mysite url"
+	mysiteNotFound    = "user's mysite not found"
+)
+
+const (
+	LabelsMalware        = "malware_detected"
+	LabelsMysiteNotFound = "mysite_not_found"
 )
 
 // The folder or item was deleted between the time we identified
@@ -170,6 +185,31 @@ func IsInternalServerError(err error) bool {
 	return errors.As(err, &e)
 }
 
+// IsMalware is true if the graphAPI returns a "malware detected" error code.
+func IsMalware(err error) bool {
+	return hasErrorCode(err, errCodeMalwareDetected)
+}
+
+func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
+	// https://learn.microsoft.com/en-us/openspecs/sharepoint_protocols/ms-wsshp/ba4ee7a8-704c-4e9c-ab14-fa44c574bdf4
+	// https://learn.microsoft.com/en-us/openspecs/sharepoint_protocols/ms-wdvmoduu/6fa6d4a9-ac18-4cd7-b696-8a3b14a98291
+	if resp.Header.Get("X-Virus-Infected") == "true" {
+		return true
+	}
+
+	respDump, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("dumping http response", "error", err)
+		return false
+	}
+
+	if strings.Contains(string(respDump), errCodeMalwareDetected) {
+		return true
+	}
+
+	return false
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -196,43 +236,74 @@ func hasErrorCode(err error, codes ...string) bool {
 	return slices.Contains(lcodes, strings.ToLower(*oDataError.GetError().GetCode()))
 }
 
-// ErrData is a helper function that extracts ODataError metadata from
-// the error.  If the error is not an ODataError type, returns an empty
-// slice.  The returned value is guaranteed to be an even-length pairing
-// of key, value tuples.
-func ErrData(e error) []any {
-	result := make([]any, 0)
-
+// Wrap is a helper function that extracts ODataError metadata from
+// the error.  If the error is not an ODataError type, returns the error.
+func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 	if e == nil {
-		return result
+		return nil
 	}
 
 	odErr, ok := e.(odataerrors.ODataErrorable)
 	if !ok {
-		return result
+		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	// Get MainError
-	mainErr := odErr.GetError()
+	data, innerMsg := errData(odErr)
 
-	result = appendIf(result, "odataerror_code", mainErr.GetCode())
-	result = appendIf(result, "odataerror_message", mainErr.GetMessage())
-	result = appendIf(result, "odataerror_target", mainErr.GetTarget())
+	return setLabels(clues.Wrap(e, msg).WithClues(ctx).With(data...), innerMsg)
+}
+
+// Stack is a helper function that extracts ODataError metadata from
+// the error.  If the error is not an ODataError type, returns the error.
+func Stack(ctx context.Context, e error) *clues.Err {
+	if e == nil {
+		return nil
+	}
+
+	odErr, ok := e.(odataerrors.ODataErrorable)
+	if !ok {
+		return clues.Stack(e).WithClues(ctx)
+	}
+
+	data, innerMsg := errData(odErr)
+
+	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
+}
+
+func setLabels(err *clues.Err, msg string) *clues.Err {
+	if strings.Contains(msg, mysiteNotFound) || strings.Contains(msg, mysiteURLNotFound) {
+		err = err.Label(LabelsMysiteNotFound)
+	}
+
+	return err
+}
+
+func errData(err odataerrors.ODataErrorable) ([]any, string) {
+	data := make([]any, 0)
+
+	// Get MainError
+	mainErr := err.GetError()
+
+	data = appendIf(data, "odataerror_code", mainErr.GetCode())
+	data = appendIf(data, "odataerror_message", mainErr.GetMessage())
+	data = appendIf(data, "odataerror_target", mainErr.GetTarget())
+	msgConcat := ptr.Val(mainErr.GetMessage()) + ptr.Val(mainErr.GetCode())
 
 	for i, d := range mainErr.GetDetails() {
 		pfx := fmt.Sprintf("odataerror_details_%d_", i)
-		result = appendIf(result, pfx+"code", d.GetCode())
-		result = appendIf(result, pfx+"message", d.GetMessage())
-		result = appendIf(result, pfx+"target", d.GetTarget())
+		data = appendIf(data, pfx+"code", d.GetCode())
+		data = appendIf(data, pfx+"message", d.GetMessage())
+		data = appendIf(data, pfx+"target", d.GetTarget())
+		msgConcat += ptr.Val(d.GetMessage())
 	}
 
 	inner := mainErr.GetInnererror()
 	if inner != nil {
-		result = appendIf(result, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
-		result = appendIf(result, "odataerror_inner_req_id", inner.GetRequestId())
+		data = appendIf(data, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
+		data = appendIf(data, "odataerror_inner_req_id", inner.GetRequestId())
 	}
 
-	return result
+	return data, strings.ToLower(msgConcat)
 }
 
 func appendIf(a []any, k string, v *string) []any {

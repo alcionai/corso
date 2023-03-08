@@ -2,6 +2,8 @@ package details
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"strconv"
 	"strings"
 	"sync"
@@ -303,6 +305,18 @@ func (d *Details) addFolder(folder folderEntry) {
 		ItemInfo:  folder.Info,
 		Updated:   folder.Updated,
 	})
+}
+
+// Marshal complies with the marshaller interface in streamStore.
+func (d *Details) Marshal() ([]byte, error) {
+	return json.Marshal(d)
+}
+
+// UnmarshalTo produces a func that complies with the unmarshaller type in streamStore.
+func UnmarshalTo(d *Details) func(io.ReadCloser) error {
+	return func(rc io.ReadCloser) error {
+		return json.NewDecoder(rc).Decode(d)
+	}
 }
 
 // --------------------------------------------------------------------------------

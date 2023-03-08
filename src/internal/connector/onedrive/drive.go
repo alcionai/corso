@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -28,15 +27,10 @@ const (
 
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
-	nextLinkKey              = "@odata.nextLink"
-	itemChildrenRawURLFmt    = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
-	itemByPathRawURLFmt      = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
-	itemNotFoundErrorCode    = "itemNotFound"
-	userMysiteURLNotFound    = "BadRequest Unable to retrieve user's mysite URL"
-	userMysiteURLNotFoundMsg = "Unable to retrieve user's mysite URL"
-	userMysiteNotFound       = "ResourceNotFound User's mysite not found"
-	userMysiteNotFoundMsg    = "User's mysite not found"
-	contextDeadlineExceeded  = "context deadline exceeded"
+	nextLinkKey           = "@odata.nextLink"
+	itemChildrenRawURLFmt = "https://graph.microsoft.com/v1.0/drives/%s/items/%s/children"
+	itemByPathRawURLFmt   = "https://graph.microsoft.com/v1.0/drives/%s/items/%s:/%s"
+	itemNotFoundErrorCode = "itemNotFound"
 )
 
 // DeltaUpdate holds the results of a current delta token.  It normally
@@ -97,22 +91,17 @@ func drives(
 		for i := 0; i <= numberOfRetries; i++ {
 			page, err = pager.GetPage(ctx)
 			if err != nil {
-				// Various error handling. May return an error or perform a retry.
-				errMsg := support.ConnectorStackErrorTraceWrap(err, "").Error()
-				if strings.Contains(errMsg, userMysiteURLNotFound) ||
-					strings.Contains(errMsg, userMysiteURLNotFoundMsg) ||
-					strings.Contains(errMsg, userMysiteNotFound) ||
-					strings.Contains(errMsg, userMysiteNotFoundMsg) {
+				if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
 					logger.Ctx(ctx).Infof("resource owner does not have a drive")
 					return make([]models.Driveable, 0), nil // no license or drives.
 				}
 
-				if strings.Contains(errMsg, contextDeadlineExceeded) && i < numberOfRetries {
+				if graph.IsErrTimeout(err) && i < numberOfRetries {
 					time.Sleep(time.Duration(3*(i+1)) * time.Second)
 					continue
 				}
 
-				return nil, clues.Wrap(err, "retrieving drives").WithClues(ctx).With(graph.ErrData(err)...)
+				return nil, graph.Wrap(ctx, err, "retrieving drives")
 			}
 
 			// No error encountered, break the retry loop so we can extract results
@@ -122,7 +111,7 @@ func drives(
 
 		tmp, err := pager.ValuesIn(page)
 		if err != nil {
-			return nil, clues.Wrap(err, "extracting drives from response").WithClues(ctx).With(graph.ErrData(err)...)
+			return nil, graph.Wrap(ctx, err, "extracting drives from response")
 		}
 
 		drives = append(drives, tmp...)
@@ -232,14 +221,12 @@ func collectItems(
 		}
 
 		if err != nil {
-			return DeltaUpdate{}, nil, nil, clues.Wrap(err, "getting page").WithClues(ctx).With(graph.ErrData(err)...)
+			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "getting page")
 		}
 
 		vals, err := pager.ValuesIn(page)
 		if err != nil {
-			return DeltaUpdate{}, nil, nil, clues.Wrap(err, "extracting items from response").
-				WithClues(ctx).
-				With(graph.ErrData(err)...)
+			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "extracting items from response")
 		}
 
 		err = collector(
@@ -297,15 +284,15 @@ func getFolder(
 	foundItem, err = builder.Get(ctx, nil)
 	if err != nil {
 		if graph.IsErrDeletedInFlight(err) {
-			return nil, clues.Stack(errFolderNotFound, err).WithClues(ctx).With(graph.ErrData(err)...)
+			return nil, graph.Stack(ctx, clues.Stack(errFolderNotFound, err))
 		}
 
-		return nil, clues.Wrap(err, "getting folder").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "getting folder")
 	}
 
 	// Check if the item found is a folder, fail the call if not
 	if foundItem.GetFolder() == nil {
-		return nil, clues.Stack(errFolderNotFound).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, errFolderNotFound)
 	}
 
 	return foundItem, nil
@@ -325,7 +312,7 @@ func createItem(
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating item").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "creating item")
 	}
 
 	return newItem, nil
@@ -447,10 +434,7 @@ func DeleteItem(
 ) error {
 	err := gs.Client().DrivesById(driveID).ItemsById(itemID).Delete(ctx, nil)
 	if err != nil {
-		return clues.Wrap(err, "deleting item").
-			WithClues(ctx).
-			With("item_id", itemID).
-			With(graph.ErrData(err)...)
+		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
 	}
 
 	return nil
