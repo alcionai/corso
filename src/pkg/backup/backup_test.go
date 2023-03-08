@@ -122,7 +122,6 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 
 	vs = b.Values()
 	assert.Equal(t, expectVs, vs)
-
 }
 
 func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
