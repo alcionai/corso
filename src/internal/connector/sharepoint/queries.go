@@ -6,7 +6,6 @@ import (
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 )
 
@@ -22,7 +21,7 @@ func GetAllSitesForTenant(ctx context.Context, gs graph.Servicer) (absser.Parsab
 
 	sites, err := gs.Client().Sites().Get(ctx, options)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting sites").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "getting sites")
 	}
 
 	return sites, nil

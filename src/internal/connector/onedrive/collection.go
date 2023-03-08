@@ -88,6 +88,7 @@ type Collection struct {
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
+	ctx context.Context,
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error)
@@ -204,7 +205,8 @@ func (oc Collection) DoNotMergeItems() bool {
 type UserPermission struct {
 	ID         string     `json:"id,omitempty"`
 	Roles      []string   `json:"role,omitempty"`
-	Email      string     `json:"email,omitempty"`
+	Email      string     `json:"email,omitempty"` // DEPRECATED: Replaced with UserID in newer backups
+	EntityID   string     `json:"entityId,omitempty"`
 	Expiration *time.Time `json:"expiration,omitempty"`
 }
 
@@ -332,13 +334,17 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-				return
-			}
+			// TODO: Removing the logic below because it introduces an extra Graph API call for
+			// every item being backed up. This can lead to throttling errors.
+			//
+			// pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
+			// if err != nil {
+			// 	el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+			// 	return
+			// }
 
-			item.SetParentReference(pr)
+			// item.SetParentReference(pr)
+
 			isFile := item.GetFile() != nil
 
 			if isFile {
@@ -394,7 +400,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						err      error
 					)
 
-					_, itemData, err = oc.itemReader(oc.itemClient, item)
+					_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
 
 					if err != nil && graph.IsErrUnauthorized(err) {
 						// assume unauthorized requests are a sign of an expired

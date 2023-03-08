@@ -267,7 +267,7 @@ func (c *Collections) Get(
 	// Enumerate drives for the specified resourceOwner
 	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, nil, graph.Stack(ctx, err)
 	}
 
 	retry := c.source == OneDriveSource
@@ -606,6 +606,14 @@ func (c *Collections) UpdateCollections(
 	for _, item := range items {
 		if el.Failure() != nil {
 			break
+		}
+
+		if item.GetMalware() != nil {
+			// TODO: track the item as skipped; logging alone might
+			// slice out the data from tracking.
+			// https://learn.microsoft.com/en-us/graph/api/resources/malware?view=graph-rest-1.0
+			logger.Ctx(ctx).Infow("malware detected", "malware_description", ptr.Val(item.GetMalware().GetDescription()))
+			continue
 		}
 
 		var (

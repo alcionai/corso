@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           prefix=`date +"%Y-%m-%d-%T"`
           ./corso repo init s3 --hide-progress --prefix $prefix --bucket   ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
-          if grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
+          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
           then
               echo "repo could not be initiated"
               exit 1
@@ -79,9 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso repo connect s3 --hide-progress --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
-          valid_num=$(grep 'Connected to S3 bucket' $TEST_RESULT/connect.txt | wc -l)
-
-          if [ $valid_num -ne 1 ]
+          if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
           then
               echo "repo could not be connected"
               exit 1
@@ -92,8 +90,7 @@ jobs:
         id: exchange-test
         run: |
           ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
-          valid_num=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt | wc -l)
-          if [ $valid_num -ne 1 ]
+          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt
           then
               echo "backup was not successfull"
               exit 1
@@ -105,10 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup list exchange --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
-          cat $TEST_RESULT/backup_exchange_list.txt 
-          valid_num=$(grep -i -e ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt | wc -l)
-         
-          if [ $valid_num -ne 1 ]
+          if ! grep -q  ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt 
           then
               echo "listing of backup was not successfull"
               exit 1
@@ -128,10 +122,8 @@ jobs:
 # TODO: add backup time check
         run: |
           set -euo pipefail
-          ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --data 'email' --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
-          valid_num=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt | wc -l)
-
-          if [ $valid_num -ne 1 ]
+          ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+          if ! grep -q  'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt 
           then
               echo "backup was not successful"
               exit 1
@@ -173,9 +165,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
-          valid_num=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt | wc -l)
-
-          if [ $valid_num -ne 1 ]
+          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt
           then
               echo "backup was not successfull"
               exit 1
