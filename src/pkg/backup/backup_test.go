@@ -87,7 +87,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 		expectVs = []string{
 			nowFmt,
 			"id",
-			"status (2 errors, 1 item with malware detected and skipped)",
+			"status (2 errors, 1 skipped: 1 malware)",
 			"test",
 		}
 	)
@@ -129,7 +129,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 					"containerID", "containerName",
 				)},
 			},
-			expect: "test (1 not attempted: 1 malware)",
+			expect: "test (1 skipped: 1 malware)",
 		},
 		{
 			name: "errors and malware",
@@ -142,7 +142,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 					"containerID", "containerName",
 				)},
 			},
-			expect: "test (42 errors, 1 not attempted: 1 malware)",
+			expect: "test (42 errors, 1 skipped: 1 malware)",
 		},
 	}
 	for _, test := range table {

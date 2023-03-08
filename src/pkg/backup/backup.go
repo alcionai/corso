@@ -73,6 +73,11 @@ func New(
 		errCount++
 	}
 
+	var failMsg string
+	if ee.Failure != nil {
+		failMsg = ee.Failure.Error()
+	}
+
 	return &Backup{
 		BaseModel: model.BaseModel{
 			ID: id,
@@ -87,7 +92,7 @@ func New(
 		Selector:        selector,
 		FailFast:        ee.FailFast,
 		ErrorCount:      errCount,
-		Failure:         ee.Failure.Error(),
+		Failure:         failMsg,
 		FailedItems:     ee.Items,
 		SkippedItems:    ee.Skipped,
 		ReadWrites:      rw,
@@ -188,7 +193,7 @@ func (b Backup) Values() []string {
 	}
 
 	if len(b.SkippedItems) > 0 {
-		status += fmt.Sprintf("%d not attempted: ", len(b.SkippedItems))
+		status += fmt.Sprintf("%d skipped: ", len(b.SkippedItems))
 	}
 
 	if malware > 0 {

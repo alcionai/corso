@@ -678,8 +678,7 @@ func (op *BackupOperation) createBackupModels(
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors,
-	)
+		op.Errors)
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
@@ -699,8 +698,7 @@ func (op *BackupOperation) createBackupModels(
 			events.Service:    op.Selectors.PathService().String(),
 			events.StartTime:  common.FormatTime(op.Results.StartedAt),
 			events.Status:     op.Status.String(),
-		},
-	)
+		})
 
 	return nil
 }
