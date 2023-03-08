@@ -88,6 +88,7 @@ type Collection struct {
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
+	ctx context.Context,
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error)
@@ -395,7 +396,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						err      error
 					)
 
-					_, itemData, err = oc.itemReader(oc.itemClient, item)
+					_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
 
 					if err != nil && graph.IsErrUnauthorized(err) {
 						// assume unauthorized requests are a sign of an expired

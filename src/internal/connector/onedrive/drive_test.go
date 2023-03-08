@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -78,6 +78,11 @@ func TestOneDriveUnitSuite(t *testing.T) {
 	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+const (
+	userMysiteURLNotFound = "BadRequest Unable to retrieve user's mysite URL"
+	userMysiteNotFound    = "ResourceNotFound User's mysite not found"
+)
+
 func odErr(code string) *odataerrors.ODataError {
 	odErr := &odataerrors.ODataError{}
 	merr := odataerrors.MainError{}
@@ -88,6 +93,9 @@ func odErr(code string) *odataerrors.ODataError {
 }
 
 func (suite *OneDriveUnitSuite) TestDrives() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
 	numDriveResults := 4
 	emptyLink := ""
 	link := "foo"
@@ -95,18 +103,8 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 	// These errors won't be the "correct" format when compared to what graph
 	// returns, but they're close enough to have the same info when the inner
 	// details are extracted via support package.
-	mySiteURLNotFound := support.ConnectorStackErrorTraceWrap(
-		odErr(userMysiteURLNotFound),
-		"maximum retries or unretryable",
-	)
-	mySiteNotFound := support.ConnectorStackErrorTraceWrap(
-		odErr(userMysiteNotFound),
-		"maximum retries or unretryable",
-	)
-	deadlineExceeded := support.ConnectorStackErrorTraceWrap(
-		odErr(contextDeadlineExceeded),
-		"maximum retries or unretryable",
-	)
+	mySiteURLNotFound := odErr(userMysiteURLNotFound)
+	mySiteNotFound := odErr(userMysiteNotFound)
 
 	resultDrives := make([]models.Driveable, 0, numDriveResults)
 
@@ -122,7 +120,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 
 	for i := 0; i < getDrivesRetries+1; i++ {
 		tooManyRetries = append(tooManyRetries, pagerResult{
-			err: deadlineExceeded,
+			err: context.DeadlineExceeded,
 		})
 	}
 
@@ -219,7 +217,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      mySiteURLNotFound,
+					err:      graph.Stack(ctx, mySiteURLNotFound),
 				},
 			},
 			retry:           true,
@@ -232,7 +230,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      mySiteNotFound,
+					err:      graph.Stack(ctx, mySiteNotFound),
 				},
 			},
 			retry:           true,
@@ -250,7 +248,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      deadlineExceeded,
+					err:      context.DeadlineExceeded,
 				},
 				{
 					drives:   resultDrives[numDriveResults/2:],
@@ -273,7 +271,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 				{
 					drives:   nil,
 					nextLink: nil,
-					err:      deadlineExceeded,
+					err:      context.DeadlineExceeded,
 				},
 				{
 					drives:   resultDrives[numDriveResults/2:],
@@ -437,9 +435,6 @@ func (fm testFolderMatcher) Matches(path string) bool {
 }
 
 func (suite *OneDriveSuite) TestOneDriveNewCollections() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err)
 
@@ -458,13 +453,18 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-			service := loadTestService(t)
-			scope := selectors.
-				NewOneDriveBackup([]string{test.user}).
-				AllData()[0]
-			odcs, excludes, err := NewCollections(
+			var (
+				t       = suite.T()
+				service = loadTestService(t)
+				scope   = selectors.
+					NewOneDriveBackup([]string{test.user}).
+					AllData()[0]
+			)
+
+			colls := NewCollections(
 				graph.HTTPClient(graph.NoTimeout()),
 				creds.AzureTenantID,
 				test.user,
@@ -472,9 +472,12 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				testFolderMatcher{scope},
 				service,
 				service.updateStatus,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-			).Get(ctx, nil, fault.New(true))
-			assert.NoError(t, err)
+				control.Options{
+					ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+				})
+
+			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))
+			assert.NoError(t, err, clues.InErr(err))
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 

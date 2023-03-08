@@ -56,18 +56,20 @@ func (suite *BetaClientSuite) TestCreateBetaClient() {
 func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 	ctx, flush := tester.NewContext()
 	defer flush()
+
 	t := suite.T()
+
 	adpt, err := graph.CreateAdapter(
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
-	)
-
+		suite.credentials.AzureClientSecret)
 	require.NoError(t, err)
+
 	client := NewBetaClient(adpt)
 	require.NotNil(t, client)
 
 	siteID := tester.M365SiteID(t)
+
 	// TODO(dadams39) document allowable calls in main
 	collection, err := client.SitesById(siteID).Pages().Get(ctx, nil)
 	// Ensures that the client is able to receive data from beta

@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 
-	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 
@@ -44,7 +43,7 @@ func (mau *mailAttachmentUploader) uploadSmallAttachment(ctx context.Context, at
 		Attachments().
 		Post(ctx, attach, nil)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return graph.Stack(ctx, err)
 	}
 
 	return nil
@@ -68,7 +67,7 @@ func (mau *mailAttachmentUploader) uploadSession(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "uploading mail attachment").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "uploading mail attachment")
 	}
 
 	return r, nil
@@ -94,7 +93,7 @@ func (eau *eventAttachmentUploader) uploadSmallAttachment(ctx context.Context, a
 		Attachments().
 		Post(ctx, attach, nil)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return graph.Stack(ctx, err)
 	}
 
 	return nil
@@ -116,7 +115,7 @@ func (eau *eventAttachmentUploader) uploadSession(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "uploading event attachment").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "uploading event attachment")
 	}
 
 	return r, nil

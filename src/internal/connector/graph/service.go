@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -343,7 +342,7 @@ func (middleware RetryHandler) Intercept(
 
 	response, err := pipeline.Next(req, middlewareIndex)
 	if err != nil && !IsErrTimeout(err) {
-		return response, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+		return response, Stack(ctx, err)
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
@@ -361,7 +360,7 @@ func (middleware RetryHandler) Intercept(
 		exponentialBackOff,
 		err)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+		return nil, Stack(ctx, err)
 	}
 
 	return response, nil

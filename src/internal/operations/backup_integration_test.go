@@ -1006,7 +1006,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NotEmpty(t, ids, "message ids in folder")
 
 						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
+						require.NoError(t, err, "deleting email item")
 
 					case path.ContactsCategory:
 						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
@@ -1014,7 +1014,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NotEmpty(t, ids, "contact ids in folder")
 
 						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
+						require.NoError(t, err, "deleting contact item")
 
 					case path.EventsCategory:
 						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
@@ -1022,7 +1022,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NotEmpty(t, ids, "event ids in folder")
 
 						err = cli.CalendarsById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting calendar: %s", support.ConnectorStackErrorTrace(err))
+						require.NoError(t, err, "deleting calendar")
 					}
 				}
 			},
