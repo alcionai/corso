@@ -5,15 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -325,19 +324,15 @@ func mustGetDefaultDriveID(
 	//revive:enable:context-as-argument
 	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
 	if err != nil {
-		err = errors.Wrapf(
-			err,
-			"failed to retrieve default user drive. user: %s, details: %s",
-			userID,
-			support.ConnectorStackErrorTrace(err),
-		)
+		err = graph.Wrap(ctx, err, "retrieving drive")
 	}
 
 	require.NoError(t, err)
-	require.NotNil(t, d.GetId())
-	require.NotEmpty(t, *d.GetId())
 
-	return *d.GetId()
+	id := ptr.Val(d.GetId())
+	require.NotEmpty(t, id)
+
+	return id
 }
 
 func getCollectionsAndExpected(

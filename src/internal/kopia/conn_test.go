@@ -238,26 +238,36 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	)
 }
 
-func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
+func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect() {
+	newCompressor := "pgzip"
+	newRetentionDaily := policy.OptionalInt(42)
+	newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
+	newSchedInterval := time.Second * 42
+
 	table := []struct {
-		name      string
-		checkFunc func(*testing.T, *policy.Policy)
-		mutator   func(context.Context, *policy.Policy) error
+		name          string
+		checkInitFunc func(*testing.T, *policy.Policy)
+		checkFunc     func(*testing.T, *policy.Policy)
+		mutator       func(context.Context, *policy.Policy) error
 	}{
 		{
 			name: "Compression",
-			checkFunc: func(t *testing.T, p *policy.Policy) {
+			checkInitFunc: func(t *testing.T, p *policy.Policy) {
 				t.Helper()
 				require.Equal(t, defaultCompressor, string(p.CompressionPolicy.CompressorName))
 			},
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(t, newCompressor, string(p.CompressionPolicy.CompressorName))
+			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
-				_, res := updateCompressionOnPolicy("pgzip", p)
+				_, res := updateCompressionOnPolicy(newCompressor, p)
 				return res
 			},
 		},
 		{
 			name: "Retention",
-			checkFunc: func(t *testing.T, p *policy.Policy) {
+			checkInitFunc: func(t *testing.T, p *policy.Policy) {
 				t.Helper()
 				require.Equal(
 					t,
@@ -270,9 +280,20 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
 				)
 			},
+			checkFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(
+					t,
+					newRetention,
+					p.RetentionPolicy,
+				)
+				assert.Equal(
+					t,
+					42,
+					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
+				)
+			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
-				newRetentionDaily := policy.OptionalInt(42)
-				newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
 				updateRetentionOnPolicy(newRetention, p)
 
 				return nil
@@ -280,12 +301,16 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 		},
 		{
 			name: "Scheduling",
+			checkInitFunc: func(t *testing.T, p *policy.Policy) {
+				t.Helper()
+				require.Equal(t, defaultSchedulingInterval, p.SchedulingPolicy.Interval())
+			},
 			checkFunc: func(t *testing.T, p *policy.Policy) {
 				t.Helper()
-				require.Equal(t, time.Second*0, p.SchedulingPolicy.Interval())
+				require.Equal(t, newSchedInterval, p.SchedulingPolicy.Interval())
 			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
-				updateSchedulingOnPolicy(time.Second*42, p)
+				updateSchedulingOnPolicy(newSchedInterval, p)
 
 				return nil
 			},
@@ -305,7 +330,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndConnect() {
 			p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
 			require.NoError(t, err)
 
-			test.checkFunc(t, p)
+			test.checkInitFunc(t, p)
 
 			require.NoError(t, test.mutator(ctx, p))
 			require.NoError(t, k.writeGlobalPolicy(ctx, "TestDefaultPolicyConfigSet", p))

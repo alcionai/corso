@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           prefix=`date +"%Y-%m-%d-%T"`
           ./corso repo init s3 --hide-progress --prefix $prefix --bucket   ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
-          if grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
+          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
           then
               echo "repo could not be initiated"
               exit 1

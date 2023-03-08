@@ -516,6 +516,8 @@ type ExchangeInfo struct {
 	ItemType    ItemType  `json:"itemType,omitempty"`
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
+	Recipient   []string  `json:"recipient,omitempty"`
+	ParentPath  string    `json:"parentPath,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
 	EventStart  time.Time `json:"eventStart,omitempty"`
 	EventEnd    time.Time `json:"eventEnd,omitempty"`
@@ -538,7 +540,7 @@ func (i ExchangeInfo) Headers() []string {
 		return []string{"Contact Name"}
 
 	case ExchangeMail:
-		return []string{"Sender", "Subject", "Received"}
+		return []string{"Sender", "Folder", "Subject", "Received"}
 	}
 
 	return []string{}
@@ -562,7 +564,7 @@ func (i ExchangeInfo) Values() []string {
 
 	case ExchangeMail:
 		return []string{
-			i.Sender, i.Subject,
+			i.Sender, i.ParentPath, i.Subject,
 			common.FormatTabularDisplayTime(i.Received),
 		}
 	}

@@ -474,7 +474,7 @@ func CreateRestoreFolders(
 ) (string, error) {
 	driveRoot, err := service.Client().DrivesById(driveID).Root().Get(ctx, nil)
 	if err != nil {
-		return "", clues.Wrap(err, "getting drive root").WithClues(ctx).With(graph.ErrData(err)...)
+		return "", graph.Wrap(ctx, err, "getting drive root")
 	}
 
 	parentFolderID := ptr.Val(driveRoot.GetId())
@@ -550,7 +550,7 @@ func restoreData(
 	// Upload the stream data
 	written, err := io.CopyBuffer(w, progReader, copyBuffer)
 	if err != nil {
-		return "", details.ItemInfo{}, clues.Wrap(err, "writing item bytes").WithClues(ctx).With(graph.ErrData(err)...)
+		return "", details.ItemInfo{}, graph.Wrap(ctx, err, "writing item bytes")
 	}
 
 	dii := details.ItemInfo{}

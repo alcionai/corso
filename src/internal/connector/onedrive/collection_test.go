@@ -94,7 +94,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -109,7 +109,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -124,7 +124,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -139,7 +139,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -326,7 +326,11 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			mockItem.SetLastModifiedDateTime(&now)
 			coll.Add(mockItem)
 
-			coll.itemReader = func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			coll.itemReader = func(
+				context.Context,
+				*http.Client,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, assert.AnError
 			}
 
@@ -407,6 +411,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			coll.Add(mockItem)
 
 			coll.itemReader = func(
+				context.Context,
 				*http.Client,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
