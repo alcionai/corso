@@ -49,9 +49,6 @@ type Backup struct {
 	// stats are embedded so that the values appear as top-level properties
 	stats.ReadWrites
 	stats.StartAndEndTime
-
-	// Deprecated
-	stats.Errs // replaced with fault.Errors
 }
 
 // interface compliance checks

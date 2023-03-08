@@ -64,11 +64,6 @@ func stubBackup(t time.Time) backup.Backup {
 			StartedAt:   t,
 			CompletedAt: t,
 		},
-		// deprecated
-		Errs: stats.Errs{
-			ReadErrors:  errors.New("1"),
-			WriteErrors: errors.New("1"),
-		},
 	}
 }
 
@@ -101,6 +96,8 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 }
 
 func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
+	addtl := map[string]any{"foo": "bar"}
+
 	table := []struct {
 		name   string
 		bup    backup.Backup
@@ -126,7 +123,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 				SkippedItems: []fault.Skipped{*fault.FileSkip(
 					fault.SkipMalware,
 					"id", "name",
-					"containerID", "containerName",
+					addtl,
 				)},
 			},
 			expect: "test (1 skipped: 1 malware)",
@@ -139,7 +136,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 				SkippedItems: []fault.Skipped{*fault.FileSkip(
 					fault.SkipMalware,
 					"id", "name",
-					"containerID", "containerName",
+					addtl,
 				)},
 			},
 			expect: "test (42 errors, 1 skipped: 1 malware)",
