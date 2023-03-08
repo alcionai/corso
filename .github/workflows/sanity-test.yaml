@@ -78,7 +78,6 @@ jobs:
           
      # echo result=$prefix >> $GITHUB_OUTPUT 
 
-
       # run the tests
       - name: Repo connect test
         run: |
@@ -147,7 +146,7 @@ jobs:
         
       - name: Restoration check
         env:
-          RESTORE_FOLDER:  ${{ steps.exchange-restore-test.outputs.result }}
+          RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
           RESTORE_SERVICE: "exchange"
         run: |
           set -euo pipefail

@@ -19,7 +19,9 @@ func main() {
 		os.Getenv("AZURE_CLIENT_SECRET"),
 	)
 	if err != nil {
+		fmt.Println("error while creating adapter: ", err)
 		os.Exit(1)
+
 		return
 	}
 
@@ -55,12 +57,15 @@ func checkCalendarsRestoration(client *msgraphsdk.GraphServiceClient, testUser, 
 		calendarItem, _ := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
 		if *r.GetName() == folderName {
 			totalRestoreEvent = len(calendarItem.GetValue())
-			fmt.Println("Calendar restore folder: ", *r.GetName())
+			fmt.Printf("Calendar restore folder:  %s with events: %d \n",
+				*r.GetName(),
+				totalRestoreEvent)
+
 			continue
 		}
 
 		eventCount := len(calendarItem.GetValue())
-		fmt.Printf("Calendar folder: %s with %d", *r.GetName(), eventCount)
+		fmt.Printf("Calendar folder: %s with %d \n", *r.GetName(), eventCount)
 		totalEvent = totalEvent + eventCount
 	}
 
