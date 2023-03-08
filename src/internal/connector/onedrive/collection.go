@@ -351,8 +351,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			)
 
 			l.Lock()
-			pr, err := updateParentReference(ctx, oc.service, item.GetParentReference(), driveMap, l)
 
+			pr, err := updateParentReference(ctx, oc.service, item.GetParentReference(), driveMap, l)
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
 				return
