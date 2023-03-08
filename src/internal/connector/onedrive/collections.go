@@ -407,7 +407,7 @@ func (c *Collections) Get(
 				true,
 			)
 
-			col.driveMap[driveID] = driveName
+			col.driveName = driveName
 			c.CollectionMap[i] = col
 		}
 	}
@@ -617,8 +617,6 @@ func (c *Collections) UpdateCollections(
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
-	driveMap := make(map[string]string)
-	driveMap[driveID] = driveName
 
 	for _, item := range items {
 		if el.Failure() != nil {
@@ -718,10 +716,8 @@ func (c *Collections) UpdateCollections(
 				c.ctrl,
 				invalidPrevDelta,
 			)
-			for k, v := range driveMap {
-				col.driveMap[k] = v
-			}
 
+			col.driveName = driveName
 			c.CollectionMap[itemID] = col
 			c.NumContainers++
 
