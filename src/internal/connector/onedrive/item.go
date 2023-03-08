@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -457,8 +456,6 @@ func updateParentReference(
 	if inMap {
 		mu.Unlock()
 	} else {
-		logger.Ctx(ctx).Infof("Drive Name not in given map: Retrieving\nID: %s\n Map: %v", driveID, driveMap)
-		fmt.Printf("ID Given: %s\nMap: %v\n", driveID, driveMap)
 
 		name, err = fetchDriveName(ctx, service, driveID)
 		if err != nil {
@@ -467,6 +464,7 @@ func updateParentReference(
 
 		drives[driveID] = name
 		mu.Unlock()
+		logger.Ctx(ctx).Infof("Drive Name not in given map: Retrieved: %s", name)
 	}
 
 	orig.SetName(&name)
