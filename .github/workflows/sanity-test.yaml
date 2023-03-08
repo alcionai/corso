@@ -94,7 +94,7 @@ jobs:
         id: exchange-test
         run: |
           ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
-          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt | wc -l)
+          valid_num=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt | wc -l)
           if [ $valid_num -ne 1 ]
           then
               echo "backup was not successfull"
@@ -131,7 +131,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create exchange --user "${CORSO_M365_TEST_USER_ID}" --data 'email' --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
-          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt | wc -l)
+          valid_num=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
           then
@@ -175,7 +175,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive --user "${CORSO_M365_TEST_USER_ID}" --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
-          valid_num=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt | wc -l)
+          valid_num=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt | wc -l)
 
           if [ $valid_num -ne 1 ]
           then
@@ -183,7 +183,7 @@ jobs:
               exit 1
           fi
 
-          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          echo result=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
       # list the bakcup onedrive
       - name: Backup onedrive list test

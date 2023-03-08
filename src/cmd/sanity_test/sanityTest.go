@@ -55,11 +55,13 @@ func checkCalendarsRestoration(client *msgraphsdk.GraphServiceClient, testUser, 
 		calendarItem, _ := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
 		if *r.GetName() == folderName {
 			totalRestoreEvent = len(calendarItem.GetValue())
-
+			fmt.Println("Calendar restore folder: ", *r.GetName())
 			continue
 		}
 
-		totalEvent = totalEvent + len(calendarItem.GetValue())
+		eventCount := len(calendarItem.GetValue())
+		fmt.Printf("Calendar folder: %s with %d", *r.GetName(), eventCount)
+		totalEvent = totalEvent + eventCount
 	}
 
 	if totalRestoreEvent != totalEvent {
