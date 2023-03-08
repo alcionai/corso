@@ -18,18 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ==============================================
-// Folder Object flags
-// These options are flags for indicating
-// that a time-based filter should be used for
-// within returning objects for details.
-// Used by: OneDrive, SharePoint
+// ================================================
+// Shared Backup Globals
 // ================================================
 var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
+	backupID string
+	user     []string
 )
 
 var subCommandFuncs = []func() *cobra.Command{
