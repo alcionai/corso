@@ -425,6 +425,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 							el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						}
 
+						// return err, not el.Err(), because the lazy reader needs to communicate to
+						// the data consumer that this item is unreadable, regardless of the fault state.
 						return nil, err
 					}
 

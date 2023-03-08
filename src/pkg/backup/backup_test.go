@@ -98,30 +98,59 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 
 	vs := b.Values()
 	assert.Equal(t, expectVs, vs)
+}
 
-	// multiple skipped malware
-	b.SkippedItems = append(b.SkippedItems, b.SkippedItems...)
-	expectVs = []string{
-		nowFmt,
-		"id",
-		"status (2 errors, 2 items with malware detected and skipped)",
-		"test",
+func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
+	table := []struct {
+		name   string
+		bup    backup.Backup
+		expect string
+	}{
+		{
+			name:   "no extras",
+			bup:    backup.Backup{Status: "test"},
+			expect: "test",
+		},
+		{
+			name: "errors",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+			},
+			expect: "test (42 errors)",
+		},
+		{
+			name: "malware",
+			bup: backup.Backup{
+				Status: "test",
+				SkippedItems: []fault.Skipped{*fault.FileSkip(
+					fault.SkipMalware,
+					"id", "name",
+					"containerID", "containerName",
+				)},
+			},
+			expect: "test (1 not attempted: 1 malware)",
+		},
+		{
+			name: "errors and malware",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+				SkippedItems: []fault.Skipped{*fault.FileSkip(
+					fault.SkipMalware,
+					"id", "name",
+					"containerID", "containerName",
+				)},
+			},
+			expect: "test (42 errors, 1 not attempted: 1 malware)",
+		},
 	}
-
-	vs = b.Values()
-	assert.Equal(t, expectVs, vs)
-
-	// no skips
-	b.SkippedItems = nil
-	expectVs = []string{
-		nowFmt,
-		"id",
-		"status (2 errors)",
-		"test",
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			result := test.bup.Values()
+			assert.Equal(suite.T(), test.expect, result[2], "status value")
+		})
 	}
-
-	vs = b.Values()
-	assert.Equal(t, expectVs, vs)
 }
 
 func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
