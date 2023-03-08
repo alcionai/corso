@@ -111,7 +111,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	)
 
 	// Read data for the file
-	itemInfo, itemData, err := oneDriveItemReader(graph.HTTPClient(graph.NoTimeout()), driveItem)
+	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.HTTPClient(graph.NoTimeout()), driveItem)
 
 	require.NoError(suite.T(), err)
 	require.NotNil(suite.T(), itemInfo.OneDrive)
@@ -235,12 +235,23 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}
 }
 
-func getPermsUperms(permID, userID string, scopes []string) (models.Permissionable, UserPermission) {
+func getPermsUperms(permID, userID, entity string, scopes []string) (models.Permissionable, UserPermission) {
 	identity := models.NewIdentity()
+	identity.SetId(&userID)
 	identity.SetAdditionalData(map[string]any{"email": &userID})
 
 	sharepointIdentity := models.NewSharePointIdentitySet()
-	sharepointIdentity.SetUser(identity)
+
+	switch entity {
+	case "user":
+		sharepointIdentity.SetUser(identity)
+	case "group":
+		sharepointIdentity.SetGroup(identity)
+	case "application":
+		sharepointIdentity.SetApplication(identity)
+	case "device":
+		sharepointIdentity.SetDevice(identity)
+	}
 
 	perm := models.NewPermission()
 	perm.SetId(&permID)
@@ -248,23 +259,34 @@ func getPermsUperms(permID, userID string, scopes []string) (models.Permissionab
 	perm.SetGrantedToV2(sharepointIdentity)
 
 	uperm := UserPermission{
-		ID:    permID,
-		Roles: []string{"read"},
-		Email: userID,
+		ID:       permID,
+		Roles:    []string{"read"},
+		EntityID: userID,
 	}
 
 	return perm, uperm
 }
 
-func TestOneDrivePermissionsFilter(t *testing.T) {
+type ItemUnitTestSuite struct {
+	tester.Suite
+}
+
+func TestItemUnitTestSuite(t *testing.T) {
+	suite.Run(t, &ItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
 	permID := "fakePermId"
 	userID := "fakeuser@provider.com"
 	userID2 := "fakeuser2@provider.com"
 
-	readPerm, readUperm := getPermsUperms(permID, userID, []string{"read"})
-	readWritePerm, readWriteUperm := getPermsUperms(permID, userID2, []string{"read", "write"})
+	userReadPerm, userReadUperm := getPermsUperms(permID, userID, "user", []string{"read"})
+	userReadWritePerm, userReadWriteUperm := getPermsUperms(permID, userID2, "user", []string{"read", "write"})
 
-	noPerm, _ := getPermsUperms(permID, userID, []string{"read"})
+	groupReadPerm, groupReadUperm := getPermsUperms(permID, userID, "group", []string{"read"})
+	groupReadWritePerm, groupReadWriteUperm := getPermsUperms(permID, userID2, "group", []string{"read", "write"})
+
+	noPerm, _ := getPermsUperms(permID, userID, "user", []string{"read"})
 	noPerm.SetGrantedToV2(nil) // eg: link shares
 
 	cases := []struct {
@@ -282,24 +304,48 @@ func TestOneDrivePermissionsFilter(t *testing.T) {
 			graphPermissions:  []models.Permissionable{noPerm},
 			parsedPermissions: []UserPermission{},
 		},
+
+		// user
 		{
 			name:              "user with read permissions",
-			graphPermissions:  []models.Permissionable{readPerm},
-			parsedPermissions: []UserPermission{readUperm},
+			graphPermissions:  []models.Permissionable{userReadPerm},
+			parsedPermissions: []UserPermission{userReadUperm},
 		},
 		{
 			name:              "user with read and write permissions",
-			graphPermissions:  []models.Permissionable{readWritePerm},
-			parsedPermissions: []UserPermission{readWriteUperm},
+			graphPermissions:  []models.Permissionable{userReadWritePerm},
+			parsedPermissions: []UserPermission{userReadWriteUperm},
 		},
 		{
 			name:              "multiple users with separate permissions",
-			graphPermissions:  []models.Permissionable{readPerm, readWritePerm},
-			parsedPermissions: []UserPermission{readUperm, readWriteUperm},
+			graphPermissions:  []models.Permissionable{userReadPerm, userReadWritePerm},
+			parsedPermissions: []UserPermission{userReadUperm, userReadWriteUperm},
+		},
+
+		// group
+		{
+			name:              "group with read permissions",
+			graphPermissions:  []models.Permissionable{groupReadPerm},
+			parsedPermissions: []UserPermission{groupReadUperm},
+		},
+		{
+			name:              "group with read and write permissions",
+			graphPermissions:  []models.Permissionable{groupReadWritePerm},
+			parsedPermissions: []UserPermission{groupReadWriteUperm},
+		},
+		{
+			name:              "multiple groups with separate permissions",
+			graphPermissions:  []models.Permissionable{groupReadPerm, groupReadWritePerm},
+			parsedPermissions: []UserPermission{groupReadUperm, groupReadWriteUperm},
 		},
 	}
 	for _, tc := range cases {
-		actual := filterUserPermissions(tc.graphPermissions)
-		assert.ElementsMatch(t, tc.parsedPermissions, actual)
+		suite.Run(tc.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			actual := filterUserPermissions(ctx, tc.graphPermissions)
+			assert.ElementsMatch(suite.T(), tc.parsedPermissions, actual)
+		})
 	}
 }

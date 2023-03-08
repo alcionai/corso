@@ -69,7 +69,7 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, nil
@@ -120,8 +120,11 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *userDrivePager) SetNext(link string) {
@@ -171,7 +174,7 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, nil
@@ -194,7 +197,7 @@ func (p *siteDrivePager) GetDriveIDByName(ctx context.Context, driveName string)
 	for {
 		resp, err := p.builder.Get(ctx, p.options)
 		if err != nil {
-			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return empty, graph.Stack(ctx, err)
 		}
 
 		for _, entry := range resp.GetValue() {
@@ -230,7 +233,7 @@ func (p *siteDrivePager) GetFolderIDByName(ctx context.Context, driveID, folderN
 	for {
 		resp, err := builder.Get(ctx, option)
 		if err != nil {
-			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return empty, graph.Stack(ctx, err)
 		}
 
 		for _, entry := range resp.GetValue() {

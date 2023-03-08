@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -30,6 +29,9 @@ const (
 	defaultMaxRetries       = 3
 	defaultDelay            = 3 * time.Second
 	absoluteMaxDelaySeconds = 180
+	rateLimitHeader         = "RateLimit-Limit"
+	rateRemainingHeader     = "RateLimit-Remaining"
+	rateResetHeader         = "RateLimit-Reset"
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -313,7 +315,12 @@ func (handler *LoggingMiddleware) Intercept(
 	} else {
 		// special case for supportability: log all throttling cases.
 		if resp.StatusCode == http.StatusTooManyRequests {
-			logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
+			logger.Ctx(ctx).Infow("graph api throttling",
+				"method", req.Method,
+				"url", req.URL,
+				"limit", resp.Header.Get(rateLimitHeader),
+				"remaining", resp.Header.Get(rateRemainingHeader),
+				"reset", resp.Header.Get(rateResetHeader))
 		} else if resp.StatusCode == http.StatusBadRequest {
 			respDump, _ := httputil.DumpResponse(resp, true)
 			logger.Ctx(ctx).Infow(
@@ -343,7 +350,7 @@ func (middleware RetryHandler) Intercept(
 
 	response, err := pipeline.Next(req, middlewareIndex)
 	if err != nil && !IsErrTimeout(err) {
-		return response, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+		return response, Stack(ctx, err)
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()
@@ -361,7 +368,7 @@ func (middleware RetryHandler) Intercept(
 		exponentialBackOff,
 		err)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(ErrData(err)...)
+		return nil, Stack(ctx, err)
 	}
 
 	return response, nil
