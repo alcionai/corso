@@ -14,19 +14,19 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type StreamStoreIntegrationSuite struct {
+type StreamDetailsIntegrationSuite struct {
 	tester.Suite
 }
 
-func TestStreamStoreIntegrationSuite(t *testing.T) {
-	suite.Run(t, &StreamStoreIntegrationSuite{
+func TestStreamDetailsIntegrationSuite(t *testing.T) {
+	suite.Run(t, &StreamDetailsIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *StreamStoreIntegrationSuite) TestDetails() {
+func (suite *StreamDetailsIntegrationSuite) TestDetails() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext()
@@ -55,13 +55,13 @@ func (suite *StreamStoreIntegrationSuite) TestDetails() {
 		})
 
 	deets := deetsBuilder.Details()
-	ss := New(kw, "tenant", path.ExchangeService)
+	nd := NewDetails(kw, "tenant", path.ExchangeService)
 
-	id, err := ss.WriteBackupDetails(ctx, deets, fault.New(true))
+	id, err := nd.WriteBackupDetails(ctx, deets, fault.New(true))
 	require.NoError(t, err)
 	require.NotNil(t, id)
 
-	readDeets, err := ss.ReadBackupDetails(ctx, id, fault.New(true))
+	readDeets, err := nd.ReadBackupDetails(ctx, id, fault.New(true))
 	require.NoError(t, err)
 	require.NotNil(t, readDeets)
 
