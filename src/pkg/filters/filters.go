@@ -417,24 +417,29 @@ func (f Filter) Compare(input string) bool {
 		return false
 	}
 
-	targets := []string{f.Target}
+	var (
+		res     bool
+		targets = []string{f.Target}
+	)
+
 	if hasSlice {
 		targets = f.NormalizedTargets
 	}
 
 	for _, tgt := range targets {
-		success := cmp(norm(tgt), norm(input))
-		if f.Negate {
-			success = !success
-		}
+		res = cmp(norm(tgt), norm(input))
 
 		// any-match
-		if success {
-			return true
+		if res {
+			break
 		}
 	}
 
-	return false
+	if f.Negate {
+		res = !res
+	}
+
+	return res
 }
 
 // true if t == i
