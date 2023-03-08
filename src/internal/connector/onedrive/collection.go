@@ -334,13 +334,17 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
-			if err != nil {
-				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-				return
-			}
+			// TODO: Removing the logic below because it introduces an extra Graph API call for
+			// every item being backed up. This can lead to throttling errors.
+			//
+			// pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
+			// if err != nil {
+			// 	el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+			// 	return
+			// }
 
-			item.SetParentReference(pr)
+			// item.SetParentReference(pr)
+
 			isFile := item.GetFile() != nil
 
 			if isFile {

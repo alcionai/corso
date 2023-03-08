@@ -29,6 +29,9 @@ const (
 	defaultMaxRetries       = 3
 	defaultDelay            = 3 * time.Second
 	absoluteMaxDelaySeconds = 180
+	rateLimitHeader         = "RateLimit-Limit"
+	rateRemainingHeader     = "RateLimit-Remaining"
+	rateResetHeader         = "RateLimit-Reset"
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -312,7 +315,12 @@ func (handler *LoggingMiddleware) Intercept(
 	} else {
 		// special case for supportability: log all throttling cases.
 		if resp.StatusCode == http.StatusTooManyRequests {
-			logger.Ctx(ctx).Infow("graph api throttling", "method", req.Method, "url", req.URL)
+			logger.Ctx(ctx).Infow("graph api throttling",
+				"method", req.Method,
+				"url", req.URL,
+				"limit", resp.Header.Get(rateLimitHeader),
+				"remaining", resp.Header.Get(rateRemainingHeader),
+				"reset", resp.Header.Get(rateResetHeader))
 		} else if resp.StatusCode == http.StatusBadRequest {
 			respDump, _ := httputil.DumpResponse(resp, true)
 			logger.Ctx(ctx).Infow(
