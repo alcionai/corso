@@ -765,11 +765,11 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 			var aMatch bool
 			for _, scope := range scopes {
 				pvs := ExchangeMail.pathValues(repo, ent)
-				if matchesPathValues(scope, ExchangeMail, pvs, short) {
+				if matchesPathValues(scope, ExchangeMail, pvs) {
 					aMatch = true
 					break
 				}
-				if matchesPathValues(scope, ExchangeMail, pvs, short) {
+				if matchesPathValues(scope, ExchangeMail, pvs) {
 					aMatch = true
 					break
 				}

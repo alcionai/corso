@@ -455,7 +455,7 @@ func matchesEntry[T scopeT, C categoryT](
 		return sc.matchesInfo(entry.ItemInfo)
 	}
 
-	return matchesPathValues(sc, cat, pathValues, entry.ShortRef)
+	return matchesPathValues(sc, cat, pathValues)
 }
 
 // matchesPathValues will check whether the pathValues have matching entries
@@ -467,7 +467,6 @@ func matchesPathValues[T scopeT, C categoryT](
 	sc T,
 	cat C,
 	pathValues map[categorizer][]string,
-	shortRef string,
 ) bool {
 	for _, c := range cat.pathKeys() {
 		// resourceOwners are now checked at the beginning of the reduction.

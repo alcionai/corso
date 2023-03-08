@@ -449,7 +449,7 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 			sc[rootCatStub.String()] = filterize(scopeConfig{}, test.rootVal)
 			sc[leafCatStub.String()] = filterize(scopeConfig{}, test.leafVal)
 
-			test.expect(t, matchesPathValues(sc, cat, pvs, test.shortRef))
+			test.expect(t, matchesPathValues(sc, cat, pvs))
 		})
 	}
 }
