@@ -150,7 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore exchange --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
-          echo result=$(grep -i -e 'Restoring to::' $TEST_RESULT/exchange-restore-test.txt | awk -F "::" '{print $2}' )  >> $GITHUB_OUTPUT
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
         
       - name: Restoration check
@@ -233,7 +233,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
-          echo result=$(grep -i -e 'Restoring to::' $TEST_RESULT/onedrive-restore-test.txt | awk -F "::" '{print $2}' )  >> $GITHUB_OUTPUT
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
 
       - name: Restoration oneDrive check
         env:

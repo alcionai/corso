@@ -83,7 +83,7 @@ func generateAndRestoreItems(
 	// TODO: fit the destination to the containers
 	dest := control.DefaultRestoreDestination(common.SimpleTimeTesting)
 	dest.ContainerName = destFldr
-	print.Infof(ctx, "Restoring to:: %s", dest.ContainerName)
+	print.Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	dataColls, err := buildCollections(
 		service,
