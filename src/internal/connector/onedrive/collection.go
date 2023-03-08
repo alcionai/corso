@@ -354,18 +354,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			if oc.source == SharePointSource {
-				l.Lock()
-
-				pr, err = updateParentReference(ctx, oc.service, item.GetParentReference(), driveMap, l)
-				if err != nil {
-					el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-					return
-				}
-			} else {
-				pr = updateParentReferenceOneDrive(item.GetParentReference(), oc.driveName)
-			}
-
+			pr = updateParentReferenceOneDrive(item.GetParentReference(), oc.driveName)
 			item.SetParentReference(pr)
 
 			isFile := item.GetFile() != nil
