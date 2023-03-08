@@ -35,7 +35,7 @@ func getDriveItem(
 ) (models.DriveItemable, error) {
 	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting item").WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "getting item")
 	}
 
 	return di, nil
@@ -46,10 +46,11 @@ func getDriveItem(
 // and using a http client to initialize a reader
 // TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
+	ctx context.Context,
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	resp, err := downloadItem(hc, item)
+	resp, err := downloadItem(ctx, hc, item)
 	if err != nil {
 		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 	}
@@ -106,6 +107,7 @@ func oneDriveItemMetaReader(
 // It crafts this by querying M365 for a download URL for the item
 // and using a http client to initialize a reader
 func oneDriveItemReader(
+	ctx context.Context,
 	hc *http.Client,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
@@ -115,7 +117,7 @@ func oneDriveItemReader(
 	)
 
 	if isFile {
-		resp, err := downloadItem(hc, item)
+		resp, err := downloadItem(ctx, hc, item)
 		if err != nil {
 			return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
 		}
@@ -130,7 +132,7 @@ func oneDriveItemReader(
 	return dii, rc, nil
 }
 
-func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, error) {
+func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemable) (*http.Response, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
 		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
@@ -138,7 +140,7 @@ func downloadItem(hc *http.Client, item models.DriveItemable) (*http.Response, e
 
 	req, err := http.NewRequest(http.MethodGet, *url, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "new request").With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "new request")
 	}
 
 	//nolint:lll
@@ -229,12 +231,7 @@ func oneDriveItemPermissionInfo(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		err = clues.Wrap(err, "fetching item permissions").
-			WithClues(ctx).
-			With("item_id", id).
-			With(graph.ErrData(err)...)
-
-		return nil, err
+		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", id)
 	}
 
 	uperms := filterUserPermissions(ctx, perm.GetValue())
@@ -360,9 +357,7 @@ func driveItemWriter(
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating item upload session").
-			WithClues(ctx).
-			With(graph.ErrData(err)...)
+		return nil, graph.Wrap(ctx, err, "creating item upload session")
 	}
 
 	logger.Ctx(ctx).Debug("created an upload session")
@@ -405,33 +400,33 @@ func constructWebURL(adtl map[string]any) string {
 	return url
 }
 
-func fetchParentReference(
-	ctx context.Context,
-	service graph.Servicer,
-	orig models.ItemReferenceable,
-) (models.ItemReferenceable, error) {
-	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
-		return orig, nil
-	}
+// func fetchParentReference(
+// 	ctx context.Context,
+// 	service graph.Servicer,
+// 	orig models.ItemReferenceable,
+// ) (models.ItemReferenceable, error) {
+// 	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
+// 		return orig, nil
+// 	}
 
-	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-			Select: []string{"name"},
-		},
-	}
+// 	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
+// 		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
+// 			Select: []string{"name"},
+// 		},
+// 	}
 
-	driveID := ptr.Val(orig.GetDriveId())
+// 	driveID := ptr.Val(orig.GetDriveId())
 
-	if driveID == "" {
-		return orig, nil
-	}
+// 	if driveID == "" {
+// 		return orig, nil
+// 	}
 
-	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
-	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
-	}
+// 	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
+// 	if err != nil {
+// 		return nil, graph.Stack(ctx, err)
+// 	}
 
-	orig.SetName(drive.GetName())
+// 	orig.SetName(drive.GetName())
 
-	return orig, nil
-}
+// 	return orig, nil
+// }

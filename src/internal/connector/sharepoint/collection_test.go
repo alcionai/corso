@@ -206,7 +206,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	for {
 		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "experienced query error during clean up. Details:  "+support.ConnectorStackErrorTrace(err))
+		assert.NoError(t, err, "getting site lists")
 
 		for _, temp := range resp.GetValue() {
 			if *temp.GetDisplayName() == deets.SharePoint.ItemName {

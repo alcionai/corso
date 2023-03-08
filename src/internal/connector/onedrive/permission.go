@@ -190,7 +190,7 @@ func restorePermissions(
 			PermissionsById(permissionIDMappings[p.ID]).
 			Delete(ctx, nil)
 		if err != nil {
-			return clues.Wrap(err, "removing permissions").WithClues(ctx).With(graph.ErrData(err)...)
+			return graph.Wrap(ctx, err, "removing permissions")
 		}
 	}
 
@@ -222,7 +222,7 @@ func restorePermissions(
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return clues.Wrap(err, "setting permissions").WithClues(ctx).With(graph.ErrData(err)...)
+			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
 		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
