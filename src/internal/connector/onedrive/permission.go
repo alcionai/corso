@@ -108,8 +108,8 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
-func getPermissionDiff(
-	after, before []UserPermission,
+func diffPermissions(
+	before, after []UserPermission,
 	permissionIDMappings map[string]string,
 ) ([]UserPermission, []UserPermission) {
 	var (
@@ -170,10 +170,10 @@ func restorePermissions(
 	// TODO(meain): Compute this from the data that we have instead of fetching from graph
 	currentPermissions, err := oneDriveItemPermissionInfo(ctx, service, driveID, itemID)
 	if err != nil {
-		return clues.Wrap(err, "fetching current permissions").WithClues(ctx).With(graph.ErrData(err)...)
+		return graph.Wrap(ctx, err, "fetching current permissions")
 	}
 
-	permAdded, permRemoved := getPermissionDiff(meta.Permissions, currentPermissions, permissionIDMappings)
+	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
 		err := service.Client().

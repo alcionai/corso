@@ -223,7 +223,6 @@ type Metadata struct {
 	FileName string `json:"filename,omitempty"`
 	// SharingMode denotes what the current mode of sharing is for the object.
 	// - inherited: permissions same as parent permissions (no "shared" in delta)
-	// - empty: remove all permissions (empty "shared" in delta)
 	// - custom: use Permissions to set correct permissions ("shared" has value in delta)
 	SharingMode SharingMode      `json:"permissionMode,omitempty"`
 	Permissions []UserPermission `json:"permissions,omitempty"`

@@ -159,9 +159,6 @@ func defaultItemPager(
 		link,
 		[]string{
 			"content.downloadUrl",
-			// https://learn.microsoft.com/en-us/onedrive/developer/rest-api
-			// /concepts/scan-guidance#scanning-permissions-hierarchies
-			"oneDrive.sharedChanged",
 			"createdBy",
 			"createdDateTime",
 			"file",
