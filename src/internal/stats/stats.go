@@ -15,12 +15,6 @@ type ReadWrites struct {
 	ResourceOwners int   `json:"resourceOwners,omitempty"`
 }
 
-// Errs tracks the aggregation of errors that occurred during a process.
-type Errs struct {
-	ReadErrors  error `json:"readErrors,omitempty"`
-	WriteErrors error `json:"writeErrors,omitempty"`
-}
-
 // StartAndEndTime tracks a paired starting time and ending time.
 type StartAndEndTime struct {
 	StartedAt   time.Time `json:"startedAt"`
