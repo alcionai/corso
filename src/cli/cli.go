@@ -62,17 +62,13 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	avoidTheseDescription := []string{
-		"current version info",
-		"help for corso",
 		"Initialize a repository.",
 		"Initialize a S3 repository",
+		"Help about any command",
+		"Free, Secure, Open-Source Backup for M365.",
 	}
 
-	avoidTheseCommands = []string{
-		"corso", "help", "init",
-	}
-
-	if !(slices.Contains(avoidTheseCommands, cc.Use) || slices.Contains(avoidTheseDescription, cc.Short)) {
+	if !slices.Contains(avoidTheseDescription, cc.Short) {
 		cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)

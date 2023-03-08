@@ -65,26 +65,25 @@ jobs:
         env:
           TEST_RESULT: "test_results"
         run: |
-          set -euo pipefail
+          set -euo pipefail 
           prefix=`date +"%Y-%m-%d-%T"`
-          ./corso repo init s3 \
-          --hide-progress \
-          --prefix $prefix \
-          --bucket   ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
-          
+
+          ./corso repo init s3 --hide-progress --prefix $prefix --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
+
           if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
           then
               echo "repo could not be initiated"
               exit 1
           fi
-          echo prefix >> $GITHUB_OUTPUT 
+          
+     # echo result=$prefix >> $GITHUB_OUTPUT 
 
 
       # run the tests
       - name: Repo connect test
         run: |
           set -euo pipefail
-          ./corso repo connect s3 --hide-progress --bucket  ${CORSO_BUCKET} --prefix ${{ steps.repo-init.outputs.prefix} 2>&1 | tee $TEST_RESULT/connect.txt 
+          ./corso repo connect s3 --hide-progress --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
           if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
           then
               echo "repo could not be connected"
