@@ -187,8 +187,6 @@ func runBackupLoadTest(
 		assert.Equal(t, len(users), b.Results.ResourceOwners, "resource owners")
 		assert.NoError(t, b.Errors.Failure(), "non-recoverable error")
 		assert.Empty(t, b.Errors.Recovered(), "recoverable errors")
-		assert.NoError(t, b.Results.ReadErrors, "read errors")
-		assert.NoError(t, b.Results.WriteErrors, "write errors")
 	})
 }
 
@@ -296,8 +294,6 @@ func doRestoreLoadTest(
 		assert.Equal(t, len(users), r.Results.ResourceOwners, "resource owners")
 		assert.NoError(t, r.Errors.Failure(), "non-recoverable error")
 		assert.Empty(t, r.Errors.Recovered(), "recoverable errors")
-		assert.NoError(t, r.Results.ReadErrors, "read errors")
-		assert.NoError(t, r.Results.WriteErrors, "write errors")
 		assert.Equal(t, expectItemCount, r.Results.ItemsWritten, "backup and restore wrote the same count of items")
 
 		ensureAllUsersInDetails(t, users, ds, "restore", name)

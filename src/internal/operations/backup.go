@@ -48,7 +48,6 @@ type BackupOperation struct {
 
 // BackupResults aggregate the details of the result of the operation.
 type BackupResults struct {
-	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
@@ -470,7 +469,8 @@ func consumeBackupDataCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+	if kopiaStats.ErrorCount > 0 ||
+		(kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount) {
 		err = clues.New("building kopia snapshot").With(
 			"kopia_errors", kopiaStats.ErrorCount,
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
