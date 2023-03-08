@@ -154,10 +154,11 @@ func (b *Builder) Add(
 	repoRef, shortRef, parentRef, locationRef string,
 	updated bool,
 	info ItemInfo,
-) {
+) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.d.add(repoRef, shortRef, parentRef, locationRef, updated, info)
+
+	return b.d.add(repoRef, shortRef, parentRef, locationRef, updated, info)
 }
 
 func (b *Builder) Details() *Details {
@@ -285,15 +286,39 @@ func (d *Details) add(
 	repoRef, shortRef, parentRef, locationRef string,
 	updated bool,
 	info ItemInfo,
-) {
-	d.Entries = append(d.Entries, DetailsEntry{
+) error {
+	entry := DetailsEntry{
 		RepoRef:     repoRef,
 		ShortRef:    shortRef,
 		ParentRef:   parentRef,
 		LocationRef: locationRef,
 		Updated:     updated,
 		ItemInfo:    info,
-	})
+	}
+
+	// Use the item name and the path for the ShortRef. This ensures that renames
+	// within a directory generate unique ShortRefs.
+	if info.infoType() == OneDriveItem || info.infoType() == SharePointLibrary {
+		p, err := path.FromDataLayerPath(repoRef, true)
+		if err != nil {
+			return clues.Wrap(err, "munging OneDrive or SharePoint ShortRef")
+		}
+
+		filename := ""
+		if info.OneDrive != nil {
+			filename = info.OneDrive.ItemName
+		} else if info.SharePoint != nil {
+			filename = info.SharePoint.ItemName
+		} else {
+			return clues.New("Item with OneDrive type that is not SharePoint or OneDrive")
+		}
+
+		entry.ShortRef = p.ToBuilder().Append(filename).ShortRef()
+	}
+
+	d.Entries = append(d.Entries, entry)
+
+	return nil
 }
 
 // addFolder adds an entry for the given folder.
