@@ -64,6 +64,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	avoidTheseDescription := []string{
 		"Initialize a repository.",
 		"Initialize a S3 repository",
+		"Help about any command",
 	}
 
 	avoidTheseCommands = []string{
