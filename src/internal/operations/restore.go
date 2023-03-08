@@ -181,7 +181,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 func (op *RestoreOperation) do(
 	ctx context.Context,
 	opStats *restoreStats,
-	detailsStore detailsReader,
+	detailsStore streamstore.Reader,
 	start time.Time,
 ) (*details.Details, error) {
 	bup, deets, err := getBackupAndDetailsFromID(
