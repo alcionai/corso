@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -41,7 +40,6 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 	}
 
 	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		fmt.Printf("What was I sent: %v\n", opts.FileCreatedAfter)
 		return errors.New("invalid time format for " + FileCreatedAfterFN)
 	}
 
