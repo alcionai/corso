@@ -28,9 +28,7 @@ import (
 
 // exchange bucket info from flags
 var (
-	backupID     string
 	exchangeData []string
-	user         []string
 
 	contact       []string
 	contactFolder []string
