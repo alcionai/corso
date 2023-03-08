@@ -616,28 +616,15 @@ func (c *Collections) UpdateCollections(
 		)
 
 		if item.GetMalware() != nil {
-			// TODO: track the item as skipped; logging alone might
-			// slice out the data from tracking.
-			// https://learn.microsoft.com/en-us/graph/api/resources/malware?view=graph-rest-1.0
-			logger.Ctx(ctx).Infow("malware detected", "malware_description", ptr.Val(item.GetMalware().GetDescription()))
+			addtl := graph.MalwareInfo(item)
+			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, addtl)
 
-			var (
-				pr     = item.GetParentReference()
-				prID   string
-				prName string
-			)
-
-			if pr != nil {
-				prID = ptr.Val(pr.GetId())
-				prName = ptr.Val(pr.GetName())
-			}
-
-			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, prID, prName)
 			if isFolder {
-				skip = fault.ContainerSkip(fault.SkipMalware, itemID, itemName, prID, prName)
+				skip = fault.ContainerSkip(fault.SkipMalware, itemID, itemName, addtl)
 			}
 
 			errs.AddSkip(skip)
+			logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
 
 			continue
 		}

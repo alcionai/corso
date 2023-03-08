@@ -194,7 +194,7 @@ func (suite *FaultErrorsUnitSuite) TestAddSkip() {
 	n.AddRecoverable(assert.AnError)
 	assert.Len(t, n.Skipped(), 0)
 
-	n.AddSkip(fault.OwnerSkip(fault.SkipMalware, "id", "name"))
+	n.AddSkip(fault.OwnerSkip(fault.SkipMalware, "id", "name", nil))
 	assert.Len(t, n.Skipped(), 1)
 }
 
@@ -230,6 +230,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 
 func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 	ae := assert.AnError
+	addtl := map[string]any{"foo": "bar", "baz": 1}
 
 	table := []struct {
 		name   string
@@ -258,49 +259,49 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			name: "failure item",
 			errs: func() fault.Errors {
 				b := fault.New(false)
-				b.Fail(fault.OwnerErr(ae, "id", "name"))
+				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
 				b.AddRecoverable(ae)
 
 				return b.Errors()
 			},
-			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name")},
+			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
 		},
 		{
 			name: "recoverable item",
 			errs: func() fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.OwnerErr(ae, "id", "name"))
+				b.AddRecoverable(fault.OwnerErr(ae, "id", "name", addtl))
 
 				return b.Errors()
 			},
-			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name")},
+			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
 		},
 		{
 			name: "two items",
 			errs: func() fault.Errors {
 				b := fault.New(false)
-				b.Fail(fault.OwnerErr(ae, "oid", "name"))
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name", "cid", "cname"))
+				b.Fail(fault.OwnerErr(ae, "oid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
 
 				return b.Errors()
 			},
 			expect: []fault.Item{
-				*fault.OwnerErr(ae, "oid", "name"),
-				*fault.FileErr(ae, "fid", "name", "cid", "cname"),
+				*fault.OwnerErr(ae, "oid", "name", addtl),
+				*fault.FileErr(ae, "fid", "name", addtl),
 			},
 		},
 		{
 			name: "duplicate items - failure priority",
 			errs: func() fault.Errors {
 				b := fault.New(false)
-				b.Fail(fault.OwnerErr(ae, "id", "name"))
-				b.AddRecoverable(fault.FileErr(ae, "id", "name", "cid", "cname"))
+				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "id", "name", addtl))
 
 				return b.Errors()
 			},
 			expect: []fault.Item{
-				*fault.OwnerErr(ae, "id", "name"),
+				*fault.OwnerErr(ae, "id", "name", addtl),
 			},
 		},
 		{
@@ -308,13 +309,13 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 			errs: func() fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name", "cid", "cname"))
-				b.AddRecoverable(fault.FileErr(ae, "fid", "name2", "cid2", "cname2"))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name2", addtl))
 
 				return b.Errors()
 			},
 			expect: []fault.Item{
-				*fault.FileErr(ae, "fid", "name2", "cid2", "cname2"),
+				*fault.FileErr(ae, "fid", "name2", addtl),
 			},
 		},
 	}

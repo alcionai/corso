@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
@@ -312,4 +313,33 @@ func appendIf(a []any, k string, v *string) []any {
 	}
 
 	return append(a, k, *v)
+}
+
+// MalwareInfo gathers potentially useful information about a malware infected
+// drive item, and aggregates that data into a map.
+func MalwareInfo(item models.DriveItemable) map[string]any {
+	m := map[string]any{}
+
+	creator := item.GetCreatedByUser()
+	if creator != nil {
+		m["created_by"] = ptr.Val(creator.GetId())
+	}
+
+	lastmodder := item.GetLastModifiedByUser()
+	if lastmodder != nil {
+		m["last_modified_by"] = ptr.Val(lastmodder.GetId())
+	}
+
+	parent := item.GetParentReference()
+	if parent != nil {
+		m["container_id"] = ptr.Val(parent.GetId())
+		m["container_name"] = ptr.Val(parent.GetName())
+	}
+
+	malware := item.GetMalware()
+	if malware != nil {
+		m["malware_desciption"] = ptr.Val(malware.GetDescription())
+	}
+
+	return m
 }
