@@ -388,6 +388,13 @@ func (c *Collections) Get(
 					clues.Wrap(err, "invalid previous path").WithClues(ctx).With("deleted_path", p)
 			}
 
+			// driveName, err := fetchDriveName(ctx, c.service, driveID)
+			// if err != nil {
+			// 	return nil, map[string]struct{}{},
+			// 		clues.Wrap(err, "unable to get driveMap information").
+			// 			With("driveID", driveID)
+			// }
+
 			col := NewCollection(
 				c.itemClient,
 				nil,
@@ -399,6 +406,8 @@ func (c *Collections) Get(
 				c.ctrl,
 				true,
 			)
+
+			col.driveMap[driveID] = driveName
 			c.CollectionMap[i] = col
 		}
 	}
@@ -531,7 +540,6 @@ func (c *Collections) handleDelete(
 		// DoNotMerge is not checked for deleted items.
 		false,
 	)
-
 	c.CollectionMap[itemID] = col
 
 	return nil
@@ -609,6 +617,8 @@ func (c *Collections) UpdateCollections(
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
+	driveMap := make(map[string]string)
+	driveMap[driveID] = driveName
 
 	for _, item := range items {
 		if el.Failure() != nil {
@@ -708,6 +718,10 @@ func (c *Collections) UpdateCollections(
 				c.ctrl,
 				invalidPrevDelta,
 			)
+			for k, v := range driveMap {
+				col.driveMap[k] = v
+			}
+
 			c.CollectionMap[itemID] = col
 			c.NumContainers++
 
