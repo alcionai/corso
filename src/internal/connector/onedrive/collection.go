@@ -72,7 +72,10 @@ type Collection struct {
 	folderPath path.Path
 	// M365 IDs of file items within this collection
 	driveItems map[string]models.DriveItemable
-	// M365 ID of the drive this collection was created from
+	// Map of M365 Drive/Names associated with collection
+	// key M365ID: Value DriveName
+	driveMap map[string]string
+	// Primary M365 ID of the drive this collection was created from
 	driveID        string
 	source         driveSource
 	service        graph.Servicer
@@ -127,6 +130,7 @@ func NewCollection(
 		folderPath:      folderPath,
 		prevPath:        prevPath,
 		driveItems:      map[string]models.DriveItemable{},
+		driveMap:        make(map[string]string),
 		driveID:         driveID,
 		source:          source,
 		service:         service,
@@ -293,6 +297,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		itemsFound int64
 		dirsFound  int64
 		wg         sync.WaitGroup
+		lock       sync.Mutex
 		el         = errs.Local()
 	)
 
@@ -324,7 +329,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
-		go func(ctx context.Context, item models.DriveItemable) {
+		go func(ctx context.Context, item models.DriveItemable, driveMap *map[string]string, l *sync.Mutex) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -345,16 +350,15 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			// TODO: Removing the logic below because it introduces an extra Graph API call for
-			// every item being backed up. This can lead to throttling errors.
-			//
-			// pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
-			// if err != nil {
-			// 	el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-			// 	return
-			// }
+			l.Lock()
+			pr, err := updateParentReference(ctx, oc.service, item.GetParentReference(), driveMap, l)
 
-			// item.SetParentReference(pr)
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+				return
+			}
+
+			item.SetParentReference(pr)
 
 			isFile := item.GetFile() != nil
 
@@ -486,7 +490,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			atomic.AddInt64(&byteCount, itemSize)
 
 			folderProgress <- struct{}{}
-		}(ctx, item)
+		}(ctx, item, &oc.driveMap, &lock)
 	}
 
 	wg.Wait()
