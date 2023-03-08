@@ -470,7 +470,8 @@ func consumeBackupDataCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	if kopiaStats.ErrorCount > 0 || kopiaStats.IgnoredErrorCount > 0 {
+	if kopiaStats.ErrorCount > 0 ||
+		(kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount) {
 		err = clues.New("building kopia snapshot").With(
 			"kopia_errors", kopiaStats.ErrorCount,
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)

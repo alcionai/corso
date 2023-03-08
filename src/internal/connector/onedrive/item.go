@@ -140,7 +140,7 @@ func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemabl
 
 	req, err := http.NewRequest(http.MethodGet, *url, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "new request")
+		return nil, graph.Wrap(ctx, err, "new item download request")
 	}
 
 	//nolint:lll
@@ -150,11 +150,21 @@ func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemabl
 
 	resp, err := hc.Do(req)
 	if err != nil {
-		return nil, err
+		cerr := graph.Wrap(ctx, err, "downloading item")
+
+		if graph.IsMalware(err) {
+			cerr = cerr.Label(graph.LabelsMalware)
+		}
+
+		return nil, cerr
 	}
 
 	if (resp.StatusCode / 100) == 2 {
 		return resp, nil
+	}
+
+	if graph.IsMalwareResp(context.Background(), resp) {
+		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {

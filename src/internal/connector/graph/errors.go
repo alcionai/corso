@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
@@ -27,6 +29,7 @@ const (
 	errCodeItemNotFoundShort           = "itemNotFound"
 	errCodeEmailFolderNotFound         = "ErrorSyncFolderNotFound"
 	errCodeResyncRequired              = "ResyncRequired" // alt: resyncRequired
+	errCodeMalwareDetected             = "malwareDetected"
 	errCodeSyncFolderNotFound          = "ErrorSyncFolderNotFound"
 	errCodeSyncStateNotFound           = "SyncStateNotFound"
 	errCodeResourceNotFound            = "ResourceNotFound"
@@ -50,11 +53,10 @@ var (
 	mysiteNotFound    = "user's mysite not found"
 )
 
-var Labels = struct {
-	MysiteNotFound string
-}{
-	MysiteNotFound: "mysite_not_found",
-}
+const (
+	LabelsMalware        = "malware_detected"
+	LabelsMysiteNotFound = "mysite_not_found"
+)
 
 // The folder or item was deleted between the time we identified
 // it and when we tried to fetch data for it.
@@ -183,6 +185,31 @@ func IsInternalServerError(err error) bool {
 	return errors.As(err, &e)
 }
 
+// IsMalware is true if the graphAPI returns a "malware detected" error code.
+func IsMalware(err error) bool {
+	return hasErrorCode(err, errCodeMalwareDetected)
+}
+
+func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
+	// https://learn.microsoft.com/en-us/openspecs/sharepoint_protocols/ms-wsshp/ba4ee7a8-704c-4e9c-ab14-fa44c574bdf4
+	// https://learn.microsoft.com/en-us/openspecs/sharepoint_protocols/ms-wdvmoduu/6fa6d4a9-ac18-4cd7-b696-8a3b14a98291
+	if resp.Header.Get("X-Virus-Infected") == "true" {
+		return true
+	}
+
+	respDump, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("dumping http response", "error", err)
+		return false
+	}
+
+	if strings.Contains(string(respDump), errCodeMalwareDetected) {
+		return true
+	}
+
+	return false
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -245,7 +272,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 func setLabels(err *clues.Err, msg string) *clues.Err {
 	if strings.Contains(msg, mysiteNotFound) || strings.Contains(msg, mysiteURLNotFound) {
-		err = err.Label(Labels.MysiteNotFound)
+		err = err.Label(LabelsMysiteNotFound)
 	}
 
 	return err
