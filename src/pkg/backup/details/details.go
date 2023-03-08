@@ -405,19 +405,21 @@ type ItemType int
 // Additionally, any itemType directly assigned a number should not be altered.
 // This applies to  OneDriveItem and FolderItem
 const (
-	UnknownType ItemType = iota
+	UnknownType ItemType = iota // 0, global unknown value
 
-	// separate each service by a factor of 100 for padding
+	// Exchange (00x)
 	ExchangeContact
 	ExchangeEvent
 	ExchangeMail
 	// SharePoint (10x)
-	SharePointLibrary ItemType = iota + 97
-	SharePointList
+	SharePointLibrary ItemType = iota + 97 // 100
+	SharePointList                         // 101...
 	SharePointPage
 
+	// OneDrive (20x)
 	OneDriveItem ItemType = 205
 
+	// Folder Management(30x)
 	FolderItem ItemType = 306
 )
 
