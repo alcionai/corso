@@ -30,10 +30,42 @@ func main() {
 
 	if os.Getenv("EXCHANGE_TEST") == "true" {
 		checkEmailRestoration(client, testUser, folder)
+		checkCalendarsRestoration(client, testUser, folder)
+
 		return
 	}
 
 	checkOnedriveRestoration(client, testUser, folder)
+}
+
+func checkCalendarsRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
+	user := client.UsersById(testUser)
+	calendar := user.Calendars()
+
+	result, err := calendar.Get(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Error getting the drive: %v\n", err)
+		os.Exit(1)
+	}
+
+	totalRestoreEvent := 0
+	totalEvent := 0
+
+	for _, r := range result.GetValue() {
+		calendarItem, _ := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
+		if *r.GetName() == folderName {
+			totalRestoreEvent = len(calendarItem.GetValue())
+
+			continue
+		}
+
+		totalEvent = totalEvent + len(calendarItem.GetValue())
+	}
+
+	if totalRestoreEvent != totalEvent {
+		fmt.Printf("Restore was not successful total events: %d restored events: %d", totalEvent, totalRestoreEvent)
+		os.Exit(1)
+	}
 }
 
 func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
@@ -44,6 +76,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 
 	user := client.UsersById(testUser)
 	mail := user.MailFolders()
+
 	result, err := mail.Get(context.Background(), nil)
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
@@ -65,6 +98,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 
 	user = client.UsersById(testUser)
 	folder := user.MailFoldersById(*restoreFolder.GetId())
+
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
@@ -123,7 +157,13 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 	fmt.Println("Success")
 }
 
-func checkFileData(client *msgraphsdk.GraphServiceClient, driveID, restoreFolderID string, file map[string]int64, folderPermission map[string][]string) {
+func checkFileData(
+	client *msgraphsdk.GraphServiceClient,
+	driveID,
+	restoreFolderID string,
+	file map[string]int64,
+	folderPermission map[string][]string,
+) {
 	itemBuilder := client.DrivesById(driveID).ItemsById(restoreFolderID)
 
 	restoreResponses, _ := itemBuilder.Children().Get(context.Background(), nil)
@@ -138,6 +178,7 @@ func checkFileData(client *msgraphsdk.GraphServiceClient, driveID, restoreFolder
 					*restoreData.GetSize())
 				os.Exit(1)
 			}
+
 			continue
 		}
 
