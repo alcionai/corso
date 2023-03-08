@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -55,10 +56,10 @@ const (
 	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for <site>
 corso backup create sharepoint --site <site_id>
 
-# Backup SharePoint for Alice and Bob
-corso backup create sharepoint --site <site_id_1>,<site_id_2>
+# Backup SharePoint for two different sites
+corso backup create sharepoint --web-url <url_1>,<url_2>
 
-# TODO: Site IDs may contain commas.  We'll need to warn the site about escaping them.
+# Site IDs may contain commas. Either use the web-url or escape the commas within the Site ID.
 
 # Backup all SharePoint data for all sites
 corso backup create sharepoint --site '*'`
@@ -431,10 +432,10 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		LibraryPaths:       libraryPaths,
 		Sites:              site,
 		WebURLs:            weburl,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
 
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
@@ -474,6 +475,7 @@ func runDetailsSharePointCmd(
 	skipReduce bool,
 ) (*details.Details, error) {
 	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
+		fmt.Println("Fail on validate")
 		return nil, err
 	}
 
