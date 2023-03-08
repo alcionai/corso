@@ -52,8 +52,10 @@ type BackupStats struct {
 	CachedFileCount     int
 	UncachedFileCount   int
 	TotalDirectoryCount int
-	IgnoredErrorCount   int
 	ErrorCount          int
+
+	IgnoredErrorCount         int
+	ExpectedIgnoredErrorCount int
 
 	Incomplete       bool
 	IncompleteReason string
@@ -74,8 +76,10 @@ func manifestToStats(
 		CachedFileCount:     int(man.Stats.CachedFiles),
 		UncachedFileCount:   int(man.Stats.NonCachedFiles),
 		TotalDirectoryCount: int(man.Stats.TotalDirectoryCount),
-		IgnoredErrorCount:   int(man.Stats.IgnoredErrorCount),
 		ErrorCount:          int(man.Stats.ErrorCount),
+
+		IgnoredErrorCount:         int(man.Stats.IgnoredErrorCount),
+		ExpectedIgnoredErrorCount: progress.expectedIgnoredErrors,
 
 		Incomplete:       man.IncompleteReason != "",
 		IncompleteReason: man.IncompleteReason,

@@ -416,13 +416,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 					// check for errors following retries
 					if err != nil {
-						if item.GetMalware() != nil {
-							logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
+						if clues.HasLabel(err, graph.LabelsMalware) {
+							logger.Ctx(ctx).Infow("malware item", clues.InErr(err).Slice()...)
 						} else {
 							logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
+							el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						}
 
-						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
 

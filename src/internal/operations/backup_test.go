@@ -18,6 +18,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -106,26 +107,6 @@ func (mbu mockBackuper) BackupCollections(
 	}
 
 	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
-}
-
-// ----- details
-
-type mockDetailsReader struct {
-	entries map[string]*details.Details
-}
-
-func (mdr mockDetailsReader) ReadBackupDetails(
-	ctx context.Context,
-	detailsID string,
-	errs *fault.Bus,
-) (*details.Details, error) {
-	r := mdr.entries[detailsID]
-
-	if r == nil {
-		return nil, errors.Errorf("no details for ID %s", detailsID)
-	}
-
-	return r, nil
 }
 
 // ----- model store for backups
@@ -326,8 +307,7 @@ func makeDetailsEntry(
 		assert.FailNowf(
 			t,
 			"service %s not supported in helper function",
-			p.Service().String(),
-		)
+			p.Service().String())
 	}
 
 	return res
@@ -1221,14 +1201,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mdr := mockDetailsReader{entries: test.populatedDetails}
+			mds := ssmock.DetailsStreamer{Entries: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
 			deets := details.Builder{}
 
 			err := mergeDetails(
 				ctx,
 				w,
-				mdr,
+				mds,
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
 				&deets,
@@ -1303,50 +1283,107 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			backup1.ID: backup1,
 		}
 
-		itemSize    = 42
-		itemDetails = makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
-
-		populatedDetails = map[string]*details.Details{
-			backup1.DetailsID: {
-				DetailsModel: details.DetailsModel{
-					Entries: []details.DetailsEntry{
-						*itemDetails,
-					},
-				},
-			},
-		}
-
-		expectedEntries = []details.DetailsEntry{
-			*itemDetails,
-		}
+		itemSize = 42
+		now      = time.Now()
+		// later    = now.Add(42 * time.Minute)
 	)
 
-	itemDetails.Exchange.Modified = time.Now()
+	itemDetails := makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
+	// itemDetails.Exchange.Modified = now
+
+	populatedDetails := map[string]*details.Details{
+		backup1.DetailsID: {
+			DetailsModel: details.DetailsModel{
+				Entries: []details.DetailsEntry{*itemDetails},
+			},
+		},
+	}
+
+	expectedEntries := []details.DetailsEntry{*itemDetails}
+
+	// update the details
+	itemDetails.Exchange.Modified = now
 
 	for i := 1; i < len(pathElems); i++ {
 		expectedEntries = append(expectedEntries, *makeFolderEntry(
 			t,
 			path.Builder{}.Append(pathElems[:i]...),
 			int64(itemSize),
-			itemDetails.Exchange.Modified,
-		))
+			itemDetails.Exchange.Modified))
 	}
 
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	mdr := mockDetailsReader{entries: populatedDetails}
-	w := &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
-	deets := details.Builder{}
+	var (
+		mds   = ssmock.DetailsStreamer{Entries: populatedDetails}
+		w     = &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
+		deets = details.Builder{}
+	)
 
 	err := mergeDetails(
 		ctx,
 		w,
-		mdr,
+		mds,
 		inputMans,
 		inputToMerge,
 		&deets,
 		fault.New(true))
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, expectedEntries, deets.Details().Entries)
+	compareDeetEntries(t, expectedEntries, deets.Details().Entries)
+}
+
+// compares two details slices.  Useful for tests where serializing the
+// entries can produce minor variations in the time struct, causing
+// assert.elementsMatch to fail.
+func compareDeetEntries(t *testing.T, expect, result []details.DetailsEntry) {
+	if !assert.Equal(t, len(expect), len(result), "entry slices should be equal len") {
+		require.ElementsMatch(t, expect, result)
+	}
+
+	var (
+		// repoRef -> modified time
+		eMods = map[string]time.Time{}
+		es    = make([]details.DetailsEntry, 0, len(expect))
+		rs    = make([]details.DetailsEntry, 0, len(expect))
+	)
+
+	for _, e := range expect {
+		eMods[e.RepoRef] = e.Modified()
+		es = append(es, withoutModified(e))
+	}
+
+	for _, r := range result {
+		// this comparison is an artifact of bad comparisons across time.Time
+		// serialization using assert.ElementsMatch.  The time struct can produce
+		// differences in its `ext` value across serialization while the actual time
+		// reference remains the same.  assert handles this poorly, whereas the time
+		// library provides successful comparison.
+		assert.Truef(
+			t,
+			eMods[r.RepoRef].Equal(r.Modified()),
+			"expected modified time %v, got %v", eMods[r.RepoRef], r.Modified())
+
+		rs = append(rs, withoutModified(r))
+	}
+
+	assert.ElementsMatch(t, es, rs)
+}
+
+func withoutModified(de details.DetailsEntry) details.DetailsEntry {
+	switch {
+	case de.Exchange != nil:
+		de.Exchange.Modified = time.Time{}
+
+	case de.OneDrive != nil:
+		de.OneDrive.Modified = time.Time{}
+
+	case de.SharePoint != nil:
+		de.SharePoint.Modified = time.Time{}
+
+	case de.Folder != nil:
+		de.Folder.Modified = time.Time{}
+	}
+
+	return de
 }
