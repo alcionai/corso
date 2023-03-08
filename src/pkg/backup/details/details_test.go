@@ -94,6 +94,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemType:   ExchangeMail,
 						Sender:     "sender",
 						ParentPath: "Parent",
+						Recipient:  []string{"receiver"},
 						Subject:    "subject",
 						Received:   now,
 					},

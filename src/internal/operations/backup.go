@@ -127,7 +127,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	var (
 		opStats      backupStats
 		startTime    = time.Now()
-		detailsStore = streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
+		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())

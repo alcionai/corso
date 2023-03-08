@@ -120,7 +120,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			restoreID: uuid.NewString(),
 		}
 		start        = time.Now()
-		detailsStore = streamstore.New(op.kopia, op.account.ID(), op.Selectors.PathService())
+		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	// -----

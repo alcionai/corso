@@ -19,10 +19,14 @@ import (
 
 // common flag names
 const (
-	BackupFN = "backup"
-	DataFN   = "data"
-	SiteFN   = "site"
-	UserFN   = "user"
+	BackupFN             = "backup"
+	DataFN               = "data"
+	SiteFN               = "site"
+	UserFN               = "user"
+	FileCreatedAfterFN   = "file-created-after"
+	FileCreatedBeforeFN  = "file-created-before"
+	FileModifiedAfterFN  = "file-modified-after"
+	FileModifiedBeforeFN = "file-modified-before"
 )
 
 const (

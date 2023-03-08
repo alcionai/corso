@@ -353,22 +353,31 @@ func (c Mail) Serialize(
 // ---------------------------------------------------------------------------
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
-	sender := ""
-	subject := ptr.Val(msg.GetSubject())
-	received := ptr.Val(msg.GetReceivedDateTime())
-	created := ptr.Val(msg.GetCreatedDateTime())
+	var (
+		sender     = graph.UnwrapEmailAddress(msg.GetSender())
+		subject    = ptr.Val(msg.GetSubject())
+		received   = ptr.Val(msg.GetReceivedDateTime())
+		created    = ptr.Val(msg.GetCreatedDateTime())
+		recipients = make([]string, 0)
+	)
 
-	if msg.GetSender() != nil &&
-		msg.GetSender().GetEmailAddress() != nil {
-		sender = ptr.Val(msg.GetSender().GetEmailAddress().GetAddress())
+	if msg.GetToRecipients() != nil {
+		ppl := msg.GetToRecipients()
+		for _, entry := range ppl {
+			temp := graph.UnwrapEmailAddress(entry)
+			if len(temp) > 0 {
+				recipients = append(recipients, temp)
+			}
+		}
 	}
 
 	return &details.ExchangeInfo{
-		ItemType: details.ExchangeMail,
-		Sender:   sender,
-		Subject:  subject,
-		Received: received,
-		Created:  created,
-		Modified: ptr.OrNow(msg.GetLastModifiedDateTime()),
+		ItemType:  details.ExchangeMail,
+		Sender:    sender,
+		Recipient: recipients,
+		Subject:   subject,
+		Received:  received,
+		Created:   created,
+		Modified:  ptr.OrNow(msg.GetLastModifiedDateTime()),
 	}
 }

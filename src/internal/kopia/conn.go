@@ -90,13 +90,22 @@ func (w *conn) Initialize(ctx context.Context) error {
 		return clues.Wrap(err, "initialzing repo").WithClues(ctx)
 	}
 
-	return w.commonConnect(
+	err = w.commonConnect(
 		ctx,
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
 		defaultCompressor,
 	)
+	if err != nil {
+		return err
+	}
+
+	if err := w.setDefaultConfigValues(ctx); err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
+	return nil
 }
 
 func (w *conn) Connect(ctx context.Context) error {
@@ -151,10 +160,6 @@ func (w *conn) commonConnect(
 	}
 
 	if err := w.open(ctx, cfgFile, password); err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	if err := w.setDefaultConfigValues(ctx); err != nil {
 		return clues.Stack(err).WithClues(ctx)
 	}
 
