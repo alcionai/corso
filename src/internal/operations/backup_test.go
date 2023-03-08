@@ -356,15 +356,15 @@ func makeManifest(t *testing.T, backupID model.StableID, incompleteReason string
 // unit tests
 // ---------------------------------------------------------------------------
 
-type BackupOpSuite struct {
+type BackupOpUnitSuite struct {
 	tester.Suite
 }
 
-func TestBackupOpSuite(t *testing.T) {
-	suite.Run(t, &BackupOpSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupOpUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -446,7 +446,7 @@ func (suite *BackupOpSuite) TestBackupOperation_PersistResults() {
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections_Paths() {
 	var (
 		tenant        = "a-tenant"
 		resourceOwner = "a-user"
@@ -599,7 +599,7 @@ func (suite *BackupOpSuite) TestBackupOperation_ConsumeBackupDataCollections_Pat
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	var (
 		tenant = "a-tenant"
 		ro     = "a-user"
@@ -1244,7 +1244,7 @@ func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
 	}
 }
 
-func (suite *BackupOpSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
+func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolders() {
 	var (
 		t = suite.T()
 
