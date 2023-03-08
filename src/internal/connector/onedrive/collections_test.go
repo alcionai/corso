@@ -175,6 +175,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 		expectedItemCount      int
 		expectedContainerCount int
 		expectedFileCount      int
+		expectedSkippedCount   int
 		expectedMetadataPaths  map[string]string
 		expectedExcludes       map[string]struct{}
 	}{
@@ -745,6 +746,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 			expectedItemCount:      4,
 			expectedFileCount:      2,
 			expectedContainerCount: 3,
+			expectedSkippedCount:   1,
 			expectedMetadataPaths: map[string]string{
 				"root":    expectedPath(""),
 				"folder":  expectedPath("/folder"),
@@ -775,6 +777,8 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
 
 			itemCollection := map[string]string{}
+			errs := fault.New(true)
+
 			err := c.UpdateCollections(
 				ctx,
 				"driveID1",
@@ -785,12 +789,13 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				excludes,
 				itemCollection,
 				false,
-				fault.New(true))
+				errs)
 			tt.expect(t, err)
 			assert.Equal(t, len(tt.expectedCollectionIDs), len(c.CollectionMap), "total collections")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
+			assert.Equal(t, tt.expectedSkippedCount, len(errs.Skipped()), "skipped items")
 
 			for id, sp := range tt.expectedCollectionIDs {
 				if !assert.Containsf(t, c.CollectionMap, id, "missing collection with id %s", id) {
@@ -1261,11 +1266,12 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		prevFolderPaths map[string]map[string]string
 		// Collection name -> set of item IDs. We can't check item data because
 		// that's not mocked out. Metadata is checked separately.
-		expectedCollections map[string]map[data.CollectionState][]string
-		expectedDeltaURLs   map[string]string
-		expectedFolderPaths map[string]map[string]string
-		expectedDelList     map[string]struct{}
-		doNotMergeItems     bool
+		expectedCollections  map[string]map[data.CollectionState][]string
+		expectedDeltaURLs    map[string]string
+		expectedFolderPaths  map[string]map[string]string
+		expectedDelList      map[string]struct{}
+		expectedSkippedCount int
+		doNotMergeItems      bool
 	}{
 		{
 			name:   "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
@@ -1813,7 +1819,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: getDelList("file", "file2"),
+			expectedDelList:      getDelList("file", "file2"),
+			expectedSkippedCount: 2,
 		},
 	}
 	for _, test := range table {
@@ -1884,8 +1891,11 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			assert.NoError(t, err, "creating metadata collection")
 
 			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
-			cols, delList, err := c.Get(ctx, prevMetadata, fault.New(true))
+			errs := fault.New(true)
+
+			cols, delList, err := c.Get(ctx, prevMetadata, errs)
 			test.errCheck(t, err)
+			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()))
 
 			if err != nil {
 				return

@@ -608,19 +608,39 @@ func (c *Collections) UpdateCollections(
 			break
 		}
 
+		var (
+			itemID   = ptr.Val(item.GetId())
+			itemName = ptr.Val(item.GetName())
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
+		)
+
 		if item.GetMalware() != nil {
 			// TODO: track the item as skipped; logging alone might
 			// slice out the data from tracking.
 			// https://learn.microsoft.com/en-us/graph/api/resources/malware?view=graph-rest-1.0
 			logger.Ctx(ctx).Infow("malware detected", "malware_description", ptr.Val(item.GetMalware().GetDescription()))
+
+			var (
+				pr     = item.GetParentReference()
+				prID   string
+				prName string
+			)
+
+			if pr != nil {
+				prID = ptr.Val(pr.GetId())
+				prName = ptr.Val(pr.GetName())
+			}
+
+			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, prID, prName)
+			if isFolder {
+				skip = fault.ContainerSkip(fault.SkipMalware, itemID, itemName, prID, prName)
+			}
+
+			errs.AddSkip(skip)
+
 			continue
 		}
-
-		var (
-			itemID   = ptr.Val(item.GetId())
-			ictx     = clues.Add(ctx, "update_item_id", itemID)
-			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
-		)
 
 		// Deleted file or folder.
 		if item.GetDeleted() != nil {

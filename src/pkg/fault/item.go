@@ -136,6 +136,15 @@ func (s *Skipped) String() string {
 	return "skipped " + s.item.Error() + ": " + s.item.Cause
 }
 
+// HasCause compares the underlying cause against the parameter.
+func (s *Skipped) HasCause(c skipCause) bool {
+	if s == nil {
+		return false
+	}
+
+	return s.item.Cause == string(c)
+}
+
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
 func ContainerSkip(cause skipCause, id, name, containerID, containerName string) *Skipped {
 	return &Skipped{

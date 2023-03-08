@@ -416,13 +416,17 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 					// check for errors following retries
 					if err != nil {
-						if clues.HasLabel(err, graph.LabelsMalware) {
-							logger.Ctx(ctx).Infow("malware item", clues.InErr(err).Slice()...)
+						if item.GetMalware() != nil || clues.HasLabel(err, graph.LabelsMalware) {
+							logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
+							// el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, ptr.Val(pr.GetId()), ptr.Val(pr.GetName())))
+							el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, "container-id", "container-name"))
 						} else {
 							logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
 							el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						}
 
+						// return err, not el.Err(), because the lazy reader needs to communicate to
+						// the data consumer that this item is unreadable, regardless of the fault state.
 						return nil, err
 					}
 

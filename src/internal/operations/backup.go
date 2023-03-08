@@ -170,6 +170,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
 	}
 
+	skippedCount := len(op.Errors.Skipped())
+	for i, skip := range op.Errors.Skipped() {
+		logger.Ctx(ctx).With("skip", skip).Infof("doing backup: skipped item %d of %d", i+1, skippedCount)
+	}
+
 	// -----
 	// Persistence
 	// -----
@@ -673,8 +678,7 @@ func (op *BackupOperation) createBackupModels(
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors,
-	)
+		op.Errors)
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
@@ -694,8 +698,7 @@ func (op *BackupOperation) createBackupModels(
 			events.Service:    op.Selectors.PathService().String(),
 			events.StartTime:  common.FormatTime(op.Results.StartedAt),
 			events.Status:     op.Status.String(),
-		},
-	)
+		})
 
 	return nil
 }

@@ -27,7 +27,7 @@ func (suite *ItemUnitSuite) TestItem_Error() {
 	assert.Contains(t, i.Error(), "nil")
 
 	i = &Item{}
-	assert.Contains(t, i.Error(), "unknown kind")
+	assert.Contains(t, i.Error(), "unknown type")
 
 	i = &Item{Type: FileType}
 	assert.Contains(t, i.Error(), FileType)
@@ -91,7 +91,7 @@ func (suite *ItemUnitSuite) TestSkipped_String() {
 	assert.Contains(t, i.String(), "nil")
 
 	i = &Skipped{Item{}}
-	assert.Contains(t, i.String(), "unknown kind")
+	assert.Contains(t, i.String(), "unknown type")
 
 	i = &Skipped{Item{Type: FileType}}
 	assert.Contains(t, i.item.Error(), FileType)
