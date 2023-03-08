@@ -28,7 +28,7 @@ func main() {
 
 	client := msgraphsdk.NewGraphServiceClient(adapter)
 
-	if os.Getenv("EXCHANGE_TEST") == "true" {
+	if os.Getenv("RESTORE_SERVICE") == "exchange" {
 		checkEmailRestoration(client, testUser, folder)
 		checkCalendarsRestoration(client, testUser, folder)
 

@@ -65,7 +65,6 @@ jobs:
           TEST_RESULT: "test_results"
         run: |
           set -euo pipefail
-          touch $TEST_RESULT/initrepo.txt
           prefix=`date +"%Y-%m-%d-%T"`
           ./corso repo init s3 --hide-progress --prefix $prefix --bucket   ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
           valid_num=$(grep 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt | wc -l)
@@ -81,7 +80,6 @@ jobs:
       - name: Repo connect test
         run: |
           set -euo pipefail
-          touch $TEST_RESULT/connect.txt
           ./corso repo connect s3 --hide-progress --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
           valid_num=$(grep 'Connected to S3 bucket' $TEST_RESULT/connect.txt | wc -l)
 
@@ -108,7 +106,6 @@ jobs:
       - name: Backup exchange list test
         run: |
           set -euo pipefail
-          touch $TEST_RESULT/backup_exchange_list.txt
           ./corso backup list exchange --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
           cat $TEST_RESULT/backup_exchange_list.txt 
           valid_num=$(grep -i -e ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt | wc -l)
@@ -156,7 +153,7 @@ jobs:
       - name: Restoration check
         env:
           RESTORE_FOLDER:  ${{ steps.exchange-restore-test.outputs.result }}
-          EXCHANGE_TEST: "true"
+          RESTORE_SERVICE: "exchange"
         run: |
           set -euo pipefail
           ./sanityCheck
@@ -192,7 +189,6 @@ jobs:
       - name: Backup onedrive list test
         run: |
           set -euo pipefail
-          touch $TEST_RESULT/backup_onedrive_list.txt
           ./corso backup list onedrive --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
           valid_num=$(grep -i -e ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt | wc -l)
 
