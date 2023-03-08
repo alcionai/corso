@@ -514,7 +514,7 @@ func (suite *SelectorScopesSuite) TestWrapFilter() {
 		},
 		{
 			name:       "none",
-			filter:     filters.In,
+			filter:     filters.Greater,
 			input:      None(),
 			comparator: int(filters.Fails),
 			target:     NoneTgt,

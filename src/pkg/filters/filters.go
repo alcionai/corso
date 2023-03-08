@@ -129,14 +129,14 @@ func NotContains(target string) Filter {
 
 // In creates a filter where Compare(v) is true if
 // v.Contains(target)
-func In(target string) Filter {
-	return newFilter(TargetIn, target, false)
+func In(targets []string) Filter {
+	return newSliceFilter(TargetIn, targets, targets, false)
 }
 
 // NotIn creates a filter where Compare(v) is true if
 // !v.Contains(target)
-func NotIn(target string) Filter {
-	return newFilter(TargetIn, target, true)
+func NotIn(targets []string) Filter {
+	return newSliceFilter(TargetIn, targets, targets, true)
 }
 
 // Pass creates a filter where Compare(v) always returns true
@@ -394,6 +394,7 @@ func (f Filter) Compare(input string) bool {
 		cmp = contains
 	case TargetIn:
 		cmp = in
+		hasSlice = true
 	case TargetPrefixes:
 		cmp = prefixed
 	case TargetSuffixes:
