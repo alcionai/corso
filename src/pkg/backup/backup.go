@@ -73,6 +73,11 @@ func New(
 		errCount++
 	}
 
+	var failMsg string
+	if ee.Failure != nil {
+		failMsg = ee.Failure.Error()
+	}
+
 	return &Backup{
 		BaseModel: model.BaseModel{
 			ID: id,
@@ -87,7 +92,7 @@ func New(
 		Selector:        selector,
 		FailFast:        ee.FailFast,
 		ErrorCount:      errCount,
-		Failure:         ee.Failure.Error(),
+		Failure:         failMsg,
 		FailedItems:     ee.Items,
 		SkippedItems:    ee.Skipped,
 		ReadWrites:      rw,
@@ -159,7 +164,53 @@ func (b Backup) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (b Backup) Values() []string {
-	status := fmt.Sprintf("%s (%d errors)", b.Status, b.countErrors())
+	status := b.Status
+
+	var (
+		errCount   = b.countErrors()
+		malware    int
+		otherSkips int
+	)
+
+	for _, s := range b.SkippedItems {
+		if s.HasCause(fault.SkipMalware) {
+			malware++
+		} else {
+			otherSkips++
+		}
+	}
+
+	if errCount+len(b.SkippedItems) > 0 {
+		status += (" (")
+	}
+
+	if errCount > 0 {
+		status += fmt.Sprintf("%d errors", errCount)
+	}
+
+	if errCount > 0 && len(b.SkippedItems) > 0 {
+		status += ", "
+	}
+
+	if len(b.SkippedItems) > 0 {
+		status += fmt.Sprintf("%d skipped: ", len(b.SkippedItems))
+	}
+
+	if malware > 0 {
+		status += fmt.Sprintf("%d malware", malware)
+	}
+
+	if malware > 0 && otherSkips > 0 {
+		status += ", "
+	}
+
+	if otherSkips > 0 {
+		status += fmt.Sprintf("%d other", otherSkips)
+	}
+
+	if errCount+len(b.SkippedItems) > 0 {
+		status += (")")
+	}
 
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),

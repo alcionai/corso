@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Show owner information when doing backup list in json format
-- Onedrive files that are flagged as malware get skipped during backup.
 - Permissions for groups can now be backed up and restored
+- Onedrive files that are flagged as malware get skipped during backup.  Skipped files are listed in the backup results as part of the status, eg: "Completed (0 errors, 1 skipped)".
 
 ### Fixed
 - Corso-generated .meta files and permissions no longer appear in the backup details.

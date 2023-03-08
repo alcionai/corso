@@ -18,12 +18,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-type BackupSuite struct {
+type BackupUnitSuite struct {
 	tester.Suite
 }
 
-func TestBackupSuite(t *testing.T) {
-	suite.Run(t, &BackupSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func stubBackup(t time.Time) backup.Backup {
@@ -72,33 +72,88 @@ func stubBackup(t time.Time) backup.Backup {
 	}
 }
 
-func (suite *BackupSuite) TestBackup_HeadersValues() {
-	t := suite.T()
-	now := time.Now()
-	b := stubBackup(now)
+func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
+	var (
+		t        = suite.T()
+		now      = time.Now()
+		b        = stubBackup(now)
+		expectHs = []string{
+			"Started At",
+			"ID",
+			"Status",
+			"Resource Owner",
+		}
+		nowFmt   = common.FormatTabularDisplayTime(now)
+		expectVs = []string{
+			nowFmt,
+			"id",
+			"status (2 errors, 1 skipped: 1 malware)",
+			"test",
+		}
+	)
 
-	expectHs := []string{
-		"Started At",
-		"ID",
-		"Status",
-		"Resource Owner",
-	}
+	// single skipped malware
 	hs := b.Headers()
 	assert.Equal(t, expectHs, hs)
-
-	nowFmt := common.FormatTabularDisplayTime(now)
-	expectVs := []string{
-		nowFmt,
-		"id",
-		"status (2 errors)",
-		"test",
-	}
 
 	vs := b.Values()
 	assert.Equal(t, expectVs, vs)
 }
 
-func (suite *BackupSuite) TestBackup_MinimumPrintable() {
+func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
+	table := []struct {
+		name   string
+		bup    backup.Backup
+		expect string
+	}{
+		{
+			name:   "no extras",
+			bup:    backup.Backup{Status: "test"},
+			expect: "test",
+		},
+		{
+			name: "errors",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+			},
+			expect: "test (42 errors)",
+		},
+		{
+			name: "malware",
+			bup: backup.Backup{
+				Status: "test",
+				SkippedItems: []fault.Skipped{*fault.FileSkip(
+					fault.SkipMalware,
+					"id", "name",
+					"containerID", "containerName",
+				)},
+			},
+			expect: "test (1 skipped: 1 malware)",
+		},
+		{
+			name: "errors and malware",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+				SkippedItems: []fault.Skipped{*fault.FileSkip(
+					fault.SkipMalware,
+					"id", "name",
+					"containerID", "containerName",
+				)},
+			},
+			expect: "test (42 errors, 1 skipped: 1 malware)",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			result := test.bup.Values()
+			assert.Equal(suite.T(), test.expect, result[2], "status value")
+		})
+	}
+}
+
+func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	t := suite.T()
 	now := time.Now()
 	b := stubBackup(now)
