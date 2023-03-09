@@ -32,14 +32,13 @@ func main() {
 
 	client := msgraphsdk.NewGraphServiceClient(adapter)
 
-	if os.Getenv("RESTORE_SERVICE") == "exchange" {
+	switch service := os.Getenv("RESTORE_SERVICE"); service {
+	case "exchange":
 		checkEmailRestoration(client, testUser, folder)
 		checkCalendarsRestoration(client, testUser, folder)
-
-		return
+	default:
+		checkOnedriveRestoration(client, testUser, folder)
 	}
-
-	checkOnedriveRestoration(client, testUser, folder)
 }
 
 func checkCalendarsRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string) {
@@ -56,7 +55,12 @@ func checkCalendarsRestoration(client *msgraphsdk.GraphServiceClient, testUser, 
 	totalEvent := 0
 
 	for _, r := range result.GetValue() {
-		calendarItem, _ := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
+		calendarItem, err := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
+		if err != nil {
+			fmt.Printf("Error calendar by id: %v\n", err)
+			os.Exit(1)
+		}
+
 		if strings.Contains(*r.GetName(), folderName) {
 			totalRestoreEvent = len(calendarItem.GetValue())
 			fmt.Printf("Calendar restore folder:  %s with events: %d \n",
@@ -138,7 +142,12 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 		os.Exit(1)
 	}
 
-	response, _ := client.DrivesById(*drive.GetId()).Root().Children().Get(context.Background(), nil)
+	response, err := client.DrivesById(*drive.GetId()).Root().Children().Get(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Error getting drive by id: %v\n", err)
+		os.Exit(1)
+	}
+
 	for _, driveItem := range response.GetValue() {
 		if *driveItem.GetName() == folderName {
 			restoreFolderID = *driveItem.GetId()
@@ -151,11 +160,15 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 		}
 
 		if driveItem.GetFolder() != nil {
-			permission, _ := client.
+			permission, err := client.
 				DrivesById(*drive.GetId()).
 				ItemsById(*driveItem.GetId()).
 				Permissions().
 				Get(context.TODO(), nil)
+			if err != nil {
+				fmt.Printf("Error getting item by id: %v\n", err)
+				os.Exit(1)
+			}
 
 			// check if permission are correct on folder
 			for _, permission := range permission.GetValue() {
@@ -180,7 +193,12 @@ func checkFileData(
 ) {
 	itemBuilder := client.DrivesById(driveID).ItemsById(restoreFolderID)
 
-	restoreResponses, _ := itemBuilder.Children().Get(context.Background(), nil)
+	restoreResponses, err := itemBuilder.Children().Get(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Error getting child folder: %v\n", err)
+		os.Exit(1)
+	}
+
 	for _, restoreData := range restoreResponses.GetValue() {
 		restoreName := *restoreData.GetName()
 
@@ -197,7 +215,12 @@ func checkFileData(
 		}
 
 		itemBuilder := client.DrivesById(driveID).ItemsById(*restoreData.GetId())
-		permissionColl, _ := itemBuilder.Permissions().Get(context.TODO(), nil)
+		permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
+
+		if err != nil {
+			fmt.Printf("Error getting permission: %v\n", err)
+			os.Exit(1)
+		}
 
 		userPermission := []string{}
 
