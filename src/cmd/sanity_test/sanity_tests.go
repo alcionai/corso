@@ -40,65 +40,69 @@ func main() {
 	case "exchange":
 		checkEmailRestoration(client, testUser, folder, startTime)
 		// since multiple test cases are running in test env, the test case fails
-		checkCalendarsRestoration(client, testUser, folder, startTime)
+		// checkCalendarsRestoration(client, testUser, folder, startTime)
 	default:
 		checkOnedriveRestoration(client, testUser, folder, startTime)
 	}
 }
 
 // TODO: since multiple test cases are running in test env, the test case fails. We will need another test account
-func checkCalendarsRestoration(
-	client *msgraphsdk.GraphServiceClient,
-	testUser,
-	folderName string,
-	startTime time.Time,
-) {
-	user := client.UsersById(testUser)
-	calendar := user.Calendars()
+// func checkCalendarsRestoration(
+// 	client *msgraphsdk.GraphServiceClient,
+// 	testUser,
+// 	folderName string,
+// 	startTime time.Time,
+// ) {
+// 	user := client.UsersById(testUser)
+// 	calendar := user.Calendars()
 
-	result, err := calendar.Get(context.Background(), nil)
-	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
-	}
+// 	result, err := calendar.Get(context.Background(), nil)
+// 	if err != nil {
+// 		fmt.Printf("Error getting the drive: %v\n", err)
+// 		os.Exit(1)
+// 	}
 
-	totalRestoreEvent := 0
-	totalEvent := 0
+// 	totalRestoreEvent := 0
+// 	totalEvent := 0
 
-	for _, r := range result.GetValue() {
-		calendarItem, err := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
-		if err != nil {
-			fmt.Printf("Error calendar by id: %v\n", err)
-			os.Exit(1)
-		}
+// 	for _, r := range result.GetValue() {
+// 		fmt.Println("Folder name: ", *r.GetName())
+// 		calendarItem, err := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
+// 		if err != nil {
+// 			fmt.Printf("Error calendar by id: %v\n", err)
+// 			os.Exit(1)
+// 		}
 
-		restoreStartTime := strings.SplitAfter(*r.GetName(), "Corso_Restore_")[1]
-		rStartTime, _ := time.Parse(time.RFC822, restoreStartTime)
+// 		var rStartTime time.Time
 
-		if startTime.Before(rStartTime) {
-			fmt.Printf("The restore folder %s was created after %s. Will skip check.", *r.GetName(), folderName)
-			continue
-		}
+// 		restoreStartTime := strings.SplitAfter(*r.GetName(), "Corso_Restore_")
+// 		if len(restoreStartTime) > 1 {
+// 			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
+// 			if startTime.Before(rStartTime) {
+// 				fmt.Printf("The restore folder %s was created after %s. Will skip check.", *r.GetName(), folderName)
+// 				continue
+// 			}
+// 		}
 
-		if strings.Contains(*r.GetName(), folderName) {
-			totalRestoreEvent = len(calendarItem.GetValue())
-			fmt.Printf("Calendar restore folder:  %s with events: %d \n",
-				*r.GetName(),
-				totalRestoreEvent)
+// 		if strings.Contains(*r.GetName(), folderName) {
+// 			totalRestoreEvent = len(calendarItem.GetValue())
+// 			fmt.Printf("Calendar restore folder:  %s with events: %d \n",
+// 				*r.GetName(),
+// 				totalRestoreEvent)
 
-			continue
-		}
+// 			continue
+// 		}
 
-		eventCount := len(calendarItem.GetValue())
-		fmt.Printf("Calendar folder: %s with %d \n", *r.GetName(), eventCount)
-		totalEvent = totalEvent + eventCount
-	}
+// 		eventCount := len(calendarItem.GetValue())
+// 		fmt.Printf("Calendar folder: %s with %d \n", *r.GetName(), eventCount)
+// 		totalEvent = totalEvent + eventCount
+// 	}
 
-	if totalRestoreEvent != totalEvent {
-		fmt.Printf("Restore was not successful total events: %d restored events: %d", totalEvent, totalRestoreEvent)
-		os.Exit(1)
-	}
-}
+// 	if totalRestoreEvent != totalEvent {
+// 		fmt.Printf("Restore was not successful total events: %d restored events: %d", totalEvent, totalRestoreEvent)
+// 		os.Exit(1)
+// 	}
+// }
 
 func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
 	var (
@@ -131,12 +135,15 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 	for _, r := range res {
 		name := *r.GetDisplayName()
 
-		restoreStartTime := strings.SplitAfter(name, "Corso_Restore_")[1]
-		rStartTime, _ := time.Parse(time.RFC822, restoreStartTime)
+		var rStartTime time.Time
 
-		if startTime.Before(rStartTime) {
-			fmt.Printf("The restore folder %s was created after %s. Will skip check.", name, folderName)
-			continue
+		restoreStartTime := strings.SplitAfter(name, "Corso_Restore_")
+		if len(restoreStartTime) > 1 {
+			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
+			if startTime.Before(rStartTime) {
+				fmt.Printf("The restore folder %s was created after %s. Will skip check.", name, folderName)
+				continue
+			}
 		}
 
 		if name == folderName {
@@ -144,6 +151,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 			continue
 		}
 
+		fmt.Println("Folder name: ", *r.GetDisplayName(), "count: ", *r.GetTotalItemCount())
 		messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 	}
 
@@ -192,12 +200,15 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 			continue
 		}
 
-		restoreStartTime := strings.SplitAfter(*driveItem.GetName(), "Corso_Restore_")[1]
-		rStartTime, _ := time.Parse(time.RFC822, restoreStartTime)
+		var rStartTime time.Time
 
-		if startTime.Before(rStartTime) {
-			fmt.Printf("The restore folder %s was created after %s. Will skip check.", *driveItem.GetName(), folderName)
-			continue
+		restoreStartTime := strings.SplitAfter(*driveItem.GetName(), "Corso_Restore_")
+		if len(restoreStartTime) > 1 {
+			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
+			if startTime.Before(rStartTime) {
+				fmt.Printf("The restore folder %s was created after %s. Will skip check.", *driveItem.GetName(), folderName)
+				continue
+			}
 		}
 
 		// if it's a file check the size

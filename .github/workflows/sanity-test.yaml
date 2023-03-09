@@ -108,7 +108,7 @@ jobs:
         id: exchange-test
         run: |
           ./corso backup create exchange \
-          --user "${CORSO_M365_TEST_USER_ID}"\
+          --user "${CORSO_M365_TEST_USER_ID}" \
            --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt
