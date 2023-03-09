@@ -88,7 +88,7 @@ type (
 		//   folderCat: folder,
 		//   itemCat:   itemID,
 		// }
-		pathValues(path.Path, path.Path) (map[categorizer]string, map[categorizer]string)
+		pathValues(path.Path, details.DetailsEntry) map[categorizer][]string
 
 		// pathKeys produces a list of categorizers that can be used as keys in the pathValues
 		// map.  The combination of the two funcs generically interprets the context of the
@@ -212,6 +212,20 @@ func matches[T scopeT, C categoryT](s T, cat C, inpt string) bool {
 	return s[cat.String()].Compare(inpt)
 }
 
+// matchesAny returns true if the category is included in the scope's
+// data type, and any one of the input strings passes the scope's filter.
+func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
+	if !typeAndCategoryMatches(cat, s.categorizer()) {
+		return false
+	}
+
+	if len(inpts) == 0 {
+		return false
+	}
+
+	return s[cat.String()].CompareAny(inpts...)
+}
+
 // getCategory returns the scope's category value.
 // if s is a filter-type scope, returns the filter category.
 func getCategory[T scopeT](s T) string {
@@ -297,6 +311,8 @@ func reduce[T scopeT, C categoryT](
 		return nil
 	}
 
+	el := errs.Local()
+
 	// if a DiscreteOwner is specified, only match details for that owner.
 	matchesResourceOwner := s.ResourceOwners
 	if len(s.DiscreteOwner) > 0 {
@@ -314,33 +330,8 @@ func reduce[T scopeT, C categoryT](
 	for _, ent := range deets.Items() {
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
-			errs.AddRecoverable(clues.Wrap(err, "transforming repoRef to path").WithClues(ctx))
+			el.AddRecoverable(clues.Wrap(err, "transforming repoRef to path").WithClues(ctx))
 			continue
-		}
-
-		var locationPath path.Path
-
-		// if the details entry has a locationRef specified, use those folders in place
-		// of the repoRef folders, so that scopes can match against the display names
-		// instead of container IDs.
-		if len(ent.LocationRef) > 0 {
-			pb, err := path.Builder{}.SplitUnescapeAppend(ent.LocationRef)
-			if err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
-				continue
-			}
-
-			locationPath, err = pb.Append(repoPath.Item()).
-				ToDataLayerPath(
-					repoPath.Tenant(),
-					repoPath.ResourceOwner(),
-					repoPath.Service(),
-					repoPath.Category(),
-					true)
-			if err != nil {
-				errs.AddRecoverable(clues.Wrap(err, "transforming locationRef to path").WithClues(ctx))
-				continue
-			}
 		}
 
 		// first check, every entry needs to match the selector's resource owners.
@@ -360,9 +351,9 @@ func reduce[T scopeT, C categoryT](
 			continue
 		}
 
-		rv, lv := dc.pathValues(repoPath, locationPath)
+		pv := dc.pathValues(repoPath, *ent)
 
-		passed := passes(dc, rv, lv, *ent, e, f, i)
+		passed := passes(dc, pv, *ent, e, f, i)
 		if passed {
 			ents = append(ents, *ent)
 		}
@@ -407,7 +398,7 @@ func scopesByCategory[T scopeT, C categoryT](
 // if the path is included, passes filters, and not excluded.
 func passes[T scopeT, C categoryT](
 	cat C,
-	repoValues, locationValues map[categorizer]string,
+	pathValues map[categorizer][]string,
 	entry details.DetailsEntry,
 	excs, filts, incs []T,
 ) bool {
@@ -423,7 +414,7 @@ func passes[T scopeT, C categoryT](
 		var included bool
 
 		for _, inc := range incs {
-			if matchesEntry(inc, cat, repoValues, locationValues, entry) {
+			if matchesEntry(inc, cat, pathValues, entry) {
 				included = true
 				break
 			}
@@ -436,14 +427,14 @@ func passes[T scopeT, C categoryT](
 
 	// all filters must pass
 	for _, filt := range filts {
-		if !matchesEntry(filt, cat, repoValues, locationValues, entry) {
+		if !matchesEntry(filt, cat, pathValues, entry) {
 			return false
 		}
 	}
 
 	// any matching exclusion means failure
 	for _, exc := range excs {
-		if matchesEntry(exc, cat, repoValues, locationValues, entry) {
+		if matchesEntry(exc, cat, pathValues, entry) {
 			return false
 		}
 	}
@@ -456,7 +447,7 @@ func passes[T scopeT, C categoryT](
 func matchesEntry[T scopeT, C categoryT](
 	sc T,
 	cat C,
-	repoValues, locationValues map[categorizer]string,
+	pathValues map[categorizer][]string,
 	entry details.DetailsEntry,
 ) bool {
 	// filterCategory requires matching against service-specific info values
@@ -464,11 +455,7 @@ func matchesEntry[T scopeT, C categoryT](
 		return sc.matchesInfo(entry.ItemInfo)
 	}
 
-	if len(locationValues) > 0 && matchesPathValues(sc, cat, locationValues, entry.ShortRef) {
-		return true
-	}
-
-	return matchesPathValues(sc, cat, repoValues, entry.ShortRef)
+	return matchesPathValues(sc, cat, pathValues)
 }
 
 // matchesPathValues will check whether the pathValues have matching entries
@@ -479,19 +466,12 @@ func matchesEntry[T scopeT, C categoryT](
 func matchesPathValues[T scopeT, C categoryT](
 	sc T,
 	cat C,
-	pathValues map[categorizer]string,
-	shortRef string,
+	pathValues map[categorizer][]string,
 ) bool {
 	for _, c := range cat.pathKeys() {
 		// resourceOwners are now checked at the beginning of the reduction.
 		if c == c.rootCat() {
 			continue
-		}
-
-		// the pathValues must have an entry for the given categorizer
-		pathVal, ok := pathValues[c]
-		if !ok {
-			return false
 		}
 
 		cc := c.(C)
@@ -505,23 +485,13 @@ func matchesPathValues[T scopeT, C categoryT](
 			continue
 		}
 
-		var (
-			match  bool
-			isLeaf = c.isLeaf()
-		)
-
-		switch {
-		// Leaf category - the scope can match either the path value (the item ID itself),
-		// or the shortRef hash representing the item.
-		case isLeaf && len(shortRef) > 0:
-			match = matches(sc, cc, pathVal) || matches(sc, cc, shortRef)
-
-		// all other categories (root, folder, etc) just need to pass the filter
-		default:
-			match = matches(sc, cc, pathVal)
+		// the pathValues must have an entry for the given categorizer
+		pathVals, ok := pathValues[c]
+		if !ok || len(pathVals) == 0 {
+			return false
 		}
 
-		if !match {
+		if !matchesAny(sc, cc, pathVals) {
 			return false
 		}
 	}
@@ -530,7 +500,7 @@ func matchesPathValues[T scopeT, C categoryT](
 }
 
 // ---------------------------------------------------------------------------
-// categorizer funcs
+// helper funcs
 // ---------------------------------------------------------------------------
 
 // categoryMatches returns true if:
