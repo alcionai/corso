@@ -123,6 +123,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		opStats      backupStats
 		startTime    = time.Now()
 		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
+		errorsStore  = streamstore.NewFaultErrors(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -202,6 +203,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.createBackupModels(
 		ctx,
 		detailsStore,
+		errorsStore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
 		deets.Details())
@@ -655,30 +657,37 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
-	detailsStore streamstore.Writer,
+	detailsStore, errorsStore streamstore.Writer,
 	snapID string,
 	backupID model.StableID,
 	backupDetails *details.Details,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID)
+	errs := op.Errors
 
 	if backupDetails == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
-	detailsID, err := detailsStore.Write(ctx, backupDetails, op.Errors)
+	detailsID, err := detailsStore.Write(ctx, backupDetails, errs)
 	if err != nil {
-		return clues.Wrap(err, "creating backupDetails model").WithClues(ctx)
+		return clues.Wrap(err, "creating backupDetails persistence").WithClues(ctx)
+	}
+
+	errorsID, err := errorsStore.Write(ctx, errs.Errors(), errs)
+	if err != nil {
+		return clues.Wrap(err, "creating errors persistence").WithClues(ctx)
 	}
 
 	ctx = clues.Add(ctx, "details_id", detailsID)
 	b := backup.New(
-		snapID, detailsID, op.Status.String(),
+		snapID, detailsID, errorsID,
+		op.Status.String(),
 		backupID,
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors)
+		errs)
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
