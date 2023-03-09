@@ -108,7 +108,6 @@ func New(
 		SkippedCounts: stats.SkippedCounts{
 			TotalSkippedItems: len(ee.Skipped),
 			SkippedMalware:    malware,
-			OtherSkippedItems: otherSkips,
 		},
 	}
 }
@@ -194,19 +193,15 @@ func (b Backup) Values() []string {
 	}
 
 	if b.TotalSkippedItems > 0 {
-		status += fmt.Sprintf("%d skipped: ", b.TotalSkippedItems)
+		status += fmt.Sprintf("%d skipped", b.TotalSkippedItems)
+	}
+
+	if b.TotalSkippedItems > 0 && b.SkippedMalware > 0 {
+		status += ": "
 	}
 
 	if b.SkippedMalware > 0 {
 		status += fmt.Sprintf("%d malware", b.SkippedMalware)
-	}
-
-	if b.SkippedMalware > 0 && b.OtherSkippedItems > 0 {
-		status += ", "
-	}
-
-	if b.OtherSkippedItems > 0 {
-		status += fmt.Sprintf("%d other", b.OtherSkippedItems)
 	}
 
 	if errCount+b.TotalSkippedItems > 0 {

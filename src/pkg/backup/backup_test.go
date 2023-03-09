@@ -111,22 +111,11 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 			bup: backup.Backup{
 				Status: "test",
 				SkippedCounts: stats.SkippedCounts{
-					TotalSkippedItems: 1,
+					TotalSkippedItems: 2,
 					SkippedMalware:    1,
 				},
 			},
-			expect: "test (1 skipped: 1 malware)",
-		},
-		{
-			name: "other skip",
-			bup: backup.Backup{
-				Status: "test",
-				SkippedCounts: stats.SkippedCounts{
-					TotalSkippedItems: 1,
-					OtherSkippedItems: 1,
-				},
-			},
-			expect: "test (1 skipped: 1 other)",
+			expect: "test (2 skipped: 1 malware)",
 		},
 		{
 			name: "errors and malware",
@@ -139,19 +128,6 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 				},
 			},
 			expect: "test (42 errors, 1 skipped: 1 malware)",
-		},
-		{
-			name: "errors, malware, and other",
-			bup: backup.Backup{
-				Status:     "test",
-				ErrorCount: 42,
-				SkippedCounts: stats.SkippedCounts{
-					TotalSkippedItems: 2,
-					SkippedMalware:    1,
-					OtherSkippedItems: 1,
-				},
-			},
-			expect: "test (42 errors, 2 skipped: 1 malware, 1 other)",
 		},
 	}
 	for _, test := range table {
