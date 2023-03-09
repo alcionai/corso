@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/alcionai/clues"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -404,72 +403,6 @@ func constructWebURL(adtl map[string]any) string {
 	url = temp[0]
 
 	return url
-}
-
-func fetchDriveName(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID string,
-) (string, error) {
-	if service == nil || driveID == "" {
-		return "", nil
-	}
-
-	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-			Select: []string{"name"},
-		},
-	}
-
-	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
-	if err != nil {
-		return "", graph.Stack(ctx, err)
-	}
-
-	return *drive.GetName(), nil
-}
-
-func updateParentReference(
-	ctx context.Context,
-	service graph.Servicer,
-	orig models.ItemReferenceable,
-	driveMap *map[string]string,
-	mu *sync.Mutex,
-) (models.ItemReferenceable, error) {
-	if orig == nil {
-		mu.Unlock()
-		return nil, nil
-	}
-
-	driveID, ok := ptr.ValOK(orig.GetDriveId())
-	if !ok {
-		mu.Unlock()
-		return orig, nil
-	}
-
-	var (
-		drives      = *driveMap
-		name, inMap = drives[driveID]
-		err         error
-	)
-
-	if inMap {
-		mu.Unlock()
-	} else {
-
-		name, err = fetchDriveName(ctx, service, driveID)
-		if err != nil {
-			return nil, err
-		}
-
-		drives[driveID] = name
-		mu.Unlock()
-		logger.Ctx(ctx).Infof("Drive Name not in given map: Retrieved: %s", name)
-	}
-
-	orig.SetName(&name)
-
-	return orig, nil
 }
 
 func updateParentReferenceOneDrive(
