@@ -173,6 +173,7 @@ func defaultItemPager(
 			"size",
 			"deleted",
 			"malware",
+			"shared",
 		},
 	)
 }
