@@ -55,13 +55,11 @@ func (mc mockCategorizer) isLeaf() bool {
 	return mc == leafCatStub
 }
 
-func (mc mockCategorizer) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
-	pv := map[categorizer]string{
-		rootCatStub: "root",
-		leafCatStub: "leaf",
+func (mc mockCategorizer) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
+	return map[categorizer][]string{
+		rootCatStub: {"root"},
+		leafCatStub: {"leaf"},
 	}
-
-	return pv, pv
 }
 
 func (mc mockCategorizer) pathKeys() []categorizer {
@@ -77,10 +75,10 @@ func (mc mockCategorizer) PathType() path.CategoryType {
 	}
 }
 
-func stubPathValues() map[categorizer]string {
-	return map[categorizer]string{
-		rootCatStub: rootCatStub.String(),
-		leafCatStub: leafCatStub.String(),
+func stubPathValues() map[categorizer][]string {
+	return map[categorizer][]string{
+		rootCatStub: {rootCatStub.String()},
+		leafCatStub: {leafCatStub.String()},
 	}
 }
 
