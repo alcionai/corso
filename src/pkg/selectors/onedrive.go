@@ -65,7 +65,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 }
 
 func (s OneDriveBackup) SplitByResourceOwner(users []string) []OneDriveBackup {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, OneDriveUser)
+	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -99,7 +99,7 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 }
 
 func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -376,25 +376,20 @@ func (c oneDriveCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, userPN, category, folder, fileID]
 // => {odFolder: folder, odFileID: fileID}
-func (c oneDriveCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
+func (c oneDriveCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
 	// Ignore `drives/<driveID>/root:` for folder comparison
 	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
-	rv := map[categorizer]string{
-		OneDriveFolder: rFld,
-		OneDriveItem:   repo.Item(),
+
+	result := map[categorizer][]string{
+		OneDriveFolder: {rFld},
+		OneDriveItem:   {repo.Item(), ent.ShortRef},
 	}
 
-	lv := map[categorizer]string{}
-
-	if location != nil {
-		lFld := path.Builder{}.Append(location.Folders()...).PopFront().PopFront().PopFront().String()
-		lv = map[categorizer]string{
-			OneDriveFolder: lFld,
-			OneDriveItem:   location.Item(),
-		}
+	if len(ent.LocationRef) > 0 {
+		result[OneDriveFolder] = append(result[OneDriveFolder], ent.LocationRef)
 	}
 
-	return rv, lv
+	return result
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
