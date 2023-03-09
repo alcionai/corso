@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	mysiteURLNotFound = "unable to retrieve user's mysite URL"
+	mysiteURLNotFound = "unable to retrieve user's mysite url"
 	mysiteNotFound    = "user's mysite not found"
 )
 
@@ -205,7 +205,12 @@ func Stack(ctx context.Context, e error) *clues.Err {
 }
 
 func setLabels(err *clues.Err, msg string) *clues.Err {
-	if strings.Contains(msg, mysiteNotFound) || strings.Contains(msg, mysiteURLNotFound) {
+	if err == nil {
+		return nil
+	}
+
+	ml := strings.ToLower(msg)
+	if strings.Contains(ml, mysiteNotFound) || strings.Contains(ml, mysiteURLNotFound) {
 		err = err.Label(LabelsMysiteNotFound)
 	}
 
