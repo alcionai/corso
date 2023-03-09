@@ -1,11 +1,13 @@
 package fault
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"sync"
 
+	"github.com/alcionai/corso/src/cli/print"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -247,6 +249,27 @@ func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
 	return func(rc io.ReadCloser) error {
 		return json.NewDecoder(rc).Decode(e)
 	}
+}
+
+// Print writes the DetailModel Entries to StdOut, in the format
+// requested by the caller.
+func (e Errors) PrintItems(ctx context.Context) {
+	count := len(e.Items) + len(e.Skipped)
+	if count == 0 {
+		return
+	}
+
+	sl := make([]print.Printable, 0, count)
+
+	for _, s := range e.Skipped {
+		sl = append(sl, print.Printable(s))
+	}
+
+	for _, i := range e.Items {
+		sl = append(sl, print.Printable(i))
+	}
+
+	print.All(ctx, sl...)
 }
 
 // ---------------------------------------------------------------------------
