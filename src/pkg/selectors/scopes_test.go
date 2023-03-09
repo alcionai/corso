@@ -360,8 +360,10 @@ func (suite *SelectorScopesSuite) TestPasses() {
 		entry = details.DetailsEntry{
 			RepoRef: pth.String(),
 		}
-		pvs = cat.pathValues(pth, entry)
 	)
+
+	pvs, err := cat.pathValues(pth, entry)
+	require.NoError(suite.T(), err)
 
 	for _, test := range reduceTestTable {
 		suite.Run(test.name, func() {
