@@ -3,6 +3,8 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -476,30 +478,44 @@ func (c sharePointCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, siteID, category, folder, itemID]
 // => {spFolder: folder, spItemID: itemID}
-func (c sharePointCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
-	var folderCat, itemCat categorizer
+func (c sharePointCategory) pathValues(
+	repo path.Path,
+	ent details.DetailsEntry,
+) (map[categorizer][]string, error) {
+	var (
+		folderCat, itemCat categorizer
+		itemName           = repo.Item()
+	)
 
 	switch c {
 	case SharePointLibrary, SharePointLibraryItem:
+		if ent.SharePoint == nil {
+			return nil, clues.New("no SharePoint ItemInfo in details")
+		}
+
 		folderCat, itemCat = SharePointLibrary, SharePointLibraryItem
+		itemName = ent.SharePoint.ItemName
+
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
+
 	default:
-		return map[categorizer][]string{}
+		return nil, clues.New("bad sharePointCategory").With("category", c)
 	}
 
 	result := map[categorizer][]string{
 		folderCat: {repo.Folder(false)},
-		itemCat:   {repo.Item(), ent.ShortRef},
+		itemCat:   {itemName, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {
 		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
-	return result
+	return result, nil
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
