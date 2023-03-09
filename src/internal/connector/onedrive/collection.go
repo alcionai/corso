@@ -290,15 +290,13 @@ func (od *metadataItem) ModTime() time.Time {
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	var (
-		byteCount   int64
-		itemsRead   int64
-		dirsRead    int64
-		itemsFound  int64
-		dirsFound   int64
-		mapOfDrives = make(map[string]string)
-		wg          sync.WaitGroup
-		lock        sync.Mutex
-		el          = errs.Local()
+		byteCount  int64
+		itemsRead  int64
+		dirsRead   int64
+		itemsFound int64
+		dirsFound  int64
+		wg         sync.WaitGroup
+		el         = errs.Local()
 	)
 
 	// Retrieve the OneDrive folder path to set later in
@@ -320,8 +318,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	semaphoreCh := make(chan struct{}, urlPrefetchChannelBufferSize)
 	defer close(semaphoreCh)
 
-	mapOfDrives[oc.driveID] = oc.driveName
-
 	for _, item := range oc.driveItems {
 		if el.Failure() != nil {
 			break
@@ -331,7 +327,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
-		go func(ctx context.Context, item models.DriveItemable, driveMap *map[string]string, l *sync.Mutex) {
+		go func(ctx context.Context, item models.DriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -487,7 +483,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			atomic.AddInt64(&byteCount, itemSize)
 
 			folderProgress <- struct{}{}
-		}(ctx, item, &mapOfDrives, &lock)
+		}(ctx, item)
 	}
 
 	wg.Wait()
