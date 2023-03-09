@@ -284,10 +284,10 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 
 	defer utils.CloseRepo(ctx, r)
 
-	if len(backupID) > 0 {
-		b, err := r.Backup(ctx, model.StableID(bID))
-		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
+	if len(bID) > 0 {
+		fe, b, errs := r.GetBackupErrors(ctx, bID)
+		if errs.Failure() != nil {
+			if errors.Is(errs.Failure(), data.ErrNotFound) {
 				return Only(ctx, errors.Errorf("No backup exists with the id %s", bID))
 			}
 
@@ -295,12 +295,6 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
-
-		fe, _, errs := r.GetBackupErrors(ctx, string(b.ID))
-		if errs.Failure() != nil {
-			return Only(ctx, errors.Wrap(err, "Failed to find errors in backup"))
-		}
-
 		fe.PrintItems(ctx, listFailedItems != "show", listSkippedItems != "show")
 
 		return nil

@@ -163,7 +163,7 @@ func (suite *ItemUnitSuite) TestSkipped_String() {
 	assert.Contains(t, i.String(), "unknown type")
 
 	i = &Skipped{Item{Type: FileType}}
-	assert.Contains(t, i.item.Error(), FileType)
+	assert.Contains(t, i.Item.Error(), FileType)
 }
 
 func (suite *ItemUnitSuite) TestContainerSkip() {
