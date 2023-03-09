@@ -36,10 +36,14 @@ type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
 	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
-	BackupDetails(
+	GetBackupDetails(
 		ctx context.Context,
 		backupID string,
 	) (*details.Details, *backup.Backup, *fault.Bus)
+	GetBackupErrors(
+		ctx context.Context,
+		backupID string,
+	) (*fault.Errors, *backup.Backup, *fault.Bus)
 }
 
 type Repository interface {
@@ -339,35 +343,46 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 }
 
 // BackupDetails returns the specified backup.Details
-func (r repository) BackupDetails(
+func (r repository) GetBackupDetails(
 	ctx context.Context,
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Bus) {
-	var (
-		sw        = store.NewKopiaStore(r.modelStore)
-		errs      = fault.New(false)
-		detailsID string
-	)
+	errs := fault.New(false)
 
+	deets, bup, err := getBackupDetails(
+		ctx,
+		backupID,
+		r.Account.ID(),
+		r.dataLayer,
+		store.NewKopiaStore(r.modelStore),
+		errs)
+
+	return deets, bup, errs.Fail(err)
+}
+
+// getBackupDetails handles the processing for GetBackupDetails.
+func getBackupDetails(
+	ctx context.Context,
+	backupID, tenantID string,
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	errs *fault.Bus,
+) (*details.Details, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, errs.Fail(err)
+		return nil, nil, err
 	}
 
-	detailsID = b.DetailsID
-
+	detailsID := b.DetailsID
 	if len(detailsID) == 0 {
-		return nil, b, errs.Fail(clues.New("no details in backup").WithClues(ctx))
+		return nil, b, clues.New("no details in backup").WithClues(ctx)
 	}
 
-	nd := streamstore.NewDetails(
-		r.dataLayer,
-		r.Account.ID(),
-		b.Selector.PathService())
+	nd := streamstore.NewDetails(kw, tenantID, b.Selector.PathService())
 
 	var deets details.Details
 	if err := nd.Read(ctx, detailsID, details.UnmarshalTo(&deets), errs); err != nil {
-		return nil, nil, errs.Fail(err)
+		return nil, nil, err
 	}
 
 	// Retroactively fill in isMeta information for items in older
@@ -383,7 +398,53 @@ func (r repository) BackupDetails(
 
 	deets.DetailsModel = deets.FilterMetaFiles()
 
-	return &deets, b, errs
+	return &deets, b, nil
+}
+
+// BackupErrors returns the specified backup's fault.Errors
+func (r repository) GetBackupErrors(
+	ctx context.Context,
+	backupID string,
+) (*fault.Errors, *backup.Backup, *fault.Bus) {
+	errs := fault.New(false)
+
+	fe, bup, err := getBackupErrors(
+		ctx,
+		backupID,
+		r.Account.ID(),
+		r.dataLayer,
+		store.NewKopiaStore(r.modelStore),
+		errs)
+
+	return fe, bup, errs.Fail(err)
+}
+
+// getBackupErrors handles the processing for GetBackupErrors.
+func getBackupErrors(
+	ctx context.Context,
+	backupID, tenantID string,
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	errs *fault.Bus,
+) (*fault.Errors, *backup.Backup, error) {
+	b, err := sw.GetBackup(ctx, model.StableID(backupID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	errorsID := b.ErrorsID
+	if len(errorsID) == 0 {
+		return nil, b, clues.New("no errors in backup").WithClues(ctx)
+	}
+
+	nfe := streamstore.NewFaultErrors(kw, tenantID, b.Selector.PathService())
+
+	var fe fault.Errors
+	if err := nfe.Read(ctx, errorsID, fault.UnmarshalErrorsTo(&fe), errs); err != nil {
+		return nil, nil, err
+	}
+
+	return &fe, b, nil
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.

@@ -314,7 +314,7 @@ func runDetailsOneDriveCmd(
 
 	ctx = clues.Add(ctx, "backup_id", backupID)
 
-	d, _, errs := r.BackupDetails(ctx, backupID)
+	d, _, errs := r.GetBackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {
 		if errors.Is(errs.Failure(), data.ErrNotFound) {
