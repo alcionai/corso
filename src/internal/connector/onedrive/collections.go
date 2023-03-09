@@ -286,7 +286,11 @@ func (c *Collections) Get(
 		excludedItems = map[string]map[string]struct{}{}
 	)
 
+	collections := make([]data.BackupCollection, 0)
+
 	for _, d := range drives {
+		c.CollectionMap = make(map[string]*Collection)
+
 		var (
 			driveID     = ptr.Val(d.GetId())
 			driveName   = ptr.Val(d.GetName())
@@ -402,15 +406,13 @@ func (c *Collections) Get(
 
 			c.CollectionMap[i] = col
 		}
+
+		for _, coll := range c.CollectionMap {
+			collections = append(collections, coll)
+		}
 	}
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
-
-	// Add an extra for the metadata collection.
-	collections := make([]data.BackupCollection, 0, len(c.CollectionMap)+1)
-	for _, coll := range c.CollectionMap {
-		collections = append(collections, coll)
-	}
 
 	service, category := c.source.toPathServiceCat()
 	metadata, err := graph.MakeMetadataCollection(
@@ -708,6 +710,7 @@ func (c *Collections) UpdateCollections(
 				c.ctrl,
 				invalidPrevDelta,
 			)
+			col.driveName = driveName
 
 			c.CollectionMap[itemID] = col
 			c.NumContainers++
@@ -737,8 +740,6 @@ func (c *Collections) UpdateCollections(
 			if !found {
 				return clues.New("item seen before parent folder").WithClues(ictx)
 			}
-
-			//collection.driveName = driveName
 
 			// Delete the file from previous collection. This will
 			// only kick in if the file was moved multiple times
