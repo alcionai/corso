@@ -132,10 +132,35 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
+      # test exchange restore
+      - name: Backup exchange restore
+        id: exchange-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore exchange \
+          --hide-progress \
+          --backup "${{ steps.exchange-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
+        
+      - name: Restoration check
+        env:
+          RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
+          RESTORE_SERVICE: "exchange"
+        run: |
+          set -euo pipefail
+          ./sanityCheck
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
       # test incremental backup exhange
       - name: Backup exchange incremental
         id: exchange-incremental-test
-# TODO: add backup time check
         run: |
           set -euo pipefail
           ./corso backup create exchange \
@@ -150,19 +175,27 @@ jobs:
 
           echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
       # test exchange restore
-      - name: Backup exchange restore
-        id: exchange-restore-test
+      - name: Backup incremantal exchange restore
+        id: exchange-incremantal-restore-test
         run: |
           set -euo pipefail
           ./corso restore exchange \
           --hide-progress \
-          --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
-          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
+          --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
       - name: Restoration check
         env:
-          RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
+          RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
           RESTORE_SERVICE: "exchange"
         run: |
           set -euo pipefail
@@ -217,10 +250,24 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
+      # test onedrive restore
+      - name: Backup onedrive restore
+        id: onedrive-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore onedrive --backup "${{ steps.onedrive-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+      - name: Restoration oneDrive check
+        env:
+          RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
+        run: |
+          set -euo pipefail
+          ./sanityCheck
+
       # test onedrive incremental
       - name: Backup onedrive test
         id: onedrive-incremental-test
-# TODO: check incremental time was smaller
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
@@ -235,17 +282,25 @@ jobs:
 
           echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
       # test onedrive restore
       - name: Backup onedrive restore
-        id: onedrive-restore-test
+        id: onedrive-incremental-restore-test
         run: |
           set -euo pipefail
-          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
-          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
 
       - name: Restoration oneDrive check
         env:
-          RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
+          RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityCheck
