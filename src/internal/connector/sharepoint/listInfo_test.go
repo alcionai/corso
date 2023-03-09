@@ -27,7 +27,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 		{
 			name: "Empty List",
 			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
-				i := &details.SharePointInfo{ItemType: details.SharePointItem}
+				i := &details.SharePointInfo{ItemType: details.SharePointList}
 				return models.NewList(), i
 			},
 		}, {
@@ -37,7 +37,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo() {
 				listing := models.NewList()
 				listing.SetDisplayName(&aTitle)
 				i := &details.SharePointInfo{
-					ItemType: details.SharePointItem,
+					ItemType: details.SharePointList,
 					ItemName: aTitle,
 				}
 
