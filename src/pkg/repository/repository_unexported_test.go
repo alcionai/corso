@@ -22,47 +22,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-// type RepoModelIntgSuite struct {
-// 	tester.Suite
-// }
-
-// func TestRepoModelIntgSuite(t *testing.T) {
-// 	suite.Run(t, &RepoModelIntgSuite{
-// 		Suite: tester.NewIntegrationSuite(
-// 			t,
-// 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-// 			tester.CorsoRepositoryTests,
-// 		),
-// 	})
-// }
-
-// func (suite *RepoModelIntgSuite) TestWriteGetModel() {
-// 	ctx, flush := tester.NewContext()
-// 	defer flush()
-
-// 	var (
-// 		t = suite.T()
-// 		s = tester.NewPrefixedS3Storage(t)
-// 		k = kopia.NewConn(s)
-// 	)
-
-// 	require.NoError(t, k.Initialize(ctx))
-// 	require.NoError(t, k.Connect(ctx))
-
-// 	defer k.Close(ctx)
-
-// 	ms, err := kopia.NewModelStore(k)
-// 	require.NoError(t, err)
-
-// 	defer ms.Close(ctx)
-
-// 	require.NoError(t, newRepoModel(ctx, ms, "fnords"))
-
-// 	got, err := getRepoModel(ctx, ms)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, "fnords", string(got.ID))
-// }
-
 type RepositoryModelIntgSuite struct {
 	tester.Suite
 	kw          *kopia.Wrapper
@@ -123,6 +82,33 @@ func (suite *RepositoryModelIntgSuite) TearDownSuite() {
 	if suite.kopiaCloser != nil {
 		suite.kopiaCloser(ctx)
 	}
+}
+
+func (suite *RepositoryModelIntgSuite) TestWriteGetModel() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t = suite.T()
+		s = tester.NewPrefixedS3Storage(t)
+		k = kopia.NewConn(s)
+	)
+
+	require.NoError(t, k.Initialize(ctx))
+	require.NoError(t, k.Connect(ctx))
+
+	defer k.Close(ctx)
+
+	ms, err := kopia.NewModelStore(k)
+	require.NoError(t, err)
+
+	defer ms.Close(ctx)
+
+	require.NoError(t, newRepoModel(ctx, ms, "fnords"))
+
+	got, err := getRepoModel(ctx, ms)
+	require.NoError(t, err)
+	assert.Equal(t, "fnords", string(got.ID))
 }
 
 // helper func for writing backups
