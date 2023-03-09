@@ -94,14 +94,14 @@ func produceManifestsAndMetadata(
 		mctx = clues.Add(mctx, "manifest_backup_id", man.ID)
 
 		bup, err := gb.GetBackup(mctx, model.StableID(bID))
-		if err != nil || len(bup.DetailsID) == 0 {
-			// if no backup exists for any of the complete manifests, we want
-			// to fall back to a complete backup.
-			if errors.Is(err, data.ErrNotFound) {
-				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
-				return ms, nil, false, nil
-			}
+		// if no backup exists for any of the complete manifests, we want
+		// to fall back to a complete backup.
+		if errors.Is(err, data.ErrNotFound) {
+			logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
+			return ms, nil, false, nil
+		}
 
+		if err != nil {
 			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
 		}
 
