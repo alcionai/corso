@@ -142,39 +142,3 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 		})
 	}
 }
-
-func (suite *StoreBackupUnitSuite) TestGetDetailsIDFromBackupID() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	table := []struct {
-		name   string
-		mock   *storeMock.MockModelStore
-		expect assert.ErrorAssertionFunc
-	}{
-		{
-			name:   "gets details from backup id",
-			mock:   storeMock.NewMock(&bu, nil),
-			expect: assert.NoError,
-		},
-		{
-			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
-			expect: assert.Error,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			store := &store.Wrapper{Storer: test.mock}
-			dResult, bResult, err := store.GetDetailsIDFromBackupID(ctx, model.StableID(uuid.NewString()))
-			test.expect(t, err)
-			if err != nil {
-				return
-			}
-			assert.Equal(t, bu.DetailsID, dResult)
-			assert.Equal(t, bu.ID, bResult.ID)
-		})
-	}
-}
