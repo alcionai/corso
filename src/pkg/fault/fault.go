@@ -254,20 +254,23 @@ func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
 
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
-func (e Errors) PrintItems(ctx context.Context) {
-	count := len(e.Items) + len(e.Skipped)
-	if count == 0 {
+func (e Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips bool) {
+	if len(e.Items)+len(e.Skipped) == 0 || ignoreErrors && ignoreSkips {
 		return
 	}
 
-	sl := make([]print.Printable, 0, count)
+	sl := make([]print.Printable, 0)
 
-	for _, s := range e.Skipped {
-		sl = append(sl, print.Printable(s))
+	if !ignoreSkips {
+		for _, s := range e.Skipped {
+			sl = append(sl, print.Printable(s))
+		}
 	}
 
-	for _, i := range e.Items {
-		sl = append(sl, print.Printable(i))
+	if !ignoreErrors {
+		for _, i := range e.Items {
+			sl = append(sl, print.Printable(i))
+		}
 	}
 
 	print.All(ctx, sl...)

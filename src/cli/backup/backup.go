@@ -21,19 +21,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ==============================================
-// Folder Object flags
-// These options are flags for indicating
-// that a time-based filter should be used for
-// within returning objects for details.
-// Used by: OneDrive, SharePoint
-// ================================================
-var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
+// ---------------------------------------------------------------------------
+// adding commands to cobra
+// ---------------------------------------------------------------------------
 
 var subCommandFuncs = []func() *cobra.Command{
 	createCmd,
@@ -62,6 +52,48 @@ func AddCommands(cmd *cobra.Command) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// adding flags to cobra commands
+// ---------------------------------------------------------------------------
+
+// ==============================================
+// Folder Object flags
+// These options are flags for indicating
+// that a time-based filter should be used for
+// within returning objects for details.
+// Used by: OneDrive, SharePoint
+// ================================================
+var (
+	fileCreatedAfter   string
+	fileCreatedBefore  string
+	fileModifiedAfter  string
+	fileModifiedBefore string
+)
+
+// list output filter flags
+var (
+	failedItemsFN    = "failed-items"
+	listFailedItems  string
+	skippedItemsFN   = "skipped-items"
+	listSkippedItems string
+)
+
+func addFailedItemsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&listFailedItems, failedItemsFN, "show",
+		"Toggles showing or hiding the list of items that failed.")
+}
+
+func addSkippedItemsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&listSkippedItems, skippedItemsFN, "show",
+		"Toggles showing or hiding the list of items that were skipped.")
+}
+
+// ---------------------------------------------------------------------------
+// commands
+// ---------------------------------------------------------------------------
 
 // The backup category of commands.
 // `corso backup [<subcommand>] [<flag>...]`
@@ -107,7 +139,7 @@ var listCommand = "list"
 func listCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   listCommand,
-		Short: "List the history of backups for a service",
+		Short: "List the history of backups",
 		RunE:  handleListCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -126,7 +158,7 @@ var detailsCommand = "details"
 func detailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   detailsCommand,
-		Short: "Shows the details of a backup for a service",
+		Short: "Shows the details of a backup",
 		RunE:  handleDetailsCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -145,7 +177,7 @@ var deleteCommand = "delete"
 func deleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   deleteCommand,
-		Short: "Deletes a backup for a service",
+		Short: "Deletes a backup",
 		RunE:  handleDeleteCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -156,6 +188,10 @@ func deleteCmd() *cobra.Command {
 func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
+
+// ---------------------------------------------------------------------------
+// common handlers
+// ---------------------------------------------------------------------------
 
 func runBackups(
 	ctx context.Context,
@@ -176,8 +212,7 @@ func runBackups(
 				"Failed to initialize %s backup for %s %s",
 				serviceName,
 				resourceOwnerType,
-				discSel.DiscreteOwner,
-			))
+				discSel.DiscreteOwner))
 
 			continue
 		}
@@ -189,8 +224,7 @@ func runBackups(
 				"Failed to run %s backup for %s %s",
 				serviceName,
 				resourceOwnerType,
-				discSel.DiscreteOwner,
-			))
+				discSel.DiscreteOwner))
 
 			continue
 		}
@@ -261,6 +295,13 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
+
+		fe, _, errs := r.GetBackupErrors(ctx, string(b.ID))
+		if errs.Failure() != nil {
+			return Only(ctx, errors.Wrap(err, "Failed to find errors in backup"))
+		}
+
+		fe.PrintItems(ctx, listFailedItems != "show", listSkippedItems != "show")
 
 		return nil
 	}

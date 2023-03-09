@@ -80,8 +80,11 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
 
 		fs.StringVar(&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to retrieve.")
+			"backup", "",
+			"Display a specific backup, including the items that failed or were skipped during processing.")
+
+		addFailedItemsFN(c)
+		addSkippedItemsFN(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
