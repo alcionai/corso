@@ -17,7 +17,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo_Pages() {
 		{
 			name: "Empty Page",
 			pageAndDeets: func() (models.SitePageable, *details.SharePointInfo) {
-				deets := &details.SharePointInfo{ItemType: details.SharePointItem}
+				deets := &details.SharePointInfo{ItemType: details.SharePointPage}
 				return models.NewSitePage(), deets
 			},
 		},
@@ -28,7 +28,7 @@ func (suite *SharePointInfoSuite) TestSharePointInfo_Pages() {
 				sPage := models.NewSitePage()
 				sPage.SetTitle(&title)
 				deets := &details.SharePointInfo{
-					ItemType: details.SharePointItem,
+					ItemType: details.SharePointPage,
 					ItemName: title,
 				}
 
