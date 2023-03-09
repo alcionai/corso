@@ -6,7 +6,7 @@ four short videos, you’ll be set up and on your way to backing up all your M36
 data in less than 20 minutes. That’s shorter than most meetings!"
 authors: nica
 tags: [corso, microsoft 365, backups]
-date: 2023-2-28
+date: 2023-3-4
 image: ./images/vhs.jpg
 ---
 
