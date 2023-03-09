@@ -214,7 +214,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointLibrary,
 						},
 					},
 				},
@@ -222,7 +222,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item2,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointLibrary,
 						},
 					},
 				},
@@ -230,7 +230,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item3,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointLibrary,
 						},
 					},
 				},
@@ -238,7 +238,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item4,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointPage,
 						},
 					},
 				},
@@ -246,7 +246,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item5,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointPage,
 						},
 					},
 				},
@@ -416,7 +416,7 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 
 			itemInfo := details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
-					ItemType: details.SharePointItem,
+					ItemType: details.SharePointPage,
 					WebURL:   test.infoURL,
 					Created:  now,
 					Modified: modification,
