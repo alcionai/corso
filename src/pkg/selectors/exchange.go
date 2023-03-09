@@ -334,7 +334,7 @@ func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 			ExchangeContact,
 			ExchangeFilterContactName,
 			[]string{senderID},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -349,7 +349,7 @@ func (sr *ExchangeRestore) EventOrganizer(organizer string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeFilterEventOrganizer,
 			[]string{organizer},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -407,7 +407,7 @@ func (sr *ExchangeRestore) EventSubject(subject string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeFilterEventSubject,
 			[]string{subject},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -450,7 +450,7 @@ func (sr *ExchangeRestore) MailSender(sender string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeFilterMailSender,
 			[]string{sender},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -465,7 +465,7 @@ func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeFilterMailSubject,
 			[]string{subject},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
