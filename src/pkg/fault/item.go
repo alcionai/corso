@@ -1,5 +1,13 @@
 package fault
 
+const (
+	AddtlCreatedBy     = "created_by"
+	AddtlLastModBy     = "last_modified_by"
+	AddtlContainerID   = "container_id"
+	AddtlContainerName = "container_name"
+	AddtlMalwareDesc   = "malware_description"
+)
+
 type itemType string
 
 const (

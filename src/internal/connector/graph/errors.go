@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -322,23 +323,23 @@ func MalwareInfo(item models.DriveItemable) map[string]any {
 
 	creator := item.GetCreatedByUser()
 	if creator != nil {
-		m["created_by"] = ptr.Val(creator.GetId())
+		m[fault.AddtlCreatedBy] = ptr.Val(creator.GetId())
 	}
 
 	lastmodder := item.GetLastModifiedByUser()
 	if lastmodder != nil {
-		m["last_modified_by"] = ptr.Val(lastmodder.GetId())
+		m[fault.AddtlLastModBy] = ptr.Val(lastmodder.GetId())
 	}
 
 	parent := item.GetParentReference()
 	if parent != nil {
-		m["container_id"] = ptr.Val(parent.GetId())
-		m["container_name"] = ptr.Val(parent.GetName())
+		m[fault.AddtlContainerID] = ptr.Val(parent.GetId())
+		m[fault.AddtlContainerName] = ptr.Val(parent.GetName())
 	}
 
 	malware := item.GetMalware()
 	if malware != nil {
-		m["malware_desciption"] = ptr.Val(malware.GetDescription())
+		m[fault.AddtlMalwareDesc] = ptr.Val(malware.GetDescription())
 	}
 
 	return m
