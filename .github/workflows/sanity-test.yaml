@@ -1,5 +1,12 @@
 name: Sanity Testing
-on: [push]
+on: 
+  push:
+  # TODO: uncomment before merging
+    # branches:
+    #   - main
+  workflow_dispatch:
+
+
 
 permissions:
   # required to retrieve AWS credentials
