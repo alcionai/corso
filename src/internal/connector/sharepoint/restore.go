@@ -71,7 +71,7 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				map[string][]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
+				map[string]onedrive.Metadata{}, // Currently permission data is not stored for sharepoint
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
