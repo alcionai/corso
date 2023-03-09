@@ -289,7 +289,6 @@ func (c *Collections) Get(
 	collections := make([]data.BackupCollection, 0)
 
 	for _, d := range drives {
-		c.CollectionMap = make(map[string]*Collection)
 
 		var (
 			driveID     = ptr.Val(d.GetId())
@@ -410,6 +409,8 @@ func (c *Collections) Get(
 		for _, coll := range c.CollectionMap {
 			collections = append(collections, coll)
 		}
+
+		c.CollectionMap = make(map[string]*Collection)
 	}
 
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
