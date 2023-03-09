@@ -42,7 +42,8 @@ func preRun(cc *cobra.Command, args []string) error {
 		return err
 	}
 
-	log := logger.Ctx(cc.Context())
+	ctx := cc.Context()
+	log := logger.Ctx(ctx)
 
 	flags := utils.GetPopulatedFlags(cc)
 	flagSl := make([]string, 0, len(flags))
@@ -55,8 +56,31 @@ func preRun(cc *cobra.Command, args []string) error {
 	avoidTheseCommands := []string{
 		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
 	}
+
 	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
-		print.Info(cc.Context(), "Logging to file: "+logger.LogFile)
+		print.Info(ctx, "Logging to file: "+logger.LogFile)
+	}
+
+	avoidTheseCommands = []string{
+		"help for corso",
+		"Initialize a repository.",
+		"Initialize a S3 repository",
+	}
+
+	if !slices.Contains(avoidTheseCommands, cc.Short) {
+		cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+		if err != nil {
+			log.Error("Error while getting config info to run command: ", cc.Use)
+			return err
+		}
+
+		utils.SendStartCorsoEvent(
+			ctx,
+			cfg.Storage,
+			cfg.Account.ID(),
+			map[string]any{"command": cc.CommandPath()},
+			cfg.RepoID,
+			options.Control())
 	}
 
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())

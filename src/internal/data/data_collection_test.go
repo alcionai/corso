@@ -7,15 +7,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type DataCollectionSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestDataCollectionSuite(t *testing.T) {
-	suite.Run(t, new(DataCollectionSuite))
+	suite.Run(t, &DataCollectionSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *DataCollectionSuite) TestStateOf() {
@@ -58,9 +59,9 @@ func (suite *DataCollectionSuite) TestStateOf() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			state := StateOf(test.prev, test.curr)
-			assert.Equal(t, test.expect, state)
+			assert.Equal(suite.T(), test.expect, state)
 		})
 	}
 }

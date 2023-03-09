@@ -13,7 +13,7 @@ import (
 )
 
 type detailsReader interface {
-	ReadBackupDetails(ctx context.Context, detailsID string, errs *fault.Errors) (*details.Details, error)
+	ReadBackupDetails(ctx context.Context, detailsID string, errs *fault.Bus) (*details.Details, error)
 }
 
 func getBackupAndDetailsFromID(
@@ -21,7 +21,7 @@ func getBackupAndDetailsFromID(
 	backupID model.StableID,
 	ms *store.Wrapper,
 	detailsStore detailsReader,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*backup.Backup, *details.Details, error) {
 	dID, bup, err := ms.GetDetailsIDFromBackupID(ctx, backupID)
 	if err != nil {

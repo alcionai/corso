@@ -2046,7 +2046,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				excluded map[string]struct{},
 				itemCollection map[string]string,
 				doNotMergeItems bool,
-				errs *fault.Errors,
+				errs *fault.Bus,
 			) error {
 				return nil
 			}

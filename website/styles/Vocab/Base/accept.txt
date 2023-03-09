@@ -43,3 +43,7 @@ subfolder
 [zZ]une
 Nica
 gif
+MSP
+MSPs
+npm
+Fonicom

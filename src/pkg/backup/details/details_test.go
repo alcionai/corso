@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -17,11 +18,11 @@ import (
 // ------------------------------------------------------------
 
 type DetailsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestDetailsUnitSuite(t *testing.T) {
-	suite.Run(t, new(DetailsUnitSuite))
+	suite.Run(t, &DetailsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
@@ -90,15 +91,16 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
-						ItemType: ExchangeMail,
-						Sender:   "sender",
-						Subject:  "subject",
-						Received: now,
+						ItemType:   ExchangeMail,
+						Sender:     "sender",
+						ParentPath: "Parent",
+						Subject:    "subject",
+						Received:   now,
 					},
 				},
 			},
-			expectHs: []string{"ID", "Sender", "Subject", "Received"},
-			expectVs: []string{"deadbeef", "sender", "subject", nowStr},
+			expectHs: []string{"ID", "Sender", "Folder", "Subject", "Received"},
+			expectVs: []string{"deadbeef", "sender", "Parent", "subject", nowStr},
 		},
 		{
 			name: "sharepoint info",
@@ -108,13 +110,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				LocationRef: "locationref",
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
-						ItemName:   "itemName",
-						ParentPath: "parentPath",
-						Size:       1000,
-						WebURL:     "https://not.a.real/url",
-						DriveName:  "aDrive",
-						Created:    now,
-						Modified:   now,
+						ItemName:    "itemName",
+						ParentPath:  "parentPath",
+						Size:        1000,
+						WebURL:      "https://not.a.real/url",
+						DisplayName: "aDrive",
+						Created:     now,
+						Modified:    now,
 					},
 				},
 			},
@@ -153,7 +155,9 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			hs := test.entry.Headers()
 			assert.Equal(t, test.expectHs, hs)
 			vs := test.entry.Values()
@@ -246,8 +250,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde", "foo.meta"},
-		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
+		expectRepoRefs:     []string{"abcde"},
+		expectLocationRefs: []string{"locationref"},
 	},
 	{
 		name: "multiple entries with folder and meta file",
@@ -284,14 +288,16 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
-		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
+		expectRepoRefs:     []string{"abcde", "12345"},
+		expectLocationRefs: []string{"locationref", "locationref2"},
 	},
 }
 
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 	for _, test := range pathItemsTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			d := Details{
 				DetailsModel: DetailsModel{
 					Entries: test.ents,
@@ -304,7 +310,9 @@ func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
 
 func (suite *DetailsUnitSuite) TestDetailsModel_Items() {
 	for _, test := range pathItemsTable {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			d := Details{
 				DetailsModel: DetailsModel{
 					Entries: test.ents,
@@ -350,7 +358,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 
 	d2 := d.FilterMetaFiles()
 
-	assert.Len(t, d2.Entries, 2)
+	assert.Len(t, d2.Entries, 1)
 	assert.Len(t, d.Entries, 3)
 }
 
@@ -462,7 +470,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			builder := Builder{}
 			builder.AddFoldersForItem(test.folders, itemInfo, true)
 			deets := builder.Details()
@@ -547,7 +557,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersUpdate() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			builder := Builder{}
 			builder.AddFoldersForItem(test.folders, itemInfo, test.itemUpdated)
 			deets := builder.Details()
@@ -613,7 +625,9 @@ func (suite *DetailsUnitSuite) TestDetails_AddFoldersDifferentServices() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			folder := folderEntry{
 				RepoRef:     "rr1",
 				ShortRef:    "sr1",
@@ -806,7 +820,9 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	}
 
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			item := test.input
 			err := UpdateItem(&item, test.repoPath)
 			test.errCheck(t, err)
@@ -972,7 +988,9 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		// },
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result := FolderEntriesForPath(test.parent, test.location)
 			assert.ElementsMatch(t, test.expect, result)
 		})

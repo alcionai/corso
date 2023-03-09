@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
 	github.com/alcionai/clues v0.0.0-20230217203352-c3714e5e9013
-	github.com/aws/aws-sdk-go v1.44.208
+	github.com/aws/aws-sdk-go v1.44.214
 	github.com/aws/aws-xray-sdk-go v1.8.0
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/google/uuid v1.3.0
@@ -24,7 +24,7 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.6

@@ -48,7 +48,7 @@ func (mlc *MockListCollection) PreviousPath() path.Path {
 
 func (mlc *MockListCollection) Items(
 	ctx context.Context,
-	_ *fault.Errors, // unused
+	_ *fault.Bus, // unused
 ) <-chan data.Stream {
 	res := make(chan data.Stream)
 

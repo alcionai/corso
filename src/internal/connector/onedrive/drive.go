@@ -150,7 +150,7 @@ type itemCollector func(
 	excluded map[string]struct{},
 	fileCollectionMap map[string]string,
 	validPrevDelta bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error
 
 type itemPager interface {
@@ -183,6 +183,7 @@ func defaultItemPager(
 			"sharepointIds",
 			"size",
 			"deleted",
+			"malware",
 		},
 	)
 }
@@ -196,7 +197,7 @@ func collectItems(
 	collector itemCollector,
 	oldPaths map[string]string,
 	prevDelta string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (DeltaUpdate, map[string]string, map[string]struct{}, error) {
 	var (
 		newDeltaURL      = ""
@@ -360,7 +361,7 @@ func GetAllFolders(
 	gs graph.Servicer,
 	pager drivePager,
 	prefix string,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]*Displayable, error) {
 	drives, err := drives(ctx, pager, true)
 	if err != nil {
@@ -369,11 +370,11 @@ func GetAllFolders(
 
 	var (
 		folders = map[string]*Displayable{}
-		et      = errs.Tracker()
+		el      = errs.Local()
 	)
 
 	for _, d := range drives {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -392,7 +393,7 @@ func GetAllFolders(
 			excluded map[string]struct{},
 			itemCollection map[string]string,
 			doNotMergeItems bool,
-			errs *fault.Errors,
+			errs *fault.Bus,
 		) error {
 			for _, item := range items {
 				// Skip the root item.
@@ -425,7 +426,7 @@ func GetAllFolders(
 
 		_, _, _, err = collectItems(ictx, defaultItemPager(gs, id, ""), id, name, collector, map[string]string{}, "", errs)
 		if err != nil {
-			et.Add(clues.Wrap(err, "enumerating items in drive"))
+			el.AddRecoverable(clues.Wrap(err, "enumerating items in drive"))
 		}
 	}
 
@@ -435,7 +436,7 @@ func GetAllFolders(
 		res = append(res, f)
 	}
 
-	return res, et.Err()
+	return res, el.Failure()
 }
 
 func DeleteItem(

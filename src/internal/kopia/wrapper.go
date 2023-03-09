@@ -134,7 +134,7 @@ func (w Wrapper) BackupCollections(
 	globalExcludeSet map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (*BackupStats, *details.Builder, map[string]PrevRefs, error) {
 	if w.c == nil {
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
@@ -168,8 +168,7 @@ func (w Wrapper) BackupCollections(
 		base,
 		collections,
 		globalExcludeSet,
-		progress,
-	)
+		progress)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
 	}
@@ -184,7 +183,7 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, nil, err
 	}
 
-	return s, progress.deets, progress.toMerge, progress.errs.Err()
+	return s, progress.deets, progress.toMerge, progress.errs.Failure()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -383,7 +382,7 @@ func (w Wrapper) RestoreMultipleItems(
 	snapshotID string,
 	paths []path.Path,
 	bcounter ByteCounter,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
 	defer end()
@@ -400,23 +399,23 @@ func (w Wrapper) RestoreMultipleItems(
 	var (
 		// Maps short ID of parent path to data collection for that folder.
 		cols = map[string]*kopiaDataCollection{}
-		et   = errs.Tracker()
+		el   = errs.Local()
 	)
 
 	for _, itemPath := range paths {
-		if et.Err() != nil {
-			return nil, et.Err()
+		if el.Failure() != nil {
+			return nil, el.Failure()
 		}
 
 		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
-			et.Add(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
 		parentPath, err := itemPath.Dir()
 		if err != nil {
-			et.Add(clues.Wrap(err, "making directory collection").
+			el.AddRecoverable(clues.Wrap(err, "making directory collection").
 				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 
@@ -443,7 +442,7 @@ func (w Wrapper) RestoreMultipleItems(
 		res = append(res, c)
 	}
 
-	return res, et.Err()
+	return res, el.Failure()
 }
 
 // DeleteSnapshot removes the provided manifest from kopia.

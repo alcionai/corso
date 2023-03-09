@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -88,11 +87,10 @@ func (op RestoreOperation) validate() error {
 // pointer wrapping the values, while those values
 // get populated asynchronously.
 type restoreStats struct {
-	cs                []data.RestoreCollection
-	gc                *support.ConnectorOperationStatus
-	bytesRead         *stats.ByteCounter
-	resourceCount     int
-	readErr, writeErr error
+	cs            []data.RestoreCollection
+	gc            *support.ConnectorOperationStatus
+	bytesRead     *stats.ByteCounter
+	resourceCount int
 
 	// a transient value only used to pair up start-end events.
 	restoreID string
@@ -104,7 +102,7 @@ type restorer interface {
 		snapshotID string,
 		paths []path.Path,
 		bc kopia.ByteCounter,
-		errs *fault.Errors,
+		errs *fault.Bus,
 	) ([]data.RestoreCollection, error)
 }
 
@@ -140,7 +138,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
 		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
+		"service", op.Selectors.Service,
+		"destination_container", op.Destination.ContainerName)
 
 	// -----
 	// Execution
@@ -153,12 +152,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			With("err", err).
 			Errorw("doing restore", clues.InErr(err).Slice()...)
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
-		opStats.readErr = op.Errors.Err()
 	}
 
 	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Errs())
-	for i, err := range op.Errors.Errs() {
+	recoverableCount := len(op.Errors.Recovered())
+	for i, err := range op.Errors.Recovered() {
 		logger.Ctx(ctx).
 			With("error", err).
 			With(clues.InErr(err).Slice()...).
@@ -172,9 +170,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	err = op.persistResults(ctx, start, &opStats)
 	if err != nil {
 		op.Errors.Fail(errors.Wrap(err, "persisting restore results"))
-		opStats.writeErr = op.Errors.Err()
-
-		return nil, op.Errors.Err()
+		return nil, op.Errors.Failure()
 	}
 
 	logger.Ctx(ctx).Infow("completed restore", "results", op.Results)
@@ -263,10 +259,6 @@ func (op *RestoreOperation) do(
 	restoreComplete <- struct{}{}
 
 	opStats.gc = gc.AwaitStatus()
-	// TODO(keepers): remove when fault.Errors handles all iterable error aggregation.
-	if opStats.gc.ErrorCount > 0 {
-		return nil, opStats.gc.Err
-	}
 
 	logger.Ctx(ctx).Debug(gc.PrintableStatus())
 
@@ -281,19 +273,11 @@ func (op *RestoreOperation) persistResults(
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
-	op.Results.ReadErrors = opStats.readErr
-	op.Results.WriteErrors = opStats.writeErr
 
 	op.Status = Completed
 
-	if opStats.readErr != nil || opStats.writeErr != nil {
+	if op.Errors.Failure() != nil {
 		op.Status = Failed
-
-		// TODO(keepers): replace with fault.Errors handling.
-		return multierror.Append(
-			errors.New("errors prevented the operation from processing"),
-			opStats.readErr,
-			opStats.writeErr)
 	}
 
 	op.Results.BytesRead = opStats.bytesRead.NumBytes
@@ -305,13 +289,11 @@ func (op *RestoreOperation) persistResults(
 		return errors.New("restoration never completed")
 	}
 
-	if opStats.gc.Successful == 0 {
+	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsWritten = opStats.gc.Successful
-
-	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
+	op.Results.ItemsWritten = opStats.gc.Metrics.Successes
 
 	op.bus.Event(
 		ctx,
@@ -319,7 +301,7 @@ func (op *RestoreOperation) persistResults(
 		map[string]any{
 			events.BackupID:      op.BackupID,
 			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      dur,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
 			events.ItemsRead:     op.Results.ItemsRead,
 			events.ItemsWritten:  op.Results.ItemsWritten,
@@ -331,7 +313,7 @@ func (op *RestoreOperation) persistResults(
 		},
 	)
 
-	return nil
+	return op.Errors.Failure()
 }
 
 // formatDetailsForRestoration reduces the provided detail entries according to the
@@ -340,7 +322,7 @@ func formatDetailsForRestoration(
 	ctx context.Context,
 	sel selectors.Selector,
 	deets *details.Details,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]path.Path, error) {
 	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
@@ -351,17 +333,17 @@ func formatDetailsForRestoration(
 		fdsPaths  = fds.Paths()
 		paths     = make([]path.Path, len(fdsPaths))
 		shortRefs = make([]string, len(fdsPaths))
-		et        = errs.Tracker()
+		el        = errs.Local()
 	)
 
 	for i := range fdsPaths {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
 		p, err := path.FromDataLayerPath(fdsPaths[i], true)
 		if err != nil {
-			et.Add(clues.
+			el.AddRecoverable(clues.
 				Wrap(err, "parsing details path after reduction").
 				WithMap(clues.In(ctx)).
 				With("path", fdsPaths[i]))
@@ -386,5 +368,5 @@ func formatDetailsForRestoration(
 
 	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
 
-	return paths, et.Err()
+	return paths, el.Failure()
 }

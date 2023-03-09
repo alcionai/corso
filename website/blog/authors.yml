@@ -9,3 +9,9 @@ nica:
   title: Head of Developer Advocacy
   url: https://github.com/serverless-mom
   image_url: https://github.com/serverless-mom.png
+
+kias:
+  name: Kias Hanifa
+  title: CTO at Fonicom
+  url: https://www.fonicom.com/about/#
+  image_url: ./images/kias.png

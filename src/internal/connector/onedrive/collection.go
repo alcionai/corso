@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,11 +40,17 @@ const (
 	DataFileSuffix    = ".data"
 )
 
+func IsMetaFile(name string) bool {
+	return strings.HasSuffix(name, MetaFileSuffix) || strings.HasSuffix(name, DirMetaFileSuffix)
+}
+
 var (
 	_ data.BackupCollection = &Collection{}
 	_ data.Stream           = &Item{}
 	_ data.StreamInfo       = &Item{}
 	_ data.StreamModTime    = &Item{}
+	_ data.Stream           = &metadataItem{}
+	_ data.StreamModTime    = &metadataItem{}
 )
 
 // Collection represents a set of OneDrive objects retrieved from M365
@@ -165,7 +172,7 @@ func (oc *Collection) IsEmpty() bool {
 // Items() returns the channel containing M365 Exchange objects
 func (oc *Collection) Items(
 	ctx context.Context,
-	errs *fault.Errors, // TODO: currently unused while onedrive isn't up to date with clues/fault
+	errs *fault.Bus, // TODO: currently unused while onedrive isn't up to date with clues/fault
 ) <-chan data.Stream {
 	go oc.populateItems(ctx, errs)
 	return oc.data
@@ -213,9 +220,6 @@ type Item struct {
 	id   string
 	data io.ReadCloser
 	info details.ItemInfo
-
-	// true if the item was marked by graph as deleted.
-	deleted bool
 }
 
 func (od *Item) UUID() string {
@@ -226,9 +230,11 @@ func (od *Item) ToReader() io.ReadCloser {
 	return od.data
 }
 
-// TODO(ashmrtn): Fill in once delta tokens return deleted items.
+// Deleted implements an interface function. However, OneDrive items are marked
+// as deleted by adding them to the exclude list so this can always return
+// false.
 func (od Item) Deleted() bool {
-	return od.deleted
+	return false
 }
 
 func (od *Item) Info() details.ItemInfo {
@@ -239,9 +245,34 @@ func (od *Item) ModTime() time.Time {
 	return od.info.Modified()
 }
 
+type metadataItem struct {
+	id      string
+	data    io.ReadCloser
+	modTime time.Time
+}
+
+func (od *metadataItem) UUID() string {
+	return od.id
+}
+
+func (od *metadataItem) ToReader() io.ReadCloser {
+	return od.data
+}
+
+// Deleted implements an interface function. However, OneDrive items are marked
+// as deleted by adding them to the exclude list so this can always return
+// false.
+func (od metadataItem) Deleted() bool {
+	return false
+}
+
+func (od *metadataItem) ModTime() time.Time {
+	return od.modTime
+}
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
-func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
+func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		byteCount  int64
 		itemsRead  int64
@@ -249,14 +280,14 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 		itemsFound int64
 		dirsFound  int64
 		wg         sync.WaitGroup
-		et         = errs.Tracker()
+		el         = errs.Local()
 	)
 
 	// Retrieve the OneDrive folder path to set later in
 	// `details.OneDriveInfo`
 	parentPathString, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
-		oc.reportAsCompleted(ctx, 0, 0, 0, clues.Wrap(err, "getting drive path").WithClues(ctx))
+		oc.reportAsCompleted(ctx, 0, 0, 0)
 		return
 	}
 
@@ -272,7 +303,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -296,11 +327,18 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 			)
 
 			ctx = clues.Add(ctx,
-				"restore_item_id", itemID,
-				"restore_item_name", itemName,
-				"restore_item_size", itemSize,
-				"restore_item_info", itemInfo)
+				"backup_item_id", itemID,
+				"backup_item_name", itemName,
+				"backup_item_size", itemSize,
+			)
 
+			pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
+				return
+			}
+
+			item.SetParentReference(pr)
 			isFile := item.GetFile() != nil
 
 			if isFile {
@@ -323,7 +361,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 					oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
 
 				if err != nil {
-					et.Add(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+					el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 					return
 				}
 			}
@@ -336,6 +374,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 				itemInfo.OneDrive = oneDriveItemInfo(item, itemSize)
 				itemInfo.OneDrive.ParentPath = parentPathString
 			}
+
+			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
 
 			if isFile {
 				dataSuffix := ""
@@ -370,7 +410,13 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 
 					// check for errors following retries
 					if err != nil {
-						et.Add(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+						if item.GetMalware() != nil {
+							logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
+						} else {
+							logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
+						}
+
+						el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 						return nil, err
 					}
 
@@ -402,28 +448,10 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 					return progReader, nil
 				})
 
-				// TODO(meain): Remove this once we change to always
-				// backing up permissions. Until then we cannot rely
-				// on whether the previous data is what we need as the
-				// user might have not backup up permissions in the
-				// previous run.
-				metaItemInfo := details.ItemInfo{}
-				metaItemInfo.OneDrive = &details.OneDriveInfo{
-					Created:    itemInfo.OneDrive.Created,
-					ItemName:   itemInfo.OneDrive.ItemName,
-					DriveName:  itemInfo.OneDrive.DriveName,
-					ItemType:   itemInfo.OneDrive.ItemType,
-					IsMeta:     true,
-					Modified:   time.Now(), // set to current time to always refresh
-					Owner:      itemInfo.OneDrive.Owner,
-					ParentPath: itemInfo.OneDrive.ParentPath,
-					Size:       itemInfo.OneDrive.Size,
-				}
-
-				oc.data <- &Item{
-					id:   itemName + metaSuffix,
-					data: metaReader,
-					info: metaItemInfo,
+				oc.data <- &metadataItem{
+					id:      itemName + metaSuffix,
+					data:    metaReader,
+					modTime: time.Now(),
 				}
 			}
 
@@ -443,22 +471,22 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Errors) {
 
 	wg.Wait()
 
-	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount, et.Err())
+	oc.reportAsCompleted(ctx, int(itemsFound), int(itemsRead), byteCount)
 }
 
-func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64, err error) {
+func (oc *Collection) reportAsCompleted(ctx context.Context, itemsFound, itemsRead int, byteCount int64) {
 	close(oc.data)
 
 	status := support.CreateStatus(ctx, support.Backup,
 		1, // num folders (always 1)
 		support.CollectionMetrics{
-			Objects:    itemsFound, // items to read,
-			Successes:  itemsRead,  // items read successfully,
-			TotalBytes: byteCount,  // Number of bytes read in the operation,
+			Objects:   itemsFound,
+			Successes: itemsRead,
+			Bytes:     byteCount,
 		},
-		err,
-		oc.folderPath.Folder(false), // Additional details
-	)
+		oc.folderPath.Folder(false))
+
 	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+
 	oc.statusUpdater(status)
 }

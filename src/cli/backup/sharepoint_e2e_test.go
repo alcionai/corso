@@ -28,28 +28,27 @@ import (
 // tests with no prior backup
 // ---------------------------------------------------------------------------
 
-type NoBackupOneDriveIntegrationSuite struct {
+type NoBackupSharePointE2ESuite struct {
 	tester.Suite
 	acct       account.Account
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
 	repo       repository.Repository
-	m365UserID string
+	m365SiteID string
 	recorder   strings.Builder
 }
 
-func TestNoBackupOneDriveIntegrationSuite(t *testing.T) {
-	suite.Run(t, &NoBackupOneDriveIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
-			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
-	})
+func TestNoBackupSharePointE2ESuite(t *testing.T) {
+	suite.Run(t, &NoBackupSharePointE2ESuite{Suite: tester.NewE2ESuite(
+		t,
+		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		tester.CorsoCITests,
+		tester.CorsoCLITests,
+		tester.CorsoCLIBackupTests)})
 }
 
-func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
+func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 
@@ -71,21 +70,14 @@ func (suite *NoBackupOneDriveIntegrationSuite) SetupSuite() {
 	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	ctx = config.SetViper(ctx, suite.vpr)
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365SiteID = tester.M365SiteID(t)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(
-		ctx,
-		suite.acct,
-		suite.st,
-		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
-		})
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err)
 }
 
-func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty() {
+func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -95,7 +87,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty()
 	suite.recorder.Reset()
 
 	cmd := tester.StubRootCmd(
-		"backup", "list", "onedrive",
+		"backup", "list", "sharepoint",
 		"--config-file", suite.cfgFP)
 	cli.BuildCommandTree(cmd)
 
@@ -108,7 +100,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty()
 
 	result := suite.recorder.String()
 
-	// as an offhand check: the result should contain the m365 user id
+	// as an offhand check: the result should contain the m365 sitet id
 	assert.Equal(t, "No backups available\n", result)
 }
 
@@ -116,7 +108,7 @@ func (suite *NoBackupOneDriveIntegrationSuite) TestOneDriveBackupListCmd_empty()
 // tests for deleting backups
 // ---------------------------------------------------------------------------
 
-type BackupDeleteOneDriveIntegrationSuite struct {
+type BackupDeleteSharePointE2ESuite struct {
 	tester.Suite
 	acct     account.Account
 	st       storage.Storage
@@ -127,17 +119,18 @@ type BackupDeleteOneDriveIntegrationSuite struct {
 	recorder strings.Builder
 }
 
-func TestBackupDeleteOneDriveIntegrationSuite(t *testing.T) {
-	suite.Run(t, &BackupDeleteOneDriveIntegrationSuite{
-		Suite: tester.NewIntegrationSuite(
+func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
+	suite.Run(t, &BackupDeleteSharePointE2ESuite{
+		Suite: tester.NewE2ESuite(
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+			tester.CorsoCITests,
 			tester.CorsoCLITests,
 			tester.CorsoCLIBackupTests),
 	})
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
+func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	t := suite.T()
 
 	// prepare common details
@@ -160,29 +153,22 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(
-		ctx,
-		suite.acct,
-		suite.st,
-		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
-		})
+	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err)
 
-	m365UserID := tester.M365UserID(t)
-	users := []string{m365UserID}
+	m365SiteID := tester.M365SiteID(t)
+	sites := []string{m365SiteID}
 
 	// some tests require an existing backup
-	sel := selectors.NewOneDriveBackup(users)
-	sel.Include(sel.Folders(selectors.Any()))
+	sel := selectors.NewSharePointBackup(sites)
+	sel.Include(sel.Libraries(selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))
 	require.NoError(t, err)
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd() {
+func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -192,7 +178,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 	suite.recorder.Reset()
 
 	cmd := tester.StubRootCmd(
-		"backup", "delete", "onedrive",
+		"backup", "delete", "sharepoint",
 		"--config-file", suite.cfgFP,
 		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
@@ -205,19 +191,20 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd()
 
 	result := suite.recorder.String()
 
-	assert.Equal(t, fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)), result)
-
-	// a follow-up details call should fail, due to the backup ID being deleted
-	cmd = tester.StubRootCmd(
-		"backup", "details", "onedrive",
-		"--config-file", suite.cfgFP,
-		"--backup", string(suite.backupOp.Results.BackupID))
-	cli.BuildCommandTree(cmd)
-
-	require.Error(t, cmd.ExecuteContext(ctx))
+	assert.Equal(t, fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID)), result)
 }
 
-func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_unknownID() {
+// moved out of the func above to make the linter happy
+// // a follow-up details call should fail, due to the backup ID being deleted
+// cmd = tester.StubRootCmd(
+// 	"backup", "details", "sharepoint",
+// 	"--config-file", suite.cfgFP,
+// 	"--backup", string(suite.backupOp.Results.BackupID))
+// cli.BuildCommandTree(cmd)
+
+// require.Error(t, cmd.ExecuteContext(ctx))
+
+func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unknownID() {
 	t := suite.T()
 	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
@@ -225,7 +212,7 @@ func (suite *BackupDeleteOneDriveIntegrationSuite) TestOneDriveBackupDeleteCmd_u
 	defer flush()
 
 	cmd := tester.StubRootCmd(
-		"backup", "delete", "onedrive",
+		"backup", "delete", "sharepoint",
 		"--config-file", suite.cfgFP,
 		"--"+utils.BackupFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)

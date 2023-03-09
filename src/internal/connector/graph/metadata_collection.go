@@ -134,7 +134,7 @@ func (md MetadataCollection) DoNotMergeItems() bool {
 
 func (md MetadataCollection) Items(
 	ctx context.Context,
-	_ *fault.Errors, // not used, just here for interface compliance
+	_ *fault.Bus, // not used, just here for interface compliance
 ) <-chan data.Stream {
 	res := make(chan data.Stream)
 
@@ -150,11 +150,10 @@ func (md MetadataCollection) Items(
 				support.Backup,
 				1,
 				support.CollectionMetrics{
-					Objects:    len(md.items),
-					Successes:  len(md.items),
-					TotalBytes: totalBytes,
+					Objects:   len(md.items),
+					Successes: len(md.items),
+					Bytes:     totalBytes,
 				},
-				nil,
 				md.fullPath.Folder(false),
 			)
 

@@ -10,15 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type FaultErrorsUnitSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestFaultErrorsUnitSuite(t *testing.T) {
-	suite.Run(t, new(FaultErrorsUnitSuite))
+	suite.Run(t, &FaultErrorsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func (suite *FaultErrorsUnitSuite) TestNew() {
@@ -72,19 +73,21 @@ func (suite *FaultErrorsUnitSuite) TestErr() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
-			require.NoError(t, n.Err())
-			require.Empty(t, n.Errs())
+			require.NoError(t, n.Failure())
+			require.Empty(t, n.Recovered())
 
 			e := n.Fail(test.fail)
 			require.NotNil(t, e)
 
-			e = n.Add(test.add)
+			e = n.AddRecoverable(test.add)
 			require.NotNil(t, e)
 
-			test.expect(t, n.Err())
+			test.expect(t, n.Failure())
 		})
 	}
 }
@@ -94,16 +97,16 @@ func (suite *FaultErrorsUnitSuite) TestFail() {
 
 	n := fault.New(false)
 	require.NotNil(t, n)
-	require.NoError(t, n.Err())
-	require.Empty(t, n.Errs())
+	require.NoError(t, n.Failure())
+	require.Empty(t, n.Recovered())
 
 	n.Fail(assert.AnError)
-	assert.Error(t, n.Err())
-	assert.Empty(t, n.Errs())
+	assert.Error(t, n.Failure())
+	assert.Empty(t, n.Recovered())
 
 	n.Fail(assert.AnError)
-	assert.Error(t, n.Err())
-	assert.NotEmpty(t, n.Errs())
+	assert.Error(t, n.Failure())
+	assert.NotEmpty(t, n.Recovered())
 }
 
 func (suite *FaultErrorsUnitSuite) TestErrs() {
@@ -147,17 +150,19 @@ func (suite *FaultErrorsUnitSuite) TestErrs() {
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
 
 			e := n.Fail(test.fail)
 			require.NotNil(t, e)
 
-			e = n.Add(test.add)
+			e = n.AddRecoverable(test.add)
 			require.NotNil(t, e)
 
-			test.expect(t, n.Errs())
+			test.expect(t, n.Recovered())
 		})
 	}
 }
@@ -168,16 +173,16 @@ func (suite *FaultErrorsUnitSuite) TestAdd() {
 	n := fault.New(true)
 	require.NotNil(t, n)
 
-	n.Add(assert.AnError)
-	assert.Error(t, n.Err())
-	assert.Len(t, n.Errs(), 1)
+	n.AddRecoverable(assert.AnError)
+	assert.Error(t, n.Failure())
+	assert.Len(t, n.Recovered(), 1)
 
-	n.Add(assert.AnError)
-	assert.Error(t, n.Err())
-	assert.Len(t, n.Errs(), 2)
+	n.AddRecoverable(assert.AnError)
+	assert.Error(t, n.Failure())
+	assert.Len(t, n.Recovered(), 2)
 }
 
-func (suite *FaultErrorsUnitSuite) TestData() {
+func (suite *FaultErrorsUnitSuite) TestErrors() {
 	t := suite.T()
 
 	// not fail-fast
@@ -185,12 +190,12 @@ func (suite *FaultErrorsUnitSuite) TestData() {
 	require.NotNil(t, n)
 
 	n.Fail(errors.New("fail"))
-	n.Add(errors.New("1"))
-	n.Add(errors.New("2"))
+	n.AddRecoverable(errors.New("1"))
+	n.AddRecoverable(errors.New("2"))
 
-	d := n.Data()
-	assert.Equal(t, n.Err(), d.Err)
-	assert.ElementsMatch(t, n.Errs(), d.Errs)
+	d := n.Errors()
+	assert.Equal(t, n.Failure(), d.Failure)
+	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
 	assert.False(t, d.FailFast)
 
 	// fail-fast
@@ -198,12 +203,12 @@ func (suite *FaultErrorsUnitSuite) TestData() {
 	require.NotNil(t, n)
 
 	n.Fail(errors.New("fail"))
-	n.Add(errors.New("1"))
-	n.Add(errors.New("2"))
+	n.AddRecoverable(errors.New("1"))
+	n.AddRecoverable(errors.New("2"))
 
-	d = n.Data()
-	assert.Equal(t, n.Err(), d.Err)
-	assert.ElementsMatch(t, n.Errs(), d.Errs)
+	d = n.Errors()
+	assert.Equal(t, n.Failure(), d.Failure)
+	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
 	assert.True(t, d.FailFast)
 }
 
@@ -214,17 +219,13 @@ func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
 	n := fault.New(false)
 	require.NotNil(t, n)
 
-	n.Add(errors.New("1"))
-	n.Add(errors.New("2"))
+	n.AddRecoverable(errors.New("1"))
+	n.AddRecoverable(errors.New("2"))
 
-	data := n.Data()
-
-	jsonStr, err := json.Marshal(data)
+	bs, err := json.Marshal(n.Errors())
 	require.NoError(t, err)
 
-	um := fault.ErrorsData{}
-
-	err = json.Unmarshal(jsonStr, &um)
+	err = json.Unmarshal(bs, &fault.Errors{})
 	require.NoError(t, err)
 }
 
@@ -246,7 +247,7 @@ func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
 
 	t.Logf("jsonStr is %s\n", jsonStr)
 
-	um := fault.ErrorsData{}
+	um := fault.Errors{}
 
 	err = json.Unmarshal(jsonStr, &um)
 	require.NoError(t, err)
@@ -255,25 +256,25 @@ func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
 func (suite *FaultErrorsUnitSuite) TestTracker() {
 	t := suite.T()
 
-	be := fault.New(false)
+	eb := fault.New(false)
 
-	ba := be.Tracker()
-	assert.NoError(t, ba.Err())
-	assert.Empty(t, be.Errs())
+	lb := eb.Local()
+	assert.NoError(t, lb.Failure())
+	assert.Empty(t, eb.Recovered())
 
-	ba.Add(assert.AnError)
-	assert.NoError(t, ba.Err())
-	assert.NoError(t, be.Err())
-	assert.NotEmpty(t, be.Errs())
+	lb.AddRecoverable(assert.AnError)
+	assert.NoError(t, lb.Failure())
+	assert.NoError(t, eb.Failure())
+	assert.NotEmpty(t, eb.Recovered())
 
-	fe := fault.New(true)
+	ebt := fault.New(true)
 
-	fa := fe.Tracker()
-	assert.NoError(t, fa.Err())
-	assert.Empty(t, fe.Errs())
+	lbt := ebt.Local()
+	assert.NoError(t, lbt.Failure())
+	assert.Empty(t, ebt.Recovered())
 
-	fa.Add(assert.AnError)
-	assert.Error(t, fa.Err())
-	assert.Error(t, fe.Err())
-	assert.NotEmpty(t, fe.Errs())
+	lbt.AddRecoverable(assert.AnError)
+	assert.Error(t, lbt.Failure())
+	assert.Error(t, ebt.Failure())
+	assert.NotEmpty(t, ebt.Recovered())
 }

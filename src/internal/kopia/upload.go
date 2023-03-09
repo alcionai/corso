@@ -22,6 +22,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -139,7 +140,7 @@ type corsoProgress struct {
 	toMerge    map[string]PrevRefs
 	mu         sync.RWMutex
 	totalBytes int64
-	errs       *fault.Errors
+	errs       *fault.Bus
 }
 
 // Kopia interface function used as a callback when kopia finishes processing a
@@ -169,7 +170,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.info == nil {
 		if d.prevPath == nil {
-			cp.errs.Add(clues.New("item sourced from previous backup with no previous path").
+			cp.errs.AddRecoverable(clues.New("item sourced from previous backup with no previous path").
 				With(
 					"service", d.repoPath.Service().String(),
 					"category", d.repoPath.Category().String(),
@@ -263,7 +264,7 @@ func (cp *corsoProgress) CachedFile(fname string, size int64) {
 func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
-	cp.errs.Add(clues.Wrap(err, "kopia reported error").
+	cp.errs.AddRecoverable(clues.Wrap(err, "kopia reported error").
 		With("is_ignored", isIgnored, "relative_path", relpath).
 		Label(fault.LabelForceNoBackupCreation))
 }
@@ -335,7 +336,7 @@ func collectionEntries(
 			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
 			if err != nil {
 				err = errors.Wrap(err, "getting full item path")
-				progress.errs.Add(err)
+				progress.errs.AddRecoverable(err)
 
 				logger.Ctx(ctx).With("err", err).Errorw("getting full item path", clues.InErr(err).Slice()...)
 
@@ -448,16 +449,25 @@ func streamBaseEntries(
 			return errors.Wrap(err, "getting previous full item path for base entry")
 		}
 
-		// All items have item info in the base backup. However, we need to make
-		// sure we have enough metadata to find those entries. To do that we add the
-		// item to progress and having progress aggregate everything for later.
-		d := &itemDetails{
-			info:         nil,
-			repoPath:     itemPath,
-			prevPath:     prevItemPath,
-			locationPath: locationPath,
+		// Meta files aren't in backup details since it's the set of items the user
+		// sees.
+		//
+		// TODO(ashmrtn): We may eventually want to make this a function that is
+		// passed in so that we can more easily switch it between different external
+		// service provider implementations.
+		if !metadata.IsMetadataFile(itemPath) {
+			// All items have item info in the base backup. However, we need to make
+			// sure we have enough metadata to find those entries. To do that we add
+			// the item to progress and having progress aggregate everything for
+			// later.
+			d := &itemDetails{
+				info:         nil,
+				repoPath:     itemPath,
+				prevPath:     prevItemPath,
+				locationPath: locationPath,
+			}
+			progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 		}
-		progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 
 		if err := cb(ctx, entry); err != nil {
 			return errors.Wrapf(err, "executing callback on item %q", itemPath)

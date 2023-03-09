@@ -119,7 +119,7 @@ func NewCollections(
 func deserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) (map[string]string, map[string]map[string]string, error) {
 	logger.Ctx(ctx).Infow(
 		"deserialzing previous backup metadata",
@@ -128,11 +128,11 @@ func deserializeMetadata(
 	var (
 		prevDeltas  = map[string]string{}
 		prevFolders = map[string]map[string]string{}
-		et          = errs.Tracker()
+		el          = errs.Local()
 	)
 
 	for _, col := range cols {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -186,7 +186,7 @@ func deserializeMetadata(
 
 				err = clues.Stack(err).WithClues(ictx)
 
-				et.Add(err)
+				el.AddRecoverable(err)
 				logger.Ctx(ictx).
 					With("err", err).
 					Errorw("deserializing base backup metadata", clues.InErr(err).Slice()...)
@@ -216,7 +216,7 @@ func deserializeMetadata(
 		}
 	}
 
-	return prevDeltas, prevFolders, et.Err()
+	return prevDeltas, prevFolders, el.Failure()
 }
 
 var errExistingMapping = clues.New("mapping already exists for same drive ID")
@@ -257,7 +257,7 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]struct{}, error) {
 	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)
 	if err != nil {
@@ -599,12 +599,12 @@ func (c *Collections) UpdateCollections(
 	excluded map[string]struct{},
 	itemCollection map[string]string,
 	invalidPrevDelta bool,
-	errs *fault.Errors,
+	errs *fault.Bus,
 ) error {
-	et := errs.Tracker()
+	el := errs.Local()
 
 	for _, item := range items {
-		if et.Err() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -632,7 +632,9 @@ func (c *Collections) UpdateCollections(
 
 		collectionPath, err := c.getCollectionPath(driveID, item)
 		if err != nil {
-			return clues.Stack(err).WithClues(ictx)
+			el.AddRecoverable(clues.Stack(err).
+				WithClues(ictx).
+				Label(fault.LabelForceNoBackupCreation))
 		}
 
 		// Skip items that don't match the folder selectors we were given.
@@ -650,7 +652,7 @@ func (c *Collections) UpdateCollections(
 			if ok {
 				prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 				if err != nil {
-					et.Add(clues.Wrap(err, "invalid previous path").
+					el.AddRecoverable(clues.Wrap(err, "invalid previous path").
 						WithClues(ictx).
 						With("path_string", prevPathStr))
 				}
@@ -754,7 +756,7 @@ func (c *Collections) UpdateCollections(
 		}
 	}
 
-	return et.Err()
+	return el.Failure()
 }
 
 func shouldSkipDrive(ctx context.Context, drivePath path.Path, m folderMatcher, driveName string) bool {

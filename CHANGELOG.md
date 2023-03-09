@@ -12,9 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Corso-generated .meta files and permissions no longer appear in the backup details.
+- Panic and recovery if a user didn't exist in the tenant.
 
 ### Known Issues
 - Folders and Calendars containing zero items or subfolders are not included in the backup.
+- OneDrive files ending in `.meta` or `.dirmeta` are omitted from details and restores.
 
 ## [v0.4.0] (beta) - 2023-2-20
 
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolved an issue where progress bar displays could fail to exit, causing unbounded CPU consumption.
 - Fix Corso panic within Docker images
 - Debugging with the CORSO_URL_LOGGING env variable no longer causes accidental request failures.
+- Don't discover all users when backing up each user in a multi-user backup
 
 ### Changed
 - When using Restore and Details on Exchange Calendars, the `--event-calendar` flag can now identify calendars by either a Display Name or a Microsoft 365 ID.
