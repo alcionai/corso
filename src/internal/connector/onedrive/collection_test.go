@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -88,13 +89,15 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		itemReader   itemReaderFunc
 		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
+		expectErr    require.ErrorAssertionFunc
+		expectLabel  string
 	}{
 		{
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -103,13 +106,14 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
 			},
+			expectErr: require.NoError,
 		},
 		{
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -118,13 +122,29 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
 			},
+			expectErr: require.NoError,
+		},
+		{
+			name:         "oneDrive, malware",
+			numInstances: 3,
+			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, clues.New("test malware").Label(graph.LabelsMalware)
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+			expectErr:   require.Error,
+			expectLabel: graph.LabelsMalware,
 		},
 		{
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -133,13 +153,14 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.SharePoint)
 				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
 			},
+			expectErr: require.NoError,
 		},
 		{
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -148,6 +169,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.SharePoint)
 				return dii.SharePoint.ItemName, dii.SharePoint.ParentPath
 			},
+			expectErr: require.NoError,
 		},
 	}
 	for _, test := range table {
@@ -242,7 +264,15 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			assert.Equal(t, now, mt.ModTime())
 
 			readData, err := io.ReadAll(readItem.ToReader())
-			require.NoError(t, err)
+			test.expectErr(t, err)
+
+			if err != nil {
+				if len(test.expectLabel) > 0 {
+					assert.True(t, clues.HasLabel(err, test.expectLabel), "has clues label:", test.expectLabel)
+				}
+
+				return
+			}
 
 			name, parentPath := test.infoFrom(t, readItemInfo.Info())
 
@@ -326,7 +356,11 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			mockItem.SetLastModifiedDateTime(&now)
 			coll.Add(mockItem)
 
-			coll.itemReader = func(*http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			coll.itemReader = func(
+				context.Context,
+				*http.Client,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, assert.AnError
 			}
 
@@ -407,6 +441,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			coll.Add(mockItem)
 
 			coll.itemReader = func(
+				context.Context,
 				*http.Client,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {

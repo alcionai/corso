@@ -71,7 +71,7 @@ func RestoreCollections(
 				backupVersion,
 				service,
 				dc,
-				map[string][]onedrive.UserPermission{}, // Currently permission data is not stored for sharepoint
+				map[string]onedrive.Metadata{}, // Currently permission data is not stored for sharepoint
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
@@ -126,7 +126,7 @@ func createRestoreFolders(
 	// Get Main Drive for Site, Documents
 	mainDrive, err := service.Client().SitesById(siteID).Drive().Get(ctx, nil)
 	if err != nil {
-		return "", clues.Wrap(err, "getting site drive root").WithClues(ctx).With(graph.ErrData(err)...)
+		return "", graph.Wrap(ctx, err, "getting site drive root")
 	}
 
 	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
@@ -182,7 +182,7 @@ func restoreListItem(
 	// Restore to List base to M365 back store
 	restoredList, err := service.Client().SitesById(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
-		return dii, clues.Wrap(err, "restoring list").WithClues(ctx).With(graph.ErrData(err)...)
+		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
 
 	// Uploading of ListItems is conducted after the List is restored
@@ -195,10 +195,8 @@ func restoreListItem(
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {
-				return dii, clues.Wrap(err, "restoring list items").
-					With("restored_list_id", ptr.Val(restoredList.GetId())).
-					WithClues(ctx).
-					With(graph.ErrData(err)...)
+				return dii, graph.Wrap(ctx, err, "restoring list items").
+					With("restored_list_id", ptr.Val(restoredList.GetId()))
 			}
 		}
 	}

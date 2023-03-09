@@ -20,17 +20,31 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func getMetadata(fileName, user string, roles []string) onedrive.Metadata {
-	if len(user) == 0 || len(roles) == 0 {
-		return onedrive.Metadata{FileName: fileName}
+// For any version post this(inclusive), we expect to be using IDs for
+// permission instead of email
+const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
+
+func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metadata {
+	if len(perm.user) == 0 || len(perm.roles) == 0 ||
+		perm.sharingMode != onedrive.SharingModeCustom {
+		return onedrive.Metadata{
+			FileName:    fileName,
+			SharingMode: perm.sharingMode,
+		}
 	}
 
-	id := base64.StdEncoding.EncodeToString([]byte(user + strings.Join(roles, "+")))
+	id := base64.StdEncoding.EncodeToString([]byte(perm.user + strings.Join(perm.roles, "+")))
+	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
+
+	if permUseID {
+		uperm.EntityID = perm.entityID
+	} else {
+		uperm.Email = perm.user
+	}
+
 	testMeta := onedrive.Metadata{
-		FileName: fileName,
-		Permissions: []onedrive.UserPermission{
-			{ID: id, Roles: roles, Email: user},
-		},
+		FileName:    fileName,
+		Permissions: []onedrive.UserPermission{uperm},
 	}
 
 	return testMeta
@@ -66,12 +80,12 @@ func onedriveItemWithData(
 func onedriveMetadata(
 	t *testing.T,
 	fileName, itemID string,
-	user string,
-	roles []string,
+	perm permData,
+	permUseID bool,
 ) itemInfo {
 	t.Helper()
 
-	testMeta := getMetadata(fileName, user, roles)
+	testMeta := getMetadata(fileName, perm, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
 	require.NoError(t, err, "marshalling metadata")
@@ -85,10 +99,12 @@ func onedriveMetadata(
 
 type GraphConnectorOneDriveIntegrationSuite struct {
 	tester.Suite
-	connector     *GraphConnector
-	user          string
-	secondaryUser string
-	acct          account.Account
+	connector       *GraphConnector
+	user            string
+	userID          string
+	secondaryUser   string
+	secondaryUserID string
+	acct            account.Account
 }
 
 func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
@@ -109,6 +125,14 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
 	suite.acct = tester.NewM365Account(suite.T())
+
+	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
+	require.NoErrorf(suite.T(), err, "fetching user %s", suite.user)
+	suite.userID = *user.GetId()
+
+	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
+	require.NoErrorf(suite.T(), err, "fetching user %s", suite.secondaryUser)
+	suite.secondaryUserID = *secondaryUser.GetId()
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -157,12 +181,7 @@ func (c onedriveCollection) collection() colInfo {
 	}
 }
 
-func (c *onedriveCollection) withFile(
-	name string,
-	fileData []byte,
-	user string,
-	roles []string,
-) *onedriveCollection {
+func (c *onedriveCollection) withFile(name string, fileData []byte, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0:
 		// Lookups will occur using the most recent version of things so we need
@@ -184,8 +203,8 @@ func (c *onedriveCollection) withFile(
 			c.t,
 			"",
 			name+onedrive.MetaFileSuffix,
-			user,
-			roles)
+			perm,
+			c.backupVersion >= versionPermissionSwitchedToID)
 		c.items = append(c.items, metadata)
 		c.aux = append(c.aux, metadata)
 
@@ -196,11 +215,7 @@ func (c *onedriveCollection) withFile(
 	return c
 }
 
-func (c *onedriveCollection) withFolder(
-	name string,
-	user string,
-	roles []string,
-) *onedriveCollection {
+func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions:
 		return c
@@ -212,8 +227,8 @@ func (c *onedriveCollection) withFolder(
 				c.t,
 				"",
 				name+onedrive.DirMetaFileSuffix,
-				user,
-				roles))
+				perm,
+				c.backupVersion >= versionPermissionSwitchedToID))
 
 	default:
 		assert.FailNowf(c.t, "bad backup version", "version %d", c.backupVersion)
@@ -224,10 +239,7 @@ func (c *onedriveCollection) withFolder(
 
 // withPermissions adds permissions to the folder represented by this
 // onedriveCollection.
-func (c *onedriveCollection) withPermissions(
-	user string,
-	roles []string,
-) *onedriveCollection {
+func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection {
 	// These versions didn't store permissions for the folder or didn't store them
 	// in the folder's collection.
 	if c.backupVersion < version.OneDrive4DirIncludesPermissions {
@@ -244,8 +256,8 @@ func (c *onedriveCollection) withPermissions(
 		c.t,
 		name,
 		name+onedrive.DirMetaFileSuffix,
-		user,
-		roles)
+		perm,
+		c.backupVersion >= versionPermissionSwitchedToID)
 
 	c.items = append(c.items, metadata)
 	c.aux = append(c.aux, metadata)
@@ -254,8 +266,10 @@ func (c *onedriveCollection) withPermissions(
 }
 
 type permData struct {
-	user  string
-	roles []string
+	user        string // user is only for older versions
+	entityID    string
+	roles       []string
+	sharingMode onedrive.SharingMode
 }
 
 type itemData struct {
@@ -285,14 +299,14 @@ func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int) []
 		onedriveCol := newOneDriveCollection(t, c.pathElements, backupVersion)
 
 		for _, f := range c.files {
-			onedriveCol.withFile(f.name, f.data, f.perms.user, f.perms.roles)
+			onedriveCol.withFile(f.name, f.data, f.perms)
 		}
 
 		for _, d := range c.folders {
-			onedriveCol.withFolder(d.name, d.perms.user, d.perms.roles)
+			onedriveCol.withFolder(d.name, d.perms)
 		}
 
-		onedriveCol.withPermissions(c.perms.user, c.perms.roles)
+		onedriveCol.withPermissions(c.perms)
 
 		res = append(res, onedriveCol.collection())
 	}
@@ -503,8 +517,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileAData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: writePerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    writePerm,
 						},
 					},
 					{
@@ -521,15 +536,17 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 					{
 						name: folderAName,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 					{
 						name: folderCName,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
@@ -543,8 +560,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileBData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
@@ -552,8 +570,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 					{
 						name: folderAName,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
@@ -567,14 +586,16 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileDData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: readPerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    readPerm,
 						},
 					},
 				},
 				perms: permData{
-					user:  suite.secondaryUser,
-					roles: readPerm,
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
 				},
 			},
 			{
@@ -586,14 +607,16 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						name: fileName,
 						data: fileEData,
 						perms: permData{
-							user:  suite.secondaryUser,
-							roles: writePerm,
+							user:     suite.secondaryUser,
+							entityID: suite.secondaryUserID,
+							roles:    writePerm,
 						},
 					},
 				},
 				perms: permData{
-					user:  suite.secondaryUser,
-					roles: readPerm,
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
 				},
 			},
 			{
@@ -607,8 +630,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 					},
 				},
 				perms: permData{
-					user:  suite.secondaryUser,
-					roles: readPerm,
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
 				},
 			},
 		},
@@ -619,6 +643,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 	for vn := test.startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
+			// Ideally this can always be true or false and still
+			// work, but limiting older versions to use emails so as
+			// to validate that flow as well.
 			input := testDataForInfo(t, test.cols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
@@ -670,8 +697,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 					name: fileName,
 					data: fileAData,
 					perms: permData{
-						user:  suite.secondaryUser,
-						roles: writePerm,
+						user:     suite.secondaryUser,
+						entityID: suite.secondaryUserID,
+						roles:    writePerm,
 					},
 				},
 			},
@@ -742,6 +770,18 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		suite.user,
 	)
 
+	secondaryUserRead := permData{
+		user:     suite.secondaryUser,
+		entityID: suite.secondaryUserID,
+		roles:    readPerm,
+	}
+
+	secondaryUserWrite := permData{
+		user:     suite.secondaryUser,
+		entityID: suite.secondaryUserID,
+		roles:    writePerm,
+	}
+
 	test := restoreBackupInfoMultiVersion{
 		service:       path.OneDriveService,
 		resource:      Users,
@@ -759,13 +799,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileAData,
-					suite.secondaryUser,
-					writePerm,
+					secondaryUserWrite,
 				).
 				withFolder(
 					folderBName,
-					suite.secondaryUser,
-					readPerm,
+					secondaryUserRead,
 				).
 				collection(),
 			newOneDriveCollection(
@@ -781,12 +819,10 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileEData,
-					suite.secondaryUser,
-					readPerm,
+					secondaryUserRead,
 				).
 				withPermissions(
-					suite.secondaryUser,
-					readPerm,
+					secondaryUserRead,
 				).
 				collection(),
 		},
@@ -803,13 +839,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileAData,
-					"",
-					nil,
+					permData{},
 				).
 				withFolder(
 					folderBName,
-					"",
-					nil,
+					permData{},
 				).
 				collection(),
 			newOneDriveCollection(
@@ -825,14 +859,12 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				withFile(
 					fileName,
 					fileEData,
-					"",
-					nil,
+					permData{},
 				).
 				// Call this to generate a meta file with the folder name that we can
 				// check.
 				withPermissions(
-					"",
-					nil,
+					permData{},
 				).
 				collection(),
 		},
@@ -849,4 +881,160 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
 		},
 	)
+}
+
+// This is similar to TestPermissionsRestoreAndBackup but tests purely
+// for inheritance and that too only with newer versions
+func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	// Get the default drive ID for the test user.
+	driveID := mustGetDefaultDriveID(
+		suite.T(),
+		ctx,
+		suite.connector.Service,
+		suite.user,
+	)
+
+	folderAName := "custom"
+	folderBName := "inherited"
+
+	rootPath := []string{
+		"drives",
+		driveID,
+		"root:",
+	}
+	folderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+	}
+	subfolderAPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderAName,
+	}
+	subfolderBPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderBName,
+	}
+
+	fileSet := []itemData{
+		{
+			name: "file-custom",
+			data: fileAData,
+			perms: permData{
+				user:        suite.secondaryUser,
+				entityID:    suite.secondaryUserID,
+				roles:       writePerm,
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
+		{
+			name: "file-inherited",
+			data: fileAData,
+			perms: permData{
+				sharingMode: onedrive.SharingModeInherited,
+			},
+		},
+	}
+
+	// Here is what this test is testing
+	// - custom-permission-folder
+	//   - custom-permission-file
+	//   - inherted-permission-file
+	//   - custom-permission-folder
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
+	//   - inherted-permission-folder
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
+
+	// No reason why it couldn't work with previous versions, but this
+	// is when it got introduced.
+	startVersion := version.OneDrive4DirIncludesPermissions
+
+	test := onedriveTest{
+		startVersion: startVersion,
+		cols: []onedriveColInfo{
+			{
+				pathElements: rootPath,
+				files:        []itemData{},
+				folders: []itemData{
+					{
+						name: folderAName,
+					},
+				},
+			},
+			{
+				pathElements: folderAPath,
+				files:        fileSet,
+				folders: []itemData{
+					{name: folderAName},
+					{name: folderBName},
+				},
+				perms: permData{
+					user:     suite.secondaryUser,
+					entityID: suite.secondaryUserID,
+					roles:    readPerm,
+				},
+			},
+			{
+				pathElements: subfolderAPath,
+				files:        fileSet,
+				perms: permData{
+					user:        suite.secondaryUser,
+					entityID:    suite.secondaryUserID,
+					roles:       writePerm,
+					sharingMode: onedrive.SharingModeCustom,
+				},
+			},
+			{
+				pathElements: subfolderBPath,
+				files:        fileSet,
+				perms: permData{
+					sharingMode: onedrive.SharingModeInherited,
+				},
+			},
+		},
+	}
+
+	expected := testDataForInfo(suite.T(), test.cols, version.Backup)
+
+	for vn := test.startVersion; vn <= version.Backup; vn++ {
+		suite.Run(fmt.Sprintf("Version%d", vn), func() {
+			t := suite.T()
+			// Ideally this can always be true or false and still
+			// work, but limiting older versions to use emails so as
+			// to validate that flow as well.
+			input := testDataForInfo(t, test.cols, vn)
+
+			testData := restoreBackupInfoMultiVersion{
+				service:             path.OneDriveService,
+				resource:            Users,
+				backupVersion:       vn,
+				collectionsPrevious: input,
+				collectionsLatest:   expected,
+			}
+
+			runRestoreBackupTestVersions(
+				t,
+				suite.acct,
+				testData,
+				suite.connector.tenant,
+				[]string{suite.user},
+				control.Options{
+					RestorePermissions: true,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+				},
+			)
+		})
+	}
 }

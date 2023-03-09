@@ -155,8 +155,8 @@ func (suite *FiltersSuite) TestContains_Joined() {
 }
 
 func (suite *FiltersSuite) TestIn() {
-	f := filters.In("murf")
-	nf := filters.NotIn("murf")
+	f := filters.In([]string{"murf"})
+	nf := filters.NotIn([]string{"murf"})
 
 	table := []struct {
 		input    string
@@ -176,9 +176,53 @@ func (suite *FiltersSuite) TestIn() {
 	}
 }
 
+func (suite *FiltersSuite) TestIn_MultipleTargets() {
+	f := filters.In([]string{"murf", "foo"})
+	nf := filters.NotIn([]string{"murf", "foo"})
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"smurfs", assert.True, assert.False},
+		{"foo", assert.True, assert.False},
+		{"sfrums", assert.False, assert.True},
+		{"oof", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.input, func(t *testing.T) {
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
+		})
+	}
+}
+
+func (suite *FiltersSuite) TestIn_MultipleTargets_Joined() {
+	f := filters.In([]string{"userid", "foo"})
+	nf := filters.NotIn([]string{"userid", "foo"})
+
+	table := []struct {
+		input    string
+		expectF  assert.BoolAssertionFunc
+		expectNF assert.BoolAssertionFunc
+	}{
+		{"smarf,userid", assert.True, assert.False},
+		{"smarf,foo", assert.True, assert.False},
+		{"arf,user", assert.False, assert.True},
+		{"arf,oof", assert.False, assert.True},
+	}
+	for _, test := range table {
+		suite.T().Run(test.input, func(t *testing.T) {
+			test.expectF(t, f.Compare(test.input), "filter")
+			test.expectNF(t, nf.Compare(test.input), "negated filter")
+		})
+	}
+}
+
 func (suite *FiltersSuite) TestIn_Joined() {
-	f := filters.In("userid")
-	nf := filters.NotIn("userid")
+	f := filters.In([]string{"userid"})
+	nf := filters.NotIn([]string{"userid"})
 
 	table := []struct {
 		input    string
@@ -287,7 +331,7 @@ func (suite *FiltersSuite) TestPathPrefix() {
 		{"Prefix - input variations - prefix", []string{"fA"}, "/fA/fb", assert.True, assert.False},
 		{"Prefix - input variations - suffix", []string{"fA"}, "fA/fb/", assert.True, assert.False},
 		{"Prefix - input variations - both", []string{"fA"}, "/fA/fb/", assert.True, assert.False},
-		{"Slice - one matches", []string{"foo", "fa/f", "fA"}, "/fA/fb", assert.True, assert.True},
+		{"Slice - one matches", []string{"foo", "fa/f", "fA"}, "/fA/fb", assert.True, assert.False},
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
@@ -370,7 +414,7 @@ func (suite *FiltersSuite) TestPathContains() {
 		{"Cont - input variations - prefix", []string{"fA"}, "/fA/fb", assert.True, assert.False},
 		{"Cont - input variations - suffix", []string{"fA"}, "fA/fb/", assert.True, assert.False},
 		{"Cont - input variations - both", []string{"fA"}, "/fA/fb/", assert.True, assert.False},
-		{"Slice - one matches", []string{"foo", "fa/f", "fA"}, "/fA/fb", assert.True, assert.True},
+		{"Slice - one matches", []string{"foo", "fa/f", "fA"}, "/fA/fb", assert.True, assert.False},
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
@@ -450,7 +494,7 @@ func (suite *FiltersSuite) TestPathSuffix() {
 		{"Suffix - input variations - prefix", []string{"fb"}, "/fA/fb", assert.True, assert.False},
 		{"Suffix - input variations - suffix", []string{"fb"}, "fA/fb/", assert.True, assert.False},
 		{"Suffix - input variations - both", []string{"fb"}, "/fA/fb/", assert.True, assert.False},
-		{"Slice - one matches", []string{"foo", "fa/f", "fb"}, "/fA/fb", assert.True, assert.True},
+		{"Slice - one matches", []string{"foo", "fa/f", "fb"}, "/fA/fb", assert.True, assert.False},
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {
@@ -521,7 +565,7 @@ func (suite *FiltersSuite) TestPathEquals() {
 		{"Prefix - different case", []string{"fa"}, "/fA/fB", assert.False, assert.True},
 		{"Contains - same case", []string{"fB"}, "/fA/fB/fC", assert.False, assert.True},
 		{"Contains - different case", []string{"fb"}, "/fA/fB/fC", assert.False, assert.True},
-		{"Slice - one matches", []string{"foo", "/fA/fb", "fb"}, "/fA/fb", assert.True, assert.True},
+		{"Slice - one matches", []string{"foo", "/fA/fb", "fb"}, "/fA/fb", assert.True, assert.False},
 		{"Slice - none match", []string{"foo", "fa/f", "f"}, "/fA/fb", assert.False, assert.True},
 	}
 	for _, test := range table {

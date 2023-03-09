@@ -267,7 +267,7 @@ func (c *Collections) Get(
 	// Enumerate drives for the specified resourceOwner
 	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
-		return nil, nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, nil, graph.Stack(ctx, err)
 	}
 
 	retry := c.source == OneDriveSource
@@ -608,11 +608,27 @@ func (c *Collections) UpdateCollections(
 			break
 		}
 
+		if item.GetMalware() != nil {
+			// TODO: track the item as skipped; logging alone might
+			// slice out the data from tracking.
+			// https://learn.microsoft.com/en-us/graph/api/resources/malware?view=graph-rest-1.0
+			logger.Ctx(ctx).Infow("malware detected", "malware_description", ptr.Val(item.GetMalware().GetDescription()))
+			continue
+		}
+
 		var (
 			itemID   = ptr.Val(item.GetId())
 			ictx     = clues.Add(ctx, "update_item_id", itemID)
 			isFolder = item.GetFolder() != nil || item.GetPackage() != nil
 		)
+
+		// TODO(meain): Use `@microsoft.graph.sharedChanged` in
+		// item.GetAdditionalData() to optimize fetching
+		// permissions. When permissions change, this flags is
+		// present, if only data changes, it is not present.  Have to
+		// add `oneDrive.sharedChanged` in `$select` in delta
+		// https://learn.microsoft.com/en-us/onedrive/developer/rest-api
+		// /concepts/scan-guidance#scanning-permissions-hierarchies
 
 		// Deleted file or folder.
 		if item.GetDeleted() != nil {

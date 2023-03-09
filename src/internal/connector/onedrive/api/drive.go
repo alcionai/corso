@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
@@ -40,7 +42,18 @@ func NewItemPager(
 	fields []string,
 ) *driveItemPager {
 	pageCount := pageSize
+
+	headers := abstractions.NewRequestHeaders()
+	preferHeaderItems := []string{
+		"deltashowremovedasdeleted",
+		"deltatraversepermissiongaps",
+		"deltashowsharingchanges",
+		"hierarchicalsharing",
+	}
+	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
+
 	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+		Headers: headers,
 		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
 			Top:    &pageCount,
 			Select: fields,
@@ -69,7 +82,7 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, nil
@@ -120,8 +133,11 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 	)
 
 	resp, err = p.builder.Get(ctx, p.options)
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (p *userDrivePager) SetNext(link string) {
@@ -171,7 +187,7 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 
 	resp, err = p.builder.Get(ctx, p.options)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, nil
@@ -194,7 +210,7 @@ func (p *siteDrivePager) GetDriveIDByName(ctx context.Context, driveName string)
 	for {
 		resp, err := p.builder.Get(ctx, p.options)
 		if err != nil {
-			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return empty, graph.Stack(ctx, err)
 		}
 
 		for _, entry := range resp.GetValue() {
@@ -230,7 +246,7 @@ func (p *siteDrivePager) GetFolderIDByName(ctx context.Context, driveID, folderN
 	for {
 		resp, err := builder.Get(ctx, option)
 		if err != nil {
-			return empty, clues.Stack(err).WithClues(ctx).With(graph.ErrData(err)...)
+			return empty, graph.Stack(ctx, err)
 		}
 
 		for _, entry := range resp.GetValue() {

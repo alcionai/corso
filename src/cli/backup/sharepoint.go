@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -22,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -70,7 +68,15 @@ corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
 	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
 
-corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>`
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>
+<<<<<<< HEAD
+# Explore site's files created before end of 2015 from a specific backup
+=======
+# Find all site files that were created before a certain date.
+>>>>>>> main
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+      --web-url https://example.com --file-created-before 2015-01-01T00:00:00
+`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -152,12 +158,26 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
 		)
 
-		// info flags
+		// sharepoint info flags
 
-		// fs.StringVar(
-		// 	&fileCreatedAfter,
-		// 	utils.FileCreatedAfterFN, "",
-		// 	"Select backup details for items created after this datetime.")
+		fs.StringVar(
+			&utils.FileCreatedAfter,
+			utils.FileCreatedAfterFN, "",
+			"Select backup details for items created after this datetime.")
+
+		fs.StringVar(
+			&utils.FileCreatedBefore,
+			utils.FileCreatedBeforeFN, "",
+			"Select backup details for files created before this datetime.")
+
+		fs.StringVar(
+			&utils.FileModifiedAfter,
+			utils.FileModifiedAfterFN, "",
+			"Select backup details for files modified after this datetime.")
+		fs.StringVar(
+			&utils.FileModifiedBefore,
+			utils.FileModifiedBeforeFN, "",
+			"Select backup details for files modified before this datetime.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
@@ -201,14 +221,9 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	r, acct, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -216,7 +231,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), cfg.Account, connector.Sites, errs)
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), *acct, connector.Sites, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
@@ -370,43 +385,7 @@ func sharePointListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	if len(backupID) > 0 {
-		b, err := r.Backup(ctx, model.StableID(backupID))
-		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
-				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
-			}
-
-			return Only(ctx, errors.Wrap(err, "Failed to find backup "+backupID))
-		}
-
-		b.Print(ctx)
-
-		return nil
-	}
-
-	bs, err := r.BackupsByTag(ctx, store.Service(path.SharePointService))
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
-	}
-
-	backup.PrintAll(ctx, bs)
-
-	return nil
+	return genericListCommand(cmd, backupID, path.SharePointService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -426,31 +405,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
-		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
-	}
-
-	Info(ctx, "Deleted SharePoint backup ", backupID)
-
-	return nil
+	return genericDeleteCommand(cmd, backupID, "SharePoint", args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -470,34 +425,32 @@ func sharePointDetailsCmd() *cobra.Command {
 
 // lists the history of backup operations
 func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	ctx := cmd.Context()
+	opts := utils.SharePointOpts{
+		LibraryItems:       libraryItems,
+		LibraryPaths:       libraryPaths,
+		Sites:              site,
+		WebURLs:            weburl,
+		FileCreatedAfter:   fileCreatedAfter,
+		FileCreatedBefore:  fileCreatedBefore,
+		FileModifiedAfter:  fileModifiedAfter,
+		FileModifiedBefore: fileModifiedBefore,
+
+		Populated: utils.GetPopulatedFlags(cmd),
+	}
+
+	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	ctrlOpts := options.Control()
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, ctrlOpts)
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
-	}
-
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.SharePointOpts{
-		LibraryItems: libraryItems,
-		LibraryPaths: libraryPaths,
-		Sites:        site,
-		WebURLs:      weburl,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	ctrlOpts := options.Control()
 
 	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {

@@ -2,6 +2,8 @@ package details
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"strconv"
 	"strings"
 	"sync"
@@ -305,6 +307,18 @@ func (d *Details) addFolder(folder folderEntry) {
 	})
 }
 
+// Marshal complies with the marshaller interface in streamStore.
+func (d *Details) Marshal() ([]byte, error) {
+	return json.Marshal(d)
+}
+
+// UnmarshalTo produces a func that complies with the unmarshaller type in streamStore.
+func UnmarshalTo(d *Details) func(io.ReadCloser) error {
+	return func(rc io.ReadCloser) error {
+		return json.NewDecoder(rc).Decode(d)
+	}
+}
+
 // --------------------------------------------------------------------------------
 // Entry
 // --------------------------------------------------------------------------------
@@ -395,19 +409,32 @@ func (de DetailsEntry) Values() []string {
 
 type ItemType int
 
+// ItemTypes are enumerated by service (hundredth digit) and data type (ones digit).
+// Ex: exchange is 00x where x is the data type.  Sharepoint is 10x, and etc.
+// Every item info struct should get its own hundredth enumeration entry.
+// Every item category for that service should get its own entry (even if differences
+// between types aren't apparent on initial implementation, this future-proofs
+// against breaking changes).
+// Entries should not be rearranged.
+// Additionally, any itemType directly assigned a number should not be altered.
+// This applies to  OneDriveItem and FolderItem
 const (
-	UnknownType ItemType = iota
+	UnknownType ItemType = iota // 0, global unknown value
 
-	// separate each service by a factor of 100 for padding
+	// Exchange (00x)
 	ExchangeContact
 	ExchangeEvent
 	ExchangeMail
+	// SharePoint (10x)
+	SharePointLibrary ItemType = iota + 97 // 100
+	SharePointList                         // 101...
+	SharePointPage
 
-	SharePointItem ItemType = iota + 100
+	// OneDrive (20x)
+	OneDriveItem ItemType = 205
 
-	OneDriveItem ItemType = iota + 200
-
-	FolderItem ItemType = iota + 300
+	// Folder Management(30x)
+	FolderItem ItemType = 306
 )
 
 func UpdateItem(item *ItemInfo, repoPath path.Path) error {
@@ -416,7 +443,7 @@ func UpdateItem(item *ItemInfo, repoPath path.Path) error {
 	var updatePath func(path.Path) error
 
 	switch item.infoType() {
-	case SharePointItem:
+	case SharePointLibrary:
 		updatePath = item.SharePoint.UpdateParentPath
 	case OneDriveItem:
 		updatePath = item.OneDrive.UpdateParentPath
@@ -516,6 +543,7 @@ type ExchangeInfo struct {
 	ItemType    ItemType  `json:"itemType,omitempty"`
 	Sender      string    `json:"sender,omitempty"`
 	Subject     string    `json:"subject,omitempty"`
+	Recipient   []string  `json:"recipient,omitempty"`
 	ParentPath  string    `json:"parentPath,omitempty"`
 	Received    time.Time `json:"received,omitempty"`
 	EventStart  time.Time `json:"eventStart,omitempty"`

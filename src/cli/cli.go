@@ -61,13 +61,14 @@ func preRun(cc *cobra.Command, args []string) error {
 		print.Info(ctx, "Logging to file: "+logger.LogFile)
 	}
 
-	avoidTheseCommands = []string{
-		"help for corso",
+	avoidTheseDescription := []string{
 		"Initialize a repository.",
 		"Initialize a S3 repository",
+		"Help about any command",
+		"Free, Secure, Open-Source Backup for M365.",
 	}
 
-	if !slices.Contains(avoidTheseCommands, cc.Short) {
+	if !slices.Contains(avoidTheseDescription, cc.Short) {
 		cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)

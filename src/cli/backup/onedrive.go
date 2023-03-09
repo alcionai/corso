@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -21,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365"
-	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -63,11 +61,6 @@ corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
 var (
 	folderPaths []string
 	fileNames   []string
-
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -125,20 +118,20 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// onedrive info flags
 
 		fs.StringVar(
-			&fileCreatedAfter,
+			&utils.FileCreatedAfter,
 			utils.FileCreatedAfterFN, "",
 			"Select backup details for files created after this datetime.")
 		fs.StringVar(
-			&fileCreatedBefore,
+			&utils.FileCreatedBefore,
 			utils.FileCreatedBeforeFN, "",
 			"Select backup details for files created before this datetime.")
 
 		fs.StringVar(
-			&fileModifiedAfter,
+			&utils.FileModifiedAfter,
 			utils.FileModifiedAfterFN, "",
 			"Select backup details for files modified after this datetime.")
 		fs.StringVar(
-			&fileModifiedBefore,
+			&utils.FileModifiedBefore,
 			utils.FileModifiedBeforeFN, "",
 			"Select backup details for files modified before this datetime.")
 
@@ -184,14 +177,9 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	r, acct, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -201,7 +189,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, cfg.Account, errs)
+	users, err := m365.UserPNs(ctx, *acct, errs)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
@@ -283,43 +271,7 @@ func oneDriveListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	if len(backupID) > 0 {
-		b, err := r.Backup(ctx, model.StableID(backupID))
-		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
-				return Only(ctx, errors.Errorf("No backup exists with the id %s", backupID))
-			}
-
-			return Only(ctx, errors.Wrap(err, "Failed to find backup "+backupID))
-		}
-
-		b.Print(ctx)
-
-		return nil
-	}
-
-	bs, err := r.BackupsByTag(ctx, store.Service(path.OneDriveService))
-	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
-	}
-
-	backup.PrintAll(ctx, bs)
-
-	return nil
+	return genericListCommand(cmd, backupID, path.OneDriveService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -339,37 +291,31 @@ func oneDriveDetailsCmd() *cobra.Command {
 
 // prints the item details for a given backup
 func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
+	ctx := cmd.Context()
+	opts := utils.OneDriveOpts{
+		Users:              user,
+		Names:              fileNames,
+		Paths:              folderPaths,
+		FileCreatedAfter:   utils.FileCreatedAfter,
+		FileCreatedBefore:  utils.FileCreatedBefore,
+		FileModifiedAfter:  utils.FileModifiedAfter,
+		FileModifiedBefore: utils.FileModifiedBefore,
+
+		Populated: utils.GetPopulatedFlags(cmd),
+	}
+
+	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	ctrlOpts := options.Control()
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, ctrlOpts)
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
-	}
-
 	defer utils.CloseRepo(ctx, r)
 
-	opts := utils.OneDriveOpts{
-		Users:              user,
-		Paths:              folderPaths,
-		Names:              fileNames,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	ctrlOpts := options.Control()
 
 	ds, err := runDetailsOneDriveCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
@@ -432,29 +378,5 @@ func oneDriveDeleteCmd() *cobra.Command {
 
 // deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	if err := r.DeleteBackup(ctx, model.StableID(backupID)); err != nil {
-		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", backupID))
-	}
-
-	Info(ctx, "Deleted OneDrive backup ", backupID)
-
-	return nil
+	return genericDeleteCommand(cmd, backupID, "OneDrive", args)
 }

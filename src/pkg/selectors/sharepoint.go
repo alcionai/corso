@@ -3,8 +3,10 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -63,7 +65,7 @@ func (s Selector) ToSharePointBackup() (*SharePointBackup, error) {
 }
 
 func (s SharePointBackup) SplitByResourceOwner(sites []string) []SharePointBackup {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, sites, SharePointSite)
+	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -96,8 +98,8 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 	return &src, nil
 }
 
-func (s SharePointRestore) SplitByResourceOwner(users []string) []SharePointRestore {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+func (s SharePointRestore) SplitByResourceOwner(sites []string) []SharePointRestore {
+	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -333,6 +335,46 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 // -------------------
 // Filter Factories
 
+func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterCreatedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterCreatedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
+
+func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterModifiedAfter,
+			[]string{timeStrings},
+			wrapFilter(filters.Less)),
+	}
+}
+
+func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			FileFilterModifiedBefore,
+			[]string{timeStrings},
+			wrapFilter(filters.Greater)),
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -358,6 +400,10 @@ const (
 	SharePointPage        sharePointCategory = "SharePointPage"
 
 	// filterable topics identified by SharePoint
+	SiteFilterCreatedAfter   sharePointCategory = "FileFilterCreatedAfter"
+	SiteFilterCreatedBefore  sharePointCategory = "FileFilterCreatedBefore"
+	SiteFilterModifiedAfter  sharePointCategory = "FileFilterModifiedAfter"
+	SiteFilterModifiedBefore sharePointCategory = "FileFilterModifiedBefore"
 )
 
 // sharePointLeafProperties describes common metadata of the leaf categories
@@ -391,7 +437,9 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibrary, SharePointLibraryItem:
+	case SharePointLibrary, SharePointLibraryItem,
+		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
+		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
@@ -428,7 +476,7 @@ func (c sharePointCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, siteID, category, folder, itemID]
 // => {spFolder: folder, spItemID: itemID}
-func (c sharePointCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
+func (c sharePointCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
 	var folderCat, itemCat categorizer
 
 	switch c {
@@ -439,24 +487,19 @@ func (c sharePointCategory) pathValues(repo, location path.Path) (map[categorize
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
 	default:
-		return map[categorizer]string{}, map[categorizer]string{}
+		return map[categorizer][]string{}
 	}
 
-	rv := map[categorizer]string{
-		folderCat: repo.Folder(false),
-		itemCat:   repo.Item(),
+	result := map[categorizer][]string{
+		folderCat: {repo.Folder(false)},
+		itemCat:   {repo.Item(), ent.ShortRef},
 	}
 
-	lv := map[categorizer]string{}
-
-	if location != nil {
-		lv = map[categorizer]string{
-			folderCat: location.Folder(false),
-			itemCat:   location.Item(),
-		}
+	if len(ent.LocationRef) > 0 {
+		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
-	return rv, lv
+	return result
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
@@ -600,6 +643,10 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	switch filterCat {
 	case SharePointWebURL:
 		i = info.WebURL
+	case SiteFilterCreatedAfter, SiteFilterCreatedBefore:
+		i = common.FormatTime(info.Created)
+	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+		i = common.FormatTime(info.Modified)
 	}
 
 	return s.Matches(filterCat, i)

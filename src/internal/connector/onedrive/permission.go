@@ -14,80 +14,70 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func getParentPermissions(
+func getParentMetadata(
 	parentPath path.Path,
-	parentPermissions map[string][]UserPermission,
-) ([]UserPermission, error) {
-	parentPerms, ok := parentPermissions[parentPath.String()]
+	metas map[string]Metadata,
+) (Metadata, error) {
+	parentMeta, ok := metas[parentPath.String()]
 	if !ok {
 		onedrivePath, err := path.ToOneDrivePath(parentPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid restore path")
+			return Metadata{}, errors.Wrap(err, "invalid restore path")
 		}
 
 		if len(onedrivePath.Folders) != 0 {
-			return nil, errors.Wrap(err, "computing item permissions")
+			return Metadata{}, errors.Wrap(err, "computing item permissions")
 		}
 
-		parentPerms = []UserPermission{}
+		parentMeta = Metadata{}
 	}
 
-	return parentPerms, nil
+	return parentMeta, nil
 }
 
-func getParentAndCollectionPermissions(
+func getCollectionMetadata(
 	ctx context.Context,
 	drivePath *path.DrivePath,
 	dc data.RestoreCollection,
-	permissions map[string][]UserPermission,
+	metas map[string]Metadata,
 	backupVersion int,
 	restorePerms bool,
-) ([]UserPermission, []UserPermission, error) {
+) (Metadata, error) {
 	if !restorePerms || backupVersion < version.OneDrive1DataAndMetaFiles {
-		return nil, nil, nil
+		return Metadata{}, nil
 	}
 
 	var (
 		err            error
-		parentPerms    []UserPermission
-		colPerms       []UserPermission
 		collectionPath = dc.FullPath()
 	)
 
-	// Only get parent permissions if we're not restoring the root.
-	if len(drivePath.Folders) > 0 {
-		parentPath, err := collectionPath.Dir()
-		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting parent path")
-		}
-
-		parentPerms, err = getParentPermissions(parentPath, permissions)
-		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting parent permissions")
-		}
+	if len(drivePath.Folders) == 0 {
+		// No permissions for root folder
+		return Metadata{}, nil
 	}
 
 	if backupVersion < version.OneDrive4DirIncludesPermissions {
-		colPerms, err = getParentPermissions(collectionPath, permissions)
+		colMeta, err := getParentMetadata(collectionPath, metas)
 		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting collection permissions")
-		}
-	} else if len(drivePath.Folders) > 0 {
-		// Root folder doesn't have a metadata file associated with it.
-		folders := collectionPath.Folders()
-
-		meta, err := fetchAndReadMetadata(
-			ctx,
-			dc,
-			folders[len(folders)-1]+DirMetaFileSuffix)
-		if err != nil {
-			return nil, nil, clues.Wrap(err, "collection permissions")
+			return Metadata{}, clues.Wrap(err, "collection metadata")
 		}
 
-		colPerms = meta.Permissions
+		return colMeta, nil
 	}
 
-	return parentPerms, colPerms, nil
+	// Root folder doesn't have a metadata file associated with it.
+	folders := collectionPath.Folders()
+
+	meta, err := fetchAndReadMetadata(
+		ctx,
+		dc,
+		folders[len(folders)-1]+DirMetaFileSuffix)
+	if err != nil {
+		return Metadata{}, clues.Wrap(err, "collection metadata")
+	}
+
+	return meta, nil
 }
 
 // createRestoreFoldersWithPermissions creates the restore folder hierarchy in
@@ -99,8 +89,7 @@ func createRestoreFoldersWithPermissions(
 	service graph.Servicer,
 	driveID string,
 	restoreFolders []string,
-	parentPermissions []UserPermission,
-	folderPermissions []UserPermission,
+	folderMetadata Metadata,
 	permissionIDMappings map[string]string,
 ) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, driveID, restoreFolders)
@@ -113,58 +102,52 @@ func createRestoreFoldersWithPermissions(
 		service,
 		driveID,
 		id,
-		parentPermissions,
-		folderPermissions,
+		folderMetadata,
 		permissionIDMappings)
 
 	return id, err
 }
 
-// getChildPermissions is to filter out permissions present in the
-// parent from the ones that are available for child. This is
-// necessary as we store the nested permissions in the child. We
-// cannot avoid storing the nested permissions as it is possible that
-// a file in a folder can remove the nested permission that is present
-// on itself.
-func getChildPermissions(
-	childPermissions, parentPermissions []UserPermission,
+func diffPermissions(
+	before, after []UserPermission,
+	permissionIDMappings map[string]string,
 ) ([]UserPermission, []UserPermission) {
 	var (
-		addedPermissions   = []UserPermission{}
-		removedPermissions = []UserPermission{}
+		added   = []UserPermission{}
+		removed = []UserPermission{}
 	)
 
-	for _, cp := range childPermissions {
+	for _, cp := range after {
 		found := false
 
-		for _, pp := range parentPermissions {
-			if cp.ID == pp.ID {
+		for _, pp := range before {
+			if cp.ID == permissionIDMappings[pp.ID] {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			addedPermissions = append(addedPermissions, cp)
+			added = append(added, cp)
 		}
 	}
 
-	for _, pp := range parentPermissions {
+	for _, pp := range before {
 		found := false
 
-		for _, cp := range childPermissions {
-			if pp.ID == cp.ID {
+		for _, cp := range after {
+			if permissionIDMappings[pp.ID] == cp.ID {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			removedPermissions = append(removedPermissions, pp)
+			removed = append(removed, pp)
 		}
 	}
 
-	return addedPermissions, removedPermissions
+	return added, removed
 }
 
 // restorePermissions takes in the permissions that were added and the
@@ -175,22 +158,31 @@ func restorePermissions(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-	parentPerms []UserPermission,
-	childPerms []UserPermission,
+	meta Metadata,
 	permissionIDMappings map[string]string,
 ) error {
-	permAdded, permRemoved := getChildPermissions(childPerms, parentPerms)
+	if meta.SharingMode == SharingModeInherited {
+		return nil
+	}
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
+	// TODO(meain): Compute this from the data that we have instead of fetching from graph
+	currentPermissions, err := oneDriveItemPermissionInfo(ctx, service, driveID, itemID)
+	if err != nil {
+		return graph.Wrap(ctx, err, "fetching current permissions")
+	}
+
+	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
 		err := service.Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
-			PermissionsById(permissionIDMappings[p.ID]).
+			PermissionsById(p.ID).
 			Delete(ctx, nil)
 		if err != nil {
-			return clues.Wrap(err, "removing permissions").WithClues(ctx).With(graph.ErrData(err)...)
+			return graph.Wrap(ctx, err, "removing permissions")
 		}
 	}
 
@@ -210,12 +202,19 @@ func restorePermissions(
 		pbody.SetRequireSignIn(&rs)
 
 		rec := models.NewDriveRecipient()
-		rec.SetEmail(&p.Email)
+		if p.EntityID != "" {
+			rec.SetObjectId(&p.EntityID)
+		} else {
+			// Previous versions used to only store email for a
+			// permissions. Use that if id is not found.
+			rec.SetEmail(&p.Email)
+		}
+
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
 		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
-			return clues.Wrap(err, "setting permissions").WithClues(ctx).With(graph.ErrData(err)...)
+			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
 		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()

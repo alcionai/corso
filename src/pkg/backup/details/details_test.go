@@ -1,6 +1,8 @@
 package details
 
 import (
+	"bytes"
+	"io"
 	"testing"
 	"time"
 
@@ -94,6 +96,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemType:   ExchangeMail,
 						Sender:     "sender",
 						ParentPath: "Parent",
+						Recipient:  []string{"receiver"},
 						Subject:    "subject",
 						Received:   now,
 					},
@@ -779,7 +782,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			name: "SharePoint",
 			input: ItemInfo{
 				SharePoint: &SharePointInfo{
-					ItemType:   SharePointItem,
+					ItemType:   SharePointLibrary,
 					ParentPath: folder1,
 				},
 			},
@@ -788,7 +791,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
-					ItemType:   SharePointItem,
+					ItemType:   SharePointLibrary,
 					ParentPath: folder2,
 				},
 			},
@@ -809,7 +812,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			name: "SharePointBadPath",
 			input: ItemInfo{
 				SharePoint: &SharePointInfo{
-					ItemType:   SharePointItem,
+					ItemType:   SharePointLibrary,
 					ParentPath: folder1,
 				},
 			},
@@ -993,6 +996,43 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 
 			result := FolderEntriesForPath(test.parent, test.location)
 			assert.ElementsMatch(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetails_Marshal() {
+	for _, test := range pathItemsTable {
+		suite.Run(test.name, func() {
+			d := &Details{DetailsModel: DetailsModel{
+				Entries: test.ents,
+			}}
+
+			bs, err := d.Marshal()
+			require.NoError(suite.T(), err)
+			assert.NotEmpty(suite.T(), bs)
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestUnarshalTo() {
+	for _, test := range pathItemsTable {
+		suite.Run(test.name, func() {
+			orig := &Details{DetailsModel: DetailsModel{
+				Entries: test.ents,
+			}}
+
+			bs, err := orig.Marshal()
+			require.NoError(suite.T(), err)
+			assert.NotEmpty(suite.T(), bs)
+
+			var result Details
+			umt := UnmarshalTo(&result)
+			err = umt(io.NopCloser(bytes.NewReader(bs)))
+
+			t := suite.T()
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.ElementsMatch(t, orig.Entries, result.Entries)
 		})
 	}
 }

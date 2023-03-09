@@ -2,11 +2,13 @@ package selectors
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -212,7 +214,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointLibrary,
 						},
 					},
 				},
@@ -220,7 +222,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item2,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointLibrary,
 						},
 					},
 				},
@@ -228,7 +230,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item3,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointLibrary,
 						},
 					},
 				},
@@ -236,7 +238,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item4,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointPage,
 						},
 					},
 				},
@@ -244,7 +246,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					RepoRef: item5,
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
-							ItemType: details.SharePointItem,
+							ItemType: details.SharePointPage,
 						},
 					},
 				},
@@ -324,22 +326,22 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	table := []struct {
 		name     string
 		sc       sharePointCategory
-		expected map[categorizer]string
+		expected map[categorizer][]string
 	}{
 		{
 			name: "SharePoint Libraries",
 			sc:   SharePointLibraryItem,
-			expected: map[categorizer]string{
-				SharePointLibrary:     "dir1/dir2",
-				SharePointLibraryItem: "item",
+			expected: map[categorizer][]string{
+				SharePointLibrary:     {"dir1/dir2"},
+				SharePointLibraryItem: {"item", "short"},
 			},
 		},
 		{
 			name: "SharePoint Lists",
 			sc:   SharePointListItem,
-			expected: map[categorizer]string{
-				SharePointList:     "dir1/dir2",
-				SharePointListItem: "item",
+			expected: map[categorizer][]string{
+				SharePointList:     {"dir1/dir2"},
+				SharePointListItem: {"item", "short"},
 			},
 		},
 	}
@@ -354,19 +356,28 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				test.sc.PathType(),
 				true)
 			require.NoError(t, err)
-			r, l := test.sc.pathValues(itemPath, itemPath)
-			assert.Equal(t, test.expected, r)
-			assert.Equal(t, test.expected, l)
+
+			ent := details.DetailsEntry{
+				RepoRef:  itemPath.String(),
+				ShortRef: "short",
+			}
+
+			pv := test.sc.pathValues(itemPath, ent)
+			assert.Equal(t, test.expected, pv)
 		})
 	}
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	var (
-		ods  = NewSharePointRestore(nil)
-		host = "www.website.com"
-		pth  = "/foo"
-		url  = host + pth
+		ods          = NewSharePointRestore(Any())
+		host         = "www.website.com"
+		pth          = "/foo"
+		url          = host + pth
+		epoch        = time.Time{}
+		now          = time.Now()
+		modification = now.Add(15 * time.Minute)
+		future       = now.Add(45 * time.Minute)
 	)
 
 	table := []struct {
@@ -385,6 +396,19 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		{"host does not contain substring", host, ods.WebURL([]string{"website"}), assert.False},
 		{"url does not suffix substring", url, ods.WebURL([]string{"oo"}), assert.False},
 		{"host mismatch", host, ods.WebURL([]string{"www.google.com"}), assert.False},
+		{"file create after the epoch", host, ods.CreatedAfter(common.FormatTime(epoch)), assert.True},
+		{"file create after now", host, ods.CreatedAfter(common.FormatTime(now)), assert.False},
+		{"file create after later", url, ods.CreatedAfter(common.FormatTime(future)), assert.False},
+		{"file create before future", host, ods.CreatedBefore(common.FormatTime(future)), assert.True},
+		{"file create before now", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file create before modification", host, ods.CreatedBefore(common.FormatTime(modification)), assert.True},
+		{"file create before epoch", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file modified after the epoch", host, ods.ModifiedAfter(common.FormatTime(epoch)), assert.True},
+		{"file modified after now", host, ods.ModifiedAfter(common.FormatTime(now)), assert.True},
+		{"file modified after later", host, ods.ModifiedAfter(common.FormatTime(future)), assert.False},
+		{"file modified before future", host, ods.ModifiedBefore(common.FormatTime(future)), assert.True},
+		{"file modified before now", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"file modified before epoch", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -392,8 +416,10 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 
 			itemInfo := details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
-					ItemType: details.SharePointItem,
+					ItemType: details.SharePointPage,
 					WebURL:   test.infoURL,
+					Created:  now,
+					Modified: modification,
 				},
 			}
 

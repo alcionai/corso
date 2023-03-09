@@ -156,8 +156,6 @@ func runAndCheckBackup(
 	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
 	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error")
 	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")
-	assert.NoError(t, bo.Results.ReadErrors, "errors reading data")
-	assert.NoError(t, bo.Results.WriteErrors, "errors writing data")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
 	assert.Equal(t,
@@ -628,8 +626,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
 			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
-			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
-			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 			assert.Equal(t,
@@ -1006,7 +1002,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NotEmpty(t, ids, "message ids in folder")
 
 						err = cli.MessagesById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting email item: %s", support.ConnectorStackErrorTrace(err))
+						require.NoError(t, err, "deleting email item")
 
 					case path.ContactsCategory:
 						ids, _, _, err := ac.Contacts().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
@@ -1014,7 +1010,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NotEmpty(t, ids, "contact ids in folder")
 
 						err = cli.ContactsById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting contact item: %s", support.ConnectorStackErrorTrace(err))
+						require.NoError(t, err, "deleting contact item")
 
 					case path.EventsCategory:
 						ids, _, _, err := ac.Events().GetAddedAndRemovedItemIDs(ctx, suite.user, containerID, "")
@@ -1022,7 +1018,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 						require.NotEmpty(t, ids, "event ids in folder")
 
 						err = cli.CalendarsById(ids[0]).Delete(ctx, nil)
-						require.NoError(t, err, "deleting calendar: %s", support.ConnectorStackErrorTrace(err))
+						require.NoError(t, err, "deleting calendar")
 					}
 				}
 			},
@@ -1059,8 +1055,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			assert.Equal(t, test.itemsRead+4, incBO.Results.ItemsRead, "incremental items read")
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error")
 			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
-			assert.NoError(t, incBO.Results.ReadErrors, "incremental read errors")
-			assert.NoError(t, incBO.Results.WriteErrors, "incremental write errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 			assert.Equal(t,
