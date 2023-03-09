@@ -334,7 +334,7 @@ func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 			ExchangeContact,
 			ExchangeFilterContactName,
 			[]string{senderID},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -349,7 +349,7 @@ func (sr *ExchangeRestore) EventOrganizer(organizer string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeFilterEventOrganizer,
 			[]string{organizer},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -407,7 +407,7 @@ func (sr *ExchangeRestore) EventSubject(subject string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeFilterEventSubject,
 			[]string{subject},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -450,7 +450,7 @@ func (sr *ExchangeRestore) MailSender(sender string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeFilterMailSender,
 			[]string{sender},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -465,7 +465,7 @@ func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeFilterMailSubject,
 			[]string{subject},
-			wrapFilter(filters.In)),
+			wrapSliceFilter(filters.In)),
 	}
 }
 
@@ -580,7 +580,7 @@ func (ec exchangeCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, userPN, category, mailFolder, mailID]
 // => {exchMailFolder: mailFolder, exchMail: mailID}
-func (ec exchangeCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
+func (ec exchangeCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
 	var folderCat, itemCat categorizer
 
 	switch ec {
@@ -594,24 +594,19 @@ func (ec exchangeCategory) pathValues(repo, location path.Path) (map[categorizer
 		folderCat, itemCat = ExchangeMailFolder, ExchangeMail
 
 	default:
-		return map[categorizer]string{}, map[categorizer]string{}
+		return map[categorizer][]string{}
 	}
 
-	rv := map[categorizer]string{
-		folderCat: repo.Folder(false),
-		itemCat:   repo.Item(),
+	result := map[categorizer][]string{
+		folderCat: {repo.Folder(false)},
+		itemCat:   {repo.Item(), ent.ShortRef},
 	}
 
-	lv := map[categorizer]string{}
-
-	if location != nil {
-		lv = map[categorizer]string{
-			folderCat: location.Folder(false),
-			itemCat:   location.Item(),
-		}
+	if len(ent.LocationRef) > 0 {
+		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
-	return rv, lv
+	return result
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.

@@ -65,7 +65,7 @@ func (s Selector) ToSharePointBackup() (*SharePointBackup, error) {
 }
 
 func (s SharePointBackup) SplitByResourceOwner(sites []string) []SharePointBackup {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, sites, SharePointSite)
+	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -98,8 +98,8 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 	return &src, nil
 }
 
-func (s SharePointRestore) SplitByResourceOwner(users []string) []SharePointRestore {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+func (s SharePointRestore) SplitByResourceOwner(sites []string) []SharePointRestore {
+	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -476,7 +476,7 @@ func (c sharePointCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, siteID, category, folder, itemID]
 // => {spFolder: folder, spItemID: itemID}
-func (c sharePointCategory) pathValues(repo, location path.Path) (map[categorizer]string, map[categorizer]string) {
+func (c sharePointCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
 	var folderCat, itemCat categorizer
 
 	switch c {
@@ -487,24 +487,19 @@ func (c sharePointCategory) pathValues(repo, location path.Path) (map[categorize
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
 	default:
-		return map[categorizer]string{}, map[categorizer]string{}
+		return map[categorizer][]string{}
 	}
 
-	rv := map[categorizer]string{
-		folderCat: repo.Folder(false),
-		itemCat:   repo.Item(),
+	result := map[categorizer][]string{
+		folderCat: {repo.Folder(false)},
+		itemCat:   {repo.Item(), ent.ShortRef},
 	}
 
-	lv := map[categorizer]string{}
-
-	if location != nil {
-		lv = map[categorizer]string{
-			folderCat: location.Folder(false),
-			itemCat:   location.Item(),
-		}
+	if len(ent.LocationRef) > 0 {
+		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
-	return rv, lv
+	return result
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.

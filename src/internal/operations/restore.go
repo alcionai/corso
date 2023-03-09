@@ -46,7 +46,6 @@ type RestoreOperation struct {
 
 // RestoreResults aggregate the details of the results of the operation.
 type RestoreResults struct {
-	stats.Errs // deprecated in place of fault.Errors in the base operation.
 	stats.ReadWrites
 	stats.StartAndEndTime
 }
@@ -181,7 +180,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 func (op *RestoreOperation) do(
 	ctx context.Context,
 	opStats *restoreStats,
-	detailsStore detailsReader,
+	detailsStore streamstore.Reader,
 	start time.Time,
 ) (*details.Details, error) {
 	bup, deets, err := getBackupAndDetailsFromID(

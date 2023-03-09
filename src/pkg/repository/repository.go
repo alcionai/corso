@@ -351,12 +351,14 @@ func (r repository) BackupDetails(
 		return nil, nil, errs.Fail(err)
 	}
 
-	deets, err := streamstore.NewDetails(
+	nd := streamstore.NewDetails(
 		r.dataLayer,
 		r.Account.ID(),
 		b.Selector.PathService(),
-	).ReadBackupDetails(ctx, dID, errs)
-	if err != nil {
+	)
+
+	var deets details.Details
+	if err := nd.Read(ctx, dID, details.UnmarshalTo(&deets), errs); err != nil {
 		return nil, nil, errs.Fail(err)
 	}
 
@@ -371,7 +373,7 @@ func (r repository) BackupDetails(
 		}
 	}
 
-	return deets, b, errs
+	return &deets, b, errs
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.

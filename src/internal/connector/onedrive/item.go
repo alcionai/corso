@@ -73,14 +73,27 @@ func oneDriveItemMetaReader(
 		FileName: *item.GetName(),
 	}
 
-	perms, err := oneDriveItemPermissionInfo(ctx, service, driveID, item, fetchPermissions)
-	if err != nil {
-		// Keep this in an if-block because if it's not then we have a weird issue
-		// of having no value in error but golang thinking it's non nil because of
-		// the way interfaces work.
-		err = clues.Wrap(err, "fetching item permissions")
+	if item.GetShared() == nil {
+		meta.SharingMode = SharingModeInherited
 	} else {
-		meta.Permissions = perms
+		meta.SharingMode = SharingModeCustom
+	}
+
+	var (
+		perms []UserPermission
+		err   error
+	)
+
+	if meta.SharingMode == SharingModeCustom && fetchPermissions {
+		perms, err = oneDriveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
+		if err != nil {
+			// Keep this in an if-block because if it's not then we have a weird issue
+			// of having no value in error but golang thinking it's non nil because of
+			// the way interfaces work.
+			err = clues.Wrap(err, "fetching item permissions")
+		} else {
+			meta.Permissions = perms
+		}
 	}
 
 	metaJSON, serializeErr := json.Marshal(meta)
@@ -140,7 +153,7 @@ func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemabl
 
 	req, err := http.NewRequest(http.MethodGet, *url, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "new request")
+		return nil, graph.Wrap(ctx, err, "new item download request")
 	}
 
 	//nolint:lll
@@ -150,11 +163,21 @@ func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemabl
 
 	resp, err := hc.Do(req)
 	if err != nil {
-		return nil, err
+		cerr := graph.Wrap(ctx, err, "downloading item")
+
+		if graph.IsMalware(err) {
+			cerr = cerr.Label(graph.LabelsMalware)
+		}
+
+		return nil, cerr
 	}
 
 	if (resp.StatusCode / 100) == 2 {
 		return resp, nil
+	}
+
+	if graph.IsMalwareResp(context.Background(), resp) {
+		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
@@ -209,29 +232,22 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 	}
 }
 
-// oneDriveItemPermissionInfo will fetch the permission information for a drive
-// item.
+// OneDriveItemPermissionInfo will fetch the permission information
+// for a drive item given a drive and item id.
 func oneDriveItemPermissionInfo(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID string,
-	di models.DriveItemable,
-	fetchPermissions bool,
+	itemID string,
 ) ([]UserPermission, error) {
-	if !fetchPermissions {
-		return nil, nil
-	}
-
-	id := ptr.Val(di.GetId())
-
 	perm, err := service.
 		Client().
 		DrivesById(driveID).
-		ItemsById(id).
+		ItemsById(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", id)
+		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
 	}
 
 	uperms := filterUserPermissions(ctx, perm.GetValue())
