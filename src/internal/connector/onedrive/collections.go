@@ -289,7 +289,6 @@ func (c *Collections) Get(
 	collections := make([]data.BackupCollection, 0)
 
 	for _, d := range drives {
-
 		var (
 			driveID     = ptr.Val(d.GetId())
 			driveName   = ptr.Val(d.GetName())
