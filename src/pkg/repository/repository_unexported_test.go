@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -192,22 +191,25 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 			defer flush()
 
 			var (
-				t     = suite.T()
-				bupID = uuid.NewString()
-				b     = writeBackup(
+				t = suite.T()
+				b = writeBackup(
 					t,
 					ctx,
 					suite.kw,
 					suite.sw,
-					tenantID, "snapID", bupID,
+					tenantID, "snapID", test.writeBupID,
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
 					fault.Errors{},
 					fault.New(true))
 			)
 
-			rDeets, rBup, err := getBackupDetails(ctx, bupID, tenantID, suite.kw, suite.sw, fault.New(true))
+			rDeets, rBup, err := getBackupDetails(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(true))
 			test.expectErr(t, err)
+
+			if err != nil {
+				return
+			}
 
 			assert.Equal(t, b.DetailsID, rBup.DetailsID, "returned details ID matches")
 			assert.Equal(t, test.deets, rDeets, "returned details ID matches")
@@ -245,8 +247,8 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		},
 		{
 			name:       "nil errors",
-			writeBupID: "error_squirrels",
-			readBupID:  "error_squirrels",
+			writeBupID: "error_marmots",
+			readBupID:  "error_marmots",
 			deets:      builder.Details(),
 			errors:     nil,
 			expectErr:  require.NoError,
@@ -265,22 +267,25 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 			defer flush()
 
 			var (
-				t     = suite.T()
-				bupID = uuid.NewString()
-				b     = writeBackup(
+				t = suite.T()
+				b = writeBackup(
 					t,
 					ctx,
 					suite.kw,
 					suite.sw,
-					tenantID, "snapID", bupID,
+					tenantID, "snapID", test.writeBupID,
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
 					fault.Errors{},
 					fault.New(true))
 			)
 
-			rDeets, rBup, err := getBackupDetails(ctx, bupID, tenantID, suite.kw, suite.sw, fault.New(true))
+			rDeets, rBup, err := getBackupDetails(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(true))
 			test.expectErr(t, err)
+
+			if err != nil {
+				return
+			}
 
 			assert.Equal(t, b.DetailsID, rBup.DetailsID, "returned details ID matches")
 			assert.Equal(t, test.deets, rDeets, "returned details ID matches")

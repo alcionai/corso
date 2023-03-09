@@ -338,7 +338,7 @@ func MakeErrors(failure, recovered, skipped bool) fault.Errors {
 	}
 
 	if skipped {
-		fe.Skipped = []fault.Skipped{*fault.FileSkip(fault.SkipMalware, "id", "name", "cid", "cname")}
+		fe.Skipped = []fault.Skipped{*fault.FileSkip(fault.SkipMalware, "id", "name", nil)}
 	}
 
 	return fe
