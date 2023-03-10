@@ -533,7 +533,7 @@ func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.BackupCollection,
 	baseDir fs.Directory,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -581,7 +581,7 @@ func getStreamItemFunc(
 func buildKopiaDirs(
 	dirName string,
 	dir *treeMap,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
@@ -1016,7 +1016,7 @@ func inflateDirTree(
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
