@@ -37,7 +37,7 @@ func sharePointPageInfo(page models.SitePageable, root string, size int64) *deta
 	}
 
 	return &details.SharePointInfo{
-		ItemType:   details.SharePointItem,
+		ItemType:   details.SharePointPage,
 		ItemName:   name,
 		ParentPath: root,
 		Created:    created,

@@ -467,7 +467,7 @@ jobs:
     needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/')
     defaults:
       run:
         working-directory: build

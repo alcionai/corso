@@ -263,7 +263,7 @@ func PageInfo(page models.SitePageable, size int64) *details.SharePointInfo {
 	)
 
 	return &details.SharePointInfo{
-		ItemType: details.SharePointItem,
+		ItemType: details.SharePointPage,
 		ItemName: name,
 		Created:  created,
 		Modified: modified,
