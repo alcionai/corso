@@ -2,13 +2,14 @@ package graph
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -47,7 +48,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "as",
-			err:    ErrDeletedInFlight{Err: *common.EncapsulateError(assert.AnError)},
+			err:    ErrDeletedInFlight,
 			expect: assert.True,
 		},
 		{
@@ -91,7 +92,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		},
 		{
 			name:   "as",
-			err:    ErrInvalidDelta{Err: *common.EncapsulateError(assert.AnError)},
+			err:    ErrInvalidDelta,
 			expect: assert.True,
 		},
 		{
@@ -123,6 +124,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "request resource not found oDataErr",
+			err:    odErr(errCodeRequestResourceNotFound),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrUserNotFound(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 	table := []struct {
 		name   string
@@ -141,7 +176,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 		},
 		{
 			name:   "as",
-			err:    ErrTimeout{Err: *common.EncapsulateError(assert.AnError)},
+			err:    ErrTimeout,
 			expect: assert.True,
 		},
 		{
@@ -153,40 +188,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrTimeout(test.err))
-		})
-	}
-}
-
-func (suite *GraphErrorsUnitSuite) TestIsErrThrottled() {
-	table := []struct {
-		name   string
-		err    error
-		expect assert.BoolAssertionFunc
-	}{
-		{
-			name:   "nil",
-			err:    nil,
-			expect: assert.False,
-		},
-		{
-			name:   "non-matching",
-			err:    assert.AnError,
-			expect: assert.False,
-		},
-		{
-			name:   "as",
-			err:    ErrThrottled{Err: *common.EncapsulateError(assert.AnError)},
-			expect: assert.True,
-		},
-		{
-			name:   "is429",
-			err:    Err429TooManyRequests,
-			expect: assert.True,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrThrottled(test.err))
 		})
 	}
 }
@@ -208,53 +209,15 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 			expect: assert.False,
 		},
 		{
-			name:   "as",
-			err:    ErrUnauthorized{Err: *common.EncapsulateError(assert.AnError)},
-			expect: assert.True,
-		},
-		{
-			name:   "is429",
-			err:    Err401Unauthorized,
+			name: "as",
+			err: clues.Stack(assert.AnError).
+				Label(LabelStatus(http.StatusUnauthorized)),
 			expect: assert.True,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrUnauthorized(test.err))
-		})
-	}
-}
-
-func (suite *GraphErrorsUnitSuite) TestIsInternalServerError() {
-	table := []struct {
-		name   string
-		err    error
-		expect assert.BoolAssertionFunc
-	}{
-		{
-			name:   "nil",
-			err:    nil,
-			expect: assert.False,
-		},
-		{
-			name:   "non-matching",
-			err:    assert.AnError,
-			expect: assert.False,
-		},
-		{
-			name:   "as",
-			err:    ErrInternalServerError{Err: *common.EncapsulateError(assert.AnError)},
-			expect: assert.True,
-		},
-		{
-			name:   "is429",
-			err:    Err500InternalServerError,
-			expect: assert.True,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsInternalServerError(test.err))
 		})
 	}
 }

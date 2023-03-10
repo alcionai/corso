@@ -249,7 +249,7 @@ var (
 			ParentRef: SharePointLibraryItemPath1.ToBuilder().Dir().ShortRef(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
-					ItemType:   details.SharePointItem,
+					ItemType:   details.SharePointLibrary,
 					ParentPath: SharePointLibraryFolder,
 					ItemName:   SharePointLibraryItemPath1.Item() + "name",
 					Size:       int64(23),
@@ -265,7 +265,7 @@ var (
 			ParentRef: SharePointLibraryItemPath2.ToBuilder().Dir().ShortRef(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
-					ItemType:   details.SharePointItem,
+					ItemType:   details.SharePointLibrary,
 					ParentPath: SharePointParentLibrary1,
 					ItemName:   SharePointLibraryItemPath2.Item() + "name",
 					Size:       int64(42),
@@ -281,7 +281,7 @@ var (
 			ParentRef: SharePointLibraryItemPath3.ToBuilder().Dir().ShortRef(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
-					ItemType:   details.SharePointItem,
+					ItemType:   details.SharePointLibrary,
 					ParentPath: SharePointParentLibrary2,
 					ItemName:   SharePointLibraryItemPath3.Item() + "name",
 					Size:       int64(19),
