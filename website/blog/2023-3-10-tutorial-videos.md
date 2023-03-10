@@ -6,7 +6,7 @@ four short videos, you’ll be set up and on your way to backing up all your M36
 data in less than 20 minutes. That’s shorter than most meetings!"
 authors: nica
 tags: [corso, microsoft 365, backups]
-date: 2023-3-4
+date: 2023-3-10
 image: ./images/vhs.jpg
 ---
 
@@ -99,7 +99,7 @@ Corso to restore from your backups.
 In this last video I demonstrate both total restorations for a user or group of
 users, and restoring single records with the `corso restore` command.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ABIiVufyOkM"
+<iframe width="560" height="315" src="https://www.youtube.com/embed/tT0XDAky9fM"
 title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
 clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 allowfullscreen></iframe>
