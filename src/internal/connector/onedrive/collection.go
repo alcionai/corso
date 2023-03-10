@@ -336,7 +336,6 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemID       = ptr.Val(item.GetId())
 				itemName     = ptr.Val(item.GetName())
 				itemSize     = ptr.Val(item.GetSize())
-				pr           models.ItemReferenceable
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
@@ -350,8 +349,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			pr = updateParentReferenceOneDrive(item.GetParentReference(), oc.driveName)
-			item.SetParentReference(pr)
+			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
 			isFile := item.GetFile() != nil
 

@@ -405,10 +405,7 @@ func constructWebURL(adtl map[string]any) string {
 	return url
 }
 
-func updateParentReferenceOneDrive(
-	orig models.ItemReferenceable,
-	driveName string,
-) models.ItemReferenceable {
+func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {
 	if orig == nil {
 		return nil
 	}
