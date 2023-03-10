@@ -35,16 +35,15 @@ func (suite *ItemUnitSuite) TestItem_Error() {
 
 func (suite *ItemUnitSuite) TestContainerErr() {
 	t := suite.T()
-
-	i := ContainerErr(errors.New("foo"), "id", "name", "containerID", "containerName")
+	addtl := map[string]any{"foo": "bar"}
+	i := ContainerErr(errors.New("foo"), "id", "name", addtl)
 
 	expect := Item{
-		ID:            "id",
-		Name:          "name",
-		ContainerID:   "containerID",
-		ContainerName: "containerName",
-		Type:          ContainerType,
-		Cause:         "foo",
+		ID:         "id",
+		Name:       "name",
+		Type:       ContainerType,
+		Cause:      "foo",
+		Additional: addtl,
 	}
 
 	assert.Equal(t, expect, *i)
@@ -52,16 +51,15 @@ func (suite *ItemUnitSuite) TestContainerErr() {
 
 func (suite *ItemUnitSuite) TestFileErr() {
 	t := suite.T()
-
-	i := FileErr(errors.New("foo"), "id", "name", "containerID", "containerName")
+	addtl := map[string]any{"foo": "bar"}
+	i := FileErr(errors.New("foo"), "id", "name", addtl)
 
 	expect := Item{
-		ID:            "id",
-		Name:          "name",
-		ContainerID:   "containerID",
-		ContainerName: "containerName",
-		Type:          FileType,
-		Cause:         "foo",
+		ID:         "id",
+		Name:       "name",
+		Type:       FileType,
+		Cause:      "foo",
+		Additional: addtl,
 	}
 
 	assert.Equal(t, expect, *i)
@@ -69,14 +67,15 @@ func (suite *ItemUnitSuite) TestFileErr() {
 
 func (suite *ItemUnitSuite) TestOwnerErr() {
 	t := suite.T()
-
-	i := OwnerErr(errors.New("foo"), "id", "name")
+	addtl := map[string]any{"foo": "bar"}
+	i := OwnerErr(errors.New("foo"), "id", "name", addtl)
 
 	expect := Item{
-		ID:    "id",
-		Name:  "name",
-		Type:  ResourceOwnerType,
-		Cause: "foo",
+		ID:         "id",
+		Name:       "name",
+		Type:       ResourceOwnerType,
+		Cause:      "foo",
+		Additional: addtl,
 	}
 
 	assert.Equal(t, expect, *i)
@@ -99,16 +98,15 @@ func (suite *ItemUnitSuite) TestSkipped_String() {
 
 func (suite *ItemUnitSuite) TestContainerSkip() {
 	t := suite.T()
-
-	i := ContainerSkip(SkipMalware, "id", "name", "containerID", "containerName")
+	addtl := map[string]any{"foo": "bar"}
+	i := ContainerSkip(SkipMalware, "id", "name", addtl)
 
 	expect := Item{
-		ID:            "id",
-		Name:          "name",
-		ContainerID:   "containerID",
-		ContainerName: "containerName",
-		Type:          ContainerType,
-		Cause:         string(SkipMalware),
+		ID:         "id",
+		Name:       "name",
+		Type:       ContainerType,
+		Cause:      string(SkipMalware),
+		Additional: addtl,
 	}
 
 	assert.Equal(t, Skipped{expect}, *i)
@@ -116,16 +114,15 @@ func (suite *ItemUnitSuite) TestContainerSkip() {
 
 func (suite *ItemUnitSuite) TestFileSkip() {
 	t := suite.T()
-
-	i := FileSkip(SkipMalware, "id", "name", "containerID", "containerName")
+	addtl := map[string]any{"foo": "bar"}
+	i := FileSkip(SkipMalware, "id", "name", addtl)
 
 	expect := Item{
-		ID:            "id",
-		Name:          "name",
-		ContainerID:   "containerID",
-		ContainerName: "containerName",
-		Type:          FileType,
-		Cause:         string(SkipMalware),
+		ID:         "id",
+		Name:       "name",
+		Type:       FileType,
+		Cause:      string(SkipMalware),
+		Additional: addtl,
 	}
 
 	assert.Equal(t, Skipped{expect}, *i)
@@ -133,14 +130,15 @@ func (suite *ItemUnitSuite) TestFileSkip() {
 
 func (suite *ItemUnitSuite) TestOwnerSkip() {
 	t := suite.T()
-
-	i := OwnerSkip(SkipMalware, "id", "name")
+	addtl := map[string]any{"foo": "bar"}
+	i := OwnerSkip(SkipMalware, "id", "name", addtl)
 
 	expect := Item{
-		ID:    "id",
-		Name:  "name",
-		Type:  ResourceOwnerType,
-		Cause: string(SkipMalware),
+		ID:         "id",
+		Name:       "name",
+		Type:       ResourceOwnerType,
+		Cause:      string(SkipMalware),
+		Additional: addtl,
 	}
 
 	assert.Equal(t, Skipped{expect}, *i)

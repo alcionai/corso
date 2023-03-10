@@ -430,8 +430,7 @@ func ExampleBus_AddSkip() {
 		fault.SkipMalware,
 		"file-id",
 		"file-name",
-		"parent-folder-id",
-		"parent-folder-name",
+		map[string]any{"foo": "bar"},
 	))
 
 	// later on, after processing, end users can scrutinize the skipped items.

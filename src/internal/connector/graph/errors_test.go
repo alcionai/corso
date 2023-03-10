@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type GraphErrorsUnitSuite struct {
@@ -220,4 +222,42 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 			test.expect(suite.T(), IsErrUnauthorized(test.err))
 		})
 	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
+	var (
+		i       = models.DriveItem{}
+		cb      = models.User{}
+		cbID    = "created-by"
+		lm      = models.User{}
+		lmID    = "last-mod-by"
+		ref     = models.ItemReference{}
+		refCID  = "container-id"
+		refCN   = "container-name"
+		mal     = models.Malware{}
+		malDesc = "malware-description"
+	)
+
+	cb.SetId(&cbID)
+	i.SetCreatedByUser(&cb)
+
+	lm.SetId(&lmID)
+	i.SetLastModifiedByUser(&lm)
+
+	ref.SetId(&refCID)
+	ref.SetName(&refCN)
+	i.SetParentReference(&ref)
+
+	mal.SetDescription(&malDesc)
+	i.SetMalware(&mal)
+
+	expect := map[string]any{
+		fault.AddtlCreatedBy:     cbID,
+		fault.AddtlLastModBy:     lmID,
+		fault.AddtlContainerID:   refCID,
+		fault.AddtlContainerName: refCN,
+		fault.AddtlMalwareDesc:   malDesc,
+	}
+
+	assert.Equal(suite.T(), expect, MalwareInfo(&i))
 }
