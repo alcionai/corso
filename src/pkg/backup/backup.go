@@ -35,13 +35,18 @@ type Backup struct {
 	// Version represents the version of the backup format
 	Version int `json:"version"`
 
-	// Errors contains all errors aggregated during a backup operation.
-	Errors     fault.Errors `json:"errors"`
-	ErrorCount int          `json:"errorCount"`
+	FailFast bool `json:"failFast"`
+
+	// the quantity of errors, both hard failure and recoverable.
+	ErrorCount int `json:"errorCount"`
+
+	// the non-recoverable failure message, only populated if one occurred.
+	Failure string `json:"failure"`
 
 	// stats are embedded so that the values appear as top-level properties
 	stats.ReadWrites
 	stats.StartAndEndTime
+	stats.SkippedCounts
 }
 
 // interface compliance checks
@@ -55,11 +60,26 @@ func New(
 	se stats.StartAndEndTime,
 	errs *fault.Bus,
 ) *Backup {
-	errData := errs.Errors()
+	var (
+		ee = errs.Errors()
+		// TODO: count errData.Items(), not all recovered errors.
+		errCount   = len(ee.Recovered)
+		failMsg    string
+		malware    int
+		otherSkips int
+	)
 
-	errCount := len(errs.Errors().Recovered)
-	if errData.Failure != nil {
+	if ee.Failure != nil {
+		failMsg = ee.Failure.Error()
 		errCount++
+	}
+
+	for _, s := range ee.Skipped {
+		if s.HasCause(fault.SkipMalware) {
+			malware++
+		} else {
+			otherSkips++
+		}
 	}
 
 	return &Backup{
@@ -69,16 +89,26 @@ func New(
 				model.ServiceTag: selector.PathService().String(),
 			},
 		},
-		CreationTime:    time.Now(),
-		SnapshotID:      snapshotID,
-		DetailsID:       detailsID,
-		Status:          status,
-		Selector:        selector,
-		Errors:          errData,
-		ErrorCount:      errCount,
+
+		Version:    version.Backup,
+		SnapshotID: snapshotID,
+		DetailsID:  detailsID,
+
+		CreationTime: time.Now(),
+		Status:       status,
+
+		Selector: selector,
+		FailFast: errs.FailFast(),
+
+		ErrorCount: errCount,
+		Failure:    failMsg,
+
 		ReadWrites:      rw,
 		StartAndEndTime: se,
-		Version:         version.Backup,
+		SkippedCounts: stats.SkippedCounts{
+			TotalSkippedItems: len(ee.Skipped),
+			SkippedMalware:    malware,
+		},
 	}
 }
 
@@ -121,7 +151,7 @@ type Printable struct {
 func (b Backup) MinimumPrintable() any {
 	return Printable{
 		ID:            b.ID,
-		ErrorCount:    b.countErrors(),
+		ErrorCount:    b.ErrorCount,
 		StartedAt:     b.StartedAt,
 		Status:        b.Status,
 		Version:       "0",
@@ -145,7 +175,38 @@ func (b Backup) Headers() []string {
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (b Backup) Values() []string {
-	status := fmt.Sprintf("%s (%d errors)", b.Status, b.countErrors())
+	var (
+		status   = b.Status
+		errCount = b.ErrorCount
+	)
+
+	if errCount+b.TotalSkippedItems > 0 {
+		status += (" (")
+	}
+
+	if errCount > 0 {
+		status += fmt.Sprintf("%d errors", errCount)
+	}
+
+	if errCount > 0 && b.TotalSkippedItems > 0 {
+		status += ", "
+	}
+
+	if b.TotalSkippedItems > 0 {
+		status += fmt.Sprintf("%d skipped", b.TotalSkippedItems)
+	}
+
+	if b.TotalSkippedItems > 0 && b.SkippedMalware > 0 {
+		status += ": "
+	}
+
+	if b.SkippedMalware > 0 {
+		status += fmt.Sprintf("%d malware", b.SkippedMalware)
+	}
+
+	if errCount+b.TotalSkippedItems > 0 {
+		status += (")")
+	}
 
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),
@@ -153,17 +214,4 @@ func (b Backup) Values() []string {
 		status,
 		b.Selector.DiscreteOwner,
 	}
-}
-
-func (b Backup) countErrors() int {
-	if b.ErrorCount > 0 {
-		return b.ErrorCount
-	}
-
-	errCount := len(b.Errors.Recovered)
-	if b.Errors.Failure != nil {
-		errCount++
-	}
-
-	return errCount
 }
