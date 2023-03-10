@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -312,4 +314,33 @@ func appendIf(a []any, k string, v *string) []any {
 	}
 
 	return append(a, k, *v)
+}
+
+// MalwareInfo gathers potentially useful information about a malware infected
+// drive item, and aggregates that data into a map.
+func MalwareInfo(item models.DriveItemable) map[string]any {
+	m := map[string]any{}
+
+	creator := item.GetCreatedByUser()
+	if creator != nil {
+		m[fault.AddtlCreatedBy] = ptr.Val(creator.GetId())
+	}
+
+	lastmodder := item.GetLastModifiedByUser()
+	if lastmodder != nil {
+		m[fault.AddtlLastModBy] = ptr.Val(lastmodder.GetId())
+	}
+
+	parent := item.GetParentReference()
+	if parent != nil {
+		m[fault.AddtlContainerID] = ptr.Val(parent.GetId())
+		m[fault.AddtlContainerName] = ptr.Val(parent.GetName())
+	}
+
+	malware := item.GetMalware()
+	if malware != nil {
+		m[fault.AddtlMalwareDesc] = ptr.Val(malware.GetDescription())
+	}
+
+	return m
 }

@@ -1,5 +1,13 @@
 package fault
 
+const (
+	AddtlCreatedBy     = "created_by"
+	AddtlLastModBy     = "last_modified_by"
+	AddtlContainerID   = "container_id"
+	AddtlContainerName = "container_name"
+	AddtlMalwareDesc   = "malware_description"
+)
+
 type itemType string
 
 const (
@@ -28,12 +36,6 @@ type Item struct {
 	// a human-readable reference: file/container name, email, etc
 	Name string `json:"name"`
 
-	// the name and id of the container holding this item, if the
-	// item is normally stored in a folder.  Ex: a oneDrive file
-	// would be contained in a folder.
-	ContainerName string `json:"containerName"`
-	ContainerID   string `json:"containerID"`
-
 	// tracks the type of item represented by this entry.
 	Type itemType `json:"type"`
 
@@ -41,6 +43,14 @@ type Item struct {
 	// source of the error.  In case of ID collisions, the first
 	// item takes priority.
 	Cause string `json:"cause"`
+
+	// Additional is a catch-all map for storing data that might
+	// be relevant to particular types or contexts of items without
+	// being globally relevant.  Ex: parent container references,
+	// created-by ids, last modified, etc.  Should be used sparingly,
+	// only for information that might be immediately relevant to the
+	// end user.
+	Additional map[string]any `json:"additional"`
 }
 
 // Error complies with the error interface.
@@ -56,41 +66,29 @@ func (i *Item) Error() string {
 	return string("processing " + i.Type)
 }
 
-// ---------------------------------------------------------------------------
-// Constructors
-// ---------------------------------------------------------------------------
-
 // ContainerErr produces a Container-type Item for tracking erronous items
-func ContainerErr(cause error, id, name, containerID, containerName string) *Item {
-	return &Item{
-		ID:            id,
-		Name:          name,
-		ContainerID:   containerID,
-		ContainerName: containerName,
-		Type:          ContainerType,
-		Cause:         cause.Error(),
-	}
+func ContainerErr(cause error, id, name string, addtl map[string]any) *Item {
+	return itemErr(ContainerType, cause, id, name, addtl)
 }
 
 // FileErr produces a File-type Item for tracking erronous items.
-func FileErr(cause error, id, name, containerID, containerName string) *Item {
-	return &Item{
-		ID:            id,
-		Name:          name,
-		ContainerID:   containerID,
-		ContainerName: containerName,
-		Type:          FileType,
-		Cause:         cause.Error(),
-	}
+func FileErr(cause error, id, name string, addtl map[string]any) *Item {
+	return itemErr(FileType, cause, id, name, addtl)
 }
 
 // OnwerErr produces a ResourceOwner-type Item for tracking erronous items.
-func OwnerErr(cause error, id, name string) *Item {
+func OwnerErr(cause error, id, name string, addtl map[string]any) *Item {
+	return itemErr(ResourceOwnerType, cause, id, name, addtl)
+}
+
+// itemErr produces a Item of the provided type for tracking erronous items.
+func itemErr(t itemType, cause error, id, name string, addtl map[string]any) *Item {
 	return &Item{
-		ID:    id,
-		Name:  name,
-		Type:  ResourceOwnerType,
-		Cause: cause.Error(),
+		ID:         id,
+		Name:       name,
+		Type:       t,
+		Cause:      cause.Error(),
+		Additional: addtl,
 	}
 }
 
@@ -146,41 +144,29 @@ func (s *Skipped) HasCause(c skipCause) bool {
 }
 
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
-func ContainerSkip(cause skipCause, id, name, containerID, containerName string) *Skipped {
-	return &Skipped{
-		item: Item{
-			ID:            id,
-			Name:          name,
-			ContainerID:   containerID,
-			ContainerName: containerName,
-			Type:          ContainerType,
-			Cause:         string(cause),
-		},
-	}
+func ContainerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(ContainerType, cause, id, name, addtl)
 }
 
 // FileSkip produces a File-kind Item for tracking skipped items.
-func FileSkip(cause skipCause, id, name, containerID, containerName string) *Skipped {
-	return &Skipped{
-		item: Item{
-			ID:            id,
-			Name:          name,
-			ContainerID:   containerID,
-			ContainerName: containerName,
-			Type:          FileType,
-			Cause:         string(cause),
-		},
-	}
+func FileSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(FileType, cause, id, name, addtl)
 }
 
 // OnwerSkip produces a ResourceOwner-kind Item for tracking skipped items.
-func OwnerSkip(cause skipCause, id, name string) *Skipped {
+func OwnerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
+	return itemSkip(ResourceOwnerType, cause, id, name, addtl)
+}
+
+// itemSkip produces a Item of the provided type for tracking skipped items.
+func itemSkip(t itemType, cause skipCause, id, name string, addtl map[string]any) *Skipped {
 	return &Skipped{
 		item: Item{
-			ID:    id,
-			Name:  name,
-			Type:  ResourceOwnerType,
-			Cause: string(cause),
+			ID:         id,
+			Name:       name,
+			Type:       t,
+			Cause:      string(cause),
+			Additional: addtl,
 		},
 	}
 }
