@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
 func main() {
@@ -39,70 +41,10 @@ func main() {
 	switch service := os.Getenv("RESTORE_SERVICE"); service {
 	case "exchange":
 		checkEmailRestoration(client, testUser, folder, startTime)
-		// since multiple test cases are running in test env, the test case fails
-		// checkCalendarsRestoration(client, testUser, folder, startTime)
 	default:
 		checkOnedriveRestoration(client, testUser, folder, startTime)
 	}
 }
-
-// TODO: since multiple test cases are running in test env, the test case fails. We will need another test account
-// func checkCalendarsRestoration(
-// 	client *msgraphsdk.GraphServiceClient,
-// 	testUser,
-// 	folderName string,
-// 	startTime time.Time,
-// ) {
-// 	user := client.UsersById(testUser)
-// 	calendar := user.Calendars()
-
-// 	result, err := calendar.Get(context.Background(), nil)
-// 	if err != nil {
-// 		fmt.Printf("Error getting the drive: %v\n", err)
-// 		os.Exit(1)
-// 	}
-
-// 	totalRestoreEvent := 0
-// 	totalEvent := 0
-
-// 	for _, r := range result.GetValue() {
-// 		fmt.Println("Folder name: ", *r.GetName())
-// 		calendarItem, err := user.CalendarsById(*r.GetId()).Events().Get(context.TODO(), nil)
-// 		if err != nil {
-// 			fmt.Printf("Error calendar by id: %v\n", err)
-// 			os.Exit(1)
-// 		}
-
-// 		var rStartTime time.Time
-
-// 		restoreStartTime := strings.SplitAfter(*r.GetName(), "Corso_Restore_")
-// 		if len(restoreStartTime) > 1 {
-// 			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-// 			if startTime.Before(rStartTime) {
-// 				fmt.Printf("The restore folder %s was created after %s. Will skip check.", *r.GetName(), folderName)
-// 				continue
-// 			}
-// 		}
-
-// 		if strings.Contains(*r.GetName(), folderName) {
-// 			totalRestoreEvent = len(calendarItem.GetValue())
-// 			fmt.Printf("Calendar restore folder:  %s with events: %d \n",
-// 				*r.GetName(),
-// 				totalRestoreEvent)
-
-// 			continue
-// 		}
-
-// 		eventCount := len(calendarItem.GetValue())
-// 		fmt.Printf("Calendar folder: %s with %d \n", *r.GetName(), eventCount)
-// 		totalEvent = totalEvent + eventCount
-// 	}
-
-// 	if totalRestoreEvent != totalEvent {
-// 		fmt.Printf("Restore was not successful total events: %d restored events: %d", totalEvent, totalRestoreEvent)
-// 		os.Exit(1)
-// 	}
-// }
 
 func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
 	var (
@@ -110,52 +52,50 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		restoreFolder models.MailFolderable
 	)
 
-	user := client.UsersById(testUser)
-	mail := user.MailFolders()
+	builder := client.UsersById(testUser).MailFolders()
 
-	result, err := mail.Get(context.Background(), nil)
-	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
-	}
-
-	res := result.GetValue()
-
-	// Hack: have added this to check if we are facing issues due to timeout or similar issue
-	if len(res) < 1 {
-		result, err = mail.Get(context.Background(), nil)
+	for {
+		result, err := builder.Get(context.Background(), nil)
 		if err != nil {
 			fmt.Printf("Error getting the drive: %v\n", err)
 			os.Exit(1)
 		}
 
-		res = result.GetValue()
-	}
+		res := result.GetValue()
 
-	for _, r := range res {
-		name := *r.GetDisplayName()
+		for _, r := range res {
+			name := *r.GetDisplayName()
 
-		var rStartTime time.Time
+			var rStartTime time.Time
 
-		restoreStartTime := strings.SplitAfter(name, "Corso_Restore_")
-		if len(restoreStartTime) > 1 {
-			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-			if startTime.Before(rStartTime) {
-				fmt.Printf("The restore folder %s was created after %s. Will skip check.", name, folderName)
+			restoreStartTime := strings.SplitAfter(name, "Corso_Restore_")
+			if len(restoreStartTime) > 1 {
+				rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
+				if startTime.Before(rStartTime) {
+					fmt.Printf("The restore folder %s was created after %s. Will skip check.", name, folderName)
+					continue
+				}
+			}
+
+			if name == folderName {
+				restoreFolder = r
 				continue
 			}
+
+			fmt.Println("Folder name: ", *r.GetDisplayName(), "count: ", *r.GetTotalItemCount())
+			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 		}
 
-		if name == folderName {
-			restoreFolder = r
-			continue
+		link, ok := ptr.ValOK(result.GetOdataNextLink())
+		if !ok {
+			break
 		}
 
-		fmt.Println("Folder name: ", *r.GetDisplayName(), "count: ", *r.GetTotalItemCount())
-		messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
+		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
+		fmt.Println("We got next link!!")
 	}
 
-	user = client.UsersById(testUser)
+	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(*restoreFolder.GetId())
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
