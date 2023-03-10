@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -140,7 +139,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
 			newDelta: api.DeltaUpdate{URL: "delta_url"},
-			err:      graph.ErrDeletedInFlight{Err: *common.EncapsulateError(assert.AnError)},
+			err:      graph.ErrDeletedInFlight,
 		}
 		container1 = mockContainer{
 			id:          strPtr("1"),

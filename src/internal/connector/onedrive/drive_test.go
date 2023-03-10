@@ -212,7 +212,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 			expectedResults: nil,
 		},
 		{
-			name: "SiteURLNotFound",
+			name: "MySiteURLNotFound",
 			pagerResults: []pagerResult{
 				{
 					drives:   nil,
@@ -225,7 +225,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 			expectedResults: nil,
 		},
 		{
-			name: "SiteNotFound",
+			name: "MySiteNotFound",
 			pagerResults: []pagerResult{
 				{
 					drives:   nil,

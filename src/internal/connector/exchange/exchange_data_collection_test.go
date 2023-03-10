@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -219,9 +218,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 		{
 			name: "deleted in flight",
 			items: &mockItemer{
-				getErr: graph.ErrDeletedInFlight{
-					Err: *common.EncapsulateError(assert.AnError),
-				},
+				getErr: graph.ErrDeletedInFlight,
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")

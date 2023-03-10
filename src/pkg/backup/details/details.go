@@ -38,12 +38,10 @@ type DetailsModel struct {
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	sl := dm.FilterMetaFiles()
-
 	if print.JSONFormat() {
-		printJSON(ctx, sl)
+		printJSON(ctx, dm)
 	} else {
-		printTable(ctx, sl)
+		printTable(ctx, dm)
 	}
 }
 
