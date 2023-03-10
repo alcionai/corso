@@ -373,6 +373,8 @@ func (r repository) BackupDetails(
 		}
 	}
 
+	deets.DetailsModel = deets.FilterMetaFiles()
+
 	return &deets, b, errs
 }
 
