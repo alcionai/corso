@@ -1,7 +1,6 @@
 package backup_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -14,16 +13,15 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-type BackupSuite struct {
+type BackupUnitSuite struct {
 	tester.Suite
 }
 
-func TestBackupSuite(t *testing.T) {
-	suite.Run(t, &BackupSuite{Suite: tester.NewUnitSuite(t)})
+func TestBackupUnitSuite(t *testing.T) {
+	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 func stubBackup(t time.Time) backup.Backup {
@@ -42,9 +40,8 @@ func stubBackup(t time.Time) backup.Backup {
 		DetailsID:    "details",
 		Status:       "status",
 		Selector:     sel.Selector,
-		Errors: fault.Errors{
-			Recovered: []error{errors.New("read"), errors.New("write")},
-		},
+		ErrorCount:   2,
+		Failure:      "read, write",
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,
@@ -55,36 +52,93 @@ func stubBackup(t time.Time) backup.Backup {
 			StartedAt:   t,
 			CompletedAt: t,
 		},
+		SkippedCounts: stats.SkippedCounts{
+			TotalSkippedItems: 1,
+			SkippedMalware:    1,
+		},
 	}
 }
 
-func (suite *BackupSuite) TestBackup_HeadersValues() {
-	t := suite.T()
-	now := time.Now()
-	b := stubBackup(now)
+func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
+	var (
+		t        = suite.T()
+		now      = time.Now()
+		b        = stubBackup(now)
+		expectHs = []string{
+			"Started At",
+			"ID",
+			"Status",
+			"Resource Owner",
+		}
+		nowFmt   = common.FormatTabularDisplayTime(now)
+		expectVs = []string{
+			nowFmt,
+			"id",
+			"status (2 errors, 1 skipped: 1 malware)",
+			"test",
+		}
+	)
 
-	expectHs := []string{
-		"Started At",
-		"ID",
-		"Status",
-		"Resource Owner",
-	}
+	// single skipped malware
 	hs := b.Headers()
 	assert.Equal(t, expectHs, hs)
-
-	nowFmt := common.FormatTabularDisplayTime(now)
-	expectVs := []string{
-		nowFmt,
-		"id",
-		"status (2 errors)",
-		"test",
-	}
 
 	vs := b.Values()
 	assert.Equal(t, expectVs, vs)
 }
 
-func (suite *BackupSuite) TestBackup_MinimumPrintable() {
+func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
+	table := []struct {
+		name   string
+		bup    backup.Backup
+		expect string
+	}{
+		{
+			name:   "no extras",
+			bup:    backup.Backup{Status: "test"},
+			expect: "test",
+		},
+		{
+			name: "errors",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+			},
+			expect: "test (42 errors)",
+		},
+		{
+			name: "malware",
+			bup: backup.Backup{
+				Status: "test",
+				SkippedCounts: stats.SkippedCounts{
+					TotalSkippedItems: 2,
+					SkippedMalware:    1,
+				},
+			},
+			expect: "test (2 skipped: 1 malware)",
+		},
+		{
+			name: "errors and malware",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+				SkippedCounts: stats.SkippedCounts{
+					TotalSkippedItems: 1,
+					SkippedMalware:    1,
+				},
+			},
+			expect: "test (42 errors, 1 skipped: 1 malware)",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			result := test.bup.Values()
+			assert.Equal(suite.T(), test.expect, result[2], "status value")
+		})
+	}
+}
+
+func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	t := suite.T()
 	now := time.Now()
 	b := stubBackup(now)
