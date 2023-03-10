@@ -503,7 +503,7 @@ func (c sharePointCategory) pathValues(
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
 
 	default:
-		return nil, clues.New("bad sharePointCategory").With("category", c)
+		return nil, clues.New("unrecognized sharePointCategory").With("category", c)
 	}
 
 	result := map[categorizer][]string{
