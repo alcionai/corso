@@ -1,0 +1,263 @@
+name: Sanity Testing
+on: 
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+jobs:
+  Sanity-Tests:
+    environment: Testing
+    runs-on: ubuntu-latest
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      TEST_RESULT: "test_results"
+      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v3
+        with:
+          go-version-file: src/go.mod
+
+      - run: make build
+
+      - run: go build -o sanityCheck ./cmd/sanity_test
+
+      - run: mkdir test_results
+
+      # AWS creds
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      # run the tests
+      - name: Version Test
+        run: |
+          set -euo pipefail
+          if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
+          then
+              echo "valid version not found"
+              exit 1
+          fi
+
+      - name: Repo init test
+        id: repo-init
+        env:
+          TEST_RESULT: "test_results"
+        run: |
+          set -euo pipefail 
+          prefix=`date +"%Y-%m-%d-%T"`
+
+          ./corso repo init s3 \
+          --hide-progress \
+          --prefix $prefix \
+          --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
+
+          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
+          then
+              echo "repo could not be initiated"
+              exit 1
+          fi
+          
+          echo result="$prefix" >> $GITHUB_OUTPUT 
+
+      # run the tests
+      - name: Repo connect test
+        run: |
+          set -euo pipefail
+          ./corso repo connect s3 \
+          --hide-progress \
+          --prefix ${{ steps.repo-init.outputs.result }} \
+          --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
+
+          if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
+          then
+              echo "repo could not be connected"
+              exit 1
+          fi
+
+      # run the tests
+      - name: Backup exchange test
+        id: exchange-test
+        run: |
+          ./corso backup create exchange \
+          --user "${CORSO_M365_TEST_USER_ID}" \
+           --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+
+          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt
+          then
+              echo "backup was not successfull"
+              exit 1
+          fi
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # list the backup exhange
+      - name: Backup exchange list test
+        run: |
+          set -euo pipefail
+          ./corso backup list exchange \
+          --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
+
+          if ! grep -q  ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt 
+          then
+              echo "listing of backup was not successfull"
+              exit 1
+          fi
+
+      # test exchange restore
+      - name: Backup exchange restore
+        id: exchange-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore exchange \
+          --hide-progress \
+          --backup "${{ steps.exchange-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
+        
+      - name: Restoration check
+        env:
+          RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
+          RESTORE_SERVICE: "exchange"
+        run: |
+          set -euo pipefail
+          ./sanityCheck
+
+      # test incremental backup exhange
+      - name: Backup exchange incremental
+        id: exchange-incremental-test
+        run: |
+          set -euo pipefail
+          ./corso backup create exchange \
+          --user "${CORSO_M365_TEST_USER_ID}" \
+          --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+
+          if ! grep -q  'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt 
+          then
+              echo "backup was not successful"
+              exit 1
+          fi
+
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # test exchange restore
+      - name: Backup incremantal exchange restore
+        id: exchange-incremantal-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore exchange \
+          --hide-progress \
+          --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
+        
+      - name: Restoration check
+        env:
+          RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
+          RESTORE_SERVICE: "exchange"
+        run: |
+          set -euo pipefail
+          ./sanityCheck
+
+        
+ # Onedrive test
+
+      # run the tests
+      - name: Backup onedrive test
+        id: onedrive-test
+        run: |
+          set -euo pipefail
+          ./corso backup create onedrive \
+          --user "${CORSO_M365_TEST_USER_ID}" \
+          --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
+
+          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt
+          then
+              echo "backup was not successfull"
+              exit 1
+          fi
+
+          echo result=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # list the bakcup onedrive
+      - name: Backup onedrive list test
+        run: |
+          set -euo pipefail
+          ./corso backup list onedrive \
+          --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
+
+          if ! grep -q  ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt 
+          then
+              echo "listing of backup was not successfull"
+              exit 1
+          fi
+
+      # test onedrive restore
+      - name: Backup onedrive restore
+        id: onedrive-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore onedrive --backup "${{ steps.onedrive-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+      - name: Restoration oneDrive check
+        env:
+          RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
+        run: |
+          set -euo pipefail
+          ./sanityCheck
+
+      # test onedrive incremental
+      - name: Backup onedrive test
+        id: onedrive-incremental-test
+        run: |
+          set -euo pipefail
+          ./corso backup create onedrive \
+          --user "${CORSO_M365_TEST_USER_ID}"\
+           --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
+          
+          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt
+          then
+              echo "backup was not successfull"
+              exit 1
+          fi
+
+          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+      # test onedrive restore
+      - name: Backup onedrive restore
+        id: onedrive-incremental-restore-test
+        run: |
+          set -euo pipefail
+          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
+          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
+
+      - name: Restoration oneDrive check
+        env:
+          RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
+        run: |
+          set -euo pipefail
+          ./sanityCheck
+      
