@@ -422,11 +422,25 @@ func streamBaseEntries(
 	locationPath path.Path,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) error {
 	if dir == nil {
 		return nil
+	}
+
+	var (
+		excludeSet    map[string]struct{}
+		curPrefix     string
+		curPathString = curPath.String()
+	)
+
+	for prefix, excludes := range globalExcludeSet {
+		// Select the set with the longest prefix to be most precise.
+		if strings.HasPrefix(curPathString, prefix) && len(prefix) >= len(curPrefix) {
+			excludeSet = excludes
+			curPrefix = prefix
+		}
 	}
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
@@ -453,7 +467,7 @@ func streamBaseEntries(
 
 		// This entry was marked as deleted by a service that can't tell us the
 		// previous path of deleted items, only the item ID.
-		if _, ok := globalExcludeSet[entName]; ok {
+		if _, ok := excludeSet[entName]; ok {
 			return nil
 		}
 
