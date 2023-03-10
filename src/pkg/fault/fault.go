@@ -45,6 +45,11 @@ func New(failFast bool) *Bus {
 	}
 }
 
+// FailFast returs the failFast flag in the bus.
+func (e *Bus) FailFast() bool {
+	return e.failFast
+}
+
 // Failure returns the primary error.  If not nil, this
 // indicates the operation exited prior to completion.
 func (e *Bus) Failure() error {

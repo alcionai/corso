@@ -1,7 +1,6 @@
 package backup_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -44,16 +42,6 @@ func stubBackup(t time.Time) backup.Backup {
 		Selector:     sel.Selector,
 		ErrorCount:   2,
 		Failure:      "read, write",
-		FailedItems: []fault.Item{*fault.FileErr(
-			errors.New("read"),
-			"id", "name",
-			map[string]any{"foo": "bar"},
-		)},
-		SkippedItems: []fault.Skipped{*fault.FileSkip(
-			fault.SkipMalware,
-			"id", "name",
-			map[string]any{"foo": "bar"},
-		)},
 		ReadWrites: stats.ReadWrites{
 			BytesRead:     301,
 			BytesUploaded: 301,
@@ -63,6 +51,10 @@ func stubBackup(t time.Time) backup.Backup {
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
 			CompletedAt: t,
+		},
+		SkippedCounts: stats.SkippedCounts{
+			TotalSkippedItems: 1,
+			SkippedMalware:    1,
 		},
 	}
 }
@@ -96,8 +88,6 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 }
 
 func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
-	addtl := map[string]any{"foo": "bar"}
-
 	table := []struct {
 		name   string
 		bup    backup.Backup
@@ -120,24 +110,22 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 			name: "malware",
 			bup: backup.Backup{
 				Status: "test",
-				SkippedItems: []fault.Skipped{*fault.FileSkip(
-					fault.SkipMalware,
-					"id", "name",
-					addtl,
-				)},
+				SkippedCounts: stats.SkippedCounts{
+					TotalSkippedItems: 2,
+					SkippedMalware:    1,
+				},
 			},
-			expect: "test (1 skipped: 1 malware)",
+			expect: "test (2 skipped: 1 malware)",
 		},
 		{
 			name: "errors and malware",
 			bup: backup.Backup{
 				Status:     "test",
 				ErrorCount: 42,
-				SkippedItems: []fault.Skipped{*fault.FileSkip(
-					fault.SkipMalware,
-					"id", "name",
-					addtl,
-				)},
+				SkippedCounts: stats.SkippedCounts{
+					TotalSkippedItems: 1,
+					SkippedMalware:    1,
+				},
 			},
 			expect: "test (42 errors, 1 skipped: 1 malware)",
 		},
