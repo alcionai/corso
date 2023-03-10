@@ -2,7 +2,7 @@ package version
 
 import "math"
 
-const Backup = 4
+const Backup = 5
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -24,6 +24,11 @@ const (
 	// OneDrive4IncludesPermissions includes permissions for folders in the same
 	// collection as the folder itself.
 	OneDrive4DirIncludesPermissions = 4
+
+	// OneDrive5DirMetaName changed the directory metadata file name from
+	// <dirname>.dirmeta to just .dirmeta to avoid issues with folder renames
+	// during incremental backups.
+	OneDrive5DirMetaName = 5
 
 	// OneDriveXNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file

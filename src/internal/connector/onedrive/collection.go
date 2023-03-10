@@ -336,6 +336,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
+				metaFileName string
 				metaSuffix   string
 			)
 
@@ -361,10 +362,12 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
 
+				metaFileName = itemName
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 
+				// metaFileName not set for directories so we get just ".dirmeta"
 				metaSuffix = DirMetaFileSuffix
 			}
 
@@ -469,7 +472,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				})
 
 				oc.data <- &metadataItem{
-					id:      itemName + metaSuffix,
+					id:      metaFileName + metaSuffix,
 					data:    metaReader,
 					modTime: time.Now(),
 				}
