@@ -82,14 +82,7 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 				continue
 			}
 
-			var totalCountInFolder int32
-			for _, message := range r.GetMessages() {
-				if startTime.After(*message.GetCreatedDateTime()) {
-					totalCountInFolder = totalCountInFolder + *r.GetTotalItemCount()
-				}
-			}
-
-			messageCount[*r.GetDisplayName()] = totalCountInFolder
+			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
