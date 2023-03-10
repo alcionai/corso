@@ -1,9 +1,8 @@
 name: Sanity Testing
 on: 
   push:
-  # TODO: uncomment before merging
-    # branches:
-    #   - main
+    branches:
+      - main
   workflow_dispatch:
 
 
