@@ -82,7 +82,6 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 				continue
 			}
 
-			fmt.Println("Folder name: ", *r.GetDisplayName(), "count: ", *r.GetTotalItemCount())
 			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 		}
 
@@ -92,7 +91,6 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		}
 
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
-		fmt.Println("We got next link!!")
 	}
 
 	user := client.UsersById(testUser)

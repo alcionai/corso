@@ -131,13 +131,13 @@ jobs:
               exit 1
           fi
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+      # # AWS creds
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      #     role-session-name: integration-testing
+      #     aws-region: us-east-1
 
       # test exchange restore
       - name: Backup exchange restore
@@ -157,13 +157,13 @@ jobs:
           set -euo pipefail
           ./sanityCheck
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+      # # AWS creds
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      #     role-session-name: integration-testing
+      #     aws-region: us-east-1
 
       # test incremental backup exhange
       - name: Backup exchange incremental
@@ -182,13 +182,13 @@ jobs:
 
           echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+      # # AWS creds
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      #     role-session-name: integration-testing
+      #     aws-region: us-east-1
 
       # test exchange restore
       - name: Backup incremantal exchange restore
@@ -211,13 +211,13 @@ jobs:
         
  # Onedrive test
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+      # # AWS creds
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      #     role-session-name: integration-testing
+      #     aws-region: us-east-1
 
       # run the tests
       - name: Backup onedrive test
@@ -249,13 +249,13 @@ jobs:
               exit 1
           fi
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+      # # AWS creds
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      #     role-session-name: integration-testing
+      #     aws-region: us-east-1
 
       # test onedrive restore
       - name: Backup onedrive restore
@@ -289,13 +289,13 @@ jobs:
 
           echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
+      # # AWS creds
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      #     role-session-name: integration-testing
+      #     aws-region: us-east-1
 
       # test onedrive restore
       - name: Backup onedrive restore
