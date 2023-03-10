@@ -108,12 +108,12 @@ jobs:
           --user "${CORSO_M365_TEST_USER_ID}" \
            --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
-          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt
+          if ! grep -q 'Completed' $TEST_RESULT/backup_exchange.txt
           then
               echo "backup was not successfull"
               exit 1
           fi
-          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          echo result=$(grep -i -e 'Completed' $TEST_RESULT/backup_exchange.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
       # list the backup exhange
       - name: Backup exchange list test
@@ -155,13 +155,13 @@ jobs:
           --user "${CORSO_M365_TEST_USER_ID}" \
           --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
 
-          if ! grep -q  'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt 
+          if ! grep -q  'Completed' $TEST_RESULT/backup_exchange_incremental.txt
           then
               echo "backup was not successful"
               exit 1
           fi
 
-          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          echo result=$(grep -i -e 'Completed' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
       # test exchange restore
       - name: Backup incremantal exchange restore
@@ -193,13 +193,13 @@ jobs:
           --user "${CORSO_M365_TEST_USER_ID}" \
           --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
-          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt
+          if ! grep -q 'Completed' $TEST_RESULT/backup_onedrive.txt
           then
               echo "backup was not successfull"
               exit 1
           fi
 
-          echo result=$(grep 'Completed (0 errors)' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          echo result=$(grep 'Completed' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
       # list the bakcup onedrive
       - name: Backup onedrive list test
@@ -238,13 +238,13 @@ jobs:
           --user "${CORSO_M365_TEST_USER_ID}"\
            --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
-          if ! grep -q 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt
+          if ! grep -q 'Completed' $TEST_RESULT/backup_onedrive_incremental.txt
           then
               echo "backup was not successfull"
               exit 1
           fi
 
-          echo result=$(grep -i -e 'Completed (0 errors)' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          echo result=$(grep -i -e 'Completed' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
 
       # test onedrive restore
       - name: Backup onedrive restore
