@@ -345,7 +345,18 @@ func (c *Collections) Get(
 			numDeltas)
 
 		if !delta.Reset {
-			excludedItems[driveID] = excluded
+			p, err := GetCanonicalPath(
+				fmt.Sprintf(rootDrivePattern, driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source)
+			if err != nil {
+				return nil, nil,
+					clues.Wrap(err, "making exclude prefix for drive").WithClues(ctx).With("drive_id", driveID)
+			}
+
+			excludedItems[p.String()] = excluded
+
 			continue
 		}
 

@@ -1301,7 +1301,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {"root": rootFolderPath1},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
+				rootFolderPath1: getDelList("file"),
 			},
 		},
 		{
@@ -1332,7 +1332,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				driveID1: {"root": rootFolderPath1},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
+				rootFolderPath1: getDelList("file"),
 			},
 		},
 		{
@@ -1368,7 +1368,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
+				rootFolderPath1: getDelList("file"),
 			},
 		},
 		{
@@ -1405,7 +1405,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
+				rootFolderPath1: getDelList("file"),
 			},
 		},
 		{
@@ -1442,7 +1442,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
+				rootFolderPath1: getDelList("file"),
 			},
 		},
 		{
@@ -1471,7 +1471,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedDeltaURLs:   map[string]string{},
 			expectedFolderPaths: map[string]map[string]string{},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
+				rootFolderPath1: getDelList("file"),
 			},
 		},
 		{
@@ -1515,7 +1515,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file", "file2"),
+				rootFolderPath1: getDelList("file", "file2"),
 			},
 		},
 		{
@@ -1572,8 +1572,8 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file"),
-				driveID2: getDelList("file2"),
+				rootFolderPath1: getDelList("file"),
+				rootFolderPath2: getDelList("file2"),
 			},
 		},
 		{
@@ -1709,7 +1709,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file", "file2"),
+				rootFolderPath1: getDelList("file", "file2"),
 			},
 			doNotMergeItems: false,
 		},
@@ -1839,7 +1839,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 				},
 			},
 			expectedDelList: map[string]map[string]struct{}{
-				driveID1: getDelList("file", "file2"),
+				rootFolderPath1: getDelList("file", "file2"),
 			},
 			expectedSkippedCount: 2,
 		},
