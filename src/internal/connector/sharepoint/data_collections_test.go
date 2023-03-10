@@ -40,20 +40,21 @@ func (fm testFolderMatcher) Matches(path string) bool {
 // tests
 // ---------------------------------------------------------------------------
 
-type SharePointLibrariesSuite struct {
+type SharePointLibrariesUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharePointLibrariesSuite(t *testing.T) {
-	suite.Run(t, &SharePointLibrariesSuite{Suite: tester.NewUnitSuite(t)})
+func TestSharePointLibrariesUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointLibrariesUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
+func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.SharePointBackup{}).Libraries(selectors.Any())[0]
 
 	const (
-		tenant = "tenant"
-		site   = "site"
+		tenant  = "tenant"
+		site    = "site"
+		driveID = "driveID1"
 	)
 
 	tests := []struct {
@@ -90,14 +91,22 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 
 	for _, test := range tests {
 		suite.Run(test.testCase, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			paths := map[string]string{}
-			newPaths := map[string]string{}
-			excluded := map[string]struct{}{}
+			var (
+				t         = suite.T()
+				paths     = map[string]string{}
+				newPaths  = map[string]string{}
+				excluded  = map[string]struct{}{}
+				itemColls = map[string]map[string]string{
+					driveID: {},
+				}
+				collMap = map[string]map[string]*onedrive.Collection{
+					driveID: {},
+				}
+			)
+
 			c := onedrive.NewCollections(
 				graph.HTTPClient(graph.NoTimeout()),
 				tenant,
@@ -107,26 +116,32 @@ func (suite *SharePointLibrariesSuite) TestUpdateCollections() {
 				&MockGraphService{},
 				nil,
 				control.Options{})
+
+			c.CollectionMap = collMap
+
 			err := c.UpdateCollections(
 				ctx,
-				"driveID1",
+				driveID,
 				"General",
 				test.items,
 				paths,
 				newPaths,
 				excluded,
-				map[string]string{},
+				itemColls,
 				true,
 				fault.New(true))
+
 			test.expect(t, err)
 			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap), "collection paths")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
+
 			for _, collPath := range test.expectedCollectionIDs {
-				assert.Contains(t, c.CollectionMap, collPath)
+				assert.Contains(t, c.CollectionMap[driveID], collPath)
 			}
-			for _, col := range c.CollectionMap {
+
+			for _, col := range c.CollectionMap[driveID] {
 				assert.Contains(t, test.expectedCollectionPaths, col.FullPath().String())
 			}
 		})

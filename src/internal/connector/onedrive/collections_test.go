@@ -87,15 +87,15 @@ func getExpectedPathGenerator(t *testing.T,
 	}
 }
 
-type OneDriveCollectionsSuite struct {
+type OneDriveCollectionsUnitSuite struct {
 	tester.Suite
 }
 
-func TestOneDriveCollectionsSuite(t *testing.T) {
-	suite.Run(t, &OneDriveCollectionsSuite{Suite: tester.NewUnitSuite(t)})
+func TestOneDriveCollectionsUnitSuite(t *testing.T) {
+	suite.Run(t, &OneDriveCollectionsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OneDriveCollectionsSuite) TestGetCanonicalPath() {
+func (suite *OneDriveCollectionsUnitSuite) TestGetCanonicalPath() {
 	tenant, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -150,10 +150,11 @@ func getDelList(files ...string) map[string]struct{} {
 	return delList
 }
 
-func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
+func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
 
 	const (
+		driveID   = "driveID1"
 		tenant    = "tenant"
 		user      = "user"
 		folder    = "/folder"
@@ -758,14 +759,21 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 
 	for _, tt := range tests {
 		suite.Run(tt.testCase, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			excludes := map[string]struct{}{}
-			outputFolderMap := map[string]string{}
+			var (
+				t               = suite.T()
+				excludes        = map[string]struct{}{}
+				outputFolderMap = map[string]string{}
+				itemCollection  = map[string]map[string]string{
+					driveID: {},
+				}
+				errs = fault.New(true)
+			)
+
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
+
 			c := NewCollections(
 				graph.HTTPClient(graph.NoTimeout()),
 				tenant,
@@ -776,12 +784,11 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
 
-			itemCollection := map[string]string{}
-			errs := fault.New(true)
+			c.CollectionMap[driveID] = map[string]*Collection{}
 
 			err := c.UpdateCollections(
 				ctx,
-				"driveID1",
+				driveID,
 				"General",
 				tt.items,
 				tt.inputFolderMap,
@@ -791,21 +798,21 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 				false,
 				errs)
 			tt.expect(t, err)
-			assert.Equal(t, len(tt.expectedCollectionIDs), len(c.CollectionMap), "total collections")
+			assert.Equal(t, len(tt.expectedCollectionIDs), len(c.CollectionMap[driveID]), "total collections")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
 			assert.Equal(t, tt.expectedSkippedCount, len(errs.Skipped()), "skipped items")
 
 			for id, sp := range tt.expectedCollectionIDs {
-				if !assert.Containsf(t, c.CollectionMap, id, "missing collection with id %s", id) {
+				if !assert.Containsf(t, c.CollectionMap[driveID], id, "missing collection with id %s", id) {
 					// Skip collections we don't find so we don't get an NPE.
 					continue
 				}
 
-				assert.Equalf(t, sp.state, c.CollectionMap[id].State(), "state for collection %s", id)
-				assert.Equalf(t, sp.curPath, c.CollectionMap[id].FullPath(), "current path for collection %s", id)
-				assert.Equalf(t, sp.prevPath, c.CollectionMap[id].PreviousPath(), "prev path for collection %s", id)
+				assert.Equalf(t, sp.state, c.CollectionMap[driveID][id].State(), "state for collection %s", id)
+				assert.Equalf(t, sp.curPath, c.CollectionMap[driveID][id].FullPath(), "current path for collection %s", id)
+				assert.Equalf(t, sp.prevPath, c.CollectionMap[driveID][id].PreviousPath(), "prev path for collection %s", id)
 			}
 
 			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap, "metadata paths")
@@ -814,7 +821,7 @@ func (suite *OneDriveCollectionsSuite) TestUpdateCollections() {
 	}
 }
 
-func (suite *OneDriveCollectionsSuite) TestDeserializeMetadata() {
+func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 	tenant := "a-tenant"
 	user := "a-user"
 	driveID1 := "1"
@@ -1216,11 +1223,16 @@ func (p *mockItemPager) ValuesIn(gapi.DeltaPageLinker) ([]models.DriveItemable, 
 	return p.toReturn[idx].items, nil
 }
 
-func (suite *OneDriveCollectionsSuite) TestGet() {
-	anyFolder := (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
-
-	tenant := "a-tenant"
-	user := "a-user"
+func (suite *OneDriveCollectionsUnitSuite) TestGet() {
+	var (
+		anyFolder = (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
+		tenant    = "a-tenant"
+		user      = "a-user"
+		empty     = ""
+		next      = "next"
+		delta     = "delta1"
+		delta2    = "delta2"
+	)
 
 	metadataPath, err := path.Builder{}.ToServiceCategoryMetadataPath(
 		tenant,
@@ -1230,11 +1242,6 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		false,
 	)
 	require.NoError(suite.T(), err, "making metadata path")
-
-	empty := ""
-	next := "next"
-	delta := "delta1"
-	delta2 := "delta2"
 
 	driveID1 := uuid.NewString()
 	drive1 := models.NewDrive()
@@ -1246,17 +1253,19 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 	drive2.SetId(&driveID2)
 	drive2.SetName(&driveID2)
 
-	driveBasePath1 := fmt.Sprintf(rootDrivePattern, driveID1)
-	driveBasePath2 := fmt.Sprintf(rootDrivePattern, driveID2)
+	var (
+		driveBasePath1 = fmt.Sprintf(rootDrivePattern, driveID1)
+		driveBasePath2 = fmt.Sprintf(rootDrivePattern, driveID2)
 
-	expectedPath1 := getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath1)
-	expectedPath2 := getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath2)
+		expectedPath1 = getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath1)
+		expectedPath2 = getExpectedPathGenerator(suite.T(), tenant, user, driveBasePath2)
 
-	rootFolderPath1 := expectedPath1("")
-	folderPath1 := expectedPath1("/folder")
+		rootFolderPath1 = expectedPath1("")
+		folderPath1     = expectedPath1("/folder")
 
-	rootFolderPath2 := expectedPath2("")
-	folderPath2 := expectedPath2("/folder")
+		rootFolderPath2 = expectedPath2("")
+		folderPath2     = expectedPath2("/folder")
+	)
 
 	table := []struct {
 		name            string
@@ -1888,6 +1897,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
+			for driveID := range test.items {
+				c.CollectionMap[driveID] = map[string]*Collection{}
+			}
+
 			prevDelta := "prev-delta"
 			mc, err := graph.MakeMetadataCollection(
 				tenant,
@@ -2095,7 +2108,7 @@ func getDeltaError() error {
 	return deltaError
 }
 
-func (suite *OneDriveCollectionsSuite) TestCollectItems() {
+func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 	next := "next"
 	delta := "delta"
 	prevDelta := "prev-delta"
@@ -2175,7 +2188,7 @@ func (suite *OneDriveCollectionsSuite) TestCollectItems() {
 				oldPaths map[string]string,
 				newPaths map[string]string,
 				excluded map[string]struct{},
-				itemCollection map[string]string,
+				itemCollection map[string]map[string]string,
 				doNotMergeItems bool,
 				errs *fault.Bus,
 			) error {
