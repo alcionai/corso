@@ -31,8 +31,10 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			version: 0,
 			input: []string{
 				"file.txt.data",
+				"file.txt", // v0 does not have `.data`
 			},
 			output: []string{
+				"file.txt", // ordering artifact of sorting
 				"file.txt.data",
 			},
 		},
@@ -41,8 +43,10 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			version: 0,
 			input: []string{
 				"folder/file.txt.data",
+				"folder/file.txt",
 			},
 			output: []string{
+				"folder/file.txt",
 				"folder/file.txt.data",
 			},
 		},
@@ -146,6 +150,8 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			actual, err := AugmentRestorePaths(test.version, inPaths)
 			require.NoError(t, err, "augmenting paths")
 
+			// Ordering of paths matter here as we need dirmeta files
+			// to show up before file in dir
 			assert.Equal(t, outPaths, actual, "augmented paths")
 		})
 	}

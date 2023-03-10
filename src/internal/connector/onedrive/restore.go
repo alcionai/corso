@@ -604,6 +604,7 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 // well as do any other ordering operations on the paths
 func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, error) {
 	colPaths := map[string]path.Path{}
+
 	for _, p := range paths {
 		for {
 			np, err := p.Dir()
@@ -620,10 +621,7 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 				break
 			}
 
-			_, found := colPaths[np.String()]
-			if !found {
-				colPaths[np.String()] = np
-			}
+			colPaths[np.String()] = np
 			p = np
 		}
 	}
@@ -643,6 +641,7 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 			if err != nil {
 				return nil, err
 			}
+
 			paths = append(paths, mPath)
 		} else if backupVersion >= version.OneDrive1DataAndMetaFiles {
 			pp, err := p.Dir()
