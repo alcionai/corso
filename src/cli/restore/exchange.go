@@ -217,6 +217,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	defer utils.CloseRepo(ctx, r)
 
 	dest := control.DefaultRestoreDestination(common.SimpleDateTime)
+	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)

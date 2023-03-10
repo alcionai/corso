@@ -28,3 +28,8 @@ type ByteCounter struct {
 func (bc *ByteCounter) Count(i int64) {
 	atomic.AddInt64(&bc.NumBytes, i)
 }
+
+type SkippedCounts struct {
+	TotalSkippedItems int `json:"totalSkippedItems"`
+	SkippedMalware    int `json:"skippedMalware"`
+}

@@ -182,6 +182,22 @@ func (suite *FaultErrorsUnitSuite) TestAdd() {
 	assert.Len(t, n.Recovered(), 2)
 }
 
+func (suite *FaultErrorsUnitSuite) TestAddSkip() {
+	t := suite.T()
+
+	n := fault.New(true)
+	require.NotNil(t, n)
+
+	n.Fail(assert.AnError)
+	assert.Len(t, n.Skipped(), 0)
+
+	n.AddRecoverable(assert.AnError)
+	assert.Len(t, n.Skipped(), 0)
+
+	n.AddSkip(fault.OwnerSkip(fault.SkipMalware, "id", "name", nil))
+	assert.Len(t, n.Skipped(), 1)
+}
+
 func (suite *FaultErrorsUnitSuite) TestErrors() {
 	t := suite.T()
 
@@ -210,6 +226,104 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	assert.Equal(t, n.Failure(), d.Failure)
 	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
 	assert.True(t, d.FailFast)
+}
+
+func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
+	ae := assert.AnError
+	addtl := map[string]any{"foo": "bar", "baz": 1}
+
+	table := []struct {
+		name   string
+		errs   func() fault.Errors
+		expect []fault.Item
+	}{
+		{
+			name: "no errors",
+			errs: func() fault.Errors {
+				return fault.New(false).Errors()
+			},
+			expect: []fault.Item{},
+		},
+		{
+			name: "no items",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(ae)
+
+				return b.Errors()
+			},
+			expect: []fault.Item{},
+		},
+		{
+			name: "failure item",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
+				b.AddRecoverable(ae)
+
+				return b.Errors()
+			},
+			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+		},
+		{
+			name: "recoverable item",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(fault.OwnerErr(ae, "id", "name", addtl))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+		},
+		{
+			name: "two items",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "oid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{
+				*fault.OwnerErr(ae, "oid", "name", addtl),
+				*fault.FileErr(ae, "fid", "name", addtl),
+			},
+		},
+		{
+			name: "duplicate items - failure priority",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "id", "name", addtl))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{
+				*fault.OwnerErr(ae, "id", "name", addtl),
+			},
+		},
+		{
+			name: "duplicate items - last recoverable priority",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name2", addtl))
+
+				return b.Errors()
+			},
+			expect: []fault.Item{
+				*fault.FileErr(ae, "fid", "name2", addtl),
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			assert.ElementsMatch(suite.T(), test.expect, test.errs().Items)
+		})
+	}
 }
 
 func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
