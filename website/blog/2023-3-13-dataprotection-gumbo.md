@@ -16,7 +16,7 @@ recommend listening to the [full episode](https://dataprotectiongumbo.com/184-ex
 Also, if you aren't following the podcast and Demetrius already, you should!
 <!-- truncate -->
 
-## ## Cloud adoption and security risks
+## Cloud adoption and security risks
 
 We’ve been hearing and reading about companies moving to the cloud for the past decade, but in the wake of the COVID
 pandemic and lockdowns, cloud migration has been truly accelerated. Remote workforce models and distributed teams are
