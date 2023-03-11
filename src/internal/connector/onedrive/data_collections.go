@@ -39,7 +39,7 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	odb, err := selector.ToOneDriveBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "parsing selector").WithClues(ctx)
@@ -49,7 +49,7 @@ func DataCollections(
 		el          = errs.Local()
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
-		allExcludes = map[string]struct{}{}
+		allExcludes = map[string]map[string]struct{}{}
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -77,7 +77,13 @@ func DataCollections(
 
 		collections = append(collections, odcs...)
 
-		maps.Copy(allExcludes, excludes)
+		for k, ex := range excludes {
+			if _, ok := allExcludes[k]; !ok {
+				allExcludes[k] = map[string]struct{}{}
+			}
+
+			maps.Copy(allExcludes[k], ex)
+		}
 	}
 
 	return collections, allExcludes, el.Failure()

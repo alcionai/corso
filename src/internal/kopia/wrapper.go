@@ -135,7 +135,7 @@ func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
