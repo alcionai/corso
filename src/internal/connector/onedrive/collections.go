@@ -381,13 +381,11 @@ func (c *Collections) Get(
 		}
 
 		for fldID, p := range oldPaths {
-			_, found := paths[fldID]
-			if found {
+			if _, ok := paths[fldID]; ok {
 				continue
 			}
 
-			_, found = modifiedPaths[p]
-			if found {
+			if _, ok := modifiedPaths[p]; ok {
 				// Original folder was deleted and new folder with the
 				// same name/path was created in its place
 				continue
@@ -419,7 +417,7 @@ func (c *Collections) Get(
 	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
 
 	// Add an extra for the metadata collection.
-	collections := make([]data.BackupCollection, 0, len(c.CollectionMap))
+	collections := []data.BackupCollection{}
 
 	for _, driveColls := range c.CollectionMap {
 		for _, coll := range driveColls {

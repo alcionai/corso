@@ -1897,10 +1897,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc
 
-			for driveID := range test.items {
-				c.CollectionMap[driveID] = map[string]*Collection{}
-			}
-
 			prevDelta := "prev-delta"
 			mc, err := graph.MakeMetadataCollection(
 				tenant,
