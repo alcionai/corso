@@ -137,7 +137,7 @@ type itemCollector func(
 	oldPaths map[string]string,
 	newPaths map[string]string,
 	excluded map[string]struct{},
-	fileCollectionMap map[string]string,
+	itemCollections map[string]map[string]string,
 	validPrevDelta bool,
 	errs *fault.Bus,
 ) error
@@ -199,7 +199,10 @@ func collectItems(
 		// file belongs to. This is useful to delete a file from the
 		// collection it was previously in, in case it was moved to a
 		// different collection within the same delta query
-		itemCollection = map[string]string{}
+		// drive ID -> item ID -> item ID
+		itemCollection = map[string]map[string]string{
+			driveID: {},
+		}
 	)
 
 	if !invalidPrevDelta {
@@ -373,15 +376,15 @@ func GetAllFolders(
 
 		ictx := clues.Add(ctx, "drive_id", id, "drive_name", name) // TODO: pii
 		collector := func(
-			innerCtx context.Context,
-			driveID, driveName string,
+			_ context.Context,
+			_, _ string,
 			items []models.DriveItemable,
-			oldPaths map[string]string,
-			newPaths map[string]string,
-			excluded map[string]struct{},
-			itemCollection map[string]string,
-			doNotMergeItems bool,
-			errs *fault.Bus,
+			_ map[string]string,
+			_ map[string]string,
+			_ map[string]struct{},
+			_ map[string]map[string]string,
+			_ bool,
+			_ *fault.Bus,
 		) error {
 			for _, item := range items {
 				// Skip the root item.
@@ -412,7 +415,15 @@ func GetAllFolders(
 			return nil
 		}
 
-		_, _, _, err = collectItems(ictx, defaultItemPager(gs, id, ""), id, name, collector, map[string]string{}, "", errs)
+		_, _, _, err = collectItems(
+			ictx,
+			defaultItemPager(gs, id, ""),
+			id,
+			name,
+			collector,
+			map[string]string{},
+			"",
+			errs)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "enumerating items in drive"))
 		}

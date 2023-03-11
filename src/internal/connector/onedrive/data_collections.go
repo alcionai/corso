@@ -77,12 +77,12 @@ func DataCollections(
 
 		collections = append(collections, odcs...)
 
-		for k, v := range excludes {
+		for k, ex := range excludes {
 			if _, ok := allExcludes[k]; !ok {
 				allExcludes[k] = map[string]struct{}{}
 			}
 
-			maps.Copy(allExcludes[k], v)
+			maps.Copy(allExcludes[k], ex)
 		}
 	}
 
