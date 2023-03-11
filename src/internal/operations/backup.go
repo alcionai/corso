@@ -369,13 +369,13 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 	// This is hacky, but we want the path package to format the path the right
 	// way (e.x. proper order for service, category, etc), but we don't care about
 	// the folders after the prefix.
-	p, err := path.Builder{}.Append("tmp").ToDataLayerPath(
+	p, err := path.Build(
 		tenant,
 		r.ResourceOwner,
 		r.Service,
 		r.Category,
 		false,
-	)
+		"tmp")
 	if err != nil {
 		return nil, clues.Wrap(err, "building path").WithClues(ctx)
 	}

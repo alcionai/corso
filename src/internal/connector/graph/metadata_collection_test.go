@@ -27,14 +27,13 @@ func TestMetadataCollectionUnitSuite(t *testing.T) {
 func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 	t := suite.T()
 
-	p, err := path.Builder{}.
-		Append("foo").
-		ToDataLayerExchangePathForCategory(
-			"a-tenant",
-			"a-user",
-			path.EmailCategory,
-			false,
-		)
+	p, err := path.Build(
+		"a-tenant",
+		"a-user",
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"foo")
 	require.NoError(t, err)
 
 	c := NewMetadataCollection(p, nil, nil)
@@ -70,14 +69,13 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		items = append(items, NewMetadataItem(itemNames[i], itemData[i]))
 	}
 
-	p, err := path.Builder{}.
-		Append("foo").
-		ToDataLayerExchangePathForCategory(
-			"a-tenant",
-			"a-user",
-			path.EmailCategory,
-			false,
-		)
+	p, err := path.Build(
+		"a-tenant",
+		"a-user",
+		path.ExchangeService,
+		path.EmailCategory,
+		false,
+		"foo")
 	require.NoError(t, err)
 
 	c := NewMetadataCollection(

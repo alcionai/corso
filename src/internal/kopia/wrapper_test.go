@@ -165,21 +165,25 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 }
 
 func (suite *KopiaIntegrationSuite) SetupSuite() {
-	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
+	tmp, err := path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
-		false)
+		false,
+		testInboxDir)
 	require.NoError(suite.T(), err)
 
 	suite.storePath1 = tmp
 	suite.locPath1 = tmp
 
-	tmp, err = path.Builder{}.Append(testArchiveDir).ToDataLayerExchangePathForCategory(
+	tmp, err = path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
-		false)
+		false,
+		testArchiveDir)
 	require.NoError(suite.T(), err)
 
 	suite.storePath2 = tmp
@@ -326,12 +330,13 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
-	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerPath(
+	tmp, err := path.Build(
 		testTenant,
 		testUser,
 		path.OneDriveService,
 		path.FilesCategory,
-		false)
+		false,
+		testInboxDir)
 	require.NoError(suite.T(), err)
 
 	storePath := tmp
@@ -741,22 +746,24 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
-	tmp, err := path.Builder{}.Append(testInboxDir).ToDataLayerExchangePathForCategory(
+	tmp, err := path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
 		false,
-	)
+		testInboxDir)
 	require.NoError(suite.T(), err)
 
 	suite.testPath1 = tmp
 
-	tmp, err = path.Builder{}.Append(testArchiveDir).ToDataLayerExchangePathForCategory(
+	tmp, err = path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
 		false,
-	)
+		testArchiveDir)
 	require.NoError(suite.T(), err)
 
 	suite.testPath2 = tmp
@@ -897,12 +904,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		Category:      path.EmailCategory,
 	}
 
-	subtreePathTmp, err := path.Builder{}.Append("tmp").ToDataLayerExchangePathForCategory(
+	subtreePathTmp, err := path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
 		false,
-	)
+		"tmp")
 	require.NoError(suite.T(), err)
 
 	subtreePath := subtreePathTmp.ToBuilder().Dir()
@@ -1023,12 +1031,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
-	doesntExist, err := path.Builder{}.Append("subdir", "foo").ToDataLayerExchangePathForCategory(
+	doesntExist, err := path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
 		true,
-	)
+		"subdir", "foo")
 	require.NoError(suite.T(), err)
 
 	// Expected items is generated during the test by looking up paths in the

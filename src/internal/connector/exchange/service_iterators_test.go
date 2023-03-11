@@ -534,9 +534,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 	)
 
 	prevPath := func(t *testing.T, at ...string) path.Path {
-		p, err := path.Builder{}.
-			Append(at...).
-			ToDataLayerExchangePathForCategory(tenantID, userID, cat, false)
+		p, err := path.Build(tenantID, userID, path.ExchangeService, cat, false, at...)
 		require.NoError(t, err)
 
 		return p

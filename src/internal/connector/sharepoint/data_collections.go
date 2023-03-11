@@ -141,12 +141,13 @@ func collectLists(
 			break
 		}
 
-		dir, err := path.Builder{}.Append(tuple.name).
-			ToDataLayerSharePointPath(
-				tenantID,
-				siteID,
-				path.ListsCategory,
-				false)
+		dir, err := path.Build(
+			tenantID,
+			siteID,
+			path.SharePointService,
+			path.ListsCategory,
+			false,
+			tuple.name)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
@@ -234,12 +235,13 @@ func collectPages(
 			break
 		}
 
-		dir, err := path.Builder{}.Append(tuple.Name).
-			ToDataLayerSharePointPath(
-				creds.AzureTenantID,
-				siteID,
-				path.PagesCategory,
-				false)
+		dir, err := path.Build(
+			creds.AzureTenantID,
+			siteID,
+			path.SharePointService,
+			path.PagesCategory,
+			false,
+			tuple.Name)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}

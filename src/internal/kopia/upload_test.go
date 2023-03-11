@@ -352,15 +352,13 @@ func TestCorsoProgressUnitSuite(t *testing.T) {
 }
 
 func (suite *CorsoProgressUnitSuite) SetupSuite() {
-	p, err := path.Builder{}.Append(
-		testInboxDir,
-		"testFile",
-	).ToDataLayerExchangePathForCategory(
+	p, err := path.Build(
 		testTenant,
 		testUser,
+		path.ExchangeService,
 		path.EmailCategory,
 		true,
-	)
+		testInboxDir, "testFile")
 	require.NoError(suite.T(), err)
 
 	suite.targetFilePath = p
