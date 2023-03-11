@@ -284,7 +284,7 @@ func (c *Collections) Get(
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
 		// Items that should be excluded when sourcing data from the base backup.
-		// Drive ID -> item ID -> {}
+		// Parent Path -> item ID -> {}
 		excludedItems = map[string]map[string]struct{}{}
 	)
 
