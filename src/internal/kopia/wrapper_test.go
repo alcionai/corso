@@ -925,6 +925,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 	table := []struct {
 		name                  string
 		excludeItem           bool
+		excludePrefix         bool
 		expectedCachedItems   int
 		expectedUncachedItems int
 		cols                  func() []data.BackupCollection
@@ -932,8 +933,20 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		restoreCheck          assert.ErrorAssertionFunc
 	}{
 		{
-			name:                  "ExcludeItem",
+			name:                  "ExcludeItem_NoPrefix",
 			excludeItem:           true,
+			expectedCachedItems:   len(suite.filesByPath) - 1,
+			expectedUncachedItems: 0,
+			cols: func() []data.BackupCollection {
+				return nil
+			},
+			backupIDCheck: require.NotEmpty,
+			restoreCheck:  assert.Error,
+		},
+		{
+			name:                  "ExcludeItem_WithPrefix",
+			excludeItem:           true,
+			excludePrefix:         true,
 			expectedCachedItems:   len(suite.filesByPath) - 1,
 			expectedUncachedItems: 0,
 			cols: func() []data.BackupCollection {
@@ -975,10 +988,22 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			var excluded map[string]struct{}
+			var (
+				prefix   string
+				itemPath = suite.files[suite.testPath1.String()][0].itemPath
+			)
+
+			if !test.excludePrefix {
+				prefix = itemPath.ToBuilder().Dir().Dir().String()
+			}
+
+			var excluded map[string]map[string]struct{}
 			if test.excludeItem {
-				excluded = map[string]struct{}{
-					suite.files[suite.testPath1.String()][0].itemPath.Item(): {},
+				excluded = map[string]map[string]struct{}{
+					// Add a prefix if needed.
+					prefix: {
+						itemPath.Item(): {},
+					},
 				}
 			}
 

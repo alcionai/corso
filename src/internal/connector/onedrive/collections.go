@@ -258,7 +258,7 @@ func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	prevDeltas, oldPathsByDriveID, err := deserializeMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, nil, err
@@ -283,11 +283,7 @@ func (c *Collections) Get(
 		// Drive ID -> folder ID -> folder path
 		folderPaths = map[string]map[string]string{}
 		// Items that should be excluded when sourcing data from the base backup.
-		// TODO(ashmrtn): This list contains the M365 IDs of deleted items so while
-		// it's technically safe to pass all the way through to kopia (files are
-		// unlikely to be named their M365 ID) we should wait to do that until we've
-		// switched to using those IDs for file names in kopia.
-		excludedItems = map[string]struct{}{}
+		excludedItems = map[string]map[string]struct{}{}
 	)
 
 	for _, d := range drives {
@@ -349,7 +345,18 @@ func (c *Collections) Get(
 			numDeltas)
 
 		if !delta.Reset {
-			maps.Copy(excludedItems, excluded)
+			p, err := GetCanonicalPath(
+				fmt.Sprintf(rootDrivePattern, driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source)
+			if err != nil {
+				return nil, nil,
+					clues.Wrap(err, "making exclude prefix for drive").WithClues(ctx).With("drive_id", driveID)
+			}
+
+			excludedItems[p.String()] = excluded
+
 			continue
 		}
 
@@ -377,7 +384,7 @@ func (c *Collections) Get(
 
 			prevPath, err := path.FromDataLayerPath(p, false)
 			if err != nil {
-				return nil, map[string]struct{}{},
+				return nil, nil,
 					clues.Wrap(err, "invalid previous path").WithClues(ctx).With("deleted_path", p)
 			}
 

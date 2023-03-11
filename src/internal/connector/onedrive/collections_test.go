@@ -1269,7 +1269,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 		expectedCollections  map[string]map[data.CollectionState][]string
 		expectedDeltaURLs    map[string]string
 		expectedFolderPaths  map[string]map[string]string
-		expectedDelList      map[string]struct{}
+		expectedDelList      map[string]map[string]struct{}
 		expectedSkippedCount int
 		doNotMergeItems      bool
 	}{
@@ -1300,7 +1300,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 			},
-			expectedDelList: getDelList("file"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoFolders_NoErrors",
@@ -1329,7 +1331,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			expectedFolderPaths: map[string]map[string]string{
 				driveID1: {"root": rootFolderPath1},
 			},
-			expectedDelList: getDelList("file"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors",
@@ -1363,7 +1367,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: getDelList("file"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
@@ -1398,7 +1404,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: getDelList("file"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
@@ -1433,7 +1441,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: getDelList("file"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_EmptyDelta_NoErrors",
@@ -1460,7 +1470,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 			},
 			expectedDeltaURLs:   map[string]string{},
 			expectedFolderPaths: map[string]map[string]string{},
-			expectedDelList:     getDelList("file"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
 		},
 		{
 			name:   "OneDrive_TwoItemPages_NoErrors",
@@ -1502,7 +1514,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: getDelList("file", "file2"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file", "file2"),
+			},
 		},
 		{
 			name: "TwoDrives_OneItemPageEach_NoErrors",
@@ -1557,7 +1571,10 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder2": folderPath2,
 				},
 			},
-			expectedDelList: getDelList("file", "file2"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+				rootFolderPath2: getDelList("file2"),
+			},
 		},
 		{
 			name:   "OneDrive_OneItemPage_Errors",
@@ -1607,7 +1624,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"root": rootFolderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]map[string]struct{}{},
 			doNotMergeItems: true,
 		},
 		{
@@ -1649,7 +1666,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]map[string]struct{}{},
 			doNotMergeItems: true,
 		},
 		{
@@ -1691,7 +1708,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList: getDelList("file", "file2"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file", "file2"),
+			},
 			doNotMergeItems: false,
 		},
 		{
@@ -1733,7 +1752,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder2": expectedPath1("/folder2"),
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]map[string]struct{}{},
 			doNotMergeItems: true,
 		},
 		{
@@ -1774,7 +1793,7 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder2": expectedPath1("/folder"),
 				},
 			},
-			expectedDelList: map[string]struct{}{},
+			expectedDelList: map[string]map[string]struct{}{},
 			doNotMergeItems: true,
 		},
 		{
@@ -1819,7 +1838,9 @@ func (suite *OneDriveCollectionsSuite) TestGet() {
 					"folder": folderPath1,
 				},
 			},
-			expectedDelList:      getDelList("file", "file2"),
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file", "file2"),
+			},
 			expectedSkippedCount: 2,
 		},
 	}
