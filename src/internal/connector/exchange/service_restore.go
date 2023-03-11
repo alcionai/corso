@@ -276,9 +276,9 @@ func SendMailToBackStore(
 			if ptr.Val(attachment.GetOdataType()) == "#microsoft.graph.itemAttachment" {
 				name := ptr.Val(attachment.GetName())
 
-				logger.Ctx(ctx).
-					With("err", err, "attachment_name", name).
-					Infow("mail upload failed", clues.InErr(err).Slice()...)
+				logger.CtxErr(ctx, err).
+					With("attachment_name", name).
+					Info("mail upload failed")
 
 				continue
 			}

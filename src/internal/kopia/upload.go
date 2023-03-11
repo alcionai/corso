@@ -360,7 +360,7 @@ func collectionEntries(
 				err = errors.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(err)
 
-				logger.Ctx(ctx).With("err", err).Errorw("getting full item path", clues.InErr(err).Slice()...)
+				logger.CtxErr(ctx, err).Error("getting full item path")
 
 				continue
 			}

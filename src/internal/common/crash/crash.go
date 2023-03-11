@@ -45,9 +45,7 @@ func Recovery(ctx context.Context, r any) error {
 		err = clues.Wrap(err, "panic recovery"+inFile).
 			WithClues(ctx).
 			With("stacktrace", string(debug.Stack()))
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("backup panic", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("backup panic")
 	}
 
 	return err
