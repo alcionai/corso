@@ -350,13 +350,25 @@ func (c *Collections) Get(
 			"num_deltas_entries", numDeltas)
 
 		if !delta.Reset {
-			eidi, ok := excludedItems[driveID]
+			p, err := GetCanonicalPath(
+				fmt.Sprintf(rootDrivePattern, driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source)
+			if err != nil {
+				return nil, nil,
+					clues.Wrap(err, "making exclude prefix").WithClues(ctx)
+			}
+
+			pstr := p.String()
+
+			eidi, ok := excludedItems[pstr]
 			if !ok {
 				eidi = map[string]struct{}{}
 			}
 
 			maps.Copy(eidi, excluded)
-			excludedItems[driveID] = eidi
+			excludedItems[pstr] = eidi
 
 			continue
 		}
