@@ -357,7 +357,7 @@ func (c *Collections) Get(
 				c.source)
 			if err != nil {
 				return nil, nil,
-					clues.Wrap(err, "making exclude prefix").WithClues(ctx)
+					clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
 
 			pstr := p.String()
