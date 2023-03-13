@@ -330,6 +330,7 @@ func checkEmailAddressables(
 
 func checkContact(
 	t *testing.T,
+	colPath path.Path,
 	expected models.Contactable,
 	got models.Contactable,
 ) {
@@ -343,7 +344,22 @@ func checkContact(
 	// Not present in msgraph-beta-sdk/models
 	// assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
-	assert.Equal(t, expected.GetCategories(), got.GetCategories(), "Categories")
+	// TODO(ashmrtn): Remove this when we properly set and handle categories in
+	// addition to folders for contacts.
+	folders := colPath.Folder(false)
+	gotCategories := []string{}
+
+	for _, cat := range got.GetCategories() {
+		// Don't add a category for the current folder since we didn't create the
+		// item with it and it throws off our comparisons.
+		if cat == folders {
+			continue
+		}
+
+		gotCategories = append(gotCategories, cat)
+	}
+
+	assert.ElementsMatch(t, expected.GetCategories(), gotCategories, "Categories")
 
 	// Skip ChangeKey as it's tied to this specific instance of the item.
 
@@ -623,6 +639,7 @@ func compareExchangeEmail(
 
 func compareExchangeContact(
 	t *testing.T,
+	colPath path.Path,
 	expected map[string][]byte,
 	item data.Stream,
 ) {
@@ -644,7 +661,7 @@ func compareExchangeContact(
 	expectedContact, err := support.CreateContactFromBytes(expectedBytes)
 	assert.NoError(t, err, "deserializing source contact")
 
-	checkContact(t, expectedContact, itemContact)
+	checkContact(t, colPath, expectedContact, itemContact)
 }
 
 func compareExchangeEvent(
@@ -797,6 +814,7 @@ func compareOneDriveItem(
 // to exclude OneDrive permissions for the root right now.
 func compareItem(
 	t *testing.T,
+	colPath path.Path,
 	expected map[string][]byte,
 	service path.ServiceType,
 	category path.CategoryType,
@@ -814,7 +832,7 @@ func compareItem(
 		case path.EmailCategory:
 			compareExchangeEmail(t, expected, item)
 		case path.ContactsCategory:
-			compareExchangeContact(t, expected, item)
+			compareExchangeContact(t, colPath, expected, item)
 		case path.EventsCategory:
 			compareExchangeEvent(t, expected, item)
 		default:
@@ -899,7 +917,15 @@ func checkCollections(
 				continue
 			}
 
-			if !compareItem(t, expectedColData, service, category, item, restorePermissions, rootDir) {
+			if !compareItem(
+				t,
+				returned.FullPath(),
+				expectedColData,
+				service,
+				category,
+				item,
+				restorePermissions,
+				rootDir) {
 				gotItems--
 			}
 		}
