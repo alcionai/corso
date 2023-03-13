@@ -3,6 +3,8 @@ package backup
 import (
 	"context"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -13,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -152,6 +155,62 @@ func deleteCmd() *cobra.Command {
 // Produces the same output as `corso backup delete --help`.
 func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
+}
+
+func runBackups(
+	ctx context.Context,
+	r repository.Repository,
+	serviceName, resourceOwnerType string,
+	selectorSet []selectors.Selector,
+) error {
+	var (
+		merrs *multierror.Error
+		bIDs  []model.StableID
+	)
+
+	for _, discSel := range selectorSet {
+		bo, err := r.NewBackup(ctx, discSel)
+		if err != nil {
+			merrs = multierror.Append(merrs, errors.Wrapf(
+				err,
+				"Failed to initialize %s backup for %s %s",
+				serviceName,
+				resourceOwnerType,
+				discSel.DiscreteOwner,
+			))
+
+			continue
+		}
+
+		err = bo.Run(ctx)
+		if err != nil {
+			merrs = multierror.Append(merrs, errors.Wrapf(
+				err,
+				"Failed to run %s backup for %s %s",
+				serviceName,
+				resourceOwnerType,
+				discSel.DiscreteOwner,
+			))
+
+			continue
+		}
+
+		bIDs = append(bIDs, bo.Results.BackupID)
+	}
+
+	bups, ferrs := r.Backups(ctx, bIDs)
+	// TODO: print/log recoverable errors
+	if ferrs.Failure() != nil {
+		return Only(ctx, errors.Wrap(ferrs.Failure(), "Unable to retrieve backup results from storage"))
+	}
+
+	backup.PrintAll(ctx, bups)
+
+	if e := merrs.ErrorOrNil(); e != nil {
+		return Only(ctx, e)
+	}
+
+	return nil
 }
 
 // genericDeleteCommand is a helper function that all services can use
