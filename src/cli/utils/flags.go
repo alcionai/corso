@@ -21,6 +21,8 @@ var (
 	FileModifiedBefore string
 
 	Library string
+	Site    []string
+	WebURL  []string
 )
 
 // common flag names
@@ -30,6 +32,7 @@ const (
 	LibraryFN = "library"
 	SiteFN    = "site"
 	UserFN    = "user"
+	WebURLFN  = "web-url"
 
 	FileFN   = "file"
 	FolderFN = "folder"

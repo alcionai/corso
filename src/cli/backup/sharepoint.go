@@ -28,8 +28,6 @@ import (
 var (
 	pageFolders []string
 	page        []string
-	site        []string
-	weburl      []string
 
 	sharepointData []string
 )
@@ -85,13 +83,15 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
-		fs.StringArrayVar(&site,
+		fs.StringArrayVar(
+			&utils.Site,
 			utils.SiteFN, nil,
 			"Backup SharePoint data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		fs.StringSliceVar(&weburl,
+		fs.StringSliceVar(
+			&utils.WebURL,
 			utils.WebURLFN, nil,
-			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
+			"Restore data by site web URL; accepts '"+utils.Wildcard+"' to select all sites.")
 
 		fs.StringSliceVar(
 			&sharepointData,
@@ -136,11 +136,13 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			utils.FileFN, nil,
 			"Select backup details by file name.")
 
-		fs.StringArrayVar(&site,
+		fs.StringArrayVar(
+			&utils.Site,
 			utils.SiteFN, nil,
 			"Select backup details by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		fs.StringSliceVar(&weburl,
+		fs.StringSliceVar(
+			&utils.WebURL,
 			utils.WebURLFN, nil,
 			"Select backup data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
@@ -159,21 +161,21 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&utils.FileCreatedAfter,
 			utils.FileCreatedAfterFN, "",
-			"Select backup details for items created after this datetime.")
+			"Select backup details created after this datetime.")
 
 		fs.StringVar(
 			&utils.FileCreatedBefore,
 			utils.FileCreatedBeforeFN, "",
-			"Select backup details for files created before this datetime.")
+			"Select backup details created before this datetime.")
 
 		fs.StringVar(
 			&utils.FileModifiedAfter,
 			utils.FileModifiedAfterFN, "",
-			"Select backup details for files modified after this datetime.")
+			"Select backup details modified after this datetime.")
 		fs.StringVar(
 			&utils.FileModifiedBefore,
 			utils.FileModifiedBeforeFN, "",
-			"Select backup details for files modified before this datetime.")
+			"Select backup details modified before this datetime.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
@@ -213,7 +215,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(site, weburl, sharepointData); err != nil {
+	if err := validateSharePointBackupCreateFlags(utils.Site, utils.WebURL, sharepointData); err != nil {
 		return err
 	}
 
@@ -232,9 +234,9 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, site, weburl, sharepointData, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, utils.Site, utils.WebURL, sharepointData, gc)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and WebURL"))
+		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and Web URL"))
 	}
 
 	selectorSet := []selectors.Selector{}
@@ -398,8 +400,8 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		FolderPaths:        utils.FolderPaths,
 		FileNames:          utils.FileNames,
 		Library:            utils.Library,
-		Sites:              site,
-		WebURLs:            weburl,
+		Sites:              utils.Site,
+		WebURLs:            utils.WebURL,
 		FileCreatedAfter:   fileCreatedAfter,
 		FileCreatedBefore:  fileCreatedBefore,
 		FileModifiedAfter:  fileModifiedAfter,
