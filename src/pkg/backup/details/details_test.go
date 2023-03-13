@@ -372,10 +372,11 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 	}
 
 	table := []struct {
-		name         string
-		service      path.ServiceType
-		category     path.CategoryType
-		itemInfoFunc func(name string) ItemInfo
+		name               string
+		service            path.ServiceType
+		category           path.CategoryType
+		itemInfoFunc       func(name string) ItemInfo
+		expectedUniqueRefs int
 	}{
 		{
 			name:     "OneDrive",
@@ -389,6 +390,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 					},
 				}
 			},
+			expectedUniqueRefs: len(itemNames),
 		},
 		{
 			name:     "SharePoint",
@@ -402,6 +404,24 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 					},
 				}
 			},
+			expectedUniqueRefs: len(itemNames),
+		},
+		{
+			name:     "Exchange no change",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					Exchange: &ExchangeInfo{
+						ItemType:  ExchangeMail,
+						Sender:    "a-person@foo.com",
+						Subject:   name,
+						Recipient: []string{"another-person@bar.com"},
+					},
+				}
+			},
+			// Should all end up as the starting shortref.
+			expectedUniqueRefs: 1,
 		},
 	}
 
@@ -444,7 +464,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 				shortRefs[d.ShortRef] = struct{}{}
 			}
 
-			assert.Len(t, shortRefs, len(itemNames), "items don't have unique ShortRefs")
+			assert.Len(t, shortRefs, test.expectedUniqueRefs, "items don't have unique ShortRefs")
 		})
 	}
 }
