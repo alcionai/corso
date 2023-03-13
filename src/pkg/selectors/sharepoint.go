@@ -265,6 +265,23 @@ func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePoi
 	return scopes
 }
 
+// Library produces one or more SharePoint library scopes, where the library
+// matches upon a given drive by ID or Name.  In order to ensure library selection
+// this should always be embedded within the Filter() set; include(Library()) will
+// select all items in the library without further filtering.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *sharePoint) Library(library string) []SharePointScope {
+	return []SharePointScope{
+		makeFilterScope[SharePointScope](
+			SharePointLibraryItem,
+			SharePointFilterLibraryDrive,
+			[]string{library},
+			wrapFilter(filters.Equal)),
+	}
+}
+
 // LibraryFolders produces one or more SharePoint libraryFolder scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -404,6 +421,9 @@ const (
 	SiteFilterCreatedBefore  sharePointCategory = "FileFilterCreatedBefore"
 	SiteFilterModifiedAfter  sharePointCategory = "FileFilterModifiedAfter"
 	SiteFilterModifiedBefore sharePointCategory = "FileFilterModifiedBefore"
+
+	// library drive selection
+	SharePointFilterLibraryDrive sharePointCategory = "SharePointFilterLibraryDrive"
 )
 
 // sharePointLeafProperties describes common metadata of the leaf categories
@@ -437,7 +457,7 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibraryFolder, SharePointLibraryItem,
+	case SharePointLibraryFolder, SharePointLibraryItem, SharePointFilterLibraryDrive,
 		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
 		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
 		return SharePointLibraryItem
@@ -647,6 +667,9 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 		i = common.FormatTime(info.Created)
 	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
 		i = common.FormatTime(info.Modified)
+	case SharePointFilterLibraryDrive:
+		// TODO(keepers): either drive name or drive id
+		i = info.DriveName
 	}
 
 	return s.Matches(filterCat, i)
