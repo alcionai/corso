@@ -87,8 +87,8 @@ func UserPNs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]stri
 }
 
 type Site struct {
-	// URL that displays the item in the browser
-	URL string
+	// WebURL that displays the item in the browser
+	WebURL string
 
 	// ID is of the format: <site collection hostname>.<site collection unique id>.<site unique id>
 	// for example: contoso.sharepoint.com,abcdeab3-0ccc-4ce1-80ae-b32912c9468d,xyzud296-9f7c-44e1-af81-3c06d0d43007
@@ -106,8 +106,8 @@ func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site,
 	ret := make([]*Site, 0, len(gc.Sites))
 	for k, v := range gc.Sites {
 		ret = append(ret, &Site{
-			URL: k,
-			ID:  v,
+			WebURL: k,
+			ID:     v,
 		})
 	}
 
@@ -124,7 +124,7 @@ func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]str
 	return gc.GetSiteWebURLs(), nil
 }
 
-// SiteURLs returns a list of SharePoint sites IDs in the specified M365 tenant
+// SiteIDs returns a list of SharePoint sites IDs in the specified M365 tenant
 func SiteIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
