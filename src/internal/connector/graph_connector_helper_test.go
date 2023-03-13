@@ -36,16 +36,7 @@ func mustToDataLayerPath(
 	elements []string,
 	isItem bool,
 ) path.Path {
-	var (
-		err error
-		res path.Path
-	)
-
-	if service == path.OneDriveService {
-		require.Equal(t, path.FilesCategory, category)
-	}
-
-	res, err = path.Build(tenant, resourceOwner, service, category, isItem, elements...)
+	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
 	require.NoError(t, err)
 
 	return res
