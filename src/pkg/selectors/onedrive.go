@@ -3,6 +3,8 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -376,20 +378,27 @@ func (c oneDriveCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, userPN, category, folder, fileID]
 // => {odFolder: folder, odFileID: fileID}
-func (c oneDriveCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
+func (c oneDriveCategory) pathValues(
+	repo path.Path,
+	ent details.DetailsEntry,
+) (map[categorizer][]string, error) {
+	if ent.OneDrive == nil {
+		return nil, clues.New("no OneDrive ItemInfo in details")
+	}
+
 	// Ignore `drives/<driveID>/root:` for folder comparison
 	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
 
 	result := map[categorizer][]string{
 		OneDriveFolder: {rFld},
-		OneDriveItem:   {repo.Item(), ent.ShortRef},
+		OneDriveItem:   {ent.OneDrive.ItemName, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {
 		result[OneDriveFolder] = append(result[OneDriveFolder], ent.LocationRef)
 	}
 
-	return result
+	return result, nil
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
