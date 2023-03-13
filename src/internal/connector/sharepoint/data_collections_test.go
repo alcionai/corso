@@ -29,11 +29,11 @@ type testFolderMatcher struct {
 }
 
 func (fm testFolderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.SharePointLibrary)
+	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
 }
 
 func (fm testFolderMatcher) Matches(path string) bool {
-	return fm.scope.Matches(selectors.SharePointLibrary, path)
+	return fm.scope.Matches(selectors.SharePointLibraryFolder, path)
 }
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ func TestSharePointLibrariesUnitSuite(t *testing.T) {
 }
 
 func (suite *SharePointLibrariesUnitSuite) TestUpdateCollections() {
-	anyFolder := (&selectors.SharePointBackup{}).Libraries(selectors.Any())[0]
+	anyFolder := (&selectors.SharePointBackup{}).LibraryFolders(selectors.Any())[0]
 
 	const (
 		tenant  = "tenant"

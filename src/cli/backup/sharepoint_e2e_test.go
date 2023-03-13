@@ -161,7 +161,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewSharePointBackup(sites)
-	sel.Include(sel.Libraries(selectors.Any()))
+	sel.Include(sel.LibraryFolders(selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, suite.backupOp.Run(ctx))

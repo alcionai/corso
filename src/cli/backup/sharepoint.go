@@ -319,13 +319,13 @@ func includeAllSitesWithCategories(categories []string) *selectors.SharePointBac
 func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
 	// Issue #2631: Libraries are the only supported feature for SharePoint at this time.
 	if len(cats) == 0 {
-		sel.Include(sel.Libraries(selectors.Any()))
+		sel.Include(sel.LibraryFolders(selectors.Any()))
 	}
 
 	for _, d := range cats {
 		switch d {
 		case dataLibraries:
-			sel.Include(sel.Libraries(selectors.Any()))
+			sel.Include(sel.LibraryFolders(selectors.Any()))
 		case dataPages:
 			sel.Include(sel.Pages(selectors.Any()))
 		}
