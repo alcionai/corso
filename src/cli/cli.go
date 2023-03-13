@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 
@@ -155,9 +154,7 @@ func Handle() {
 	}()
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("cli execution", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("cli execution")
 		os.Exit(1)
 	}
 }

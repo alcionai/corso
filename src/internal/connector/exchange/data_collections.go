@@ -169,7 +169,7 @@ func DataCollections(
 	su support.StatusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	eb, err := selector.ToExchangeBackup()
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)

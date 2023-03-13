@@ -37,7 +37,7 @@ func DataCollections(
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
@@ -172,7 +172,7 @@ func collectLibraries(
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
 	var (

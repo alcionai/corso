@@ -1433,7 +1433,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 	table := []struct {
 		name             string
 		inputCollections func(t *testing.T) []data.BackupCollection
-		inputExcludes    map[string]struct{}
+		inputExcludes    map[string]map[string]struct{}
 		expected         *expectedNode
 	}{
 		{
@@ -1441,8 +1441,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			inputCollections: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
-			inputExcludes: map[string]struct{}{
-				inboxFileName1: {},
+			inputExcludes: map[string]map[string]struct{}{
+				"": {
+					inboxFileName1: {},
+				},
 			},
 			expected: expectedTreeWithChildren(
 				[]string{
