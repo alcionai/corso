@@ -102,24 +102,32 @@ func Example_logger_standards() {
 
 // ExampleLoggerCluesStandards reviews code standards around using the Clues package while logging.
 func Example_logger_clues_standards() {
-	log := logger.Ctx(context.Background())
+	ctx := clues.Add(context.Background(), "foo", "bar")
+	log := logger.Ctx(ctx)
 
 	// 1. Clues Ctx values are always added in .Ctx(); you don't
 	// need to add them directly.
 	//
 	// preferred
-	ctx := clues.Add(context.Background(), "item_id", itemID)
+	ctx = clues.Add(ctx, "item_id", itemID)
 	logger.Ctx(ctx).Info("getting item")
+	//
 	// avoid
-	ctx = clues.Add(context.Background(), "item_id", itemID)
+	ctx = clues.Add(ctx, "item_id", itemID)
 	logger.Ctx(ctx).With(clues.In(ctx).Slice()...).Info("getting item")
 
 	// 2. Always extract structured data from errors.
 	//
 	// preferred
-	log.With("err", err).Errorw("getting item", clues.InErr(err).Slice()...)
+	log.With("error", err).Errorw("getting item", clues.InErr(err).Slice()...)
+	//
 	// avoid
 	log.Errorw("getting item", "err", err)
+	//
+	// you can use the logger helper CtxErr() for the same results.
+	// This helps to ensure all error values get packed into the logs
+	// in the expected format.
+	logger.CtxErr(ctx, err).Error("getting item")
 
 	// TODO(keepers): PII
 	// 3. Protect pii in logs.

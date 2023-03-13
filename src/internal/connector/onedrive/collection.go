@@ -72,8 +72,11 @@ type Collection struct {
 	folderPath path.Path
 	// M365 IDs of file items within this collection
 	driveItems map[string]models.DriveItemable
-	// M365 ID of the drive this collection was created from
-	driveID        string
+
+	// Primary M365 ID of the drive this collection was created from
+	driveID string
+	// Display Name of the associated drive
+	driveName      string
 	source         driveSource
 	service        graph.Servicer
 	statusUpdater  support.StatusUpdater
@@ -337,6 +340,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemMeta     io.ReadCloser
 				itemMetaSize int
 				metaSuffix   string
+				err          error
 			)
 
 			ctx = clues.Add(ctx,
@@ -345,16 +349,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			// TODO: Removing the logic below because it introduces an extra Graph API call for
-			// every item being backed up. This can lead to throttling errors.
-			//
-			// pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
-			// if err != nil {
-			// 	el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-			// 	return
-			// }
-
-			// item.SetParentReference(pr)
+			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
 			isFile := item.GetFile() != nil
 
