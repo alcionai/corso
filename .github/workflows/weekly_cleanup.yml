@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing

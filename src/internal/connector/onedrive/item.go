@@ -405,33 +405,12 @@ func constructWebURL(adtl map[string]any) string {
 	return url
 }
 
-// func fetchParentReference(
-// 	ctx context.Context,
-// 	service graph.Servicer,
-// 	orig models.ItemReferenceable,
-// ) (models.ItemReferenceable, error) {
-// 	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
-// 		return orig, nil
-// 	}
+func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {
+	if orig == nil {
+		return nil
+	}
 
-// 	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
-// 		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-// 			Select: []string{"name"},
-// 		},
-// 	}
+	orig.SetName(&driveName)
 
-// 	driveID := ptr.Val(orig.GetDriveId())
-
-// 	if driveID == "" {
-// 		return orig, nil
-// 	}
-
-// 	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
-// 	if err != nil {
-// 		return nil, graph.Stack(ctx, err)
-// 	}
-
-// 	orig.SetName(drive.GetName())
-
-// 	return orig, nil
-// }
+	return orig
+}

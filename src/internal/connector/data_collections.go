@@ -38,7 +38,7 @@ func (gc *GraphConnector) DataCollections(
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
 	defer end()
 

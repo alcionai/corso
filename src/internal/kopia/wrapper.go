@@ -135,7 +135,7 @@ func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
@@ -237,8 +237,6 @@ func (w Wrapper) makeSnapshotWithRoot(
 			OnUpload:       bc.Count,
 		},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
-			log := logger.Ctx(innerCtx)
-
 			si := snapshot.SourceInfo{
 				Host:     corsoHost,
 				UserName: corsoUser,
@@ -253,10 +251,12 @@ func (w Wrapper) makeSnapshotWithRoot(
 					IgnoreDirectoryErrors: &trueVal,
 				},
 			}
+
 			policyTree, err := policy.TreeForSourceWithOverride(innerCtx, w.c, si, errPolicy)
 			if err != nil {
 				err = clues.Wrap(err, "get policy tree").WithClues(ctx)
-				log.With("err", err).Errorw("building kopia backup", clues.InErr(err).Slice()...)
+				logger.CtxErr(innerCtx, err).Error("building kopia backup")
+
 				return err
 			}
 
@@ -269,7 +269,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
 				err = clues.Wrap(err, "uploading data").WithClues(ctx)
-				log.With("err", err).Errorw("uploading kopia backup", clues.InErr(err).Slice()...)
+				logger.CtxErr(innerCtx, err).Error("uploading kopia backup")
+
 				return err
 			}
 
@@ -277,7 +278,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = clues.Wrap(err, "saving snapshot").WithClues(ctx)
-				log.With("err", err).Errorw("persisting kopia backup snapshot", clues.InErr(err).Slice()...)
+				logger.CtxErr(innerCtx, err).Error("persisting kopia backup snapshot")
+
 				return err
 			}
 
