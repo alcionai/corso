@@ -411,6 +411,8 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		{"file modified before epoch", host, sel.ModifiedBefore(common.FormatTime(now)), assert.False},
 		{"in library", host, sel.Library("included-library"), assert.True},
 		{"not in library", host, sel.Library("not-included-library"), assert.False},
+		{"library id", host, sel.Library("1234"), assert.True},
+		{"not library id", host, sel.Library("abcd"), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -423,6 +425,7 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 					Created:   now,
 					Modified:  modification,
 					DriveName: "included-library",
+					DriveID:   "1234",
 				},
 			}
 
