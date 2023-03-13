@@ -659,7 +659,9 @@ func compareExchangeContact(
 	}
 
 	expectedContact, err := support.CreateContactFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source contact")
+	if !assert.NoError(t, err, "deserializing source contact") {
+		return
+	}
 
 	checkContact(t, colPath, expectedContact, itemContact)
 }
