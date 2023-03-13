@@ -25,10 +25,10 @@ const (
 	// collection as the folder itself.
 	OneDrive4DirIncludesPermissions = 4
 
-	// OneDrive5DirMetaName changed the directory metadata file name from
+	// OneDrive5DirMetaNoName changed the directory metadata file name from
 	// <dirname>.dirmeta to just .dirmeta to avoid issues with folder renames
 	// during incremental backups.
-	OneDrive5DirMetaName = 5
+	OneDrive5DirMetaNoName = 5
 
 	// OneDriveXNameInMeta points to the backup format version where we begin
 	// storing files in kopia with their item ID instead of their OneDrive file

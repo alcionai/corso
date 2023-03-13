@@ -70,7 +70,7 @@ func getCollectionMetadata(
 	folders := collectionPath.Folders()
 	metaName := folders[len(folders)-1] + DirMetaFileSuffix
 
-	if backupVersion >= version.OneDrive5DirMetaName {
+	if backupVersion >= version.OneDrive5DirMetaNoName {
 		metaName = DirMetaFileSuffix
 	}
 
