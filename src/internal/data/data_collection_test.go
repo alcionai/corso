@@ -20,13 +20,9 @@ func TestDataCollectionSuite(t *testing.T) {
 }
 
 func (suite *DataCollectionSuite) TestStateOf() {
-	fooP, err := path.Builder{}.
-		Append("foo").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
 	require.NoError(suite.T(), err)
-	barP, err := path.Builder{}.
-		Append("bar").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
 	require.NoError(suite.T(), err)
 
 	table := []struct {

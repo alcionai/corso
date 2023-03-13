@@ -257,8 +257,8 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	t := suite.T()
 
-	pathBuilder := path.Builder{}.Append("drive", "driveID", "root:", "dir1", "dir2", "file")
-	filePath, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "user", true)
+	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", "file"}
+	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
 	require.NoError(t, err)
 
 	expected := map[categorizer][]string{

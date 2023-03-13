@@ -83,12 +83,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			itemName: "MockListing",
 			category: List,
 			getDir: func(t *testing.T) path.Path {
-				dir, err := path.Builder{}.Append(dirRoot).
-					ToDataLayerSharePointPath(
-						tenant,
-						user,
-						path.ListsCategory,
-						false)
+				dir, err := path.Build(
+					tenant,
+					user,
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					dirRoot)
 				require.NoError(t, err)
 
 				return dir
@@ -118,12 +119,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			itemName: "MockPages",
 			category: Pages,
 			getDir: func(t *testing.T) path.Path {
-				dir, err := path.Builder{}.Append(dirRoot).
-					ToDataLayerSharePointPath(
-						tenant,
-						user,
-						path.PagesCategory,
-						false)
+				dir, err := path.Build(
+					tenant,
+					user,
+					path.SharePointService,
+					path.PagesCategory,
+					false,
+					dirRoot)
 				require.NoError(t, err)
 
 				return dir

@@ -184,9 +184,7 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 // stubPath ensures test path production matches that of fullPath design,
 // stubbing out static values where necessary.
 func stubPath(t *testing.T, user string, s []string, cat path.CategoryType) path.Path {
-	pth, err := path.Builder{}.
-		Append(s...).
-		ToDataLayerExchangePathForCategory("tid", user, cat, true)
+	pth, err := path.Build("tid", user, path.ExchangeService, cat, true, s...)
 	require.NoError(t, err)
 
 	return pth
