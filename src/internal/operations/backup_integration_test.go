@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
@@ -1099,6 +1099,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	runAndCheckBackup(t, ctx, &bo, mb)
 }
 
+// nolint: unused
 func mustGetDefaultDriveID(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
@@ -1110,15 +1111,14 @@ func mustGetDefaultDriveID(
 		err = graph.Wrap(
 			ctx,
 			err,
-			"failed to retrieve default user drive").
+			"retrieving default user drive").
 			With("user", userID)
 	}
 
 	require.NoError(t, err)
 
-	id, ok := ptr.ValOK(d.GetId())
-	require.True(t, ok, "drive ID not set")
-	require.NotEmpty(t, id)
+	id := ptr.Val(d.GetId())
+	require.NotEmpty(t, id, "drive ID not set")
 
 	return id
 }
@@ -1202,7 +1202,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
 			driveID,
 			destName)
-		resp, err := msdrive.NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+		resp, err := drive.NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
 			Get(ctx, nil)
 		require.NoErrorf(t, err, "getting drive folder ID", "folder name: %s", destName)
 
@@ -1213,9 +1213,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	// during the tests.
 	containers := []string{container1, container2, container3}
 	sel := selectors.NewOneDriveBackup(owners)
-	sel.Include(
-		sel.Folders(containers, selectors.PrefixMatch()),
-	)
+	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
 
 	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
 	defer closer()
@@ -1228,7 +1226,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		newFileName = "new_file.txt"
 	)
 
-	// Although established as a table, these tests are no isolated from each other.
+	// Although established as a table, these tests are not isolated from each other.
 	// Assume that every test's side effects cascade to all following test cases.
 	// The changes are split across the table so that we can monitor the deltas
 	// in isolation, rather than debugging one change from the rest of a series.
@@ -1257,15 +1255,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 					gc.Service,
 					driveID,
 					targetContainer,
-					driveItem,
-				)
+					driveItem)
 				require.NoError(t, err, "creating new file")
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
 		},
 		{
-			name: "update contents a file",
+			name: "update contents of a file",
 			updateUserData: func(t *testing.T) {
 				err := gc.Service.
 					Client().
@@ -1414,7 +1411,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 					"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
 					driveID,
 					container3)
-				resp, err := msdrive.NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
+				resp, err := drive.NewItemsDriveItemItemRequestBuilder(itemURL, gc.Service.Adapter()).
 					Get(ctx, nil)
 				require.NoErrorf(t, err, "getting drive folder ID", "folder name: %s", container3)
 
