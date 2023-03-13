@@ -321,8 +321,6 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
-	pathBuilder := path.Builder{}.Append("dir1", "dir2", "item")
-
 	table := []struct {
 		name     string
 		sc       sharePointCategory
@@ -350,11 +348,13 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			itemPath, err := pathBuilder.ToDataLayerSharePointPath(
+			itemPath, err := path.Build(
 				"tenant",
 				"site",
+				path.SharePointService,
 				test.sc.PathType(),
-				true)
+				true,
+				"dir1", "dir2", "item")
 			require.NoError(t, err)
 
 			ent := details.DetailsEntry{

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -37,27 +36,7 @@ func mustToDataLayerPath(
 	elements []string,
 	isItem bool,
 ) path.Path {
-	var (
-		err error
-		res path.Path
-	)
-
-	pb := path.Builder{}.Append(elements...)
-
-	switch service {
-	case path.ExchangeService:
-		res, err = pb.ToDataLayerExchangePathForCategory(tenant, resourceOwner, category, isItem)
-	case path.OneDriveService:
-		require.Equal(t, path.FilesCategory, category)
-
-		res, err = pb.ToDataLayerOneDrivePath(tenant, resourceOwner, isItem)
-	case path.SharePointService:
-		res, err = pb.ToDataLayerSharePointPath(tenant, resourceOwner, category, isItem)
-
-	default:
-		err = errors.Errorf("bad service type %s", service.String())
-	}
-
+	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
 	require.NoError(t, err)
 
 	return res

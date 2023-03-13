@@ -89,15 +89,13 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_MetaSuffixes() {
 			suite.Run(fmt.Sprintf("%s %s %s", test.service, test.category, ext), func() {
 				t := suite.T()
 
-				p, err := path.Builder{}.
-					Append("file"+ext).
-					ToDataLayerPath(
-						tenant,
-						user,
-						test.service,
-						test.category,
-						true,
-					)
+				p, err := path.Build(
+					tenant,
+					user,
+					test.service,
+					test.category,
+					true,
+					"file"+ext)
 				require.NoError(t, err)
 
 				test.expected(t, metadata.IsMetadataFile(p), "extension %s", ext)
@@ -112,15 +110,13 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_NotMetaSuffixes() {
 			suite.Run(fmt.Sprintf("%s %s %s", test.service, test.category, ext), func() {
 				t := suite.T()
 
-				p, err := path.Builder{}.
-					Append("file"+ext).
-					ToDataLayerPath(
-						tenant,
-						user,
-						test.service,
-						test.category,
-						true,
-					)
+				p, err := path.Build(
+					tenant,
+					user,
+					test.service,
+					test.category,
+					true,
+					"file"+ext)
 				require.NoError(t, err)
 
 				assert.Falsef(t, metadata.IsMetadataFile(p), "extension %s", ext)
@@ -137,15 +133,13 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Directories() {
 			suite.Run(fmt.Sprintf("%s %s %s", test.service, test.category, ext), func() {
 				t := suite.T()
 
-				p, err := path.Builder{}.
-					Append("file"+ext).
-					ToDataLayerPath(
-						tenant,
-						user,
-						test.service,
-						test.category,
-						false,
-					)
+				p, err := path.Build(
+					tenant,
+					user,
+					test.service,
+					test.category,
+					false,
+					"file"+ext)
 				require.NoError(t, err)
 
 				assert.Falsef(t, metadata.IsMetadataFile(p), "extension %s", ext)
