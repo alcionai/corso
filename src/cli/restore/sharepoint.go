@@ -128,11 +128,11 @@ const (
 	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore <site>'s file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets" from a specific backup
+# Restore a Site's file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets" from a specific backup
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --web-url https://example.com --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
-# Restore all files from <site> that were created before 2020 when captured in a specific backup
+# Restore all files from a Site that were created before 2020 when captured in a specific backup
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
       --web-url https://example.com --folder "Display Templates/Style Sheets" --file-created-before 2020-01-01T00:00:00`
 )
