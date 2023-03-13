@@ -79,8 +79,8 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 						t,
 						spsc,
 						map[categorizer]string{
-							SharePointLibraryItem: AnyTgt,
-							SharePointLibrary:     AnyTgt,
+							SharePointLibraryItem:   AnyTgt,
+							SharePointLibraryFolder: AnyTgt,
 						},
 					)
 				case SharePointListItem:
@@ -289,7 +289,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
-				odr.Include(odr.Libraries([]string{"folderA/folderB", pairAC}))
+				odr.Include(odr.LibraryFolders([]string{"folderA/folderB", pairAC}))
 				return odr
 			},
 			expect: arr(item, item2),
@@ -330,8 +330,8 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			name: "SharePoint Libraries",
 			sc:   SharePointLibraryItem,
 			expected: map[categorizer][]string{
-				SharePointLibrary:     {"dir1/dir2"},
-				SharePointLibraryItem: {"item", "short"},
+				SharePointLibraryFolder: {"dir1/dir2"},
+				SharePointLibraryItem:   {"item", "short"},
 			},
 		},
 		{
@@ -439,7 +439,7 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		{SharePointCategoryUnknown, path.UnknownCategory},
 		{SharePointWebURL, path.UnknownCategory},
 		{SharePointSite, path.UnknownCategory},
-		{SharePointLibrary, path.LibrariesCategory},
+		{SharePointLibraryFolder, path.LibrariesCategory},
 		{SharePointLibraryItem, path.LibrariesCategory},
 		{SharePointList, path.ListsCategory},
 	}

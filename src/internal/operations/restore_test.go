@@ -219,9 +219,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	sites := []string{siteID}
 	csel := selectors.NewSharePointBackup(sites)
 	csel.DiscreteOwner = siteID
-	csel.Include(
-		csel.Libraries(selectors.Any()),
-	)
+	csel.Include(csel.LibraryFolders(selectors.Any()))
 
 	bo, err = NewBackupOperation(
 		ctx,
