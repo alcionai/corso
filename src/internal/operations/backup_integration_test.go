@@ -1105,7 +1105,6 @@ func mustGetDefaultDriveID(
 	service graph.Servicer,
 	userID string,
 ) string {
-	//revive:enable:context-as-argument
 	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
 	if err != nil {
 		err = graph.Wrap(
@@ -1116,10 +1115,12 @@ func mustGetDefaultDriveID(
 	}
 
 	require.NoError(t, err)
-	require.NotNil(t, d.GetId())
-	require.NotEmpty(t, *d.GetId())
 
-	return *d.GetId()
+	id, ok := ptr.ValOK(d.GetId())
+	require.True(t, ok, "drive ID not set")
+	require.NotEmpty(t, id)
+
+	return id
 }
 
 // TestBackup_Run ensures that Integration Testing works for OneDrive
@@ -1129,8 +1130,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 	ctx, flush := tester.NewContext()
 	defer flush()
-
-	tester.LogTimeOfTest(suite.T())
 
 	var (
 		t    = suite.T()
@@ -1167,17 +1166,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
 
-	// Generate 3 new folders with two items each. Only the first two
-	// folders will be part of the initial backup and
-	// incrementals. The third folder will be introduced partway
-	// through the changes. This should be enough to cover most delta
-	// actions, since moving one container into another generates a
-	// delta for both addition and deletion.
 	fileDBF := func(id, timeStamp, subject, body string) []byte {
 		return []byte(id + subject)
 	}
 
-	// populate initial test data
+	// Populate initial test data.
+	// Generate 2 new folders with two items each. Only the first two
+	// folders will be part of the initial backup and
+	// incrementals. The third folder will be introduced partway
+	// through the changes. This should be enough to cover most delta
+	// actions.
 	for _, destName := range genDests {
 		generateContainerOfItems(
 			t,
@@ -1198,7 +1196,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 	// verify test data was populated, and track it for comparisons
 	for _, destName := range genDests {
-		// Use path-based indexint to get the folder's ID. This is sourced from the
+		// Use path-based indexing to get the folder's ID. This is sourced from the
 		// onedrive package `getFolder` function.
 		itemURL := fmt.Sprintf(
 			"https://graph.microsoft.com/v1.0/drives/%s/root:/%s",
@@ -1225,8 +1223,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	// run the initial backup
 	runAndCheckBackup(t, ctx, &bo, mb)
 
-	newFileName := "new_file.txt"
-	var newFile models.DriveItemable
+	var (
+		newFile     models.DriveItemable
+		newFileName = "new_file.txt"
+	)
 
 	// Although established as a table, these tests are no isolated from each other.
 	// Assume that every test's side effects cascade to all following test cases.
@@ -1270,10 +1270,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				err := gc.Service.
 					Client().
 					DrivesById(driveID).
-					ItemsById(*newFile.GetId()).
+					ItemsById(ptr.Val(newFile.GetId())).
 					Content().
 					Put(ctx, []byte("new content"), nil)
-				require.NoError(t, err)
+				require.NoError(t, err, "updating file content")
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1293,9 +1293,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				_, err := gc.Service.
 					Client().
 					DrivesById(driveID).
-					ItemsById(*newFile.GetId()).
+					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err)
+				require.NoError(t, err, "renaming file")
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1314,9 +1314,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				_, err := gc.Service.
 					Client().
 					DrivesById(driveID).
-					ItemsById(*newFile.GetId()).
+					ItemsById(ptr.Val(newFile.GetId())).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err)
+				require.NoError(t, err, "moving file between folders")
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
@@ -1324,7 +1324,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		{
 			name: "delete file",
 			updateUserData: func(t *testing.T) {
-				err = gc.Service.Client().DrivesById(driveID).ItemsById(*newFile.GetId()).Delete(ctx, nil)
+				err = gc.Service.
+					Client().
+					DrivesById(driveID).
+					ItemsById(ptr.Val(newFile.GetId())).
+					Delete(ctx, nil)
 				require.NoError(t, err, "deleting file")
 			},
 			itemsRead:    0,
@@ -1347,7 +1351,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 					DrivesById(driveID).
 					ItemsById(source).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err)
+				require.NoError(t, err, "moving folder")
 			},
 			itemsRead:    0,
 			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
@@ -1370,7 +1374,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 					DrivesById(driveID).
 					ItemsById(child).
 					Patch(ctx, driveItem, nil)
-				require.NoError(t, err)
+				require.NoError(t, err, "renaming folder")
 			},
 			itemsRead:    0,
 			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
@@ -1384,7 +1388,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 					DrivesById(driveID).
 					ItemsById(container).
 					Delete(ctx, nil)
-				require.NoError(t, err)
+				require.NoError(t, err, "deleting folder")
 			},
 			itemsRead:    0,
 			itemsWritten: 0,
@@ -1427,6 +1431,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				incMB = evmock.NewBus()
 				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
 			)
+
+			tester.LogTimeOfTest(suite.T())
 
 			test.updateUserData(t)
 			require.NoError(t, incBO.Run(ctx))
