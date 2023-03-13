@@ -668,8 +668,17 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
 		i = common.FormatTime(info.Modified)
 	case SharePointFilterLibraryDrive:
-		// TODO(keepers): either drive name or drive id
-		i = info.DriveName
+		ds := []string{}
+
+		if len(info.DriveName) > 0 {
+			ds = append(ds, info.DriveName)
+		}
+
+		if len(info.DriveID) > 0 {
+			ds = append(ds, info.DriveID)
+		}
+
+		return matchesAny(s, SharePointFilterLibraryDrive, ds)
 	}
 
 	return s.Matches(filterCat, i)
