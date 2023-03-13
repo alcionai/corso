@@ -1265,7 +1265,21 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
 		},
 		{
-			name: "renaming a file",
+			name: "update contents a file",
+			updateUserData: func(t *testing.T) {
+				err := gc.Service.
+					Client().
+					DrivesById(driveID).
+					ItemsById(*newFile.GetId()).
+					Content().
+					Put(ctx, []byte("new content"), nil)
+				require.NoError(t, err)
+			},
+			itemsRead:    1, // .data file for newitem
+			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+		},
+		{
+			name: "rename a file",
 			updateUserData: func(t *testing.T) {
 				container := containerIDs[container1]
 
@@ -1287,7 +1301,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
 		},
 		{
-			name: "moving a file between folders",
+			name: "move a file between folders",
 			updateUserData: func(t *testing.T) {
 				dest := containerIDs[container1]
 
@@ -1339,7 +1353,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			itemsWritten: 7, // 2*2(data and meta of 2 files) + 3 (dirmeta of two moved folders and target)
 		},
 		{
-			name: "renaming a folder",
+			name: "rename a folder",
 			updateUserData: func(t *testing.T) {
 				parent := containerIDs[container1]
 				child := containerIDs[container2]
