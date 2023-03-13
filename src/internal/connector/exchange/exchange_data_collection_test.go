@@ -86,12 +86,13 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 	user := "a-user"
 	folder := "a-folder"
 
-	fullPath, err := path.Builder{}.Append(folder).ToDataLayerExchangePathForCategory(
+	fullPath, err := path.Build(
 		tenant,
 		user,
+		path.ExchangeService,
 		path.EmailCategory,
 		false,
-	)
+		folder)
 	require.NoError(t, err)
 
 	edc := Collection{
@@ -104,18 +105,18 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchangeDataCollection() {
 	t := suite.T()
-
 	tenant := "a-tenant"
 	user := "a-user"
 	folder := "a-folder"
 	name := "User"
 
-	fullPath, err := path.Builder{}.Append(folder).ToDataLayerExchangePathForCategory(
+	fullPath, err := path.Build(
 		tenant,
 		user,
+		path.ExchangeService,
 		path.EmailCategory,
 		false,
-	)
+		folder)
 	require.NoError(t, err)
 
 	edc := Collection{
@@ -127,17 +128,11 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 }
 
 func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
-	fooP, err := path.Builder{}.
-		Append("foo").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
 	require.NoError(suite.T(), err)
-	barP, err := path.Builder{}.
-		Append("bar").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
 	require.NoError(suite.T(), err)
-	locP, err := path.Builder{}.
-		Append("human-readable").
-		ToDataLayerExchangePathForCategory("t", "u", path.EmailCategory, false)
+	locP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "human-readable")
 	require.NoError(suite.T(), err)
 
 	table := []struct {

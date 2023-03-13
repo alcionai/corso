@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
@@ -78,9 +77,8 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	log := logger.Ctx(ctx)
 	for _, e := range errs.Recovered() {
-		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error(e.Error())
 	}
 
 	deets.PrintEntries(ctx)
@@ -125,9 +123,8 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return Only(ctx, err)
 	}
 
-	log := logger.Ctx(ctx)
 	for _, e := range errs.Recovered() {
-		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error(e.Error())
 	}
 
 	deets.PrintEntries(ctx)
@@ -177,9 +174,8 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	log := logger.Ctx(ctx)
 	for _, e := range errs.Recovered() {
-		log.Errorw(e.Error(), clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error(e.Error())
 	}
 
 	deets.PrintEntries(ctx)

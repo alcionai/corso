@@ -192,7 +192,8 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker, version.OneDrive4DirIncludesPermissions:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
+		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -217,7 +218,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
-	case 0, version.OneDrive4DirIncludesPermissions:
+	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
@@ -247,6 +248,12 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	}
 
 	name := c.pathElements[len(c.pathElements)-1]
+	metaName := name
+
+	if c.backupVersion >= version.OneDrive5DirMetaNoName {
+		// We switched to just .dirmeta for metadata file names.
+		metaName = ""
+	}
 
 	if name == "root:" {
 		return c
@@ -255,7 +262,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	metadata := onedriveMetadata(
 		c.t,
 		name,
-		name+onedrive.DirMetaFileSuffix,
+		metaName+onedrive.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
 

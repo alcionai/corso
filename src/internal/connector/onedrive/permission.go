@@ -68,11 +68,13 @@ func getCollectionMetadata(
 
 	// Root folder doesn't have a metadata file associated with it.
 	folders := collectionPath.Folders()
+	metaName := folders[len(folders)-1] + DirMetaFileSuffix
 
-	meta, err := fetchAndReadMetadata(
-		ctx,
-		dc,
-		folders[len(folders)-1]+DirMetaFileSuffix)
+	if backupVersion >= version.OneDrive5DirMetaNoName {
+		metaName = DirMetaFileSuffix
+	}
+
+	meta, err := fetchAndReadMetadata(ctx, dc, metaName)
 	if err != nil {
 		return Metadata{}, clues.Wrap(err, "collection metadata")
 	}
