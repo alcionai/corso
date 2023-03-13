@@ -225,7 +225,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibrary, Any()),
+		makeScope[SharePointScope](SharePointLibraryFolder, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
 		makeScope[SharePointScope](SharePointPageFolder, Any()),
 	)
@@ -265,11 +265,11 @@ func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePoi
 	return scopes
 }
 
-// Libraries produces one or more SharePoint library scopes.
+// LibraryFolders produces one or more SharePoint libraryFolder scopes.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *sharePoint) Libraries(libraries []string, opts ...option) []SharePointScope {
+func (s *sharePoint) LibraryFolders(libraryFolders []string, opts ...option) []SharePointScope {
 	var (
 		scopes = []SharePointScope{}
 		os     = append([]option{pathComparator()}, opts...)
@@ -277,7 +277,7 @@ func (s *sharePoint) Libraries(libraries []string, opts ...option) []SharePointS
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibrary, libraries, os...),
+		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...),
 	)
 
 	return scopes
@@ -294,7 +294,7 @@ func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []S
 	scopes = append(
 		scopes,
 		makeScope[SharePointScope](SharePointLibraryItem, items).
-			set(SharePointLibrary, libraries, opts...),
+			set(SharePointLibraryFolder, libraries, opts...),
 	)
 
 	return scopes
@@ -390,14 +390,14 @@ const (
 	SharePointCategoryUnknown sharePointCategory = ""
 
 	// types of data identified by SharePoint
-	SharePointWebURL      sharePointCategory = "SharePointWebURL"
-	SharePointSite        sharePointCategory = "SharePointSite"
-	SharePointList        sharePointCategory = "SharePointList"
-	SharePointListItem    sharePointCategory = "SharePointListItem"
-	SharePointLibrary     sharePointCategory = "SharePointLibrary"
-	SharePointLibraryItem sharePointCategory = "SharePointLibraryItem"
-	SharePointPageFolder  sharePointCategory = "SharePointPageFolder"
-	SharePointPage        sharePointCategory = "SharePointPage"
+	SharePointWebURL        sharePointCategory = "SharePointWebURL"
+	SharePointSite          sharePointCategory = "SharePointSite"
+	SharePointList          sharePointCategory = "SharePointList"
+	SharePointListItem      sharePointCategory = "SharePointListItem"
+	SharePointLibraryFolder sharePointCategory = "SharePointLibraryFolder"
+	SharePointLibraryItem   sharePointCategory = "SharePointLibraryItem"
+	SharePointPageFolder    sharePointCategory = "SharePointPageFolder"
+	SharePointPage          sharePointCategory = "SharePointPage"
 
 	// filterable topics identified by SharePoint
 	SiteFilterCreatedAfter   sharePointCategory = "FileFilterCreatedAfter"
@@ -409,7 +409,7 @@ const (
 // sharePointLeafProperties describes common metadata of the leaf categories
 var sharePointLeafProperties = map[categorizer]leafProperty{
 	SharePointLibraryItem: {
-		pathKeys: []categorizer{SharePointLibrary, SharePointLibraryItem},
+		pathKeys: []categorizer{SharePointLibraryFolder, SharePointLibraryItem},
 		pathType: path.LibrariesCategory,
 	},
 	SharePointListItem: {
@@ -437,7 +437,7 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibrary, SharePointLibraryItem,
+	case SharePointLibraryFolder, SharePointLibraryItem,
 		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
 		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
 		return SharePointLibraryItem
@@ -480,8 +480,8 @@ func (c sharePointCategory) pathValues(repo path.Path, ent details.DetailsEntry)
 	var folderCat, itemCat categorizer
 
 	switch c {
-	case SharePointLibrary, SharePointLibraryItem:
-		folderCat, itemCat = SharePointLibrary, SharePointLibraryItem
+	case SharePointLibraryFolder, SharePointLibraryItem:
+		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
 	case SharePointPage, SharePointPageFolder:
@@ -572,7 +572,7 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
-	case SharePointLibrary, SharePointList, SharePointPage:
+	case SharePointLibraryFolder, SharePointList, SharePointPage:
 		os = append(os, pathComparator())
 	}
 
@@ -583,13 +583,13 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 func (s SharePointScope) setDefaults() {
 	switch s.Category() {
 	case SharePointSite:
-		s[SharePointLibrary.String()] = passAny
+		s[SharePointLibraryFolder.String()] = passAny
 		s[SharePointLibraryItem.String()] = passAny
 		s[SharePointList.String()] = passAny
 		s[SharePointListItem.String()] = passAny
 		s[SharePointPageFolder.String()] = passAny
 		s[SharePointPage.String()] = passAny
-	case SharePointLibrary:
+	case SharePointLibraryFolder:
 		s[SharePointLibraryItem.String()] = passAny
 	case SharePointList:
 		s[SharePointListItem.String()] = passAny
