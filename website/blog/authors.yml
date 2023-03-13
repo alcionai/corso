@@ -15,3 +15,9 @@ kias:
   title: CTO at Fonicom
   url: https://www.fonicom.com/about/#
   image_url: ./images/kias.png
+
+gmatev:
+  name: Georgi Matev
+  title: Head of Product
+  url: https://github.com/gmatev
+  image_url: https://github.com/gmatev.png
