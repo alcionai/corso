@@ -248,21 +248,12 @@ func fetchPrevSnapshotManifests(
 	// we can pass in. Can be expanded to return more than the most recent
 	// snapshots, but may require more memory at runtime.
 	for _, reason := range reasons {
-		logger.Ctx(ctx).Infow(
-			"searching for previous manifests for reason",
-			"service", reason.Service.String(),
-			"category", reason.Category.String())
+		ictx := clues.Add(ctx, "service", reason.Service.String(), "category", reason.Category.String())
+		logger.Ctx(ictx).Info("searching for previous manifests for reason")
 
 		found, err := fetchPrevManifests(ctx, sm, mans, reason, tags)
 		if err != nil {
-			logger.Ctx(ctx).
-				With(
-					"err", err,
-					"service", reason.Service.String(),
-					"category", reason.Category.String()).
-				Warnw(
-					"fetching previous snapshot manifests for service/category/resource owner",
-					clues.InErr(err).Slice()...)
+			logger.CtxErr(ictx, err).Info("fetching previous snapshot manifests for service/category/resource owner")
 
 			// Snapshot can still complete fine, just not as efficient.
 			continue

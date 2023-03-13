@@ -360,7 +360,7 @@ func collectionEntries(
 				err = errors.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(err)
 
-				logger.Ctx(ctx).With("err", err).Errorw("getting full item path", clues.InErr(err).Slice()...)
+				logger.CtxErr(ctx, err).Error("getting full item path")
 
 				continue
 			}
@@ -422,11 +422,25 @@ func streamBaseEntries(
 	locationPath path.Path,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) error {
 	if dir == nil {
 		return nil
+	}
+
+	var (
+		excludeSet    map[string]struct{}
+		curPrefix     string
+		curPathString = curPath.String()
+	)
+
+	for prefix, excludes := range globalExcludeSet {
+		// Select the set with the longest prefix to be most precise.
+		if strings.HasPrefix(curPathString, prefix) && len(prefix) >= len(curPrefix) {
+			excludeSet = excludes
+			curPrefix = prefix
+		}
 	}
 
 	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
@@ -453,7 +467,7 @@ func streamBaseEntries(
 
 		// This entry was marked as deleted by a service that can't tell us the
 		// previous path of deleted items, only the item ID.
-		if _, ok := globalExcludeSet[entName]; ok {
+		if _, ok := excludeSet[entName]; ok {
 			return nil
 		}
 
@@ -519,7 +533,7 @@ func getStreamItemFunc(
 	staticEnts []fs.Entry,
 	streamedEnts data.BackupCollection,
 	baseDir fs.Directory,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
@@ -567,7 +581,7 @@ func getStreamItemFunc(
 func buildKopiaDirs(
 	dirName string,
 	dir *treeMap,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	// Need to build the directory tree from the leaves up because intermediate
@@ -1002,7 +1016,7 @@ func inflateDirTree(
 	loader snapshotLoader,
 	baseSnaps []IncrementalBase,
 	collections []data.BackupCollection,
-	globalExcludeSet map[string]struct{},
+	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
 	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
