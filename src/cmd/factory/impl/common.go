@@ -173,14 +173,13 @@ func buildCollections(
 	collections := make([]data.RestoreCollection, 0, len(colls))
 
 	for _, c := range colls {
-		pth, err := toDataLayerPath(
-			service,
+		pth, err := path.Build(
 			tenant,
 			user,
+			service,
 			c.category,
-			c.pathElements,
 			false,
-		)
+			c.pathElements...)
 		if err != nil {
 			return nil, err
 		}
@@ -196,23 +195,4 @@ func buildCollections(
 	}
 
 	return collections, nil
-}
-
-func toDataLayerPath(
-	service path.ServiceType,
-	tenant, user string,
-	category path.CategoryType,
-	elements []string,
-	isItem bool,
-) (path.Path, error) {
-	pb := path.Builder{}.Append(elements...)
-
-	switch service {
-	case path.ExchangeService:
-		return pb.ToDataLayerExchangePathForCategory(tenant, user, category, isItem)
-	case path.OneDriveService:
-		return pb.ToDataLayerOneDrivePath(tenant, user, isItem)
-	}
-
-	return nil, errors.Errorf("unknown service %s", service.String())
 }

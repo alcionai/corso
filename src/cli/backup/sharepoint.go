@@ -3,7 +3,6 @@ package backup
 import (
 	"context"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -14,8 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -241,50 +238,18 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and WebURL"))
 	}
 
-	var (
-		merrs *multierror.Error
-		bIDs  []model.StableID
-	)
+	selectorSet := []selectors.Selector{}
 
 	for _, discSel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
-		bo, err := r.NewBackup(ctx, discSel.Selector)
-		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to initialize SharePoint backup for site %s",
-				discSel.DiscreteOwner,
-			))
-
-			continue
-		}
-
-		err = bo.Run(ctx)
-		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to run SharePoint backup for site %s",
-				discSel.DiscreteOwner,
-			))
-
-			continue
-		}
-
-		bIDs = append(bIDs, bo.Results.BackupID)
+		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	bups, ferrs := r.Backups(ctx, bIDs)
-	// TODO: print/log recoverable errors
-	if ferrs.Failure() != nil {
-		return Only(ctx, errors.Wrap(ferrs.Failure(), "Unable to retrieve backup results from storage"))
-	}
-
-	backup.PrintAll(ctx, bups)
-
-	if e := merrs.ErrorOrNil(); e != nil {
-		return Only(ctx, e)
-	}
-
-	return nil
+	return runBackups(
+		ctx,
+		r,
+		"SharePoint", "site",
+		selectorSet,
+	)
 }
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {

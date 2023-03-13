@@ -662,14 +662,13 @@ func makeItemPath(
 ) path.Path {
 	t.Helper()
 
-	p, err := path.Builder{}.Append(elems...).
-		ToDataLayerPath(
-			tenant,
-			resourceOwner,
-			service,
-			category,
-			true,
-		)
+	p, err := path.Build(
+		tenant,
+		resourceOwner,
+		service,
+		category,
+		true,
+		elems...)
 	require.NoError(t, err)
 
 	return p
