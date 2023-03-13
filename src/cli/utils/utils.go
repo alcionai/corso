@@ -17,18 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-// common flag names
-const (
-	BackupFN             = "backup"
-	DataFN               = "data"
-	SiteFN               = "site"
-	UserFN               = "user"
-	FileCreatedAfterFN   = "file-created-after"
-	FileCreatedBeforeFN  = "file-created-before"
-	FileModifiedAfterFN  = "file-modified-after"
-	FileModifiedBeforeFN = "file-modified-before"
-)
-
 const (
 	Wildcard = "*"
 )

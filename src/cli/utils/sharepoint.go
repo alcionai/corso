@@ -8,18 +8,17 @@ import (
 )
 
 const (
-	LibraryItemFN = "library-item"
-	LibraryFN     = "library"
-	ListItemFN    = "list-item"
-	ListFN        = "list"
-	PageFolderFN  = "page-folders"
-	PagesFN       = "pages"
-	WebURLFN      = "web-url"
+	ListItemFN   = "list-item"
+	ListFN       = "list"
+	PageFolderFN = "page-folders"
+	PagesFN      = "pages"
+	WebURLFN     = "web-url"
 )
 
 type SharePointOpts struct {
-	LibraryItems       []string
-	LibraryPaths       []string
+	FileNames          []string
+	FolderPaths        []string
+	Library            string
 	ListItems          []string
 	ListPaths          []string
 	PageFolders        []string
@@ -79,7 +78,7 @@ func AddSharePointFilter(
 func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.SharePointRestore {
 	sites := opts.Sites
 
-	lp, li := len(opts.LibraryPaths), len(opts.LibraryItems)
+	lfp, lfn := len(opts.FolderPaths), len(opts.FileNames)
 	ls, lwu := len(opts.Sites), len(opts.WebURLs)
 	slp, sli := len(opts.ListPaths), len(opts.ListItems)
 	pf, pi := len(opts.PageFolders), len(opts.Pages)
@@ -90,25 +89,25 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lp+li+lwu+slp+sli+pf+pi == 0 {
+	if lfp+lfn+lwu+slp+sli+pf+pi == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
 
-	if lp+li > 0 {
-		if li == 0 {
-			opts.LibraryItems = selectors.Any()
+	if lfp+lfn > 0 {
+		if lfn == 0 {
+			opts.FileNames = selectors.Any()
 		}
 
-		opts.LibraryPaths = trimFolderSlash(opts.LibraryPaths)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.LibraryPaths)
+		opts.FolderPaths = trimFolderSlash(opts.FolderPaths)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPaths)
 
 		if len(containsFolders) > 0 {
-			sel.Include(sel.LibraryItems(containsFolders, opts.LibraryItems))
+			sel.Include(sel.LibraryItems(containsFolders, opts.FileNames))
 		}
 
 		if len(prefixFolders) > 0 {
-			sel.Include(sel.LibraryItems(prefixFolders, opts.LibraryItems, selectors.PrefixMatch()))
+			sel.Include(sel.LibraryItems(prefixFolders, opts.FileNames, selectors.PrefixMatch()))
 		}
 	}
 
@@ -167,6 +166,7 @@ func FilterSharePointRestoreInfoSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
+	AddSharePointFilter(sel, opts.Library, sel.Library)
 	AddSharePointFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
 	AddSharePointFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)
 	AddSharePointFilter(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
