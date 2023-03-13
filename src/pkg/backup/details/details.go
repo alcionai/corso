@@ -304,13 +304,15 @@ func (d *Details) add(
 			return clues.Wrap(err, "munging OneDrive or SharePoint ShortRef")
 		}
 
+		if info.OneDrive == nil && info.SharePoint == nil {
+			return clues.New("Item is not SharePoint or OneDrive type")
+		}
+
 		filename := ""
 		if info.OneDrive != nil {
 			filename = info.OneDrive.ItemName
 		} else if info.SharePoint != nil {
 			filename = info.SharePoint.ItemName
-		} else {
-			return clues.New("Item with OneDrive type that is not SharePoint or OneDrive")
 		}
 
 		entry.ShortRef = p.ToBuilder().Append(filename).ShortRef()
