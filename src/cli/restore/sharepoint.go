@@ -16,14 +16,12 @@ import (
 )
 
 var (
-	listItems    []string
-	listPaths    []string
-	pageFolders  []string
-	pages        []string
-	libraryItems []string
-	libraryPaths []string
-	site         []string
-	weburl       []string
+	listItems   []string
+	listPaths   []string
+	pageFolders []string
+	pages       []string
+	site        []string
+	weburl      []string
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -58,15 +56,20 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		// sharepoint hierarchy (path/name) flags
 
-		fs.StringSliceVar(
-			&libraryPaths,
-			utils.LibraryFN, nil,
-			"Restore library items by SharePoint library")
+		fs.StringVar(
+			&utils.Library,
+			utils.LibraryFN, "",
+			"Restore files within a library.  Defaults includes all libraries.")
 
 		fs.StringSliceVar(
-			&libraryItems,
-			utils.LibraryItemFN, nil,
-			"Restore library items by file name or ID")
+			&utils.FolderPaths,
+			utils.FolderFN, nil,
+			"Restore files by folder; defaults to root.")
+
+		fs.StringSliceVar(
+			&utils.FileNames,
+			utils.FileFN, nil,
+			"Restore files by name.")
 
 		fs.StringSliceVar(
 			&listPaths,
@@ -141,8 +144,9 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.SharePointOpts{
-		LibraryItems:       libraryItems,
-		LibraryPaths:       libraryPaths,
+		FileNames:          utils.FileNames,
+		FolderPaths:        utils.FolderPaths,
+		Library:            utils.Library,
 		ListItems:          listItems,
 		ListPaths:          listPaths,
 		PageFolders:        pageFolders,

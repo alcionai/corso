@@ -34,6 +34,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		name             string
 		opts             utils.SharePointOpts
 		expectIncludeLen int
+		expectFilterLen  int
 	}{
 		{
 			name:             "no inputs",
@@ -43,74 +44,74 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		{
 			name: "single inputs",
 			opts: utils.SharePointOpts{
-				LibraryItems: single,
-				LibraryPaths: single,
-				Sites:        single,
-				WebURLs:      single,
+				FileNames:   single,
+				FolderPaths: single,
+				Sites:       single,
+				WebURLs:     single,
 			},
 			expectIncludeLen: 4,
 		},
 		{
 			name: "single extended",
 			opts: utils.SharePointOpts{
-				LibraryItems: single,
-				LibraryPaths: single,
-				ListItems:    single,
-				ListPaths:    single,
-				Sites:        single,
-				WebURLs:      single,
+				FileNames:   single,
+				FolderPaths: single,
+				ListItems:   single,
+				ListPaths:   single,
+				Sites:       single,
+				WebURLs:     single,
 			},
 			expectIncludeLen: 5,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.SharePointOpts{
-				LibraryItems: multi,
-				LibraryPaths: multi,
-				Sites:        multi,
-				WebURLs:      multi,
+				FileNames:   multi,
+				FolderPaths: multi,
+				Sites:       multi,
+				WebURLs:     multi,
 			},
 			expectIncludeLen: 4,
 		},
 		{
-			name: "library contains",
+			name: "library folder contains",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: containsOnly,
-				Sites:        empty,
-				WebURLs:      empty,
+				FileNames:   empty,
+				FolderPaths: containsOnly,
+				Sites:       empty,
+				WebURLs:     empty,
 			},
 			expectIncludeLen: 1,
 		},
 		{
-			name: "library prefixes",
+			name: "library folder prefixes",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: prefixOnly,
-				Sites:        empty,
-				WebURLs:      empty,
+				FileNames:   empty,
+				FolderPaths: prefixOnly,
+				Sites:       empty,
+				WebURLs:     empty,
 			},
 			expectIncludeLen: 1,
 		},
 		{
-			name: "library prefixes and contains",
+			name: "library folder prefixes and contains",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: containsAndPrefix,
-				Sites:        empty,
-				WebURLs:      empty,
+				FileNames:   empty,
+				FolderPaths: containsAndPrefix,
+				Sites:       empty,
+				WebURLs:     empty,
 			},
 			expectIncludeLen: 2,
 		},
 		{
 			name: "list contains",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: empty,
-				ListItems:    empty,
-				ListPaths:    containsOnly,
-				Sites:        empty,
-				WebURLs:      empty,
+				FileNames:   empty,
+				FolderPaths: empty,
+				ListItems:   empty,
+				ListPaths:   containsOnly,
+				Sites:       empty,
+				WebURLs:     empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -131,30 +132,30 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		{
 			name: "weburl contains",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: empty,
-				Sites:        empty,
-				WebURLs:      containsOnly,
+				FileNames:   empty,
+				FolderPaths: empty,
+				Sites:       empty,
+				WebURLs:     containsOnly,
 			},
 			expectIncludeLen: 3,
 		},
 		{
-			name: "library suffixes",
+			name: "library folder suffixes",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: empty,
-				Sites:        empty,
-				WebURLs:      prefixOnly, // prefix pattern matches suffix pattern
+				FileNames:   empty,
+				FolderPaths: empty,
+				Sites:       empty,
+				WebURLs:     prefixOnly, // prefix pattern matches suffix pattern
 			},
 			expectIncludeLen: 3,
 		},
 		{
-			name: "library suffixes and contains",
+			name: "library folder suffixes and contains",
 			opts: utils.SharePointOpts{
-				LibraryItems: empty,
-				LibraryPaths: empty,
-				Sites:        empty,
-				WebURLs:      containsAndPrefix, // prefix pattern matches suffix pattern
+				FileNames:   empty,
+				FolderPaths: empty,
+				Sites:       empty,
+				WebURLs:     containsAndPrefix, // prefix pattern matches suffix pattern
 			},
 			expectIncludeLen: 6,
 		},
@@ -173,18 +174,27 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			expectIncludeLen: 1,
 		},
 		{
-			name: "Page & Library",
+			name: "Page & library Files",
 			opts: utils.SharePointOpts{
-				PageFolders:  single,
-				LibraryItems: multi,
+				PageFolders: single,
+				FileNames:   multi,
 			},
 			expectIncludeLen: 2,
+		},
+		{
+			name: "Library",
+			opts: utils.SharePointOpts{
+				Library: "foo",
+			},
+			expectIncludeLen: 1,
+			expectFilterLen:  1,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			sel := utils.IncludeSharePointRestoreDataSelectors(test.opts)
 			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
+			assert.Len(suite.T(), sel.Filters, test.expectFilterLen)
 		})
 	}
 }

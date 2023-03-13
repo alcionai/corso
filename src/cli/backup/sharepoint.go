@@ -26,12 +26,10 @@ import (
 
 // sharePoint bucket info from flags
 var (
-	libraryItems []string
-	libraryPaths []string
-	pageFolders  []string
-	page         []string
-	site         []string
-	weburl       []string
+	pageFolders []string
+	page        []string
+	site        []string
+	weburl      []string
 
 	sharepointData []string
 )
@@ -66,11 +64,8 @@ corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
 
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>
-<<<<<<< HEAD
-# Explore site's files created before end of 2015 from a specific backup
-=======
+
 # Find all site files that were created before a certain date.
->>>>>>> main
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --web-url https://example.com --file-created-before 2015-01-01T00:00:00
 `
@@ -126,15 +121,20 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		// sharepoint hierarchy flags
 
-		fs.StringSliceVar(
-			&libraryPaths,
-			utils.LibraryFN, nil,
-			"Select backup details by Library name.")
+		fs.StringVar(
+			&utils.Library,
+			utils.LibraryFN, "",
+			"Select backup details within a library.  Defaults includes all libraries.")
 
 		fs.StringSliceVar(
-			&libraryItems,
-			utils.LibraryItemFN, nil,
-			"Select backup details by library item name or ID.")
+			&utils.FolderPaths,
+			utils.FolderFN, nil,
+			"Select backup details by folder; defaults to root.")
+
+		fs.StringSliceVar(
+			&utils.FileNames,
+			utils.FileFN, nil,
+			"Select backup details by file name.")
 
 		fs.StringArrayVar(&site,
 			utils.SiteFN, nil,
@@ -152,8 +152,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&page,
 			utils.PagesFN, nil,
-			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
-		)
+			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.")
 
 		// sharepoint info flags
 
@@ -396,8 +395,9 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	opts := utils.SharePointOpts{
-		LibraryItems:       libraryItems,
-		LibraryPaths:       libraryPaths,
+		FolderPaths:        utils.FolderPaths,
+		FileNames:          utils.FileNames,
+		Library:            utils.Library,
 		Sites:              site,
 		WebURLs:            weburl,
 		FileCreatedAfter:   fileCreatedAfter,
