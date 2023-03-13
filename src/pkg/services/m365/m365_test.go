@@ -57,6 +57,7 @@ func (suite *M365IntegrationSuite) TestSites() {
 		t    = suite.T()
 		acct = tester.NewM365Account(suite.T())
 	)
+
 	sites, err := Sites(ctx, acct, fault.New(true))
 	require.NoError(t, err)
 	require.NotNil(t, sites)
