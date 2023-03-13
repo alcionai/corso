@@ -39,29 +39,27 @@ const (
 
 const (
 	sharePointServiceCommand                 = "sharepoint"
-	sharePointServiceCommandCreateUseSuffix  = "--site <siteId> | '" + utils.Wildcard + "'"
+	sharePointServiceCommandCreateUseSuffix  = "--web-url <siteURL> | '" + utils.Wildcard + "'"
 	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
-	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for <site>
-corso backup create sharepoint --site <site_id>
+	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for a Site
+corso backup create sharepoint --web-url <siteURL>
 
-# Backup SharePoint for Alice and Bob
-corso backup create sharepoint --site <site_id_1>,<site_id_2>
+# Backup SharePoint for two sites: HR and Team
+corso backup create sharepoint --site https://example.com/hr,https://example.com/team
 
-# TODO: Site IDs may contain commas.  We'll need to warn the site about escaping them.
-
-# Backup all SharePoint data for all sites
-corso backup create sharepoint --site '*'`
+# Backup all SharePoint data for all Sites
+corso backup create sharepoint --web-url '*'`
 
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
+	sharePointServiceCommandDetailsExamples = `# Explore a site's files from backup 1234abcd-12ab-cd34-56de-1234abcd
 
-corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --web-url https://example.com
 
 # Find all site files that were created before a certain date.
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \

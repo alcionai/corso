@@ -130,11 +130,11 @@ corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765a
 
 # Restore <site>'s file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets" from a specific backup
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --site <siteID> --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
+      --web-url https://example.com --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
 # Restore all files from <site> that were created before 2020 when captured in a specific backup
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
-      --site <siteID> --folder "Display Templates/Style Sheets" --file-created-before 2020-01-01T00:00:00`
+      --web-url https://example.com --folder "Display Templates/Style Sheets" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore sharepoint [<flag>...]`
