@@ -34,7 +34,7 @@ jobs:
         run: make otel-daemon
 
       - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v3
+        uses: magnetikonline/action-golang-cache@v4
         with:
           go-version-file: src/go.mod
 
