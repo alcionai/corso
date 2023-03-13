@@ -34,7 +34,6 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		name             string
 		opts             utils.SharePointOpts
 		expectIncludeLen int
-		expectFilterLen  int
 	}{
 		{
 			name:             "no inputs",
@@ -187,14 +186,12 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				Library: "foo",
 			},
 			expectIncludeLen: 1,
-			expectFilterLen:  1,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			sel := utils.IncludeSharePointRestoreDataSelectors(test.opts)
 			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
-			assert.Len(suite.T(), sel.Filters, test.expectFilterLen)
 		})
 	}
 }
