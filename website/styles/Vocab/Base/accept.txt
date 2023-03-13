@@ -47,3 +47,10 @@ MSP
 MSPs
 npm
 Fonicom
+Alcion
+APIs
+SMBs
+Demetrius
+Malbrough
+lockdowns
+exfiltrate
