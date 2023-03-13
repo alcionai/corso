@@ -48,3 +48,25 @@ func (suite *M365IntegrationSuite) TestUsers() {
 		})
 	}
 }
+
+func (suite *M365IntegrationSuite) TestSites() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(suite.T())
+	)
+	sites, err := Sites(ctx, acct, fault.New(true))
+	require.NoError(t, err)
+	require.NotNil(t, sites)
+	require.Greater(t, len(sites), 0)
+
+	for _, s := range sites {
+		suite.Run("site", func() {
+			t := suite.T()
+			assert.NotEmpty(t, s.URL)
+			assert.NotEmpty(t, s.ID)
+		})
+	}
+}
