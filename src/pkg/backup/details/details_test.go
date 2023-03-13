@@ -365,6 +365,110 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 	assert.Len(t, d.Entries, 3)
 }
 
+func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
+	itemNames := []string{
+		"item1",
+		"item2",
+	}
+
+	table := []struct {
+		name               string
+		service            path.ServiceType
+		category           path.CategoryType
+		itemInfoFunc       func(name string) ItemInfo
+		expectedUniqueRefs int
+	}{
+		{
+			name:     "OneDrive",
+			service:  path.OneDriveService,
+			category: path.FilesCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					OneDrive: &OneDriveInfo{
+						ItemType: OneDriveItem,
+						ItemName: name,
+					},
+				}
+			},
+			expectedUniqueRefs: len(itemNames),
+		},
+		{
+			name:     "SharePoint",
+			service:  path.SharePointService,
+			category: path.LibrariesCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointLibrary,
+						ItemName: name,
+					},
+				}
+			},
+			expectedUniqueRefs: len(itemNames),
+		},
+		{
+			name:     "Exchange no change",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					Exchange: &ExchangeInfo{
+						ItemType:  ExchangeMail,
+						Sender:    "a-person@foo.com",
+						Subject:   name,
+						Recipient: []string{"another-person@bar.com"},
+					},
+				}
+			},
+			// Should all end up as the starting shortref.
+			expectedUniqueRefs: 1,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			b := Builder{}
+
+			for _, name := range itemNames {
+				item := test.itemInfoFunc(name)
+				itemPath := makeItemPath(
+					suite.T(),
+					test.service,
+					test.category,
+					"a-tenant",
+					"a-user",
+					[]string{
+						"drive-id",
+						"root:",
+						"folder",
+						name + "-id",
+					},
+				)
+
+				require.NoError(t, b.Add(
+					itemPath.String(),
+					"deadbeef",
+					itemPath.ToBuilder().Dir().String(),
+					itemPath.String(),
+					false,
+					item,
+				))
+			}
+
+			deets := b.Details()
+			shortRefs := map[string]struct{}{}
+
+			for _, d := range deets.Items() {
+				shortRefs[d.ShortRef] = struct{}{}
+			}
+
+			assert.Len(t, shortRefs, test.expectedUniqueRefs, "items don't have unique ShortRefs")
+		})
+	}
+}
+
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
 	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
