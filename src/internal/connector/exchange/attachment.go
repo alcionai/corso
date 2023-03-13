@@ -126,6 +126,9 @@ func getItemAttachmentItemType(query models.Attachmentable) string {
 	}
 
 	item := attachment.GetItem()
+	if item == nil {
+		return empty
+	}
 
 	return ptr.Val(item.GetOdataType())
 }

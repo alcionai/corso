@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -387,7 +388,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	defer flush()
 
 	for _, c := range suite.allContainers {
-		suite.Run(*c.GetDisplayName(), func() {
+		suite.Run(ptr.Val(c.GetDisplayName()), func() {
 			t := suite.T()
 
 			p, l, err := suite.fc.IDToPath(ctx, c.id, false)
@@ -403,7 +404,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestLookupCachedFolderNoPathsCached
 	defer flush()
 
 	for _, c := range suite.containersWithID {
-		suite.Run(*c.GetDisplayName(), func() {
+		suite.Run(ptr.Val(c.GetDisplayName()), func() {
 			t := suite.T()
 
 			p, l, err := suite.fcWithID.IDToPath(ctx, c.id, true)

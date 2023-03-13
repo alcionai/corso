@@ -403,7 +403,7 @@ func GetAllFolders(
 					continue
 				}
 
-				if !strings.HasPrefix(*item.GetName(), prefix) {
+				if !strings.HasPrefix(ptr.Val(item.GetName()), prefix) {
 					continue
 				}
 

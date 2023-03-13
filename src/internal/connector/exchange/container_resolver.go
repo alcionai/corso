@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -81,14 +82,18 @@ func (cr *containerResolver) idToPath(
 		return p, c.Location(), nil
 	}
 
-	parentPath, parentLoc, err := cr.idToPath(ctx, *c.GetParentFolderId(), depth+1, useIDInPath)
+	parentPath, parentLoc, err := cr.idToPath(
+		ctx,
+		ptr.Val(c.GetParentFolderId()),
+		depth+1,
+		useIDInPath)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "retrieving parent folder")
 	}
 
-	toAppend := *c.GetDisplayName()
+	toAppend := ptr.Val(c.GetDisplayName())
 	if useIDInPath {
-		toAppend = *c.GetId()
+		toAppend = ptr.Val(c.GetId())
 	}
 
 	fullPath := parentPath.Append(toAppend)
@@ -97,7 +102,7 @@ func (cr *containerResolver) idToPath(
 	var locPath *path.Builder
 
 	if parentLoc != nil {
-		locPath = parentLoc.Append(*c.GetDisplayName())
+		locPath = parentLoc.Append(ptr.Val(c.GetDisplayName()))
 		c.SetLocation(locPath)
 	}
 
@@ -118,7 +123,7 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 		}
 
 		if cc.Path().String() == pathString {
-			return *cc.GetId(), true
+			return ptr.Val(cc.GetId()), true
 		}
 	}
 
@@ -139,11 +144,11 @@ func (cr *containerResolver) addFolder(cf graph.CacheFolder) error {
 		}
 	}
 
-	if _, ok := cr.cache[*cf.GetId()]; ok {
+	if _, ok := cr.cache[ptr.Val(cf.GetId())]; ok {
 		return nil
 	}
 
-	cr.cache[*cf.GetId()] = &cf
+	cr.cache[ptr.Val(cf.GetId())] = &cf
 
 	return nil
 }
@@ -174,7 +179,7 @@ func (cr *containerResolver) AddToCache(
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
+	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
 	if err != nil {
 		return errors.Wrap(err, "adding cache entry")
 	}
@@ -193,7 +198,7 @@ func (cr *containerResolver) populatePaths(ctx context.Context, useIDInPath bool
 
 	// Populate all folder paths.
 	for _, f := range cr.Items() {
-		_, _, err := cr.IDToPath(ctx, *f.GetId(), useIDInPath)
+		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "populating path"))
 		}

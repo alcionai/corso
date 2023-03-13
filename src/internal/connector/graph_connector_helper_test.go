@@ -626,8 +626,8 @@ func compareExchangeEmail(
 		return
 	}
 
-	expectedBytes, ok := expected[*itemMessage.GetSubject()]
-	if !assert.True(t, ok, "unexpected item with Subject %q", *itemMessage.GetSubject()) {
+	expectedBytes, ok := expected[ptr.Val(itemMessage.GetSubject())]
+	if !assert.True(t, ok, "unexpected item with Subject %q", ptr.Val(itemMessage.GetSubject())) {
 		return
 	}
 
@@ -653,8 +653,8 @@ func compareExchangeContact(
 		return
 	}
 
-	expectedBytes, ok := expected[*itemContact.GetMiddleName()]
-	if !assert.True(t, ok, "unexpected item with middle name %q", *itemContact.GetMiddleName()) {
+	expectedBytes, ok := expected[ptr.Val(itemContact.GetMiddleName())]
+	if !assert.True(t, ok, "unexpected item with middle name %q", ptr.Val(itemContact.GetMiddleName())) {
 		return
 	}
 
@@ -681,8 +681,8 @@ func compareExchangeEvent(
 		return
 	}
 
-	expectedBytes, ok := expected[*itemEvent.GetSubject()]
-	if !assert.True(t, ok, "unexpected item with subject %q", *itemEvent.GetSubject()) {
+	expectedBytes, ok := expected[ptr.Val(itemEvent.GetSubject())]
+	if !assert.True(t, ok, "unexpected item with subject %q", ptr.Val(itemEvent.GetSubject())) {
 		return
 	}
 
@@ -704,7 +704,7 @@ func permissionEqual(expected onedrive.UserPermission, got onedrive.UserPermissi
 
 	if expected.Expiration != nil &&
 		got.Expiration != nil &&
-		!expected.Expiration.Equal(*got.Expiration) {
+		!expected.Expiration.Equal(ptr.Val(got.Expiration)) {
 		return false
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -72,7 +73,7 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	}{
 		{
 			name:          "Default Event Cache",
-			folderInCache: *cal.GetId(),
+			folderInCache: ptr.Val(cal.GetId()),
 			root:          DefaultCalendar,
 			basePath:      DefaultCalendar,
 			resolverFunc:  eventFunc,

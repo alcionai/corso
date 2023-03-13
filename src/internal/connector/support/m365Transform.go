@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 //==========================================================
@@ -68,7 +70,7 @@ func ToMessage(orig models.Messageable) models.Messageable {
 //     add a summary of attendees at the beginning to the event before the original body content
 //   - event.attendees is set to an empty list
 func ToEventSimplified(orig models.Eventable) models.Eventable {
-	attendees := FormatAttendees(orig, *orig.GetBody().GetContentType() == models.HTML_BODYTYPE)
+	attendees := FormatAttendees(orig, ptr.Val(orig.GetBody().GetContentType()) == models.HTML_BODYTYPE)
 	orig.SetAttendees([]models.Attendeeable{})
 	origBody := orig.GetBody()
 	newContent := insertStringToBody(origBody, attendees)
@@ -97,14 +99,14 @@ type getContenter interface {
 // @returns string containing the content string of altered body.
 func insertStringToBody(body getContenter, newContent string) string {
 	if body.GetContent() == nil ||
-		len(*body.GetContent()) == 0 ||
+		len(ptr.Val(body.GetContent())) == 0 ||
 		body.GetContentType() == nil {
 		return ""
 	}
 
-	content := *body.GetContent()
+	content := ptr.Val(body.GetContent())
 
-	switch *body.GetContentType() {
+	switch ptr.Val(body.GetContentType()) {
 	case models.TEXT_BODYTYPE:
 		return newContent + content
 
@@ -225,12 +227,12 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 			readOnly    bool
 		)
 
-		if cd.GetDisplayName() != nil {
-			displayName = *cd.GetDisplayName()
+		if name, ok := ptr.ValOK(cd.GetDisplayName()); ok {
+			displayName = name
 		}
 
-		if cd.GetReadOnly() != nil {
-			readOnly = *cd.GetReadOnly()
+		if ro, ok := ptr.ValOK(cd.GetReadOnly()); ok {
+			readOnly = ro
 		}
 
 		_, isLegacy := leg[displayName]
@@ -369,7 +371,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 // 	attachments := make([]models.Attachmentable, len(attached))
 
 // 	for _, ax := range attached {
-// 		if *ax.GetOdataType() == itemAttachment {
+// 		if ptr.Val(ax.GetOdataType()) == itemAttachment {
 // 			newAttachment, err := ToItemAttachment(ax)
 // 			if err != nil {
 // 				return nil, err

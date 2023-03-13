@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -75,7 +76,7 @@ func filterContainersAndFillCollections(
 			return el.Failure()
 		}
 
-		cID := *c.GetId()
+		cID := ptr.Val(c.GetId())
 		delete(tombstones, cID)
 
 		currPath, locPath, ok := includeContainer(qp, c, scope)

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -128,11 +129,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 
 	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
 	require.NoErrorf(suite.T(), err, "fetching user %s", suite.user)
-	suite.userID = *user.GetId()
+	suite.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
 	require.NoErrorf(suite.T(), err, "fetching user %s", suite.secondaryUser)
-	suite.secondaryUserID = *secondaryUser.GetId()
+	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	tester.LogTimeOfTest(suite.T())
 }

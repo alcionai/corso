@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -219,7 +220,7 @@ func restorePermissions(
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
-		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
+		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil
