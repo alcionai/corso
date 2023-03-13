@@ -682,12 +682,12 @@ func compareOneDriveItem(
 	t *testing.T,
 	expected map[string][]byte,
 	item data.Stream,
-	dest control.RestoreDestination,
 	restorePermissions bool,
+	rootDir bool,
 ) bool {
 	// Skip OneDrive permissions in the folder that used to be the root. We don't
 	// have a good way to materialize these in the test right now.
-	if item.UUID() == dest.ContainerName+onedrive.DirMetaFileSuffix {
+	if rootDir && item.UUID() == onedrive.DirMetaFileSuffix {
 		return false
 	}
 
@@ -777,8 +777,8 @@ func compareItem(
 	service path.ServiceType,
 	category path.CategoryType,
 	item data.Stream,
-	dest control.RestoreDestination,
 	restorePermissions bool,
+	rootDir bool,
 ) bool {
 	if mt, ok := item.(data.StreamModTime); ok {
 		assert.NotZero(t, mt.ModTime())
@@ -798,7 +798,7 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
-		return compareOneDriveItem(t, expected, item, dest, restorePermissions)
+		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
 
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
@@ -850,6 +850,8 @@ func checkCollections(
 			service         = returned.FullPath().Service()
 			category        = returned.FullPath().Category()
 			expectedColData = expected[returned.FullPath().String()]
+			folders         = returned.FullPath().Elements()
+			rootDir         = folders[len(folders)-1] == dest.ContainerName
 		)
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -875,7 +877,7 @@ func checkCollections(
 				continue
 			}
 
-			if !compareItem(t, expectedColData, service, category, item, dest, restorePermissions) {
+			if !compareItem(t, expectedColData, service, category, item, restorePermissions, rootDir) {
 				gotItems--
 			}
 		}
