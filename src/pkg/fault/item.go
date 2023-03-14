@@ -173,7 +173,7 @@ var _ print.Printable = &Skipped{}
 // fault interface.  Skipped items are not errors, and Item{} errors are
 // not the basis for a Skip.
 type Skipped struct {
-	item Item
+	Item Item `json:"item"`
 }
 
 // String complies with the stringer interface.
@@ -182,7 +182,7 @@ func (s *Skipped) String() string {
 		return "<nil>"
 	}
 
-	return "skipped " + s.item.Error() + ": " + s.item.Cause
+	return "skipped " + s.Item.Error() + ": " + s.Item.Cause
 }
 
 // HasCause compares the underlying cause against the parameter.
@@ -191,7 +191,7 @@ func (s *Skipped) HasCause(c skipCause) bool {
 		return false
 	}
 
-	return s.item.Cause == string(c)
+	return s.Item.Cause == string(c)
 }
 
 func (s Skipped) MinimumPrintable() any {
@@ -208,7 +208,7 @@ func (s Skipped) Headers() []string {
 func (s Skipped) Values() []string {
 	var cn string
 
-	acn, ok := s.item.Additional[AddtlContainerName]
+	acn, ok := s.Item.Additional[AddtlContainerName]
 	if ok {
 		str, ok := acn.(string)
 		if ok {
@@ -216,7 +216,7 @@ func (s Skipped) Values() []string {
 		}
 	}
 
-	return []string{"Skip", s.item.Type.Printable(), s.item.Name, cn, s.item.Cause}
+	return []string{"Skip", s.Item.Type.Printable(), s.Item.Name, cn, s.Item.Cause}
 }
 
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
@@ -237,7 +237,7 @@ func OwnerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped 
 // itemSkip produces a Item of the provided type for tracking skipped items.
 func itemSkip(t itemType, cause skipCause, id, name string, addtl map[string]any) *Skipped {
 	return &Skipped{
-		item: Item{
+		Item: Item{
 			ID:         id,
 			Name:       name,
 			Type:       t,
