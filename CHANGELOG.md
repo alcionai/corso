@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Sharepoint library (document files) support: backup, list, details, and restore.
-- Listing a single backup by id will also list the skipped and failed items that occurred during the backup.  This can be filtered out with the `--no-skip` and `--no-error` flags.
+- Listing a single backup by id will also list the skipped and failed items that occurred during the backup.  These can be filtered out with the flags `--failed-items hide` and `--skipped-items hide`.
 
 ### Fixed
 - Fix repo connect not working without a config file
