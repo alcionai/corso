@@ -1,4 +1,4 @@
-// getItem.go is a source file designed to retrieve an m365 object from an
+// get_item.go is a source file designed to retrieve an m365 object from an
 // existing M365 account. Data displayed is representative of the current
 // serialization abstraction versioning used by Microsoft Graph and stored by Corso.
 
@@ -32,10 +32,7 @@ var (
 	user, tenant, m365ID, category string
 )
 
-func AddCommands(parent *cobra.Command, userFlag, tenantFlag string) {
-	user = userFlag
-	tenant = tenantFlag
-
+func AddCommands(parent *cobra.Command) {
 	exCmd := &cobra.Command{
 		Use:   "exchange",
 		Short: "Get a M365ID item JSON",
@@ -44,7 +41,9 @@ func AddCommands(parent *cobra.Command, userFlag, tenantFlag string) {
 
 	fs := exCmd.PersistentFlags()
 	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object to be created")
-	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events or files)") // files not supported
+	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events)")
+	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
+	fs.StringVar(&tenant, "tenant", "", "m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
 
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("user"))
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("m365ID"))

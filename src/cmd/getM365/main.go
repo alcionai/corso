@@ -24,11 +24,7 @@ func main() {
 	ctx = SetRootCmd(ctx, rootCmd)
 	defer logger.Flush(ctx)
 
-	rootCmd.PersistentFlags().StringVar(&user, "user", "", "m365 user id of M365 user")
-	rootCmd.PersistentFlags().StringVar(&tenant, "tenant", "",
-		"m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
-
-	exchange.AddCommands(rootCmd, user, tenant)
+	exchange.AddCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
