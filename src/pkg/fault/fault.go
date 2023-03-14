@@ -7,9 +7,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/alcionai/corso/src/cli/print"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+
+	"github.com/alcionai/corso/src/cli/print"
 )
 
 type Bus struct {
