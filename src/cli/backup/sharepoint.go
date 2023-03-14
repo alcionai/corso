@@ -62,6 +62,7 @@ corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --web-url https://example.com
 
 # Find all site files that were created before a certain date.
+
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --web-url https://example.com --file-created-before 2015-01-01T00:00:00
 `
@@ -76,7 +77,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, sharePointCreateCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointCreateCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -95,17 +96,19 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&sharepointData,
 			utils.DataFN, nil,
 			"Select one or more types of data to backup: "+dataLibraries+" or "+dataPages+".")
+		cobra.CheckErr(fs.MarkHidden(utils.DataFN))
+
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, sharePointListCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointListCmd())
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -122,7 +125,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&utils.Library,
 			utils.LibraryFN, "",
-			"Select backup details within a library.  Defaults includes all libraries.")
+			"Select backup details within a library. Defaults includes all libraries.")
 
 		fs.StringSliceVar(
 			&utils.FolderPaths,
@@ -148,11 +151,13 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&pageFolders,
 			utils.PageFolderFN, nil,
 			"Select backup data by folder name; accepts '"+utils.Wildcard+"' to select all folders.")
+		cobra.CheckErr(fs.MarkHidden(utils.PageFolderFN))
 
 		fs.StringSliceVar(
 			&page,
 			utils.PagesFN, nil,
 			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.")
+		cobra.CheckErr(fs.MarkHidden(utils.PagesFN))
 
 		// sharepoint info flags
 
@@ -176,7 +181,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			"Select backup details modified before this datetime.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
