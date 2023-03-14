@@ -20,8 +20,6 @@ var (
 	listPaths   []string
 	pageFolders []string
 	pages       []string
-	site        []string
-	weburl      []string
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -41,16 +39,19 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --site) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		fs.StringVar(&backupID,
+		fs.StringVar(
+			&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to restore. (required)")
 		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
 
-		fs.StringSliceVar(&site,
+		fs.StringSliceVar(
+			&utils.Site,
 			utils.SiteFN, nil,
 			"Restore data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		fs.StringSliceVar(&weburl,
+		fs.StringSliceVar(
+			&utils.WebURL,
 			utils.WebURLFN, nil,
 			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
@@ -59,7 +60,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&utils.Library,
 			utils.LibraryFN, "",
-			"Restore files within a library.  Defaults includes all libraries.")
+			"Restore files within a library.  Default includes all libraries.")
 
 		fs.StringSliceVar(
 			&utils.FolderPaths,
@@ -84,21 +85,33 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&pageFolders,
 			utils.PageFolderFN, nil,
-			"Restore Site pages by page folder name",
-		)
+			"Restore Site pages by page folder name")
 
 		fs.StringSliceVar(
 			&pages,
 			utils.PagesFN, nil,
-			"Restore site pages by file name(s)",
-		)
+			"Restore site pages by file name(s)")
 
 		// sharepoint info flags
 
-		// fs.StringVar(
-		// 	&fileCreatedAfter,
-		// 	utils.FileCreatedAfterFN, "",
-		// 	"Restore files created after this datetime")
+		fs.StringVar(
+			&utils.FileCreatedAfter,
+			utils.FileCreatedAfterFN, "",
+			"Restore files created after this datetime.")
+
+		fs.StringVar(
+			&utils.FileCreatedBefore,
+			utils.FileCreatedBeforeFN, "",
+			"Restore files created before this datetime.")
+
+		fs.StringVar(
+			&utils.FileModifiedAfter,
+			utils.FileModifiedAfterFN, "",
+			"Restore files modified after this datetime.")
+		fs.StringVar(
+			&utils.FileModifiedBefore,
+			utils.FileModifiedBeforeFN, "",
+			"Restore files modified before this datetime.")
 
 		// others
 		options.AddOperationFlags(c)
@@ -115,13 +128,13 @@ const (
 	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore <site>'s file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets" from a specific backup
+# Restore a Site's file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets" from a specific backup
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --site <siteID> --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
+      --web-url https://example.com --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
-# Restore all files from <site> that were created before 2020 when captured in a specific backup
+# Restore all files from a Site that were created before 2020 when captured in a specific backup
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
-      --site <siteID> --folder "Display Templates/Style Sheets" --file-created-before 2020-01-01T00:00:00`
+      --web-url https://example.com --folder "Display Templates/Style Sheets" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore sharepoint [<flag>...]`
@@ -151,8 +164,8 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		ListPaths:          listPaths,
 		PageFolders:        pageFolders,
 		Pages:              pages,
-		Sites:              site,
-		WebURLs:            weburl,
+		Sites:              utils.Site,
+		WebURLs:            utils.WebURL,
 		FileCreatedAfter:   utils.FileCreatedAfter,
 		FileCreatedBefore:  utils.FileCreatedBefore,
 		FileModifiedAfter:  utils.FileModifiedAfter,

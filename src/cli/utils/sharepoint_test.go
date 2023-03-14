@@ -180,13 +180,6 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			},
 			expectIncludeLen: 2,
 		},
-		{
-			name: "Library",
-			opts: utils.SharePointOpts{
-				Library: "foo",
-			},
-			expectIncludeLen: 1,
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

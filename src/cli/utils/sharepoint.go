@@ -12,12 +12,11 @@ const (
 	ListFN       = "list"
 	PageFolderFN = "page-folders"
 	PagesFN      = "pages"
-	WebURLFN     = "web-url"
 )
 
 type SharePointOpts struct {
-	FileNames          []string
-	FolderPaths        []string
+	FileNames          []string // for libraries, to duplicate onedrive interface
+	FolderPaths        []string // for libraries, to duplicate onedrive interface
 	Library            string
 	ListItems          []string
 	ListPaths          []string
