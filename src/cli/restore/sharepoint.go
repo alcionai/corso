@@ -31,7 +31,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, sharePointRestoreCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointRestoreCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandUseSuffix
 

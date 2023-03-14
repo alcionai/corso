@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Sharepoint library (document files) support: backup, list, details, and restore.  
+
 ### Fixed
 - Fix repo connect not working without a config file
 

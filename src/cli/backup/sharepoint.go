@@ -77,7 +77,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, sharePointCreateCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointCreateCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -96,17 +96,18 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&sharepointData,
 			utils.DataFN, nil,
 			"Select one or more types of data to backup: "+dataLibraries+" or "+dataPages+".")
+		cobra.CheckErr(fs.MarkHidden(utils.DataFN))
 		options.AddOperationFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, sharePointListCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointListCmd())
 
 		fs.StringVar(&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -177,7 +178,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			"Select backup details modified before this datetime.")
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
