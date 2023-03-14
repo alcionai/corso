@@ -123,19 +123,21 @@ func writeBackup(
 	errs *fault.Bus,
 ) *backup.Backup {
 	var (
-		serv         = sel.PathService()
-		detailsStore = streamstore.NewDetails(kw, tID, serv)
-		errorsStore  = streamstore.NewFaultErrors(kw, tID, serv)
+		serv   = sel.PathService()
+		sstore = streamstore.NewStreamer(kw, tID, serv)
 	)
 
-	detailsID, err := detailsStore.Write(ctx, deets, errs)
-	require.NoError(t, err, "writing details to streamstore")
+	err := sstore.Collect(ctx, streamstore.DetailsCollector(deets))
+	require.NoError(t, err, "collecting details in streamstore")
 
-	errorsID, err := errorsStore.Write(ctx, errs.Errors(), errs)
-	require.NoError(t, err, "writing errors to streamstore")
+	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(errs.Errors()))
+	require.NoError(t, err, "collecting errors in streamstore")
+
+	ssid, err := sstore.Write(ctx, errs)
+	require.NoError(t, err, "writing to streamstore")
 
 	b := backup.New(
-		snapID, detailsID, errorsID,
+		snapID, ssid,
 		operations.Completed.String(),
 		model.StableID(backupID),
 		sel,
@@ -143,7 +145,8 @@ func writeBackup(
 		stats.StartAndEndTime{},
 		errs)
 
-	require.NoError(t, sw.Put(ctx, model.BackupSchema, b))
+	err = sw.Put(ctx, model.BackupSchema, b)
+	require.NoError(t, err)
 
 	return b
 }

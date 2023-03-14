@@ -373,15 +373,26 @@ func getBackupDetails(
 		return nil, nil, err
 	}
 
-	detailsID := b.DetailsID
-	if len(detailsID) == 0 {
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
+		ssid = b.DetailsID
+	}
+
+	if len(ssid) == 0 {
 		return nil, b, clues.New("no details in backup").WithClues(ctx)
 	}
 
-	nd := streamstore.NewDetails(kw, tenantID, b.Selector.PathService())
+	var (
+		sstore = streamstore.NewStreamer(kw, tenantID, b.Selector.PathService())
+		deets  details.Details
+	)
 
-	var deets details.Details
-	if err := nd.Read(ctx, detailsID, details.UnmarshalTo(&deets), errs); err != nil {
+	err = sstore.Read(
+		ctx,
+		ssid,
+		streamstore.DetailsReader(details.UnmarshalTo(&deets)),
+		errs)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -432,15 +443,22 @@ func getBackupErrors(
 		return nil, nil, err
 	}
 
-	errorsID := b.ErrorsID
-	if len(errorsID) == 0 {
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
 		return nil, b, clues.New("no errors in backup").WithClues(ctx)
 	}
 
-	nfe := streamstore.NewFaultErrors(kw, tenantID, b.Selector.PathService())
+	var (
+		sstore = streamstore.NewStreamer(kw, tenantID, b.Selector.PathService())
+		fe     fault.Errors
+	)
 
-	var fe fault.Errors
-	if err := nfe.Read(ctx, errorsID, fault.UnmarshalErrorsTo(&fe), errs); err != nil {
+	err = sstore.Read(
+		ctx,
+		ssid,
+		streamstore.FaultErrorsReader(fault.UnmarshalErrorsTo(&fe)),
+		errs)
+	if err != nil {
 		return nil, nil, err
 	}
 

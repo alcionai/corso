@@ -28,7 +28,7 @@ func getBackupAndDetailsFromID(
 
 	var (
 		deets     details.Details
-		umt       = details.UnmarshalTo(&deets)
+		umt       = streamstore.DetailsReader(details.UnmarshalTo(&deets))
 		detailsID = bup.DetailsID
 	)
 
