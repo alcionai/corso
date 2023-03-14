@@ -49,17 +49,13 @@ func (suite *StreamFaultItemsIntegrationSuite) TestFaultItems() {
 		assert.AnError,
 		"id",
 		"name",
-		"containerID",
-		"containerName",
-	))
+		nil))
 
 	fe.AddSkip(fault.FileSkip(
 		fault.SkipMalware,
 		"id2",
 		"name2",
-		"containerID2",
-		"containerName2",
-	))
+		nil))
 
 	var (
 		errs = fe.Errors()
