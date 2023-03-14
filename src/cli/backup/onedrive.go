@@ -55,11 +55,6 @@ corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --user alice@example.com --file-created-before 2015-01-01T00:00:00`
 )
 
-var (
-	folderPaths []string
-	fileNames   []string
-)
-
 // called by backup.go to map subcommands to provider-specific handling.
 func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 	var (
@@ -103,14 +98,14 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// onedrive hierarchy flags
 
 		fs.StringSliceVar(
-			&folderPaths,
+			&utils.FolderPaths,
 			utils.FolderFN, nil,
 			"Select backup details by OneDrive folder; defaults to root.")
 
 		fs.StringSliceVar(
-			&fileNames,
+			&utils.FileNames,
 			utils.FileFN, nil,
-			"Select backup details by file name or ID.")
+			"Select backup details by file name.")
 
 		// onedrive info flags
 
@@ -263,8 +258,8 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.OneDriveOpts{
 		Users:              user,
-		Names:              fileNames,
-		Paths:              folderPaths,
+		FileNames:          utils.FileNames,
+		FolderPaths:        utils.FolderPaths,
 		FileCreatedAfter:   utils.FileCreatedAfter,
 		FileCreatedBefore:  utils.FileCreatedBefore,
 		FileModifiedAfter:  utils.FileModifiedAfter,

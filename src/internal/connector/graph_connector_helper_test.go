@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -40,27 +41,6 @@ func mustToDataLayerPath(
 	require.NoError(t, err)
 
 	return res
-}
-
-func emptyOrEqual[T any](expected *T, got *T) bool {
-	if expected == nil || got == nil {
-		// Creates either the zero value or gets the value pointed to.
-		return reflect.DeepEqual(reflect.ValueOf(expected).Elem(), reflect.ValueOf(got).Elem())
-	}
-
-	return reflect.DeepEqual(*expected, *got)
-}
-
-func testEmptyOrEqual[T any](t *testing.T, expected *T, got *T, msg string) {
-	t.Helper()
-
-	if expected == nil || got == nil {
-		// Creates either the zero value or gets the value pointed to.
-		assert.Equal(t, reflect.ValueOf(expected).Elem(), reflect.ValueOf(got).Elem())
-		return
-	}
-
-	assert.Equal(t, *expected, *got, msg)
 }
 
 func testElementsMatch[T any](
@@ -191,19 +171,19 @@ func attachmentEqual(
 		return false
 	}
 
-	if !emptyOrEqual(expected.GetContentType(), got.GetContentType()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetContentType()), ptr.Val(got.GetContentType())) {
 		return false
 	}
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	if !emptyOrEqual(expected.GetIsInline(), got.GetIsInline()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetIsInline()), ptr.Val(got.GetIsInline())) {
 		return false
 	}
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
-	if !emptyOrEqual(expected.GetName(), got.GetName()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetName()), ptr.Val(got.GetName())) {
 		return false
 	}
 
@@ -219,9 +199,9 @@ func recipientEqual(
 	got models.Recipientable,
 ) bool {
 	// Don't compare names as M365 will override the name if the address is known.
-	return emptyOrEqual(
-		expected.GetEmailAddress().GetAddress(),
-		got.GetEmailAddress().GetAddress(),
+	return reflect.DeepEqual(
+		ptr.Val(expected.GetEmailAddress().GetAddress()),
+		ptr.Val(got.GetEmailAddress().GetAddress()),
 	)
 }
 
@@ -234,7 +214,11 @@ func checkMessage(
 
 	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetBody().GetContentType()),
+		ptr.Val(got.GetBody().GetContentType()),
+		"Body.ContentType")
 
 	// Skip Body.Content as there may be display formatting that changes.
 
@@ -257,44 +241,52 @@ func checkMessage(
 	checkFlags(t, expected.GetFlag(), got.GetFlag())
 
 	checkRecipentables(t, expected.GetFrom(), got.GetFrom())
-	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+	assert.Equal(t, ptr.Val(expected.GetHasAttachments()), ptr.Val(got.GetHasAttachments()), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	testEmptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
+	assert.Equal(t, ptr.Val(expected.GetImportance()), ptr.Val(got.GetImportance()), "Importance")
 
-	testEmptyOrEqual(t, expected.GetInferenceClassification(), got.GetInferenceClassification(), "InferenceClassification")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetInferenceClassification()),
+		ptr.Val(got.GetInferenceClassification()),
+		"InferenceClassification")
 
 	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
 
-	testEmptyOrEqual(t, expected.GetInternetMessageId(), got.GetInternetMessageId(), "InternetMessageId")
+	assert.Equal(t, ptr.Val(expected.GetInternetMessageId()), ptr.Val(got.GetInternetMessageId()), "InternetMessageId")
 
-	testEmptyOrEqual(
+	assert.Equal(
 		t,
-		expected.GetIsDeliveryReceiptRequested(),
-		got.GetIsDeliveryReceiptRequested(),
+		ptr.Val(expected.GetIsDeliveryReceiptRequested()),
+		ptr.Val(got.GetIsDeliveryReceiptRequested()),
 		"IsDeliverReceiptRequested",
 	)
 
-	testEmptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+	assert.Equal(t, ptr.Val(expected.GetIsDraft()), ptr.Val(got.GetIsDraft()), "IsDraft")
 
-	testEmptyOrEqual(t, expected.GetIsRead(), got.GetIsRead(), "IsRead")
+	assert.Equal(t, ptr.Val(expected.GetIsRead()), ptr.Val(got.GetIsRead()), "IsRead")
 
-	testEmptyOrEqual(t, expected.GetIsReadReceiptRequested(), got.GetIsReadReceiptRequested(), "IsReadReceiptRequested")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetIsReadReceiptRequested()),
+		ptr.Val(got.GetIsReadReceiptRequested()),
+		"IsReadReceiptRequested")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	testEmptyOrEqual(t, expected.GetReceivedDateTime(), got.GetReceivedDateTime(), "ReceivedDateTime")
+	assert.Equal(t, ptr.Val(expected.GetReceivedDateTime()), ptr.Val(got.GetReceivedDateTime()), "ReceivedDateTime")
 
 	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	checkRecipentables(t, expected.GetSender(), got.GetSender())
 
-	testEmptyOrEqual(t, expected.GetSentDateTime(), got.GetSentDateTime(), "SentDateTime")
+	assert.Equal(t, ptr.Val(expected.GetSentDateTime()), ptr.Val(got.GetSentDateTime()), "SentDateTime")
 
-	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
+	assert.Equal(t, ptr.Val(expected.GetSubject()), ptr.Val(got.GetSubject()), "Subject")
 
 	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), recipientEqual)
 
@@ -338,40 +330,56 @@ func checkEmailAddressables(
 
 func checkContact(
 	t *testing.T,
+	colPath path.Path,
 	expected models.Contactable,
 	got models.Contactable,
 ) {
-	testEmptyOrEqual(t, expected.GetAssistantName(), got.GetAssistantName(), "AssistantName")
+	assert.Equal(t, ptr.Val(expected.GetAssistantName()), ptr.Val(got.GetAssistantName()), "AssistantName")
 
-	testEmptyOrEqual(t, expected.GetBirthday(), got.GetBirthday(), "Birthday")
+	assert.Equal(t, ptr.Val(expected.GetBirthday()), ptr.Val(got.GetBirthday()), "Birthday")
 	// Not present in msgraph-beta-sdk/models
 	// assert.Equal(t, expected.GetBusinessAddress(), got.GetBusinessAddress())
 	// Not present in msgraph-beta-sdk/models
-	// testEmptyOrEqual(t, expected.GetBusinessHomePage(), got.GetBusinessHomePage(), "BusinessHomePage")
+	// assert.Equal(t, ptr.Val(expected.GetBusinessHomePage()), ptr.Val(got.GetBusinessHomePage()), "BusinessHomePage")
 	// Not present in msgraph-beta-sdk/models
 	// assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
-	assert.Equal(t, expected.GetCategories(), got.GetCategories())
+	// TODO(ashmrtn): Remove this when we properly set and handle categories in
+	// addition to folders for contacts.
+	folders := colPath.Folder(false)
+	gotCategories := []string{}
+
+	for _, cat := range got.GetCategories() {
+		// Don't add a category for the current folder since we didn't create the
+		// item with it and it throws off our comparisons.
+		if cat == folders {
+			continue
+		}
+
+		gotCategories = append(gotCategories, cat)
+	}
+
+	assert.ElementsMatch(t, expected.GetCategories(), gotCategories, "Categories")
 
 	// Skip ChangeKey as it's tied to this specific instance of the item.
 
 	assert.Equal(t, expected.GetChildren(), got.GetChildren())
 
-	testEmptyOrEqual(t, expected.GetCompanyName(), got.GetCompanyName(), "CompanyName")
+	assert.Equal(t, ptr.Val(expected.GetCompanyName()), ptr.Val(got.GetCompanyName()), "CompanyName")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	testEmptyOrEqual(t, expected.GetDepartment(), got.GetDepartment(), "Department")
+	assert.Equal(t, ptr.Val(expected.GetDepartment()), ptr.Val(got.GetDepartment()), "Department")
 
-	testEmptyOrEqual(t, expected.GetDisplayName(), got.GetDisplayName(), "DisplayName")
+	assert.Equal(t, ptr.Val(expected.GetDisplayName()), ptr.Val(got.GetDisplayName()), "DisplayName")
 
 	assert.Equal(t, expected.GetEmailAddresses(), got.GetEmailAddresses())
 
-	testEmptyOrEqual(t, expected.GetFileAs(), got.GetFileAs(), "FileAs")
+	assert.Equal(t, ptr.Val(expected.GetFileAs()), ptr.Val(got.GetFileAs()), "FileAs")
 
-	testEmptyOrEqual(t, expected.GetGeneration(), got.GetGeneration(), "Generation")
+	assert.Equal(t, ptr.Val(expected.GetGeneration()), ptr.Val(got.GetGeneration()), "Generation")
 
-	testEmptyOrEqual(t, expected.GetGivenName(), got.GetGivenName(), "GivenName")
+	assert.Equal(t, ptr.Val(expected.GetGivenName()), ptr.Val(got.GetGivenName()), "GivenName")
 
 	// Not present in msgraph-beta-sdk/models
 	// assert.Equal(t, expected.GetHomeAddress(), got.GetHomeAddress())
@@ -382,44 +390,44 @@ func checkContact(
 
 	assert.Equal(t, expected.GetImAddresses(), got.GetImAddresses())
 
-	testEmptyOrEqual(t, expected.GetInitials(), got.GetInitials(), "Initials")
+	assert.Equal(t, ptr.Val(expected.GetInitials()), ptr.Val(got.GetInitials()), "Initials")
 
-	testEmptyOrEqual(t, expected.GetJobTitle(), got.GetJobTitle(), "JobTitle")
+	assert.Equal(t, ptr.Val(expected.GetJobTitle()), ptr.Val(got.GetJobTitle()), "JobTitle")
 
 	// Skip CreatedDateTime as it's tied to this specific instance of the item.
 
-	testEmptyOrEqual(t, expected.GetManager(), got.GetManager(), "Manager")
+	assert.Equal(t, ptr.Val(expected.GetManager()), ptr.Val(got.GetManager()), "Manager")
 
-	testEmptyOrEqual(t, expected.GetMiddleName(), got.GetMiddleName(), "MiddleName")
+	assert.Equal(t, ptr.Val(expected.GetMiddleName()), ptr.Val(got.GetMiddleName()), "MiddleName")
 
 	// Not present in msgraph-beta-sdk/models
-	// testEmptyOrEqual(t, expected.GetMobilePhone(), got.GetMobilePhone(), "MobilePhone")
+	// assert.Equal(t, ptr.Val(expected.GetMobilePhone()), ptr.Val(got.GetMobilePhone()), "MobilePhone")
 
-	testEmptyOrEqual(t, expected.GetNickName(), got.GetNickName(), "NickName")
+	assert.Equal(t, ptr.Val(expected.GetNickName()), ptr.Val(got.GetNickName()), "NickName")
 
-	testEmptyOrEqual(t, expected.GetOfficeLocation(), got.GetOfficeLocation(), "OfficeLocation")
+	assert.Equal(t, ptr.Val(expected.GetOfficeLocation()), ptr.Val(got.GetOfficeLocation()), "OfficeLocation")
 	// Not present in msgraph-beta-sdk/models
 	// assert.Equal(t, expected.GetOtherAddress(), got.GetOtherAddress())
 
 	// Skip ParentFolderId as it's tied to this specific instance of the item.
 
-	testEmptyOrEqual(t, expected.GetPersonalNotes(), got.GetPersonalNotes(), "PersonalNotes")
+	assert.Equal(t, ptr.Val(expected.GetPersonalNotes()), ptr.Val(got.GetPersonalNotes()), "PersonalNotes")
 
 	assert.Equal(t, expected.GetPhoto(), got.GetPhoto())
 
-	testEmptyOrEqual(t, expected.GetProfession(), got.GetProfession(), "Profession")
+	assert.Equal(t, ptr.Val(expected.GetProfession()), ptr.Val(got.GetProfession()), "Profession")
 
-	testEmptyOrEqual(t, expected.GetSpouseName(), got.GetSpouseName(), "SpouseName")
+	assert.Equal(t, ptr.Val(expected.GetSpouseName()), ptr.Val(got.GetSpouseName()), "SpouseName")
 
-	testEmptyOrEqual(t, expected.GetSurname(), got.GetSurname(), "Surname")
+	assert.Equal(t, ptr.Val(expected.GetSurname()), ptr.Val(got.GetSurname()), "Surname")
 
-	testEmptyOrEqual(t, expected.GetTitle(), got.GetTitle(), "Title")
+	assert.Equal(t, ptr.Val(expected.GetTitle()), ptr.Val(got.GetTitle()), "Title")
 
-	testEmptyOrEqual(t, expected.GetYomiCompanyName(), got.GetYomiCompanyName(), "YomiCompanyName")
+	assert.Equal(t, ptr.Val(expected.GetYomiCompanyName()), ptr.Val(got.GetYomiCompanyName()), "YomiCompanyName")
 
-	testEmptyOrEqual(t, expected.GetYomiGivenName(), got.GetYomiGivenName(), "YomiGivenName")
+	assert.Equal(t, ptr.Val(expected.GetYomiGivenName()), ptr.Val(got.GetYomiGivenName()), "YomiGivenName")
 
-	testEmptyOrEqual(t, expected.GetYomiSurname(), got.GetYomiSurname(), "YomiSurname")
+	assert.Equal(t, ptr.Val(expected.GetYomiSurname()), ptr.Val(got.GetYomiSurname()), "YomiSurname")
 }
 
 func locationEqual(expected, got models.Locationable) bool {
@@ -431,15 +439,15 @@ func locationEqual(expected, got models.Locationable) bool {
 		return false
 	}
 
-	if !emptyOrEqual(expected.GetDisplayName(), got.GetDisplayName()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetDisplayName()), ptr.Val(got.GetDisplayName())) {
 		return false
 	}
 
-	if !emptyOrEqual(expected.GetLocationEmailAddress(), got.GetLocationEmailAddress()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetLocationEmailAddress()), ptr.Val(got.GetLocationEmailAddress())) {
 		return false
 	}
 
-	if !emptyOrEqual(expected.GetLocationType(), got.GetLocationType()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetLocationType()), ptr.Val(got.GetLocationType())) {
 		return false
 	}
 
@@ -447,7 +455,7 @@ func locationEqual(expected, got models.Locationable) bool {
 
 	// Skip checking UniqueIdType as it's marked as for internal use only.
 
-	if !emptyOrEqual(expected.GetLocationUri(), got.GetLocationUri()) {
+	if !reflect.DeepEqual(ptr.Val(expected.GetLocationUri()), ptr.Val(got.GetLocationUri())) {
 		return false
 	}
 
@@ -459,13 +467,21 @@ func checkEvent(
 	expected models.Eventable,
 	got models.Eventable,
 ) {
-	testEmptyOrEqual(t, expected.GetAllowNewTimeProposals(), got.GetAllowNewTimeProposals(), "AllowNewTimeProposals")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetAllowNewTimeProposals()),
+		ptr.Val(got.GetAllowNewTimeProposals()),
+		"AllowNewTimeProposals")
 
 	assert.Equal(t, expected.GetAttachments(), got.GetAttachments(), "Attachments")
 
 	assert.Equal(t, expected.GetAttendees(), got.GetAttendees(), "Attendees")
 
-	testEmptyOrEqual(t, expected.GetBody().GetContentType(), got.GetBody().GetContentType(), "Body.ContentType")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetBody().GetContentType()),
+		ptr.Val(got.GetBody().GetContentType()),
+		"Body.ContentType")
 
 	// Skip checking Body.Content for now as M365 may have different formatting.
 
@@ -481,33 +497,33 @@ func checkEvent(
 
 	assert.Equal(t, expected.GetEnd(), got.GetEnd(), "End")
 
-	testEmptyOrEqual(t, expected.GetHasAttachments(), got.GetHasAttachments(), "HasAttachments")
+	assert.Equal(t, ptr.Val(expected.GetHasAttachments()), ptr.Val(got.GetHasAttachments()), "HasAttachments")
 
-	testEmptyOrEqual(t, expected.GetHideAttendees(), got.GetHideAttendees(), "HideAttendees")
+	assert.Equal(t, ptr.Val(expected.GetHideAttendees()), ptr.Val(got.GetHideAttendees()), "HideAttendees")
 
 	// TODO(ashmrtn): Uncomment when we figure out how to connect to the original
 	// event.
-	// testEmptyOrEqual(t, expected.GetICalUId(), got.GetICalUId(), "ICalUId")
+	// assert.Equal(t, ptr.Val(expected.GetICalUId()), ptr.Val(got.GetICalUId()), "ICalUId")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	testEmptyOrEqual(t, expected.GetImportance(), got.GetImportance(), "Importance")
+	assert.Equal(t, ptr.Val(expected.GetImportance()), ptr.Val(got.GetImportance()), "Importance")
 
 	assert.Equal(t, expected.GetInstances(), got.GetInstances(), "Instances")
 
-	testEmptyOrEqual(t, expected.GetIsAllDay(), got.GetIsAllDay(), "IsAllDay")
+	assert.Equal(t, ptr.Val(expected.GetIsAllDay()), ptr.Val(got.GetIsAllDay()), "IsAllDay")
 
-	testEmptyOrEqual(t, expected.GetIsCancelled(), got.GetIsCancelled(), "IsCancelled")
+	assert.Equal(t, ptr.Val(expected.GetIsCancelled()), ptr.Val(got.GetIsCancelled()), "IsCancelled")
 
-	testEmptyOrEqual(t, expected.GetIsDraft(), got.GetIsDraft(), "IsDraft")
+	assert.Equal(t, ptr.Val(expected.GetIsDraft()), ptr.Val(got.GetIsDraft()), "IsDraft")
 
-	testEmptyOrEqual(t, expected.GetIsOnlineMeeting(), got.GetIsOnlineMeeting(), "IsOnlineMeeting")
+	assert.Equal(t, ptr.Val(expected.GetIsOnlineMeeting()), ptr.Val(got.GetIsOnlineMeeting()), "IsOnlineMeeting")
 
 	// TODO(ashmrtn): Uncomment when we figure out how to delegate event creation
 	// to another user.
-	// testEmptyOrEqual(t, expected.GetIsOrganizer(), got.GetIsOrganizer(), "IsOrganizer")
+	// assert.Equal(t, ptr.Val(expected.GetIsOrganizer()), ptr.Val(got.GetIsOrganizer()), "IsOrganizer")
 
-	testEmptyOrEqual(t, expected.GetIsReminderOn(), got.GetIsReminderOn(), "IsReminderOn")
+	assert.Equal(t, ptr.Val(expected.GetIsReminderOn()), ptr.Val(got.GetIsReminderOn()), "IsReminderOn")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
@@ -525,50 +541,74 @@ func checkEvent(
 
 	assert.Equal(t, expected.GetOnlineMeeting(), got.GetOnlineMeeting(), "OnlineMeeting")
 
-	testEmptyOrEqual(t, expected.GetOnlineMeetingProvider(), got.GetOnlineMeetingProvider(), "OnlineMeetingProvider")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetOnlineMeetingProvider()),
+		ptr.Val(got.GetOnlineMeetingProvider()),
+		"OnlineMeetingProvider")
 
-	testEmptyOrEqual(t, expected.GetOnlineMeetingUrl(), got.GetOnlineMeetingUrl(), "OnlineMeetingUrl")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetOnlineMeetingUrl()),
+		ptr.Val(got.GetOnlineMeetingUrl()),
+		"OnlineMeetingUrl")
 
 	// TODO(ashmrtn): Uncomment when we figure out how to delegate event creation
 	// to another user.
 	// assert.Equal(t, expected.GetOrganizer(), got.GetOrganizer(), "Organizer")
 
-	testEmptyOrEqual(t, expected.GetOriginalEndTimeZone(), got.GetOriginalEndTimeZone(), "OriginalEndTimeZone")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetOriginalEndTimeZone()),
+		ptr.Val(got.GetOriginalEndTimeZone()),
+		"OriginalEndTimeZone")
 
-	testEmptyOrEqual(t, expected.GetOriginalStart(), got.GetOriginalStart(), "OriginalStart")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetOriginalStart()),
+		ptr.Val(got.GetOriginalStart()),
+		"OriginalStart")
 
-	testEmptyOrEqual(t, expected.GetOriginalStartTimeZone(), got.GetOriginalStartTimeZone(), "OriginalStartTimeZone")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetOriginalStartTimeZone()),
+		ptr.Val(got.GetOriginalStartTimeZone()),
+		"OriginalStartTimeZone")
 
 	assert.Equal(t, expected.GetRecurrence(), got.GetRecurrence(), "Recurrence")
 
-	testEmptyOrEqual(
+	assert.Equal(
 		t,
-		expected.GetReminderMinutesBeforeStart(),
-		got.GetReminderMinutesBeforeStart(),
+		ptr.Val(expected.GetReminderMinutesBeforeStart()),
+		ptr.Val(got.GetReminderMinutesBeforeStart()),
 		"ReminderMinutesBeforeStart",
 	)
 
-	testEmptyOrEqual(t, expected.GetResponseRequested(), got.GetResponseRequested(), "ResponseRequested")
+	assert.Equal(
+		t,
+		ptr.Val(expected.GetResponseRequested()),
+		ptr.Val(got.GetResponseRequested()),
+		"ResponseRequested")
 
 	// TODO(ashmrtn): Uncomment when we figure out how to connect to the original
 	// event.
 	// assert.Equal(t, expected.GetResponseStatus(), got.GetResponseStatus(), "ResponseStatus")
 
-	testEmptyOrEqual(t, expected.GetSensitivity(), got.GetSensitivity(), "Sensitivity")
+	assert.Equal(t, ptr.Val(expected.GetSensitivity()), ptr.Val(got.GetSensitivity()), "Sensitivity")
 
-	testEmptyOrEqual(t, expected.GetSeriesMasterId(), got.GetSeriesMasterId(), "SeriesMasterId")
+	assert.Equal(t, ptr.Val(expected.GetSeriesMasterId()), ptr.Val(got.GetSeriesMasterId()), "SeriesMasterId")
 
-	testEmptyOrEqual(t, expected.GetShowAs(), got.GetShowAs(), "ShowAs")
+	assert.Equal(t, ptr.Val(expected.GetShowAs()), ptr.Val(got.GetShowAs()), "ShowAs")
 
 	assert.Equal(t, expected.GetStart(), got.GetStart(), "Start")
 
-	testEmptyOrEqual(t, expected.GetSubject(), got.GetSubject(), "Subject")
+	assert.Equal(t, ptr.Val(expected.GetSubject()), ptr.Val(got.GetSubject()), "Subject")
 
-	testEmptyOrEqual(t, expected.GetTransactionId(), got.GetTransactionId(), "TransactionId")
+	assert.Equal(t, ptr.Val(expected.GetTransactionId()), ptr.Val(got.GetTransactionId()), "TransactionId")
 
 	// Skip LastModifiedDateTime as it's tied to this specific instance of the item.
 
-	testEmptyOrEqual(t, expected.GetType(), got.GetType(), "Type")
+	assert.Equal(t, ptr.Val(expected.GetType()), ptr.Val(got.GetType()), "Type")
 }
 
 func compareExchangeEmail(
@@ -599,6 +639,7 @@ func compareExchangeEmail(
 
 func compareExchangeContact(
 	t *testing.T,
+	colPath path.Path,
 	expected map[string][]byte,
 	item data.Stream,
 ) {
@@ -618,9 +659,11 @@ func compareExchangeContact(
 	}
 
 	expectedContact, err := support.CreateContactFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source contact")
+	if !assert.NoError(t, err, "deserializing source contact") {
+		return
+	}
 
-	checkContact(t, expectedContact, itemContact)
+	checkContact(t, colPath, expectedContact, itemContact)
 }
 
 func compareExchangeEvent(
@@ -773,6 +816,7 @@ func compareOneDriveItem(
 // to exclude OneDrive permissions for the root right now.
 func compareItem(
 	t *testing.T,
+	colPath path.Path,
 	expected map[string][]byte,
 	service path.ServiceType,
 	category path.CategoryType,
@@ -790,7 +834,7 @@ func compareItem(
 		case path.EmailCategory:
 			compareExchangeEmail(t, expected, item)
 		case path.ContactsCategory:
-			compareExchangeContact(t, expected, item)
+			compareExchangeContact(t, colPath, expected, item)
 		case path.EventsCategory:
 			compareExchangeEvent(t, expected, item)
 		default:
@@ -828,17 +872,15 @@ func checkHasCollections(
 	assert.ElementsMatch(t, expectedNames, gotNames, "returned collections")
 }
 
-//revive:disable:context-as-argument
 func checkCollections(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	expectedItems int,
 	expected map[string]map[string][]byte,
 	got []data.BackupCollection,
 	dest control.RestoreDestination,
 	restorePermissions bool,
 ) int {
-	//revive:enable:context-as-argument
 	collectionsWithItems := []data.BackupCollection{}
 
 	skipped := 0
@@ -877,7 +919,15 @@ func checkCollections(
 				continue
 			}
 
-			if !compareItem(t, expectedColData, service, category, item, restorePermissions, rootDir) {
+			if !compareItem(
+				t,
+				returned.FullPath(),
+				expectedColData,
+				service,
+				category,
+				item,
+				restorePermissions,
+				rootDir) {
 				gotItems--
 			}
 		}

@@ -261,9 +261,9 @@ type folderMatcher struct {
 }
 
 func (fm folderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.SharePointLibrary)
+	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
 }
 
 func (fm folderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.SharePointLibrary, dir)
+	return fm.scope.Matches(selectors.SharePointLibraryFolder, dir)
 }
