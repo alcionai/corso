@@ -407,6 +407,21 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 			expectedUniqueRefs: len(itemNames),
 		},
 		{
+			name:     "SharePoint List",
+			service:  path.SharePointService,
+			category: path.ListsCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointList,
+						ItemName: name,
+					},
+				}
+			},
+			// Should all end up as the starting shortref.
+			expectedUniqueRefs: 1,
+		},
+		{
 			name:     "Exchange no change",
 			service:  path.ExchangeService,
 			category: path.EmailCategory,
