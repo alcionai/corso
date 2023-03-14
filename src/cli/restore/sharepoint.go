@@ -60,7 +60,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&utils.Library,
 			utils.LibraryFN, "",
-			"Restore files within a library.  Default includes all libraries.")
+			"Restore files within a library. Default includes all libraries.")
 
 		fs.StringSliceVar(
 			&utils.FolderPaths,
