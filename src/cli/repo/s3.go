@@ -109,7 +109,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, false, s3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, false, S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -177,7 +177,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, s3Overrides())
+	cfg, err := config.GetConfigRepoDetails(ctx, true, S3Overrides())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -208,7 +208,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func s3Overrides() map[string]string {
+func S3Overrides() map[string]string {
 	return map[string]string{
 		config.AccountProviderTypeKey: account.ProviderM365.String(),
 		config.StorageProviderTypeKey: storage.ProviderS3.String(),
