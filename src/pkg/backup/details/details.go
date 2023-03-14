@@ -303,7 +303,7 @@ func (d *Details) add(
 		}
 
 		if info.OneDrive == nil && info.SharePoint == nil {
-			return clues.New("Item is not SharePoint or OneDrive type")
+			return clues.New("item is not SharePoint or OneDrive type")
 		}
 
 		filename := ""

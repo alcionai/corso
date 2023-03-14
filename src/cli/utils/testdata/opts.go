@@ -391,7 +391,7 @@ var (
 			Name:     "SingleItem",
 			Expected: []details.DetailsEntry{testdata.OneDriveItems[0]},
 			Opts: utils.OneDriveOpts{
-				Names: []string{
+				FileNames: []string{
 					testdata.OneDriveItems[0].OneDrive.ItemName,
 				},
 			},
@@ -403,7 +403,7 @@ var (
 				testdata.OneDriveItems[1],
 			},
 			Opts: utils.OneDriveOpts{
-				Names: []string{
+				FileNames: []string{
 					testdata.OneDriveItems[0].OneDrive.ItemName,
 					testdata.OneDriveItems[1].OneDrive.ItemName,
 				},
@@ -501,7 +501,7 @@ var (
 			Name:     "SingleItem",
 			Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[0]},
 			Opts: utils.SharePointOpts{
-				LibraryItems: []string{
+				FileNames: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 				},
 			},
@@ -513,7 +513,7 @@ var (
 				testdata.SharePointLibraryItems[1],
 			},
 			Opts: utils.SharePointOpts{
-				LibraryItems: []string{
+				FileNames: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 					testdata.SharePointLibraryItems[1].SharePoint.ItemName,
 				},
