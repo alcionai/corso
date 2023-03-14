@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/pkg/errors"
 )
 
 var _ Streamer = &streamFaultErrors{}
