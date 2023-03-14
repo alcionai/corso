@@ -78,7 +78,7 @@ allowfullscreen></iframe>
 
 ## Create local Microsoft 365 backups using MinIO
 
-For quick, low latency backup testing, you can use MinIO to run a Corso M365
+For quick, low-latency backup testing, you can use MinIO to run a Corso M365
 backup through a local S3 bucket. While you don’t want to rely on this as your
 primary backup location, it's a cost effective option for testing that gives
 you full control. See my [video](https://youtu.be/ABIiVufyOkM) on local M365
