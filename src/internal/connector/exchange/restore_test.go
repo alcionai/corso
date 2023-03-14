@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -73,7 +74,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 	aFolder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
 	require.NoError(t, err)
 
-	folderID := *aFolder.GetId()
+	folderID := ptr.Val(aFolder.GetId())
 
 	defer func() {
 		// Remove the folder containing contact prior to exiting test
@@ -107,7 +108,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, name)
 	require.NoError(t, err)
 
-	calendarID := *calendar.GetId()
+	calendarID := ptr.Val(calendar.GetId())
 
 	defer func() {
 		// Removes calendar containing events created during the test
@@ -163,7 +164,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -175,7 +176,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -187,7 +188,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -199,7 +200,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -214,7 +215,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -229,7 +230,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -244,7 +245,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{ // Restore will upload the Message without uploading the attachment
@@ -256,7 +257,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -268,7 +269,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -280,7 +281,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -292,7 +293,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		// TODO: #884 - reinstate when able to specify root folder by name
@@ -305,7 +306,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				folder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
 				require.NoError(t, err)
 
-				return *folder.GetId()
+				return ptr.Val(folder.GetId())
 			},
 		},
 		{
@@ -317,7 +318,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
 				require.NoError(t, err)
 
-				return *calendar.GetId()
+				return ptr.Val(calendar.GetId())
 			},
 		},
 		{
@@ -329,7 +330,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
 				require.NoError(t, err)
 
-				return *calendar.GetId()
+				return ptr.Val(calendar.GetId())
 			},
 		},
 	}

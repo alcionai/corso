@@ -34,13 +34,13 @@ func TestKopiaDataCollectionUnitSuite(t *testing.T) {
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	t := suite.T()
 
-	b := path.Builder{}.Append("some", "path", "for", "data")
-	pth, err := b.ToDataLayerExchangePathForCategory(
+	pth, err := path.Build(
 		"a-tenant",
 		"a-user",
+		path.ExchangeService,
 		path.EmailCategory,
 		false,
-	)
+		"some", "path", "for", "data")
 	require.NoError(t, err)
 
 	c := kopiaDataCollection{
@@ -210,13 +210,13 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 		})
 	}
 
-	b := path.Builder{}.Append(folder1, folder2)
-	pth, err := b.ToDataLayerExchangePathForCategory(
+	pth, err := path.Build(
 		tenant,
 		user,
+		path.ExchangeService,
 		category,
 		false,
-	)
+		folder1, folder2)
 	require.NoError(suite.T(), err)
 
 	table := []struct {

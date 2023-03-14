@@ -56,7 +56,7 @@ func sharePointItemReader(
 	}
 
 	dii := details.ItemInfo{
-		SharePoint: sharePointItemInfo(item, *item.GetSize()),
+		SharePoint: sharePointItemInfo(item, ptr.Val(item.GetSize())),
 	}
 
 	return dii, resp.Body, nil
@@ -70,7 +70,7 @@ func oneDriveItemMetaReader(
 	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
 	meta := Metadata{
-		FileName: *item.GetName(),
+		FileName: ptr.Val(item.GetName()),
 	}
 
 	if item.GetShared() == nil {
@@ -139,7 +139,7 @@ func oneDriveItemReader(
 	}
 
 	dii := details.ItemInfo{
-		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
+		OneDrive: oneDriveItemInfo(item, ptr.Val(item.GetSize())),
 	}
 
 	return dii, rc, nil
@@ -194,7 +194,7 @@ func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemabl
 // doesn't have its size value updated as a side effect of creation,
 // and kiota drops any SetSize update.
 func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDriveInfo {
-	var email, parent string
+	var email, driveName, driveID string
 
 	if di.GetCreatedBy() != nil && di.GetCreatedBy().GetUser() != nil {
 		// User is sometimes not available when created via some
@@ -205,19 +205,20 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 		}
 	}
 
-	if di.GetParentReference() != nil && di.GetParentReference().GetName() != nil {
-		// EndPoint is not always populated from external apps
-		parent = *di.GetParentReference().GetName()
+	if di.GetParentReference() != nil {
+		driveID = ptr.Val(di.GetParentReference().GetDriveId())
+		driveName = strings.TrimSpace(ptr.Val(di.GetParentReference().GetName()))
 	}
 
 	return &details.OneDriveInfo{
-		ItemType:  details.OneDriveItem,
-		ItemName:  ptr.Val(di.GetName()),
 		Created:   ptr.Val(di.GetCreatedDateTime()),
+		DriveID:   driveID,
+		DriveName: driveName,
+		ItemName:  ptr.Val(di.GetName()),
+		ItemType:  details.OneDriveItem,
 		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
-		DriveName: parent,
-		Size:      itemSize,
 		Owner:     email,
+		Size:      itemSize,
 	}
 }
 
@@ -270,18 +271,18 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 
 		entityID := ""
 		if gv2.GetUser() != nil {
-			entityID = *gv2.GetUser().GetId()
+			entityID = ptr.Val(gv2.GetUser().GetId())
 		} else if gv2.GetGroup() != nil {
-			entityID = *gv2.GetGroup().GetId()
+			entityID = ptr.Val(gv2.GetGroup().GetId())
 		} else {
 			// TODO Add appliction permissions when adding permissions for SharePoint
 			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 			logm := logger.Ctx(ctx)
 			if gv2.GetApplication() != nil {
-				logm.With("application_id", *gv2.GetApplication().GetId())
+				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
 			}
 			if gv2.GetDevice() != nil {
-				logm.With("application_id", *gv2.GetDevice().GetId())
+				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
 			logm.Warn("untracked permission")
 		}
@@ -311,10 +312,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 // and kiota drops any SetSize update.
 // TODO: Update drive name during Issue #2071
 func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.SharePointInfo {
-	var (
-		id, parentID, displayName, url string
-		reference                      = di.GetParentReference()
-	)
+	var id, driveName, driveID, weburl string
 
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
@@ -323,28 +321,28 @@ func sharePointItemInfo(di models.DriveItemable, itemSize int64) *details.ShareP
 	gsi := di.GetSharepointIds()
 	if gsi != nil {
 		id = ptr.Val(gsi.GetSiteId())
-		url = ptr.Val(gsi.GetSiteUrl())
+		weburl = ptr.Val(gsi.GetSiteUrl())
 
-		if len(url) == 0 {
-			url = constructWebURL(di.GetAdditionalData())
+		if len(weburl) == 0 {
+			weburl = constructWebURL(di.GetAdditionalData())
 		}
 	}
 
-	if reference != nil {
-		parentID = ptr.Val(reference.GetDriveId())
-		displayName = strings.TrimSpace(ptr.Val(reference.GetName()))
+	if di.GetParentReference() != nil {
+		driveID = ptr.Val(di.GetParentReference().GetDriveId())
+		driveName = strings.TrimSpace(ptr.Val(di.GetParentReference().GetName()))
 	}
 
 	return &details.SharePointInfo{
-		ItemType:    details.OneDriveItem,
-		ItemName:    ptr.Val(di.GetName()),
-		Created:     ptr.Val(di.GetCreatedDateTime()),
-		Modified:    ptr.Val(di.GetLastModifiedDateTime()),
-		DriveName:   parentID,
-		DisplayName: displayName,
-		Size:        itemSize,
-		Owner:       id,
-		WebURL:      url,
+		ItemType:  details.OneDriveItem,
+		ItemName:  ptr.Val(di.GetName()),
+		Created:   ptr.Val(di.GetCreatedDateTime()),
+		Modified:  ptr.Val(di.GetLastModifiedDateTime()),
+		DriveID:   driveID,
+		DriveName: driveName,
+		Size:      itemSize,
+		Owner:     id,
+		WebURL:    weburl,
 	}
 }
 
@@ -405,33 +403,12 @@ func constructWebURL(adtl map[string]any) string {
 	return url
 }
 
-// func fetchParentReference(
-// 	ctx context.Context,
-// 	service graph.Servicer,
-// 	orig models.ItemReferenceable,
-// ) (models.ItemReferenceable, error) {
-// 	if orig == nil || service == nil || ptr.Val(orig.GetName()) != "" {
-// 		return orig, nil
-// 	}
+func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {
+	if orig == nil {
+		return nil
+	}
 
-// 	options := &msdrives.DriveItemRequestBuilderGetRequestConfiguration{
-// 		QueryParameters: &msdrives.DriveItemRequestBuilderGetQueryParameters{
-// 			Select: []string{"name"},
-// 		},
-// 	}
+	orig.SetName(&driveName)
 
-// 	driveID := ptr.Val(orig.GetDriveId())
-
-// 	if driveID == "" {
-// 		return orig, nil
-// 	}
-
-// 	drive, err := service.Client().DrivesById(driveID).Get(ctx, options)
-// 	if err != nil {
-// 		return nil, graph.Stack(ctx, err)
-// 	}
-
-// 	orig.SetName(drive.GetName())
-
-// 	return orig, nil
-// }
+	return orig
+}

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Sharepoint library (document files) support: backup, list, details, and restore.  
+
+### Fixed
+- Fix repo connect not working without a config file
+
+## [v0.5.0] (beta) - 2023-03-13
+
+### Added
 - Show owner information when doing backup list in json format
 - Permissions for groups can now be backed up and restored
 - Onedrive files that are flagged as malware get skipped during backup.  Skipped files are listed in the backup results as part of the status, including a reference to their categorization, eg: "Completed (0 errors, 1 skipped: 1 malware)".
@@ -21,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OneDrive files ending in `.meta` or `.dirmeta` are omitted from details and restores.
 - Backups generated prior to this version will show `0 errors` when listed, even if error count was originally non-zero.
 
-## [v0.4.0] (beta) - 2023-2-20
+## [v0.4.0] (beta) - 2023-02-20
 
 ### Fixed
 - Support for item.Attachment:Mail restore
@@ -41,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The debugging env variable CORSO_URL_LOGGING causes exchange get requests to fail.
 - Onedrive files that are flagged as Malware consistently fail during backup.
 
-## [v0.3.0] (alpha) - 2023-2-07
+## [v0.3.0] (alpha) - 2023-02-07
 
 ### Added
 
@@ -65,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   separate file only permission is restored.
 - Link shares are not restored
 
-## [v0.2.0] (alpha) - 2023-1-29
+## [v0.2.0] (alpha) - 2023-01-29
 
 ### Fixed
 
@@ -193,8 +201,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.4.0...HEAD
-[v0.4.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.3.0
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.5.0...HEAD
+[v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
+[v0.4.0]: https://github.com/alcionai/corso/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/alcionai/corso/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/alcionai/corso/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/alcionai/corso/compare/v0.0.4...v0.1.0

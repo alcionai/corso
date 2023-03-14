@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
@@ -83,12 +84,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			itemName: "MockListing",
 			category: List,
 			getDir: func(t *testing.T) path.Path {
-				dir, err := path.Builder{}.Append(dirRoot).
-					ToDataLayerSharePointPath(
-						tenant,
-						user,
-						path.ListsCategory,
-						false)
+				dir, err := path.Build(
+					tenant,
+					user,
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					dirRoot)
 				require.NoError(t, err)
 
 				return dir
@@ -118,12 +120,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			itemName: "MockPages",
 			category: Pages,
 			getDir: func(t *testing.T) path.Path {
-				dir, err := path.Builder{}.Append(dirRoot).
-					ToDataLayerSharePointPath(
-						tenant,
-						user,
-						path.PagesCategory,
-						false)
+				dir, err := path.Build(
+					tenant,
+					user,
+					path.SharePointService,
+					path.PagesCategory,
+					false,
+					dirRoot)
 				require.NoError(t, err)
 
 				return dir
@@ -209,20 +212,20 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 		assert.NoError(t, err, "getting site lists")
 
 		for _, temp := range resp.GetValue() {
-			if *temp.GetDisplayName() == deets.SharePoint.ItemName {
+			if ptr.Val(temp.GetDisplayName()) == deets.SharePoint.ItemName {
 				isFound = true
-				deleteID = *temp.GetId()
+				deleteID = ptr.Val(temp.GetId())
 
 				break
 			}
 		}
 		// Get Next Link
-		link := resp.GetOdataNextLink()
-		if link == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = sites.NewItemListsRequestBuilder(*link, service.Adapter())
+		builder = sites.NewItemListsRequestBuilder(link, service.Adapter())
 	}
 
 	if isFound {
@@ -252,7 +255,7 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)
 	require.NoError(t, err)
 
-	driveID := *siteDrive.GetId()
+	driveID := ptr.Val(siteDrive.GetId())
 	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
 	assert.NoError(t, err)
 }

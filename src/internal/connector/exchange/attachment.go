@@ -69,9 +69,7 @@ func uploadAttachment(
 	if attachmentType == models.ITEM_ATTACHMENTTYPE {
 		a, err := support.ToItemAttachment(attachment)
 		if err != nil {
-			logger.Ctx(ctx).
-				With("err", err).
-				Infow("item attachment restore not supported for this type. skipping upload.", clues.InErr(err).Slice()...)
+			logger.CtxErr(ctx, err).Info("item attachment restore not supported for this type. skipping upload.")
 
 			return nil
 		}
@@ -128,6 +126,9 @@ func getItemAttachmentItemType(query models.Attachmentable) string {
 	}
 
 	item := attachment.GetItem()
+	if item == nil {
+		return empty
+	}
 
 	return ptr.Val(item.GetOdataType())
 }

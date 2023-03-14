@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -128,11 +129,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 
 	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
 	require.NoErrorf(suite.T(), err, "fetching user %s", suite.user)
-	suite.userID = *user.GetId()
+	suite.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
 	require.NoErrorf(suite.T(), err, "fetching user %s", suite.secondaryUser)
-	suite.secondaryUserID = *secondaryUser.GetId()
+	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	tester.LogTimeOfTest(suite.T())
 }
@@ -192,7 +193,8 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 			name+onedrive.DataFileSuffix,
 			fileData))
 
-	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker, version.OneDrive4DirIncludesPermissions:
+	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker,
+		version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		c.items = append(c.items, onedriveItemWithData(
 			c.t,
 			name+onedrive.DataFileSuffix,
@@ -217,7 +219,7 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
-	case 0, version.OneDrive4DirIncludesPermissions:
+	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
@@ -247,6 +249,12 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	}
 
 	name := c.pathElements[len(c.pathElements)-1]
+	metaName := name
+
+	if c.backupVersion >= version.OneDrive5DirMetaNoName {
+		// We switched to just .dirmeta for metadata file names.
+		metaName = ""
+	}
 
 	if name == "root:" {
 		return c
@@ -255,7 +263,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	metadata := onedriveMetadata(
 		c.t,
 		name,
-		name+onedrive.DirMetaFileSuffix,
+		metaName+onedrive.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)
 

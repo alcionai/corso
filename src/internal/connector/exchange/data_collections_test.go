@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -553,12 +554,12 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	)
 
 	fn := func(gcf graph.CacheFolder) error {
-		if *gcf.GetDisplayName() == DefaultCalendar {
-			calID = *gcf.GetId()
+		if ptr.Val(gcf.GetDisplayName()) == DefaultCalendar {
+			calID = ptr.Val(gcf.GetId())
 		}
 
-		if *gcf.GetDisplayName() == "Birthdays" {
-			bdayID = *gcf.GetId()
+		if ptr.Val(gcf.GetDisplayName()) == "Birthdays" {
+			bdayID = ptr.Val(gcf.GetId())
 		}
 
 		return nil

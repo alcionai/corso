@@ -346,7 +346,7 @@ func (suite *SelectorSuite) TestPathCategories_includes() {
 			isErr: assert.NoError,
 			getSelector: func(t *testing.T) *Selector {
 				sel := NewSharePointBackup(users)
-				sel.Include(sel.Libraries([]string{"A directory"}, SuffixMatch()))
+				sel.Include(sel.LibraryFolders([]string{"A directory"}, SuffixMatch()))
 
 				return &sel.Selector
 			},

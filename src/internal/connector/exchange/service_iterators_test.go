@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -82,7 +83,7 @@ func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container, b bool
 		m.added = map[string]string{}
 	}
 
-	m.added[*gc.GetDisplayName()] = *gc.GetId()
+	m.added[ptr.Val(gc.GetDisplayName())] = ptr.Val(gc.GetId())
 
 	return nil
 }
@@ -534,9 +535,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 	)
 
 	prevPath := func(t *testing.T, at ...string) path.Path {
-		p, err := path.Builder{}.
-			Append(at...).
-			ToDataLayerExchangePathForCategory(tenantID, userID, cat, false)
+		p, err := path.Build(tenantID, userID, path.ExchangeService, cat, false, at...)
 		require.NoError(t, err)
 
 		return p

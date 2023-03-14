@@ -72,8 +72,11 @@ type Collection struct {
 	folderPath path.Path
 	// M365 IDs of file items within this collection
 	driveItems map[string]models.DriveItemable
-	// M365 ID of the drive this collection was created from
-	driveID        string
+
+	// Primary M365 ID of the drive this collection was created from
+	driveID string
+	// Display Name of the associated drive
+	driveName      string
 	source         driveSource
 	service        graph.Servicer
 	statusUpdater  support.StatusUpdater
@@ -153,20 +156,20 @@ func NewCollection(
 // populated. The return values denotes if the item was previously
 // present or is new one.
 func (oc *Collection) Add(item models.DriveItemable) bool {
-	_, found := oc.driveItems[*item.GetId()]
-	oc.driveItems[*item.GetId()] = item
+	_, found := oc.driveItems[ptr.Val(item.GetId())]
+	oc.driveItems[ptr.Val(item.GetId())] = item
 
 	return !found // !found = new
 }
 
 // Remove removes a item from the collection
 func (oc *Collection) Remove(item models.DriveItemable) bool {
-	_, found := oc.driveItems[*item.GetId()]
+	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	if !found {
 		return false
 	}
 
-	delete(oc.driveItems, *item.GetId())
+	delete(oc.driveItems, ptr.Val(item.GetId()))
 
 	return true
 }
@@ -336,7 +339,9 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				itemInfo     details.ItemInfo
 				itemMeta     io.ReadCloser
 				itemMetaSize int
+				metaFileName string
 				metaSuffix   string
+				err          error
 			)
 
 			ctx = clues.Add(ctx,
@@ -345,26 +350,19 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				"backup_item_size", itemSize,
 			)
 
-			// TODO: Removing the logic below because it introduces an extra Graph API call for
-			// every item being backed up. This can lead to throttling errors.
-			//
-			// pr, err := fetchParentReference(ctx, oc.service, item.GetParentReference())
-			// if err != nil {
-			// 	el.AddRecoverable(clues.Wrap(err, "getting parent reference").Label(fault.LabelForceNoBackupCreation))
-			// 	return
-			// }
-
-			// item.SetParentReference(pr)
+			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
 			isFile := item.GetFile() != nil
 
 			if isFile {
 				atomic.AddInt64(&itemsFound, 1)
 
+				metaFileName = itemName
 				metaSuffix = MetaFileSuffix
 			} else {
 				atomic.AddInt64(&dirsFound, 1)
 
+				// metaFileName not set for directories so we get just ".dirmeta"
 				metaSuffix = DirMetaFileSuffix
 			}
 
@@ -469,7 +467,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				})
 
 				oc.data <- &metadataItem{
-					id:      itemName + metaSuffix,
+					id:      metaFileName + metaSuffix,
 					data:    metaReader,
 					modTime: time.Now(),
 				}

@@ -37,7 +37,7 @@ func DataCollections(
 	su statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
@@ -141,12 +141,13 @@ func collectLists(
 			break
 		}
 
-		dir, err := path.Builder{}.Append(tuple.name).
-			ToDataLayerSharePointPath(
-				tenantID,
-				siteID,
-				path.ListsCategory,
-				false)
+		dir, err := path.Build(
+			tenantID,
+			siteID,
+			path.SharePointService,
+			path.ListsCategory,
+			false,
+			tuple.name)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "creating list collection path").WithClues(ctx))
 		}
@@ -171,7 +172,7 @@ func collectLibraries(
 	updater statusUpdater,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]struct{}, error) {
+) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
 
 	var (
@@ -234,12 +235,13 @@ func collectPages(
 			break
 		}
 
-		dir, err := path.Builder{}.Append(tuple.Name).
-			ToDataLayerSharePointPath(
-				creds.AzureTenantID,
-				siteID,
-				path.PagesCategory,
-				false)
+		dir, err := path.Build(
+			creds.AzureTenantID,
+			siteID,
+			path.SharePointService,
+			path.PagesCategory,
+			false,
+			tuple.Name)
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "creating page collection path").WithClues(ctx))
 		}
@@ -259,9 +261,9 @@ type folderMatcher struct {
 }
 
 func (fm folderMatcher) IsAny() bool {
-	return fm.scope.IsAny(selectors.SharePointLibrary)
+	return fm.scope.IsAny(selectors.SharePointLibraryFolder)
 }
 
 func (fm folderMatcher) Matches(dir string) bool {
-	return fm.scope.Matches(selectors.SharePointLibrary, dir)
+	return fm.scope.Matches(selectors.SharePointLibraryFolder, dir)
 }

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
@@ -34,9 +33,8 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	)
 
 	users, err := Users(ctx, acct, fault.New(true))
-	require.NoError(t, err)
-	require.NotNil(t, users)
-	require.Greater(t, len(users), 0)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, users)
 
 	for _, u := range users {
 		suite.Run("user_"+u.ID, func() {
@@ -45,6 +43,28 @@ func (suite *M365IntegrationSuite) TestUsers() {
 			assert.NotEmpty(t, u.ID)
 			assert.NotEmpty(t, u.PrincipalName)
 			assert.NotEmpty(t, u.Name)
+		})
+	}
+}
+
+func (suite *M365IntegrationSuite) TestSites() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(suite.T())
+	)
+
+	sites, err := Sites(ctx, acct, fault.New(true))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, sites)
+
+	for _, s := range sites {
+		suite.Run("site", func() {
+			t := suite.T()
+			assert.NotEmpty(t, s.WebURL)
+			assert.NotEmpty(t, s.ID)
 		})
 	}
 }

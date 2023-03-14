@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -52,7 +53,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
 
 	// Pick the first drive
-	suite.userDriveID = *odDrives[0].GetId()
+	suite.userDriveID = ptr.Val(odDrives[0].GetId())
 }
 
 // TestItemReader is an integration test that makes a few assumptions
@@ -67,15 +68,15 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	var driveItem models.DriveItemable
 	// This item collector tries to find "a" drive item that is a file to test the reader function
 	itemCollector := func(
-		ctx context.Context,
-		driveID, driveName string,
+		_ context.Context,
+		_, _ string,
 		items []models.DriveItemable,
-		oldPaths map[string]string,
-		newPaths map[string]string,
-		excluded map[string]struct{},
-		itemCollection map[string]string,
-		doNotMergeItems bool,
-		errs *fault.Bus,
+		_ map[string]string,
+		_ map[string]string,
+		_ map[string]struct{},
+		_ map[string]map[string]string,
+		_ bool,
+		_ *fault.Bus,
 	) error {
 		for _, item := range items {
 			if item.GetFile() != nil {
@@ -91,8 +92,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		defaultItemPager(
 			suite.service,
 			suite.userDriveID,
-			"",
-		),
+			""),
 		suite.userDriveID,
 		"General",
 		itemCollector,
@@ -153,32 +153,42 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			require.NoError(t, err)
 
 			// Test Requirement 2: "Test Folder" should exist
-			folder, err := getFolder(ctx, srv, test.driveID, *root.GetId(), "Test Folder")
+			folder, err := getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
 			require.NoError(t, err)
 
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create folder %s", newFolderName)
 
-			newFolder, err := createItem(ctx, srv, test.driveID, *folder.GetId(), newItem(newFolderName, true))
+			newFolder, err := CreateItem(
+				ctx,
+				srv,
+				test.driveID,
+				ptr.Val(folder.GetId()),
+				newItem(newFolderName, true))
 			require.NoError(t, err)
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create item %s", newItemName)
 
-			newItem, err := createItem(ctx, srv, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
+			newItem, err := CreateItem(
+				ctx,
+				srv,
+				test.driveID,
+				ptr.Val(newFolder.GetId()),
+				newItem(newItemName, false))
 			require.NoError(t, err)
 			require.NotNil(t, newItem.GetId())
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
-			_, err = getFolder(ctx, srv, test.driveID, *newFolder.GetId(), newItemName)
+			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(newFolder.GetId()), newItemName)
 			require.ErrorIs(t, err, errFolderNotFound)
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
-			w, err := driveItemWriter(ctx, srv, test.driveID, *newItem.GetId(), writeSize)
+			w, err := driveItemWriter(ctx, srv, test.driveID, ptr.Val(newItem.GetId()), writeSize)
 			require.NoError(t, err)
 
 			// Using a 32 KB buffer for the copy allows us to validate the
@@ -225,11 +235,11 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			require.NoError(t, err)
 
 			// Lookup a folder that doesn't exist
-			_, err = getFolder(ctx, srv, test.driveID, *root.GetId(), "FolderDoesNotExist")
+			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "FolderDoesNotExist")
 			require.ErrorIs(t, err, errFolderNotFound)
 
 			// Lookup a folder that does exist
-			_, err = getFolder(ctx, srv, test.driveID, *root.GetId(), "")
+			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "")
 			require.NoError(t, err)
 		})
 	}

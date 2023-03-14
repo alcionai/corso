@@ -280,6 +280,14 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 	return l.(*zap.SugaredLogger).With(clues.In(ctx).Slice()...)
 }
 
+// CtxErr retrieves the logger embedded in the context
+// and packs all of the structured data in the error inside it.
+func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
+	return Ctx(ctx).
+		With("error", err).
+		With(clues.InErr(err).Slice()...)
+}
+
 // transforms the llevel flag value to a logLevel enum
 func levelOf(lvl string) logLevel {
 	switch lvl {

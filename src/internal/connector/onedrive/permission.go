@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -68,11 +69,13 @@ func getCollectionMetadata(
 
 	// Root folder doesn't have a metadata file associated with it.
 	folders := collectionPath.Folders()
+	metaName := folders[len(folders)-1] + DirMetaFileSuffix
 
-	meta, err := fetchAndReadMetadata(
-		ctx,
-		dc,
-		folders[len(folders)-1]+DirMetaFileSuffix)
+	if backupVersion >= version.OneDrive5DirMetaNoName {
+		metaName = DirMetaFileSuffix
+	}
+
+	meta, err := fetchAndReadMetadata(ctx, dc, metaName)
 	if err != nil {
 		return Metadata{}, clues.Wrap(err, "collection metadata")
 	}
@@ -217,7 +220,7 @@ func restorePermissions(
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
-		permissionIDMappings[p.ID] = *np.GetValue()[0].GetId()
+		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil

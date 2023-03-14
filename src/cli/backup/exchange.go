@@ -3,7 +3,6 @@ package backup
 import (
 	"context"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -12,8 +11,6 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -275,50 +272,18 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 user(s)"))
 	}
 
-	var (
-		merrs *multierror.Error
-		bIDs  []model.StableID
-	)
+	selectorSet := []selectors.Selector{}
 
 	for _, discSel := range sel.SplitByResourceOwner(users) {
-		bo, err := r.NewBackup(ctx, discSel.Selector)
-		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to initialize Exchange backup for user %s",
-				discSel.DiscreteOwner,
-			))
-
-			continue
-		}
-
-		err = bo.Run(ctx)
-		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to run Exchange backup for user %s",
-				discSel.DiscreteOwner,
-			))
-
-			continue
-		}
-
-		bIDs = append(bIDs, bo.Results.BackupID)
+		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	bups, ferrs := r.Backups(ctx, bIDs)
-	// TODO: print/log recoverable errors
-	if ferrs.Failure() != nil {
-		return Only(ctx, errors.Wrap(ferrs.Failure(), "Unable to retrieve backup results from storage"))
-	}
-
-	backup.PrintAll(ctx, bups)
-
-	if e := merrs.ErrorOrNil(); e != nil {
-		return Only(ctx, e)
-	}
-
-	return nil
+	return runBackups(
+		ctx,
+		r,
+		"Exchange", "user",
+		selectorSet,
+	)
 }
 
 func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {

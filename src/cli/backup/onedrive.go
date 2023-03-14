@@ -3,7 +3,6 @@ package backup
 import (
 	"context"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -12,8 +11,6 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -56,11 +53,6 @@ corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
 # Explore Alice's files created before end of 2015 from a specific backup
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --user alice@example.com --file-created-before 2015-01-01T00:00:00`
-)
-
-var (
-	folderPaths []string
-	fileNames   []string
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -106,14 +98,14 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// onedrive hierarchy flags
 
 		fs.StringSliceVar(
-			&folderPaths,
+			&utils.FolderPaths,
 			utils.FolderFN, nil,
 			"Select backup details by OneDrive folder; defaults to root.")
 
 		fs.StringSliceVar(
-			&fileNames,
+			&utils.FileNames,
 			utils.FileFN, nil,
-			"Select backup details by file name or ID.")
+			"Select backup details by file name.")
 
 		// onedrive info flags
 
@@ -194,50 +186,18 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
-	var (
-		merrs *multierror.Error
-		bIDs  []model.StableID
-	)
+	selectorSet := []selectors.Selector{}
 
 	for _, discSel := range sel.SplitByResourceOwner(users) {
-		bo, err := r.NewBackup(ctx, discSel.Selector)
-		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to initialize OneDrive backup for user %s",
-				discSel.DiscreteOwner,
-			))
-
-			continue
-		}
-
-		err = bo.Run(ctx)
-		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to run OneDrive backup for user %s",
-				discSel.DiscreteOwner,
-			))
-
-			continue
-		}
-
-		bIDs = append(bIDs, bo.Results.BackupID)
+		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	bups, ferrs := r.Backups(ctx, bIDs)
-	// TODO: print/log recoverable errors
-	if ferrs.Failure() != nil {
-		return Only(ctx, errors.Wrap(ferrs.Failure(), "Unable to retrieve backup results from storage"))
-	}
-
-	backup.PrintAll(ctx, bups)
-
-	if e := merrs.ErrorOrNil(); e != nil {
-		return Only(ctx, e)
-	}
-
-	return nil
+	return runBackups(
+		ctx,
+		r,
+		"OneDrive", "user",
+		selectorSet,
+	)
 }
 
 func validateOneDriveBackupCreateFlags(users []string) error {
@@ -298,8 +258,8 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.OneDriveOpts{
 		Users:              user,
-		Names:              fileNames,
-		Paths:              folderPaths,
+		FileNames:          utils.FileNames,
+		FolderPaths:        utils.FolderPaths,
 		FileCreatedAfter:   utils.FileCreatedAfter,
 		FileCreatedBefore:  utils.FileCreatedBefore,
 		FileModifiedAfter:  utils.FileModifiedAfter,

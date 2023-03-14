@@ -11,15 +11,15 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type CLISuite struct {
+type CLIUnitSuite struct {
 	tester.Suite
 }
 
-func TestCLISuite(t *testing.T) {
-	suite.Run(t, &CLISuite{Suite: tester.NewUnitSuite(t)})
+func TestCLIUnitSuite(t *testing.T) {
+	suite.Run(t, &CLIUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *CLISuite) TestAddCommands_noPanics() {
+func (suite *CLIUnitSuite) TestAddCommands_noPanics() {
 	t := suite.T()
 
 	test := &cobra.Command{

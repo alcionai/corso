@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -75,7 +76,7 @@ func filterContainersAndFillCollections(
 			return el.Failure()
 		}
 
-		cID := *c.GetId()
+		cID := ptr.Val(c.GetId())
 		delete(tombstones, cID)
 
 		currPath, locPath, ok := includeContainer(qp, c, scope)
@@ -93,7 +94,7 @@ func filterContainersAndFillCollections(
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
-				logger.Ctx(ctx).With("err", err).Errorw("parsing prev path", clues.InErr(err).Slice()...)
+				logger.CtxErr(ctx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
 			}
@@ -175,7 +176,7 @@ func filterContainersAndFillCollections(
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
 			// technically shouldn't ever happen.  But just in case...
-			logger.Ctx(ctx).With("err", err).Errorw("parsing tombstone prev path", clues.InErr(err).Slice()...)
+			logger.CtxErr(ctx, err).Error("parsing tombstone prev path")
 			continue
 		}
 

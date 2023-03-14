@@ -376,6 +376,21 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	}, nil
 }
 
+func Build(
+	tenant, resourceOwner string,
+	service ServiceType,
+	category CategoryType,
+	hasItem bool,
+	elements ...string,
+) (Path, error) {
+	b := Builder{}.Append(elements...)
+
+	return b.ToDataLayerPath(
+		tenant, resourceOwner,
+		service, category,
+		hasItem)
+}
+
 func (pb Builder) ToDataLayerPath(
 	tenant, user string,
 	service ServiceType,
