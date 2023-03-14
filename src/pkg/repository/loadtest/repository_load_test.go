@@ -247,7 +247,7 @@ func runBackupDetailsLoadTest(
 		)
 
 		pprof.Do(ctx, labels, func(ctx context.Context) {
-			ds, b, errs = r.BackupDetails(ctx, backupID)
+			ds, b, errs = r.GetBackupDetails(ctx, backupID)
 		})
 
 		require.NoError(t, errs.Failure(), "retrieving details in backup "+backupID)
