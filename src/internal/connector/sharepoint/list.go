@@ -61,11 +61,12 @@ func preFetchLists(
 			listTuples = append(listTuples, temp)
 		}
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = mssite.NewItemListsRequestBuilder(ptr.Val(resp.GetOdataNextLink()), gs.Adapter())
+		builder = mssite.NewItemListsRequestBuilder(link, gs.Adapter())
 	}
 
 	return listTuples, nil
@@ -215,7 +216,7 @@ func fetchListItems(
 				break
 			}
 
-			newPrefix := prefix.ItemsById(*itm.GetId())
+			newPrefix := prefix.ItemsById(ptr.Val(itm.GetId()))
 
 			fields, err := newPrefix.Fields().Get(ctx, nil)
 			if err != nil {
@@ -228,11 +229,12 @@ func fetchListItems(
 			itms = append(itms, itm)
 		}
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = mssite.NewItemListsItemItemsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsItemItemsRequestBuilder(link, gs.Adapter())
 	}
 
 	return itms, el.Failure()
@@ -260,11 +262,12 @@ func fetchColumns(
 
 			cs = append(cs, resp.GetValue()...)
 
-			if resp.GetOdataNextLink() == nil {
+			link, ok := ptr.ValOK(resp.GetOdataNextLink())
+			if !ok {
 				break
 			}
 
-			builder = mssite.NewItemListsItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewItemListsItemColumnsRequestBuilder(link, gs.Adapter())
 		}
 	} else {
 		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
@@ -277,11 +280,12 @@ func fetchColumns(
 
 			cs = append(cs, resp.GetValue()...)
 
-			if resp.GetOdataNextLink() == nil {
+			link, ok := ptr.ValOK(resp.GetOdataNextLink())
+			if !ok {
 				break
 			}
 
-			builder = mssite.NewItemListsItemContentTypesItemColumnsRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+			builder = mssite.NewItemListsItemContentTypesItemColumnsRequestBuilder(link, gs.Adapter())
 		}
 	}
 
@@ -342,11 +346,12 @@ func fetchContentTypes(
 			cTypes = append(cTypes, cont)
 		}
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = mssite.NewItemListsItemContentTypesRequestBuilder(*resp.GetOdataNextLink(), gs.Adapter())
+		builder = mssite.NewItemListsItemContentTypesRequestBuilder(link, gs.Adapter())
 	}
 
 	return cTypes, el.Failure()
@@ -370,15 +375,14 @@ func fetchColumnLinks(
 
 		links = append(links, resp.GetValue()...)
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = mssite.
-			NewItemListsItemContentTypesItemColumnLinksRequestBuilder(
-				*resp.GetOdataNextLink(),
-				gs.Adapter(),
-			)
+		builder = mssite.NewItemListsItemContentTypesItemColumnLinksRequestBuilder(
+			link,
+			gs.Adapter())
 	}
 
 	return links, nil

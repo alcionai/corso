@@ -156,20 +156,20 @@ func NewCollection(
 // populated. The return values denotes if the item was previously
 // present or is new one.
 func (oc *Collection) Add(item models.DriveItemable) bool {
-	_, found := oc.driveItems[*item.GetId()]
-	oc.driveItems[*item.GetId()] = item
+	_, found := oc.driveItems[ptr.Val(item.GetId())]
+	oc.driveItems[ptr.Val(item.GetId())] = item
 
 	return !found // !found = new
 }
 
 // Remove removes a item from the collection
 func (oc *Collection) Remove(item models.DriveItemable) bool {
-	_, found := oc.driveItems[*item.GetId()]
+	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	if !found {
 		return false
 	}
 
-	delete(oc.driveItems, *item.GetId())
+	delete(oc.driveItems, ptr.Val(item.GetId()))
 
 	return true
 }

@@ -118,7 +118,7 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 
 		for _, entry := range resp.GetValue() {
 			var (
-				pid  = *entry.GetId()
+				pid  = ptr.Val(entry.GetId())
 				temp = NameID{pid, pid}
 			)
 
@@ -130,11 +130,12 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 			pages = append(pages, temp)
 		}
 
-		if resp.GetOdataNextLink() == nil {
+		link, ok := ptr.ValOK(resp.GetOdataNextLink())
+		if !ok {
 			break
 		}
 
-		builder = sites.NewItemPagesRequestBuilder(*resp.GetOdataNextLink(), bs.Client().Adapter())
+		builder = sites.NewItemPagesRequestBuilder(link, bs.Client().Adapter())
 	}
 
 	return pages, nil

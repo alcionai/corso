@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -48,8 +49,8 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 
 	temp := graph.NewCacheFolder(
 		f,
-		path.Builder{}.Append(*f.GetId()), // storage path
-		path.Builder{}.Append(*f.GetDisplayName())) // display location
+		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
+		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 	if err := ecc.addFolder(temp); err != nil {
 		return clues.Wrap(err, "initializing calendar resolver").WithClues(ctx)
 	}
@@ -96,25 +97,25 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 
 	temp := graph.NewCacheFolder(
 		f,
-		path.Builder{}.Append(*f.GetId()), // storage path
-		path.Builder{}.Append(*f.GetDisplayName())) // display location
+		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
+		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 
 	if len(ecc.newAdditions) == 0 {
 		ecc.newAdditions = map[string]string{}
 	}
 
-	ecc.newAdditions[*f.GetDisplayName()] = *f.GetId()
+	ecc.newAdditions[ptr.Val(f.GetDisplayName())] = ptr.Val(f.GetId())
 
 	if err := ecc.addFolder(temp); err != nil {
-		delete(ecc.newAdditions, *f.GetDisplayName())
+		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
 		return clues.Wrap(err, "adding container").WithClues(ctx)
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, err := ecc.IDToPath(ctx, *f.GetId(), true)
+	_, _, err := ecc.IDToPath(ctx, ptr.Val(f.GetId()), true)
 	if err != nil {
-		delete(ecc.newAdditions, *f.GetDisplayName())
+		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
 		return errors.Wrap(err, "setting path to container id")
 	}
 

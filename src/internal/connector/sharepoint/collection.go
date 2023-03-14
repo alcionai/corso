@@ -249,7 +249,7 @@ func (sc *Collection) retrieveLists(
 
 			metrics.Successes++
 			sc.data <- &Item{
-				id:      *lst.GetId(),
+				id:      ptr.Val(lst.GetId()),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
 				info:    sharePointListInfo(lst, size),
 				modTime: t,
@@ -311,7 +311,7 @@ func (sc *Collection) retrievePages(
 			metrics.Bytes += size
 			metrics.Successes++
 			sc.data <- &Item{
-				id:      *pg.GetId(),
+				id:      ptr.Val(pg.GetId()),
 				data:    io.NopCloser(bytes.NewReader(byteArray)),
 				info:    sharePointPageInfo(pg, root, size),
 				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),

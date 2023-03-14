@@ -56,7 +56,7 @@ func sharePointItemReader(
 	}
 
 	dii := details.ItemInfo{
-		SharePoint: sharePointItemInfo(item, *item.GetSize()),
+		SharePoint: sharePointItemInfo(item, ptr.Val(item.GetSize())),
 	}
 
 	return dii, resp.Body, nil
@@ -70,7 +70,7 @@ func oneDriveItemMetaReader(
 	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
 	meta := Metadata{
-		FileName: *item.GetName(),
+		FileName: ptr.Val(item.GetName()),
 	}
 
 	if item.GetShared() == nil {
@@ -139,7 +139,7 @@ func oneDriveItemReader(
 	}
 
 	dii := details.ItemInfo{
-		OneDrive: oneDriveItemInfo(item, *item.GetSize()),
+		OneDrive: oneDriveItemInfo(item, ptr.Val(item.GetSize())),
 	}
 
 	return dii, rc, nil
@@ -271,18 +271,18 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 
 		entityID := ""
 		if gv2.GetUser() != nil {
-			entityID = *gv2.GetUser().GetId()
+			entityID = ptr.Val(gv2.GetUser().GetId())
 		} else if gv2.GetGroup() != nil {
-			entityID = *gv2.GetGroup().GetId()
+			entityID = ptr.Val(gv2.GetGroup().GetId())
 		} else {
 			// TODO Add appliction permissions when adding permissions for SharePoint
 			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 			logm := logger.Ctx(ctx)
 			if gv2.GetApplication() != nil {
-				logm.With("application_id", *gv2.GetApplication().GetId())
+				logm.With("application_id", ptr.Val(gv2.GetApplication().GetId()))
 			}
 			if gv2.GetDevice() != nil {
-				logm.With("application_id", *gv2.GetDevice().GetId())
+				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
 			logm.Warn("untracked permission")
 		}

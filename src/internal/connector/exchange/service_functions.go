@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -106,7 +107,7 @@ func includeContainer(
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
-	if category == path.ContactsCategory && *c.GetDisplayName() == DefaultContactFolder {
+	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == DefaultContactFolder {
 		pb = pb.Append(DefaultContactFolder)
 
 		if loc != nil {

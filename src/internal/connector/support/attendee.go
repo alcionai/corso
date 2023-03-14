@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 type attendee struct {
@@ -30,12 +32,12 @@ func FormatAttendees(event models.Eventable, isHTML bool) string {
 		}
 
 		temp := attendee{
-			name:     *entry.GetEmailAddress().GetName(),
-			email:    *entry.GetEmailAddress().GetAddress(),
+			name:     ptr.Val(entry.GetEmailAddress().GetName()),
+			email:    ptr.Val(entry.GetEmailAddress().GetAddress()),
 			response: entry.GetStatus().GetResponse().String(),
 		}
 
-		switch *entry.GetType() {
+		switch ptr.Val(entry.GetType()) {
 		case models.REQUIRED_ATTENDEETYPE:
 			required = append(required, temp)
 

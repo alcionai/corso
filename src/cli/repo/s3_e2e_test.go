@@ -1,6 +1,7 @@
 package repo_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,16 +31,24 @@ func TestS3E2ESuite(t *testing.T) {
 
 func (suite *S3E2ESuite) TestInitS3Cmd() {
 	table := []struct {
-		name         string
-		bucketPrefix string
+		name          string
+		bucketPrefix  string
+		hasConfigFile bool
 	}{
 		{
-			name:         "NoPrefix",
-			bucketPrefix: "",
+			name:          "NoPrefix",
+			bucketPrefix:  "",
+			hasConfigFile: true,
 		},
 		{
-			name:         "S3Prefix",
-			bucketPrefix: "s3://",
+			name:          "S3Prefix",
+			bucketPrefix:  "s3://",
+			hasConfigFile: true,
+		},
+		{
+			name:          "NoConfigFile",
+			bucketPrefix:  "",
+			hasConfigFile: false,
 		},
 	}
 
@@ -55,6 +64,11 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 			require.NoError(t, err)
 
 			vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
+			if !test.hasConfigFile {
+				// Ideally we could use `/dev/null`, but you need a
+				// toml file plus this works cross platform
+				os.Remove(configFP)
+			}
 
 			ctx = config.SetViper(ctx, vpr)
 
@@ -131,16 +145,24 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 func (suite *S3E2ESuite) TestConnectS3Cmd() {
 	table := []struct {
-		name         string
-		bucketPrefix string
+		name          string
+		bucketPrefix  string
+		hasConfigFile bool
 	}{
 		{
-			name:         "NoPrefix",
-			bucketPrefix: "",
+			name:          "NoPrefix",
+			bucketPrefix:  "",
+			hasConfigFile: true,
 		},
 		{
-			name:         "S3Prefix",
-			bucketPrefix: "s3://",
+			name:          "S3Prefix",
+			bucketPrefix:  "s3://",
+			hasConfigFile: true,
+		},
+		{
+			name:          "NoConfigFile",
+			bucketPrefix:  "",
+			hasConfigFile: false,
 		},
 	}
 
@@ -161,6 +183,11 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 				tester.TestCfgPrefix:          cfg.Prefix,
 			}
 			vpr, configFP := tester.MakeTempTestConfigClone(t, force)
+			if !test.hasConfigFile {
+				// Ideally we could use `/dev/null`, but you need a
+				// toml file plus this works cross platform
+				os.Remove(configFP)
+			}
 
 			ctx = config.SetViper(ctx, vpr)
 

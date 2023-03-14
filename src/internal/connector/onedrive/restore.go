@@ -540,7 +540,7 @@ func restoreData(
 	}
 
 	// Get a drive item writer
-	w, err := driveItemWriter(ctx, service, driveID, *newItem.GetId(), ss.Size())
+	w, err := driveItemWriter(ctx, service, driveID, ptr.Val(newItem.GetId()), ss.Size())
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "creating item writer")
 	}
@@ -565,7 +565,7 @@ func restoreData(
 		dii.OneDrive = oneDriveItemInfo(newItem, written)
 	}
 
-	return *newItem.GetId(), dii, nil
+	return ptr.Val(newItem.GetId()), dii, nil
 }
 
 func fetchAndReadMetadata(

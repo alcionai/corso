@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -45,13 +46,13 @@ func (suite *SupportTestSuite) TestToEventSimplified() {
 	newEvent := ToEventSimplified(event)
 
 	assert.Empty(t, newEvent.GetHideAttendees())
-	assert.Equal(t, *event.GetBody().GetContentType(), *newEvent.GetBody().GetContentType())
+	assert.Equal(t, ptr.Val(event.GetBody().GetContentType()), ptr.Val(newEvent.GetBody().GetContentType()))
 	assert.Equal(t, event.GetBody().GetAdditionalData(), newEvent.GetBody().GetAdditionalData())
-	assert.Contains(t, *event.GetBody().GetContent(), "Required:")
+	assert.Contains(t, ptr.Val(event.GetBody().GetContent()), "Required:")
 
 	for _, member := range attendees {
-		assert.Contains(t, *event.GetBody().GetContent(), *member.GetEmailAddress().GetName())
-		assert.Contains(t, *event.GetBody().GetContent(), *member.GetEmailAddress().GetAddress())
+		assert.Contains(t, ptr.Val(event.GetBody().GetContent()), ptr.Val(member.GetEmailAddress().GetName()))
+		assert.Contains(t, ptr.Val(event.GetBody().GetContent()), ptr.Val(member.GetEmailAddress().GetAddress()))
 	}
 }
 

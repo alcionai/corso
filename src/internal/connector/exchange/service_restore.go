@@ -117,7 +117,7 @@ func RestoreExchangeEvent(
 		attached         []models.Attachmentable
 	)
 
-	if *event.GetHasAttachments() {
+	if ptr.Val(event.GetHasAttachments()) {
 		attached = event.GetAttachments()
 
 		transformedEvent.SetAttachments([]models.Attachmentable{})
@@ -136,7 +136,7 @@ func RestoreExchangeEvent(
 		calendarID: destination,
 		userID:     user,
 		service:    service,
-		itemID:     *response.GetId(),
+		itemID:     ptr.Val(response.GetId()),
 	}
 
 	for _, attach := range attached {
@@ -195,7 +195,7 @@ func RestoreMailMessage(
 
 	if clone.GetSentDateTime() != nil {
 		sv2 := models.NewSingleValueLegacyExtendedProperty()
-		sendPropertyValue := common.FormatLegacyTime(*clone.GetSentDateTime())
+		sendPropertyValue := common.FormatLegacyTime(ptr.Val(clone.GetSentDateTime()))
 		sendPropertyTag := MailSendDateTimeOverrideProperty
 		sv2.SetId(&sendPropertyTag)
 		sv2.SetValue(&sendPropertyValue)
@@ -205,7 +205,7 @@ func RestoreMailMessage(
 
 	if clone.GetReceivedDateTime() != nil {
 		sv3 := models.NewSingleValueLegacyExtendedProperty()
-		recvPropertyValue := common.FormatLegacyTime(*clone.GetReceivedDateTime())
+		recvPropertyValue := common.FormatLegacyTime(ptr.Val(clone.GetReceivedDateTime()))
 		recvPropertyTag := MailReceiveDateTimeOverriveProperty
 		sv3.SetId(&recvPropertyTag)
 		sv3.SetValue(&recvPropertyValue)
@@ -616,7 +616,7 @@ func establishMailRestoreLocation(
 			return "", err
 		}
 
-		folderID = *temp.GetId()
+		folderID = ptr.Val(temp.GetId())
 
 		// Only populate the cache if we actually had to create it. Since we set
 		// newCache to false in this we'll only try to populate it once per function
@@ -665,7 +665,7 @@ func establishContactsRestoreLocation(
 		return "", err
 	}
 
-	folderID := *temp.GetId()
+	folderID := ptr.Val(temp.GetId())
 
 	if isNewCache {
 		if err := cfc.Populate(ctx, errs, folderID, folders[0]); err != nil {
@@ -702,7 +702,7 @@ func establishEventsRestoreLocation(
 		return "", err
 	}
 
-	folderID := *temp.GetId()
+	folderID := ptr.Val(temp.GetId())
 
 	if isNewCache {
 		if err = ecc.Populate(ctx, errs, folderID, folders[0]); err != nil {

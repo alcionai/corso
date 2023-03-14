@@ -130,7 +130,7 @@ func createRestoreFolders(
 		return "", graph.Wrap(ctx, err, "getting site drive root")
 	}
 
-	return onedrive.CreateRestoreFolders(ctx, service, *mainDrive.GetId(), restoreFolders)
+	return onedrive.CreateRestoreFolders(ctx, service, ptr.Val(mainDrive.GetId()), restoreFolders)
 }
 
 // restoreListItem utility function restores a List to the siteID.
@@ -163,8 +163,8 @@ func restoreListItem(
 		return dii, clues.Wrap(err, "creating item").WithClues(ctx)
 	}
 
-	if oldList.GetDisplayName() != nil {
-		listName = *oldList.GetDisplayName()
+	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
+		listName = name
 	}
 
 	var (
@@ -192,7 +192,7 @@ func restoreListItem(
 		for _, lItem := range contents {
 			_, err := service.Client().
 				SitesById(siteID).
-				ListsById(*restoredList.GetId()).
+				ListsById(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {

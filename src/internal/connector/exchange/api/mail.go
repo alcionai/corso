@@ -131,7 +131,7 @@ func (c Mail) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	if *mail.GetHasAttachments() || HasAttachments(mail.GetBody()) {
+	if ptr.Val(mail.GetHasAttachments()) || HasAttachments(mail.GetBody()) {
 		options := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
