@@ -124,7 +124,10 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		fs.StringVar(&backupID,
 			"backup", "",
-			"ID of the backup to retrieve.")
+			"Display a specific backup, including the items that failed or were skipped during processing.")
+
+		addFailedItemsFN(c)
+		addSkippedItemsFN(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
