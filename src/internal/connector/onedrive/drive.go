@@ -303,7 +303,7 @@ func getFolder(
 }
 
 // Create a new item in the specified folder
-func createItem(
+func CreateItem(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID, parentFolderID string,

@@ -158,14 +158,14 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create folder %s", newFolderName)
 
-			newFolder, err := createItem(ctx, srv, test.driveID, *folder.GetId(), newItem(newFolderName, true))
+			newFolder, err := CreateItem(ctx, srv, test.driveID, *folder.GetId(), newItem(newFolderName, true))
 			require.NoError(t, err)
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create item %s", newItemName)
 
-			newItem, err := createItem(ctx, srv, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
+			newItem, err := CreateItem(ctx, srv, test.driveID, *newFolder.GetId(), newItem(newItemName, false))
 			require.NoError(t, err)
 			require.NotNil(t, newItem.GetId())
 

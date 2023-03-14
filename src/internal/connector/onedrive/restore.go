@@ -486,7 +486,7 @@ func CreateRestoreFolders(
 			return "", clues.Wrap(err, "folder not found").With("folder_id", folder).WithClues(ctx)
 		}
 
-		folderItem, err = createItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
+		folderItem, err = CreateItem(ctx, service, driveID, parentFolderID, newItem(folder, true))
 		if err != nil {
 			return "", clues.Wrap(err, "creating folder")
 		}
@@ -524,7 +524,7 @@ func restoreData(
 	}
 
 	// Create Item
-	newItem, err := createItem(ctx, service, driveID, parentFolderID, newItem(name, false))
+	newItem, err := CreateItem(ctx, service, driveID, parentFolderID, newItem(name, false))
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "creating item")
 	}
