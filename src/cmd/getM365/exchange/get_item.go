@@ -7,22 +7,18 @@ package exchange
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/connector"
+	gutils "github.com/alcionai/corso/src/cmd/getM365/utils"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -40,7 +36,7 @@ func AddCommands(parent *cobra.Command) {
 	}
 
 	fs := exCmd.PersistentFlags()
-	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object to be created")
+	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object")
 	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events)")
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
 	fs.StringVar(&tenant, "tenant", "", "m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
@@ -59,14 +55,16 @@ func handleExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	_, creds, err := getGC(ctx)
+	_, creds, err := gutils.GetGC(ctx, tenant)
 	if err != nil {
 		return err
 	}
 
 	err = runDisplayM365JSON(ctx, creds, user, m365ID, fault.New(true))
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Error displaying item: "+m365ID))
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+		return errors.Wrapf(err, "unable to get from M365: %s", m365ID)
 	}
 
 	return nil
@@ -147,31 +145,4 @@ func getItem(
 	}
 
 	return itm.Serialize(ctx, sp, user, itemID)
-}
-
-//-------------------------------------------------------------------------------
-// Helpers
-//-------------------------------------------------------------------------------
-
-func getGC(ctx context.Context) (*connector.GraphConnector, account.M365Config, error) {
-	// get account info
-	m365Cfg := account.M365Config{
-		M365:          credentials.GetM365(),
-		AzureTenantID: common.First(tenant, os.Getenv(account.AzureTenantID)),
-	}
-
-	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
-	if err != nil {
-		return nil, m365Cfg, Only(ctx, clues.Wrap(err, "finding m365 account details"))
-	}
-
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
-	if err != nil {
-		return nil, m365Cfg, Only(ctx, clues.Wrap(err, "connecting to graph API"))
-	}
-
-	return gc, m365Cfg, nil
 }

@@ -9,6 +9,7 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cmd/getM365/exchange"
+	"github.com/alcionai/corso/src/cmd/getM365/onedrive"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -25,6 +26,7 @@ func main() {
 	defer logger.Flush(ctx)
 
 	exchange.AddCommands(rootCmd)
+	onedrive.AddCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
