@@ -20,15 +20,15 @@ import (
 // unit tests
 // ---------------
 
-type RepositorySuite struct {
+type RepositoryUnitSuite struct {
 	tester.Suite
 }
 
-func TestRepositorySuite(t *testing.T) {
-	suite.Run(t, &RepositorySuite{Suite: tester.NewUnitSuite(t)})
+func TestRepositoryUnitSuite(t *testing.T) {
+	suite.Run(t, &RepositoryUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *RepositorySuite) TestInitialize() {
+func (suite *RepositoryUnitSuite) TestInitialize() {
 	table := []struct {
 		name     string
 		storage  func() (storage.Storage, error)
@@ -62,7 +62,7 @@ func (suite *RepositorySuite) TestInitialize() {
 
 // repository.Connect involves end-to-end communication with kopia, therefore this only
 // tests expected error cases
-func (suite *RepositorySuite) TestConnect() {
+func (suite *RepositoryUnitSuite) TestConnect() {
 	table := []struct {
 		name     string
 		storage  func() (storage.Storage, error)
