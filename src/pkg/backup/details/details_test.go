@@ -484,6 +484,64 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 	}
 }
 
+func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
+	t := suite.T()
+
+	b := Builder{}
+	name := "itemName"
+	info := ItemInfo{
+		OneDrive: &OneDriveInfo{
+			ItemType: OneDriveItem,
+			ItemName: name,
+		},
+	}
+
+	itemPath := makeItemPath(
+		t,
+		path.OneDriveService,
+		path.FilesCategory,
+		"a-tenant",
+		"a-user",
+		[]string{
+			"drive-id",
+			"root:",
+			"folder",
+			name + "-id",
+		},
+	)
+
+	otherItemPath := makeItemPath(
+		t,
+		path.OneDriveService,
+		path.FilesCategory,
+		"a-tenant",
+		"a-user",
+		[]string{
+			"drive-id",
+			"root:",
+			"folder",
+			name + "-id",
+			name,
+		},
+	)
+
+	require.NoError(t, b.Add(
+		itemPath.String(),
+		"deadbeef",
+		itemPath.ToBuilder().Dir().String(),
+		itemPath.String(),
+		false,
+		info,
+	))
+
+	items := b.Details().Items()
+	require.Len(t, items, 1)
+
+	// If the ShortRefs match then it means it's possible for the user to
+	// construct folder names such that they'll generate a ShortRef collision.
+	assert.NotEqual(t, otherItemPath.ShortRef(), items[0].ShortRef, "same ShortRef as subfolder item")
+}
+
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
 	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
