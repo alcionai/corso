@@ -66,10 +66,12 @@ var (
 
 // list output filter flags
 var (
-	failedItemsFN    = "failed-items"
-	listFailedItems  string
-	skippedItemsFN   = "skipped-items"
-	listSkippedItems string
+	failedItemsFN       = "failed-items"
+	listFailedItems     string
+	skippedItemsFN      = "skipped-items"
+	listSkippedItems    string
+	recoveredErrorsFN   = "recovered-errors"
+	listRecoveredErrors string
 )
 
 func addFailedItemsFN(cmd *cobra.Command) {
@@ -82,6 +84,12 @@ func addSkippedItemsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
 		&listSkippedItems, skippedItemsFN, "show",
 		"Toggles showing or hiding the list of items that were skipped.")
+}
+
+func addRecoveredErrorsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&listRecoveredErrors, recoveredErrorsFN, "show",
+		"Toggles showing or hiding the list of errors which corso recovered from.")
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +296,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
-		fe.PrintItems(ctx, listFailedItems != "show", listSkippedItems != "show")
+		fe.PrintItems(ctx, listFailedItems != "show", listSkippedItems != "show", listRecoveredErrors != "show")
 
 		return nil
 	}

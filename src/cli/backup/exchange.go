@@ -128,6 +128,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
+		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())

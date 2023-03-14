@@ -230,20 +230,23 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 }
 
 func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
-	ae := assert.AnError
+	ae := clues.Stack(assert.AnError)
+	noncore := []*clues.ErrCore{clues.ToCore(ae)}
 	addtl := map[string]any{"foo": "bar", "baz": 1}
 
 	table := []struct {
-		name   string
-		errs   func() fault.Errors
-		expect []fault.Item
+		name              string
+		errs              func() fault.Errors
+		expectItems       []fault.Item
+		expectRecoverable []*clues.ErrCore
 	}{
 		{
 			name: "no errors",
 			errs: func() fault.Errors {
 				return fault.New(false).Errors()
 			},
-			expect: []fault.Item{},
+			expectItems:       []fault.Item{},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "no items",
@@ -254,7 +257,8 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{},
+			expectItems:       []fault.Item{},
+			expectRecoverable: noncore,
 		},
 		{
 			name: "failure item",
@@ -265,7 +269,8 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectItems:       []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectRecoverable: noncore,
 		},
 		{
 			name: "recoverable item",
@@ -276,7 +281,8 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectItems:       []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "two items",
@@ -287,10 +293,11 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{
+			expectItems: []fault.Item{
 				*fault.OwnerErr(ae, "oid", "name", addtl),
 				*fault.FileErr(ae, "fid", "name", addtl),
 			},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "duplicate items - failure priority",
@@ -301,9 +308,10 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{
+			expectItems: []fault.Item{
 				*fault.OwnerErr(ae, "id", "name", addtl),
 			},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "duplicate items - last recoverable priority",
@@ -315,14 +323,41 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{
+			expectItems: []fault.Item{
 				*fault.FileErr(ae, "fid", "name2", addtl),
 			},
+			expectRecoverable: []*clues.ErrCore{},
+		},
+		{
+			name: "recoverable item and non-items",
+			errs: func() fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+				b.AddRecoverable(ae)
+
+				return b.Errors()
+			},
+			expectItems: []fault.Item{
+				*fault.FileErr(ae, "fid", "name", addtl),
+			},
+			expectRecoverable: noncore,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.ElementsMatch(suite.T(), test.expect, test.errs().Items)
+			t := suite.T()
+			fe := test.errs()
+
+			assert.ElementsMatch(t, test.expectItems, fe.Items)
+			require.Equal(t, test.expectRecoverable, fe.Recovered)
+
+			for i := range test.expectRecoverable {
+				expect := test.expectRecoverable[i]
+				got := fe.Recovered[i]
+
+				assert.Equal(t, *expect, *got)
+			}
 		})
 	}
 }

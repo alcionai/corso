@@ -236,7 +236,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	)
 
 	err := clues.Wrap(assert.AnError, "wrap")
-
+	cec := clues.ToCore(clues.Stack(assert.AnError))
 	info := details.ItemInfo{
 		Folder: &details.FolderInfo{
 			DisplayName: "test",
