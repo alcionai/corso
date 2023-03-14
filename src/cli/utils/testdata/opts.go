@@ -410,6 +410,15 @@ var (
 			},
 		},
 		{
+			Name:     "NoSelectRepoItemName",
+			Expected: []details.DetailsEntry{},
+			Opts: utils.OneDriveOpts{
+				FileNames: []string{
+					testdata.OneDriveItemPath1.Item(),
+				},
+			},
+		},
+		{
 			Name:     "CreatedBefore",
 			Expected: []details.DetailsEntry{testdata.OneDriveItems[1]},
 			Opts: utils.OneDriveOpts{
@@ -516,6 +525,15 @@ var (
 				FileNames: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 					testdata.SharePointLibraryItems[1].SharePoint.ItemName,
+				},
+			},
+		},
+		{
+			Name:     "NoSelectRepoItemName",
+			Expected: []details.DetailsEntry{},
+			Opts: utils.SharePointOpts{
+				FileNames: []string{
+					testdata.SharePointLibraryItemPath1.Item(),
 				},
 			},
 		},
