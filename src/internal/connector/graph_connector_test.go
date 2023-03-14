@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -126,7 +127,7 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			defer flush()
 
 			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
@@ -181,13 +182,13 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	t := suite.T()
 
 	service, err := newConnector.createService()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	newConnector.Service = service
 	assert.Equal(t, 0, len(newConnector.Sites))
 
 	err = newConnector.setTenantSites(ctx, fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(newConnector.Sites))
 
 	for _, site := range newConnector.Sites {
@@ -220,7 +221,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		},
 		nil,
 		fault.New(true))
-	assert.Error(t, err)
+	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
 	status := suite.connector.AwaitStatus()
@@ -299,7 +300,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				},
 				test.col,
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
 			stats := suite.connector.AwaitStatus()
@@ -327,7 +328,7 @@ func mustGetDefaultDriveID(
 		err = graph.Wrap(ctx, err, "retrieving drive")
 	}
 
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	id := ptr.Val(d.GetId())
 	require.NotEmpty(t, id)
@@ -397,7 +398,7 @@ func runRestore(
 		config.opts,
 		collections,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
@@ -451,7 +452,7 @@ func runBackupAndCompare(
 		nil,
 		config.opts,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
 
@@ -934,7 +935,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 					collections,
 					fault.New(true))
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
 				status := restoreGC.AwaitStatus()
@@ -963,7 +964,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 				},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			// No excludes yet because this isn't an incremental backup.
 			assert.Empty(t, excludes)
 

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -27,7 +28,7 @@ var goodCommonConfig = storage.CommonConfig{
 func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 	cfg := goodCommonConfig
 	c, err := cfg.StringConfig()
-	assert.NoError(suite.T(), err)
+	assert.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		key    string
@@ -47,9 +48,9 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig() {
 
 	in := goodCommonConfig
 	s, err := storage.NewStorage(storage.ProviderUnknown, in)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	out, err := s.CommonConfig()
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, in.CorsoPassphrase, out.CorsoPassphrase)
 }
@@ -84,7 +85,7 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
 	for _, test := range table2 {
 		suite.T().Run(test.name, func(t *testing.T) {
 			st, err := storage.NewStorage(storage.ProviderUnknown, goodCommonConfig)
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
 			_, err = st.CommonConfig()
 			assert.Error(t, err)

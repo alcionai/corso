@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -41,7 +42,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 		path.EmailCategory,
 		false,
 		"some", "path", "for", "data")
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	c := kopiaDataCollection{
 		streams: []data.Stream{},
@@ -108,13 +109,13 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			count := 0
 			for returnedStream := range c.Items(ctx, fault.New(true)) {
 				require.Less(t, count, len(test.streams))
-
 				assert.Equal(t, returnedStream.UUID(), uuids[count])
 
 				buf, err := io.ReadAll(returnedStream.ToReader())
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				assert.Equal(t, buf, testData[count])
 				require.Implements(t, (*data.StreamSize)(nil), returnedStream)
+
 				ss := returnedStream.(data.StreamSize)
 				assert.Equal(t, len(buf), int(ss.Size()))
 
@@ -217,7 +218,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 		category,
 		false,
 		folder1, folder2)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name                      string
@@ -276,15 +277,14 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 
 			if err != nil {
 				if test.notFoundErr {
-					assert.ErrorIs(t, err, data.ErrNotFound)
+					assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
 				}
 
 				return
 			}
 
 			fileData, err := io.ReadAll(s.ToReader())
-
-			test.readErr(t, err)
+			test.readErr(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return

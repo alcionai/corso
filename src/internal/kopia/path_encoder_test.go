@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -22,14 +23,12 @@ func TestPathEncoderSuite(t *testing.T) {
 func (suite *PathEncoderSuite) TestEncodeDecode() {
 	t := suite.T()
 	elements := []string{"these", "are", "some", "path", "elements"}
-
 	encoded := encodeElements(elements...)
-
 	decoded := make([]string, 0, len(elements))
 
 	for _, e := range encoded {
 		dec, err := decodeElement(e)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		decoded = append(decoded, dec)
 	}
@@ -70,7 +69,6 @@ func (suite *PathEncoderSuite) TestEncodeAsPathDecode() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			encoded := encodeAsPath(test.elements...)
 
 			// Sanity check, first and last character should not be '/'.
@@ -80,7 +78,7 @@ func (suite *PathEncoderSuite) TestEncodeAsPathDecode() {
 
 			for _, e := range strings.Split(encoded, "/") {
 				dec, err := decodeElement(e)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				decoded = append(decoded, dec)
 			}
@@ -97,7 +95,7 @@ func FuzzEncodeDecodeSingleString(f *testing.F) {
 		assert.False(t, strings.ContainsRune(encoded[0], '/'))
 
 		decoded, err := decodeElement(encoded[0])
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 		assert.Equal(t, in, decoded)
 	})
 }

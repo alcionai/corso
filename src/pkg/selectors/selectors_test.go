@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -29,7 +30,7 @@ func (suite *SelectorSuite) TestNewSelector() {
 
 func (suite *SelectorSuite) TestBadCastErr() {
 	err := badCastErr(ServiceUnknown, ServiceExchange)
-	assert.Error(suite.T(), err)
+	assert.Error(suite.T(), err, clues.ToCore(err))
 }
 
 func (suite *SelectorSuite) TestResourceOwnersIn() {
@@ -365,13 +366,14 @@ func (suite *SelectorSuite) TestPathCategories_includes() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			obj := test.getSelector(t)
+
 			cats, err := obj.PathCategories()
 			for _, entry := range cats.Includes {
 				assert.NotEqual(t, entry, path.UnknownCategory)
 			}
-			test.isErr(t, err)
+
+			test.isErr(t, err, clues.ToCore(err))
 		})
 	}
 }

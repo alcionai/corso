@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -26,7 +27,7 @@ func (suite *SupportTestSuite) TestToMessage() {
 
 	bytes := mockconnector.GetMockMessageBytes("m365 mail support test")
 	message, err := CreateMessageFromBytes(bytes)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	clone := ToMessage(message)
 	assert.Equal(t, message.GetBccRecipients(), clone.GetBccRecipients())
@@ -40,7 +41,7 @@ func (suite *SupportTestSuite) TestToEventSimplified() {
 	t := suite.T()
 	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
 	event, err := CreateEventFromBytes(bytes)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	attendees := event.GetAttendees()
 	newEvent := ToEventSimplified(event)

@@ -10,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -159,7 +160,7 @@ func GetMockListBytes(title string) ([]byte, error) {
 // of the Mocked SharePoint List
 func GetMockListStream(t *testing.T, title string, numOfItems int) *MockListData {
 	byteArray, err := GetMockListBytes(title)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	listData := &MockListData{
 		ID:     title,
