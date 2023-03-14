@@ -407,6 +407,21 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 			expectedUniqueRefs: len(itemNames),
 		},
 		{
+			name:     "SharePoint List",
+			service:  path.SharePointService,
+			category: path.ListsCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointList,
+						ItemName: name,
+					},
+				}
+			},
+			// Should all end up as the starting shortref.
+			expectedUniqueRefs: 1,
+		},
+		{
 			name:     "Exchange no change",
 			service:  path.ExchangeService,
 			category: path.EmailCategory,
@@ -467,6 +482,64 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
 			assert.Len(t, shortRefs, test.expectedUniqueRefs, "items don't have unique ShortRefs")
 		})
 	}
+}
+
+func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
+	t := suite.T()
+
+	b := Builder{}
+	name := "itemName"
+	info := ItemInfo{
+		OneDrive: &OneDriveInfo{
+			ItemType: OneDriveItem,
+			ItemName: name,
+		},
+	}
+
+	itemPath := makeItemPath(
+		t,
+		path.OneDriveService,
+		path.FilesCategory,
+		"a-tenant",
+		"a-user",
+		[]string{
+			"drive-id",
+			"root:",
+			"folder",
+			name + "-id",
+		},
+	)
+
+	otherItemPath := makeItemPath(
+		t,
+		path.OneDriveService,
+		path.FilesCategory,
+		"a-tenant",
+		"a-user",
+		[]string{
+			"drive-id",
+			"root:",
+			"folder",
+			name + "-id",
+			name,
+		},
+	)
+
+	err := b.Add(
+		itemPath.String(),
+		"deadbeef",
+		itemPath.ToBuilder().Dir().String(),
+		itemPath.String(),
+		false,
+		info)
+	require.NoError(t, err)
+
+	items := b.Details().Items()
+	require.Len(t, items, 1)
+
+	// If the ShortRefs match then it means it's possible for the user to
+	// construct folder names such that they'll generate a ShortRef collision.
+	assert.NotEqual(t, otherItemPath.ShortRef(), items[0].ShortRef, "same ShortRef as subfolder item")
 }
 
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
