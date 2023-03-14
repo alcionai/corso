@@ -3,6 +3,7 @@ package sharepoint
 import (
 	"time"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
@@ -16,8 +17,8 @@ func sharePointPageInfo(page models.SitePageable, root string, size int64) *deta
 		created, modified    time.Time
 	)
 
-	if page.GetTitle() != nil {
-		name = *page.GetTitle()
+	if title, ok := ptr.ValOK(page.GetTitle()); ok {
+		name = title
 	}
 
 	if page.GetWebUrl() != nil {
@@ -25,16 +26,14 @@ func sharePointPageInfo(page models.SitePageable, root string, size int64) *deta
 			prefix = root + "/"
 		}
 
-		webURL = prefix + *page.GetWebUrl()
+		webURL = prefix + ptr.Val(page.GetWebUrl())
 	}
 
 	if page.GetCreatedDateTime() != nil {
-		created = *page.GetCreatedDateTime()
+		created = ptr.Val(page.GetCreatedDateTime())
 	}
 
-	if page.GetLastModifiedDateTime() != nil {
-		modified = *page.GetLastModifiedDateTime()
-	}
+	modified = ptr.OrNow(page.GetLastModifiedDateTime())
 
 	return &details.SharePointInfo{
 		ItemType:   details.SharePointPage,

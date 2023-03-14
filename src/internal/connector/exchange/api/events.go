@@ -108,7 +108,7 @@ func (c Events) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	if *event.GetHasAttachments() || HasAttachments(event.GetBody()) {
+	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
 		options := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},

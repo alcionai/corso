@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -151,23 +152,25 @@ func identifySite(item any) (string, string, error) {
 		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
 	}
 
+	id := ptr.Val(m.GetId())
+	url, ok := ptr.ValOK(m.GetWebUrl())
+
 	if m.GetName() == nil {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if m.GetWebUrl() != nil && strings.HasSuffix(*m.GetWebUrl(), "/search") {
+		if ok && strings.HasSuffix(url, "/search") {
 			// TODO: pii siteID, on this and all following cases
-			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", *m.GetId())
+			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
 		}
 
-		return "", "", clues.New("site has no name").With("site_id", *m.GetId())
+		return "", "", clues.New("site has no name").With("site_id", id)
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	url := m.GetWebUrl()
-	if url != nil && strings.Contains(*url, personalSitePath) {
-		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", *m.GetId())
+	if ok && strings.Contains(url, personalSitePath) {
+		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
 	}
 
-	return *m.GetWebUrl(), *m.GetId(), nil
+	return url, id, nil
 }
 
 // GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.

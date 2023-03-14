@@ -135,8 +135,11 @@ func checkIDAndName(c graph.Container) error {
 }
 
 func HasAttachments(body models.ItemBodyable) bool {
-	if body.GetContent() == nil || body.GetContentType() == nil ||
-		*body.GetContentType() == models.TEXT_BODYTYPE || len(*body.GetContent()) == 0 {
+	if ct, ok := ptr.ValOK(body.GetContentType()); !ok || ct == models.TEXT_BODYTYPE {
+		return false
+	}
+
+	if body, ok := ptr.ValOK(body.GetContent()); !ok || len(body) == 0 {
 		return false
 	}
 

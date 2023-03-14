@@ -1,8 +1,6 @@
 package support
 
 import (
-	"strings"
-
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -86,15 +84,4 @@ func CreatePageFromBytes(bytes []byte) (bmodels.SitePageable, error) {
 	page := parsable.(bmodels.SitePageable)
 
 	return page, nil
-}
-
-func HasAttachments(body models.ItemBodyable) bool {
-	if body.GetContent() == nil || body.GetContentType() == nil ||
-		*body.GetContentType() == models.TEXT_BODYTYPE || len(*body.GetContent()) == 0 {
-		return false
-	}
-
-	content := *body.GetContent()
-
-	return strings.Contains(content, "src=\"cid:")
 }

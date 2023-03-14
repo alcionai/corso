@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
@@ -12,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -358,7 +359,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	require.NotEmpty(t, drives)
 
 	// TODO: Verify the intended drive
-	driveID := *drives[0].GetId()
+	driveID := ptr.Val(drives[0].GetId())
 
 	defer func() {
 		for _, id := range folderIDs {
@@ -410,11 +411,11 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 			for _, f := range allFolders {
 
-				if *f.GetName() == folderName1 || *f.GetName() == folderName2 {
-					foundFolderIDs = append(foundFolderIDs, *f.GetId())
+				if ptr.Val(f.GetName()) == folderName1 || ptr.Val(f.GetName()) == folderName2 {
+					foundFolderIDs = append(foundFolderIDs, ptr.Val(f.GetId()))
 				}
 
-				assert.True(t, strings.HasPrefix(*f.GetName(), test.prefix), "folder prefix")
+				assert.True(t, strings.HasPrefix(ptr.Val(f.GetName()), test.prefix), "folder prefix")
 			}
 
 			assert.ElementsMatch(t, folderIDs, foundFolderIDs)
