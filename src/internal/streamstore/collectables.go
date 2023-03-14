@@ -19,7 +19,7 @@ const (
 )
 
 // FaultErrorsCollector generates a collection of fault.Errors
-// containing the marshalled bytes from the provieded marshaller.
+// containing the marshalled bytes from the provided marshaller.
 func FaultErrorsCollector(mr Marshaller) Collectable {
 	return Collectable{
 		mr:       mr,
@@ -29,8 +29,8 @@ func FaultErrorsCollector(mr Marshaller) Collectable {
 	}
 }
 
-// FaultErrorsCollector generates a collection of details.DetailsModel
-// entries containing the marshalled bytes from the provieded marshaller.
+// DetailsCollector generates a collection of details.DetailsModel
+// entries containing the marshalled bytes from the provided marshaller.
 func DetailsCollector(mr Marshaller) Collectable {
 	return Collectable{
 		mr:       mr,
@@ -40,7 +40,7 @@ func DetailsCollector(mr Marshaller) Collectable {
 	}
 }
 
-// FaultErrorsCollector reads a collection of fault.Errors
+// FaultErrorsReader reads a collection of fault.Errors
 // entries using the provided unmarshaller.
 func FaultErrorsReader(unmr Unmarshaller) Collectable {
 	return Collectable{
@@ -51,7 +51,7 @@ func FaultErrorsReader(unmr Unmarshaller) Collectable {
 	}
 }
 
-// FaultErrorsCollector reads a collection of details.DetailsModel
+// DetailsReader reads a collection of details.DetailsModel
 // entries using the provided unmarshaller.
 func DetailsReader(unmr Unmarshaller) Collectable {
 	return Collectable{

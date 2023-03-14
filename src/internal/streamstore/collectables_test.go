@@ -3,6 +3,7 @@ package streamstore
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -69,6 +70,11 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 		errs  func() *fault.Errors
 	}{
 		{
+			name:  "none",
+			deets: func() *details.Details { return nil },
+			errs:  func() *fault.Errors { return nil },
+		},
+		{
 			name: "details",
 			deets: func() *details.Details {
 				deetsBuilder := &details.Builder{}
@@ -82,6 +88,44 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				return deetsBuilder.Details()
 			},
 			errs: func() *fault.Errors { return nil },
+		},
+		{
+			name:  "errors",
+			deets: func() *details.Details { return nil },
+			errs: func() *fault.Errors {
+				bus := fault.New(false)
+				bus.Fail(clues.New("foo"))
+				bus.AddRecoverable(clues.New("bar"))
+				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+
+				fe := bus.Errors()
+				return &fe
+			},
+		},
+		{
+			name: "details and errors",
+			deets: func() *details.Details {
+				deetsBuilder := &details.Builder{}
+				deetsBuilder.Add(
+					"rr", "sr", "pr", "lr",
+					true,
+					details.ItemInfo{
+						Exchange: &details.ExchangeInfo{Subject: "hello world"},
+					})
+
+				return deetsBuilder.Details()
+			},
+			errs: func() *fault.Errors {
+				bus := fault.New(false)
+				bus.Fail(clues.New("foo"))
+				bus.AddRecoverable(clues.New("bar"))
+				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+
+				fe := bus.Errors()
+				return &fe
+			},
 		},
 	}
 	for _, test := range table {

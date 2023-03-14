@@ -660,7 +660,10 @@ func (op *BackupOperation) createBackupModels(
 	backupDetails *details.Details,
 ) error {
 	ctx = clues.Add(ctx, "snapshot_id", snapID)
-	errs := op.Errors
+	// generate a new fault bus so that we can maintain clean
+	// separation between the errors we serialize and those that
+	// are generated during the serialization process.
+	errs := fault.New(true)
 
 	if backupDetails == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
@@ -671,7 +674,7 @@ func (op *BackupOperation) createBackupModels(
 		return clues.Wrap(err, "creating backupDetails persistence").WithClues(ctx)
 	}
 
-	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(errs.Errors()))
+	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(op.Errors.Errors()))
 	if err != nil {
 		return clues.Wrap(err, "creating errors persistence").WithClues(ctx)
 	}

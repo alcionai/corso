@@ -42,7 +42,7 @@ func (ms Streamer) Read(
 	}
 
 	if mr == nil {
-		return errors.Errorf("no martshaller for %s ID %s", col.Type, snapshotID)
+		return errors.Errorf("no marshaller for %s ID %s", col.Type, snapshotID)
 	}
 
 	bs, err := mr.Marshal()

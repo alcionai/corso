@@ -45,6 +45,9 @@ func NewStreamer(
 	}
 }
 
+// Collect eagerly searializes the marshalable bytes in the collectable into a
+// data.BackupCollection.  The collection is stored within the storeStreamer
+// for persistence when Write is called.
 func (ss *storeStreamer) Collect(ctx context.Context, col Collectable) error {
 	cs, err := collect(ctx, ss.tenant, ss.service, col)
 	if err != nil {
@@ -56,7 +59,7 @@ func (ss *storeStreamer) Collect(ctx context.Context, col Collectable) error {
 	return nil
 }
 
-// Write persists a `details.Details` object in the stream store
+// Write persists the collected objects in the stream store
 func (ss *storeStreamer) Write(ctx context.Context, errs *fault.Bus) (string, error) {
 	id, err := write(ctx, ss.kw, ss.dbcs, errs)
 	if err != nil {
@@ -66,7 +69,7 @@ func (ss *storeStreamer) Write(ctx context.Context, errs *fault.Bus) (string, er
 	return id, nil
 }
 
-// Read reads a `details.Details` object from the kopia repository
+// Read reads a collector object from the kopia repository
 func (ss *storeStreamer) Read(ctx context.Context, snapshotID string, col Collectable, errs *fault.Bus) error {
 	err := read(ctx, snapshotID, ss.tenant, ss.service, col, ss.kw, errs)
 	if err != nil {
