@@ -55,11 +55,14 @@ func (mc mockCategorizer) isLeaf() bool {
 	return mc == leafCatStub
 }
 
-func (mc mockCategorizer) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
+func (mc mockCategorizer) pathValues(
+	repo path.Path,
+	ent details.DetailsEntry,
+) (map[categorizer][]string, error) {
 	return map[categorizer][]string{
 		rootCatStub: {"root"},
 		leafCatStub: {"leaf"},
-	}
+	}, nil
 }
 
 func (mc mockCategorizer) pathKeys() []categorizer {

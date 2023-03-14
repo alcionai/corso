@@ -175,6 +175,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
+							ItemName: "fileName",
 						},
 					},
 				},
@@ -183,6 +184,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
+							ItemName: "fileName2",
 						},
 					},
 				},
@@ -191,6 +193,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
+							ItemName: "fileName3",
 						},
 					},
 				},
@@ -223,7 +226,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			deets,
 			func() *OneDriveRestore {
 				odr := NewOneDriveRestore(Any())
-				odr.Include(odr.Items(Any(), []string{"file2"}))
+				odr.Include(odr.Items(Any(), []string{"fileName2"}))
 				return odr
 			},
 			arr(file2),
@@ -257,21 +260,30 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	t := suite.T()
 
-	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", "file"}
+	fileName := "file"
+	shortRef := "short"
+	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileName + "-id"}
+
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
 	require.NoError(t, err)
 
 	expected := map[categorizer][]string{
 		OneDriveFolder: {"dir1/dir2"},
-		OneDriveItem:   {"file", "short"},
+		OneDriveItem:   {fileName, shortRef},
 	}
 
 	ent := details.DetailsEntry{
 		RepoRef:  filePath.String(),
-		ShortRef: "short",
+		ShortRef: shortRef,
+		ItemInfo: details.ItemInfo{
+			OneDrive: &details.OneDriveInfo{
+				ItemName: fileName,
+			},
+		},
 	}
 
-	r := OneDriveItem.pathValues(filePath, ent)
+	r, err := OneDriveItem.pathValues(filePath, ent)
+	require.NoError(t, err)
 	assert.Equal(t, expected, r)
 }
 

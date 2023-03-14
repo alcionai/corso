@@ -449,7 +449,7 @@ func restoreCollection(
 				locationRef = itemPath.Folder(false)
 			}
 
-			deets.Add(
+			err = deets.Add(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
@@ -458,6 +458,10 @@ func restoreCollection(
 				details.ItemInfo{
 					Exchange: info,
 				})
+			if err != nil {
+				// Not critical enough to need to stop restore operation.
+				logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
+			}
 
 			colProgress <- struct{}{}
 		}

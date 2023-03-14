@@ -388,6 +388,37 @@ var (
 			},
 		},
 		{
+			Name:     "SingleItem",
+			Expected: []details.DetailsEntry{testdata.OneDriveItems[0]},
+			Opts: utils.OneDriveOpts{
+				FileNames: []string{
+					testdata.OneDriveItems[0].OneDrive.ItemName,
+				},
+			},
+		},
+		{
+			Name: "MultipleItems",
+			Expected: []details.DetailsEntry{
+				testdata.OneDriveItems[0],
+				testdata.OneDriveItems[1],
+			},
+			Opts: utils.OneDriveOpts{
+				FileNames: []string{
+					testdata.OneDriveItems[0].OneDrive.ItemName,
+					testdata.OneDriveItems[1].OneDrive.ItemName,
+				},
+			},
+		},
+		{
+			Name:     "NoSelectRepoItemName",
+			Expected: []details.DetailsEntry{},
+			Opts: utils.OneDriveOpts{
+				FileNames: []string{
+					testdata.OneDriveItemPath1.Item(),
+				},
+			},
+		},
+		{
 			Name:     "CreatedBefore",
 			Expected: []details.DetailsEntry{testdata.OneDriveItems[1]},
 			Opts: utils.OneDriveOpts{
@@ -472,6 +503,37 @@ var (
 				FileNames: []string{
 					testdata.SharePointLibraryItems[0].ShortRef,
 					testdata.SharePointLibraryItems[1].ShortRef,
+				},
+			},
+		},
+		{
+			Name:     "SingleItem",
+			Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[0]},
+			Opts: utils.SharePointOpts{
+				FileNames: []string{
+					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
+				},
+			},
+		},
+		{
+			Name: "MultipleItems",
+			Expected: []details.DetailsEntry{
+				testdata.SharePointLibraryItems[0],
+				testdata.SharePointLibraryItems[1],
+			},
+			Opts: utils.SharePointOpts{
+				FileNames: []string{
+					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
+					testdata.SharePointLibraryItems[1].SharePoint.ItemName,
+				},
+			},
+		},
+		{
+			Name:     "NoSelectRepoItemName",
+			Expected: []details.DetailsEntry{},
+			Opts: utils.SharePointOpts{
+				FileNames: []string{
+					testdata.SharePointLibraryItemPath1.Item(),
 				},
 			},
 		},

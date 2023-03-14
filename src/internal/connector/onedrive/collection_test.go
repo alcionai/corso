@@ -254,9 +254,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItemInfo := readItem.(data.StreamInfo)
 
 			if test.source == OneDriveSource {
-				assert.Equal(t, testItemName+DataFileSuffix, readItem.UUID())
+				assert.Equal(t, testItemID+DataFileSuffix, readItem.UUID())
 			} else {
-				assert.Equal(t, testItemName, readItem.UUID())
+				assert.Equal(t, testItemID, readItem.UUID())
 			}
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
@@ -283,7 +283,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			if test.source == OneDriveSource {
 				readItemMeta := readItems[1]
 
-				assert.Equal(t, testItemName+MetaFileSuffix, readItemMeta.UUID())
+				assert.Equal(t, testItemID+MetaFileSuffix, readItemMeta.UUID())
 
 				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
 				require.NoError(t, err)

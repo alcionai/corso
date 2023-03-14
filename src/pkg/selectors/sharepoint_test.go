@@ -215,6 +215,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointLibrary,
+							ItemName: "itemName",
 						},
 					},
 				},
@@ -223,6 +224,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointLibrary,
+							ItemName: "itemName2",
 						},
 					},
 				},
@@ -231,6 +233,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointLibrary,
+							ItemName: "itemName3",
 						},
 					},
 				},
@@ -239,6 +242,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointPage,
+							ItemName: "itemName4",
 						},
 					},
 				},
@@ -247,6 +251,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointPage,
+							ItemName: "itemName5",
 						},
 					},
 				},
@@ -279,7 +284,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore(Any())
-				odr.Include(odr.LibraryItems(Any(), []string{"item2"}))
+				odr.Include(odr.LibraryItems(Any(), []string{"itemName2"}))
 				return odr
 			},
 			expect: arr(item2),
@@ -321,6 +326,10 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
+	itemName := "item"
+	shortRef := "short"
+	elems := []string{"dir1", "dir2", itemName + "-id"}
+
 	table := []struct {
 		name     string
 		sc       sharePointCategory
@@ -331,7 +340,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			sc:   SharePointLibraryItem,
 			expected: map[categorizer][]string{
 				SharePointLibraryFolder: {"dir1/dir2"},
-				SharePointLibraryItem:   {"item", "short"},
+				SharePointLibraryItem:   {itemName, shortRef},
 			},
 		},
 		{
@@ -339,7 +348,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			sc:   SharePointListItem,
 			expected: map[categorizer][]string{
 				SharePointList:     {"dir1/dir2"},
-				SharePointListItem: {"item", "short"},
+				SharePointListItem: {"item-id", shortRef},
 			},
 		},
 	}
@@ -354,15 +363,21 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				path.SharePointService,
 				test.sc.PathType(),
 				true,
-				"dir1", "dir2", "item")
+				elems...)
 			require.NoError(t, err)
 
 			ent := details.DetailsEntry{
 				RepoRef:  itemPath.String(),
-				ShortRef: "short",
+				ShortRef: shortRef,
+				ItemInfo: details.ItemInfo{
+					SharePoint: &details.SharePointInfo{
+						ItemName: itemName,
+					},
+				},
 			}
 
-			pv := test.sc.pathValues(itemPath, ent)
+			pv, err := test.sc.pathValues(itemPath, ent)
+			require.NoError(t, err)
 			assert.Equal(t, test.expected, pv)
 		})
 	}

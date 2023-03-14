@@ -187,7 +187,8 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 				With(
 					"service", d.repoPath.Service().String(),
 					"category", d.repoPath.Category().String(),
-				))
+				).
+				Label(fault.LabelForceNoBackupCreation))
 
 			return
 		}
@@ -221,13 +222,23 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		}
 	}
 
-	cp.deets.Add(
+	err = cp.deets.Add(
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
 		locationFolders,
 		!d.cached,
 		*d.info)
+	if err != nil {
+		cp.errs.AddRecoverable(clues.New("adding item to details").
+			With(
+				"service", d.repoPath.Service().String(),
+				"category", d.repoPath.Category().String(),
+			).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	}
 
 	folders := details.FolderEntriesForPath(parent, locPB)
 	cp.deets.AddFoldersForItem(
