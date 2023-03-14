@@ -1096,7 +1096,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	runAndCheckBackup(t, ctx, &bo, mb)
 }
 
-// nolint: unused
+//nolint:unused
 func mustGetDefaultDriveID(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
