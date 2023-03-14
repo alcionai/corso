@@ -26,12 +26,8 @@ import (
 
 // sharePoint bucket info from flags
 var (
-	libraryItems []string
-	libraryPaths []string
-	pageFolders  []string
-	page         []string
-	site         []string
-	weburl       []string
+	pageFolders []string
+	page        []string
 
 	sharepointData []string
 )
@@ -43,34 +39,29 @@ const (
 
 const (
 	sharePointServiceCommand                 = "sharepoint"
-	sharePointServiceCommandCreateUseSuffix  = "--site <siteId> | '" + utils.Wildcard + "'"
+	sharePointServiceCommandCreateUseSuffix  = "--web-url <siteURL> | '" + utils.Wildcard + "'"
 	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
-	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for <site>
-corso backup create sharepoint --site <site_id>
+	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for a Site
+corso backup create sharepoint --web-url <siteURL>
 
-# Backup SharePoint for Alice and Bob
-corso backup create sharepoint --site <site_id_1>,<site_id_2>
+# Backup SharePoint for two sites: HR and Team
+corso backup create sharepoint --site https://example.com/hr,https://example.com/team
 
-# TODO: Site IDs may contain commas.  We'll need to warn the site about escaping them.
-
-# Backup all SharePoint data for all sites
-corso backup create sharepoint --site '*'`
+# Backup all SharePoint data for all Sites
+corso backup create sharepoint --web-url '*'`
 
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	sharePointServiceCommandDetailsExamples = `# Explore <site>'s files from backup 1234abcd-12ab-cd34-56de-1234abcd
+	sharePointServiceCommandDetailsExamples = `# Explore a site's files from backup 1234abcd-12ab-cd34-56de-1234abcd
 
-corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --site <site_id>
-<<<<<<< HEAD
-# Explore site's files created before end of 2015 from a specific backup
-=======
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --web-url https://example.com
+
 # Find all site files that were created before a certain date.
->>>>>>> main
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
       --web-url https://example.com --file-created-before 2015-01-01T00:00:00
 `
@@ -90,13 +81,15 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
-		fs.StringArrayVar(&site,
+		fs.StringArrayVar(
+			&utils.Site,
 			utils.SiteFN, nil,
 			"Backup SharePoint data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		fs.StringSliceVar(&weburl,
+		fs.StringSliceVar(
+			&utils.WebURL,
 			utils.WebURLFN, nil,
-			"Restore data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
+			"Restore data by site web URL; accepts '"+utils.Wildcard+"' to select all sites.")
 
 		fs.StringSliceVar(
 			&sharepointData,
@@ -126,21 +119,28 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		// sharepoint hierarchy flags
 
-		fs.StringSliceVar(
-			&libraryPaths,
-			utils.LibraryFN, nil,
-			"Select backup details by Library name.")
+		fs.StringVar(
+			&utils.Library,
+			utils.LibraryFN, "",
+			"Select backup details within a library.  Defaults includes all libraries.")
 
 		fs.StringSliceVar(
-			&libraryItems,
-			utils.LibraryItemFN, nil,
-			"Select backup details by library item name or ID.")
+			&utils.FolderPaths,
+			utils.FolderFN, nil,
+			"Select backup details by folder; defaults to root.")
 
-		fs.StringArrayVar(&site,
+		fs.StringSliceVar(
+			&utils.FileNames,
+			utils.FileFN, nil,
+			"Select backup details by file name.")
+
+		fs.StringArrayVar(
+			&utils.Site,
 			utils.SiteFN, nil,
 			"Select backup details by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
 
-		fs.StringSliceVar(&weburl,
+		fs.StringSliceVar(
+			&utils.WebURL,
 			utils.WebURLFN, nil,
 			"Select backup data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
@@ -152,29 +152,28 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringSliceVar(
 			&page,
 			utils.PagesFN, nil,
-			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.",
-		)
+			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.")
 
 		// sharepoint info flags
 
 		fs.StringVar(
 			&utils.FileCreatedAfter,
 			utils.FileCreatedAfterFN, "",
-			"Select backup details for items created after this datetime.")
+			"Select backup details created after this datetime.")
 
 		fs.StringVar(
 			&utils.FileCreatedBefore,
 			utils.FileCreatedBeforeFN, "",
-			"Select backup details for files created before this datetime.")
+			"Select backup details created before this datetime.")
 
 		fs.StringVar(
 			&utils.FileModifiedAfter,
 			utils.FileModifiedAfterFN, "",
-			"Select backup details for files modified after this datetime.")
+			"Select backup details modified after this datetime.")
 		fs.StringVar(
 			&utils.FileModifiedBefore,
 			utils.FileModifiedBeforeFN, "",
-			"Select backup details for files modified before this datetime.")
+			"Select backup details modified before this datetime.")
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd(), utils.MarkPreReleaseCommand())
@@ -214,7 +213,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(site, weburl, sharepointData); err != nil {
+	if err := validateSharePointBackupCreateFlags(utils.Site, utils.WebURL, sharepointData); err != nil {
 		return err
 	}
 
@@ -233,9 +232,9 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, site, weburl, sharepointData, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, utils.Site, utils.WebURL, sharepointData, gc)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and WebURL"))
+		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and Web URL"))
 	}
 
 	selectorSet := []selectors.Selector{}
@@ -319,13 +318,13 @@ func includeAllSitesWithCategories(categories []string) *selectors.SharePointBac
 func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
 	// Issue #2631: Libraries are the only supported feature for SharePoint at this time.
 	if len(cats) == 0 {
-		sel.Include(sel.Libraries(selectors.Any()))
+		sel.Include(sel.LibraryFolders(selectors.Any()))
 	}
 
 	for _, d := range cats {
 		switch d {
 		case dataLibraries:
-			sel.Include(sel.Libraries(selectors.Any()))
+			sel.Include(sel.LibraryFolders(selectors.Any()))
 		case dataPages:
 			sel.Include(sel.Pages(selectors.Any()))
 		}
@@ -396,10 +395,11 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	opts := utils.SharePointOpts{
-		LibraryItems:       libraryItems,
-		LibraryPaths:       libraryPaths,
-		Sites:              site,
-		WebURLs:            weburl,
+		FolderPaths:        utils.FolderPaths,
+		FileNames:          utils.FileNames,
+		Library:            utils.Library,
+		Sites:              utils.Site,
+		WebURLs:            utils.WebURL,
 		FileCreatedAfter:   fileCreatedAfter,
 		FileCreatedBefore:  fileCreatedBefore,
 		FileModifiedAfter:  fileModifiedAfter,

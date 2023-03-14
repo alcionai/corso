@@ -6,17 +6,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const (
-	FileFN   = "file"
-	FolderFN = "folder"
-	NamesFN  = "name"
-	PathsFN  = "path"
-)
-
 type OneDriveOpts struct {
 	Users              []string
-	Names              []string
-	Paths              []string
+	FileNames          []string
+	FolderPaths        []string
 	FileCreatedAfter   string
 	FileCreatedBefore  string
 	FileModifiedAfter  string
@@ -74,7 +67,7 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 
 	sel := selectors.NewOneDriveRestore(users)
 
-	lp, ln := len(opts.Paths), len(opts.Names)
+	lp, ln := len(opts.FolderPaths), len(opts.FileNames)
 
 	// only use the inclusion if either a path or item name
 	// is specified
@@ -83,20 +76,20 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 		return sel
 	}
 
-	opts.Paths = trimFolderSlash(opts.Paths)
+	opts.FolderPaths = trimFolderSlash(opts.FolderPaths)
 
 	if ln == 0 {
-		opts.Names = selectors.Any()
+		opts.FileNames = selectors.Any()
 	}
 
-	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.Paths)
+	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPaths)
 
 	if len(containsFolders) > 0 {
-		sel.Include(sel.Items(containsFolders, opts.Names))
+		sel.Include(sel.Items(containsFolders, opts.FileNames))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(sel.Items(prefixFolders, opts.Names, selectors.PrefixMatch()))
+		sel.Include(sel.Items(prefixFolders, opts.FileNames, selectors.PrefixMatch()))
 	}
 
 	return sel

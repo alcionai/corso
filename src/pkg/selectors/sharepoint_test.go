@@ -79,8 +79,8 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 						t,
 						spsc,
 						map[categorizer]string{
-							SharePointLibraryItem: AnyTgt,
-							SharePointLibrary:     AnyTgt,
+							SharePointLibraryItem:   AnyTgt,
+							SharePointLibraryFolder: AnyTgt,
 						},
 					)
 				case SharePointListItem:
@@ -289,7 +289,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			deets: deets,
 			makeSelector: func() *SharePointRestore {
 				odr := NewSharePointRestore([]string{"sid"})
-				odr.Include(odr.Libraries([]string{"folderA/folderB", pairAC}))
+				odr.Include(odr.LibraryFolders([]string{"folderA/folderB", pairAC}))
 				return odr
 			},
 			expect: arr(item, item2),
@@ -330,8 +330,8 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			name: "SharePoint Libraries",
 			sc:   SharePointLibraryItem,
 			expected: map[categorizer][]string{
-				SharePointLibrary:     {"dir1/dir2"},
-				SharePointLibraryItem: {"item", "short"},
+				SharePointLibraryFolder: {"dir1/dir2"},
+				SharePointLibraryItem:   {"item", "short"},
 			},
 		},
 		{
@@ -370,7 +370,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 
 func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	var (
-		ods          = NewSharePointRestore(Any())
+		sel          = NewSharePointRestore(Any())
 		host         = "www.website.com"
 		pth          = "/foo"
 		url          = host + pth
@@ -386,29 +386,33 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		scope   []SharePointScope
 		expect  assert.BoolAssertionFunc
 	}{
-		{"host match", host, ods.WebURL([]string{host}), assert.True},
-		{"url match", url, ods.WebURL([]string{url}), assert.True},
-		{"url contains host", url, ods.WebURL([]string{host}), assert.True},
-		{"host suffixes host", host, ods.WebURL([]string{host}, SuffixMatch()), assert.True},
-		{"url does not suffix host", url, ods.WebURL([]string{host}, SuffixMatch()), assert.False},
-		{"url contains path", url, ods.WebURL([]string{pth}), assert.True},
-		{"url has path suffix", url, ods.WebURL([]string{pth}, SuffixMatch()), assert.True},
-		{"host does not contain substring", host, ods.WebURL([]string{"website"}), assert.False},
-		{"url does not suffix substring", url, ods.WebURL([]string{"oo"}), assert.False},
-		{"host mismatch", host, ods.WebURL([]string{"www.google.com"}), assert.False},
-		{"file create after the epoch", host, ods.CreatedAfter(common.FormatTime(epoch)), assert.True},
-		{"file create after now", host, ods.CreatedAfter(common.FormatTime(now)), assert.False},
-		{"file create after later", url, ods.CreatedAfter(common.FormatTime(future)), assert.False},
-		{"file create before future", host, ods.CreatedBefore(common.FormatTime(future)), assert.True},
-		{"file create before now", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
-		{"file create before modification", host, ods.CreatedBefore(common.FormatTime(modification)), assert.True},
-		{"file create before epoch", host, ods.CreatedBefore(common.FormatTime(now)), assert.False},
-		{"file modified after the epoch", host, ods.ModifiedAfter(common.FormatTime(epoch)), assert.True},
-		{"file modified after now", host, ods.ModifiedAfter(common.FormatTime(now)), assert.True},
-		{"file modified after later", host, ods.ModifiedAfter(common.FormatTime(future)), assert.False},
-		{"file modified before future", host, ods.ModifiedBefore(common.FormatTime(future)), assert.True},
-		{"file modified before now", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
-		{"file modified before epoch", host, ods.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"host match", host, sel.WebURL([]string{host}), assert.True},
+		{"url match", url, sel.WebURL([]string{url}), assert.True},
+		{"url contains host", url, sel.WebURL([]string{host}), assert.True},
+		{"host suffixes host", host, sel.WebURL([]string{host}, SuffixMatch()), assert.True},
+		{"url does not suffix host", url, sel.WebURL([]string{host}, SuffixMatch()), assert.False},
+		{"url contains path", url, sel.WebURL([]string{pth}), assert.True},
+		{"url has path suffix", url, sel.WebURL([]string{pth}, SuffixMatch()), assert.True},
+		{"host does not contain substring", host, sel.WebURL([]string{"website"}), assert.False},
+		{"url does not suffix substring", url, sel.WebURL([]string{"oo"}), assert.False},
+		{"host mismatch", host, sel.WebURL([]string{"www.google.com"}), assert.False},
+		{"file create after the epoch", host, sel.CreatedAfter(common.FormatTime(epoch)), assert.True},
+		{"file create after now", host, sel.CreatedAfter(common.FormatTime(now)), assert.False},
+		{"file create after later", url, sel.CreatedAfter(common.FormatTime(future)), assert.False},
+		{"file create before future", host, sel.CreatedBefore(common.FormatTime(future)), assert.True},
+		{"file create before now", host, sel.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file create before modification", host, sel.CreatedBefore(common.FormatTime(modification)), assert.True},
+		{"file create before epoch", host, sel.CreatedBefore(common.FormatTime(now)), assert.False},
+		{"file modified after the epoch", host, sel.ModifiedAfter(common.FormatTime(epoch)), assert.True},
+		{"file modified after now", host, sel.ModifiedAfter(common.FormatTime(now)), assert.True},
+		{"file modified after later", host, sel.ModifiedAfter(common.FormatTime(future)), assert.False},
+		{"file modified before future", host, sel.ModifiedBefore(common.FormatTime(future)), assert.True},
+		{"file modified before now", host, sel.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"file modified before epoch", host, sel.ModifiedBefore(common.FormatTime(now)), assert.False},
+		{"in library", host, sel.Library("included-library"), assert.True},
+		{"not in library", host, sel.Library("not-included-library"), assert.False},
+		{"library id", host, sel.Library("1234"), assert.True},
+		{"not library id", host, sel.Library("abcd"), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -416,10 +420,12 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 
 			itemInfo := details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
-					ItemType: details.SharePointPage,
-					WebURL:   test.infoURL,
-					Created:  now,
-					Modified: modification,
+					ItemType:  details.SharePointPage,
+					WebURL:    test.infoURL,
+					Created:   now,
+					Modified:  modification,
+					DriveName: "included-library",
+					DriveID:   "1234",
 				},
 			}
 
@@ -439,7 +445,7 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		{SharePointCategoryUnknown, path.UnknownCategory},
 		{SharePointWebURL, path.UnknownCategory},
 		{SharePointSite, path.UnknownCategory},
-		{SharePointLibrary, path.LibrariesCategory},
+		{SharePointLibraryFolder, path.LibrariesCategory},
 		{SharePointLibraryItem, path.LibrariesCategory},
 		{SharePointList, path.ListsCategory},
 	}

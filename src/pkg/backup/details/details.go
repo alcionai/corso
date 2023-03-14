@@ -599,22 +599,22 @@ func (i ExchangeInfo) Values() []string {
 
 // SharePointInfo describes a sharepoint item
 type SharePointInfo struct {
-	Created     time.Time `json:"created,omitempty"`
-	ItemName    string    `json:"itemName,omitempty"`
-	DriveName   string    `json:"driveName,omitempty"`
-	DisplayName string    `json:"displayName,omitempty"`
-	ItemType    ItemType  `json:"itemType,omitempty"`
-	Modified    time.Time `josn:"modified,omitempty"`
-	Owner       string    `json:"owner,omitempty"`
-	ParentPath  string    `json:"parentPath,omitempty"`
-	Size        int64     `json:"size,omitempty"`
-	WebURL      string    `json:"webUrl,omitempty"`
+	Created    time.Time `json:"created,omitempty"`
+	DriveName  string    `json:"driveName,omitempty"`
+	DriveID    string    `json:"driveID,omitempty"`
+	ItemName   string    `json:"itemName,omitempty"`
+	ItemType   ItemType  `json:"itemType,omitempty"`
+	Modified   time.Time `josn:"modified,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
+	ParentPath string    `json:"parentPath,omitempty"`
+	Size       int64     `json:"size,omitempty"`
+	WebURL     string    `json:"webUrl,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
-	return []string{"ItemName", "Drive", "ParentPath", "Size", "WebURL", "Created", "Modified"}
+	return []string{"ItemName", "Library", "ParentPath", "Size", "WebURL", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
@@ -622,7 +622,7 @@ func (i SharePointInfo) Headers() []string {
 func (i SharePointInfo) Values() []string {
 	return []string{
 		i.ItemName,
-		i.DisplayName,
+		i.DriveName,
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
 		i.WebURL,
@@ -645,10 +645,11 @@ func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
-	ItemName   string    `json:"itemName,omitempty"`
+	DriveID    string    `json:"driveID,omitempty"`
 	DriveName  string    `json:"driveName,omitempty"`
-	ItemType   ItemType  `json:"itemType,omitempty"`
 	IsMeta     bool      `json:"isMeta,omitempty"`
+	ItemName   string    `json:"itemName,omitempty"`
+	ItemType   ItemType  `json:"itemType,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath"`

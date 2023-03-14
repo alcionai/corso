@@ -10,18 +10,37 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// ==============================================
-// Folder Object flags
-// These options are flags for indicating
-// that a time-based filter should be used for
-// within returning objects for details.
-// Used by: OneDrive, SharePoint
-// ================================================
+// common flag vars
 var (
+	FolderPaths []string
+	FileNames   []string
+
 	FileCreatedAfter   string
 	FileCreatedBefore  string
 	FileModifiedAfter  string
 	FileModifiedBefore string
+
+	Library string
+	Site    []string
+	WebURL  []string
+)
+
+// common flag names
+const (
+	BackupFN  = "backup"
+	DataFN    = "data"
+	LibraryFN = "library"
+	SiteFN    = "site"
+	UserFN    = "user"
+	WebURLFN  = "web-url"
+
+	FileFN   = "file"
+	FolderFN = "folder"
+
+	FileCreatedAfterFN   = "file-created-after"
+	FileCreatedBeforeFN  = "file-created-before"
+	FileModifiedAfterFN  = "file-modified-after"
+	FileModifiedBeforeFN = "file-modified-before"
 )
 
 type PopulatedFlags map[string]struct{}

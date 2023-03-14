@@ -350,28 +350,28 @@ var (
 			Name:     "AllFiles",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				Paths: selectors.Any(),
+				FolderPaths: selectors.Any(),
 			},
 		},
 		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				Paths: []string{testdata.OneDriveFolderFolder},
+				FolderPaths: []string{testdata.OneDriveFolderFolder},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				Paths: []string{testdata.OneDriveFolderFolder + "/"},
+				FolderPaths: []string{testdata.OneDriveFolderFolder + "/"},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				Paths: []string{testdata.OneDriveFolderFolder + "/"},
+				FolderPaths: []string{testdata.OneDriveFolderFolder + "/"},
 			},
 		},
 		{
@@ -381,7 +381,7 @@ var (
 				testdata.OneDriveItems[1],
 			},
 			Opts: utils.OneDriveOpts{
-				Names: []string{
+				FileNames: []string{
 					testdata.OneDriveItems[0].ShortRef,
 					testdata.OneDriveItems[1].ShortRef,
 				},
@@ -438,28 +438,28 @@ var (
 			Name:     "AllLibraryItems",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				LibraryPaths: selectors.Any(),
+				FolderPaths: selectors.Any(),
 			},
 		},
 		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				LibraryPaths: []string{testdata.SharePointLibraryFolder},
+				FolderPaths: []string{testdata.SharePointLibraryFolder},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				LibraryPaths: []string{testdata.SharePointLibraryFolder + "/"},
+				FolderPaths: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				LibraryPaths: []string{testdata.SharePointLibraryFolder + "/"},
+				FolderPaths: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
@@ -469,7 +469,7 @@ var (
 				testdata.SharePointLibraryItems[1],
 			},
 			Opts: utils.SharePointOpts{
-				LibraryItems: []string{
+				FileNames: []string{
 					testdata.SharePointLibraryItems[0].ShortRef,
 					testdata.SharePointLibraryItems[1].ShortRef,
 				},
