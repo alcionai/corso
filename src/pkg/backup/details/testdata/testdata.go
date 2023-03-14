@@ -1,13 +1,10 @@
 package testdata
 
 import (
-	stdpath "path"
 	"time"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/stretchr/testify/assert"
 )
 
 // mustParsePath takes a string representing a resource path and returns a path
@@ -324,22 +321,4 @@ func GetDetailsSet() *details.Details {
 			Entries: entries,
 		},
 	}
-}
-
-func MakeErrors(failure, recovered, skipped bool) fault.Errors {
-	fe := fault.Errors{}
-
-	if failure {
-		fe.Failure = assert.AnError
-	}
-
-	if recovered {
-		fe.Recovered = []error{assert.AnError}
-	}
-
-	if skipped {
-		fe.Skipped = []fault.Skipped{*fault.FileSkip(fault.SkipMalware, "id", "name", nil)}
-	}
-
-	return fe
 }

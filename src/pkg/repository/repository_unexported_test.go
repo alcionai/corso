@@ -83,7 +83,7 @@ func (suite *RepositoryModelIntgSuite) TearDownSuite() {
 	}
 }
 
-func (suite *RepositoryModelIntgSuite) TestWriteGetModel() {
+func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -111,11 +111,9 @@ func (suite *RepositoryModelIntgSuite) TestWriteGetModel() {
 }
 
 // helper func for writing backups
-//
-//revive:disable:context-as-argument
 func writeBackup(
 	t *testing.T,
-	ctx context.Context,
+	ctx context.Context, //revive:disable-line:context-as-argument
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
 	tID, snapID, backupID string,
@@ -124,7 +122,6 @@ func writeBackup(
 	errors fault.Errors,
 	errs *fault.Bus,
 ) *backup.Backup {
-	//revive:enable:context-as-argument
 	var (
 		serv         = sel.PathService()
 		detailsStore = streamstore.NewDetails(kw, tID, serv)
@@ -276,19 +273,19 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 					tenantID, "snapID", test.writeBupID,
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
-					fault.Errors{},
+					*test.errors,
 					fault.New(true))
 			)
 
-			rDeets, rBup, err := getBackupDetails(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(true))
+			rErrors, rBup, err := getBackupErrors(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(true))
 			test.expectErr(t, err)
 
 			if err != nil {
 				return
 			}
 
-			assert.Equal(t, b.DetailsID, rBup.DetailsID, "returned details ID matches")
-			assert.Equal(t, test.deets, rDeets, "returned details ID matches")
+			assert.Equal(t, b.ErrorsID, rBup.ErrorsID, "returned errors ID matches")
+			assert.Equal(t, test.deets, rErrors, "returned details ID matches")
 		})
 	}
 }
