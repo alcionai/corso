@@ -1096,9 +1096,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 // TestBackup_Run ensures that Integration Testing works for OneDrive
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
-	// TODO: Enable once we have https://github.com/alcionai/corso/pull/2642
-	suite.T().Skip("Enable once OneDrive incrementals is available")
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
