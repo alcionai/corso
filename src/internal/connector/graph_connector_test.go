@@ -652,6 +652,36 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 					},
 				},
+				{
+					pathElements: []string{"Work", "Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID4",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-4",
+								bodyText+" 4.",
+								bodyText+" 4.",
+							),
+							lookupKey: subjectText + "-4",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Work", "Inbox", "Work"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID5",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-5",
+								bodyText+" 5.",
+								bodyText+" 5.",
+							),
+							lookupKey: subjectText + "-5",
+						},
+					},
+				},
 			},
 		},
 		{
