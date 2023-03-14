@@ -1,5 +1,7 @@
 package fault
 
+import "github.com/alcionai/corso/src/cli/print"
+
 const (
 	AddtlCreatedBy     = "created_by"
 	AddtlLastModBy     = "last_modified_by"
@@ -16,7 +18,23 @@ const (
 	ResourceOwnerType itemType = "resource_owner"
 )
 
-var _ error = &Item{}
+func (it itemType) Printable() string {
+	switch it {
+	case FileType:
+		return "File"
+	case ContainerType:
+		return "Container"
+	case ResourceOwnerType:
+		return "Resource Owner"
+	}
+
+	return "Unknown"
+}
+
+var (
+	_ error           = &Item{}
+	_ print.Printable = &Item{}
+)
 
 // Item contains a concrete reference to a thing that failed
 // during processing.  The categorization of the item is determined
@@ -66,6 +84,31 @@ func (i *Item) Error() string {
 	return string("processing " + i.Type)
 }
 
+func (i Item) MinimumPrintable() any {
+	return i
+}
+
+// Headers returns the human-readable names of properties of an Item
+// for printing out to a terminal.
+func (i Item) Headers() []string {
+	return []string{"Action", "Type", "Name", "Container", "Cause"}
+}
+
+// Values populates the printable values matching the Headers list.
+func (i Item) Values() []string {
+	var cn string
+
+	acn, ok := i.Additional[AddtlContainerName]
+	if ok {
+		str, ok := acn.(string)
+		if ok {
+			cn = str
+		}
+	}
+
+	return []string{"Error", i.Type.Printable(), i.Name, cn, i.Cause}
+}
+
 // ContainerErr produces a Container-type Item for tracking erronous items
 func ContainerErr(cause error, id, name string, addtl map[string]any) *Item {
 	return itemErr(ContainerType, cause, id, name, addtl)
@@ -104,14 +147,18 @@ func itemErr(t itemType, cause error, id, name string, addtl map[string]any) *It
 // handled as normal errors.
 type skipCause string
 
-// SkipMalware identifies a malware detection case.  Files that graph api
-// identifies as malware cannot be downloaded or uploaded, and will permanently
-// fail any attempts to backup or restore.
-const SkipMalware skipCause = "malware_detected"
+const (
+	// SkipMalware identifies a malware detection case.  Files that graph
+	// api identifies as malware cannot be downloaded or uploaded, and will
+	// permanently fail any attempts to backup or restore.
+	SkipMalware skipCause = "malware_detected"
 
-// SkipNotFound identifies that a file was skipped because we could
-// not find it when trying to download contents
-const SkipNotFound skipCause = "file_not_found"
+	// SkipNotFound identifies that a file was skipped because we could
+	// not find it when trying to download contents
+	SkipNotFound skipCause = "file_not_found"
+)
+
+var _ print.Printable = &Skipped{}
 
 // Skipped items are permanently unprocessable due to well-known conditions.
 // In order to skip an item, the following conditions should be met:
@@ -145,6 +192,31 @@ func (s *Skipped) HasCause(c skipCause) bool {
 	}
 
 	return s.item.Cause == string(c)
+}
+
+func (s Skipped) MinimumPrintable() any {
+	return s
+}
+
+// Headers returns the human-readable names of properties of a skipped Item
+// for printing out to a terminal.
+func (s Skipped) Headers() []string {
+	return []string{"Action", "Type", "Name", "Container", "Cause"}
+}
+
+// Values populates the printable values matching the Headers list.
+func (s Skipped) Values() []string {
+	var cn string
+
+	acn, ok := s.item.Additional[AddtlContainerName]
+	if ok {
+		str, ok := acn.(string)
+		if ok {
+			cn = str
+		}
+	}
+
+	return []string{"Skip", s.item.Type.Printable(), s.item.Name, cn, s.item.Cause}
 }
 
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
