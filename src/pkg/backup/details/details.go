@@ -313,18 +313,17 @@ func (d *Details) add(
 			filename = info.SharePoint.ItemName
 		}
 
-		// Make the new path be all of the display names and then the M365 item ID.
+		// Make the new path contain all display names and then the M365 item ID.
 		// This ensures the path will be unique, thus ensuring the ShortRef will be
 		// unique.
 		//
-		// If we just appended the file display name to the path then it's possible
-		// the user could have a folder in the parent directory with a display name
-		// equal to the M365 ID of this file and have a file in the folder with a
-		// display name the same as this file's. That would cause a ShortRef
-		// collision because the generated paths for the file in the theoretical
-		// folder and this item would be the same.
+		// If we appended the file's display name to the path then it's possible
+		// for a folder in the parent directory to have the same display name as the
+		// M365 ID of this file and also have a subfolder in the folder with a
+		// display name that matches the file's display name. That would result in
+		// duplicate ShortRefs, which we can't allow.
 		elements := p.Elements()
-		elements = append(append(elements[:len(elements)-1], filename), p.Item())
+		elements = append(elements[:len(elements)-1], filename, p.Item())
 		entry.ShortRef = path.Builder{}.Append(elements...).ShortRef()
 	}
 

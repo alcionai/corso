@@ -525,14 +525,14 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 		},
 	)
 
-	require.NoError(t, b.Add(
+	err := b.Add(
 		itemPath.String(),
 		"deadbeef",
 		itemPath.ToBuilder().Dir().String(),
 		itemPath.String(),
 		false,
-		info,
-	))
+		info)
+	require.NoError(t, err)
 
 	items := b.Details().Items()
 	require.Len(t, items, 1)
