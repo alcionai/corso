@@ -8,13 +8,14 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
+
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/pkg/errors"
 )
 
 // ---------------------------------------------------------------------------
@@ -211,7 +212,7 @@ func read(
 
 	// Expect only 1 data collection
 	if len(cs) != 1 {
-		return clues.New("greater than 1 collection found").
+		return clues.New("unexpected collection count").
 			WithClues(ctx).
 			With("collection_count", len(cs))
 	}
@@ -230,7 +231,7 @@ func read(
 		case itemData, ok := <-items:
 			if !ok {
 				if !found {
-					return clues.New("no backup found").WithClues(ctx)
+					return clues.New("no data found").WithClues(ctx)
 				}
 
 				return nil
