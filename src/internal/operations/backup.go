@@ -507,8 +507,7 @@ func mergeDetails(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) error {
-	// Don't bother loading any of the base details if there's nothing we need to
-	// merge.
+	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if len(shortRefsFromPrevBackup) == 0 {
 		return nil
 	}

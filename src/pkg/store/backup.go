@@ -81,16 +81,3 @@ func (w Wrapper) GetBackups(
 func (w Wrapper) DeleteBackup(ctx context.Context, backupID model.StableID) error {
 	return w.Delete(ctx, model.BackupSchema, backupID)
 }
-
-// GetDetailsFromBackupID retrieves the backup.Details within the specified backup.
-func (w Wrapper) GetDetailsIDFromBackupID(
-	ctx context.Context,
-	backupID model.StableID,
-) (string, *backup.Backup, error) {
-	b, err := w.GetBackup(ctx, backupID)
-	if err != nil {
-		return "", nil, err
-	}
-
-	return b.DetailsID, b, nil
-}

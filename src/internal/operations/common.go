@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/model"
@@ -20,18 +21,23 @@ func getBackupAndDetailsFromID(
 	detailsStore streamstore.Reader,
 	errs *fault.Bus,
 ) (*backup.Backup, *details.Details, error) {
-	dID, bup, err := ms.GetDetailsIDFromBackupID(ctx, backupID)
+	bup, err := ms.GetBackup(ctx, backupID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "getting backup details ID")
 	}
 
 	var (
-		deets details.Details
-		umt   = details.UnmarshalTo(&deets)
+		deets     details.Details
+		umt       = details.UnmarshalTo(&deets)
+		detailsID = bup.DetailsID
 	)
 
-	if err := detailsStore.Read(ctx, dID, umt, errs); err != nil {
-		return nil, nil, errors.Wrap(err, "getting backup details data")
+	if len(detailsID) == 0 {
+		return bup, nil, clues.New("no details in backup").WithClues(ctx)
+	}
+
+	if err := detailsStore.Read(ctx, detailsID, umt, errs); err != nil {
+		return nil, nil, errors.Wrap(err, "reading backup details")
 	}
 
 	return bup, &deets, nil
