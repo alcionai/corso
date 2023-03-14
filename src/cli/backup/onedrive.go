@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -305,6 +306,8 @@ func runDetailsOneDriveCmd(
 	if err := utils.ValidateOneDriveRestoreFlags(backupID, opts); err != nil {
 		return nil, err
 	}
+
+	ctx = clues.Add(ctx, "backup_id", backupID)
 
 	d, _, errs := r.BackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors

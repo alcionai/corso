@@ -343,27 +343,35 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 	return sw.GetBackups(ctx, fs...)
 }
 
-// BackupDetails returns the specified backup details object
+// BackupDetails returns the specified backup.Details
 func (r repository) BackupDetails(
 	ctx context.Context,
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Bus) {
-	sw := store.NewKopiaStore(r.modelStore)
-	errs := fault.New(false)
+	var (
+		sw        = store.NewKopiaStore(r.modelStore)
+		errs      = fault.New(false)
+		detailsID string
+	)
 
-	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
+	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
 		return nil, nil, errs.Fail(err)
+	}
+
+	detailsID = b.DetailsID
+
+	if len(detailsID) == 0 {
+		return nil, b, errs.Fail(clues.New("no details in backup").WithClues(ctx))
 	}
 
 	nd := streamstore.NewDetails(
 		r.dataLayer,
 		r.Account.ID(),
-		b.Selector.PathService(),
-	)
+		b.Selector.PathService())
 
 	var deets details.Details
-	if err := nd.Read(ctx, dID, details.UnmarshalTo(&deets), errs); err != nil {
+	if err := nd.Read(ctx, detailsID, details.UnmarshalTo(&deets), errs); err != nil {
 		return nil, nil, errs.Fail(err)
 	}
 

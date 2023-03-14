@@ -30,18 +30,18 @@ type manifestRestorer interface {
 	restorer
 }
 
-type getDetailsIDer interface {
-	GetDetailsIDFromBackupID(
+type getBackuper interface {
+	GetBackup(
 		ctx context.Context,
 		backupID model.StableID,
-	) (string, *backup.Backup, error)
+	) (*backup.Backup, error)
 }
 
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
 func produceManifestsAndMetadata(
 	ctx context.Context,
 	mr manifestRestorer,
-	gdi getDetailsIDer,
+	gb getBackuper,
 	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
@@ -93,18 +93,19 @@ func produceManifestsAndMetadata(
 
 		mctx = clues.Add(mctx, "manifest_backup_id", man.ID)
 
-		dID, _, err := gdi.GetDetailsIDFromBackupID(mctx, model.StableID(bID))
-		if err != nil {
-			// if no backup exists for any of the complete manifests, we want
-			// to fall back to a complete backup.
-			if errors.Is(err, data.ErrNotFound) {
-				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
-				return ms, nil, false, nil
-			}
+		bup, err := gb.GetBackup(mctx, model.StableID(bID))
+		// if no backup exists for any of the complete manifests, we want
+		// to fall back to a complete backup.
+		if errors.Is(err, data.ErrNotFound) {
+			logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
+			return ms, nil, false, nil
+		}
 
+		if err != nil {
 			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
 		}
 
+		dID := bup.DetailsID
 		mctx = clues.Add(mctx, "manifest_details_id", dID)
 
 		// if no detailsID exists for any of the complete manifests, we want
