@@ -45,17 +45,8 @@ func (suite *StreamFaultItemsIntegrationSuite) TestFaultItems() {
 	defer kw.Close(ctx)
 
 	fe := fault.New(false)
-	fe.AddRecoverable(fault.FileErr(
-		assert.AnError,
-		"id",
-		"name",
-		nil))
-
-	fe.AddSkip(fault.FileSkip(
-		fault.SkipMalware,
-		"id2",
-		"name2",
-		nil))
+	fe.AddRecoverable(fault.FileErr(assert.AnError, "id", "name", nil))
+	fe.AddSkip(fault.FileSkip(fault.SkipMalware, "id2", "name2", nil))
 
 	var (
 		errs = fe.Errors()
