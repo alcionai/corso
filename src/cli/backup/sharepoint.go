@@ -124,7 +124,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.StringVar(
 			&utils.Library,
 			utils.LibraryFN, "",
-			"Select backup details within a library.  Defaults includes all libraries.")
+			"Select backup details within a library. Defaults includes all libraries.")
 
 		fs.StringSliceVar(
 			&utils.FolderPaths,
