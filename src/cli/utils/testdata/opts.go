@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	ftd "github.com/alcionai/corso/src/pkg/fault/testdata"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -592,7 +593,7 @@ func (bg *MockBackupGetter) GetBackupErrors(
 	backupID string,
 ) (*fault.Errors, *backup.Backup, *fault.Bus) {
 	if bg == nil {
-		fe := testdata.MakeErrors(bg.failure, bg.recovered, bg.skipped)
+		fe := ftd.MakeErrors(bg.failure, bg.recovered, bg.skipped)
 		return &fe, nil, fault.New(true)
 	}
 
