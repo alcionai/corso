@@ -97,6 +97,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			utils.DataFN, nil,
 			"Select one or more types of data to backup: "+dataLibraries+" or "+dataPages+".")
 		cobra.CheckErr(fs.MarkHidden(utils.DataFN))
+
 		options.AddOperationFlags(c)
 
 	case listCommand:
@@ -150,11 +151,13 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&pageFolders,
 			utils.PageFolderFN, nil,
 			"Select backup data by folder name; accepts '"+utils.Wildcard+"' to select all folders.")
+		cobra.CheckErr(fs.MarkHidden(utils.PageFolderFN))
 
 		fs.StringSliceVar(
 			&page,
 			utils.PagesFN, nil,
 			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.")
+		cobra.CheckErr(fs.MarkHidden(utils.PagesFN))
 
 		// sharepoint info flags
 

@@ -76,21 +76,25 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&listPaths,
 			utils.ListFN, nil,
 			"Restore list items by SharePoint list ID")
+		cobra.CheckErr(fs.MarkHidden(utils.ListFN))
 
 		fs.StringSliceVar(
 			&listItems,
 			utils.ListItemFN, nil,
 			"Restore list items by ID")
+		cobra.CheckErr(fs.MarkHidden(utils.ListItemFN))
 
 		fs.StringSliceVar(
 			&pageFolders,
 			utils.PageFolderFN, nil,
 			"Restore Site pages by page folder name")
+		cobra.CheckErr(fs.MarkHidden(utils.PageFolderFN))
 
 		fs.StringSliceVar(
 			&pages,
 			utils.PagesFN, nil,
 			"Restore site pages by file name(s)")
+		cobra.CheckErr(fs.MarkHidden(utils.PagesFN))
 
 		// sharepoint info flags
 
