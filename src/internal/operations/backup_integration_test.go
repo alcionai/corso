@@ -1410,7 +1410,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 				containerIDs[container3] = ptr.Val(resp.GetId())
 			},
-			itemsRead:    4, // 2*2 (.data and .meta for 2 files)
+			itemsRead:    2, // 2 .data for 2 files
 			itemsWritten: 6, // read items + 2 directory meta
 		},
 	}
