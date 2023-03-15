@@ -318,7 +318,6 @@ func (oc *Collection) getDriveItemContent(
 	// Initial try with url from delta + 2 retries
 	for i := 1; i <= maxDownloadRetires; i++ {
 		_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
-
 		if err == nil || !graph.IsErrUnauthorized(err) {
 			break
 		}
@@ -339,8 +338,11 @@ func (oc *Collection) getDriveItemContent(
 	// check for errors following retries
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
-			logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
-			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.MalwareInfo(item)))
+			logger.Ctx(ctx).With("error", err.Error(), "reason", "malware").Error("downloading item")
+			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
+		} else if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.Ctx(ctx).With("error", err.Error(), "reason", "not_found").Error("downloading item")
+			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
 		} else {
 			logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
 			el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))

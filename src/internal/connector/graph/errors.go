@@ -255,9 +255,9 @@ func appendIf(a []any, k string, v *string) []any {
 	return append(a, k, *v)
 }
 
-// MalwareInfo gathers potentially useful information about a malware infected
-// drive item, and aggregates that data into a map.
-func MalwareInfo(item models.DriveItemable) map[string]any {
+// ItemInfo gathers potentially useful information about a drive item,
+// and aggregates that data into a map.
+func ItemInfo(item models.DriveItemable) map[string]any {
 	m := map[string]any{}
 
 	creator := item.GetCreatedByUser()
