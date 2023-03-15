@@ -2,9 +2,9 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -12,6 +12,12 @@ const (
 	ListFN       = "list"
 	PageFolderFN = "page-folders"
 	PagesFN      = "pages"
+)
+
+// flag population variables
+var (
+	PageFolders []string
+	Pages       []string
 )
 
 type SharePointOpts struct {
@@ -36,6 +42,58 @@ type SharePointOpts struct {
 	Populated PopulatedFlags
 }
 
+// AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
+// details and restore commands.
+func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+
+	fs.StringVar(
+		&Library,
+		LibraryFN, "",
+		"Select only this library. Default includes all libraries.")
+
+	fs.StringSliceVar(
+		&FolderPaths,
+		FolderFN, nil,
+		"Select by folder; defaults to root.")
+
+	fs.StringSliceVar(
+		&FileNames,
+		FileFN, nil,
+		"Select by file name.")
+
+	fs.StringSliceVar(
+		&PageFolders,
+		PageFolderFN, nil,
+		"Select pages by folder name; accepts '"+Wildcard+"' to select all folders.")
+	cobra.CheckErr(fs.MarkHidden(PageFolderFN))
+
+	fs.StringSliceVar(
+		&Pages,
+		PagesFN, nil,
+		"Select pages by item name; accepts '"+Wildcard+"' to select all pages within the site.")
+	cobra.CheckErr(fs.MarkHidden(PagesFN))
+
+	fs.StringVar(
+		&FileCreatedAfter,
+		FileCreatedAfterFN, "",
+		"Select files created after this datetime.")
+
+	fs.StringVar(
+		&FileCreatedBefore,
+		FileCreatedBeforeFN, "",
+		"Select files created before this datetime.")
+
+	fs.StringVar(
+		&FileModifiedAfter,
+		FileModifiedAfterFN, "",
+		"Select files modified after this datetime.")
+	fs.StringVar(
+		&FileModifiedBefore,
+		FileModifiedBeforeFN, "",
+		"Select files modified before this datetime.")
+}
+
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
 func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error {
 	if len(backupID) == 0 {
@@ -43,7 +101,6 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 	}
 
 	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		fmt.Printf("What was I sent: %v\n", opts.FileCreatedAfter)
 		return errors.New("invalid time format for " + FileCreatedAfterFN)
 	}
 

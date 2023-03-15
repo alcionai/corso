@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/spf13/cobra"
 )
 
 type OneDriveOpts struct {
@@ -16,6 +17,41 @@ type OneDriveOpts struct {
 	FileModifiedBefore string
 
 	Populated PopulatedFlags
+}
+
+// AddOneDriveDetailsAndRestoreFlags adds flags that are common to both the
+// details and restore commands.
+func AddOneDriveDetailsAndRestoreFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+
+	fs.StringSliceVar(
+		&FolderPaths,
+		FolderFN, nil,
+		"Select files by OneDrive folder; defaults to root.")
+
+	fs.StringSliceVar(
+		&FileNames,
+		FileFN, nil,
+		"Select files by name.")
+
+	fs.StringVar(
+		&FileCreatedAfter,
+		FileCreatedAfterFN, "",
+		"Select files created after this datetime.")
+	fs.StringVar(
+		&FileCreatedBefore,
+		FileCreatedBeforeFN, "",
+		"Select files created before this datetime.")
+
+	fs.StringVar(
+		&FileModifiedAfter,
+		FileModifiedAfterFN, "",
+		"Select files modified after this datetime.")
+
+	fs.StringVar(
+		&FileModifiedBefore,
+		FileModifiedBeforeFN, "",
+		"Select files modified before this datetime.")
 }
 
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
