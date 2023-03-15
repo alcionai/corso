@@ -429,7 +429,7 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_badID() {
 
 			// run the command
 			err := cmd.ExecuteContext(ctx)
-			require.NoError(t, err, clues.ToCore(err))
+			require.Error(t, err, clues.ToCore(err))
 		})
 	}
 }
