@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -134,19 +135,21 @@ func writeBackup(
 	errs *fault.Bus,
 ) *backup.Backup {
 	var (
-		serv         = sel.PathService()
-		detailsStore = streamstore.NewDetails(kw, tID, serv)
-		errorsStore  = streamstore.NewFaultErrors(kw, tID, serv)
+		serv   = sel.PathService()
+		sstore = streamstore.NewStreamer(kw, tID, serv)
 	)
 
-	detailsID, err := detailsStore.Write(ctx, deets, errs)
-	require.NoError(t, err, "writing details to streamstore")
+	err := sstore.Collect(ctx, streamstore.DetailsCollector(deets))
+	require.NoError(t, err, "collecting details in streamstore")
 
-	errorsID, err := errorsStore.Write(ctx, errs.Errors(), errs)
-	require.NoError(t, err, "writing errors to streamstore")
+	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(errs.Errors()))
+	require.NoError(t, err, "collecting errors in streamstore")
+
+	ssid, err := sstore.Write(ctx, errs)
+	require.NoError(t, err, "writing to streamstore")
 
 	b := backup.New(
-		snapID, detailsID, errorsID,
+		snapID, ssid,
 		operations.Completed.String(),
 		model.StableID(backupID),
 		sel,
@@ -154,7 +157,8 @@ func writeBackup(
 		stats.StartAndEndTime{},
 		errs)
 
-	require.NoError(t, sw.Put(ctx, model.BackupSchema, b))
+	err = sw.Put(ctx, model.BackupSchema, b)
+	require.NoError(t, err)
 
 	return b
 }
@@ -226,7 +230,12 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 }
 
 func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
-	const tenantID = "tenant"
+	const (
+		tenantID = "tenant"
+		failFast = true
+	)
+
+	err := clues.Wrap(assert.AnError, "wrap")
 
 	info := details.ItemInfo{
 		Folder: &details.FolderInfo{
@@ -238,34 +247,42 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	builder.Add("ref", "short", "pref", "lref", false, info)
 
 	table := []struct {
-		name       string
-		writeBupID string
-		readBupID  string
-		deets      *details.Details
-		errors     *fault.Errors
-		expectErr  require.ErrorAssertionFunc
+		name         string
+		writeBupID   string
+		readBupID    string
+		deets        *details.Details
+		errors       *fault.Errors
+		expectErrors *fault.Errors
+		expectErr    require.ErrorAssertionFunc
 	}{
+		{
+			name:         "nil errors",
+			writeBupID:   "error_marmots",
+			readBupID:    "error_marmots",
+			deets:        builder.Details(),
+			errors:       nil,
+			expectErrors: &fault.Errors{Items: []fault.Item{}, FailFast: failFast},
+			expectErr:    require.NoError,
+		},
 		{
 			name:       "good",
 			writeBupID: "error_squirrels",
 			readBupID:  "error_squirrels",
 			deets:      builder.Details(),
-			errors:     &fault.Errors{Failure: assert.AnError},
-			expectErr:  require.NoError,
-		},
-		{
-			name:       "nil errors",
-			writeBupID: "error_marmots",
-			readBupID:  "error_marmots",
-			deets:      builder.Details(),
-			errors:     nil,
-			expectErr:  require.NoError,
+			errors:     &fault.Errors{Failure: err},
+			expectErrors: &fault.Errors{
+				Failure:  nil,
+				Items:    []fault.Item{},
+				FailFast: failFast,
+			},
+			expectErr: require.NoError,
 		},
 		{
 			name:       "missing backup",
 			writeBupID: "error_chipmunks",
 			readBupID:  "error_weasels",
 			deets:      builder.Details(),
+			errors:     nil,
 			expectErr:  require.Error,
 		},
 	}
@@ -284,19 +301,19 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 					tenantID, "snapID", test.writeBupID,
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
-					*test.errors,
+					ptr.Val(test.errors),
 					fault.New(true))
 			)
 
-			rErrors, rBup, err := getBackupErrors(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(true))
+			rErrors, rBup, err := getBackupErrors(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(failFast))
 			test.expectErr(t, err)
 
 			if err != nil {
 				return
 			}
 
-			assert.Equal(t, b.ErrorsID, rBup.ErrorsID, "returned errors ID matches")
-			assert.Equal(t, test.deets, rErrors, "returned details ID matches")
+			assert.Equal(t, b.StreamStoreID, rBup.StreamStoreID, "returned streamstore ID matches")
+			assert.Equal(t, test.expectErrors, rErrors, "retrieved errors match")
 		})
 	}
 }
