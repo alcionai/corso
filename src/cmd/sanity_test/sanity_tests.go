@@ -82,7 +82,7 @@ func checkEmailRestoration(
 			}
 
 			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
-				fmt.Printf("skipping restore folder %s created after %s", itemName, folderName)
+				fmt.Printf("skipping restore folder %s created after %s\n", itemName, folderName)
 				continue
 			}
 
@@ -122,6 +122,7 @@ func checkEmailRestoration(
 			fmt.Println("Restore item counts do not match:")
 			fmt.Println("-  expected:", itemCount[fldName])
 			fmt.Println("-  actual:", count)
+			fmt.Println("Folder:", fldName, ptr.Val(fld.GetId()))
 			os.Exit(1)
 		}
 	}
@@ -174,7 +175,7 @@ func checkOnedriveRestoration(
 		if len(restoreStartTime) > 1 {
 			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
 			if startTime.Before(rStartTime) {
-				fmt.Printf("The restore folder %s was created after %s. Will skip check.\n", itemName, folderName)
+				fmt.Printf("skipping restore folder %s created after %s\n", itemName, folderName)
 				continue
 			}
 		}
@@ -233,6 +234,7 @@ func checkFileData(
 				fmt.Println("File size does not match:")
 				fmt.Println("-  expected:", file[itemName])
 				fmt.Println("-  actual:", itemSize)
+				fmt.Println("Item:", itemName, itemID)
 				os.Exit(1)
 			}
 
@@ -260,6 +262,8 @@ func checkFileData(
 				fmt.Println("permissions are not equal")
 				fmt.Println("-  expected: ", expect)
 				fmt.Println("-  actual: ", result)
+				fmt.Println("Item:", itemName, itemID)
+				fmt.Println("Permission:", pid)
 				os.Exit(1)
 			}
 		}
