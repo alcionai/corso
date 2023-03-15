@@ -277,11 +277,7 @@ func resolverWithContainers(numContainers int, useIDInPath bool) (*containerReso
 
 	// Base case for the recursive lookup.
 	dn := containers[0].displayName
-
-	apndP := dn
-	if useIDInPath {
-		apndP = containers[0].id
-	}
+	apndP := containers[0].id
 
 	containers[0].p = path.Builder{}.Append(apndP)
 	containers[0].expectedPath = apndP
@@ -290,11 +286,7 @@ func resolverWithContainers(numContainers int, useIDInPath bool) (*containerReso
 
 	for i := 1; i < len(containers); i++ {
 		dn := containers[i].displayName
-
-		apndP := dn
-		if useIDInPath {
-			apndP = containers[i].id
-		}
+		apndP := containers[i].id
 
 		containers[i].parentID = containers[i-1].id
 		containers[i].expectedPath = stdpath.Join(containers[i-1].expectedPath, apndP)
@@ -496,16 +488,16 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	)
 
 	m.parentID = last.id
-	m.expectedPath = stdpath.Join(last.expectedPath, m.displayName)
-	m.expectedLocation = stdpath.Join(last.expectedPath, m.displayName)
+	m.expectedPath = stdpath.Join(last.expectedPath, m.id)
+	m.expectedLocation = stdpath.Join(last.expectedLocation, m.displayName)
 
 	err := suite.fc.AddToCache(ctx, m)
 	require.NoError(t, err, clues.ToCore(err))
 
 	p, l, err := suite.fc.IDToPath(ctx, m.id)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, m.expectedPath, p.String())
-	assert.Equal(t, m.expectedLocation, l.String())
+	assert.Equal(t, m.expectedPath, p.String(), "ID path")
+	assert.Equal(t, m.expectedLocation, l.String(), "location path")
 }
 
 // ---------------------------------------------------------------------------
@@ -684,11 +676,13 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
-			_, _, err = resolver.IDToPath(ctx, secondID)
+			p, l, err := resolver.IDToPath(ctx, secondID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			p := stdpath.Join(test.folderPrefix, parentContainer)
-			_, ok := resolver.PathInCache(p)
+			_, ok := resolver.LocationInCache(l.String())
+			require.True(t, ok, "looking for location in cache: %s", l)
+
+			_, ok = resolver.PathInCache(p.String())
 			require.True(t, ok, "looking for path in cache: %s", p)
 		})
 	}

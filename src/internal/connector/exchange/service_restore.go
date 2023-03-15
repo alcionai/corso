@@ -597,7 +597,7 @@ func establishMailRestoreLocation(
 	for _, folder := range folders {
 		pb = *pb.Append(folder)
 
-		cached, ok := mfc.PathInCache(pb.String())
+		cached, ok := mfc.LocationInCache(pb.String())
 		if ok {
 			folderID = cached
 			continue
@@ -646,7 +646,7 @@ func establishContactsRestoreLocation(
 	isNewCache bool,
 	errs *fault.Bus,
 ) (string, error) {
-	cached, ok := cfc.PathInCache(folders[0])
+	cached, ok := cfc.LocationInCache(folders[0])
 	if ok {
 		return cached, nil
 	}
@@ -683,7 +683,7 @@ func establishEventsRestoreLocation(
 	errs *fault.Bus,
 ) (string, error) {
 	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
-	cached, ok := ecc.PathInCache(folders[0])
+	cached, ok := ecc.LocationInCache(folders[0])
 	if ok {
 		return cached, nil
 	}

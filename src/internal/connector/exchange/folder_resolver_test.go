@@ -124,8 +124,8 @@ func (suite *CacheResolverSuite) TestPopulate() {
 			err := resolver.Populate(ctx, fault.New(true), test.root, test.basePath)
 			require.NoError(t, err, clues.ToCore(err))
 
-			_, isFound := resolver.PathInCache(test.folderInCache)
-			test.canFind(t, isFound)
+			_, isFound := resolver.LocationInCache(test.folderInCache)
+			test.canFind(t, isFound, "folder path", test.folderInCache)
 		})
 	}
 }

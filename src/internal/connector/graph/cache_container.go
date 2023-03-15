@@ -71,6 +71,11 @@ type ContainerResolver interface {
 	// matches the path of a container within the cache.
 	// @returns bool represents if m365ID was found.
 	PathInCache(pathString string) (string, bool)
+	// LocationInCache performs a look up of a path reprensentation
+	// and returns the m365ID of directory iff the pathString
+	// matches the logical path of a container within the cache.
+	// @returns bool represents if m365ID was found.
+	LocationInCache(pathString string) (string, bool)
 
 	AddToCache(ctx context.Context, m365Container Container) error
 

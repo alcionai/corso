@@ -116,6 +116,27 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 	return "", false
 }
 
+// LocationInCache utility function to return m365ID of folder if the path.Folders
+// matches the directory of a container within the cache. A boolean result
+// is provided to indicate whether the lookup was successful.
+func (cr *containerResolver) LocationInCache(pathString string) (string, bool) {
+	if len(pathString) == 0 || cr == nil {
+		return "", false
+	}
+
+	for _, cc := range cr.cache {
+		if cc.Location() == nil {
+			continue
+		}
+
+		if cc.Location().String() == pathString {
+			return ptr.Val(cc.GetId()), true
+		}
+	}
+
+	return "", false
+}
+
 // addFolder adds a folder to the cache with the given ID. If the item is
 // already in the cache does nothing. The path for the item is not modified.
 func (cr *containerResolver) addFolder(cf graph.CacheFolder) error {
