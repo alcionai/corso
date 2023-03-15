@@ -338,20 +338,20 @@ func (oc *Collection) getDriveItemContent(
 	// check for errors following retries
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
-			logger.Ctx(ctx).With("error", err.Error(), "reason", "malware").Error("downloading item")
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
 			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
-			logger.Ctx(ctx).With("error", err.Error(), "reason", "not_found").Error("downloading item")
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Error("item not found")
 			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
 		}
 
-		logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
+		logger.CtxErr(ctx, err).Error("downloading item")
 		el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
