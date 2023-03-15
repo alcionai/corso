@@ -23,4 +23,3 @@ Connect-ExchangeOnline -Credential $cred
 Write-Host "Resetting retention..."
 # Set retention values for all mailboxes 
 Get-Mailbox | ForEach-Object { Set-Mailbox -Identity $_.Alias -RetentionHoldEnabled $false  -LitigationHoldEnabled $false -SingleItemRecoveryEnabled $false -RetainDeletedItemsFor 0 -AuditLogAgeLimit 0 -Force }
-Get-Mailbox | ForEach-Object { Start-ManagedFolderAssistant -Identity $_.Alias }
