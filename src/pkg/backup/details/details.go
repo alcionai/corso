@@ -652,7 +652,7 @@ type SharePointInfo struct {
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
-	return []string{"ItemName", "Library", "ParentPath", "Size", "WebURL", "Created", "Modified"}
+	return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
@@ -663,7 +663,7 @@ func (i SharePointInfo) Values() []string {
 		i.DriveName,
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
-		i.WebURL,
+		i.Owner,
 		common.FormatTabularDisplayTime(i.Created),
 		common.FormatTabularDisplayTime(i.Modified),
 	}
