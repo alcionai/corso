@@ -21,7 +21,7 @@ type Streamer struct {
 }
 
 func (ms Streamer) Collect(context.Context, streamstore.Collectable) error {
-	return clues.New("not implmented")
+	return clues.New("not implented")
 }
 
 func (ms Streamer) Read(
@@ -54,9 +54,9 @@ func (ms Streamer) Read(
 }
 
 func (ms Streamer) Write(context.Context, *fault.Bus) (string, error) {
-	return "", clues.New("not implmented")
+	return "", clues.New("not implented")
 }
 
 func (ms Streamer) Delete(context.Context, string) error {
-	return clues.New("not implmented")
+	return clues.New("not implented")
 }
