@@ -46,6 +46,9 @@ const (
 const (
 	LabelsMalware        = "malware_detected"
 	LabelsMysiteNotFound = "mysite_not_found"
+
+	// LabelsSkippable is used to determine if an error is skippable
+	LabelsSkippable = "skippable_errors"
 )
 
 var (
