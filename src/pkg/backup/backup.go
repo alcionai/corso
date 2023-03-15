@@ -74,7 +74,7 @@ func New(
 	)
 
 	if ee.Failure != nil {
-		failMsg = ee.Failure.Error()
+		failMsg = ee.Failure.Msg
 		errCount++
 	}
 

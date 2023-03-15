@@ -100,7 +100,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
-				return &fe
+				return fe
 			},
 		},
 		{
@@ -124,7 +124,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
-				return &fe
+				return fe
 			},
 		},
 	}

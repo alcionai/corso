@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
@@ -168,11 +169,13 @@ func (e *Bus) addSkip(s *Skipped) *Bus {
 
 // Errors returns the plain record of errors that were aggregated
 // within a fult Bus.
-func (e *Bus) Errors() Errors {
-	return Errors{
-		Failure:   e.failure,
-		Recovered: slices.Clone(e.recoverable),
-		Items:     itemsIn(e.failure, e.recoverable),
+func (e *Bus) Errors() *Errors {
+	items, nonItems := itemsIn(e.failure, e.recoverable)
+
+	return &Errors{
+		Failure:   clues.ToCore(e.failure),
+		Recovered: nonItems,
+		Items:     items,
 		Skipped:   slices.Clone(e.skipped),
 		FailFast:  e.failFast,
 	}
@@ -190,16 +193,14 @@ type Errors struct {
 	// non-start cases (ex: cannot connect to client), hard-
 	// stop issues (ex: credentials expired) or conscious exit
 	// cases (ex: iteration error + failFast config).
-	Failure error `json:"failure"`
+	Failure *clues.ErrCore `json:"failure"`
 
-	// Recovered errors accumulate through a runtime under
-	// best-effort processing conditions.  They imply that an
-	// error occurred, but the process was able to move on and
-	// complete afterwards.
-	// Eg: if a process is retrieving N items, and 1 of the
-	// items fails to be retrieved, but the rest of them succeed,
-	// we'd expect to see 1 error added to this slice.
-	Recovered []error `json:"-"`
+	// Recovered is the set of NON-Item errors that accumulated
+	// through a runtime under best-effort processing conditions.
+	// They imply that an error occurred, but the process was able
+	// to move on and complete afterwards.  Any error that can be
+	// serialized to a fault.Item is found in the Items set instead.
+	Recovered []*clues.ErrCore `json:"recovered"`
 
 	// Items are the reduction of all errors (both the failure and the
 	// recovered values) in the Errors struct into a slice of items,
@@ -217,14 +218,19 @@ type Errors struct {
 }
 
 // itemsIn reduces all errors (both the failure and recovered values)
-// in the Errors struct into a slice of items, deduplicated by their
-// ID.
-func itemsIn(failure error, recovered []error) []Item {
-	is := map[string]Item{}
+// in the Errors struct into a slice of items, deduplicated by their ID.
+// Any non-item error is serialized to a clues.ErrCore and returned in
+// the second list.
+func itemsIn(failure error, recovered []error) ([]Item, []*clues.ErrCore) {
+	var (
+		is  = map[string]Item{}
+		non = []*clues.ErrCore{}
+	)
 
 	for _, err := range recovered {
 		var ie *Item
 		if !errors.As(err, &ie) {
+			non = append(non, clues.ToCore(err))
 			continue
 		}
 
@@ -236,12 +242,13 @@ func itemsIn(failure error, recovered []error) []Item {
 		is[ie.ID] = *ie
 	}
 
-	return maps.Values(is)
+	return maps.Values(is), non
 }
 
 // Marshal runs json.Marshal on the errors.
-func (e Errors) Marshal() ([]byte, error) {
-	return json.Marshal(e)
+func (e *Errors) Marshal() ([]byte, error) {
+	bs, err := json.Marshal(e)
+	return bs, err
 }
 
 // UnmarshalErrorsTo produces a func that complies with the unmarshaller
@@ -254,8 +261,9 @@ func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
 
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
-func (e Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips bool) {
-	if len(e.Items)+len(e.Skipped) == 0 || ignoreErrors && ignoreSkips {
+func (e *Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips, ignoreRecovered bool) {
+	if len(e.Items)+len(e.Skipped)+len(e.Recovered) == 0 ||
+		ignoreErrors && ignoreSkips && ignoreRecovered {
 		return
 	}
 
@@ -273,7 +281,40 @@ func (e Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips bool) 
 		}
 	}
 
+	if !ignoreRecovered {
+		for _, rcv := range e.Recovered {
+			pec := errCoreToPrintable(rcv)
+			sl = append(sl, print.Printable(&pec))
+		}
+	}
+
 	print.All(ctx, sl...)
+}
+
+var _ print.Printable = &printableErrCore{}
+
+type printableErrCore struct {
+	msg string
+}
+
+func errCoreToPrintable(ec *clues.ErrCore) printableErrCore {
+	if ec == nil {
+		return printableErrCore{"<nil>"}
+	}
+
+	return printableErrCore{ec.Msg}
+}
+
+func (pec printableErrCore) MinimumPrintable() any {
+	return pec
+}
+
+func (pec printableErrCore) Headers() []string {
+	return []string{"Error"}
+}
+
+func (pec printableErrCore) Values() []string {
+	return []string{pec.msg}
 }
 
 // ---------------------------------------------------------------------------
