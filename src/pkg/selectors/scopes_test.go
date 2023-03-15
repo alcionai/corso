@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -288,7 +289,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 				dataCats,
 				errs)
 			require.NotNil(t, result)
-			require.NoError(t, errs.Failure(), "no recoverable errors")
+			require.NoError(t, errs.Failure(), "no recoverable errors", clues.ToCore(errs.Failure()))
 			assert.Len(t, result.Entries, test.expectLen)
 		})
 	}

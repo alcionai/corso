@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -36,10 +37,10 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	errs := fault.New(true)
 
 	users, err := discovery.Users(ctx, acct, errs)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 
 	ferrs := errs.Errors()
-	assert.NoError(t, ferrs.Failure)
+	assert.NoError(t, ferrs.Failure, clues.ToCore(ferrs.Failure))
 	assert.Empty(t, ferrs.Recovered)
 
 	assert.Less(t, 0, len(users))
@@ -66,7 +67,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
 						AzureTenantID: "data",
 					},
 				)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return a
 			},
