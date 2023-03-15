@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
-- Sharepoint library (document files) support: backup, list, details, and restore.  
+- Sharepoint library (document files) support: backup, list, details, and restore.
 
 ### Fixed
 - Fix repo connect not working without a config file
 - Fix item re-download on expired links silently being skipped
+- Skip items that return 404 (this could be from the file getting deleted in between)
 
 ## [v0.5.0] (beta) - 2023-03-13
 
