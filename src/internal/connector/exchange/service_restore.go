@@ -628,7 +628,7 @@ func establishMailRestoreLocation(
 		}
 
 		// NOOP if the folder is already in the cache.
-		if err = mfc.AddToCache(ctx, temp, false); err != nil {
+		if err = mfc.AddToCache(ctx, temp); err != nil {
 			return "", clues.Wrap(err, "adding folder to cache")
 		}
 	}
@@ -670,7 +670,7 @@ func establishContactsRestoreLocation(
 			return "", clues.Wrap(err, "populating contact cache")
 		}
 
-		if err = cfc.AddToCache(ctx, temp, false); err != nil {
+		if err = cfc.AddToCache(ctx, temp); err != nil {
 			return "", clues.Wrap(err, "adding contact folder to cache")
 		}
 	}
@@ -708,7 +708,7 @@ func establishEventsRestoreLocation(
 		}
 
 		displayable := api.CalendarDisplayable{Calendarable: temp}
-		if err = ecc.AddToCache(ctx, displayable, true); err != nil {
+		if err = ecc.AddToCache(ctx, displayable); err != nil {
 			return "", clues.Wrap(err, "adding new calendar to cache")
 		}
 	}

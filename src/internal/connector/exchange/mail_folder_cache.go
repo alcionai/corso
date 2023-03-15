@@ -79,7 +79,7 @@ func (mc *mailFolderCache) Populate(
 		return clues.Wrap(err, "enumerating containers")
 	}
 
-	if err := mc.populatePaths(ctx, false, errs); err != nil {
+	if err := mc.populatePaths(ctx, errs); err != nil {
 		return clues.Wrap(err, "populating paths")
 	}
 

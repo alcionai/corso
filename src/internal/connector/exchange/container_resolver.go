@@ -53,16 +53,14 @@ type containerResolver struct {
 func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
-	useIDInPath bool,
 ) (*path.Builder, *path.Builder, error) {
-	return cr.idToPath(ctx, folderID, 0, useIDInPath)
+	return cr.idToPath(ctx, folderID, 0)
 }
 
 func (cr *containerResolver) idToPath(
 	ctx context.Context,
 	folderID string,
 	depth int,
-	useIDInPath bool,
 ) (*path.Builder, *path.Builder, error) {
 	ctx = clues.Add(ctx, "container_id", folderID)
 
@@ -83,8 +81,7 @@ func (cr *containerResolver) idToPath(
 	parentPath, parentLoc, err := cr.idToPath(
 		ctx,
 		ptr.Val(c.GetParentFolderId()),
-		depth+1,
-		useIDInPath)
+		depth+1)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "retrieving parent folder")
 	}
@@ -157,7 +154,6 @@ func (cr *containerResolver) Items() []graph.CachedContainer {
 func (cr *containerResolver) AddToCache(
 	ctx context.Context,
 	f graph.Container,
-	useIDInPath bool,
 ) error {
 	temp := graph.CacheFolder{
 		Container: f,
@@ -168,7 +164,7 @@ func (cr *containerResolver) AddToCache(
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
+	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()))
 	if err != nil {
 		return clues.Wrap(err, "adding cache entry")
 	}
@@ -184,7 +180,6 @@ func (cr *containerResolver) DestinationNameToID(dest string) string {
 
 func (cr *containerResolver) populatePaths(
 	ctx context.Context,
-	useIDInPath bool,
 	errs *fault.Bus,
 ) error {
 	var (
@@ -198,7 +193,7 @@ func (cr *containerResolver) populatePaths(
 			return el.Failure()
 		}
 
-		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
+		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()))
 		if err != nil {
 			err = clues.Wrap(err, "populating path")
 			el.AddRecoverable(err)

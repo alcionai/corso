@@ -78,7 +78,7 @@ func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
 
-func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container, b bool) error {
+func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container) error {
 	if len(m.added) == 0 {
 		m.added = map[string]string{}
 	}
@@ -88,7 +88,7 @@ func (m mockResolver) AddToCache(ctx context.Context, gc graph.Container, b bool
 	return nil
 }
 func (m mockResolver) DestinationNameToID(dest string) string { return m.added[dest] }
-func (m mockResolver) IDToPath(context.Context, string, bool) (*path.Builder, *path.Builder, error) {
+func (m mockResolver) IDToPath(context.Context, string) (*path.Builder, *path.Builder, error) {
 	return nil, nil, nil
 }
 func (m mockResolver) PathInCache(string) (string, bool)                             { return "", false }
