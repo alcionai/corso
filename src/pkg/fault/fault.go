@@ -7,10 +7,10 @@ import (
 	"io"
 	"sync"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/print"
 )
 

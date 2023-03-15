@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -296,7 +297,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
-		fe.PrintItems(ctx, listFailedItems != "show", listSkippedItems != "show", listRecoveredErrors != "show")
+		fe.PrintItems(ctx, !ifShow(listFailedItems), !ifShow(listSkippedItems), !ifShow(listRecoveredErrors))
 
 		return nil
 	}
@@ -323,4 +324,8 @@ func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 	}
 
 	return r, &cfg.Account, nil
+}
+
+func ifShow(flag string) bool {
+	return strings.ToLower(strings.TrimSpace(flag)) == "show"
 }
