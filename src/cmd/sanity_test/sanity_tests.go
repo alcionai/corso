@@ -23,21 +23,19 @@ func main() {
 	adapter, err := graph.CreateAdapter(
 		os.Getenv("AZURE_TENANT_ID"),
 		os.Getenv("AZURE_CLIENT_ID"),
-		os.Getenv("AZURE_CLIENT_SECRET"),
-	)
+		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
 		fatal("error while creating adapter", err)
 	}
 
 	var (
-		ctx              = context.Background()
-		client           = msgraphsdk.NewGraphServiceClient(adapter)
-		testUser         = os.Getenv("CORSO_M365_TEST_USER_ID")
-		folder           = strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
-		restoreStartTime = strings.SplitAfter(folder, "Corso_Restore_")[1]
+		ctx      = context.Background()
+		client   = msgraphsdk.NewGraphServiceClient(adapter)
+		testUser = os.Getenv("CORSO_M365_TEST_USER_ID")
+		folder   = strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
 	)
 
-	startTime, err := time.Parse(time.RFC822, restoreStartTime)
+	startTime, err := common.ExtractTime(folder)
 	if err != nil {
 		fatal("error parsing start time", err)
 	}
