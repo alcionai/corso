@@ -209,12 +209,17 @@ func Connect(
 		return nil, errors.Wrap(err, "constructing event bus")
 	}
 
-	rm, err := getRepoModel(ctx, ms)
-	if err != nil {
-		return nil, errors.New("retrieving repo info")
-	}
+	rm := &repositoryModel{}
 
-	bus.SetRepoID(string(rm.ID))
+	// Do not query repo ID if metrics are disabled
+	if !opts.DisableMetrics {
+		rm, err = getRepoModel(ctx, ms)
+		if err != nil {
+			return nil, errors.New("retrieving repo info")
+		}
+
+		bus.SetRepoID(string(rm.ID))
+	}
 
 	complete <- struct{}{}
 

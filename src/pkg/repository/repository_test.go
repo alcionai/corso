@@ -219,3 +219,22 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 	require.NoError(t, err)
 	require.NotNil(t, ro)
 }
+
+func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	// need to initialize the repository before we can test connecting to it.
+	st := tester.NewPrefixedS3Storage(t)
+
+	_, err := repository.Initialize(ctx, account.Account{}, st, control.Options{})
+	require.NoError(t, err)
+
+	// now re-connect
+	r, err := repository.Connect(ctx, account.Account{}, st, control.Options{DisableMetrics: true})
+	assert.NoError(t, err)
+
+	assert.Equal(t, "", r.GetID())
+}
