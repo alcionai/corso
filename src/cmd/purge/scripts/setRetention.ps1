@@ -11,12 +11,8 @@ Param (
 )
 
 # Setup ExchangeOnline
-if (-not (Get-Module -ListAvailable -Name PSWSMan)) {
-    Install-Module -Name PSWSMan -Force
-}
-
 if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
-    Install-Module -Name ExchangeOnlineManagement -Force
+    Install-Module -Name ExchangeOnlineManagement -MinimumVersion 3.0.0 -Force
 }
 
 $password = convertto-securestring -String "$AdminPwd" -AsPlainText -Force
