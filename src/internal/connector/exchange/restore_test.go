@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -44,18 +45,16 @@ func (suite *ExchangeRestoreSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
 	suite.ac, err = api.NewClient(m365)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.gs = graph.NewService(adpt)
-
-	require.NoError(suite.T(), err)
 }
 
 // TestRestoreContact ensures contact object can be created, placed into
@@ -72,14 +71,14 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 	)
 
 	aFolder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	folderID := ptr.Val(aFolder.GetId())
 
 	defer func() {
 		// Remove the folder containing contact prior to exiting test
 		err = suite.ac.Contacts().DeleteContainer(ctx, userID, folderID)
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
 	info, err := RestoreExchangeContact(
@@ -89,7 +88,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreContact() {
 		control.Copy,
 		folderID,
 		userID)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "contact item info")
 }
 
@@ -106,14 +105,14 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	)
 
 	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, name)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	calendarID := ptr.Val(calendar.GetId())
 
 	defer func() {
 		// Removes calendar containing events created during the test
 		err = suite.ac.Events().DeleteContainer(ctx, userID, calendarID)
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
 	info, err := RestoreExchangeEvent(ctx,
@@ -123,7 +122,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		calendarID,
 		userID,
 		fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
 }
 
@@ -136,10 +135,10 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	service, err := createService(m365)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	deleters := map[path.CategoryType]containerDeleter{
 		path.EmailCategory:    suite.ac.Mail(),
@@ -162,7 +161,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailObject: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -174,7 +173,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -186,7 +185,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreEventItemAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -198,7 +197,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailItemAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -213,7 +212,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailBasicItemAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -228,7 +227,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "ItemMailAttachmentwAttachment " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -243,7 +242,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "ItemMailAttachment_Contact " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -255,7 +254,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreNestedEventItemAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -267,7 +266,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithLargeAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -279,7 +278,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithAttachments: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -291,7 +290,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreMailwithReferenceAttachment: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Mail().CreateMailFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -304,7 +303,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := "TestRestoreContactObject: " + common.FormatSimpleDateTime(now)
 				folder, err := suite.ac.Contacts().CreateContactFolder(ctx, userID, folderName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(folder.GetId())
 			},
@@ -316,7 +315,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject: " + common.FormatSimpleDateTime(now)
 				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(calendar.GetId())
 			},
@@ -328,7 +327,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 			destination: func(t *testing.T, ctx context.Context) string {
 				calendarName := "TestRestoreEventObject_" + common.FormatSimpleDateTime(now)
 				calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, calendarName)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return ptr.Val(calendar.GetId())
 			},
@@ -352,10 +351,12 @@ func (suite *ExchangeRestoreSuite) TestRestoreExchangeObject() {
 				destination,
 				userID,
 				fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, info, "item info was not populated")
 			assert.NotNil(t, deleters)
-			assert.NoError(t, deleters[test.category].DeleteContainer(ctx, userID, destination))
+
+			err = deleters[test.category].DeleteContainer(ctx, userID, destination)
+			assert.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }

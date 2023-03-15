@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -69,7 +70,7 @@ func onedriveItemWithData(
 	}
 
 	serialized, err := json.Marshal(content)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return itemInfo{
 		name:      name,
@@ -89,7 +90,7 @@ func onedriveMetadata(
 	testMeta := getMetadata(fileName, perm, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
-	require.NoError(t, err, "marshalling metadata")
+	require.NoError(t, err, "marshalling metadata", clues.ToCore(err))
 
 	return itemInfo{
 		name:      itemID,
@@ -128,11 +129,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	suite.acct = tester.NewM365Account(suite.T())
 
 	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
-	require.NoErrorf(suite.T(), err, "fetching user %s", suite.user)
+	require.NoError(suite.T(), err, "fetching user", suite.user, clues.ToCore(err))
 	suite.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
-	require.NoErrorf(suite.T(), err, "fetching user %s", suite.secondaryUser)
+	require.NoError(suite.T(), err, "fetching user", suite.secondaryUser, clues.ToCore(err))
 	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	tester.LogTimeOfTest(suite.T())

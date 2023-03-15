@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -35,19 +36,23 @@ func (suite *RepositoryModelSuite) TestWriteGetModel() {
 		kopiaRef = kopia.NewConn(s)
 	)
 
-	require.NoError(t, kopiaRef.Initialize(ctx))
-	require.NoError(t, kopiaRef.Connect(ctx))
+	err := kopiaRef.Initialize(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = kopiaRef.Connect(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	defer kopiaRef.Close(ctx)
 
 	ms, err := kopia.NewModelStore(kopiaRef)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	defer ms.Close(ctx)
 
-	require.NoError(t, newRepoModel(ctx, ms, "fnords"))
+	err = newRepoModel(ctx, ms, "fnords")
+	require.NoError(t, err, clues.ToCore(err))
 
 	got, err := getRepoModel(ctx, ms)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, "fnords", string(got.ID))
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	bmodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -53,7 +54,7 @@ func (suite *DataSupportSuite) TestCreateMessageFromBytes() {
 			t := suite.T()
 
 			result, err := CreateMessageFromBytes(test.byteArray)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			test.checkObject(t, result)
 		})
 	}
@@ -92,7 +93,7 @@ func (suite *DataSupportSuite) TestCreateContactFromBytes() {
 			t := suite.T()
 
 			result, err := CreateContactFromBytes(test.byteArray)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})
 	}
@@ -129,7 +130,7 @@ func (suite *DataSupportSuite) TestCreateEventFromBytes() {
 			t := suite.T()
 
 			result, err := CreateEventFromBytes(test.byteArray)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})
 	}
@@ -170,7 +171,7 @@ func (suite *DataSupportSuite) TestCreateListFromBytes() {
 			t := suite.T()
 
 			result, err := CreateListFromBytes(test.byteArray)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})
 	}
@@ -212,10 +213,10 @@ func (suite *DataSupportSuite) TestCreatePageFromBytes() {
 
 				writer := kioser.NewJsonSerializationWriter()
 				err := pg.Serialize(writer)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				byteArray, err := writer.GetSerializedContent()
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return byteArray
 			},

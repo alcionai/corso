@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -45,10 +46,10 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.user = tester.SecondaryM365UserID(t)
 
 	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	odDrives, err := drives(ctx, pager, true)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
 
@@ -99,7 +100,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		map[string]string{},
 		"",
 		fault.New(true))
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
@@ -113,14 +114,15 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	// Read data for the file
 	itemInfo, itemData, err := oneDriveItemReader(ctx, graph.HTTPClient(graph.NoTimeout()), driveItem)
 
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	require.NotNil(suite.T(), itemInfo.OneDrive)
 	require.NotEmpty(suite.T(), itemInfo.OneDrive.ItemName)
 
 	size, err := io.Copy(io.Discard, itemData)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	require.NotZero(suite.T(), size)
 	require.Equal(suite.T(), size, itemInfo.OneDrive.Size)
+
 	suite.T().Logf("Read %d bytes from file %s.", size, itemInfo.OneDrive.ItemName)
 }
 
@@ -150,11 +152,11 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			srv := suite.service
 
 			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// Test Requirement 2: "Test Folder" should exist
 			folder, err := getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "Test Folder")
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := "testfolder_" + common.FormatNow(common.SimpleTimeTesting)
 			t.Logf("Test will create folder %s", newFolderName)
@@ -165,7 +167,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				test.driveID,
 				ptr.Val(folder.GetId()),
 				newItem(newFolderName, true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
 
 			newItemName := "testItem_" + common.FormatNow(common.SimpleTimeTesting)
@@ -177,19 +179,19 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				test.driveID,
 				ptr.Val(newFolder.GetId()),
 				newItem(newItemName, false))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newItem.GetId())
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
 			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(newFolder.GetId()), newItemName)
-			require.ErrorIs(t, err, errFolderNotFound)
+			require.ErrorIs(t, err, errFolderNotFound, clues.ToCore(err))
 
 			// Initialize a 100KB mockDataProvider
 			td, writeSize := mockDataReader(int64(100 * 1024))
 
 			w, err := driveItemWriter(ctx, srv, test.driveID, ptr.Val(newItem.GetId()), writeSize)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// Using a 32 KB buffer for the copy allows us to validate the
 			// multi-part upload. `io.CopyBuffer` will only write 32 KB at
@@ -197,7 +199,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 			copyBuffer := make([]byte, 32*1024)
 
 			size, err := io.CopyBuffer(w, td, copyBuffer)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			require.Equal(t, writeSize, size)
 		})
@@ -232,15 +234,15 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			srv := suite.service
 
 			root, err := srv.Client().DrivesById(test.driveID).Root().Get(ctx, nil)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist
 			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "FolderDoesNotExist")
-			require.ErrorIs(t, err, errFolderNotFound)
+			require.ErrorIs(t, err, errFolderNotFound, clues.ToCore(err))
 
 			// Lookup a folder that does exist
 			_, err = getFolder(ctx, srv, test.driveID, ptr.Val(root.GetId()), "")
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }

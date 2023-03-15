@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -177,12 +178,12 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				entries,
 				func(cos *support.ConnectorOperationStatus) {},
 			)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NotFoundRestoreCollection{Collection: coll},
 			}, fault.New(true))
-			test.expectError(t, err)
+			test.expectError(t, err, clues.ToCore(err))
 
 			emails := cdps[path.EmailCategory]
 
@@ -242,7 +243,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
 	)
 
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name        string
@@ -274,7 +275,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailFetch() {
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			for _, c := range collections {
 				if c.FullPath().Service() == path.ExchangeMetadataService {
@@ -302,7 +303,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 		acct, err = tester.NewM365Account(suite.T()).M365Config()
 	)
 
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name  string
@@ -344,7 +345,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
 
 			var metadata data.BackupCollection
@@ -360,7 +361,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 			cdps, err := parseMetadataCollections(ctx, []data.RestoreCollection{
 				data.NotFoundRestoreCollection{Collection: metadata},
 			}, fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			dps := cdps[test.scope.Category().PathType()]
 
@@ -375,7 +376,7 @@ func (suite *DataCollectionsIntegrationSuite) TestDelta() {
 				control.Options{},
 				func(status *support.ConnectorOperationStatus) {},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
 			// investigate the items in the original and delta collections to at least
@@ -407,7 +408,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 	)
 
 	acct, err := tester.NewM365Account(t).M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{DefaultMailFolder}, selectors.PrefixMatch()))
@@ -421,7 +422,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 		control.Options{},
 		newStatusUpdater(t, &wg),
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	wg.Add(len(collections))
 
@@ -437,7 +438,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 				buf := &bytes.Buffer{}
 
 				read, err := buf.ReadFrom(stream.ToReader())
-				assert.NoError(t, err)
+				assert.NoError(t, err, clues.ToCore(err))
 				assert.NotZero(t, read)
 
 				if isMetadata {
@@ -446,7 +447,7 @@ func (suite *DataCollectionsIntegrationSuite) TestMailSerializationRegression() 
 
 				message, err := support.CreateMessageFromBytes(buf.Bytes())
 				assert.NotNil(t, message)
-				assert.NoError(t, err)
+				assert.NoError(t, err, clues.ToCore(err))
 			}
 		})
 	}
@@ -462,7 +463,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 	defer flush()
 
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	users := []string{suite.user}
 
@@ -494,7 +495,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				control.Options{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			wg.Add(len(edcs))
 
@@ -508,7 +509,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 				for stream := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					read, err := buf.ReadFrom(stream.ToReader())
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					assert.NotZero(t, read)
 
 					if isMetadata {
@@ -517,7 +518,7 @@ func (suite *DataCollectionsIntegrationSuite) TestContactSerializationRegression
 
 					contact, err := support.CreateContactFromBytes(buf.Bytes())
 					assert.NotNil(t, contact)
-					assert.NoError(t, err, "error on converting contact bytes: "+buf.String())
+					assert.NoError(t, err, "converting contact bytes: "+buf.String(), clues.ToCore(err))
 					count++
 				}
 
@@ -541,12 +542,12 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 	defer flush()
 
 	acct, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	users := []string{suite.user}
 
 	ac, err := api.NewClient(acct)
-	require.NoError(suite.T(), err, "creating client")
+	require.NoError(suite.T(), err, "creating client", clues.ToCore(err))
 
 	var (
 		calID  string
@@ -565,7 +566,8 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 		return nil
 	}
 
-	require.NoError(suite.T(), ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true)))
+	err = ac.Events().EnumerateContainers(ctx, suite.user, DefaultCalendar, fn, fault.New(true))
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name, expected string
@@ -605,7 +607,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 				control.Options{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			require.Len(t, collections, 2)
 
 			wg.Add(len(collections))
@@ -624,7 +626,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 					buf := &bytes.Buffer{}
 
 					read, err := buf.ReadFrom(item.ToReader())
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					assert.NotZero(t, read)
 
 					if isMetadata {
@@ -633,7 +635,7 @@ func (suite *DataCollectionsIntegrationSuite) TestEventsSerializationRegression(
 
 					event, err := support.CreateEventFromBytes(buf.Bytes())
 					assert.NotNil(t, event)
-					assert.NoError(t, err, "creating event from bytes: "+buf.String())
+					assert.NoError(t, err, "creating event from bytes: "+buf.String(), clues.ToCore(err))
 				}
 			}
 

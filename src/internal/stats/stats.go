@@ -32,4 +32,5 @@ func (bc *ByteCounter) Count(i int64) {
 type SkippedCounts struct {
 	TotalSkippedItems int `json:"totalSkippedItems"`
 	SkippedMalware    int `json:"skippedMalware"`
+	SkippedNotFound   int `json:"skippedNotFound"`
 }
