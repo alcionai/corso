@@ -109,6 +109,10 @@ type skipCause string
 // fail any attempts to backup or restore.
 const SkipMalware skipCause = "malware_detected"
 
+// SkipNotFound identifies that a file was skipped because we could
+// not find it when trying to download contents
+const SkipNotFound skipCause = "file_not_found"
+
 // Skipped items are permanently unprocessable due to well-known conditions.
 // In order to skip an item, the following conditions should be met:
 // 1. The conditions for skipping the item are well-known and

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
@@ -70,7 +71,7 @@ func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
 	suite.recorder = strings.Builder{}
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -85,7 +86,7 @@ func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_empty() {
@@ -107,7 +108,8 @@ func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_empty() {
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
 
@@ -149,7 +151,7 @@ func (suite *BackupExchangeE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -164,7 +166,7 @@ func (suite *BackupExchangeE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
@@ -192,7 +194,8 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			result := recorder.String()
 			t.Log("backup results", result)
@@ -229,7 +232,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
 
 			// run the command
 			err := cmd.ExecuteContext(ctx)
-			require.Error(t, err)
+			require.Error(t, err, clues.ToCore(err))
 			assert.Contains(
 				t,
 				err.Error(),
@@ -278,7 +281,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	suite.recorder = strings.Builder{}
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -296,7 +299,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]string)
 
@@ -322,8 +325,10 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		sel.Include(scopes)
 
 		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
-		require.NoError(t, bop.Run(ctx))
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
+
+		err = bop.Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
 
 		bIDs := string(bop.Results.BackupID)
 
@@ -361,7 +366,8 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd() {
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// compare the output
 			result := suite.recorder.String()
@@ -394,7 +400,8 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_singleID() {
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// compare the output
 			result := suite.recorder.String()
@@ -421,7 +428,8 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_badID() {
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
-			require.Error(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.Error(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -441,7 +449,7 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd() {
 
 			// fetch the details from the repo first
 			deets, _, errs := suite.repo.BackupDetails(ctx, string(bID))
-			require.NoError(t, errs.Failure())
+			require.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
 			require.Empty(t, errs.Recovered())
 
 			cmd := tester.StubRootCmd(
@@ -455,7 +463,8 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd() {
 			ctx = print.SetRootCmd(ctx, cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// compare the output
 			result := suite.recorder.String()
@@ -516,7 +525,7 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -532,7 +541,7 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	m365UserID := tester.M365UserID(t)
 	users := []string{m365UserID}
@@ -542,8 +551,10 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
-	require.NoError(t, suite.backupOp.Run(ctx))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = suite.backupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
@@ -560,7 +571,8 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = tester.StubRootCmd(
@@ -569,7 +581,8 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 		"--backup", string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID() {
@@ -586,5 +599,6 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }

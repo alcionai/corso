@@ -46,6 +46,9 @@ const (
 const (
 	LabelsMalware        = "malware_detected"
 	LabelsMysiteNotFound = "mysite_not_found"
+
+	// LabelsSkippable is used to determine if an error is skippable
+	LabelsSkippable = "skippable_errors"
 )
 
 var (
@@ -56,7 +59,7 @@ var (
 	// Delta tokens can be desycned or expired.  In either case, the token
 	// becomes invalid, and cannot be used again.
 	// https://learn.microsoft.com/en-us/graph/errors#code-property
-	ErrInvalidDelta = clues.New("inalid delta token")
+	ErrInvalidDelta = clues.New("invalid delta token")
 
 	// Timeout errors are identified for tracking the need to retry calls.
 	// Other delay errors, like throttling, are already handled by the
@@ -255,9 +258,9 @@ func appendIf(a []any, k string, v *string) []any {
 	return append(a, k, *v)
 }
 
-// MalwareInfo gathers potentially useful information about a malware infected
-// drive item, and aggregates that data into a map.
-func MalwareInfo(item models.DriveItemable) map[string]any {
+// ItemInfo gathers potentially useful information about a drive item,
+// and aggregates that data into a map.
+func ItemInfo(item models.DriveItemable) map[string]any {
 	m := map[string]any{}
 
 	creator := item.GetCreatedByUser()

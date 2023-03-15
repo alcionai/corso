@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -23,11 +24,11 @@ func (suite *OneDriveAPISuite) SetupSuite() {
 	t := suite.T()
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
 	adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.service = graph.NewService(adpt)
 }
@@ -49,7 +50,7 @@ func (suite *OneDriveAPISuite) TestCreatePagerAndGetPage() {
 	siteID := tester.M365SiteID(t)
 	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"name"})
 	a, err := pager.GetPage(ctx)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, a)
 }
 
@@ -61,7 +62,7 @@ func (suite *OneDriveAPISuite) TestGetDriveIDByName() {
 	siteID := tester.M365SiteID(t)
 	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
 	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, id)
 }
 
@@ -73,9 +74,9 @@ func (suite *OneDriveAPISuite) TestGetDriveFolderByName() {
 	siteID := tester.M365SiteID(t)
 	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
 	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id)
 
 	_, err = pager.GetFolderIDByName(ctx, id, "folder")
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 }

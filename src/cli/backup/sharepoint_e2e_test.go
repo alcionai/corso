@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
@@ -59,7 +60,7 @@ func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -74,7 +75,7 @@ func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
@@ -96,7 +97,8 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
 
@@ -138,7 +140,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -154,7 +156,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	m365SiteID := tester.M365SiteID(t)
 	sites := []string{m365SiteID}
@@ -164,8 +166,10 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	sel.Include(sel.LibraryFolders(selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
-	require.NoError(t, suite.backupOp.Run(ctx))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = suite.backupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
@@ -187,7 +191,8 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
 
@@ -202,7 +207,8 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 // 	"--backup", string(suite.backupOp.Results.BackupID))
 // cli.BuildCommandTree(cmd)
 
-// require.Error(t, cmd.ExecuteContext(ctx))
+// err := cmd.ExecuteContext(ctx)
+// require.Error(t, err, clues.ToCore(err))
 
 func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unknownID() {
 	t := suite.T()
@@ -218,5 +224,6 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unkno
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }

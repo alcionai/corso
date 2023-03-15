@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/connector"
@@ -100,7 +101,8 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), validateSharePointBackupCreateFlags(test.site, test.weburl, nil))
+			err := validateSharePointBackupCreateFlags(test.site, test.weburl, nil)
+			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -200,7 +202,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 			defer flush()
 
 			sel, err := sharePointBackupCreateSelectors(ctx, test.site, test.weburl, test.data, gc)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			assert.ElementsMatch(t, test.expect, sel.DiscreteResourceOwners())
 		})
@@ -221,7 +223,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 				"backup-ID",
 				test.Opts,
 				false)
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -241,7 +243,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 				"backup-ID",
 				test.Opts,
 				false)
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, output)
 		})
 	}

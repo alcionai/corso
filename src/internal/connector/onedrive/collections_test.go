@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -49,11 +50,11 @@ func getExpectedStatePathGenerator(
 		} else {
 			require.Len(t, pths, 2, "invalid number of paths to getExpectedStatePathGenerator")
 			p2, err = GetCanonicalPath(base+pths[1], tenant, user, OneDriveSource)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 		}
 
 		p1, err = GetCanonicalPath(base+pths[0], tenant, user, OneDriveSource)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		switch state {
 		case data.NewState:
@@ -81,7 +82,7 @@ func getExpectedPathGenerator(t *testing.T,
 ) func(string) string {
 	return func(path string) string {
 		p, err := GetCanonicalPath(base+path, tenant, user, OneDriveSource)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		return p.String()
 	}
@@ -129,10 +130,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGetCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			p := strings.Join(test.dir, "/")
+
 			result, err := GetCanonicalPath(p, tenant, resourceOwner, test.source)
-			test.expectErr(t, err)
+			test.expectErr(t, err, clues.ToCore(err))
+
 			if result != nil {
 				assert.Equal(t, test.expect, result.String())
 			}
@@ -797,7 +799,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				itemCollection,
 				false,
 				errs)
-			tt.expect(t, err)
+			tt.expect(t, err, clues.ToCore(err))
 			assert.Equal(t, len(tt.expectedCollectionIDs), len(c.CollectionMap[driveID]), "total collections")
 			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
@@ -1138,10 +1140,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			t := suite.T()
 			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
@@ -1152,7 +1154,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					path.FilesCategory,
 					c(),
 					func(*support.ConnectorOperationStatus) {})
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				cols = append(cols, data.NotFoundRestoreCollection{Collection: mc})
 			}
@@ -1241,7 +1243,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		path.FilesCategory,
 		false,
 	)
-	require.NoError(suite.T(), err, "making metadata path")
+	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
 
 	driveID1 := uuid.NewString()
 	drive1 := models.NewDrive()
@@ -1918,7 +1920,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				},
 				func(*support.ConnectorOperationStatus) {},
 			)
-			assert.NoError(t, err, "creating metadata collection")
+			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 
 			prevMetadata := []data.RestoreCollection{data.NotFoundRestoreCollection{Collection: mc}}
 			errs := fault.New(true)
@@ -1947,7 +1949,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							data.NotFoundRestoreCollection{Collection: baseCol},
 						},
 						fault.New(true))
-					if !assert.NoError(t, err, "deserializing metadata") {
+					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {
 						continue
 					}
 
@@ -2201,7 +2203,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
 				test.prevDelta,
 				fault.New(true))
 
-			require.ErrorIs(t, err, test.err, "delta fetch err")
+			require.ErrorIs(t, err, test.err, "delta fetch err", clues.ToCore(err))
 			require.Equal(t, test.deltaURL, delta.URL, "delta url")
 			require.Equal(t, !test.prevDeltaSuccess, delta.Reset, "delta reset")
 		})

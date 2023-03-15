@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -76,12 +77,15 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
-
-	require.NoError(t, k.Close(ctx))
 
 	err := k.Initialize(ctx)
-	assert.Error(t, err)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Initialize(ctx)
+	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
 
@@ -90,12 +94,12 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	defer flush()
 
 	t := suite.T()
-
 	st := tester.NewPrefixedS3Storage(t)
 	st.Provider = storage.ProviderUnknown
-
 	k := NewConn(st)
-	assert.Error(t, k.Initialize(ctx))
+
+	err := k.Initialize(ctx)
+	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
@@ -103,10 +107,11 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	defer flush()
 
 	t := suite.T()
-
 	st := tester.NewPrefixedS3Storage(t)
 	k := NewConn(st)
-	assert.Error(t, k.Connect(ctx))
+
+	err := k.Connect(ctx)
+	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
@@ -116,10 +121,14 @@ func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
-	assert.NoError(t, k.Close(ctx))
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.Nil(t, k.Repository)
-	assert.NoError(t, k.Close(ctx))
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
@@ -129,17 +138,20 @@ func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
-	require.NoError(t, k.wrap())
+	err = k.wrap()
+	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, 2, k.refCount)
 
-	require.NoError(t, k.Close(ctx))
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, k.Repository)
 	assert.Equal(t, 1, k.refCount)
 
-	require.NoError(t, k.Close(ctx))
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Nil(t, k.Repository)
 	assert.Equal(t, 0, k.refCount)
 }
@@ -151,10 +163,13 @@ func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
-	assert.NoError(t, k.Close(ctx))
-	assert.Error(t, k.wrap())
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	err = k.wrap()
+	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
@@ -164,13 +179,15 @@ func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
-		assert.NoError(t, k.Close(ctx))
+		err := k.Close(ctx)
+		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	assert.Error(t, k.Compression(ctx, "not-a-compressor"))
+	err = k.Compression(ctx, "not-a-compressor")
+	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
@@ -180,10 +197,11 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
-		assert.NoError(t, k.Close(ctx))
+		err := k.Close(ctx)
+		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
 	si := snapshot.SourceInfo{
@@ -193,8 +211,7 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 	}
 
 	p, err := k.getPolicyOrEmpty(ctx, si)
-	require.NoError(t, err)
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, policy.Policy{}, *p)
 }
 
@@ -206,18 +223,19 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	compressor := "pgzip"
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
-		assert.NoError(t, k.Close(ctx))
+		err := k.Close(ctx)
+		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	assert.NoError(t, k.Compression(ctx, compressor))
+	err = k.Compression(ctx, compressor)
+	assert.NoError(t, err, clues.ToCore(err))
 
 	// Check the policy was actually created and has the right compressor.
 	p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-	require.NoError(t, err)
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, compressor, string(p.CompressionPolicy.CompressorName))
 
 	// Check the global policy will be the effective policy in future snapshots
@@ -229,13 +247,11 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	}
 
 	policyTree, err := policy.TreeForSource(ctx, k, si)
-	require.NoError(t, err)
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(
 		t,
 		compressor,
-		string(policyTree.EffectivePolicy().CompressionPolicy.CompressorName),
-	)
+		string(policyTree.EffectivePolicy().CompressionPolicy.CompressorName))
 }
 
 func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect() {
@@ -325,26 +341,32 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 			t := suite.T()
 
 			k, err := openKopiaRepo(t, ctx)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			p, err := k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			test.checkInitFunc(t, p)
 
-			require.NoError(t, test.mutator(ctx, p))
-			require.NoError(t, k.writeGlobalPolicy(ctx, "TestDefaultPolicyConfigSet", p))
-			require.NoError(t, k.Close(ctx))
+			err = test.mutator(ctx, p)
+			require.NoError(t, err, clues.ToCore(err))
 
-			require.NoError(t, k.Connect(ctx))
+			err = k.writeGlobalPolicy(ctx, "TestDefaultPolicyConfigSet", p)
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = k.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = k.Connect(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			defer func() {
-				assert.NoError(t, k.Close(ctx))
+				err := k.Close(ctx)
+				assert.NoError(t, err, clues.ToCore(err))
 			}()
 
 			p, err = k.getPolicyOrEmpty(ctx, policy.GlobalPolicySourceInfo)
-			require.NoError(t, err)
-
+			require.NoError(t, err, clues.ToCore(err))
 			test.checkFunc(t, p)
 		})
 	}
@@ -357,10 +379,15 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	t := suite.T()
 
 	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
-	require.NoError(t, k.Close(ctx))
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	// Re-open with Connect.
-	require.NoError(t, k.Connect(ctx))
-	assert.NoError(t, k.Close(ctx))
+	err = k.Connect(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
 }
