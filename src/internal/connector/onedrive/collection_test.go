@@ -140,6 +140,22 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			expectLabel: graph.LabelsMalware,
 		},
 		{
+			name:         "oneDrive, not found",
+			numInstances: 3,
+			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
+			// Usually `Not Found` is returned from itemGetter and not itemReader
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+			expectErr:   require.Error,
+			expectLabel: graph.LabelStatus(http.StatusNotFound),
+		},
+		{
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			source:       SharePointSource,
