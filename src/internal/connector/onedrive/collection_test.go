@@ -90,7 +90,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 		expectErr    require.ErrorAssertionFunc
-		expectLabel  string
+		expectLabels []string
 	}{
 		{
 			name:         "oneDrive, no duplicates",
@@ -136,8 +136,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
 			},
-			expectErr:   require.Error,
-			expectLabel: graph.LabelsMalware,
+			expectErr:    require.Error,
+			expectLabels: []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
 			name:         "oneDrive, not found",
@@ -152,8 +152,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
 			},
-			expectErr:   require.Error,
-			expectLabel: graph.LabelStatus(http.StatusNotFound),
+			expectErr:    require.Error,
+			expectLabels: []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
 			name:         "sharePoint, no duplicates",
@@ -283,8 +283,10 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			test.expectErr(t, err)
 
 			if err != nil {
-				if len(test.expectLabel) > 0 {
-					assert.True(t, clues.HasLabel(err, test.expectLabel), "has clues label:", test.expectLabel)
+				if len(test.expectLabels) > 0 {
+					for _, label := range test.expectLabels {
+						assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
+					}
 				}
 
 				return
