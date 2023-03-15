@@ -457,9 +457,8 @@ func (w Wrapper) DeleteSnapshot(
 	snapshotID string,
 ) error {
 	mid := manifest.ID(snapshotID)
-
 	if len(mid) == 0 {
-		return clues.New("attempt to delete unidentified snapshot").WithClues(ctx)
+		return clues.New("snapshot ID required for deletion").WithClues(ctx)
 	}
 
 	err := repo.WriteSession(
