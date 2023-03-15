@@ -66,24 +66,24 @@ func (suite *StreamStoreIntgSuite) TearDownSubTest() {
 func (suite *StreamStoreIntgSuite) TestStreamer() {
 	table := []struct {
 		name  string
-		deets func() *details.Details
+		deets func(*testing.T) *details.Details
 		errs  func() *fault.Errors
 	}{
 		{
 			name:  "none",
-			deets: func() *details.Details { return nil },
+			deets: func(*testing.T) *details.Details { return nil },
 			errs:  func() *fault.Errors { return nil },
 		},
 		{
 			name: "details",
-			deets: func() *details.Details {
+			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
-				deetsBuilder.Add(
+				require.NoError(t, deetsBuilder.Add(
 					"rr", "sr", "pr", "lr",
 					true,
 					details.ItemInfo{
 						Exchange: &details.ExchangeInfo{Subject: "hello world"},
-					})
+					}))
 
 				return deetsBuilder.Details()
 			},
@@ -91,7 +91,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 		},
 		{
 			name:  "errors",
-			deets: func() *details.Details { return nil },
+			deets: func(*testing.T) *details.Details { return nil },
 			errs: func() *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
@@ -105,14 +105,14 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 		},
 		{
 			name: "details and errors",
-			deets: func() *details.Details {
+			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
-				deetsBuilder.Add(
+				require.NoError(t, deetsBuilder.Add(
 					"rr", "sr", "pr", "lr",
 					true,
 					details.ItemInfo{
 						Exchange: &details.ExchangeInfo{Subject: "hello world"},
-					})
+					}))
 
 				return deetsBuilder.Details()
 			},
@@ -139,7 +139,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				err error
 			)
 
-			deets := test.deets()
+			deets := test.deets(t)
 			if deets != nil {
 				err = ss.Collect(ctx, DetailsCollector(deets))
 				require.NoError(t, err)
