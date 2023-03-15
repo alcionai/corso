@@ -141,8 +141,8 @@ jobs:
         
       - name: Restoration check
         env:
-          RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
-          RESTORE_SERVICE: "exchange"
+          SANITY_RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "exchange"
         run: |
           set -euo pipefail
           ./sanityCheck
@@ -177,8 +177,8 @@ jobs:
         
       - name: Restoration check
         env:
-          RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
-          RESTORE_SERVICE: "exchange"
+          SANITY_RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "exchange"
         run: |
           set -euo pipefail
           ./sanityCheck
@@ -228,7 +228,8 @@ jobs:
 
       - name: Restoration oneDrive check
         env:
-          RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
+          SANITY_RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "onedrive"
         run: |
           set -euo pipefail
           ./sanityCheck
@@ -262,7 +263,8 @@ jobs:
 
       - name: Restoration oneDrive check
         env:
-          RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
+          SANITY_RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
+          SANITY_RESTORE_SERVICE: "onedrive"
         run: |
           set -euo pipefail
           ./sanityCheck
