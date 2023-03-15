@@ -11,8 +11,13 @@ Param (
 )
 
 # Setup ExchangeOnline
-Install-Module -Name PSWSMan -Force
-Install-Module -Name ExchangeOnlineManagement -Force
+if (-not (Get-Module -ListAvailable -Name PSWSMan)) {
+    Install-Module -Name PSWSMan -Force
+}
+
+if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+    Install-Module -Name ExchangeOnlineManagement -Force
+}
 
 $password = convertto-securestring -String "$AdminPwd" -AsPlainText -Force
 $cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $AdminUser, $password
