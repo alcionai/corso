@@ -15,15 +15,19 @@ const (
 )
 
 type SharePointOpts struct {
-	FileNames          []string // for libraries, to duplicate onedrive interface
-	FolderPaths        []string // for libraries, to duplicate onedrive interface
-	Library            string
-	ListItems          []string
-	ListPaths          []string
-	PageFolders        []string
-	Pages              []string
-	Sites              []string
-	WebURLs            []string
+	Library     string
+	FileNames   []string // for libraries, to duplicate onedrive interface
+	FolderPaths []string // for libraries, to duplicate onedrive interface
+
+	ListItems []string
+	ListPaths []string
+
+	PageFolders []string
+	Pages       []string
+
+	Sites   []string
+	WebURLs []string
+
 	FileCreatedAfter   string
 	FileCreatedBefore  string
 	FileModifiedAfter  string
