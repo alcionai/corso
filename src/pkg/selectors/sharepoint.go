@@ -3,6 +3,8 @@ package selectors
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -356,7 +358,7 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterCreatedAfter,
+			SharePointFilterCreatedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -366,7 +368,7 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterCreatedBefore,
+			SharePointFilterCreatedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -376,7 +378,7 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterModifiedAfter,
+			SharePointFilterModifiedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -386,7 +388,7 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterModifiedBefore,
+			SharePointFilterModifiedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -417,10 +419,10 @@ const (
 	SharePointPage          sharePointCategory = "SharePointPage"
 
 	// filterable topics identified by SharePoint
-	SiteFilterCreatedAfter   sharePointCategory = "FileFilterCreatedAfter"
-	SiteFilterCreatedBefore  sharePointCategory = "FileFilterCreatedBefore"
-	SiteFilterModifiedAfter  sharePointCategory = "FileFilterModifiedAfter"
-	SiteFilterModifiedBefore sharePointCategory = "FileFilterModifiedBefore"
+	SharePointFilterCreatedAfter   sharePointCategory = "SharePointFilterCreatedAfter"
+	SharePointFilterCreatedBefore  sharePointCategory = "SharePointFilterCreatedBefore"
+	SharePointFilterModifiedAfter  sharePointCategory = "SharePointFilterModifiedAfter"
+	SharePointFilterModifiedBefore sharePointCategory = "SharePointFilterModifiedBefore"
 
 	// library drive selection
 	SharePointFilterLibraryDrive sharePointCategory = "SharePointFilterLibraryDrive"
@@ -458,8 +460,8 @@ func (c sharePointCategory) String() string {
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
 	case SharePointLibraryFolder, SharePointLibraryItem, SharePointFilterLibraryDrive,
-		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
-		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+		SharePointFilterCreatedAfter, SharePointFilterCreatedBefore,
+		SharePointFilterModifiedAfter, SharePointFilterModifiedBefore:
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
@@ -496,30 +498,44 @@ func (c sharePointCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, siteID, category, folder, itemID]
 // => {spFolder: folder, spItemID: itemID}
-func (c sharePointCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
-	var folderCat, itemCat categorizer
+func (c sharePointCategory) pathValues(
+	repo path.Path,
+	ent details.DetailsEntry,
+) (map[categorizer][]string, error) {
+	var (
+		folderCat, itemCat categorizer
+		itemName           = repo.Item()
+	)
 
 	switch c {
 	case SharePointLibraryFolder, SharePointLibraryItem:
+		if ent.SharePoint == nil {
+			return nil, clues.New("no SharePoint ItemInfo in details")
+		}
+
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
+		itemName = ent.SharePoint.ItemName
+
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
+
 	default:
-		return map[categorizer][]string{}
+		return nil, clues.New("unrecognized sharePointCategory").With("category", c)
 	}
 
 	result := map[categorizer][]string{
 		folderCat: {repo.Folder(false)},
-		itemCat:   {repo.Item(), ent.ShortRef},
+		itemCat:   {itemName, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {
 		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
-	return result
+	return result, nil
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.
@@ -663,9 +679,9 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	switch filterCat {
 	case SharePointWebURL:
 		i = info.WebURL
-	case SiteFilterCreatedAfter, SiteFilterCreatedBefore:
+	case SharePointFilterCreatedAfter, SharePointFilterCreatedBefore:
 		i = common.FormatTime(info.Created)
-	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+	case SharePointFilterModifiedAfter, SharePointFilterModifiedBefore:
 		i = common.FormatTime(info.Modified)
 	case SharePointFilterLibraryDrive:
 		ds := []string{}

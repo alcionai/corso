@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -35,7 +36,7 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	ob := NewOneDriveBackup(Any())
 	s := ob.Selector
 	ob, err := s.ToOneDriveBackup()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
@@ -155,7 +156,7 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 	eb := NewOneDriveRestore(Any())
 	s := eb.Selector
 	or, err := s.ToOneDriveRestore()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, or.Service, ServiceOneDrive)
 	assert.NotZero(t, or.Scopes())
 }
@@ -175,6 +176,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
+							ItemName: "fileName",
 						},
 					},
 				},
@@ -183,6 +185,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
+							ItemName: "fileName2",
 						},
 					},
 				},
@@ -191,6 +194,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 					ItemInfo: details.ItemInfo{
 						OneDrive: &details.OneDriveInfo{
 							ItemType: details.OneDriveItem,
+							ItemName: "fileName3",
 						},
 					},
 				},
@@ -223,7 +227,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 			deets,
 			func() *OneDriveRestore {
 				odr := NewOneDriveRestore(Any())
-				odr.Include(odr.Items(Any(), []string{"file2"}))
+				odr.Include(odr.Items(Any(), []string{"fileName2"}))
 				return odr
 			},
 			arr(file2),
@@ -257,21 +261,30 @@ func (suite *OneDriveSelectorSuite) TestOneDriveRestore_Reduce() {
 func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	t := suite.T()
 
-	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", "file"}
+	fileName := "file"
+	shortRef := "short"
+	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileName + "-id"}
+
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	expected := map[categorizer][]string{
 		OneDriveFolder: {"dir1/dir2"},
-		OneDriveItem:   {"file", "short"},
+		OneDriveItem:   {fileName, shortRef},
 	}
 
 	ent := details.DetailsEntry{
 		RepoRef:  filePath.String(),
-		ShortRef: "short",
+		ShortRef: shortRef,
+		ItemInfo: details.ItemInfo{
+			OneDrive: &details.OneDriveInfo{
+				ItemName: fileName,
+			},
+		},
 	}
 
-	r := OneDriveItem.pathValues(filePath, ent)
+	r, err := OneDriveItem.pathValues(filePath, ent)
+	require.NoError(t, err)
 	assert.Equal(t, expected, r)
 }
 

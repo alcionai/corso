@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -36,7 +37,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
 
@@ -44,7 +45,7 @@ func (suite *ExchangeServiceSuite) SetupSuite() {
 		m365.AzureTenantID,
 		m365.AzureClientID,
 		m365.AzureClientSecret)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.gs = graph.NewService(adpt)
 }
@@ -79,7 +80,7 @@ func (suite *ExchangeServiceSuite) TestOptionsForCalendars() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			_, err := optionsForCalendars(test.params)
-			test.checkError(suite.T(), err)
+			test.checkError(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -117,7 +118,7 @@ func (suite *ExchangeServiceSuite) TestOptionsForFolders() {
 			t := suite.T()
 
 			config, err := optionsForMailFolders(test.params)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			if err == nil {
 				assert.Equal(t, test.expected, len(config.QueryParameters.Select))
 			}
@@ -156,7 +157,7 @@ func (suite *ExchangeServiceSuite) TestOptionsForContacts() {
 			t := suite.T()
 
 			options, err := optionsForContacts(test.params)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			if err == nil {
 				assert.Equal(t, test.expected, len(options.QueryParameters.Select))
 			}
@@ -183,7 +184,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 					"This is testing",
 				)
 				message, err := support.CreateMessageFromBytes(byteArray)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				return message.GetBody()
 			},
 		},
@@ -193,7 +194,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 			getBodyable: func(t *testing.T) models.ItemBodyable {
 				byteArray := mockconnector.GetMessageWithOneDriveAttachment("Test legacy")
 				message, err := support.CreateMessageFromBytes(byteArray)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				return message.GetBody()
 			},
 		},

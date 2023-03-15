@@ -187,7 +187,8 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 				With(
 					"service", d.repoPath.Service().String(),
 					"category", d.repoPath.Category().String(),
-				))
+				).
+				Label(fault.LabelForceNoBackupCreation))
 
 			return
 		}
@@ -221,13 +222,23 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		}
 	}
 
-	cp.deets.Add(
+	err = cp.deets.Add(
 		d.repoPath.String(),
 		d.repoPath.ShortRef(),
 		parent.ShortRef(),
 		locationFolders,
 		!d.cached,
 		*d.info)
+	if err != nil {
+		cp.errs.AddRecoverable(clues.New("adding item to details").
+			With(
+				"service", d.repoPath.Service().String(),
+				"category", d.repoPath.Category().String(),
+			).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	}
 
 	folders := details.FolderEntriesForPath(parent, locPB)
 	cp.deets.AddFoldersForItem(
@@ -275,11 +286,13 @@ func (cp *corsoProgress) CachedFile(fname string, size int64) {
 // during the upload process. This could be from reading a file or something
 // else.
 func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
-	// The malware case is an artifact of being unable to skip the item
-	// if we catch detection at a late enough stage in collection enumeration.
-	// This is our next point of error handling, where we can identify and
-	// skip over the case.
-	if clues.HasLabel(err, graph.LabelsMalware) {
+	// LabelsSkippable is set of malware items or not found items.
+	// The malware case is an artifact of being unable to skip the
+	// item if we catch detection at a late enough stage in collection
+	// enumeration. The not found could be items deleted in between a
+	// delta query and a fetch.  This is our next point of error
+	// handling, where we can identify and skip over the case.
+	if clues.HasLabel(err, graph.LabelsSkippable) {
 		cp.incExpectedErrs()
 		return
 	}

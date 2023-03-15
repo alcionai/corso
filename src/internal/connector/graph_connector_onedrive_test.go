@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -69,7 +70,7 @@ func onedriveItemWithData(
 	}
 
 	serialized, err := json.Marshal(content)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return itemInfo{
 		name:      name,
@@ -80,7 +81,7 @@ func onedriveItemWithData(
 
 func onedriveMetadata(
 	t *testing.T,
-	fileName, itemID string,
+	fileName, itemID, lookupKey string,
 	perm permData,
 	permUseID bool,
 ) itemInfo {
@@ -89,12 +90,12 @@ func onedriveMetadata(
 	testMeta := getMetadata(fileName, perm, permUseID)
 
 	testMetaJSON, err := json.Marshal(testMeta)
-	require.NoError(t, err, "marshalling metadata")
+	require.NoError(t, err, "marshalling metadata", clues.ToCore(err))
 
 	return itemInfo{
 		name:      itemID,
 		data:      testMetaJSON,
-		lookupKey: itemID,
+		lookupKey: lookupKey,
 	}
 }
 
@@ -128,11 +129,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	suite.acct = tester.NewM365Account(suite.T())
 
 	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
-	require.NoErrorf(suite.T(), err, "fetching user %s", suite.user)
+	require.NoError(suite.T(), err, "fetching user", suite.user, clues.ToCore(err))
 	suite.userID = ptr.Val(user.GetId())
 
 	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
-	require.NoErrorf(suite.T(), err, "fetching user %s", suite.secondaryUser)
+	require.NoError(suite.T(), err, "fetching user", suite.secondaryUser, clues.ToCore(err))
 	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
 	tester.LogTimeOfTest(suite.T())
@@ -205,6 +206,24 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 			c.t,
 			"",
 			name+onedrive.MetaFileSuffix,
+			name+onedrive.MetaFileSuffix,
+			perm,
+			c.backupVersion >= versionPermissionSwitchedToID)
+		c.items = append(c.items, metadata)
+		c.aux = append(c.aux, metadata)
+
+	case version.OneDrive6NameInMeta:
+		c.items = append(c.items, onedriveItemWithData(
+			c.t,
+			name+onedrive.DataFileSuffix,
+			name+onedrive.DataFileSuffix,
+			fileData))
+
+		metadata := onedriveMetadata(
+			c.t,
+			name,
+			name+onedrive.MetaFileSuffix,
+			name,
 			perm,
 			c.backupVersion >= versionPermissionSwitchedToID)
 		c.items = append(c.items, metadata)
@@ -219,7 +238,8 @@ func (c *onedriveCollection) withFile(name string, fileData []byte, perm permDat
 
 func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCollection {
 	switch c.backupVersion {
-	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName:
+	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
+		version.OneDrive6NameInMeta:
 		return c
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:
@@ -228,6 +248,7 @@ func (c *onedriveCollection) withFolder(name string, perm permData) *onedriveCol
 			onedriveMetadata(
 				c.t,
 				"",
+				name+onedrive.DirMetaFileSuffix,
 				name+onedrive.DirMetaFileSuffix,
 				perm,
 				c.backupVersion >= versionPermissionSwitchedToID))
@@ -263,6 +284,7 @@ func (c *onedriveCollection) withPermissions(perm permData) *onedriveCollection 
 	metadata := onedriveMetadata(
 		c.t,
 		name,
+		metaName+onedrive.DirMetaFileSuffix,
 		metaName+onedrive.DirMetaFileSuffix,
 		perm,
 		c.backupVersion >= versionPermissionSwitchedToID)

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,7 +32,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	initial := time.Now()
 	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name     string
@@ -365,6 +366,183 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 	assert.Len(t, d.Entries, 3)
 }
 
+func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs() {
+	itemNames := []string{
+		"item1",
+		"item2",
+	}
+
+	table := []struct {
+		name               string
+		service            path.ServiceType
+		category           path.CategoryType
+		itemInfoFunc       func(name string) ItemInfo
+		expectedUniqueRefs int
+	}{
+		{
+			name:     "OneDrive",
+			service:  path.OneDriveService,
+			category: path.FilesCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					OneDrive: &OneDriveInfo{
+						ItemType: OneDriveItem,
+						ItemName: name,
+					},
+				}
+			},
+			expectedUniqueRefs: len(itemNames),
+		},
+		{
+			name:     "SharePoint",
+			service:  path.SharePointService,
+			category: path.LibrariesCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointLibrary,
+						ItemName: name,
+					},
+				}
+			},
+			expectedUniqueRefs: len(itemNames),
+		},
+		{
+			name:     "SharePoint List",
+			service:  path.SharePointService,
+			category: path.ListsCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointList,
+						ItemName: name,
+					},
+				}
+			},
+			// Should all end up as the starting shortref.
+			expectedUniqueRefs: 1,
+		},
+		{
+			name:     "Exchange no change",
+			service:  path.ExchangeService,
+			category: path.EmailCategory,
+			itemInfoFunc: func(name string) ItemInfo {
+				return ItemInfo{
+					Exchange: &ExchangeInfo{
+						ItemType:  ExchangeMail,
+						Sender:    "a-person@foo.com",
+						Subject:   name,
+						Recipient: []string{"another-person@bar.com"},
+					},
+				}
+			},
+			// Should all end up as the starting shortref.
+			expectedUniqueRefs: 1,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			b := Builder{}
+
+			for _, name := range itemNames {
+				item := test.itemInfoFunc(name)
+				itemPath := makeItemPath(
+					suite.T(),
+					test.service,
+					test.category,
+					"a-tenant",
+					"a-user",
+					[]string{
+						"drive-id",
+						"root:",
+						"folder",
+						name + "-id",
+					},
+				)
+
+				require.NoError(t, b.Add(
+					itemPath.String(),
+					"deadbeef",
+					itemPath.ToBuilder().Dir().String(),
+					itemPath.String(),
+					false,
+					item,
+				))
+			}
+
+			deets := b.Details()
+			shortRefs := map[string]struct{}{}
+
+			for _, d := range deets.Items() {
+				shortRefs[d.ShortRef] = struct{}{}
+			}
+
+			assert.Len(t, shortRefs, test.expectedUniqueRefs, "items don't have unique ShortRefs")
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
+	t := suite.T()
+
+	b := Builder{}
+	name := "itemName"
+	info := ItemInfo{
+		OneDrive: &OneDriveInfo{
+			ItemType: OneDriveItem,
+			ItemName: name,
+		},
+	}
+
+	itemPath := makeItemPath(
+		t,
+		path.OneDriveService,
+		path.FilesCategory,
+		"a-tenant",
+		"a-user",
+		[]string{
+			"drive-id",
+			"root:",
+			"folder",
+			name + "-id",
+		},
+	)
+
+	otherItemPath := makeItemPath(
+		t,
+		path.OneDriveService,
+		path.FilesCategory,
+		"a-tenant",
+		"a-user",
+		[]string{
+			"drive-id",
+			"root:",
+			"folder",
+			name + "-id",
+			name,
+		},
+	)
+
+	err := b.Add(
+		itemPath.String(),
+		"deadbeef",
+		itemPath.ToBuilder().Dir().String(),
+		itemPath.String(),
+		false,
+		info)
+	require.NoError(t, err)
+
+	items := b.Details().Items()
+	require.Len(t, items, 1)
+
+	// If the ShortRefs match then it means it's possible for the user to
+	// construct folder names such that they'll generate a ShortRef collision.
+	assert.NotEqual(t, otherItemPath.ShortRef(), items[0].ShortRef, "same ShortRef as subfolder item")
+}
+
 func (suite *DetailsUnitSuite) TestDetails_AddFolders() {
 	itemTime := time.Date(2022, 10, 21, 10, 0, 0, 0, time.UTC)
 	folderTimeOlderThanItem := time.Date(2022, 9, 21, 10, 0, 0, 0, time.UTC)
@@ -669,7 +847,7 @@ func makeItemPath(
 		category,
 		true,
 		elems...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
@@ -824,10 +1002,10 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			item := test.input
+
 			err := UpdateItem(&item, test.repoPath)
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
@@ -1007,7 +1185,7 @@ func (suite *DetailsUnitSuite) TestDetails_Marshal() {
 			}}
 
 			bs, err := d.Marshal()
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 			assert.NotEmpty(suite.T(), bs)
 		})
 	}
@@ -1021,7 +1199,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			}}
 
 			bs, err := orig.Marshal()
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 			assert.NotEmpty(suite.T(), bs)
 
 			var result Details
@@ -1029,7 +1207,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			err = umt(io.NopCloser(bytes.NewReader(bs)))
 
 			t := suite.T()
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, result)
 			assert.ElementsMatch(t, orig.Entries, result.Entries)
 		})

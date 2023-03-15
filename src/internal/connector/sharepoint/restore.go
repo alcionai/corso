@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -261,13 +262,17 @@ func RestoreListCollection(
 				continue
 			}
 
-			deets.Add(
+			err = deets.Add(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
 				"", // TODO: implement locationRef
 				true,
 				itemInfo)
+			if err != nil {
+				// Not critical enough to need to stop restore operation.
+				logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
+			}
 
 			metrics.Successes++
 		}
@@ -344,13 +349,17 @@ func RestorePageCollection(
 				continue
 			}
 
-			deets.Add(
+			err = deets.Add(
 				itemPath.String(),
 				itemPath.ShortRef(),
 				"",
 				"", // TODO: implement locationRef
 				true,
 				itemInfo)
+			if err != nil {
+				// Not critical enough to need to stop restore operation.
+				logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
+			}
 
 			metrics.Successes++
 		}

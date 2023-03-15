@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -38,7 +39,7 @@ func mustToDataLayerPath(
 	isItem bool,
 ) path.Path {
 	res, err := path.Build(tenant, resourceOwner, service, category, isItem, elements...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return res
 }
@@ -617,12 +618,12 @@ func compareExchangeEmail(
 	item data.Stream,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
 		return
 	}
 
 	itemMessage, err := support.CreateMessageFromBytes(itemData)
-	if !assert.NoError(t, err, "deserializing backed up message") {
+	if !assert.NoError(t, err, "deserializing backed up message", clues.ToCore(err)) {
 		return
 	}
 
@@ -632,7 +633,7 @@ func compareExchangeEmail(
 	}
 
 	expectedMessage, err := support.CreateMessageFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source message")
+	assert.NoError(t, err, "deserializing source message", clues.ToCore(err))
 
 	checkMessage(t, expectedMessage, itemMessage)
 }
@@ -644,12 +645,12 @@ func compareExchangeContact(
 	item data.Stream,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
 		return
 	}
 
 	itemContact, err := support.CreateContactFromBytes(itemData)
-	if !assert.NoError(t, err, "deserializing backed up contact") {
+	if !assert.NoError(t, err, "deserializing backed up contact", clues.ToCore(err)) {
 		return
 	}
 
@@ -672,12 +673,12 @@ func compareExchangeEvent(
 	item data.Stream,
 ) {
 	itemData, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err, "reading collection item: %s", item.UUID()) {
+	if !assert.NoError(t, err, "reading collection item", item.UUID(), clues.ToCore(err)) {
 		return
 	}
 
 	itemEvent, err := support.CreateEventFromBytes(itemData)
-	if !assert.NoError(t, err, "deserializing backed up contact") {
+	if !assert.NoError(t, err, "deserializing backed up contact", clues.ToCore(err)) {
 		return
 	}
 
@@ -687,7 +688,7 @@ func compareExchangeEvent(
 	}
 
 	expectedEvent, err := support.CreateEventFromBytes(expectedBytes)
-	assert.NoError(t, err, "deserializing source contact")
+	assert.NoError(t, err, "deserializing source contact", clues.ToCore(err))
 
 	checkEvent(t, expectedEvent, itemEvent)
 }
@@ -735,7 +736,7 @@ func compareOneDriveItem(
 	}
 
 	buf, err := io.ReadAll(item.ToReader())
-	if !assert.NoError(t, err) {
+	if !assert.NoError(t, err, clues.ToCore(err)) {
 		return true
 	}
 
@@ -749,11 +750,16 @@ func compareOneDriveItem(
 		)
 
 		err = json.Unmarshal(buf, &itemMeta)
-		if !assert.NoErrorf(t, err, "unmarshalling retrieved metadata for file %s", name) {
+		if !assert.NoError(t, err, "unmarshalling retrieved metadata for file", name, clues.ToCore(err)) {
 			return true
 		}
 
 		expectedData := expected[name]
+
+		if strings.HasSuffix(name, onedrive.MetaFileSuffix) {
+			expectedData = expected[itemMeta.FileName]
+		}
+
 		if !assert.NotNil(
 			t,
 			expectedData,
@@ -764,7 +770,7 @@ func compareOneDriveItem(
 		}
 
 		err = json.Unmarshal(expectedData, &expectedMeta)
-		if !assert.NoError(t, err, "unmarshalling expected metadata") {
+		if !assert.NoError(t, err, "unmarshalling expected metadata", clues.ToCore(err)) {
 			return true
 		}
 
@@ -792,12 +798,12 @@ func compareOneDriveItem(
 	var fileData testOneDriveData
 
 	err = json.Unmarshal(buf, &fileData)
-	if !assert.NoErrorf(t, err, "unmarshalling file data for file %s", name) {
+	if !assert.NoError(t, err, "unmarshalling file data for file", name, clues.ToCore(err)) {
 		return true
 	}
 
 	expectedData := expected[fileData.FileName]
-	if !assert.NotNil(t, expectedData, "unexpected file with name %s", name) {
+	if !assert.NotNil(t, expectedData, "unexpected file with name", name) {
 		return true
 	}
 
@@ -1196,7 +1202,7 @@ func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r
 	a := tester.NewM365Account(t)
 
 	connector, err := NewGraphConnector(ctx, itemClient, a, r, fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return connector
 }

@@ -229,7 +229,7 @@ func RestoreCollection(
 						err      error
 					)
 
-					if backupVersion < version.OneDriveXNameInMeta {
+					if backupVersion < version.OneDrive6NameInMeta {
 						itemInfo, err = restoreV1File(
 							ctx,
 							source,
@@ -262,13 +262,18 @@ func RestoreCollection(
 						continue
 					}
 
-					deets.Add(
+					err = deets.Add(
 						itemPath.String(),
 						itemPath.ShortRef(),
 						"",
 						"", // TODO: implement locationRef
 						true,
 						itemInfo)
+					if err != nil {
+						// Not critical enough to need to stop restore operation.
+						logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
+					}
+
 					metrics.Successes++
 				} else if strings.HasSuffix(name, MetaFileSuffix) {
 					// Just skip this for the moment since we moved the code to the above
@@ -315,13 +320,18 @@ func RestoreCollection(
 					continue
 				}
 
-				deets.Add(
+				err = deets.Add(
 					itemPath.String(),
 					itemPath.ShortRef(),
 					"",
 					"", // TODO: implement locationRef
 					true,
 					itemInfo)
+				if err != nil {
+					// Not critical enough to need to stop restore operation.
+					logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
+				}
+
 				metrics.Successes++
 			}
 		}

@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
-- Sharepoint library (document files) support: backup, list, details, and restore.  
+- Sharepoint library (document files) support: backup, list, details, and restore.
+- OneDrive item downloads that return 404 during backup (normally due to external deletion while Corso processes) are now skipped instead of quietly dropped.  These items will appear in the skipped list alongside other skipped cases such as malware detection.
 
 ### Fixed
 - Fix repo connect not working without a config file
+- Fix item re-download on expired links silently being skipped
 
 ## [v0.5.0] (beta) - 2023-03-13
 
