@@ -35,9 +35,9 @@ const (
 	// TODO: Tune this later along with collectionChannelBufferSize
 	urlPrefetchChannelBufferSize = 5
 
-	// maxRetries specifies the number of times a file download should
+	// maxDownloadRetires specifies the number of times a file download should
 	// be retried
-	maxRetries = 3
+	maxDownloadRetires = 3
 
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
@@ -301,7 +301,7 @@ func (od *metadataItem) ModTime() time.Time {
 }
 
 // getDriveItemContent fetch drive item's contents with retries
-func(oc *Collection) getDriveItemContent(
+func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
 	item models.DriveItemable,
 	errs *fault.Bus,
@@ -316,7 +316,7 @@ func(oc *Collection) getDriveItemContent(
 	)
 
 	// Initial try with url from delta + 2 retries
-	for i := 1; i <= maxRetries; i++ {
+	for i := 1; i <= maxDownloadRetires; i++ {
 		_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
 
 		if err == nil || !graph.IsErrUnauthorized(err) {
@@ -331,6 +331,7 @@ func(oc *Collection) getDriveItemContent(
 		if diErr != nil {
 			return nil, errors.Wrap(diErr, "retrieving expired item")
 		}
+
 		item = di
 	}
 

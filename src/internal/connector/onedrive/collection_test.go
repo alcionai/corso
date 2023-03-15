@@ -461,7 +461,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				if count < 2 {
-					count += 1
+					count++
 					return details.ItemInfo{}, nil, clues.Stack(assert.AnError).
 						Label(graph.LabelStatus(http.StatusUnauthorized))
 				}
