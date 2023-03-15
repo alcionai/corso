@@ -49,7 +49,7 @@ const (
 corso backup create sharepoint --web-url <siteURL>
 
 # Backup SharePoint for two sites: HR and Team
-corso backup create sharepoint --site https://example.com/hr,https://example.com/team
+corso backup create sharepoint --web-url https://example.com/hr,https://example.com/team
 
 # Backup all SharePoint data for all Sites
 corso backup create sharepoint --web-url '*'`
@@ -58,13 +58,15 @@ corso backup create sharepoint --web-url '*'`
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
 	sharePointServiceCommandDetailsExamples = `# Explore a site's files from backup 1234abcd-12ab-cd34-56de-1234abcd
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --web-url https://example.com
-
-# Find all site files that were created before a certain date.
-
+# Find all files that were created before a certain date.
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --web-url https://example.com --file-created-before 2015-01-01T00:00:00
+    --file-created-before 2015-01-01T00:00:00 --folder "Display Templates/Style Sheets"
+
+# Find all files within a specific library.
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --library documents --folder "Display Templates/Style Sheets"
 `
 )
 
@@ -103,7 +105,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
 
-		fs.StringVar(&backupID,
+		fs.StringVar(
+			&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 
@@ -115,7 +118,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		options.AddSkipReduceFlag(c)
 
-		fs.StringVar(&backupID,
+		fs.StringVar(
+			&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to retrieve.")
 		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
@@ -136,16 +140,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 			&utils.FileNames,
 			utils.FileFN, nil,
 			"Select backup details by file name.")
-
-		fs.StringArrayVar(
-			&utils.Site,
-			utils.SiteFN, nil,
-			"Select backup details by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
-
-		fs.StringSliceVar(
-			&utils.WebURL,
-			utils.WebURLFN, nil,
-			"Select backup data by site webURL; accepts '"+utils.Wildcard+"' to select all sites.")
 
 		fs.StringSliceVar(
 			&pageFolders,
@@ -186,7 +180,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		fs.StringVar(&backupID,
+		fs.StringVar(
+			&backupID,
 			utils.BackupFN, "",
 			"ID of the backup to delete. (required)")
 		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
