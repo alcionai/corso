@@ -2,11 +2,11 @@
 slug: tutorial-corso-videos
 title: "Backup Basics: A Video Tour of Using Free Open-Source Corso to Protect your Microsoft 365 Data"
 description: "By watching my
-four short videos, you’ll be set up and on your way to backing up all your M365
+four short videos, you’ll be set up and on your way to backing up all your Microsoft 365
 data in less than 20 minutes. That’s shorter than most meetings!"
 authors: nica
 tags: [corso, microsoft 365, backups]
-date: 2023-3-10
+date: 2023-3-15
 image: ./images/vhs.jpg
 ---
 
@@ -28,7 +28,7 @@ My question to you is, how can you protect your data without spending countless 
 
 The answer? Corso, a free open-source backup tool that helps you safeguard your
 teams’ Microsoft 365 data, and it’s really quick to get started! By watching my
-four short videos, you’ll be set up and on your way to backing up all your M365
+four short videos, you’ll be set up and on your way to backing up all your Microsoft 365
 data in less than 20 minutes. That’s shorter than most meetings!
 
 ## Get started with Corso for Microsoft 365 backups
@@ -78,10 +78,10 @@ allowfullscreen></iframe>
 
 ## Create local Microsoft 365 backups using MinIO
 
-For quick, low-latency backup testing, you can use MinIO to run a Corso M365
+For quick, low-latency backup testing, you can use MinIO to run a Corso Microsoft 365
 backup through a local S3 bucket. While you don’t want to rely on this as your
 primary backup location, it's a cost effective option for testing that gives
-you full control. See my [video](https://youtu.be/ABIiVufyOkM) on local M365
+you full control. See my [video](https://youtu.be/ABIiVufyOkM) on local Microsoft 365
 backups for a step-by-step guide on this Corso feature.
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/ABIiVufyOkM"
@@ -104,9 +104,11 @@ title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
 clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 allowfullscreen></iframe>
 
+---
+
 Remember, don’t leave your data vulnerable to cyberattacks, accidental
 deletion, server outages, or any of the countless other sources of data loss.
-Try out [Corso](https://corsobackup.io/) for your company’s M365 backup needs,
+Try out [Corso](https://corsobackup.io/) for your company’s Microsoft 365 backup needs,
 and be sure to check out my Corso video
 [playlist](https://youtube.com/playlist?list=PLSukexZlj1V0D0xGV2ON-MWRmPpLWi6hK)
 on YouTube for more tips and tricks on protecting your data! Please come find me
