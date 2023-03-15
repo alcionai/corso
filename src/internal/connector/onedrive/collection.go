@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -34,6 +33,10 @@ const (
 
 	// TODO: Tune this later along with collectionChannelBufferSize
 	urlPrefetchChannelBufferSize = 5
+
+	// maxRetries specifies the number of times a file download should
+	// be retried
+	maxRetries = 3
 
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
@@ -403,38 +406,16 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				// attempts to read bytes.  Assumption is that kopia will check things
 				// like file modtimes before attempting to read.
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					// Read the item
-					var (
-						itemData io.ReadCloser
-						err      error
+					itemData, err := getDriveItemContent(
+						ctx,
+						oc.service,
+						oc.driveID,
+						item,
+						oc.itemReader,
+						oc.itemClient,
+						errs,
 					)
-
-					_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
-
-					if err != nil && graph.IsErrUnauthorized(err) {
-						// assume unauthorized requests are a sign of an expired
-						// jwt token, and that we've overrun the available window
-						// to download the actual file.  Re-downloading the item
-						// will refresh that download url.
-						di, diErr := getDriveItem(ctx, oc.service, oc.driveID, itemID)
-						if diErr != nil {
-							err = errors.Wrap(diErr, "retrieving expired item")
-						}
-						item = di
-					}
-
-					// check for errors following retries
 					if err != nil {
-						if item.GetMalware() != nil || clues.HasLabel(err, graph.LabelsMalware) {
-							logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
-							el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.MalwareInfo(item)))
-						} else {
-							logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
-							el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
-						}
-
-						// return err, not el.Err(), because the lazy reader needs to communicate to
-						// the data consumer that this item is unreadable, regardless of the fault state.
 						return nil, err
 					}
 
