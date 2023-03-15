@@ -329,7 +329,8 @@ func (oc *Collection) getDriveItemContent(
 		// refresh that download url.
 		di, diErr := oc.itemGetter(ctx, oc.service, oc.driveID, itemID)
 		if diErr != nil {
-			return nil, errors.Wrap(diErr, "retrieving expired item")
+			err = errors.Wrap(diErr, "retrieving expired item")
+			break
 		}
 
 		item = di
@@ -337,7 +338,7 @@ func (oc *Collection) getDriveItemContent(
 
 	// check for errors following retries
 	if err != nil {
-		if item.GetMalware() != nil || clues.HasLabel(err, graph.LabelsMalware) {
+		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
 			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.MalwareInfo(item)))
 		} else {
