@@ -50,7 +50,7 @@ func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
 		// Root folder doesn't store any mail messages so it isn't given any paths.
 		// Giving it a path/location would cause us to add extra path elements that
 		// the user doesn't see in the regular UI for Exchange.
-		path.Builder{}.Append(), // storage path
+		path.Builder{}.Append(), // path of IDs
 		path.Builder{}.Append()) // display location
 	if err := mc.addFolder(temp); err != nil {
 		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)

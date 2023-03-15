@@ -89,20 +89,11 @@ func (cr *containerResolver) idToPath(
 		return nil, nil, clues.Wrap(err, "retrieving parent folder")
 	}
 
-	toAppend := ptr.Val(c.GetDisplayName())
-	if useIDInPath {
-		toAppend = ptr.Val(c.GetId())
-	}
-
-	fullPath := parentPath.Append(toAppend)
+	fullPath := parentPath.Append(ptr.Val(c.GetId()))
 	c.SetPath(fullPath)
 
-	var locPath *path.Builder
-
-	if parentLoc != nil {
-		locPath = parentLoc.Append(ptr.Val(c.GetDisplayName()))
-		c.SetLocation(locPath)
-	}
+	locPath := parentLoc.Append(ptr.Val(c.GetDisplayName()))
+	c.SetLocation(locPath)
 
 	return fullPath, locPath, nil
 }
