@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/data"
@@ -70,17 +71,17 @@ func testForFiles(
 			count++
 
 			fullPath, err := c.FullPath().Append(s.UUID(), true)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			expected, ok := expected[fullPath.String()]
 			require.True(t, ok, "unexpected file with path %q", fullPath)
 
 			buf, err := io.ReadAll(s.ToReader())
-			require.NoError(t, err, "reading collection item: %s", fullPath)
-
-			assert.Equal(t, expected, buf, "comparing collection item: %s", fullPath)
+			require.NoError(t, err, "reading collection item", fullPath, clues.ToCore(err))
+			assert.Equal(t, expected, buf, "comparing collection item", fullPath)
 
 			require.Implements(t, (*data.StreamSize)(nil), s)
+
 			ss := s.(data.StreamSize)
 			assert.Equal(t, len(buf), int(ss.Size()))
 		}
@@ -97,7 +98,7 @@ func checkSnapshotTags(
 	snapshotID string,
 ) {
 	man, err := snapshot.LoadSnapshot(ctx, rep, manifest.ID(snapshotID))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, expectedTags, man.Tags)
 }
 
@@ -120,7 +121,7 @@ func (suite *KopiaUnitSuite) SetupSuite() {
 		),
 		false,
 	)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.testPath = tmp
 }
@@ -171,7 +172,7 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 		path.EmailCategory,
 		false,
 		testInboxDir)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.storePath1 = tmp
 	suite.locPath1 = tmp
@@ -183,7 +184,7 @@ func (suite *KopiaIntegrationSuite) SetupSuite() {
 		path.EmailCategory,
 		false,
 		testArchiveDir)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.storePath2 = tmp
 	suite.locPath2 = tmp
@@ -194,14 +195,16 @@ func (suite *KopiaIntegrationSuite) SetupTest() {
 	suite.ctx, suite.flush = tester.NewContext()
 
 	c, err := openKopiaRepo(t, suite.ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.w = &Wrapper{c}
 }
 
 func (suite *KopiaIntegrationSuite) TearDownTest() {
 	defer suite.flush()
-	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
+
+	err := suite.w.Close(suite.ctx)
+	assert.NoError(suite.T(), err, clues.ToCore(err))
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
@@ -281,7 +284,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				tags,
 				true,
 				fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
 			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
@@ -316,7 +319,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				suite.w.c,
 				manifest.ID(stats.SnapshotID),
 			)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			prevSnaps = append(prevSnaps, IncrementalBase{
 				Manifest: snap,
@@ -336,7 +339,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		path.FilesCategory,
 		false,
 		testInboxDir)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	storePath := tmp
 	locPath := tmp
@@ -428,7 +431,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				tags,
 				true,
 				fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
 			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
@@ -475,9 +478,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			snap, err := snapshot.LoadSnapshot(
 				suite.ctx,
 				suite.w.c,
-				manifest.ID(stats.SnapshotID),
-			)
-			require.NoError(t, err)
+				manifest.ID(stats.SnapshotID))
+			require.NoError(t, err, clues.ToCore(err))
 
 			prevSnaps = append(prevSnaps, IncrementalBase{
 				Manifest: snap,
@@ -490,15 +492,16 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 }
 
 func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
-	t := suite.T()
 	ctx, flush := tester.NewContext()
-
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
-	require.NoError(t, err)
+	t := suite.T()
 
-	require.NoError(t, k.Compression(ctx, "s2-default"))
+	k, err := openKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Compression(ctx, "s2-default")
+	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
 
@@ -517,10 +520,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	dc2 := mockconnector.NewMockExchangeCollection(suite.storePath2, suite.locPath2, 1)
 
 	fp1, err := suite.storePath1.Append(dc1.Names[0], true)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	stats, _, _, err := w.BackupCollections(
 		ctx,
@@ -530,9 +533,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		tags,
 		true,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
-	require.NoError(t, k.Compression(ctx, "gzip"))
+	err = k.Compression(ctx, "gzip")
+	require.NoError(t, err, clues.ToCore(err))
 
 	expected := map[string][]byte{
 		fp1.String(): dc1.Data[0],
@@ -548,7 +552,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		},
 		nil,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, 2, len(result))
 
 	testForFiles(t, ctx, expected, result)
@@ -648,8 +652,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		tags,
 		true,
 		fault.New(true))
-	require.Error(t, err)
-
+	require.Error(t, err, clues.ToCore(err))
 	assert.Equal(t, 0, stats.ErrorCount)
 	assert.Equal(t, 5, stats.TotalFileCount)
 	assert.Equal(t, 6, stats.TotalDirectoryCount)
@@ -659,7 +662,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	assert.Len(t, deets.Details().Entries, 5+6)
 
 	failedPath, err := suite.storePath2.Append(testFileName4, true)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	ic := i64counter{}
 
@@ -672,7 +675,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable")
+	assert.ErrorIs(t, err, data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
 }
 
 type backedupFile struct {
@@ -711,7 +714,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				true,
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, BackupStats{}, *s)
 			assert.Empty(t, d.Details().Entries)
@@ -751,7 +754,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 		path.EmailCategory,
 		false,
 		testInboxDir)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.testPath1 = tmp
 
@@ -762,7 +765,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 		path.EmailCategory,
 		false,
 		testArchiveDir)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.testPath2 = tmp
 
@@ -808,7 +811,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupSuite() {
 
 	for _, item := range filesInfo {
 		pth, err := item.parentPath.Append(item.name, true)
-		require.NoError(suite.T(), err)
+		require.NoError(suite.T(), err, clues.ToCore(err))
 
 		mapKey := item.parentPath.String()
 		f := &backedupFile{
@@ -828,8 +831,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	expectedFiles := len(suite.filesByPath)
 	//nolint:forbidigo
 	suite.ctx, _ = logger.SeedLevel(context.Background(), logger.Development)
+
 	c, err := openKopiaRepo(t, suite.ctx)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.w = &Wrapper{c}
 
@@ -870,7 +874,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		tags,
 		false,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	require.Equal(t, stats.ErrorCount, 0)
 	require.Equal(t, stats.TotalFileCount, expectedFiles)
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
@@ -883,7 +887,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
-	assert.NoError(suite.T(), suite.w.Close(suite.ctx))
+	err := suite.w.Close(suite.ctx)
+	assert.NoError(suite.T(), err, clues.ToCore(err))
 	logger.Flush(suite.ctx)
 }
 
@@ -909,7 +914,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		path.EmailCategory,
 		false,
 		"tmp")
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	subtreePath := subtreePathTmp.ToBuilder().Dir()
 
@@ -918,7 +923,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		[]Reason{reason},
 		nil,
 	)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	require.Len(suite.T(), manifests, 1)
 	require.Equal(suite.T(), suite.snapshotID, manifests[0].ID)
 
@@ -1028,7 +1033,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				tags,
 				true,
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)
 			assert.Equal(t, test.expectedUncachedItems, stats.UncachedFileCount)
 
@@ -1048,7 +1053,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				},
 				&ic,
 				fault.New(true))
-			test.restoreCheck(t, err)
+			test.restoreCheck(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -1149,7 +1154,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 				test.inputPaths,
 				&ic,
 				fault.New(true))
-			test.expectedErr(t, err)
+			test.expectedErr(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
@@ -1164,7 +1169,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
 	itemPath, err := suite.testPath1.Append(testFileName, true)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name       string
@@ -1198,7 +1203,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 				test.paths,
 				nil,
 				fault.New(true))
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, c)
 		})
 	}
@@ -1207,7 +1212,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	t := suite.T()
 
-	assert.NoError(t, suite.w.DeleteSnapshot(suite.ctx, string(suite.snapshotID)))
+	err := suite.w.DeleteSnapshot(suite.ctx, string(suite.snapshotID))
+	assert.NoError(t, err, clues.ToCore(err))
 
 	// assert the deletion worked
 	itemPath := suite.files[suite.testPath1.String()][0].itemPath
@@ -1219,7 +1225,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 		[]path.Path{itemPath},
 		&ic,
 		fault.New(true))
-	assert.Error(t, err, "snapshot should be deleted")
+	assert.Error(t, err, "snapshot should be deleted", clues.ToCore(err))
 	assert.Empty(t, c)
 	assert.Zero(t, ic.i)
 }
@@ -1245,7 +1251,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot_BadIDs() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			test.expect(t, suite.w.DeleteSnapshot(suite.ctx, test.snapshotID))
+			err := suite.w.DeleteSnapshot(suite.ctx, test.snapshotID)
+			test.expect(t, err, clues.ToCore(err))
 		})
 	}
 }

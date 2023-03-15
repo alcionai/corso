@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,7 +32,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	initial := time.Now()
 	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name     string
@@ -846,7 +847,7 @@ func makeItemPath(
 		category,
 		true,
 		elems...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
@@ -1001,10 +1002,10 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			item := test.input
+
 			err := UpdateItem(&item, test.repoPath)
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
@@ -1184,7 +1185,7 @@ func (suite *DetailsUnitSuite) TestDetails_Marshal() {
 			}}
 
 			bs, err := d.Marshal()
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 			assert.NotEmpty(suite.T(), bs)
 		})
 	}
@@ -1198,7 +1199,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			}}
 
 			bs, err := orig.Marshal()
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 			assert.NotEmpty(suite.T(), bs)
 
 			var result Details
@@ -1206,7 +1207,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			err = umt(io.NopCloser(bytes.NewReader(bs)))
 
 			t := suite.T()
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, result)
 			assert.ElementsMatch(t, orig.Entries, result.Entries)
 		})

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -53,7 +54,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
 						AzureTenantID: "data",
 					},
 				)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				return a
 			},
 		},
@@ -222,11 +223,11 @@ func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices
 			t := suite.T()
 
 			err := verifyBackupInputs(test.excludes(t), sites)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			err = verifyBackupInputs(test.filters(t), sites)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 			err = verifyBackupInputs(test.includes(t), sites)
-			test.checkError(t, err)
+			test.checkError(t, err, clues.ToCore(err))
 		})
 	}
 }

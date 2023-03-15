@@ -3,6 +3,7 @@ package onedrive
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -134,7 +135,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			inPaths := []path.Path{}
 			for _, ps := range test.input {
 				p, err := path.FromDataLayerPath(base+ps, true)
-				require.NoError(t, err, "creating path")
+				require.NoError(t, err, "creating path", clues.ToCore(err))
 
 				inPaths = append(inPaths, p)
 			}
@@ -142,13 +143,13 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			outPaths := []path.Path{}
 			for _, ps := range test.output {
 				p, err := path.FromDataLayerPath(base+ps, true)
-				require.NoError(t, err, "creating path")
+				require.NoError(t, err, "creating path", clues.ToCore(err))
 
 				outPaths = append(outPaths, p)
 			}
 
 			actual, err := AugmentRestorePaths(test.version, inPaths)
-			require.NoError(t, err, "augmenting paths")
+			require.NoError(t, err, "augmenting paths", clues.ToCore(err))
 
 			// Ordering of paths matter here as we need dirmeta files
 			// to show up before file in dir

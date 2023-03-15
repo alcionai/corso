@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -37,7 +38,7 @@ func (suite *ExchangeSelectorSuite) TestToExchangeBackup() {
 	eb := NewExchangeBackup(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeBackup()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }
@@ -54,7 +55,7 @@ func (suite *ExchangeSelectorSuite) TestToExchangeRestore() {
 	eb := NewExchangeRestore(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeRestore()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }

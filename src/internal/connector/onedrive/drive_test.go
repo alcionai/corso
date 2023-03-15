@@ -313,7 +313,7 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 			}
 
 			drives, err := drives(ctx, pager, test.retry)
-			test.expectedErr(t, err)
+			test.expectedErr(t, err, clues.ToCore(err))
 
 			assert.ElementsMatch(t, test.expectedResults, drives)
 		})
@@ -351,10 +351,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	gs := loadTestService(t)
 
 	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	drives, err := drives(ctx, pager, true)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, drives)
 
 	// TODO: Verify the intended drive
@@ -370,7 +370,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	}()
 
 	folderID, err := CreateRestoreFolders(ctx, gs, driveID, folderElements)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
@@ -378,7 +378,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	folderElements = append(folderElements, folderName2)
 
 	folderID, err = CreateRestoreFolders(ctx, gs, driveID, folderElements)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	folderIDs = append(folderIDs, folderID)
 
@@ -401,10 +401,10 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 			t := suite.T()
 
 			pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			allFolders, err := GetAllFolders(ctx, gs, pager, test.prefix, fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			foundFolderIDs := []string{}
 
@@ -436,7 +436,7 @@ func (fm testFolderMatcher) Matches(path string) bool {
 
 func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 	creds, err := tester.NewM365Account(suite.T()).M365Config()
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name, user string
@@ -477,7 +477,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				})
 
 			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))
-			assert.NoError(t, err, clues.InErr(err))
+			assert.NoError(t, err, clues.ToCore(err))
 			// Don't expect excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 

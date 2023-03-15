@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -32,7 +33,7 @@ func (suite *SharePointPageSuite) SetupSuite() {
 	suite.siteID = tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
 	suite.service = createTestBetaService(t, suite.creds)
@@ -50,7 +51,7 @@ func (suite *SharePointPageSuite) TestFetchPages() {
 
 	t := suite.T()
 	pgs, err := api.FetchPages(ctx, suite.service, suite.siteID)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, pgs)
 	assert.NotZero(t, len(pgs))
 
@@ -65,12 +66,12 @@ func (suite *SharePointPageSuite) TestGetSitePages() {
 
 	t := suite.T()
 	tuples, err := api.FetchPages(ctx, suite.service, suite.siteID)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, tuples)
 
 	jobs := []string{tuples[0].ID}
 	pages, err := api.GetSitePages(ctx, suite.service, suite.siteID, jobs, fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, pages)
 }
 
@@ -100,11 +101,12 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 		destName,
 	)
 
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, info)
 
 	// Clean Up
 	pageID := info.SharePoint.ParentPath
+
 	err = api.DeleteSitePage(ctx, suite.service, suite.siteID, pageID)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 }

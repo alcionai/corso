@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 )
 
@@ -693,10 +694,10 @@ func GetMockMessageWithNestedItemAttachmentEvent(subject string) []byte {
 func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, subject string) []byte {
 	base := GetMockMessageBytes(subject)
 	message, err := hydrateMessage(base)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	nestedMessage, err := hydrateMessage(nested)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	iaNode := models.NewItemAttachment()
 	attachmentSize := int32(len(nested))
@@ -713,13 +714,13 @@ func GetMockMessageWithNestedItemAttachmentMail(t *testing.T, nested []byte, sub
 func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, subject string) []byte {
 	base := GetMockMessageBytes(subject)
 	message, err := hydrateMessage(base)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	anObject, err := parseNode.GetObjectValue(models.CreateContactFromDiscriminatorValue)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	contact := anObject.(models.Contactable)
 	internalName := "Nested Contact"
@@ -736,10 +737,10 @@ func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, 
 func serialize(t *testing.T, item absser.Parsable) []byte {
 	wtr := js.NewJsonSerializationWriter()
 	err := wtr.WriteObjectValue("", item)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	byteArray, err := wtr.GetSerializedContent()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return byteArray
 }

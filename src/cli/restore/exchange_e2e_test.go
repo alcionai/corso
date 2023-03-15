@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -62,7 +63,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -76,7 +77,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)
 
@@ -100,17 +101,19 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		sel.Include(scopes)
 
 		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
-		require.NoError(t, bop.Run(ctx))
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
+
+		err = bop.Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
 
 		suite.backupOps[set] = bop
 
 		// sanity check, ensure we can find the backup and its details immediately
 		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
-		require.NoError(t, err, "retrieving recent backup by ID")
+		require.NoError(t, err, "retrieving recent backup by ID", clues.ToCore(err))
 
 		_, _, errs := suite.repo.BackupDetails(ctx, string(bop.Results.BackupID))
-		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID")
+		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID", clues.ToCore(err))
 		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
 	}
 }
@@ -132,7 +135,8 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -167,7 +171,8 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.Error(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.Error(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -200,7 +205,8 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.Error(t, cmd.ExecuteContext(ctx))
+			err := cmd.ExecuteContext(ctx)
+			require.Error(t, err, clues.ToCore(err))
 		})
 	}
 }

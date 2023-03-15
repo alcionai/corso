@@ -3,6 +3,7 @@ package crash_test
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +51,8 @@ func (suite *CrashTestDummySuite) TestRecovery() {
 			ctx, flush := tester.NewContext()
 
 			defer func() {
-				test.expect(t, crash.Recovery(ctx, recover()))
+				err := crash.Recovery(ctx, recover())
+				test.expect(t, err, clues.ToCore(err))
 				flush()
 			}()
 
