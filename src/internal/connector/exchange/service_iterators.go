@@ -115,9 +115,6 @@ func filterContainersAndFillCollections(
 			deltaURLs[cID] = newDelta.URL
 		}
 
-		if qp.Category != path.EventsCategory {
-			locPath = nil
-		}
 
 		edc := NewCollection(
 			qp.ResourceOwner,
