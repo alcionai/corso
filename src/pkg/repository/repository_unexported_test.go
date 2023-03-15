@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -131,7 +130,7 @@ func writeBackup(
 	tID, snapID, backupID string,
 	sel selectors.Selector,
 	deets *details.Details,
-	errors fault.Errors,
+	errors *fault.Errors,
 	errs *fault.Bus,
 ) *backup.Backup {
 	var (
@@ -142,7 +141,7 @@ func writeBackup(
 	err := sstore.Collect(ctx, streamstore.DetailsCollector(deets))
 	require.NoError(t, err, "collecting details in streamstore")
 
-	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(errs.Errors()))
+	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(errors))
 	require.NoError(t, err, "collecting errors in streamstore")
 
 	ssid, err := sstore.Write(ctx, errs)
@@ -212,7 +211,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 					tenantID, "snapID", test.writeBupID,
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
-					fault.Errors{},
+					&fault.Errors{},
 					fault.New(true))
 			)
 
@@ -235,13 +234,17 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		failFast = true
 	)
 
-	err := clues.Wrap(assert.AnError, "wrap")
-	cec := clues.ToCore(clues.Stack(assert.AnError))
-	info := details.ItemInfo{
-		Folder: &details.FolderInfo{
-			DisplayName: "test",
-		},
-	}
+	var (
+		err  = clues.Wrap(assert.AnError, "wrap")
+		cec  = err.Core()
+		item = fault.FileErr(err, "file-id", "file-name", map[string]any{"foo": "bar"})
+		skip = fault.FileSkip(fault.SkipMalware, "s-file-id", "s-file-name", map[string]any{"foo": "bar"})
+		info = details.ItemInfo{
+			Folder: &details.FolderInfo{
+				DisplayName: "test",
+			},
+		}
+	)
 
 	builder := &details.Builder{}
 
@@ -257,24 +260,36 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		expectErr    require.ErrorAssertionFunc
 	}{
 		{
-			name:         "nil errors",
-			writeBupID:   "error_marmots",
-			readBupID:    "error_marmots",
-			deets:        builder.Details(),
-			errors:       nil,
-			expectErrors: &fault.Errors{Items: []fault.Item{}, FailFast: failFast},
-			expectErr:    require.NoError,
+			name:       "nil errors",
+			writeBupID: "error_marmots",
+			readBupID:  "error_marmots",
+			deets:      builder.Details(),
+			errors:     nil,
+			expectErrors: &fault.Errors{
+				Recovered: []*clues.ErrCore{},
+				Items:     []fault.Item{},
+				FailFast:  failFast,
+			},
+			expectErr: require.NoError,
 		},
 		{
 			name:       "good",
 			writeBupID: "error_squirrels",
 			readBupID:  "error_squirrels",
 			deets:      builder.Details(),
-			errors:     &fault.Errors{Failure: err},
+			errors: &fault.Errors{
+				Failure:   cec,
+				Recovered: []*clues.ErrCore{cec},
+				Items:     []fault.Item{*item},
+				Skipped:   []fault.Skipped{*skip},
+				FailFast:  failFast,
+			},
 			expectErrors: &fault.Errors{
-				Failure:  nil,
-				Items:    []fault.Item{},
-				FailFast: failFast,
+				Failure:   cec,
+				Recovered: []*clues.ErrCore{cec},
+				Items:     []fault.Item{*item},
+				Skipped:   []fault.Skipped{*skip},
+				FailFast:  failFast,
 			},
 			expectErr: require.NoError,
 		},
@@ -302,7 +317,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 					tenantID, "snapID", test.writeBupID,
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
-					ptr.Val(test.errors),
+					test.errors,
 					fault.New(true))
 			)
 

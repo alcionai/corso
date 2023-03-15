@@ -169,10 +169,10 @@ func (e *Bus) addSkip(s *Skipped) *Bus {
 
 // Errors returns the plain record of errors that were aggregated
 // within a fult Bus.
-func (e *Bus) Errors() Errors {
+func (e *Bus) Errors() *Errors {
 	items, nonItems := itemsIn(e.failure, e.recoverable)
 
-	return Errors{
+	return &Errors{
 		Failure:   clues.ToCore(e.failure),
 		Recovered: nonItems,
 		Items:     items,
@@ -246,8 +246,9 @@ func itemsIn(failure error, recovered []error) ([]Item, []*clues.ErrCore) {
 }
 
 // Marshal runs json.Marshal on the errors.
-func (e Errors) Marshal() ([]byte, error) {
-	return json.Marshal(e)
+func (e *Errors) Marshal() ([]byte, error) {
+	bs, err := json.Marshal(e)
+	return bs, err
 }
 
 // UnmarshalErrorsTo produces a func that complies with the unmarshaller
@@ -260,7 +261,7 @@ func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
 
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
-func (e Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips, ignoreRecovered bool) {
+func (e *Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips, ignoreRecovered bool) {
 	if len(e.Items)+len(e.Skipped)+len(e.Recovered) == 0 ||
 		ignoreErrors && ignoreSkips && ignoreRecovered {
 		return

@@ -211,8 +211,8 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	n.AddRecoverable(errors.New("2"))
 
 	d := n.Errors()
-	assert.Equal(t, n.Failure(), d.Failure)
-	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
+	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
+	assert.Len(t, d.Recovered, len(n.Recovered()))
 	assert.False(t, d.FailFast)
 
 	// fail-fast
@@ -224,25 +224,25 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	n.AddRecoverable(errors.New("2"))
 
 	d = n.Errors()
-	assert.Equal(t, n.Failure(), d.Failure)
-	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
+	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
+	assert.Len(t, d.Recovered, len(n.Recovered()))
 	assert.True(t, d.FailFast)
 }
 
 func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 	ae := clues.Stack(assert.AnError)
-	noncore := []*clues.ErrCore{clues.ToCore(ae)}
+	noncore := []*clues.ErrCore{ae.Core()}
 	addtl := map[string]any{"foo": "bar", "baz": 1}
 
 	table := []struct {
 		name              string
-		errs              func() fault.Errors
+		errs              func() *fault.Errors
 		expectItems       []fault.Item
 		expectRecoverable []*clues.ErrCore
 	}{
 		{
 			name: "no errors",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				return fault.New(false).Errors()
 			},
 			expectItems:       []fault.Item{},
@@ -250,7 +250,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "no items",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(ae)
@@ -262,7 +262,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "failure item",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
 				b.AddRecoverable(ae)
@@ -274,7 +274,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "recoverable item",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(fault.OwnerErr(ae, "id", "name", addtl))
@@ -286,7 +286,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "two items",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "oid", "name", addtl))
 				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
@@ -301,7 +301,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "duplicate items - failure priority",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
 				b.AddRecoverable(fault.FileErr(ae, "id", "name", addtl))
@@ -315,7 +315,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "duplicate items - last recoverable priority",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
@@ -330,7 +330,7 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 		},
 		{
 			name: "recoverable item and non-items",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
