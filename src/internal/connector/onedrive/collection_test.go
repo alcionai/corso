@@ -283,10 +283,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			test.expectErr(t, err)
 
 			if err != nil {
-				if len(test.expectLabels) > 0 {
-					for _, label := range test.expectLabels {
-						assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
-					}
+				for _, label := range test.expectLabels {
+					assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
 				}
 
 				return
