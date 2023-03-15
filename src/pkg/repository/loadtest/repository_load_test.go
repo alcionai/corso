@@ -384,14 +384,24 @@ func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
 	return sl
 }
 
+/* ================================================
+*   A note on load test setup:
+*   Even though most of the code here is boiler-
+*   plate and could be easily compressed into a
+*   test matrix, we want to keep the suites separte
+*   to maximize parallelism.  Due to how testify's
+*   suites work, we can only run in parallel at the
+*   level of the suite, not within each test.
+*  ================================================ */
+
 // ------------------------------------------------------------------------------------------------
 // Exchange
 // ------------------------------------------------------------------------------------------------
 
 // multiple users
 
-type RepositoryLoadTestExchangeSuite struct {
-	suite.Suite
+type LoadExchangeSuite struct {
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use
@@ -399,23 +409,27 @@ type RepositoryLoadTestExchangeSuite struct {
 	usersUnderTest []string
 }
 
-func TestRepositoryLoadTestExchangeSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoLoadTests)
-	suite.Run(t, new(RepositoryLoadTestExchangeSuite))
+func TestLoadExchangeSuite(t *testing.T) {
+	suite.Run(t, &LoadExchangeSuite{
+		Suite: tester.NewLoadSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		),
+	})
 }
 
-func (suite *RepositoryLoadTestExchangeSuite) SetupSuite() {
+func (suite *LoadExchangeSuite) SetupSuite() {
 	t := suite.T()
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 	suite.usersUnderTest = orgUserSet(t)
 }
 
-func (suite *RepositoryLoadTestExchangeSuite) TeardownSuite() {
+func (suite *LoadExchangeSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
+func (suite *LoadExchangeSuite) TestExchange() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
@@ -438,8 +452,8 @@ func (suite *RepositoryLoadTestExchangeSuite) TestExchange() {
 
 // single user, lots of data
 
-type RepositoryIndividualLoadTestExchangeSuite struct {
-	suite.Suite
+type IndividualLoadExchangeSuite struct {
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use
@@ -447,12 +461,16 @@ type RepositoryIndividualLoadTestExchangeSuite struct {
 	usersUnderTest []string
 }
 
-func TestRepositoryIndividualLoadTestExchangeSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoLoadTests)
-	suite.Run(t, new(RepositoryIndividualLoadTestExchangeSuite))
+func TestIndividualLoadExchangeSuite(t *testing.T) {
+	suite.Run(t, &IndividualLoadExchangeSuite{
+		Suite: tester.NewLoadSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		),
+	})
 }
 
-func (suite *RepositoryIndividualLoadTestExchangeSuite) SetupSuite() {
+func (suite *IndividualLoadExchangeSuite) SetupSuite() {
 	t := suite.T()
 	t.Skip("individual user exchange suite tests are on hold until token expiry gets resolved")
 	t.Parallel()
@@ -460,11 +478,11 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) SetupSuite() {
 	suite.usersUnderTest = singleUserSet(t)
 }
 
-func (suite *RepositoryIndividualLoadTestExchangeSuite) TeardownSuite() {
+func (suite *IndividualLoadExchangeSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
+func (suite *IndividualLoadExchangeSuite) TestExchange() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
@@ -489,8 +507,8 @@ func (suite *RepositoryIndividualLoadTestExchangeSuite) TestExchange() {
 // OneDrive
 // ------------------------------------------------------------------------------------------------
 
-type RepositoryLoadTestOneDriveSuite struct {
-	suite.Suite
+type LoadOneDriveSuite struct {
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use
@@ -498,12 +516,16 @@ type RepositoryLoadTestOneDriveSuite struct {
 	usersUnderTest []string
 }
 
-func TestRepositoryLoadTestOneDriveSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoLoadTests)
-	suite.Run(t, new(RepositoryLoadTestOneDriveSuite))
+func TestLoadOneDriveSuite(t *testing.T) {
+	suite.Run(t, &LoadOneDriveSuite{
+		Suite: tester.NewLoadSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		),
+	})
 }
 
-func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
+func (suite *LoadOneDriveSuite) SetupSuite() {
 	t := suite.T()
 	t.Skip("not running onedrive load tests atm")
 	t.Parallel()
@@ -511,11 +533,11 @@ func (suite *RepositoryLoadTestOneDriveSuite) SetupSuite() {
 	suite.usersUnderTest = orgUserSet(t)
 }
 
-func (suite *RepositoryLoadTestOneDriveSuite) TeardownSuite() {
+func (suite *LoadOneDriveSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
+func (suite *LoadOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
@@ -534,8 +556,8 @@ func (suite *RepositoryLoadTestOneDriveSuite) TestOneDrive() {
 	)
 }
 
-type RepositoryIndividualLoadTestOneDriveSuite struct {
-	suite.Suite
+type IndividualLoadOneDriveSuite struct {
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use
@@ -543,23 +565,27 @@ type RepositoryIndividualLoadTestOneDriveSuite struct {
 	usersUnderTest []string
 }
 
-func TestRepositoryIndividualLoadTestOneDriveSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoLoadTests)
-	suite.Run(t, new(RepositoryIndividualLoadTestOneDriveSuite))
+func TestIndividualLoadOneDriveSuite(t *testing.T) {
+	suite.Run(t, &IndividualLoadOneDriveSuite{
+		Suite: tester.NewLoadSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		),
+	})
 }
 
-func (suite *RepositoryIndividualLoadTestOneDriveSuite) SetupSuite() {
+func (suite *IndividualLoadOneDriveSuite) SetupSuite() {
 	t := suite.T()
 	t.Parallel()
 	suite.ctx, suite.repo, suite.acct, suite.st = initM365Repo(t)
 	suite.usersUnderTest = singleUserSet(t)
 }
 
-func (suite *RepositoryIndividualLoadTestOneDriveSuite) TeardownSuite() {
+func (suite *IndividualLoadOneDriveSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
+func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
@@ -582,8 +608,8 @@ func (suite *RepositoryIndividualLoadTestOneDriveSuite) TestOneDrive() {
 // SharePoint
 // ------------------------------------------------------------------------------------------------
 
-type RepositoryLoadTestSharePointSuite struct {
-	suite.Suite
+type LoadSharePointSuite struct {
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use
@@ -591,12 +617,16 @@ type RepositoryLoadTestSharePointSuite struct {
 	sitesUnderTest []string
 }
 
-func TestRepositoryLoadTestSharePointSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoLoadTests)
-	suite.Run(t, new(RepositoryLoadTestSharePointSuite))
+func TestLoadSharePointSuite(t *testing.T) {
+	suite.Run(t, &LoadSharePointSuite{
+		Suite: tester.NewLoadSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		),
+	})
 }
 
-func (suite *RepositoryLoadTestSharePointSuite) SetupSuite() {
+func (suite *LoadSharePointSuite) SetupSuite() {
 	t := suite.T()
 	t.Skip("not running sharepoint load tests atm")
 	t.Parallel()
@@ -604,11 +634,11 @@ func (suite *RepositoryLoadTestSharePointSuite) SetupSuite() {
 	suite.sitesUnderTest = orgSiteSet(t)
 }
 
-func (suite *RepositoryLoadTestSharePointSuite) TeardownSuite() {
+func (suite *LoadSharePointSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryLoadTestSharePointSuite) TestSharePoint() {
+func (suite *LoadSharePointSuite) TestSharePoint() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
@@ -627,8 +657,8 @@ func (suite *RepositoryLoadTestSharePointSuite) TestSharePoint() {
 	)
 }
 
-type RepositoryIndividualLoadTestSharePointSuite struct {
-	suite.Suite
+type IndividualLoadSharePointSuite struct {
+	tester.Suite
 	ctx            context.Context
 	repo           repository.Repository
 	acct           account.Account //lint:ignore U1000 future test use
@@ -636,12 +666,16 @@ type RepositoryIndividualLoadTestSharePointSuite struct {
 	sitesUnderTest []string
 }
 
-func TestRepositoryIndividualLoadTestSharePointSuite(t *testing.T) {
-	tester.RunOnAny(t, tester.CorsoLoadTests)
-	suite.Run(t, new(RepositoryIndividualLoadTestOneDriveSuite))
+func TestIndividualLoadSharePointSuite(t *testing.T) {
+	suite.Run(t, &IndividualLoadSharePointSuite{
+		Suite: tester.NewLoadSuite(
+			t,
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
+		),
+	})
 }
 
-func (suite *RepositoryIndividualLoadTestSharePointSuite) SetupSuite() {
+func (suite *IndividualLoadSharePointSuite) SetupSuite() {
 	t := suite.T()
 	t.Skip("not running sharepoint load tests atm")
 	t.Parallel()
@@ -649,11 +683,11 @@ func (suite *RepositoryIndividualLoadTestSharePointSuite) SetupSuite() {
 	suite.sitesUnderTest = singleSiteSet(t)
 }
 
-func (suite *RepositoryIndividualLoadTestSharePointSuite) TeardownSuite() {
+func (suite *IndividualLoadSharePointSuite) TeardownSuite() {
 	suite.repo.Close(suite.ctx)
 }
 
-func (suite *RepositoryIndividualLoadTestSharePointSuite) TestSharePoint() {
+func (suite *IndividualLoadSharePointSuite) TestSharePoint() {
 	ctx, flush := tester.WithContext(suite.ctx)
 	defer flush()
 
