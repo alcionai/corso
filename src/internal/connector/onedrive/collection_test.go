@@ -388,6 +388,111 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	}
 }
 
+func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry() {
+	var (
+		name       = "name"
+		size int64 = 42
+		now        = time.Now()
+	)
+
+	table := []struct {
+		name   string
+		source driveSource
+	}{
+		{
+			name:   "oneDrive",
+			source: OneDriveSource,
+		},
+		{
+			name:   "sharePoint",
+			source: SharePointSource,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			var (
+				t          = suite.T()
+				testItemID = "fakeItemID"
+				collStatus = support.ConnectorOperationStatus{}
+				wg         = sync.WaitGroup{}
+			)
+
+			wg.Add(1)
+
+			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
+			require.NoError(t, err)
+
+			coll := NewCollection(
+				graph.HTTPClient(graph.NoTimeout()),
+				folderPath,
+				nil,
+				"fakeDriveID",
+				suite,
+				suite.testStatusUpdater(&wg, &collStatus),
+				test.source,
+				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				true)
+
+			mockItem := models.NewDriveItem()
+			mockItem.SetId(&testItemID)
+			mockItem.SetFile(models.NewFile())
+			mockItem.SetName(&name)
+			mockItem.SetSize(&size)
+			mockItem.SetCreatedDateTime(&now)
+			mockItem.SetLastModifiedDateTime(&now)
+			coll.Add(mockItem)
+
+			count := 0
+
+			coll.itemGetter = func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				return mockItem, nil
+			}
+
+			coll.itemReader = func(
+				context.Context,
+				*http.Client,
+				models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
+				if count < 2 {
+					count++
+					return details.ItemInfo{}, nil, clues.Stack(assert.AnError).
+						Label(graph.LabelStatus(http.StatusUnauthorized))
+				}
+
+				return details.ItemInfo{}, io.NopCloser(strings.NewReader("test")), nil
+			}
+
+			coll.itemMetaReader = func(_ context.Context,
+				_ graph.Servicer,
+				_ string,
+				_ models.DriveItemable,
+				_ bool,
+			) (io.ReadCloser, int, error) {
+				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
+			}
+
+			collItem, ok := <-coll.Items(ctx, fault.New(true))
+			assert.True(t, ok)
+
+			_, err = io.ReadAll(collItem.ToReader())
+			assert.NoError(t, err)
+
+			wg.Wait()
+
+			require.Equal(t, 1, collStatus.Metrics.Objects, "only one object should be counted")
+			require.Equal(t, 1, collStatus.Metrics.Successes, "read object successfully")
+			require.Equal(t, 2, count, "retry count")
+		})
+	}
+}
+
 // TODO(meain): Remove this test once we start always backing up permissions
 func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTime() {
 	table := []struct {
