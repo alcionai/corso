@@ -56,7 +56,7 @@ var (
 	// Delta tokens can be desycned or expired.  In either case, the token
 	// becomes invalid, and cannot be used again.
 	// https://learn.microsoft.com/en-us/graph/errors#code-property
-	ErrInvalidDelta = clues.New("inalid delta token")
+	ErrInvalidDelta = clues.New("invalid delta token")
 
 	// Timeout errors are identified for tracking the need to retry calls.
 	// Other delay errors, like throttling, are already handled by the
