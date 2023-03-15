@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -25,7 +26,7 @@ func (suite *ExchangeIteratorSuite) TestDisplayable() {
 	t := suite.T()
 	bytes := mockconnector.GetMockContactBytes("Displayable")
 	contact, err := support.CreateContactFromBytes(bytes)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	aDisplayable, ok := contact.(graph.Displayable)
 	assert.True(t, ok)
@@ -37,7 +38,7 @@ func (suite *ExchangeIteratorSuite) TestDescendable() {
 	t := suite.T()
 	bytes := mockconnector.GetMockMessageBytes("Descendable")
 	message, err := support.CreateMessageFromBytes(bytes)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	aDescendable, ok := message.(graph.Descendable)
 	assert.True(t, ok)

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -27,7 +28,7 @@ func (suite *GraphUnitSuite) SetupSuite() {
 	t := suite.T()
 	a := tester.NewMockM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
 }
@@ -39,7 +40,7 @@ func (suite *GraphUnitSuite) TestCreateAdapter() {
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret)
 
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, adpt)
 }
 
@@ -81,7 +82,7 @@ func (suite *GraphUnitSuite) TestSerializationEndPoint() {
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	serv := NewService(adpt)
 	email := models.NewMessage()
@@ -89,7 +90,7 @@ func (suite *GraphUnitSuite) TestSerializationEndPoint() {
 	email.SetSubject(&subject)
 
 	byteArray, err := serv.Serialize(email)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, byteArray)
 	t.Log(string(byteArray))
 }

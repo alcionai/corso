@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -53,20 +54,21 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	testConfigData := fmt.Sprintf(configFileTemplate, b, tID)
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 	err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	// Configure viper to read test config file
 	vpr.SetConfigFile(testConfigFilePath)
 
 	// Read and validate config
-	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
+	err = vpr.ReadInConfig()
+	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
 	s3Cfg, err := s3ConfigsFromViper(vpr)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, b, s3Cfg.Bucket)
 
 	m365, err := m365ConfigsFromViper(vpr)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, tID, m365.AzureTenantID)
 }
 
@@ -74,6 +76,8 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	var (
 		t   = suite.T()
 		vpr = viper.New()
+		// Configure viper to read test config file
+		testConfigFilePath = filepath.Join(t.TempDir(), "corso.toml")
 	)
 
 	const (
@@ -81,23 +85,26 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 		tid = "3c0748d2-470e-444c-9064-1268e52609d5"
 	)
 
-	// Configure viper to read test config file
-	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
-	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
+	err := initWithViper(vpr, testConfigFilePath)
+	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := storage.S3Config{Bucket: bkt, DoNotUseTLS: true, DoNotVerifyTLS: true}
 	m365 := account.M365Config{AzureTenantID: tid}
-	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid"), "writing repo config")
-	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
+
+	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid")
+	require.NoError(t, err, "writing repo config", clues.ToCore(err))
+
+	err = vpr.ReadInConfig()
+	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
 	readS3Cfg, err := s3ConfigsFromViper(vpr)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.DoNotUseTLS, s3Cfg.DoNotUseTLS)
 	assert.Equal(t, readS3Cfg.DoNotVerifyTLS, s3Cfg.DoNotVerifyTLS)
 
 	readM365, err := m365ConfigsFromViper(vpr)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 }
 
@@ -105,6 +112,8 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	var (
 		t   = suite.T()
 		vpr = viper.New()
+		// Configure viper to read test config file
+		testConfigFilePath = filepath.Join(t.TempDir(), "corso.toml")
 	)
 
 	const (
@@ -112,15 +121,17 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		tid = "dfb12063-7598-458b-85ab-42352c5c25e2"
 	)
 
-	// Configure viper to read test config file
-	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
-	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
+	err := initWithViper(vpr, testConfigFilePath)
+	require.NoError(t, err, "initializing repo config")
 
 	s3Cfg := storage.S3Config{Bucket: bkt}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid"), "writing repo config")
-	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
+	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid")
+	require.NoError(t, err, "writing repo config", clues.ToCore(err))
+
+	err = vpr.ReadInConfig()
+	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
 	table := []struct {
 		name     string
@@ -172,7 +183,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.errCheck(suite.T(), mustMatchConfig(vpr, test.input))
+			test.errCheck(suite.T(), mustMatchConfig(vpr, test.input), clues.ToCore(err))
 		})
 	}
 }
@@ -205,7 +216,9 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 
 	// Configure viper to read test config file
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
-	require.NoError(t, initWithViper(vpr, testConfigFilePath), "initializing repo config")
+
+	err := initWithViper(vpr, testConfigFilePath)
+	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := storage.S3Config{
 		Bucket:         bkt,
@@ -216,14 +229,17 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	}
 	m365 := account.M365Config{AzureTenantID: tid}
 
-	require.NoError(t, writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid"), "writing repo config")
-	require.NoError(t, vpr.ReadInConfig(), "reading repo config")
+	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, "repoid")
+	require.NoError(t, err, "writing repo config", clues.ToCore(err))
+
+	err = vpr.ReadInConfig()
+	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
 	config, err := getStorageAndAccountWithViper(vpr, true, nil)
-	require.NoError(t, err, "getting storage and account from config")
+	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := config.Storage.S3Config()
-	require.NoError(t, err, "reading s3 config from storage")
+	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
@@ -232,11 +248,11 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	assert.Equal(t, config.RepoID, "repoid")
 
 	common, err := config.Storage.CommonConfig()
-	require.NoError(t, err, "reading common config from storage")
+	require.NoError(t, err, "reading common config from storage", clues.ToCore(err))
 	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
 	readM365, err := config.Account.M365Config()
-	require.NoError(t, err, "reading m365 config from account")
+	require.NoError(t, err, "reading m365 config from account", clues.ToCore(err))
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))
 	assert.Equal(t, readM365.AzureClientSecret, os.Getenv(credentials.AzureClientSecret))
@@ -267,10 +283,10 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	}
 
 	config, err := getStorageAndAccountWithViper(vpr, false, overrides)
-	require.NoError(t, err, "getting storage and account from config")
+	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := config.Storage.S3Config()
-	require.NoError(t, err, "reading s3 config from storage")
+	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
 	assert.Equal(t, readS3Cfg.Bucket, bkt)
 	assert.Equal(t, config.RepoID, "")
 	assert.Equal(t, readS3Cfg.Endpoint, end)
@@ -279,11 +295,11 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	assert.True(t, readS3Cfg.DoNotVerifyTLS)
 
 	common, err := config.Storage.CommonConfig()
-	require.NoError(t, err, "reading common config from storage")
+	require.NoError(t, err, "reading common config from storage", clues.ToCore(err))
 	assert.Equal(t, common.CorsoPassphrase, os.Getenv(credentials.CorsoPassphrase))
 
 	readM365, err := config.Account.M365Config()
-	require.NoError(t, err, "reading m365 config from account")
+	require.NoError(t, err, "reading m365 config from account", clues.ToCore(err))
 	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
 	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))
 	assert.Equal(t, readM365.AzureClientSecret, os.Getenv(credentials.AzureClientSecret))
