@@ -63,10 +63,9 @@ func New(
 	var (
 		ee = errs.Errors()
 		// TODO: count errData.Items(), not all recovered errors.
-		errCount   = len(ee.Recovered)
-		failMsg    string
-		malware    int
-		otherSkips int
+		errCount                      = len(ee.Recovered)
+		failMsg                       string
+		malware, notFound, otherSkips int
 	)
 
 	if ee.Failure != nil {
@@ -75,9 +74,12 @@ func New(
 	}
 
 	for _, s := range ee.Skipped {
-		if s.HasCause(fault.SkipMalware) {
+		switch true {
+		case s.HasCause(fault.SkipMalware):
 			malware++
-		} else {
+		case s.HasCause(fault.SkipNotFound):
+			notFound++
+		default:
 			otherSkips++
 		}
 	}
@@ -194,14 +196,22 @@ func (b Backup) Values() []string {
 
 	if b.TotalSkippedItems > 0 {
 		status += fmt.Sprintf("%d skipped", b.TotalSkippedItems)
-	}
 
-	if b.TotalSkippedItems > 0 && b.SkippedMalware > 0 {
-		status += ": "
+		if b.SkippedMalware+b.SkippedNotFound > 0 {
+			status += ": "
+		}
 	}
 
 	if b.SkippedMalware > 0 {
 		status += fmt.Sprintf("%d malware", b.SkippedMalware)
+
+		if b.SkippedNotFound > 0 {
+			status += ", "
+		}
+	}
+
+	if b.SkippedNotFound > 0 {
+		status += fmt.Sprintf("%d not found", b.SkippedNotFound)
 	}
 
 	if errCount+b.TotalSkippedItems > 0 {
