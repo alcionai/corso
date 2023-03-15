@@ -29,10 +29,11 @@ func main() {
 	}
 
 	var (
-		ctx      = context.Background()
-		client   = msgraphsdk.NewGraphServiceClient(adapter)
-		testUser = os.Getenv("CORSO_M365_TEST_USER_ID")
-		folder   = strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
+		ctx         = context.Background()
+		client      = msgraphsdk.NewGraphServiceClient(adapter)
+		testUser    = os.Getenv("CORSO_M365_TEST_USER_ID")
+		testService = os.Getenv("SANITY_RESTORE_SERVICE")
+		folder      = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
 	)
 
 	startTime, err := common.ExtractTime(folder)
@@ -42,11 +43,13 @@ func main() {
 
 	fmt.Println("Restore folder: ", folder)
 
-	switch service := os.Getenv("RESTORE_SERVICE"); service {
+	switch testService {
 	case "exchange":
 		checkEmailRestoration(ctx, client, testUser, folder, startTime)
-	default:
+	case "onedrive":
 		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
+	default:
+		fatal("no service specified", nil)
 	}
 }
 
@@ -257,6 +260,7 @@ func checkFileData(
 				fmt.Println("permissions are not equal")
 				fmt.Println("-  expected: ", expect)
 				fmt.Println("-  actual: ", result)
+				os.Exit(1)
 			}
 		}
 	}
