@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix repo connect not working without a config file
+- Fix item re-download on expired links silently being skipped
 
 ## [v0.5.0] (beta) - 2023-03-13
 
