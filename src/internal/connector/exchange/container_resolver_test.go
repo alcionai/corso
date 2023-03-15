@@ -499,12 +499,8 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	m.expectedPath = stdpath.Join(last.expectedPath, m.displayName)
 	m.expectedLocation = stdpath.Join(last.expectedPath, m.displayName)
 
-	require.Empty(t, suite.fc.DestinationNameToID(dest), "destination not yet added to cache")
-
 	err := suite.fc.AddToCache(ctx, m)
 	require.NoError(t, err, clues.ToCore(err))
-	require.Empty(t, suite.fc.DestinationNameToID(dest),
-		"destination id from cache, still empty, because this is not a calendar")
 
 	p, l, err := suite.fc.IDToPath(ctx, m.id)
 	require.NoError(t, err, clues.ToCore(err))

@@ -172,12 +172,6 @@ func (cr *containerResolver) AddToCache(
 	return nil
 }
 
-// DestinationNameToID returns an empty string.  This is only supported by exchange
-// calendars at this time.
-func (cr *containerResolver) DestinationNameToID(dest string) string {
-	return ""
-}
-
 func (cr *containerResolver) populatePaths(
 	ctx context.Context,
 	errs *fault.Bus,

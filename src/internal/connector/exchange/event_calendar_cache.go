@@ -15,10 +15,9 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	enumer       containersEnumerator
-	getter       containerGetter
-	userID       string
-	newAdditions map[string]string
+	enumer containersEnumerator
+	getter containerGetter
+	userID string
 }
 
 // init ensures that the structure's fields are initialized.
@@ -99,14 +98,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
 		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 
-	if len(ecc.newAdditions) == 0 {
-		ecc.newAdditions = map[string]string{}
-	}
-
-	ecc.newAdditions[ptr.Val(f.GetDisplayName())] = ptr.Val(f.GetId())
-
 	if err := ecc.addFolder(temp); err != nil {
-		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
 		return clues.Wrap(err, "adding container").WithClues(ctx)
 	}
 
@@ -114,15 +106,8 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 	// when they're made.
 	_, _, err := ecc.IDToPath(ctx, ptr.Val(f.GetId()))
 	if err != nil {
-		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
 		return clues.Wrap(err, "setting path to container id")
 	}
 
 	return nil
-}
-
-// DestinationNameToID returns an empty string.  This is only supported by exchange
-// calendars at this time.
-func (ecc *eventCalendarCache) DestinationNameToID(dest string) string {
-	return ecc.newAdditions[dest]
 }

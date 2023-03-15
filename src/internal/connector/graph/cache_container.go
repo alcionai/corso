@@ -74,11 +74,6 @@ type ContainerResolver interface {
 
 	AddToCache(ctx context.Context, m365Container Container) error
 
-	// DestinationNameToID returns the ID of the destination container.  Dest is
-	// assumed to be a display name.  The ID is only populated if the destination
-	// was added using `AddToCache()`.  Returns an empty string if not found.
-	DestinationNameToID(dest string) string
-
 	// Items returns the containers in the cache.
 	Items() []CachedContainer
 }
