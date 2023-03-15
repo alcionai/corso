@@ -19,11 +19,11 @@ type DiscoveryIntegrationSuite struct {
 }
 
 func TestDiscoveryIntegrationSuite(t *testing.T) {
-	suite.Run(t, &DiscoveryIntegrationSuite{Suite: tester.NewIntegrationSuite(
-		t,
-		[][]string{tester.M365AcctCredEnvs},
-		tester.CorsoGraphConnectorTests,
-	)})
+	suite.Run(t, &DiscoveryIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs}),
+	})
 }
 
 func (suite *DiscoveryIntegrationSuite) TestUsers() {
