@@ -230,6 +230,57 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  Unit-Test-Suite:
+    needs: [Precheck, Checkout]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: needs.precheck.outputs.srcfileschanged == 'true'
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # run the tests
+      - name: Integration Tests
+        env:
+          # Set these to a bad value so we don't accidentally fall back to
+          # something elsewhere.
+          CORSO_M365_TEST_USER_ID: 'foo'
+          CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
+          CORSO_LOG_FILE: ./src/testlog/testlogging.log
+          LOG_GRAPH_REQUESTS: true
+        run: |
+          set -euo pipefail
+          go test       \
+          -tags testing \
+          -json         \
+          -v            \
+          -failfast     \
+          -p 1          \
+          ./... 2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+
   Test-Suite-Fork:
     needs: [Precheck]
     environment: Testing
