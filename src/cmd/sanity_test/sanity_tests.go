@@ -29,14 +29,13 @@ func main() {
 	}
 
 	var (
-		ctx              = context.Background()
-		client           = msgraphsdk.NewGraphServiceClient(adapter)
-		testUser         = os.Getenv("CORSO_M365_TEST_USER_ID")
-		folder           = strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
-		restoreStartTime = strings.SplitAfter(folder, "Corso_Restore_")[1]
+		ctx      = context.Background()
+		client   = msgraphsdk.NewGraphServiceClient(adapter)
+		testUser = os.Getenv("CORSO_M365_TEST_USER_ID")
+		folder   = strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
 	)
 
-	startTime, err := time.Parse(time.RFC822, restoreStartTime)
+	startTime, err := common.ExtractTime(folder)
 	if err != nil {
 		fatal("error parsing start time", err)
 	}
