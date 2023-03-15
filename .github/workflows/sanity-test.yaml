@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - noreflect
   workflow_dispatch:
 
 permissions:
