@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -40,61 +39,6 @@ func getDriveItem(
 	}
 
 	return di, nil
-}
-
-func getDriveItemContent(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID string,
-	item models.DriveItemable,
-	itemReader itemReaderFunc,
-	itemClient *http.Client,
-	errs *fault.Bus,
-) (io.ReadCloser, error) {
-	var (
-		itemID   = ptr.Val(item.GetId())
-		itemName = ptr.Val(item.GetName())
-		el       = errs.Local()
-
-		itemData io.ReadCloser
-		err      error
-	)
-
-	// Initial try with url from delta + 2 retries
-	for i := 1; i <= maxRetries; i++ {
-		_, itemData, err = itemReader(ctx, itemClient, item)
-
-		if err == nil || !graph.IsErrUnauthorized(err) {
-			break
-		}
-
-		// Assume unauthorized requests are a sign of an expired jwt
-		// token, and that we've overrun the available window to
-		// download the actual file.  Re-downloading the item will
-		// refresh that download url.
-		di, diErr := getDriveItem(ctx, srv, driveID, itemID)
-		if diErr != nil {
-			return nil, errors.Wrap(diErr, "retrieving expired item")
-		}
-		item = di
-	}
-
-	// check for errors following retries
-	if err != nil {
-		if item.GetMalware() != nil || clues.HasLabel(err, graph.LabelsMalware) {
-			logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
-			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.MalwareInfo(item)))
-		} else {
-			logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
-			el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
-		}
-
-		// return err, not el.Err(), because the lazy reader needs to communicate to
-		// the data consumer that this item is unreadable, regardless of the fault state.
-		return nil, err
-	}
-
-	return itemData, nil
 }
 
 // sharePointItemReader will return a io.ReadCloser for the specified item

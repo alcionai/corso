@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -83,6 +84,7 @@ type Collection struct {
 	source         driveSource
 	service        graph.Servicer
 	statusUpdater  support.StatusUpdater
+	itemGetter     itemGetterFunc
 	itemReader     itemReaderFunc
 	itemMetaReader itemMetaReaderFunc
 	ctrl           control.Options
@@ -98,6 +100,13 @@ type Collection struct {
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
 }
+
+// itemGetterFunc gets an specified item
+type itemGetterFunc func(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID, itemID string,
+) (models.DriveItemable, error)
 
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
@@ -146,8 +155,10 @@ func NewCollection(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
+		c.itemGetter = getDriveItem
 		c.itemReader = sharePointItemReader
 	default:
+		c.itemGetter = getDriveItem
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
@@ -289,6 +300,58 @@ func (od *metadataItem) ModTime() time.Time {
 	return od.modTime
 }
 
+// getDriveItemContent fetch drive item's contents with retries
+func(oc *Collection) getDriveItemContent(
+	ctx context.Context,
+	item models.DriveItemable,
+	errs *fault.Bus,
+) (io.ReadCloser, error) {
+	var (
+		itemID   = ptr.Val(item.GetId())
+		itemName = ptr.Val(item.GetName())
+		el       = errs.Local()
+
+		itemData io.ReadCloser
+		err      error
+	)
+
+	// Initial try with url from delta + 2 retries
+	for i := 1; i <= maxRetries; i++ {
+		_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
+
+		if err == nil || !graph.IsErrUnauthorized(err) {
+			break
+		}
+
+		// Assume unauthorized requests are a sign of an expired jwt
+		// token, and that we've overrun the available window to
+		// download the actual file.  Re-downloading the item will
+		// refresh that download url.
+		di, diErr := oc.itemGetter(ctx, oc.service, oc.driveID, itemID)
+		if diErr != nil {
+			return nil, errors.Wrap(diErr, "retrieving expired item")
+		}
+		item = di
+	}
+
+	// check for errors following retries
+	if err != nil {
+		if item.GetMalware() != nil || clues.HasLabel(err, graph.LabelsMalware) {
+			logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
+			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.MalwareInfo(item)))
+		} else {
+			logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
+			el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+		}
+
+		// return err, not el.Err(), because the lazy reader needs to communicate to
+		// the data consumer that this item is unreadable, regardless of the fault state.
+		return nil, err
+	}
+
+	return itemData, nil
+}
+
 // populateItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
 func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
@@ -406,15 +469,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				// attempts to read bytes.  Assumption is that kopia will check things
 				// like file modtimes before attempting to read.
 				itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					itemData, err := getDriveItemContent(
-						ctx,
-						oc.service,
-						oc.driveID,
-						item,
-						oc.itemReader,
-						oc.itemClient,
-						errs,
-					)
+					itemData, err := oc.getDriveItemContent(ctx, item, errs)
 					if err != nil {
 						return nil, err
 					}
