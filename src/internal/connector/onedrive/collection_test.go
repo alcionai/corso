@@ -90,7 +90,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 		expectErr    require.ErrorAssertionFunc
-		expectLabel  string
+		expectLabels []string
 	}{
 		{
 			name:         "oneDrive, no duplicates",
@@ -136,8 +136,24 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
 			},
-			expectErr:   require.Error,
-			expectLabel: graph.LabelsMalware,
+			expectErr:    require.Error,
+			expectLabels: []string{graph.LabelsMalware, graph.LabelsSkippable},
+		},
+		{
+			name:         "oneDrive, not found",
+			numInstances: 3,
+			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
+			// Usually `Not Found` is returned from itemGetter and not itemReader
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+			expectErr:    require.Error,
+			expectLabels: []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
 			name:         "sharePoint, no duplicates",
@@ -267,8 +283,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			test.expectErr(t, err)
 
 			if err != nil {
-				if len(test.expectLabel) > 0 {
-					assert.True(t, clues.HasLabel(err, test.expectLabel), "has clues label:", test.expectLabel)
+				for _, label := range test.expectLabels {
+					assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
 				}
 
 				return
