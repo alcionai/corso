@@ -146,12 +146,14 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		container1 = mockContainer{
 			id:          strPtr("1"),
 			displayName: strPtr("display_name_1"),
-			p:           path.Builder{}.Append("display_name_1"),
+			p:           path.Builder{}.Append("1"),
+			l:           path.Builder{}.Append("display_name_1"),
 		}
 		container2 = mockContainer{
 			id:          strPtr("2"),
 			displayName: strPtr("display_name_2"),
-			p:           path.Builder{}.Append("display_name_2"),
+			p:           path.Builder{}.Append("2"),
+			l:           path.Builder{}.Append("display_name_2"),
 		}
 	)
 
@@ -446,7 +448,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				container1    = mockContainer{
 					id:          strPtr("1"),
 					displayName: strPtr("display_name_1"),
-					p:           path.Builder{}.Append("display_name_1"),
+					p:           path.Builder{}.Append("1"),
+					l:           path.Builder{}.Append("display_name_1"),
 				}
 				resolver = newMockResolver(container1)
 			)
@@ -563,6 +566,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("1"),
 				displayName: strPtr("new"),
 				p:           path.Builder{}.Append("1", "new"),
+				l:           path.Builder{}.Append("1", "new"),
 			}),
 			dps: DeltaPaths{},
 			expect: map[string]endState{
@@ -578,6 +582,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("1"),
 				displayName: strPtr("not_moved"),
 				p:           path.Builder{}.Append("1", "not_moved"),
+				l:           path.Builder{}.Append("1", "not_moved"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -598,6 +603,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("1"),
 				displayName: strPtr("moved"),
 				p:           path.Builder{}.Append("1", "moved"),
+				l:           path.Builder{}.Append("1", "moved"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -632,6 +638,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("2"),
 				displayName: strPtr("new"),
 				p:           path.Builder{}.Append("2", "new"),
+				l:           path.Builder{}.Append("2", "new"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -653,6 +660,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("2"),
 				displayName: strPtr("same"),
 				p:           path.Builder{}.Append("2", "same"),
+				l:           path.Builder{}.Append("2", "same"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -676,11 +684,13 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 					id:          strPtr("1"),
 					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("1", "moved"),
+					l:           path.Builder{}.Append("1", "moved"),
 				},
 				mockContainer{
 					id:          strPtr("2"),
 					displayName: strPtr("prev"),
 					p:           path.Builder{}.Append("2", "prev"),
+					l:           path.Builder{}.Append("2", "prev"),
 				},
 			),
 			dps: DeltaPaths{
@@ -703,6 +713,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("1"),
 				displayName: strPtr("not_moved"),
 				p:           path.Builder{}.Append("1", "not_moved"),
+				l:           path.Builder{}.Append("1", "not_moved"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -727,6 +738,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				id:          strPtr("1"),
 				displayName: strPtr("same"),
 				p:           path.Builder{}.Append("1", "same"),
+				l:           path.Builder{}.Append("1", "same"),
 			}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
@@ -752,21 +764,25 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 					id:          strPtr("1"),
 					displayName: strPtr("new"),
 					p:           path.Builder{}.Append("1", "new"),
+					l:           path.Builder{}.Append("1", "new"),
 				},
 				mockContainer{
 					id:          strPtr("2"),
 					displayName: strPtr("not_moved"),
 					p:           path.Builder{}.Append("2", "not_moved"),
+					l:           path.Builder{}.Append("2", "not_moved"),
 				},
 				mockContainer{
 					id:          strPtr("3"),
 					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("3", "moved"),
+					l:           path.Builder{}.Append("3", "moved"),
 				},
 				mockContainer{
 					id:          strPtr("4"),
 					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("4", "moved"),
+					l:           path.Builder{}.Append("4", "moved"),
 				},
 			),
 			dps: DeltaPaths{

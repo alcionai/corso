@@ -33,10 +33,10 @@ type mockContainer struct {
 	l           *path.Builder
 }
 
-//nolint:revive
+//revive:disable-next-line:var-naming
 func (m mockContainer) GetId() *string { return m.id }
 
-//nolint:revive
+//revive:disable-next-line:var-naming
 func (m mockContainer) GetParentFolderId() *string  { return m.parentID }
 func (m mockContainer) GetDisplayName() *string     { return m.displayName }
 func (m mockContainer) Location() *path.Builder     { return m.l }
@@ -662,16 +662,11 @@ func (suite *FolderCacheIntegrationSuite) TestCreateContainerDestination() {
 			_, _, err = resolver.IDToPath(ctx, folderID)
 			assert.NoError(t, err, clues.ToCore(err))
 
-			parentContainer := folderName
-			if test.useIDForPath {
-				parentContainer = folderID
-			}
-
 			secondID, err := CreateContainerDestination(
 				ctx,
 				m365,
 				test.pathFunc2(t),
-				parentContainer,
+				folderName,
 				directoryCaches,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
