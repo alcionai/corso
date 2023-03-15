@@ -4,6 +4,8 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -580,7 +582,10 @@ func (ec exchangeCategory) isLeaf() bool {
 // Example:
 // [tenantID, service, userPN, category, mailFolder, mailID]
 // => {exchMailFolder: mailFolder, exchMail: mailID}
-func (ec exchangeCategory) pathValues(repo path.Path, ent details.DetailsEntry) map[categorizer][]string {
+func (ec exchangeCategory) pathValues(
+	repo path.Path,
+	ent details.DetailsEntry,
+) (map[categorizer][]string, error) {
 	var folderCat, itemCat categorizer
 
 	switch ec {
@@ -594,7 +599,7 @@ func (ec exchangeCategory) pathValues(repo path.Path, ent details.DetailsEntry) 
 		folderCat, itemCat = ExchangeMailFolder, ExchangeMail
 
 	default:
-		return map[categorizer][]string{}
+		return nil, clues.New("bad exchanageCategory").With("category", ec)
 	}
 
 	result := map[categorizer][]string{
@@ -606,7 +611,7 @@ func (ec exchangeCategory) pathValues(repo path.Path, ent details.DetailsEntry) 
 		result[folderCat] = append(result[folderCat], ent.LocationRef)
 	}
 
-	return result
+	return result, nil
 }
 
 // pathKeys returns the path keys recognized by the receiver's leaf type.

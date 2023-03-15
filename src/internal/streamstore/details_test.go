@@ -47,12 +47,14 @@ func (suite *StreamDetailsIntegrationSuite) TestDetails() {
 
 	deetsBuilder := &details.Builder{}
 
-	deetsBuilder.Add("ref", "shortref", "parentref", "locationRef", true,
-		details.ItemInfo{
-			Exchange: &details.ExchangeInfo{
-				Subject: "hello world",
-			},
-		})
+	require.NoError(
+		t,
+		deetsBuilder.Add("ref", "shortref", "parentref", "locationRef", true,
+			details.ItemInfo{
+				Exchange: &details.ExchangeInfo{
+					Subject: "hello world",
+				},
+			}))
 
 	var (
 		deets = deetsBuilder.Details()

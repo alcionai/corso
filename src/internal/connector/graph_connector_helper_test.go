@@ -754,6 +754,11 @@ func compareOneDriveItem(
 		}
 
 		expectedData := expected[name]
+
+		if strings.HasSuffix(name, onedrive.MetaFileSuffix) {
+			expectedData = expected[itemMeta.FileName]
+		}
+
 		if !assert.NotNil(
 			t,
 			expectedData,
