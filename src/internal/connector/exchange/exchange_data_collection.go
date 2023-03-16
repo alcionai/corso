@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -83,7 +82,6 @@ type Collection struct {
 
 	// LocationPath contains the path with human-readable display names.
 	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	// Currently only implemented for Exchange Calendars.
 	locationPath path.Path
 
 	state data.CollectionState
@@ -281,7 +279,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			info.Size = int64(len(data))
-			info.ParentPath = strings.Join(col.fullPath.Folders(), "/")
+			info.ParentPath = col.locationPath.Folder(true)
 
 			col.data <- &Stream{
 				id:      id,
