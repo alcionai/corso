@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +15,7 @@ import (
 // last-attempt fallback that will only work on alcion's testing org.
 func M365TenantID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving m365 user id from test configuration")
+	require.NoError(t, err, "retrieving m365 user id from test configuration", clues.ToCore(err))
 
 	return cfg[TestCfgAzureTenantID]
 }
@@ -25,7 +26,7 @@ func M365TenantID(t *testing.T) string {
 // last-attempt fallback that will only work on alcion's testing org.
 func M365UserID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving m365 user id from test configuration")
+	require.NoError(t, err, "retrieving m365 user id from test configuration", clues.ToCore(err))
 
 	return cfg[TestCfgUserID]
 }
@@ -37,7 +38,7 @@ func M365UserID(t *testing.T) string {
 // testing org.
 func SecondaryM365UserID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving secondary m365 user id from test configuration")
+	require.NoError(t, err, "retrieving secondary m365 user id from test configuration", clues.ToCore(err))
 
 	return cfg[TestCfgSecondaryUserID]
 }
@@ -49,7 +50,7 @@ func SecondaryM365UserID(t *testing.T) string {
 // testing org.
 func LoadTestM365SiteID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving load test m365 site id from test configuration")
+	require.NoError(t, err, "retrieving load test m365 site id from test configuration", clues.ToCore(err))
 
 	// TODO: load test site id, not standard test site id
 	return cfg[TestCfgSiteID]
@@ -62,7 +63,7 @@ func LoadTestM365SiteID(t *testing.T) string {
 // testing org.
 func LoadTestM365UserID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving load test m365 user id from test configuration")
+	require.NoError(t, err, "retrieving load test m365 user id from test configuration", clues.ToCore(err))
 
 	return cfg[TestCfgLoadTestUserID]
 }
@@ -72,7 +73,7 @@ func LoadTestM365UserID(t *testing.T) string {
 // the delimeter must be a |.
 func LoadTestM365OrgSites(t *testing.T) []string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving load test m365 org sites from test configuration")
+	require.NoError(t, err, "retrieving load test m365 org sites from test configuration", clues.ToCore(err))
 
 	// TODO: proper handling of site slice input.
 	// sites := cfg[TestCfgLoadTestOrgSites]
@@ -92,7 +93,7 @@ func LoadTestM365OrgSites(t *testing.T) []string {
 // the delimeter may be either a , or |.
 func LoadTestM365OrgUsers(t *testing.T) []string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving load test m365 org users from test configuration")
+	require.NoError(t, err, "retrieving load test m365 org users from test configuration", clues.ToCore(err))
 
 	users := cfg[TestCfgLoadTestOrgUsers]
 	users = strings.TrimPrefix(users, "[")
@@ -128,7 +129,7 @@ func LoadTestM365OrgUsers(t *testing.T) []string {
 // last-attempt fallback that will only work on alcion's testing org.
 func M365SiteID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving m365 site id from test configuration")
+	require.NoError(t, err, "retrieving m365 site id from test configuration", clues.ToCore(err))
 
 	return cfg[TestCfgSiteID]
 }

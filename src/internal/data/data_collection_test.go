@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -21,9 +22,9 @@ func TestDataCollectionSuite(t *testing.T) {
 
 func (suite *DataCollectionSuite) TestStateOf() {
 	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name   string

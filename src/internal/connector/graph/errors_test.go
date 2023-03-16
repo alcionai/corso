@@ -259,5 +259,5 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
-	assert.Equal(suite.T(), expect, MalwareInfo(&i))
+	assert.Equal(suite.T(), expect, ItemInfo(&i))
 }

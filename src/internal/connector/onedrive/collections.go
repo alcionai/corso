@@ -635,7 +635,7 @@ func (c *Collections) UpdateCollections(
 		)
 
 		if item.GetMalware() != nil {
-			addtl := graph.MalwareInfo(item)
+			addtl := graph.ItemInfo(item)
 			skip := fault.FileSkip(fault.SkipMalware, itemID, itemName, addtl)
 
 			if isFolder {

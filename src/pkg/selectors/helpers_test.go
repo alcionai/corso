@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -188,7 +189,7 @@ func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
 // stubbing out static values where necessary.
 func stubPath(t *testing.T, user string, s []string, cat path.CategoryType) path.Path {
 	pth, err := path.Build("tid", user, path.ExchangeService, cat, true, s...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return pth
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -35,8 +36,7 @@ func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoConnectorDataCollectionTests),
+		),
 	})
 }
 
@@ -109,7 +109,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				connector.UpdateStatus,
 				control.Options{},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.Empty(t, excludes)
 
 			for range collections {
@@ -125,7 +125,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				for object := range col.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "received a buf.Read error")
+					assert.NoError(t, err, "received a buf.Read error", clues.ToCore(err))
 				}
 			}
 
@@ -211,7 +211,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 				nil,
 				control.Options{},
 				fault.New(true))
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, collections)
 			assert.Empty(t, excludes)
 		})
@@ -265,7 +265,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				connector,
 				control.Options{},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 
@@ -281,7 +281,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				for object := range coll.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "reading item")
+					assert.NoError(t, err, "reading item", clues.ToCore(err))
 				}
 			}
 
@@ -307,8 +307,7 @@ func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoConnectorCreateSharePointCollectionTests),
+		),
 	})
 }
 
@@ -342,7 +341,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		nil,
 		control.Options{},
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Len(t, cols, 1)
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -376,7 +375,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		nil,
 		control.Options{},
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -388,7 +387,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			t.Log("File: " + item.UUID())
 
 			bs, err := io.ReadAll(item.ToReader())
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			t.Log(string(bs))
 		}
 	}

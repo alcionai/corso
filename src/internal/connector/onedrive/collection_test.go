@@ -90,7 +90,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 		itemDeets    nst
 		infoFrom     func(*testing.T, details.ItemInfo) (string, string)
 		expectErr    require.ErrorAssertionFunc
-		expectLabel  string
+		expectLabels []string
 	}{
 		{
 			name:         "oneDrive, no duplicates",
@@ -136,8 +136,24 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				require.NotNil(t, dii.OneDrive)
 				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
 			},
-			expectErr:   require.Error,
-			expectLabel: graph.LabelsMalware,
+			expectErr:    require.Error,
+			expectLabels: []string{graph.LabelsMalware, graph.LabelsSkippable},
+		},
+		{
+			name:         "oneDrive, not found",
+			numInstances: 3,
+			source:       OneDriveSource,
+			itemDeets:    nst{testItemName, 42, now},
+			// Usually `Not Found` is returned from itemGetter and not itemReader
+			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
+			},
+			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
+				require.NotNil(t, dii.OneDrive)
+				return dii.OneDrive.ItemName, dii.OneDrive.ParentPath
+			},
+			expectErr:    require.Error,
+			expectLabels: []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
 			name:         "sharePoint, no duplicates",
@@ -185,9 +201,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -267,8 +283,8 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			test.expectErr(t, err)
 
 			if err != nil {
-				if len(test.expectLabel) > 0 {
-					assert.True(t, clues.HasLabel(err, test.expectLabel), "has clues label:", test.expectLabel)
+				for _, label := range test.expectLabels {
+					assert.True(t, clues.HasLabel(err, label), "has clues label:", label)
 				}
 
 				return
@@ -286,7 +302,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				assert.Equal(t, testItemID+MetaFileSuffix, readItemMeta.UUID())
 
 				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				tm, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -334,7 +350,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -377,7 +393,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 
 			wg.Wait()
 
@@ -522,7 +538,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -578,8 +594,9 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			for _, i := range readItems {
 				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
-					require.NoError(t, err)
+					require.NoError(t, err, clues.ToCore(err))
 					require.Equal(t, content, []byte("{}"))
+
 					im, ok := i.(data.StreamModTime)
 					require.Equal(t, ok, true, "modtime interface")
 					require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")

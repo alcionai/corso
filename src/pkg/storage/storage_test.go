@@ -3,6 +3,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,11 +40,13 @@ func (suite *StorageSuite) TestNewStorage() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			s, err := NewStorage(test.p, test.c)
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
+
 			// remaining tests are dependent upon error-free state
 			if test.c.err != nil {
 				return
 			}
+
 			assert.Equalf(t,
 				test.p,
 				s.Provider,

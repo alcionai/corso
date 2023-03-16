@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -44,8 +45,8 @@ func (suite *OperationSuite) TestOperation_Validate() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			op := newOperation(control.Options{}, events.Bus{}, test.kw, test.sw)
-			test.errCheck(suite.T(), op.validate())
+			err := newOperation(control.Options{}, events.Bus{}, test.kw, test.sw).validate()
+			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }

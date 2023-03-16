@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -49,7 +50,7 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 			t := suite.T()
 
 			p, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, false, tt.pathElements...)
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 
 			got, err := path.ToOneDrivePath(p)
 			tt.errCheck(t, err)

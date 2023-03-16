@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -71,7 +72,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 			break
 		}
 
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
 		assert.Equal(t, 25, n)
 		i++
 	}

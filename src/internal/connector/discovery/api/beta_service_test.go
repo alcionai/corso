@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -24,14 +25,14 @@ func (suite *BetaUnitSuite) TestBetaService_Adapter() {
 	t := suite.T()
 	a := tester.NewMockM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	adpt, err := graph.CreateAdapter(
 		m365.AzureTenantID,
 		m365.AzureClientID,
 		m365.AzureClientSecret,
 	)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	service := NewBetaService(adpt)
 	require.NotNil(t, service)
@@ -45,5 +46,5 @@ func (suite *BetaUnitSuite) TestBetaService_Adapter() {
 
 	byteArray, err := service.Serialize(testPage)
 	assert.NotEmpty(t, byteArray)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 }

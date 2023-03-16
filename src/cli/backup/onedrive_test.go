@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -85,7 +86,8 @@ func (suite *OneDriveSuite) TestValidateOneDriveBackupCreateFlags() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), validateOneDriveBackupCreateFlags(test.user))
+			err := validateOneDriveBackupCreateFlags(test.user)
+			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -104,7 +106,7 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
 				"backup-ID",
 				test.Opts,
 				false)
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -124,7 +126,7 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 				"backup-ID",
 				test.Opts,
 				false)
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, output)
 		})
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -64,13 +65,15 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			sm := &store.Wrapper{Storer: test.mock}
+
 			result, err := sm.GetBackup(ctx, model.StableID(uuid.NewString()))
-			test.expect(t, err)
+			test.expect(t, err, clues.ToCore(err))
+
 			if err != nil {
 				return
 			}
+
 			assert.Equal(t, bu.ID, result.ID)
 		})
 	}
@@ -99,13 +102,15 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			sm := &store.Wrapper{Storer: test.mock}
+
 			result, err := sm.GetBackups(ctx)
-			test.expect(t, err)
+			test.expect(t, err, clues.ToCore(err))
+
 			if err != nil {
 				return
 			}
+
 			assert.Equal(t, 1, len(result))
 			assert.Equal(t, bu.ID, result[0].ID)
 		})
@@ -135,10 +140,10 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			sm := &store.Wrapper{Storer: test.mock}
+
 			err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))
-			test.expect(t, err)
+			test.expect(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -166,13 +171,15 @@ func (suite *StoreBackupUnitSuite) TestGetDetailsIDFromBackupID() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			store := &store.Wrapper{Storer: test.mock}
+
 			dResult, bResult, err := store.GetDetailsIDFromBackupID(ctx, model.StableID(uuid.NewString()))
-			test.expect(t, err)
+			test.expect(t, err, clues.ToCore(err))
+
 			if err != nil {
 				return
 			}
+
 			assert.Equal(t, bu.DetailsID, dResult)
 			assert.Equal(t, bu.ID, bResult.ID)
 		})

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -99,7 +100,8 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			test.expect(t, validateExchangeBackupCreateFlags(test.user, test.data))
+			err := validateExchangeBackupCreateFlags(test.user, test.data)
+			test.expect(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -233,7 +235,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 				"backup-ID",
 				test.Opts,
 				false)
-			assert.NoError(t, err, "failure")
+			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.Expected, output.Entries)
 		})
 	}
@@ -253,7 +255,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 				"backup-ID",
 				test.Opts,
 				false)
-			assert.Error(t, err, "failure")
+			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, output)
 		})
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -98,7 +99,7 @@ func initM365Repo(t *testing.T) (
 	}
 
 	repo, err := repository.Initialize(ctx, ac, st, opts)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return ctx, repo, ac, st
 }
@@ -120,7 +121,7 @@ func runLoadTest(
 	//revive:enable:context-as-argument
 	t.Run(prefix+"_load_test_main", func(t *testing.T) {
 		b, err := r.NewBackup(ctx, bupSel)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
 		bid := string(b.Results.BackupID)
@@ -152,7 +153,7 @@ func runRestoreLoadTest(
 		dest := tester.DefaultTestRestoreDestination()
 
 		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		doRestoreLoadTest(t, ctx, rst, service, bup.Results.ItemsWritten, usersUnderTest)
 	})
@@ -177,7 +178,7 @@ func runBackupLoadTest(
 			err = b.Run(ctx)
 		})
 
-		require.NoError(t, err, "running backup")
+		require.NoError(t, err, "running backup", clues.ToCore(err))
 		require.NotEmpty(t, b.Results, "has results after run")
 		assert.NotEmpty(t, b.Results.BackupID, "has an ID after run")
 		assert.Equal(t, b.Status, operations.Completed, "backup status")
@@ -185,7 +186,7 @@ func runBackupLoadTest(
 		assert.Less(t, 0, b.Results.ItemsWritten, "items written")
 		assert.Less(t, int64(0), b.Results.BytesUploaded, "bytes uploaded")
 		assert.Equal(t, len(users), b.Results.ResourceOwners, "resource owners")
-		assert.NoError(t, b.Errors.Failure(), "non-recoverable error")
+		assert.NoError(t, b.Errors.Failure(), "non-recoverable error", clues.ToCore(b.Errors.Failure()))
 		assert.Empty(t, b.Errors.Recovered(), "recoverable errors")
 	})
 }
@@ -209,7 +210,7 @@ func runBackupListLoadTest(
 			bs, err = r.BackupsByTag(ctx)
 		})
 
-		require.NoError(t, err, "retrieving backups")
+		require.NoError(t, err, "retrieving backups", clues.ToCore(err))
 		require.Less(t, 0, len(bs), "at least one backup is recorded")
 
 		var found bool
@@ -250,8 +251,8 @@ func runBackupDetailsLoadTest(
 			ds, b, errs = r.BackupDetails(ctx, backupID)
 		})
 
-		require.NoError(t, errs.Failure(), "retrieving details in backup "+backupID)
-		require.Empty(t, errs.Recovered(), "retrieving details in backup "+backupID)
+		require.NoError(t, errs.Failure(), "retrieving details in backup", backupID, clues.ToCore(errs.Failure()))
+		require.Empty(t, errs.Recovered(), "retrieving details in backup", backupID)
 		require.NotNil(t, ds, "backup details must exist")
 		require.NotNil(t, b, "backup must exist")
 
@@ -284,7 +285,7 @@ func doRestoreLoadTest(
 			ds, err = r.Run(ctx)
 		})
 
-		require.NoError(t, err, "running restore")
+		require.NoError(t, err, "running restore", clues.ToCore(err))
 		require.NotEmpty(t, r.Results, "has results after run")
 		require.NotNil(t, ds, "has restored details")
 		assert.Equal(t, r.Status, operations.Completed, "restore status")

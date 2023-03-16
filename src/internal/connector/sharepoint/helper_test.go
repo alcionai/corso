@@ -6,6 +6,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -52,7 +53,7 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 		credentials.AzureClientID,
 		credentials.AzureClientSecret,
 	)
-	require.NoError(t, err, "creating microsoft graph service for exchange")
+	require.NoError(t, err, "creating microsoft graph service for exchange", clues.ToCore(err))
 
 	return graph.NewService(adapter)
 }
@@ -62,7 +63,7 @@ func expectedPathAsSlice(t *testing.T, tenant, user string, rest ...string) []st
 
 	for _, r := range rest {
 		p, err := onedrive.GetCanonicalPath(r, tenant, user, onedrive.SharePointSource)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		res = append(res, p.String())
 	}

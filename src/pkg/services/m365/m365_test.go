@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -33,7 +34,7 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	)
 
 	users, err := Users(ctx, acct, fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, users)
 
 	for _, u := range users {
@@ -57,7 +58,7 @@ func (suite *M365IntegrationSuite) TestSites() {
 	)
 
 	sites, err := Sites(ctx, acct, fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
 
 	for _, s := range sites {

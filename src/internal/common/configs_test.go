@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -58,7 +59,7 @@ func (suite *CommonConfigsSuite) TestUnionConfigs_string() {
 			t := suite.T()
 
 			cs, err := common.UnionStringConfigs(test.ac, test.bc)
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 			// remaining tests depend on error-free state
 			if test.ac.err != nil || test.bc.err != nil {
 				return

@@ -3,6 +3,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -36,8 +37,9 @@ var (
 
 func (suite *S3CfgSuite) TestS3Config_Config() {
 	s3 := goodS3Config
+
 	c, err := s3.StringConfig()
-	assert.NoError(suite.T(), err)
+	assert.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		key    string
@@ -57,9 +59,9 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 
 	in := goodS3Config
 	s, err := NewStorage(ProviderS3, in)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	out, err := s.S3Config()
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, in.Bucket, out.Bucket)
 	assert.Equal(t, in.Endpoint, out.Endpoint)
@@ -104,7 +106,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	for _, test := range table2 {
 		suite.T().Run(test.name, func(t *testing.T) {
 			st, err := NewStorage(ProviderUnknown, goodS3Config)
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
 			_, err = st.S3Config()
 			assert.Error(t, err)
@@ -149,7 +151,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 	for _, test := range table {
 		suite.T().Run(test.name, func(t *testing.T) {
 			result, err := test.input.StringConfig()
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect, result)
 		})
 	}

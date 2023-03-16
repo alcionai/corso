@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -117,7 +118,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -140,7 +141,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -168,10 +169,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 					p, err = contactPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -199,10 +200,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 					p, err = contactPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -229,7 +230,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			}
 
 			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
-			assert.ErrorIs(t, err, test.expectErr)
+			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 		})
 	}
 }
@@ -394,7 +395,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 			defer flush()
 
 			err := verifyDistinctBases(ctx, test.mans)
-			test.expect(suite.T(), err)
+			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -649,7 +650,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				tid,
 				test.getMeta,
 				fault.New(true))
-			test.assertErr(t, err)
+			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
 			expectMans := test.mr.mans
@@ -837,7 +838,8 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_VerifyDistinctBases() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			test.errCheck(suite.T(), verifyDistinctBases(ctx, test.input))
+			err := verifyDistinctBases(ctx, test.input)
+			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -958,7 +960,7 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
 			mr := &mockRestorer{}
 
 			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			checkPaths(t, test.expected, mr.gotPaths)
 		})

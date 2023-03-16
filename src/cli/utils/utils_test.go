@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -34,7 +35,8 @@ func (suite *CliUtilsSuite) TestRequireProps() {
 		},
 	}
 	for _, test := range table {
-		test.errCheck(suite.T(), RequireProps(test.props))
+		err := RequireProps(test.props)
+		test.errCheck(suite.T(), err, clues.ToCore(err))
 	}
 }
 

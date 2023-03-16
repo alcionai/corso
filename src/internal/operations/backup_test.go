@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -194,7 +195,7 @@ func makeMetadataBasePath(
 		service,
 		category,
 		false)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
@@ -215,7 +216,7 @@ func makeMetadataPath(
 		service,
 		category,
 		true)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
@@ -250,7 +251,7 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 	t.Helper()
 
 	p, err := path.FromDataLayerPath(stdpath.Join(elements...), isItem)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
@@ -295,7 +296,7 @@ func makeDetailsEntry(
 
 	case path.OneDriveService:
 		parent, err := path.GetDriveFolderPath(p)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		res.OneDrive = &details.OneDriveInfo{
 			ItemType:   details.OneDriveItem,
@@ -408,7 +409,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				acct,
 				sel,
 				evmock.NewBus())
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
 
@@ -696,7 +697,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	)
 
 	itemParents1, err := path.GetDriveFolderPath(itemPath1)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name                         string
@@ -1213,7 +1214,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				test.inputShortRefsFromPrevBackup,
 				&deets,
 				fault.New(true))
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
@@ -1329,7 +1330,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		inputToMerge,
 		&deets,
 		fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	compareDeetEntries(t, expectedEntries, deets.Details().Entries)
 }
 

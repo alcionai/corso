@@ -318,7 +318,6 @@ func (oc *Collection) getDriveItemContent(
 	// Initial try with url from delta + 2 retries
 	for i := 1; i <= maxDownloadRetires; i++ {
 		_, itemData, err = oc.itemReader(ctx, oc.itemClient, item)
-
 		if err == nil || !graph.IsErrUnauthorized(err) {
 			break
 		}
@@ -339,16 +338,25 @@ func (oc *Collection) getDriveItemContent(
 	// check for errors following retries
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
-			logger.Ctx(ctx).With("error", err.Error(), "malware", true).Error("downloading item")
-			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.MalwareInfo(item)))
-		} else {
-			logger.Ctx(ctx).With("error", err.Error()).Error("downloading item")
-			el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
+			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
+
+			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
 		}
+
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Error("item not found")
+			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
+
+			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+		}
+
+		logger.CtxErr(ctx, err).Error("downloading item")
+		el.AddRecoverable(clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
-		return nil, err
+		return nil, clues.Wrap(err, "downloading item")
 	}
 
 	return itemData, nil

@@ -43,6 +43,16 @@ runs:
       run: |
         ./foldersAndItems.ps1 -WellKnownRoot root -User ${{ inputs.user }} -FolderPrefixPurge ${{ inputs.folder-prefix }} -FolderBeforePurge ${{ inputs.older-than }}
 
+    - name: Reset retention for all mailboxes to 0
+      if: ${{ inputs.folder-prefix == '' && inputs.user == '' }}
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      env:
+        M365TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
+        M365TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+      run: |
+        ./setRetention.ps1
+
     - name: Run the static purge script set
       if: ${{ inputs.folder-prefix == '' }}
       shell: pwsh
