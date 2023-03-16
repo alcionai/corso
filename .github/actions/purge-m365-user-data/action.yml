@@ -54,7 +54,7 @@ runs:
         ./setRetention.ps1
 
     - name: Run the static purge script set
-      if: ${{ inputs.folder-prefix == '' }}
+      if: ${{ inputs.folder-prefix == '' && inputs.user != '' }}
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
       env:
