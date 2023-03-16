@@ -21,3 +21,5 @@ Below is a list of known Corso issues and limitations:
   Future backups run when the data isn't modified will include the data.
   
 * OneDrive files ending in `.meta` or `.dirmeta` get omitted from Details and Restore commands.
+
+* Exchange Calender Event instance exceptions (ie: changes to a single event within a recurring series) are not included in backup and restore.  Only the central event recurrence is persisted.

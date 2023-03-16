@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Issues
 - Owner (Full control) or empty (Restricted View) roles cannot be restored for OneDrive
 
+### Known Issues
+- Event instance exceptions (ie: changes to a single event within a recurring series) are not backed up.
+
 ## [v0.5.0] (beta) - 2023-03-13
 
 ### Added
