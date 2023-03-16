@@ -37,8 +37,7 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoGraphConnectorExchangeTests),
+		),
 	})
 }
 
