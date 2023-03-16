@@ -31,7 +31,6 @@ func NewUnitSuite(t *testing.T) *unitSuite {
 }
 
 type unitSuite struct {
-	//nolint:forbidigo
 	suite.Suite
 }
 
@@ -58,7 +57,6 @@ func NewIntegrationSuite(
 }
 
 type integrationSuite struct {
-	//nolint:forbidigo
 	suite.Suite
 }
 
@@ -85,7 +83,6 @@ func NewE2ESuite(
 }
 
 type e2eSuite struct {
-	//nolint:forbidigo
 	suite.Suite
 }
 
@@ -112,7 +109,6 @@ func NewLoadSuite(
 }
 
 type loadSuite struct {
-	//nolint:forbidigo
 	suite.Suite
 }
 

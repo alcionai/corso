@@ -389,7 +389,7 @@ func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
 *   A note on load test setup:
 *   Even though most of the code here is boiler-
 *   plate and could be easily compressed into a
-*   test matrix, we want to keep the suites separte
+*   test matrix, we want to keep the suites separate
 *   to maximize parallelism.  Due to how testify's
 *   suites work, we can only run in parallel at the
 *   level of the suite, not within each test.
