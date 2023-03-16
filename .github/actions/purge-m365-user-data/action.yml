@@ -27,6 +27,10 @@ inputs:
     description: Secret value of for AZURE_CLIENT_SECRET
   azure-tenant-id:
     description: Secret value of for AZURE_TENANT_ID
+  m365-admin-user:
+    description: M365 user for retention reset
+  m365-admin-password:
+    description: M365 password for retention reset
     
 runs:
   using: composite
