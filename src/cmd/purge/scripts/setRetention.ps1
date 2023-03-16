@@ -21,6 +21,22 @@ $cred = New-Object -TypeName System.Management.Automation.PSCredential -Argument
 Connect-ExchangeOnline -Credential $cred
 
 Write-Host "Resetting retention..."
+
 # Set retention values for all mailboxes 
-Get-Mailbox | ForEach-Object { Set-Mailbox -Identity $_.Alias -RetentionHoldEnabled $false  -LitigationHoldEnabled $false -SingleItemRecoveryEnabled $false -RetainDeletedItemsFor 0 -AuditLogAgeLimit 0 -Force }
-Get-Mailbox | ForEach-Object { Start-ManagedFolderAssistant -Identity $_.Alias }
+Get-Mailbox | ForEach-Object {
+    Write-Host "...for" $_
+    Set-Mailbox -Identity $_.Alias `
+        -RetentionHoldEnabled $false `
+        -LitigationHoldEnabled $false `
+        -SingleItemRecoveryEnabled $false `
+        -RetainDeletedItemsFor 0 `
+        -AuditLogAgeLimit 0 `
+        -Force
+}
+
+Write-Host " "
+Write-Host "Starting Managed Folder Assistant..."
+Get-Mailbox | ForEach-Object {
+    Write-Host "...for" $_
+    Start-ManagedFolderAssistant -Identity $_.Alias 
+}
