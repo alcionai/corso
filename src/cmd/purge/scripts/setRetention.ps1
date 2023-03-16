@@ -15,12 +15,12 @@ if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
     Install-Module -Name ExchangeOnlineManagement -MinimumVersion 3.0.0 -Force
 }
 
-Write-Host "Connecting to Exchange..."
+Write-Host "`nConnecting to Exchange..."
 $password = convertto-securestring -String "$AdminPwd" -AsPlainText -Force
 $cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $AdminUser, $password
 Connect-ExchangeOnline -Credential $cred
 
-Write-Host "Resetting retention..."
+Write-Host "`nResetting retention..."
 
 # Set retention values for all mailboxes 
 Get-Mailbox | ForEach-Object {
@@ -34,8 +34,7 @@ Get-Mailbox | ForEach-Object {
         -Force
 }
 
-Write-Host " "
-Write-Host "Starting Managed Folder Assistant..."
+Write-Host "`nStarting Managed Folder Assistant..."
 Get-Mailbox | ForEach-Object {
     Write-Host "...for" $_
     Start-ManagedFolderAssistant -Identity $_.Alias 
