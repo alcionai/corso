@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - noreflect
+      - less-sanity
   workflow_dispatch:
 
 permissions:
@@ -16,21 +17,21 @@ concurrency:
   group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   Sanity-Tests:
     environment: Testing
     runs-on: ubuntu-latest
     env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
       AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+      CORSO_LOG_FILE: ./src/testlog/testlogging.log
       CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: "test_results"
-      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
 
     defaults:
       run:
@@ -300,4 +301,14 @@ jobs:
         run: |
           set -euo pipefail
           ./sanityCheck
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
       

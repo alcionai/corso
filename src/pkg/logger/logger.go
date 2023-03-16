@@ -104,31 +104,40 @@ func PreloadLoggingFlags() (string, string) {
 
 	// retrieve the user's preferred log file location
 	// automatically defaults to default log location
-	logfile, err := fs.GetString(logFileFN)
+	lffv, err := fs.GetString(logFileFN)
 	if err != nil {
 		return "info", dlf
 	}
 
+	logfile := GetLogFile(lffv)
+
+	return levelString, logfile
+}
+
+// GetLogFile parses the log file.  Uses the provided value, if populated,
+// then falls back to the env var, and then defaults to stderr.
+func GetLogFile(logFileFlagVal string) string {
+	r := logFileFlagVal
+
 	// if not specified, attempt to fall back to env declaration.
-	if len(logfile) == 0 {
-		logfile = os.Getenv("CORSO_LOG_FILE")
+	if len(r) == 0 {
+		r = os.Getenv("CORSO_LOG_FILE")
 	}
 
-	if logfile == "-" {
-		logfile = "stdout"
+	if r == "-" {
+		r = "stdout"
 	}
 
-	if logfile != "stdout" && logfile != "stderr" {
-		LogFile = logfile
-		logdir := filepath.Dir(logfile)
+	if r != "stdout" && r != "stderr" {
+		logdir := filepath.Dir(r)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
-			return "info", "stderr"
+			return "stderr"
 		}
 	}
 
-	return levelString, logfile
+	return r
 }
 
 func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogger) {

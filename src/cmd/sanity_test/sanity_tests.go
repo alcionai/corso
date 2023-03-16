@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -17,19 +18,24 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 func main() {
+	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
+	defer func() {
+		_ = log.Sync() // flush all logs in the buffer
+	}()
+
 	adapter, err := graph.CreateAdapter(
 		os.Getenv("AZURE_TENANT_ID"),
 		os.Getenv("AZURE_CLIENT_ID"),
 		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
-		fatal("error while creating adapter", err)
+		fatal(ctx, "error while creating adapter", err)
 	}
 
 	var (
-		ctx         = context.Background()
 		client      = msgraphsdk.NewGraphServiceClient(adapter)
 		testUser    = os.Getenv("CORSO_M365_TEST_USER_ID")
 		testService = os.Getenv("SANITY_RESTORE_SERVICE")
@@ -38,10 +44,17 @@ func main() {
 
 	startTime, err := common.ExtractTime(folder)
 	if err != nil {
-		fatal("error parsing start time", err)
+		fatal(ctx, "error parsing start time", err)
 	}
 
-	fmt.Println("Restore folder: ", folder)
+	ctx = clues.Add(
+		ctx,
+		"resource_owner", testUser,
+		"service", testService,
+		"sanity_restore_folder", folder,
+		"start_time", startTime.Format(time.RFC3339Nano))
+
+	logger.Ctx(ctx).Info("starting sanity test check")
 
 	switch testService {
 	case "exchange":
@@ -49,7 +62,7 @@ func main() {
 	case "onedrive":
 		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
 	default:
-		fatal("no service specified", nil)
+		fatal(ctx, "no service specified", nil)
 	}
 }
 
@@ -68,21 +81,28 @@ func checkEmailRestoration(
 	for {
 		result, err := builder.Get(ctx, nil)
 		if err != nil {
-			fatal("error getting the drive", err)
+			fatal(ctx, "error getting the drive", err)
 		}
 
 		values := result.GetValue()
 
 		for _, v := range values {
-			itemName := ptr.Val(v.GetDisplayName())
+			var (
+				itemID   = ptr.Val(v.GetId())
+				itemName = ptr.Val(v.GetDisplayName())
+				ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+			)
 
 			folderTime, err := common.ExtractTime(itemName)
 			if err != nil && !errors.Is(err, common.ErrNoTimeString) {
-				fatal("extracting time from file name", err)
+				fatal(ctx, "extracting time from file name", err)
 			}
 
 			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
-				fmt.Printf("skipping restore folder %s created after %s\n", itemName, folderName)
+				logger.Ctx(ictx).
+					With("folder_time", folderTime).
+					Info("skipping restore folder: not within time bound")
+
 				continue
 			}
 
@@ -103,22 +123,36 @@ func checkEmailRestoration(
 	}
 
 	var (
-		user   = client.UsersById(testUser)
-		folder = user.MailFoldersById(ptr.Val(restoreFolder.GetId()))
+		restoreFldID   = ptr.Val(restoreFolder.GetId())
+		restoreFldName = ptr.Val(restoreFolder.GetDisplayName())
+		user           = client.UsersById(testUser)
+		folder         = user.MailFoldersById(restoreFldID)
 	)
+
+	ctx = clues.Add(
+		ctx,
+		"restore_folder_id", restoreFldID,
+		"restore_folder_name", restoreFldName)
 
 	childFolder, err := folder.ChildFolders().Get(ctx, nil)
 	if err != nil {
-		fatal("error getting the drive", err)
+		fatal(ctx, "error getting the drive", err)
 	}
 
 	for _, fld := range childFolder.GetValue() {
 		var (
+			fldID   = ptr.Val(fld.GetId())
 			fldName = ptr.Val(fld.GetDisplayName())
 			count   = ptr.Val(fld.GetTotalItemCount())
+			ictx    = clues.Add(ctx,
+				"child_folder_id", fldID,
+				"child_folder_name", fldName,
+				"expected_count", itemCount[fldName],
+				"actual_count", count)
 		)
 
 		if itemCount[fldName] != count {
+			logger.Ctx(ictx).Error("test failure: Restore item counts do not match")
 			fmt.Println("Restore item counts do not match:")
 			fmt.Println("-  expected:", itemCount[fldName])
 			fmt.Println("-  actual:", count)
@@ -142,12 +176,20 @@ func checkOnedriveRestoration(
 		restoreFolderID  = ""
 	)
 
-	drive, err := client.UsersById(testUser).Drive().Get(ctx, nil)
+	drive, err := client.
+		UsersById(testUser).
+		Drive().
+		Get(ctx, nil)
 	if err != nil {
-		fatal("error getting the drive:", err)
+		fatal(ctx, "error getting the drive:", err)
 	}
 
-	driveID := ptr.Val(drive.GetId())
+	var (
+		driveID   = ptr.Val(drive.GetId())
+		driveName = ptr.Val(drive.GetName())
+	)
+
+	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 
 	response, err := client.
 		DrivesById(driveID).
@@ -155,15 +197,15 @@ func checkOnedriveRestoration(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		fmt.Println("Error getting drive by id:", err)
+		fmt.Println(ctx, "Error getting drive by id:", err)
 		os.Exit(1)
 	}
 
 	for _, driveItem := range response.GetValue() {
 		var (
-			itemID     = ptr.Val(driveItem.GetId())
-			itemName   = ptr.Val(driveItem.GetName())
-			rStartTime time.Time
+			itemID   = ptr.Val(driveItem.GetId())
+			itemName = ptr.Val(driveItem.GetName())
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
 		)
 
 		if itemName == folderName {
@@ -171,11 +213,17 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		restoreStartTime := strings.SplitAfter(itemName, "Corso_Restore_")
-		if len(restoreStartTime) > 1 {
-			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-			if startTime.Before(rStartTime) {
-				fmt.Printf("skipping restore folder %s created after %s\n", itemName, folderName)
+		if !startTime.IsZero() {
+			folderTime, err := common.ExtractTime(itemName)
+			if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+				fatal(ictx, "extracting time from file name", err)
+			}
+
+			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
+				logger.Ctx(ictx).
+					With("folder_time", folderTime).
+					Info("skipping restore folder: not within time bound")
+
 				continue
 			}
 		}
@@ -190,10 +238,9 @@ func checkOnedriveRestoration(
 				DrivesById(driveID).
 				ItemsById(itemID).
 				Permissions().
-				Get(ctx, nil)
+				Get(ictx, nil)
 			if err != nil {
-				fmt.Println("Error getting item by id:", err)
-				os.Exit(1)
+				fatal(ictx, "error getting item by id", err)
 			}
 
 			folderPermission[itemID] = permissionsIn(pcr, folderPermission[itemID])
@@ -219,7 +266,7 @@ func checkFileData(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		fatal("error getting child folder", err)
+		fatal(ctx, "error getting child folder", err)
 	}
 
 	for _, item := range restored.GetValue() {
@@ -247,7 +294,7 @@ func checkFileData(
 			Permissions().
 			Get(ctx, nil)
 		if err != nil {
-			fatal("error getting permission", err)
+			fatal(ctx, "error getting permission", err)
 		}
 
 		var (
@@ -274,7 +321,8 @@ func checkFileData(
 // Helpers
 // ---------------------------------------------------------------------------
 
-func fatal(msg string, err error) {
+func fatal(ctx context.Context, msg string, err error) {
+	logger.CtxErr(ctx, err).Error("test failure: " + msg)
 	fmt.Println(msg+":", err)
 	os.Exit(1)
 }
