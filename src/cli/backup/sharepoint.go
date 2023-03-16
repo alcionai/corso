@@ -34,20 +34,20 @@ const (
 
 const (
 	sharePointServiceCommand                 = "sharepoint"
-	sharePointServiceCommandCreateUseSuffix  = "--web-url <siteURL> | '" + utils.Wildcard + "'"
+	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + utils.Wildcard + "'"
 	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
 	sharePointServiceCommandCreateExamples = `# Backup SharePoint data for a Site
-corso backup create sharepoint --web-url <siteURL>
+corso backup create sharepoint --site <siteURL>
 
 # Backup SharePoint for two sites: HR and Team
-corso backup create sharepoint --web-url https://example.com/hr,https://example.com/team
+corso backup create sharepoint --site https://example.com/hr,https://example.com/team
 
 # Backup all SharePoint data for all Sites
-corso backup create sharepoint --web-url '*'`
+corso backup create sharepoint --site '*'`
 
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
@@ -78,16 +78,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
-
-		fs.StringArrayVar(
-			&utils.Site,
-			utils.SiteFN, nil,
-			"Backup SharePoint data by site ID; accepts '"+utils.Wildcard+"' to select all sites.")
-
-		fs.StringSliceVar(
-			&utils.WebURL,
-			utils.WebURLFN, nil,
-			"Restore data by site web URL; accepts '"+utils.Wildcard+"' to select all sites.")
+		utils.AddSiteFlag(cmd)
+		utils.AddSiteIDFlag(cmd)
 
 		fs.StringSliceVar(
 			&sharepointData,
@@ -167,7 +159,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel, err := sharePointBackupCreateSelectors(ctx, utils.Site, utils.WebURL, sharepointData, gc)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and Web URL"))
+		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
 
 	selectorSet := []selectors.Selector{}
@@ -188,8 +180,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	if len(sites) == 0 && len(weburls) == 0 {
 		return errors.New(
 			"requires one or more --" +
-				utils.SiteFN + " ids, --" +
-				utils.WebURLFN + " urls, or the wildcard --" +
+				utils.SiteFN + " urls, or the wildcard --" +
 				utils.SiteFN + " *",
 		)
 	}

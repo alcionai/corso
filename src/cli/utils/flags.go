@@ -34,9 +34,9 @@ const (
 	BackupFN  = "backup"
 	DataFN    = "data"
 	LibraryFN = "library"
-	SiteFN    = "site"
+	SiteFN    = "site"    // site only accepts WebURL values
+	SiteIDFN  = "site-id" // site-id accepts actual site ids
 	UserFN    = "user"
-	WebURLFN  = "web-url"
 
 	FileFN   = "file"
 	FolderFN = "folder"
@@ -63,6 +63,30 @@ func AddUserFlag(cmd *cobra.Command) {
 		UserFN, nil,
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
 	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
+}
+
+// AddSiteIDFlag adds the --site-id flag, which accepts site ID values.
+// This flag is hidden, since we expect users to prefer the --site url
+// and do not want to encourage confusion.
+func AddSiteIDFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+
+	// note string ARRAY var.  IDs naturally contain commas, so we cannot accept
+	// duplicate values within a flag declaration.  ie: --site-id a,b,c does not
+	// work.  Users must call --site-id a --site-id b --site-id c.
+	fs.StringArrayVar(
+		&Site,
+		SiteIDFN, nil,
+		"Backup data by site ID; accepts '"+Wildcard+"' to select all sites.")
+	cobra.CheckErr(fs.MarkHidden(SiteIDFN))
+}
+
+// AddSiteFlag adds the --site flag, which accepts webURL values.
+func AddSiteFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSliceVar(
+		&WebURL,
+		SiteFN, nil,
+		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
 }
 
 type PopulatedFlags map[string]struct{}
