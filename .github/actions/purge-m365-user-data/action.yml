@@ -27,7 +27,11 @@ inputs:
     description: Secret value of for AZURE_CLIENT_SECRET
   azure-tenant-id:
     description: Secret value of for AZURE_TENANT_ID
-    
+  m365-admin-user:
+    description: Secret value of for M365TENANT_ADMIN_USER
+  m365-admin-password:
+    description: Secret value of for M365TENANT_ADMIN_PASSWORD
+
 runs:
   using: composite
   steps:
