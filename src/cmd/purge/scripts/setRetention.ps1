@@ -33,9 +33,3 @@ Get-Mailbox | ForEach-Object {
         -AuditLogAgeLimit 0 `
         -Force
 }
-
-Write-Host "`nStarting Managed Folder Assistant..."
-Get-Mailbox | ForEach-Object {
-    Write-Host "...for" $_
-    Start-ManagedFolderAssistant -Identity $_.Alias 
-}
