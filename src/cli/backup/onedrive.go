@@ -211,8 +211,8 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.OneDriveOpts{
 		Users:              utils.User,
-		FileNames:          utils.FileNames,
-		FolderPaths:        utils.FolderPaths,
+		FileNames:          utils.FileName,
+		FolderPaths:        utils.FolderPath,
 		FileCreatedAfter:   utils.FileCreatedAfter,
 		FileCreatedBefore:  utils.FileCreatedBefore,
 		FileModifiedAfter:  utils.FileModifiedAfter,

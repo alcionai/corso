@@ -90,15 +90,15 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.SharePointOpts{
-		FileNames:          utils.FileNames,
-		FolderPaths:        utils.FolderPaths,
+		FileName:           utils.FileName,
+		FolderPath:         utils.FolderPath,
 		Library:            utils.Library,
-		ListItems:          listItems,
-		ListPaths:          listPaths,
-		PageFolders:        pageFolders,
-		Pages:              pages,
-		Sites:              utils.Site,
-		WebURLs:            utils.WebURL,
+		ListItem:           listItems,
+		ListPath:           listPaths,
+		PageFolder:         pageFolders,
+		Page:               pages,
+		SiteID:             utils.SiteID,
+		WebURL:             utils.WebURL,
 		FileCreatedAfter:   utils.FileCreatedAfter,
 		FileCreatedBefore:  utils.FileCreatedBefore,
 		FileModifiedAfter:  utils.FileModifiedAfter,

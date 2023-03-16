@@ -78,6 +78,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
+
 		utils.AddSiteFlag(cmd)
 		utils.AddSiteIDFlag(cmd)
 
@@ -138,7 +139,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(utils.Site, utils.WebURL, sharepointData); err != nil {
+	if err := validateSharePointBackupCreateFlags(utils.SiteID, utils.WebURL, sharepointData); err != nil {
 		return err
 	}
 
@@ -157,7 +158,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, utils.Site, utils.WebURL, sharepointData, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteID, utils.WebURL, sharepointData, gc)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
@@ -319,11 +320,11 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	opts := utils.SharePointOpts{
-		FolderPaths:        utils.FolderPaths,
-		FileNames:          utils.FileNames,
+		FolderPath:         utils.FolderPath,
+		FileName:           utils.FileName,
 		Library:            utils.Library,
-		Sites:              utils.Site,
-		WebURLs:            utils.WebURL,
+		SiteID:             utils.SiteID,
+		WebURL:             utils.WebURL,
 		FileCreatedAfter:   fileCreatedAfter,
 		FileCreatedBefore:  fileCreatedBefore,
 		FileModifiedAfter:  fileModifiedAfter,
