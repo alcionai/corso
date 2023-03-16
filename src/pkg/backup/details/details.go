@@ -638,7 +638,7 @@ func (i *ExchangeInfo) UpdateParentPath(_, locPath path.Path) error {
 		return nil
 	}
 
-	i.ParentPath = locPath.Folder(false)
+	i.ParentPath = locPath.Folder(true)
 
 	return nil
 }
