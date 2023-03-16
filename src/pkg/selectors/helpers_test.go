@@ -139,7 +139,7 @@ func stubScope(match string) mockScope {
 
 func stubInfoScope(match string) mockScope {
 	sc := stubScope(match)
-	sc[scopeKeyInfoFilter] = filters.Identity("true")
+	sc[scopeKeyInfoCategory] = filters.Identity("true")
 
 	return sc
 }

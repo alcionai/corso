@@ -79,9 +79,9 @@ func AddExchangeInclude(
 	}
 }
 
-// AddExchangeFilter adds the scope of the provided values to the selector's
+// AddExchangeInfo adds the scope of the provided values to the selector's
 // filter set
-func AddExchangeFilter(
+func AddExchangeInfo(
 	sel *selectors.ExchangeRestore,
 	v string,
 	f func(string) []selectors.ExchangeScope,
@@ -156,14 +156,14 @@ func FilterExchangeRestoreInfoSelectors(
 	sel *selectors.ExchangeRestore,
 	opts ExchangeOpts,
 ) {
-	AddExchangeFilter(sel, opts.ContactName, sel.ContactName)
-	AddExchangeFilter(sel, opts.EmailReceivedAfter, sel.MailReceivedAfter)
-	AddExchangeFilter(sel, opts.EmailReceivedBefore, sel.MailReceivedBefore)
-	AddExchangeFilter(sel, opts.EmailSender, sel.MailSender)
-	AddExchangeFilter(sel, opts.EmailSubject, sel.MailSubject)
-	AddExchangeFilter(sel, opts.EventOrganizer, sel.EventOrganizer)
-	AddExchangeFilter(sel, opts.EventRecurs, sel.EventRecurs)
-	AddExchangeFilter(sel, opts.EventStartsAfter, sel.EventStartsAfter)
-	AddExchangeFilter(sel, opts.EventStartsBefore, sel.EventStartsBefore)
-	AddExchangeFilter(sel, opts.EventSubject, sel.EventSubject)
+	AddExchangeInfo(sel, opts.ContactName, sel.ContactName)
+	AddExchangeInfo(sel, opts.EmailReceivedAfter, sel.MailReceivedAfter)
+	AddExchangeInfo(sel, opts.EmailReceivedBefore, sel.MailReceivedBefore)
+	AddExchangeInfo(sel, opts.EmailSender, sel.MailSender)
+	AddExchangeInfo(sel, opts.EmailSubject, sel.MailSubject)
+	AddExchangeInfo(sel, opts.EventOrganizer, sel.EventOrganizer)
+	AddExchangeInfo(sel, opts.EventRecurs, sel.EventRecurs)
+	AddExchangeInfo(sel, opts.EventStartsAfter, sel.EventStartsAfter)
+	AddExchangeInfo(sel, opts.EventStartsBefore, sel.EventStartsBefore)
+	AddExchangeInfo(sel, opts.EventSubject, sel.EventSubject)
 }
