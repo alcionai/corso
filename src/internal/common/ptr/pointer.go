@@ -43,3 +43,11 @@ func OrNow(t *time.Time) time.Time {
 
 	return *t
 }
+
+// To returns a pointer to the provided value.
+// Useful for getting pointers to ad-hoc primitives
+// strings without needing to store them as
+// individual variables.
+func To[T any](t T) *T {
+	return &t
+}

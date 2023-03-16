@@ -10,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -68,9 +69,6 @@ const (
 //nolint:lll
 var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
 
-// I can't believe I have to do this.
-var t = true
-
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
 	headers := absser.NewRequestHeaders()
 	headers.Add("ConsistencyLevel", "eventual")
@@ -80,7 +78,7 @@ func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
 		QueryParameters: &users.UsersRequestBuilderGetQueryParameters{
 			Select: []string{userSelectID, userSelectPrincipalName, userSelectDisplayName},
 			Filter: fs,
-			Count:  &t,
+			Count:  ptr.To(true),
 		},
 	}
 }

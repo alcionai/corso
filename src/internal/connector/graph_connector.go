@@ -105,8 +105,7 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
-		gc.credentials.AzureClientSecret,
-	)
+		gc.credentials.AzureClientSecret)
 	if err != nil {
 		return &graph.Service{}, err
 	}
@@ -164,6 +163,8 @@ func identifySite(item any) (string, string, error) {
 
 		return "", "", clues.New("site has no name").With("site_id", id)
 	}
+
+	fmt.Printf("\n-----\nsite %v\n-----\n", url)
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	if ok && strings.Contains(url, personalSitePath) {
@@ -318,5 +319,5 @@ func getResources(
 		return nil, graph.Stack(ctx, err)
 	}
 
-	return resources, el.Failure()
+	return resources, clues.New("fake") // el.Failure()
 }

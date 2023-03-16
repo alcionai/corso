@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -274,6 +275,8 @@ func (handler *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
+	fmt.Printf("\n-----\nURL %v\nSTATUS %v\n-----\n", req.URL, resp.StatusCode)
+
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
@@ -302,6 +305,8 @@ func (handler *LoggingMiddleware) Intercept(
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		respDump, _ := httputil.DumpResponse(resp, true)
 
+		fmt.Printf("\n-----\nBODY %v\n-----\n", string(respDump))
+
 		metadata := []any{
 			"method", req.Method,
 			"status", resp.Status,
@@ -323,6 +328,8 @@ func (handler *LoggingMiddleware) Intercept(
 				"reset", resp.Header.Get(rateResetHeader))
 		} else if resp.StatusCode == http.StatusBadRequest {
 			respDump, _ := httputil.DumpResponse(resp, true)
+
+			fmt.Printf("\n-----\nBODY %v\n-----\n", string(respDump))
 			logger.Ctx(ctx).Infow(
 				"graph api error",
 				"status", resp.Status,
