@@ -149,9 +149,8 @@ var (
 	fileDData = []byte(strings.Repeat("d", 257))
 	fileEData = []byte(strings.Repeat("e", 257))
 
+	// Cannot restore owner or empty permissions and so not testing them
 	writePerm = []string{"write"}
-	ownerPerm = []string{"owner"}
-	emptyPerm = []string{}
 	readPerm  = []string{"read"}
 )
 
@@ -558,24 +557,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndBa
 						// no permissions.
 						name: fileName2,
 						data: fileBData,
-					},
-					{
-						name: "test-file3.txt",
-						data: fileBData,
-						perms: permData{
-							user:     suite.secondaryUser,
-							entityID: suite.secondaryUserID,
-							roles:    ownerPerm,
-						},
-					},
-					{
-						name: "test-file4.txt",
-						data: fileBData,
-						perms: permData{
-							user:     suite.secondaryUser,
-							entityID: suite.secondaryUserID,
-							roles:    emptyPerm,
-						},
 					},
 				},
 				folders: []itemData{

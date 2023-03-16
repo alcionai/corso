@@ -111,6 +111,30 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
+// isSame checks equality of two string slices
+func isSame(first, second []string) bool {
+	if len(first) != len(second) {
+		return false
+	}
+
+	for _, f := range first {
+		found := false
+
+		for _, s := range second {
+			if f == s {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
 func diffPermissions(
 	before, after []UserPermission,
 	permissionIDMappings map[string]string,
@@ -124,7 +148,8 @@ func diffPermissions(
 		found := false
 
 		for _, pp := range before {
-			if cp.ID == permissionIDMappings[pp.ID] {
+			if isSame(cp.Roles, pp.Roles) &&
+				cp.EntityID == pp.EntityID {
 				found = true
 				break
 			}
@@ -139,7 +164,8 @@ func diffPermissions(
 		found := false
 
 		for _, cp := range after {
-			if permissionIDMappings[pp.ID] == cp.ID {
+			if isSame(cp.Roles, pp.Roles) &&
+				cp.EntityID == pp.EntityID {
 				found = true
 				break
 			}
@@ -179,6 +205,12 @@ func restorePermissions(
 	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
+		if len(p.Roles) == 1 && p.Roles[0] == "owner" {
+			// Since we can't restore owner permissions, this will be
+			// original owner which we don't/can't delete.
+			continue
+		}
+
 		err := service.Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
@@ -190,8 +222,23 @@ func restorePermissions(
 	}
 
 	for _, p := range permAdded {
+		// We are not able to restore permissions when there are no
+		// roles or for owner, this seems to be restriction in graph
+		roles := p.Roles
+		for _, r := range roles {
+			if r == "owner" {
+				continue
+			}
+
+			roles = append(roles, r)
+		}
+
+		if len(roles) == 0 {
+			continue
+		}
+
 		pbody := msdrive.NewItemsItemInvitePostRequestBody()
-		pbody.SetRoles(p.Roles)
+		pbody.SetRoles(roles)
 
 		if p.Expiration != nil {
 			expiry := p.Expiration.String()
