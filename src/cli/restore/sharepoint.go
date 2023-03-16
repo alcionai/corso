@@ -128,11 +128,11 @@ corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
 
 # Restore all files that were created before 2020.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
---file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets"
+    --file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets"
 
 # Restore all files in a certain library.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
-	--library documents --folder "Display Templates/Style Sheets" `
+    --library documents --folder "Display Templates/Style Sheets" `
 )
 
 // `corso restore sharepoint [<flag>...]`
