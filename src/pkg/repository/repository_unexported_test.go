@@ -34,9 +34,7 @@ func TestRepositoryModelIntgSuite(t *testing.T) {
 	suite.Run(t, &RepositoryModelIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoRepositoryTests,
-		),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 

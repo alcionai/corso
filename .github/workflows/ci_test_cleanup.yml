@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
+      # jobs are expanded per user. Try to run 2 jobs per active user at a time
+      max-parallel: 6
       matrix:
         folder: [Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_, '']
         user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID]
-        # jobs are expanded per user. Try to run 2 jobs per active user at a time
-        max-parallel: 6
         include:
           - folder: ""
             user: ""
