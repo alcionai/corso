@@ -256,18 +256,15 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		}
 
 		gv2 := p.GetGrantedToV2()
-		roles := []string{}
 
-		for _, r := range p.GetRoles() {
-			// Skip if the only role available in owner
-			if r != "owner" {
-				roles = append(roles, r)
-			}
-		}
-
-		if len(roles) == 0 {
-			continue
-		}
+		// Below are the mapping from roles to "Advanced" permissions
+		// screen entries:
+		//
+		// owner - Full Control
+		// write - Design | Edit | Contribute (no difference in /permissions api)
+		// read  - Read
+		// empty - Restricted View
+		roles := p.GetRoles()
 
 		entityID := ""
 		if gv2.GetUser() != nil {
@@ -275,7 +272,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		} else if gv2.GetGroup() != nil {
 			entityID = ptr.Val(gv2.GetGroup().GetId())
 		} else {
-			// TODO Add appliction permissions when adding permissions for SharePoint
+			// TODO Add application permissions when adding permissions for SharePoint
 			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 			logm := logger.Ctx(ctx)
 			if gv2.GetApplication() != nil {
