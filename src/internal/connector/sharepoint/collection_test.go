@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -37,7 +38,7 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 	suite.siteID = tester.M365SiteID(t)
 	a := tester.NewM365Account(t)
 	m365, err := a.M365Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
 }
@@ -61,7 +62,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
 		data: io.NopCloser(bytes.NewReader(m)),
 	}
 	readData, err := io.ReadAll(sc.ToReader())
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, name, sc.id)
 	assert.Equal(t, readData, m)
@@ -91,7 +92,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 					path.ListsCategory,
 					false,
 					dirRoot)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return dir
 			},
@@ -101,10 +102,10 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				listing.SetDisplayName(&name)
 
 				err := ow.WriteObjectValue("", listing)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				byteArray, err := ow.GetSerializedContent()
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				data := &Item{
 					id:   name,
@@ -127,14 +128,14 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 					path.PagesCategory,
 					false,
 					dirRoot)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return dir
 			},
 			getItem: func(t *testing.T, itemName string) *Item {
 				byteArray := mockconnector.GetMockPage(itemName)
 				page, err := support.CreatePageFromBytes(byteArray)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				data := &Item{
 					id:   itemName,
@@ -186,7 +187,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	testName := "MockListing"
 	listing.SetDisplayName(&testName)
 	byteArray, err := service.Serialize(listing)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	listData := &Item{
 		id:   testName,
@@ -197,7 +198,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	destName := "Corso_Restore_" + common.FormatNow(common.SimpleTimeTesting)
 
 	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
 
 	// Clean-Up
@@ -209,7 +210,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	for {
 		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "getting site lists")
+		assert.NoError(t, err, "getting site lists", clues.ToCore(err))
 
 		for _, temp := range resp.GetValue() {
 			if ptr.Val(temp.GetDisplayName()) == deets.SharePoint.ItemName {
@@ -230,7 +231,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	if isFound {
 		err := DeleteList(ctx, service, suite.siteID, deleteID)
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
 	}
 }
 
@@ -245,17 +246,17 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	service := createTestService(t, suite.creds)
 	rootFolder := "General_" + common.FormatNow(common.SimpleTimeTesting)
 	folderID, err := createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	t.Log("FolderID: " + folderID)
 
 	_, err = createRestoreFolders(ctx, service, suite.siteID, []string{rootFolder, "Tsao"})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	// CleanUp
 	siteDrive, err := service.Client().SitesById(suite.siteID).Drive().Get(ctx, nil)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	driveID := ptr.Val(siteDrive.GetId())
 	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 }

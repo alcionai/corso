@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -37,7 +38,7 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 			Prefix: "prfx",
 		},
 	)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	a, err := account.NewAccount(
 		account.ProviderM365,
@@ -49,15 +50,19 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 			AzureTenantID: "tid",
 		},
 	)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	b, err := events.NewBus(ctx, s, a.ID(), control.Options{})
 	require.NotEmpty(t, b)
-	require.NoError(t, err)
-	require.NoError(t, b.Close())
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b.Close()
+	require.NoError(t, err, clues.ToCore(err))
 
 	b2, err := events.NewBus(ctx, s, a.ID(), control.Options{DisableMetrics: true})
 	require.Empty(t, b2)
-	require.NoError(t, err)
-	require.NoError(t, b2.Close())
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = b2.Close()
+	require.NoError(t, err, clues.ToCore(err))
 }

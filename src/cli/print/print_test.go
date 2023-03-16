@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -20,14 +21,15 @@ func TestPrintUnitSuite(t *testing.T) {
 }
 
 func (suite *PrintUnitSuite) TestOnly() {
-	t := suite.T()
-	c := &cobra.Command{}
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
+	t := suite.T()
+	c := &cobra.Command{}
 	ctx = SetRootCmd(ctx, c)
-	assert.NoError(t, Only(ctx, nil))
+
+	err := Only(ctx, nil)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.True(t, c.SilenceUsage)
 }
 

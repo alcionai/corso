@@ -358,7 +358,7 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterCreatedAfter,
+			SharePointFilterCreatedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -368,7 +368,7 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterCreatedBefore,
+			SharePointFilterCreatedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -378,7 +378,7 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterModifiedAfter,
+			SharePointFilterModifiedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -388,7 +388,7 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 	return []SharePointScope{
 		makeFilterScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterModifiedBefore,
+			SharePointFilterModifiedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -419,10 +419,10 @@ const (
 	SharePointPage          sharePointCategory = "SharePointPage"
 
 	// filterable topics identified by SharePoint
-	SiteFilterCreatedAfter   sharePointCategory = "FileFilterCreatedAfter"
-	SiteFilterCreatedBefore  sharePointCategory = "FileFilterCreatedBefore"
-	SiteFilterModifiedAfter  sharePointCategory = "FileFilterModifiedAfter"
-	SiteFilterModifiedBefore sharePointCategory = "FileFilterModifiedBefore"
+	SharePointFilterCreatedAfter   sharePointCategory = "SharePointFilterCreatedAfter"
+	SharePointFilterCreatedBefore  sharePointCategory = "SharePointFilterCreatedBefore"
+	SharePointFilterModifiedAfter  sharePointCategory = "SharePointFilterModifiedAfter"
+	SharePointFilterModifiedBefore sharePointCategory = "SharePointFilterModifiedBefore"
 
 	// library drive selection
 	SharePointFilterLibraryDrive sharePointCategory = "SharePointFilterLibraryDrive"
@@ -460,8 +460,8 @@ func (c sharePointCategory) String() string {
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
 	case SharePointLibraryFolder, SharePointLibraryItem, SharePointFilterLibraryDrive,
-		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
-		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+		SharePointFilterCreatedAfter, SharePointFilterCreatedBefore,
+		SharePointFilterModifiedAfter, SharePointFilterModifiedBefore:
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
@@ -679,9 +679,9 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	switch filterCat {
 	case SharePointWebURL:
 		i = info.WebURL
-	case SiteFilterCreatedAfter, SiteFilterCreatedBefore:
+	case SharePointFilterCreatedAfter, SharePointFilterCreatedBefore:
 		i = common.FormatTime(info.Created)
-	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+	case SharePointFilterModifiedAfter, SharePointFilterModifiedBefore:
 		i = common.FormatTime(info.Modified)
 	case SharePointFilterLibraryDrive:
 		ds := []string{}

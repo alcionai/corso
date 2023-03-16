@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -123,7 +124,7 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			t := suite.T()
 
 			s, c, err := validateServiceAndCategoryStrings(test.service, test.category)
-			test.check(t, err)
+			test.check(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
