@@ -199,7 +199,7 @@ func HTTPClient(opts ...option) *http.Client {
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Minute * 3
+	httpClient.Timeout = 1 * time.Hour
 
 	clientconfig.apply(httpClient)
 
