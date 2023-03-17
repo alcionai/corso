@@ -145,7 +145,8 @@ func runPurgeForEachUser(
 	}
 
 	if len(ferrs.Errors().Recovered) > 0 {
-		errs = multierror.Append(errs, ferrs.Errors().Recovered...)
+		// TODO(keepers): remove multierr
+		errs = multierror.Append(errs, ferrs.Recovered()...)
 	}
 
 	for _, u := range userOrUsers(user, users) {

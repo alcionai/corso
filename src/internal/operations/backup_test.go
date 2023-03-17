@@ -1202,7 +1202,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mds := ssmock.DetailsStreamer{Entries: test.populatedDetails}
+			mds := ssmock.Streamer{Deets: test.populatedDetails}
 			w := &store.Wrapper{Storer: mockBackupStorer{entries: test.populatedModels}}
 			deets := details.Builder{}
 
@@ -1317,7 +1317,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	defer flush()
 
 	var (
-		mds   = ssmock.DetailsStreamer{Entries: populatedDetails}
+		mds   = ssmock.Streamer{Deets: populatedDetails}
 		w     = &store.Wrapper{Storer: mockBackupStorer{entries: populatedModels}}
 		deets = details.Builder{}
 	)

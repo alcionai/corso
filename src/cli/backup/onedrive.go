@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -79,8 +80,12 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
 
 		fs.StringVar(&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to retrieve.")
+			"backup", "",
+			"Display a specific backup, including the items that failed or were skipped during processing.")
+
+		addFailedItemsFN(c)
+		addSkippedItemsFN(c)
+		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
@@ -306,7 +311,9 @@ func runDetailsOneDriveCmd(
 		return nil, err
 	}
 
-	d, _, errs := r.BackupDetails(ctx, backupID)
+	ctx = clues.Add(ctx, "backup_id", backupID)
+
+	d, _, errs := r.GetBackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {
 		if errors.Is(errs.Failure(), data.ErrNotFound) {

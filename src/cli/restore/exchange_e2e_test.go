@@ -48,8 +48,7 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIRestoreTests),
+		),
 	})
 }
 
@@ -113,7 +112,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
 		require.NoError(t, err, "retrieving recent backup by ID", clues.ToCore(err))
 
-		_, _, errs := suite.repo.BackupDetails(ctx, string(bop.Results.BackupID))
+		_, _, errs := suite.repo.GetBackupDetails(ctx, string(bop.Results.BackupID))
 		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID", clues.ToCore(err))
 		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
 	}

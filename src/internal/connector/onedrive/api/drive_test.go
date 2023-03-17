@@ -37,8 +37,7 @@ func TestOneDriveAPIs(t *testing.T) {
 	suite.Run(t, &OneDriveAPISuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorOneDriveTests),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 

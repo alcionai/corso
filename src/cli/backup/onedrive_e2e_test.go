@@ -46,8 +46,7 @@ func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 
@@ -171,8 +170,7 @@ func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 
