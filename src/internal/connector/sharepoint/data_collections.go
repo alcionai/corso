@@ -31,6 +31,7 @@ type statusUpdater interface {
 func DataCollections(
 	ctx context.Context,
 	itemClient *http.Client,
+	ownerName string,
 	selector selectors.Selector,
 	creds account.M365Config,
 	serv graph.Servicer,
@@ -57,7 +58,7 @@ func DataCollections(
 		foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
 			"%s - %s",
 			observe.Safe(scope.Category().PathType().String()),
-			observe.PII(site)))
+			observe.PII(ownerName)))
 		defer closer()
 		defer close(foldersComplete)
 
