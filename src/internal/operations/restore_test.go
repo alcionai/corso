@@ -375,7 +375,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 			ds, err := ro.Run(ctx)
 
-			require.NoError(t, err, "restoreOp.Run()", clues.ToCore(err))
+			require.NoError(t, err, "restoreOp.Run() %+v", clues.ToCore(err))
 			require.NotEmpty(t, ro.Results, "restoreOp results")
 			require.NotNil(t, ds, "restored details")
 			assert.Equal(t, ro.Status, Completed, "restoreOp status")
