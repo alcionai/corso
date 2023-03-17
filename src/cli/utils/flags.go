@@ -14,8 +14,8 @@ import (
 var (
 	BackupID string
 
-	FolderPaths []string
-	FileNames   []string
+	FolderPath []string
+	FileName   []string
 
 	FileCreatedAfter   string
 	FileCreatedBefore  string
@@ -23,7 +23,7 @@ var (
 	FileModifiedBefore string
 
 	Library string
-	Site    []string
+	SiteID  []string
 	WebURL  []string
 
 	User []string
@@ -75,7 +75,7 @@ func AddSiteIDFlag(cmd *cobra.Command) {
 	// duplicate values within a flag declaration.  ie: --site-id a,b,c does not
 	// work.  Users must call --site-id a --site-id b --site-id c.
 	fs.StringArrayVar(
-		&Site,
+		&SiteID,
 		SiteIDFN, nil,
 		//nolint:lll
 		"Backup data by site ID; accepts '"+Wildcard+"' to select all sites.  Args cannot be comma-delimited and must use multiple flags.")

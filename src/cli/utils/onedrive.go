@@ -25,12 +25,12 @@ func AddOneDriveDetailsAndRestoreFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 
 	fs.StringSliceVar(
-		&FolderPaths,
+		&FolderPath,
 		FolderFN, nil,
 		"Select files by OneDrive folder; defaults to root.")
 
 	fs.StringSliceVar(
-		&FileNames,
+		&FileName,
 		FileFN, nil,
 		"Select files by name.")
 
