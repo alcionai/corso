@@ -77,7 +77,8 @@ func AddSiteIDFlag(cmd *cobra.Command) {
 	fs.StringArrayVar(
 		&Site,
 		SiteIDFN, nil,
-		"Backup data by site ID; accepts '"+Wildcard+"' to select all sites.")
+		//nolint:lll
+		"Backup data by site ID; accepts '"+Wildcard+"' to select all sites.  Args cannot be comma-delimited and must use multiple flags.")
 	cobra.CheckErr(fs.MarkHidden(SiteIDFN))
 }
 
