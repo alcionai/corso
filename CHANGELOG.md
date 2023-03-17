@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix repo connect not working without a config file
 - Fix item re-download on expired links silently being skipped
 - Improved permissions backup and restore for OneDrive
+- CLI calls default to a 10-day context deadline to avoid letting graph api restrict requests to a 100 second deadline.
 
 ### Known Issues
 - Owner (Full control) or empty (Restricted View) roles cannot be restored for OneDrive
