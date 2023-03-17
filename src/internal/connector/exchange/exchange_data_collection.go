@@ -198,7 +198,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 	// Limit the max number of active requests to GC
 	fetchParallelism := col.ctrl.ItemFetchParallelism
-	if fetchParallelism == 0 || fetchParallelism > urlPrefetchChannelBufferSize {
+	if fetchParallelism < 1 || fetchParallelism > urlPrefetchChannelBufferSize {
 		fetchParallelism = urlPrefetchChannelBufferSize
 		logger.Ctx(ctx).Infow(
 			"fetch parallelism value not set or out of bounds, using default",
