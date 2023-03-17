@@ -36,7 +36,7 @@ func (middleware RetryHandler) retryRequest(
 	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
 		executionCount < middleware.MaxRetries &&
-		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second {
+		cumulativeDelay < time.Duration(absoluteMaxDelay) {
 		executionCount++
 
 		delay := middleware.getRetryDelay(req, resp, exponentialBackoff)
