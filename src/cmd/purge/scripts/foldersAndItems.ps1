@@ -354,6 +354,37 @@ function Purge-Folders {
     }
 }
 
+function Create-Contact {
+    $now = (Get-Date (Get-Date).ToUniversalTime() -Format "o")
+    #used to create a recent seed contact that will be shielded from cleanup. CI tests rely on this    
+    $body = @"
+<CreateItem xmlns="http://schemas.microsoft.com/exchange/services/2006/messages" >
+    <SavedItemFolderId>
+        <t:DistinguishedFolderId Id="contacts"/>
+    </SavedItemFolderId>
+    <Items>
+        <t:Contact>
+            <t:GivenName>Sanitago</t:GivenName>
+            <t:Surname>TestContact - $now</t:Surname>
+            <t:CompanyName>Corso test enterprises</t:CompanyName>
+            <t:EmailAddresses>
+                <t:Entry Key="EmailAddress1">sanitago@example.com</t:Entry>
+            </t:EmailAddresses>
+            <t:PhoneNumbers>
+                <t:Entry Key="BusinessPhone">4255550199</t:Entry>
+            </t:PhoneNumbers>
+            <t:Birthday>2000-01-01T11:59:00Z</t:Birthday>
+            <t:JobTitle>Tester</t:JobTitle>
+            <t:Surname>Plate</t:Surname>
+        </t:Contact>
+    </Items>
+</CreateItem>
+"@
+
+    $createContactMsg = Initialize-SOAPMessage -User $User -Body $body
+    $response = Invoke-SOAPRequest -Token $Token -Message $createContactMsg
+}
+
 function Get-ItemsToPurge {
     Param(
         [Parameter(Mandatory = $True, HelpMessage = "Folder under which to look for items matching removal criteria")]
@@ -426,6 +457,11 @@ function Purge-Contacts {
 
     Write-Host "`nCleaning up contacts older than $PurgeBeforeTimestamp" 
     Write-Host "-------------------------------------------------------" 
+
+    # Create one seed contact which will have recent create date and will not be sweapt
+    # This is needed since tests rely on some contact data being present
+    Write-Host "`nCreating seed contact" 
+    Create-Contact
 
     $moreToList = $True
     # only get max of 1000 results so we may need to iterate over eligible contacts  
