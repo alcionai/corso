@@ -22,16 +22,18 @@ import (
 )
 
 const (
-	logGraphRequestsEnvKey  = "LOG_GRAPH_REQUESTS"
-	numberOfRetries         = 3
-	retryAttemptHeader      = "Retry-Attempt"
-	retryAfterHeader        = "Retry-After"
-	defaultMaxRetries       = 3
-	defaultDelay            = 3 * time.Second
-	absoluteMaxDelaySeconds = 180
-	rateLimitHeader         = "RateLimit-Limit"
-	rateRemainingHeader     = "RateLimit-Remaining"
-	rateResetHeader         = "RateLimit-Reset"
+	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
+	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
+	numberOfRetries           = 3
+	retryAttemptHeader        = "Retry-Attempt"
+	retryAfterHeader          = "Retry-After"
+	defaultMaxRetries         = 3
+	defaultDelay              = 3 * time.Second
+	absoluteMaxDelaySeconds   = 180
+	rateLimitHeader           = "RateLimit-Limit"
+	rateRemainingHeader       = "RateLimit-Remaining"
+	rateResetHeader           = "RateLimit-Reset"
+	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -195,7 +197,7 @@ func HTTPClient(opts ...option) *http.Client {
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Minute * 3
+	httpClient.Timeout = defaultHTTPClientTimeout
 
 	clientconfig.apply(httpClient)
 
