@@ -91,20 +91,25 @@ func getCollectionMetadata(
 func createRestoreFoldersWithPermissions(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
+	drivePath *path.DrivePath,
 	restoreFolders []string,
 	folderMetadata Metadata,
 	permissionIDMappings map[string]string,
 ) (string, error) {
-	id, err := CreateRestoreFolders(ctx, service, driveID, restoreFolders)
+	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
 	if err != nil {
 		return "", err
+	}
+
+	if len(drivePath.Folders) == 0 {
+		// No permissions for root folder
+		return id, nil
 	}
 
 	err = restorePermissions(
 		ctx,
 		service,
-		driveID,
+		drivePath.DriveID,
 		id,
 		folderMetadata,
 		permissionIDMappings)
@@ -190,14 +195,6 @@ func restorePermissions(
 	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
-		if slices.Equal(p.Roles, []string{"owner"}) {
-			// We can't restore owner permissions
-			// TODO: If in future, we are able to restore owner
-			// permissions, make sure we are only skipping the owner
-			// permission for the user to which we are restoring
-			continue
-		}
-
 		err := service.Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
@@ -211,7 +208,7 @@ func restorePermissions(
 	for _, p := range permAdded {
 		// We are not able to restore permissions when there are no
 		// roles or for owner, this seems to be restriction in graph
-		roles := p.Roles
+		roles := []string{}
 		for _, r := range roles {
 			if r != "owner" {
 				roles = append(roles, r)
