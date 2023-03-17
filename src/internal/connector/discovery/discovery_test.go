@@ -40,7 +40,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	assert.NoError(t, err, clues.ToCore(err))
 
 	ferrs := errs.Errors()
-	assert.NoError(t, ferrs.Failure, clues.ToCore(ferrs.Failure))
+	assert.Nil(t, ferrs.Failure)
 	assert.Empty(t, ferrs.Recovered)
 
 	assert.Less(t, 0, len(users))
