@@ -3,7 +3,6 @@ package graph
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +53,7 @@ func (suite *GraphUnitSuite) TestHTTPClient() {
 			name: "no options",
 			opts: []option{},
 			check: func(t *testing.T, c *http.Client) {
-				assert.Equal(t, 3*time.Minute, c.Timeout, "default timeout")
+				assert.Equal(t, defaultHttpClientTimeout, c.Timeout, "default timeout")
 			},
 		},
 		{

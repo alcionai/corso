@@ -36,6 +36,7 @@ const (
 	rateLimitHeader           = "RateLimit-Limit"
 	rateRemainingHeader       = "RateLimit-Remaining"
 	rateResetHeader           = "RateLimit-Reset"
+	defaultHttpClientTimeout  = 1 * time.Hour
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -199,7 +200,7 @@ func HTTPClient(opts ...option) *http.Client {
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = 1 * time.Hour
+	httpClient.Timeout = defaultHttpClientTimeout
 
 	clientconfig.apply(httpClient)
 
