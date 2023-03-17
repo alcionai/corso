@@ -12,7 +12,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type Bus struct {
@@ -290,40 +289,6 @@ func (e *Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips, igno
 	}
 
 	print.All(ctx, sl...)
-}
-
-// Log is a helper function that logs all entries in the Errors struct.
-func (e *Errors) Log(ctx context.Context, prefix string) {
-	if e == nil {
-		return
-	}
-
-	var (
-		log        = logger.Ctx(ctx)
-		pfxMsg     = prefix + ":"
-		li, ls, lr = len(e.Items), len(e.Skipped), len(e.Recovered)
-	)
-
-	if e.Failure == nil && li+ls+lr == 0 {
-		log.Info(pfxMsg, "no errors")
-		return
-	}
-
-	if e.Failure != nil {
-		log.With("error", e.Failure).Error(pfxMsg, "primary failure")
-	}
-
-	for i, item := range e.Items {
-		log.With("failed_item", item).Errorf("%s item failure %d of %d", pfxMsg, i+1, li)
-	}
-
-	for i, item := range e.Skipped {
-		log.With("skipped_item", item).Errorf("%s skipped item %d of %d", pfxMsg, i+1, ls)
-	}
-
-	for i, err := range e.Recovered {
-		log.With("recovered_error", err).Errorf("%s recoverable error %d of %d", pfxMsg, i+1, lr)
-	}
 }
 
 var _ print.Printable = &printableErrCore{}

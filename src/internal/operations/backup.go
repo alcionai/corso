@@ -161,7 +161,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
 	}
 
-	op.Errors.Errors().Log(ctx, "doing backup")
+	LogFaultErrors(ctx, op.Errors.Errors(), "doing backup")
 
 	// -----
 	// Persistence

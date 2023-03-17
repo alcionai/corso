@@ -153,7 +153,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
 	}
 
-	op.Errors.Errors().Log(ctx, "doing restore")
+	LogFaultErrors(ctx, op.Errors.Errors(), "doing restore")
 
 	// -----
 	// Persistence
