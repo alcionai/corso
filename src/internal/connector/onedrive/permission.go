@@ -7,6 +7,7 @@ import (
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -90,25 +91,38 @@ func getCollectionMetadata(
 func createRestoreFoldersWithPermissions(
 	ctx context.Context,
 	service graph.Servicer,
-	driveID string,
+	drivePath *path.DrivePath,
 	restoreFolders []string,
 	folderMetadata Metadata,
 	permissionIDMappings map[string]string,
 ) (string, error) {
-	id, err := CreateRestoreFolders(ctx, service, driveID, restoreFolders)
+	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
 	if err != nil {
 		return "", err
+	}
+
+	if len(drivePath.Folders) == 0 {
+		// No permissions for root folder
+		return id, nil
 	}
 
 	err = restorePermissions(
 		ctx,
 		service,
-		driveID,
+		drivePath.DriveID,
 		id,
 		folderMetadata,
 		permissionIDMappings)
 
 	return id, err
+}
+
+// isSame checks equality of two string slices
+func isSame(first, second []string) bool {
+	slices.Sort(first)
+	slices.Sort(second)
+
+	return slices.Equal(first, second)
 }
 
 func diffPermissions(
@@ -124,7 +138,8 @@ func diffPermissions(
 		found := false
 
 		for _, pp := range before {
-			if cp.ID == permissionIDMappings[pp.ID] {
+			if isSame(cp.Roles, pp.Roles) &&
+				cp.EntityID == pp.EntityID {
 				found = true
 				break
 			}
@@ -139,7 +154,8 @@ func diffPermissions(
 		found := false
 
 		for _, cp := range after {
-			if permissionIDMappings[pp.ID] == cp.ID {
+			if isSame(cp.Roles, pp.Roles) &&
+				cp.EntityID == pp.EntityID {
 				found = true
 				break
 			}
@@ -190,8 +206,22 @@ func restorePermissions(
 	}
 
 	for _, p := range permAdded {
+		// We are not able to restore permissions when there are no
+		// roles or for owner, this seems to be restriction in graph
+		roles := []string{}
+
+		for _, r := range p.Roles {
+			if r != "owner" {
+				roles = append(roles, r)
+			}
+		}
+
+		if len(roles) == 0 {
+			continue
+		}
+
 		pbody := msdrive.NewItemsItemInvitePostRequestBody()
-		pbody.SetRoles(p.Roles)
+		pbody.SetRoles(roles)
 
 		if p.Expiration != nil {
 			expiry := p.Expiration.String()
