@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
@@ -147,7 +148,10 @@ func BuildCommandTree(cmd *cobra.Command) {
 // Handle builds and executes the cli processor.
 func Handle() {
 	//nolint:forbidigo
-	ctx := config.Seed(context.Background())
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Hour*24*10))
+	defer cancel()
+
+	ctx = config.Seed(ctx)
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
