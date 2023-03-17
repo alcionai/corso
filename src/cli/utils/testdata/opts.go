@@ -470,28 +470,28 @@ var (
 			Name:     "AllLibraryItems",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: selectors.Any(),
+				FolderPath: selectors.Any(),
 			},
 		},
 		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: []string{testdata.SharePointLibraryFolder},
+				FolderPath: []string{testdata.SharePointLibraryFolder},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: []string{testdata.SharePointLibraryFolder + "/"},
+				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: []string{testdata.SharePointLibraryFolder + "/"},
+				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
@@ -501,7 +501,7 @@ var (
 				testdata.SharePointLibraryItems[1],
 			},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItems[0].ShortRef,
 					testdata.SharePointLibraryItems[1].ShortRef,
 				},
@@ -511,7 +511,7 @@ var (
 			Name:     "SingleItem",
 			Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[0]},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 				},
 			},
@@ -523,7 +523,7 @@ var (
 				testdata.SharePointLibraryItems[1],
 			},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 					testdata.SharePointLibraryItems[1].SharePoint.ItemName,
 				},
@@ -533,7 +533,7 @@ var (
 			Name:     "NoSelectRepoItemName",
 			Expected: []details.DetailsEntry{},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItemPath1.Item(),
 				},
 			},
