@@ -4,26 +4,51 @@ import (
 	"errors"
 
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/spf13/cobra"
 )
 
 // flag names
 const (
-	ContactFN             = "contact"
-	ContactFolderFN       = "contact-folder"
+	ContactFN       = "contact"
+	ContactFolderFN = "contact-folder"
+	ContactNameFN   = "contact-name"
+
 	EmailFN               = "email"
 	EmailFolderFN         = "email-folder"
-	EventFN               = "event"
-	EventCalendarFN       = "event-calendar"
-	ContactNameFN         = "contact-name"
 	EmailReceivedAfterFN  = "email-received-after"
 	EmailReceivedBeforeFN = "email-received-before"
 	EmailSenderFN         = "email-sender"
 	EmailSubjectFN        = "email-subject"
-	EventOrganizerFN      = "event-organizer"
-	EventRecursFN         = "event-recurs"
-	EventStartsAfterFN    = "event-starts-after"
-	EventStartsBeforeFN   = "event-starts-before"
-	EventSubjectFN        = "event-subject"
+
+	EventFN             = "event"
+	EventCalendarFN     = "event-calendar"
+	EventOrganizerFN    = "event-organizer"
+	EventRecursFN       = "event-recurs"
+	EventStartsAfterFN  = "event-starts-after"
+	EventStartsBeforeFN = "event-starts-before"
+	EventSubjectFN      = "event-subject"
+)
+
+// flag population values
+var (
+	Contact       []string
+	ContactFolder []string
+	ContactName   string
+
+	Email               []string
+	EmailFolder         []string
+	EmailReceivedAfter  string
+	EmailReceivedBefore string
+	EmailSender         string
+	EmailSubject        string
+
+	Event             []string
+	EventCalendar     []string
+	EventOrganizer    string
+	EventRecurs       string
+	EventStartsAfter  string
+	EventStartsBefore string
+	EventSubject      string
 )
 
 type ExchangeOpts struct {
@@ -46,6 +71,82 @@ type ExchangeOpts struct {
 	EventSubject        string
 
 	Populated PopulatedFlags
+}
+
+// AddExchangeDetailsAndRestoreFlags adds flags that are common to both the
+// details and restore commands.
+func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+
+	// email flags
+	fs.StringSliceVar(
+		&Email,
+		EmailFN, nil,
+		"Select emails by email ID; accepts '"+Wildcard+"' to select all emails.")
+	fs.StringSliceVar(
+		&EmailFolder,
+		EmailFolderFN, nil,
+		"Select emails within a folder; accepts '"+Wildcard+"' to select all email folders.")
+	fs.StringVar(
+		&EmailSubject,
+		EmailSubjectFN, "",
+		"Select emails with a subject containing this value.")
+	fs.StringVar(
+		&EmailSender,
+		EmailSenderFN, "",
+		"Select emails from a specific sender.")
+	fs.StringVar(
+		&EmailReceivedAfter,
+		EmailReceivedAfterFN, "",
+		"Select emails received after this datetime.")
+	fs.StringVar(
+		&EmailReceivedBefore,
+		EmailReceivedBeforeFN, "",
+		"Select emails received before this datetime.")
+
+	// event flags
+	fs.StringSliceVar(
+		&Event,
+		EventFN, nil,
+		"Select events by event ID; accepts '"+Wildcard+"' to select all events.")
+	fs.StringSliceVar(
+		&EventCalendar,
+		EventCalendarFN, nil,
+		"Select events under a calendar; accepts '"+Wildcard+"' to select all events.")
+	fs.StringVar(
+		&EventSubject,
+		EventSubjectFN, "",
+		"Select events with a subject containing this value.")
+	fs.StringVar(
+		&EventOrganizer,
+		EventOrganizerFN, "",
+		"Select events from a specific organizer.")
+	fs.StringVar(
+		&EventRecurs,
+		EventRecursFN, "",
+		"Select recurring events. Use `--event-recurs false` to select non-recurring events.")
+	fs.StringVar(
+		&EventStartsAfter,
+		EventStartsAfterFN, "",
+		"Select events starting after this datetime.")
+	fs.StringVar(
+		&EventStartsBefore,
+		EventStartsBeforeFN, "",
+		"Select events starting before this datetime.")
+
+	// contact flags
+	fs.StringSliceVar(
+		&Contact,
+		ContactFN, nil,
+		"Select contacts by contact ID; accepts '"+Wildcard+"' to select all contacts.")
+	fs.StringSliceVar(
+		&ContactFolder,
+		ContactFolderFN, nil,
+		"Select contacts within a folder; accepts '"+Wildcard+"' to select all contact folders.")
+	fs.StringVar(
+		&ContactName,
+		ContactNameFN, "",
+		"Select contacts whose contact name contains this value.")
 }
 
 // AddExchangeInclude adds the scope of the provided values to the selector's

@@ -26,12 +26,7 @@ import (
 // ------------------------------------------------------------------------------------------------
 
 // sharePoint bucket info from flags
-var (
-	pageFolders []string
-	page        []string
-
-	sharepointData []string
-)
+var sharepointData []string
 
 const (
 	dataLibraries = "libraries"
@@ -105,91 +100,30 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
+		fs.SortFlags = false
 
-		fs.StringVar(
-			&backupID,
-			utils.BackupFN, "",
-			"Display a specific backup, including the items that failed or were skipped during processing.")
-
+		utils.AddBackupIDFlag(c, false)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
+		c, _ = utils.AddCommand(cmd, sharePointDetailsCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
 
 		options.AddSkipReduceFlag(c)
-
-		fs.StringVar(
-			&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to retrieve.")
-		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
-
-		// sharepoint hierarchy flags
-
-		fs.StringVar(
-			&utils.Library,
-			utils.LibraryFN, "",
-			"Select backup details within a library. Defaults includes all libraries.")
-
-		fs.StringSliceVar(
-			&utils.FolderPaths,
-			utils.FolderFN, nil,
-			"Select backup details by folder; defaults to root.")
-
-		fs.StringSliceVar(
-			&utils.FileNames,
-			utils.FileFN, nil,
-			"Select backup details by file name.")
-
-		fs.StringSliceVar(
-			&pageFolders,
-			utils.PageFolderFN, nil,
-			"Select backup data by folder name; accepts '"+utils.Wildcard+"' to select all folders.")
-		cobra.CheckErr(fs.MarkHidden(utils.PageFolderFN))
-
-		fs.StringSliceVar(
-			&page,
-			utils.PagesFN, nil,
-			"Select backup data by file name; accepts '"+utils.Wildcard+"' to select all pages within the site.")
-		cobra.CheckErr(fs.MarkHidden(utils.PagesFN))
-
-		// sharepoint info flags
-
-		fs.StringVar(
-			&utils.FileCreatedAfter,
-			utils.FileCreatedAfterFN, "",
-			"Select backup details created after this datetime.")
-
-		fs.StringVar(
-			&utils.FileCreatedBefore,
-			utils.FileCreatedBeforeFN, "",
-			"Select backup details created before this datetime.")
-
-		fs.StringVar(
-			&utils.FileModifiedAfter,
-			utils.FileModifiedAfterFN, "",
-			"Select backup details modified after this datetime.")
-		fs.StringVar(
-			&utils.FileModifiedBefore,
-			utils.FileModifiedBeforeFN, "",
-			"Select backup details modified before this datetime.")
+		utils.AddBackupIDFlag(c, true)
+		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
+		c, _ = utils.AddCommand(cmd, sharePointDeleteCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		fs.StringVar(
-			&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to delete. (required)")
-		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
+		utils.AddBackupIDFlag(c, true)
 	}
 
 	return c
@@ -354,7 +288,7 @@ func sharePointListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, backupID, path.SharePointService, args)
+	return genericListCommand(cmd, utils.BackupID, path.SharePointService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -374,7 +308,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, backupID, "SharePoint", args)
+	return genericDeleteCommand(cmd, utils.BackupID, "SharePoint", args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -422,7 +356,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsSharePointCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsSharePointCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
