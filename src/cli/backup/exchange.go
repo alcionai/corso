@@ -26,28 +26,7 @@ import (
 
 // exchange bucket info from flags
 var (
-	backupID     string
 	exchangeData []string
-	user         []string
-
-	contact       []string
-	contactFolder []string
-	contactName   string
-
-	email               []string
-	emailFolder         []string
-	emailReceivedAfter  string
-	emailReceivedBefore string
-	emailSender         string
-	emailSubject        string
-
-	event             []string
-	eventCalendar     []string
-	eventOrganizer    string
-	eventRecurs       string
-	eventStartsAfter  string
-	eventStartsBefore string
-	eventSubject      string
 )
 
 const (
@@ -81,15 +60,15 @@ corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --user a
 
 # Explore Alice's emails with subject containing "Hello world" in folder "Inbox" from a specific backup 
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --user alice@example.com --email-subject "Hello world" --email-folder Inbox
+	--user alice@example.com --email-subject "Hello world" --email-folder Inbox
 
 # Explore Bobs's events occurring after start of 2022 from a specific backup
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --user bob@example.com --event-starts-after 2022-01-01T00:00:00
+    --user bob@example.com --event-starts-after 2022-01-01T00:00:00
 
 # Explore Alice's contacts with name containing Andy from a specific backup
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --user alice@example.com --contact-name Andy`
+    --user alice@example.com --contact-name Andy`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -109,10 +88,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		fs.StringSliceVar(
-			&user,
-			utils.UserFN, nil,
-			"Backup Exchange data by a user's email; accepts '"+utils.Wildcard+"' to select all users")
+		utils.AddUserFlag(c)
+
 		fs.StringSliceVar(
 			&exchangeData,
 			utils.DataFN, nil,
@@ -122,17 +99,15 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
+		fs.SortFlags = false
 
-		fs.StringVar(&backupID,
-			"backup", "",
-			"Display a specific backup, including the items that failed or were skipped during processing.")
-
+		utils.AddBackupIDFlag(c, false)
 		addFailedItemsFN(c)
 		addSkippedItemsFN(c)
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
+		c, _ = utils.AddCommand(cmd, exchangeDetailsCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
@@ -141,95 +116,16 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		fs.StringVar(&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to explore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
-		fs.StringSliceVar(
-			&user,
-			utils.UserFN, nil,
-			"Select backup details by user ID; accepts '"+utils.Wildcard+"' to select all users.")
-
-		// email flags
-		fs.StringSliceVar(
-			&email,
-			utils.EmailFN, nil,
-			"Select backup details for emails by email ID; accepts '"+utils.Wildcard+"' to select all emails.")
-		fs.StringSliceVar(
-			&emailFolder,
-			utils.EmailFolderFN, nil,
-			"Select backup details for emails within a folder; accepts '"+utils.Wildcard+"' to select all email folders.")
-		fs.StringVar(
-			&emailSubject,
-			utils.EmailSubjectFN, "",
-			"Select backup details for emails with a subject containing this value.")
-		fs.StringVar(
-			&emailSender,
-			utils.EmailSenderFN, "",
-			"Select backup details for emails from a specific sender.")
-		fs.StringVar(
-			&emailReceivedAfter,
-			utils.EmailReceivedAfterFN, "",
-			"Select backup details for emails received after this datetime.")
-		fs.StringVar(
-			&emailReceivedBefore,
-			utils.EmailReceivedBeforeFN, "",
-			"Select backup details for emails received before this datetime.")
-
-		// event flags
-		fs.StringSliceVar(
-			&event,
-			utils.EventFN, nil,
-			"Select backup details for events by event ID; accepts '"+utils.Wildcard+"' to select all events.")
-		fs.StringSliceVar(
-			&eventCalendar,
-			utils.EventCalendarFN, nil,
-			"Select backup details for events under a calendar; accepts '"+utils.Wildcard+"' to select all events.")
-		fs.StringVar(
-			&eventSubject,
-			utils.EventSubjectFN, "",
-			"Select backup details for events with a subject containing this value.")
-		fs.StringVar(
-			&eventOrganizer,
-			utils.EventOrganizerFN, "",
-			"Select backup details for events from a specific organizer.")
-		fs.StringVar(
-			&eventRecurs,
-			utils.EventRecursFN, "",
-			"Select backup details for recurring events. Use `--event-recurs false` to select non-recurring events.")
-		fs.StringVar(
-			&eventStartsAfter,
-			utils.EventStartsAfterFN, "",
-			"Select backup details for events starting after this datetime.")
-		fs.StringVar(
-			&eventStartsBefore,
-			utils.EventStartsBeforeFN, "",
-			"Select backup details for events starting before this datetime.")
-
-		// contact flags
-		fs.StringSliceVar(
-			&contact,
-			utils.ContactFN, nil,
-			"Select backup details for contacts by contact ID; accepts '"+utils.Wildcard+"' to select all contacts.")
-		fs.StringSliceVar(
-			&contactFolder,
-			utils.ContactFolderFN, nil,
-			"Select backup details for contacts within a folder; accepts '"+utils.Wildcard+"' to select all contact folders.")
-		fs.StringVar(
-			&contactName,
-			utils.ContactNameFN, "",
-			"Select backup details for contacts whose contact name contains this value.")
+		utils.AddBackupIDFlag(c, true)
+		utils.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
+		c, _ = utils.AddCommand(cmd, exchangeDeleteCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		fs.StringVar(&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to delete. (required)")
-		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
+		utils.AddBackupIDFlag(c, true)
 	}
 
 	return c
@@ -257,7 +153,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(user, exchangeData); err != nil {
+	if err := validateExchangeBackupCreateFlags(utils.User, exchangeData); err != nil {
 		return err
 	}
 
@@ -268,7 +164,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(user, exchangeData)
+	sel := exchangeBackupCreateSelectors(utils.User, exchangeData)
 
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
@@ -346,7 +242,7 @@ func exchangeListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, backupID, path.ExchangeService, args)
+	return genericListCommand(cmd, utils.BackupID, path.ExchangeService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -372,23 +268,26 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	opts := utils.ExchangeOpts{
-		Contact:             contact,
-		ContactFolder:       contactFolder,
-		Email:               email,
-		EmailFolder:         emailFolder,
-		Event:               event,
-		EventCalendar:       eventCalendar,
-		Users:               user,
-		ContactName:         contactName,
-		EmailReceivedAfter:  emailReceivedAfter,
-		EmailReceivedBefore: emailReceivedBefore,
-		EmailSender:         emailSender,
-		EmailSubject:        emailSubject,
-		EventOrganizer:      eventOrganizer,
-		EventRecurs:         eventRecurs,
-		EventStartsAfter:    eventStartsAfter,
-		EventStartsBefore:   eventStartsBefore,
-		EventSubject:        eventSubject,
+		Users: utils.User,
+
+		Contact:       utils.Contact,
+		ContactFolder: utils.ContactFolder,
+		ContactName:   utils.ContactName,
+
+		Email:               utils.Email,
+		EmailFolder:         utils.EmailFolder,
+		EmailReceivedAfter:  utils.EmailReceivedAfter,
+		EmailReceivedBefore: utils.EmailReceivedBefore,
+		EmailSender:         utils.EmailSender,
+		EmailSubject:        utils.EmailSubject,
+		EventOrganizer:      utils.EventOrganizer,
+
+		Event:             utils.Event,
+		EventCalendar:     utils.EventCalendar,
+		EventRecurs:       utils.EventRecurs,
+		EventStartsAfter:  utils.EventStartsAfter,
+		EventStartsBefore: utils.EventStartsBefore,
+		EventSubject:      utils.EventSubject,
 
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
@@ -402,7 +301,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsExchangeCmd(ctx, r, backupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -468,5 +367,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, backupID, "Exchange", args)
+	return genericDeleteCommand(cmd, utils.BackupID, "Exchange", args)
 }

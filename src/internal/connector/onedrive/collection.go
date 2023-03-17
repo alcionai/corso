@@ -383,10 +383,15 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		return
 	}
 
+	queuedPath := "/" + parentPathString
+	if oc.source == SharePointSource && len(oc.driveName) > 0 {
+		queuedPath = "/" + oc.driveName + queuedPath
+	}
+
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		observe.PII("/"+parentPathString),
+		observe.PII(queuedPath),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)

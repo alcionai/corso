@@ -15,16 +15,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
-var (
-	folderPaths []string
-	fileNames   []string
-
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
-
 // called by restore.go to map subcommands to provider-specific handling.
 func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 	var (
@@ -42,49 +32,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		fs.StringVar(&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to restore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
-
-		fs.StringSliceVar(&user,
-			utils.UserFN, nil,
-			"Restore data by user's email address; accepts '"+utils.Wildcard+"' to select all users.")
-
-		// onedrive hierarchy (path/name) flags
-
-		fs.StringSliceVar(
-			&folderPaths,
-			utils.FolderFN, nil,
-			"Restore items by OneDrive folder; defaults to root")
-
-		fs.StringSliceVar(
-			&fileNames,
-			utils.FileFN, nil,
-			"Restore items by file name or ID")
-
-		// permissions restore flag
-		options.AddRestorePermissionsFlag(c)
-
-		// onedrive info flags
-
-		fs.StringVar(
-			&fileCreatedAfter,
-			utils.FileCreatedAfterFN, "",
-			"Restore files created after this datetime")
-		fs.StringVar(
-			&fileCreatedBefore,
-			utils.FileCreatedBeforeFN, "",
-			"Restore files created before this datetime")
-
-		fs.StringVar(
-			&fileModifiedAfter,
-			utils.FileModifiedAfterFN, "",
-			"Restore files modified after this datetime")
-		fs.StringVar(
-			&fileModifiedBefore,
-			utils.FileModifiedBeforeFN, "",
-			"Restore files modified before this datetime")
+		utils.AddBackupIDFlag(c, true)
+		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
 		// others
 		options.AddOperationFlags(c)
@@ -105,11 +54,11 @@ corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abc
 
 # Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-      --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+    --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
 # Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
-      --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+    --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`
@@ -133,8 +82,8 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.OneDriveOpts{
 		Users:              user,
-		FileNames:          fileNames,
-		FolderPaths:        folderPaths,
+		FileNames:          utils.FileName,
+		FolderPaths:        utils.FolderPath,
 		FileCreatedAfter:   utils.FileCreatedAfter,
 		FileCreatedBefore:  utils.FileCreatedBefore,
 		FileModifiedAfter:  utils.FileModifiedAfter,
