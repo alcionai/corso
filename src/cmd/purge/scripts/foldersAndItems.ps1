@@ -31,7 +31,7 @@ function Get-AccessToken {
     Param()
 
     if ([String]::IsNullOrEmpty($TenantId) -or [String]::IsNullOrEmpty($ClientId) -or [String]::IsNullOrEmpty($ClientSecret)) {
-        Write-Host "Need to specify TenantId, ClientId, and ClientSecret as parameters or ENVs"
+        Write-Host "`nNeed to specify TenantId, ClientId, and ClientSecret as parameters or ENVs"
     }
 
     $body=@{
@@ -130,7 +130,7 @@ function Remove-Folder {
 </FindFolder>
 "@
 
-    Write-Host "Looking for folders under well-known folder: $WellKnownRoot & matching folder: $FolderNamePurge$FolderNamePrefixPurge & for user: $User"
+    Write-Host "`nLooking for folders under well-known folder: $WellKnownRoot & matching folder: $FolderNamePurge$FolderNamePrefixPurge & for user: $User"
     $getFolderIdMsg = Initialize-SOAPMessage -User $User -Body $body
     $response = Invoke-SOAPRequest -Token $Token -Message $getFolderIdMsg
 
@@ -160,10 +160,10 @@ function Remove-Folder {
         }
 
         if (![String]::IsNullOrEmpty($FolderNamePurge)) {
-            Write-Host "Found desired folder to purge: $FolderNamePurge"
+            Write-Host "`nFound desired folder to purge: $FolderNamePurge"
         }
 
-        Write-Verbose "Folder Id and ChangeKey for ""$folderName"": $folderId, $changeKey"
+        Write-Verbose "`nFolder Id and ChangeKey for ""$folderName"": $folderId, $changeKey"
 
         # Empty and delete the folder if found
         if (![String]::IsNullOrEmpty($folderId) -and ![String]::IsNullOrEmpty($changeKey)) {
