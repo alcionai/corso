@@ -10,9 +10,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 type SelectorReduceSuite struct {
