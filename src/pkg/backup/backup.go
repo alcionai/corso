@@ -63,22 +63,21 @@ func New(
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
-	errs *fault.Bus,
+	fe *fault.Errors,
 ) *Backup {
 	var (
-		ee = errs.Errors()
-		// TODO: count errData.Items(), not all recovered errors.
-		errCount                      = len(ee.Recovered)
+		errCount                      = len(fe.Items)
+		skipCount                     = len(fe.Skipped)
 		failMsg                       string
 		malware, notFound, otherSkips int
 	)
 
-	if ee.Failure != nil {
-		failMsg = ee.Failure.Msg
+	if fe.Failure != nil {
+		failMsg = fe.Failure.Msg
 		errCount++
 	}
 
-	for _, s := range ee.Skipped {
+	for _, s := range fe.Skipped {
 		switch true {
 		case s.HasCause(fault.SkipMalware):
 			malware++
@@ -88,6 +87,8 @@ func New(
 			otherSkips++
 		}
 	}
+
+	fmt.Printf("\n-----\nskipped %+v %v %v\n-----\n", malware, notFound, otherSkips)
 
 	return &Backup{
 		BaseModel: model.BaseModel{
@@ -105,7 +106,7 @@ func New(
 		Status:       status,
 
 		Selector: selector,
-		FailFast: errs.FailFast(),
+		FailFast: fe.FailFast,
 
 		ErrorCount: errCount,
 		Failure:    failMsg,
@@ -113,8 +114,9 @@ func New(
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		SkippedCounts: stats.SkippedCounts{
-			TotalSkippedItems: len(ee.Skipped),
+			TotalSkippedItems: skipCount,
 			SkippedMalware:    malware,
+			SkippedNotFound:   notFound,
 		},
 	}
 }

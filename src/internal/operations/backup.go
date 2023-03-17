@@ -161,19 +161,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
 	}
 
-	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Recovered())
-	for i, err := range op.Errors.Recovered() {
-		logger.Ctx(ctx).
-			With("error", err).
-			With(clues.InErr(err).Slice()...).
-			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
-	}
-
-	skippedCount := len(op.Errors.Skipped())
-	for i, skip := range op.Errors.Skipped() {
-		logger.Ctx(ctx).With("skip", skip).Infof("doing backup: skipped item %d of %d", i+1, skippedCount)
-	}
+	op.Errors.Errors().Log(ctx, "doing backup")
 
 	// -----
 	// Persistence
@@ -687,7 +675,6 @@ func (op *BackupOperation) createBackupModels(
 		return clues.Wrap(err, "persisting details and errors").WithClues(ctx)
 	}
 
-	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
 	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
@@ -695,13 +682,16 @@ func (op *BackupOperation) createBackupModels(
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		errs)
+		op.Errors.Errors())
 
-	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
+	err = op.store.Put(
+		clues.Add(ctx, "streamstore_snapshot_id", ssid),
+		model.BackupSchema,
+		b)
+
+	if err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
-
-	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
 	op.bus.Event(
 		ctx,
@@ -709,7 +699,7 @@ func (op *BackupOperation) createBackupModels(
 		map[string]any{
 			events.BackupID:   b.ID,
 			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   dur,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
 			events.Resources:  op.Results.ResourceOwners,
 			events.Service:    op.Selectors.PathService().String(),

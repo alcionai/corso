@@ -153,14 +153,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.Errors.Fail(errors.Wrap(err, "doing restore"))
 	}
 
-	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Recovered())
-	for i, err := range op.Errors.Recovered() {
-		logger.Ctx(ctx).
-			With("error", err).
-			With(clues.InErr(err).Slice()...).
-			Errorf("doing restore: recoverable error %d of %d", i+1, recoverableCount)
-	}
+	op.Errors.Errors().Log(ctx, "doing restore")
 
 	// -----
 	// Persistence
