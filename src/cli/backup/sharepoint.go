@@ -80,8 +80,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
-		utils.AddSiteFlag(cmd)
-		utils.AddSiteIDFlag(cmd)
+		utils.AddSiteFlag(c)
+		utils.AddSiteIDFlag(c)
 
 		fs.StringSliceVar(
 			&sharepointData,

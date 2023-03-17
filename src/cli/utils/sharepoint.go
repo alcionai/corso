@@ -50,7 +50,7 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 	fs.StringVar(
 		&Library,
 		LibraryFN, "",
-		"Select only this library. Default includes all libraries.")
+		"Select only this library; defaults to all libraries.")
 
 	fs.StringSliceVar(
 		&FolderPath,
