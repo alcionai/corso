@@ -147,8 +147,9 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	tenDays := time.Now().Add(time.Hour * 24 * 10)
 	//nolint:forbidigo
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Hour*24*10))
+	ctx, cancel := context.WithDeadline(context.Background(), tenDays)
 	defer cancel()
 
 	ctx = config.Seed(ctx)
