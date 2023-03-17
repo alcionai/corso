@@ -183,7 +183,7 @@ func RestoreCollection(
 	restoreFolderID, err := createRestoreFoldersWithPermissions(
 		ctx,
 		service,
-		drivePath.DriveID,
+		drivePath,
 		restoreFolderElements,
 		colMeta,
 		permissionIDMappings,

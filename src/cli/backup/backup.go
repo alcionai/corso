@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -21,19 +22,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ==============================================
-// Folder Object flags
-// These options are flags for indicating
-// that a time-based filter should be used for
-// within returning objects for details.
-// Used by: OneDrive, SharePoint
-// ================================================
-var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
+// ---------------------------------------------------------------------------
+// adding commands to cobra
+// ---------------------------------------------------------------------------
 
 var subCommandFuncs = []func() *cobra.Command{
 	createCmd,
@@ -62,6 +53,49 @@ func AddCommands(cmd *cobra.Command) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// common flags and flag attachers for commands
+// ---------------------------------------------------------------------------
+
+var (
+	fileCreatedAfter   string
+	fileCreatedBefore  string
+	fileModifiedAfter  string
+	fileModifiedBefore string
+)
+
+// list output filter flags
+var (
+	failedItemsFN       = "failed-items"
+	listFailedItems     string
+	skippedItemsFN      = "skipped-items"
+	listSkippedItems    string
+	recoveredErrorsFN   = "recovered-errors"
+	listRecoveredErrors string
+)
+
+func addFailedItemsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&listFailedItems, failedItemsFN, "show",
+		"Toggles showing or hiding the list of items that failed.")
+}
+
+func addSkippedItemsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&listSkippedItems, skippedItemsFN, "show",
+		"Toggles showing or hiding the list of items that were skipped.")
+}
+
+func addRecoveredErrorsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&listRecoveredErrors, recoveredErrorsFN, "show",
+		"Toggles showing or hiding the list of errors which corso recovered from.")
+}
+
+// ---------------------------------------------------------------------------
+// commands
+// ---------------------------------------------------------------------------
 
 // The backup category of commands.
 // `corso backup [<subcommand>] [<flag>...]`
@@ -107,7 +141,7 @@ var listCommand = "list"
 func listCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   listCommand,
-		Short: "List the history of backups for a service",
+		Short: "List the history of backups",
 		RunE:  handleListCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -126,7 +160,7 @@ var detailsCommand = "details"
 func detailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   detailsCommand,
-		Short: "Shows the details of a backup for a service",
+		Short: "Shows the details of a backup",
 		RunE:  handleDetailsCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -145,7 +179,7 @@ var deleteCommand = "delete"
 func deleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   deleteCommand,
-		Short: "Deletes a backup for a service",
+		Short: "Deletes a backup",
 		RunE:  handleDeleteCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -156,6 +190,10 @@ func deleteCmd() *cobra.Command {
 func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
+
+// ---------------------------------------------------------------------------
+// common handlers
+// ---------------------------------------------------------------------------
 
 func runBackups(
 	ctx context.Context,
@@ -176,8 +214,7 @@ func runBackups(
 				"Failed to initialize %s backup for %s %s",
 				serviceName,
 				resourceOwnerType,
-				discSel.DiscreteOwner,
-			))
+				discSel.DiscreteOwner))
 
 			continue
 		}
@@ -189,8 +226,7 @@ func runBackups(
 				"Failed to run %s backup for %s %s",
 				serviceName,
 				resourceOwnerType,
-				discSel.DiscreteOwner,
-			))
+				discSel.DiscreteOwner))
 
 			continue
 		}
@@ -250,10 +286,10 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 
 	defer utils.CloseRepo(ctx, r)
 
-	if len(backupID) > 0 {
-		b, err := r.Backup(ctx, model.StableID(bID))
-		if err != nil {
-			if errors.Is(err, data.ErrNotFound) {
+	if len(bID) > 0 {
+		fe, b, errs := r.GetBackupErrors(ctx, bID)
+		if errs.Failure() != nil {
+			if errors.Is(errs.Failure(), data.ErrNotFound) {
 				return Only(ctx, errors.Errorf("No backup exists with the id %s", bID))
 			}
 
@@ -261,6 +297,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		}
 
 		b.Print(ctx)
+		fe.PrintItems(ctx, !ifShow(listFailedItems), !ifShow(listSkippedItems), !ifShow(listRecoveredErrors))
 
 		return nil
 	}
@@ -287,4 +324,8 @@ func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 	}
 
 	return r, &cfg.Account, nil
+}
+
+func ifShow(flag string) bool {
+	return strings.ToLower(strings.TrimSpace(flag)) == "show"
 }

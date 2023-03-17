@@ -114,8 +114,7 @@ func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoGraphConnectorOneDriveTests),
+		),
 	})
 }
 
@@ -150,6 +149,7 @@ var (
 	fileDData = []byte(strings.Repeat("d", 257))
 	fileEData = []byte(strings.Repeat("e", 257))
 
+	// Cannot restore owner or empty permissions and so not testing them
 	writePerm = []string{"write"}
 	readPerm  = []string{"read"}
 )

@@ -22,11 +22,11 @@ type Backup struct {
 	// SnapshotID is the kopia snapshot ID
 	SnapshotID string `json:"snapshotID"`
 
-	// Reference to `Details`
-	// We store the ModelStoreID since Details is immutable
-	DetailsID string `json:"detailsID"`
+	// Reference to the details and fault errors storage location.
+	// Used to read backup.Details and fault.Errors from the streamstore.
+	StreamStoreID string `json:"streamStoreID"`
 
-	// Status of the operation
+	// Status of the operation, eg: completed, failed, etc
 	Status string `json:"status"`
 
 	// Selector used in this operation
@@ -47,13 +47,18 @@ type Backup struct {
 	stats.ReadWrites
 	stats.StartAndEndTime
 	stats.SkippedCounts
+
+	// **Deprecated**
+	// Reference to the backup details storage location.
+	// Used to read backup.Details from the streamstore.
+	DetailsID string `json:"detailsID"`
 }
 
 // interface compliance checks
 var _ print.Printable = &Backup{}
 
 func New(
-	snapshotID, detailsID, status string,
+	snapshotID, streamStoreID, status string,
 	id model.StableID,
 	selector selectors.Selector,
 	rw stats.ReadWrites,
@@ -69,7 +74,7 @@ func New(
 	)
 
 	if ee.Failure != nil {
-		failMsg = ee.Failure.Error()
+		failMsg = ee.Failure.Msg
 		errCount++
 	}
 
@@ -92,9 +97,9 @@ func New(
 			},
 		},
 
-		Version:    version.Backup,
-		SnapshotID: snapshotID,
-		DetailsID:  detailsID,
+		Version:       version.Backup,
+		SnapshotID:    snapshotID,
+		StreamStoreID: streamStoreID,
 
 		CreationTime: time.Now(),
 		Status:       status,

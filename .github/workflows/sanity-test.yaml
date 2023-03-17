@@ -4,6 +4,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      user:
+        description: 'User to run sanity test on'
 
 permissions:
   # required to retrieve AWS credentials
@@ -24,7 +27,7 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-      CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
+      CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: "test_results"
       CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}

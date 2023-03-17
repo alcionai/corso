@@ -55,8 +55,7 @@ func TestNoBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
@@ -136,8 +135,7 @@ func TestBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *BackupExchangeE2ESuite) SetupSuite() {
@@ -268,8 +266,7 @@ func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
@@ -336,7 +333,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		b, err := suite.repo.Backup(ctx, bop.Results.BackupID)
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
-		_, b, errs := suite.repo.BackupDetails(ctx, bIDs)
+		_, b, errs := suite.repo.GetBackupDetails(ctx, bIDs)
 		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID")
 		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo details matches results id")
@@ -448,7 +445,7 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd() {
 			bID := suite.backupOps[set]
 
 			// fetch the details from the repo first
-			deets, _, errs := suite.repo.BackupDetails(ctx, string(bID))
+			deets, _, errs := suite.repo.GetBackupDetails(ctx, string(bID))
 			require.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
 			require.Empty(t, errs.Recovered())
 
@@ -512,8 +509,7 @@ func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 
