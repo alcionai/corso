@@ -785,10 +785,19 @@ func compareOneDriveItem(
 			return true
 		}
 
+		// We cannot restore owner permissions, so skip checking them
+		itemPerms := []onedrive.UserPermission{}
+
+		for _, p := range itemMeta.Permissions {
+			if p.Roles[0] != "owner" {
+				itemPerms = append(itemPerms, p)
+			}
+		}
+
 		testElementsMatch(
 			t,
 			expectedMeta.Permissions,
-			itemMeta.Permissions,
+			itemPerms,
 			permissionEqual,
 		)
 

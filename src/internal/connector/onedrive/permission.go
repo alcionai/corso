@@ -209,7 +209,8 @@ func restorePermissions(
 		// We are not able to restore permissions when there are no
 		// roles or for owner, this seems to be restriction in graph
 		roles := []string{}
-		for _, r := range roles {
+
+		for _, r := range p.Roles {
 			if r != "owner" {
 				roles = append(roles, r)
 			}
