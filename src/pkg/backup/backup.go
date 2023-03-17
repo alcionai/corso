@@ -88,8 +88,6 @@ func New(
 		}
 	}
 
-	fmt.Printf("\n-----\nskipped %+v %v %v\n-----\n", malware, notFound, otherSkips)
-
 	return &Backup{
 		BaseModel: model.BaseModel{
 			ID: id,

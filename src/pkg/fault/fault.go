@@ -329,15 +329,15 @@ func (e *Errors) Log(ctx context.Context, prefix string) {
 var _ print.Printable = &printableErrCore{}
 
 type printableErrCore struct {
-	msg string
+	*clues.ErrCore
 }
 
 func errCoreToPrintable(ec *clues.ErrCore) printableErrCore {
 	if ec == nil {
-		return printableErrCore{"<nil>"}
+		return printableErrCore{ErrCore: &clues.ErrCore{Msg: "<nil>"}}
 	}
 
-	return printableErrCore{ec.Msg}
+	return printableErrCore{ErrCore: ec}
 }
 
 func (pec printableErrCore) MinimumPrintable() any {
@@ -349,7 +349,11 @@ func (pec printableErrCore) Headers() []string {
 }
 
 func (pec printableErrCore) Values() []string {
-	return []string{pec.msg}
+	if pec.ErrCore == nil {
+		return []string{"<nil>"}
+	}
+
+	return []string{pec.Msg}
 }
 
 // ---------------------------------------------------------------------------
