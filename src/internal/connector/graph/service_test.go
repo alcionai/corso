@@ -53,7 +53,7 @@ func (suite *GraphUnitSuite) TestHTTPClient() {
 			name: "no options",
 			opts: []option{},
 			check: func(t *testing.T, c *http.Client) {
-				assert.Equal(t, defaultHttpClientTimeout, c.Timeout, "default timeout")
+				assert.Equal(t, defaultHTTPClientTimeout, c.Timeout, "default timeout")
 			},
 		},
 		{
