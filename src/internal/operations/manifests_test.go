@@ -37,16 +37,20 @@ func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
 	return mmr.mans, mmr.mrErr
 }
 
-type mockGetDetailsIDer struct {
-	detailsID string
-	err       error
+type mockGetBackuper struct {
+	detailsID     string
+	streamstoreID string
+	err           error
 }
 
-func (mg mockGetDetailsIDer) GetDetailsIDFromBackupID(
+func (mg mockGetBackuper) GetBackup(
 	ctx context.Context,
 	backupID model.StableID,
-) (string, *backup.Backup, error) {
-	return mg.detailsID, nil, mg.err
+) (*backup.Backup, error) {
+	return &backup.Backup{
+		DetailsID:     mg.detailsID,
+		StreamStoreID: mg.streamstoreID,
+	}, mg.err
 }
 
 type mockColl struct {
@@ -432,7 +436,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	table := []struct {
 		name          string
 		mr            mockManifestRestorer
-		gdi           mockGetDetailsIDer
+		gb            mockGetBackuper
 		reasons       []kopia.Reason
 		getMeta       bool
 		assertErr     assert.ErrorAssertionFunc
@@ -446,7 +450,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -459,7 +463,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -472,7 +476,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -485,7 +489,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mrErr:        assert.AnError,
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.Error,
@@ -501,7 +505,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.EmailCategory, "", "", ""),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError, // No error, even though verify failed.
@@ -514,7 +518,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -530,7 +534,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.ContactsCategory, "", "ir", ""),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -545,7 +549,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
-			gdi:           mockGetDetailsIDer{detailsID: did},
+			gb:            mockGetBackuper{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
@@ -558,7 +562,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
-			gdi:       mockGetDetailsIDer{},
+			gb:        mockGetBackuper{},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -576,7 +580,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.EmailCategory, "incmpl_id", "ir", ""),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -591,7 +595,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -610,7 +614,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.ContactsCategory, "contact", "", "bid"),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -626,7 +630,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{err: assert.AnError},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
-			gdi:           mockGetDetailsIDer{detailsID: did},
+			gb:            mockGetBackuper{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
@@ -645,7 +649,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				&test.mr,
-				&test.gdi,
+				&test.gb,
 				test.reasons,
 				tid,
 				test.getMeta,

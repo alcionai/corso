@@ -36,10 +36,14 @@ type BackupGetter interface {
 	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
 	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
-	BackupDetails(
+	GetBackupDetails(
 		ctx context.Context,
 		backupID string,
 	) (*details.Details, *backup.Backup, *fault.Bus)
+	GetBackupErrors(
+		ctx context.Context,
+		backupID string,
+	) (*fault.Errors, *backup.Backup, *fault.Bus)
 }
 
 type Repository interface {
@@ -343,28 +347,58 @@ func (r repository) BackupsByTag(ctx context.Context, fs ...store.FilterOption) 
 	return sw.GetBackups(ctx, fs...)
 }
 
-// BackupDetails returns the specified backup details object
-func (r repository) BackupDetails(
+// BackupDetails returns the specified backup.Details
+func (r repository) GetBackupDetails(
 	ctx context.Context,
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Bus) {
-	sw := store.NewKopiaStore(r.modelStore)
 	errs := fault.New(false)
 
-	dID, b, err := sw.GetDetailsIDFromBackupID(ctx, model.StableID(backupID))
+	deets, bup, err := getBackupDetails(
+		ctx,
+		backupID,
+		r.Account.ID(),
+		r.dataLayer,
+		store.NewKopiaStore(r.modelStore),
+		errs)
+
+	return deets, bup, errs.Fail(err)
+}
+
+// getBackupDetails handles the processing for GetBackupDetails.
+func getBackupDetails(
+	ctx context.Context,
+	backupID, tenantID string,
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	errs *fault.Bus,
+) (*details.Details, *backup.Backup, error) {
+	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, errs.Fail(err)
+		return nil, nil, err
 	}
 
-	nd := streamstore.NewDetails(
-		r.dataLayer,
-		r.Account.ID(),
-		b.Selector.PathService(),
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
+		ssid = b.DetailsID
+	}
+
+	if len(ssid) == 0 {
+		return nil, b, clues.New("no streamstore id in backup").WithClues(ctx)
+	}
+
+	var (
+		sstore = streamstore.NewStreamer(kw, tenantID, b.Selector.PathService())
+		deets  details.Details
 	)
 
-	var deets details.Details
-	if err := nd.Read(ctx, dID, details.UnmarshalTo(&deets), errs); err != nil {
-		return nil, nil, errs.Fail(err)
+	err = sstore.Read(
+		ctx,
+		ssid,
+		streamstore.DetailsReader(details.UnmarshalTo(&deets)),
+		errs)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Retroactively fill in isMeta information for items in older
@@ -380,7 +414,60 @@ func (r repository) BackupDetails(
 
 	deets.DetailsModel = deets.FilterMetaFiles()
 
-	return &deets, b, errs
+	return &deets, b, nil
+}
+
+// BackupErrors returns the specified backup's fault.Errors
+func (r repository) GetBackupErrors(
+	ctx context.Context,
+	backupID string,
+) (*fault.Errors, *backup.Backup, *fault.Bus) {
+	errs := fault.New(false)
+
+	fe, bup, err := getBackupErrors(
+		ctx,
+		backupID,
+		r.Account.ID(),
+		r.dataLayer,
+		store.NewKopiaStore(r.modelStore),
+		errs)
+
+	return fe, bup, errs.Fail(err)
+}
+
+// getBackupErrors handles the processing for GetBackupErrors.
+func getBackupErrors(
+	ctx context.Context,
+	backupID, tenantID string,
+	kw *kopia.Wrapper,
+	sw *store.Wrapper,
+	errs *fault.Bus,
+) (*fault.Errors, *backup.Backup, error) {
+	b, err := sw.GetBackup(ctx, model.StableID(backupID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ssid := b.StreamStoreID
+	if len(ssid) == 0 {
+		return nil, b, clues.New("no errors in backup").WithClues(ctx)
+	}
+
+	var (
+		sstore = streamstore.NewStreamer(kw, tenantID, b.Selector.PathService())
+		fe     fault.Errors
+	)
+
+	err = sstore.Read(
+		ctx,
+		ssid,
+		streamstore.FaultErrorsReader(fault.UnmarshalErrorsTo(&fe)),
+		errs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &fe, b, nil
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
@@ -394,8 +481,16 @@ func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 		return err
 	}
 
-	if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
-		return err
+	if len(bu.SnapshotID) > 0 {
+		if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
+			return err
+		}
+	}
+
+	if len(bu.DetailsID) > 0 {
+		if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
+			return err
+		}
 	}
 
 	sw := store.NewKopiaStore(r.modelStore)

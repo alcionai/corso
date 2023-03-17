@@ -87,6 +87,32 @@ type e2eSuite struct {
 }
 
 // ---------------------------------------------------------------------------
+// Load
+// ---------------------------------------------------------------------------
+
+func NewLoadSuite(
+	t *testing.T,
+	envSets [][]string,
+	runOnAnyEnv ...string,
+) *loadSuite {
+	RunOnAny(
+		t,
+		append(
+			[]string{CorsoLoadTests},
+			runOnAnyEnv...,
+		)...,
+	)
+
+	MustGetEnvSets(t, envSets...)
+
+	return new(loadSuite)
+}
+
+type loadSuite struct {
+	suite.Suite
+}
+
+// ---------------------------------------------------------------------------
 // Run Condition Checkers
 // ---------------------------------------------------------------------------
 

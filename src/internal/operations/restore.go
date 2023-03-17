@@ -118,8 +118,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			bytesRead: &stats.ByteCounter{},
 			restoreID: uuid.NewString(),
 		}
-		start        = time.Now()
-		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
+		start  = time.Now()
+		sstore = streamstore.NewStreamer(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	// -----
@@ -144,7 +144,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// Execution
 	// -----
 
-	deets, err := op.do(ctx, &opStats, detailsStore, start)
+	deets, err := op.do(ctx, &opStats, sstore, start)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.Ctx(ctx).

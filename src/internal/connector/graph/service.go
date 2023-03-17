@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -16,22 +18,24 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
-	logGraphRequestsEnvKey  = "LOG_GRAPH_REQUESTS"
-	numberOfRetries         = 3
-	retryAttemptHeader      = "Retry-Attempt"
-	retryAfterHeader        = "Retry-After"
-	defaultMaxRetries       = 3
-	defaultDelay            = 3 * time.Second
-	absoluteMaxDelaySeconds = 180
-	rateLimitHeader         = "RateLimit-Limit"
-	rateRemainingHeader     = "RateLimit-Remaining"
-	rateResetHeader         = "RateLimit-Reset"
+	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
+	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
+	numberOfRetries           = 3
+	retryAttemptHeader        = "Retry-Attempt"
+	retryAfterHeader          = "Retry-After"
+	defaultMaxRetries         = 3
+	defaultDelay              = 3 * time.Second
+	absoluteMaxDelaySeconds   = 180
+	rateLimitHeader           = "RateLimit-Limit"
+	rateRemainingHeader       = "RateLimit-Remaining"
+	rateResetHeader           = "RateLimit-Reset"
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -262,34 +266,31 @@ func (handler *LoggingMiddleware) Intercept(
 	req *http.Request,
 ) (*http.Response, error) {
 	var (
-		ctx       = req.Context()
+		ctx = clues.Add(
+			req.Context(),
+			"method", req.Method,
+			"url", req.URL, // TODO: pii
+			"request_len", req.ContentLength,
+		)
+		log       = logger.Ctx(ctx)
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
 	if strings.Contains(req.URL.String(), "users//") {
-		logger.Ctx(ctx).Errorw("malformed request url: missing resource", "url", req.URL)
+		log.Error("malformed request url: missing resource")
 	}
 
 	if resp == nil {
 		return resp, err
 	}
 
+	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
+
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
-			respDump, _ := httputil.DumpResponse(resp, false)
-
-			metadata := []any{
-				"method", req.Method,
-				"status", resp.Status,
-				"statusCode", resp.StatusCode,
-				"requestLen", req.ContentLength,
-				"url", req.URL,
-				"response", respDump,
-			}
-
-			logger.Ctx(ctx).Debugw("2xx graph api resp", metadata...)
+		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
+			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, false))
 		}
 
 		return resp, err
@@ -300,44 +301,35 @@ func (handler *LoggingMiddleware) Intercept(
 	// Otherwise, throttling cases and other non-2xx responses are logged
 	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
-		respDump, _ := httputil.DumpResponse(resp, true)
+		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
 
-		metadata := []any{
-			"method", req.Method,
-			"status", resp.Status,
-			"statusCode", resp.StatusCode,
-			"requestLen", req.ContentLength,
-			"url", req.URL,
-			"response", string(respDump),
-		}
-
-		logger.Ctx(ctx).Errorw("non-2xx graph api response", metadata...)
-	} else {
-		// special case for supportability: log all throttling cases.
-		if resp.StatusCode == http.StatusTooManyRequests {
-			logger.Ctx(ctx).Infow("graph api throttling",
-				"method", req.Method,
-				"url", req.URL,
-				"limit", resp.Header.Get(rateLimitHeader),
-				"remaining", resp.Header.Get(rateRemainingHeader),
-				"reset", resp.Header.Get(rateResetHeader))
-		} else if resp.StatusCode == http.StatusBadRequest {
-			respDump, _ := httputil.DumpResponse(resp, true)
-			logger.Ctx(ctx).Infow(
-				"graph api error",
-				"status", resp.Status,
-				"method", req.Method,
-				"url", req.URL,
-				"response", string(respDump),
-			)
-		} else if resp.StatusCode/100 != 2 {
-			logger.Ctx(ctx).
-				With("status", resp.Status, "method", req.Method, "url", req.URL).
-				Infof("graph api error: %s", resp.Status)
-		}
+		return resp, err
 	}
 
+	msg := fmt.Sprintf("graph api error: %s", resp.Status)
+
+	// special case for supportability: log all throttling cases.
+	if resp.StatusCode == http.StatusTooManyRequests {
+		log.With(
+			"limit", resp.Header.Get(rateLimitHeader),
+			"remaining", resp.Header.Get(rateRemainingHeader),
+			"reset", resp.Header.Get(rateResetHeader))
+	} else if resp.StatusCode/100 == 4 {
+		log.With("response", getRespDump(ctx, resp, true))
+	}
+
+	log.Info(msg)
+
 	return resp, err
+}
+
+func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string {
+	respDump, err := httputil.DumpResponse(resp, getBody)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http response")
+	}
+
+	return string(respDump)
 }
 
 // Intercept implements the interface and evaluates whether to retry a failed request.

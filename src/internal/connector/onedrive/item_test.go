@@ -291,6 +291,7 @@ func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
 	userID := "fakeuser@provider.com"
 	userID2 := "fakeuser2@provider.com"
 
+	userOwnerPerm, userOwnerUperm := getPermsUperms(permID, userID, "user", []string{"owner"})
 	userReadPerm, userReadUperm := getPermsUperms(permID, userID, "user", []string{"read"})
 	userReadWritePerm, userReadWriteUperm := getPermsUperms(permID, userID2, "user", []string{"read", "write"})
 
@@ -321,6 +322,11 @@ func (suite *ItemUnitTestSuite) TestOneDrivePermissionsFilter() {
 			name:              "user with read permissions",
 			graphPermissions:  []models.Permissionable{userReadPerm},
 			parsedPermissions: []UserPermission{userReadUperm},
+		},
+		{
+			name:              "user with owner permissions",
+			graphPermissions:  []models.Permissionable{userOwnerPerm},
+			parsedPermissions: []UserPermission{userOwnerUperm},
 		},
 		{
 			name:              "user with read and write permissions",
