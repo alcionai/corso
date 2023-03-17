@@ -12,6 +12,8 @@ import (
 
 // common flag vars
 var (
+	BackupID string
+
 	FolderPaths []string
 	FileNames   []string
 
@@ -23,6 +25,8 @@ var (
 	Library string
 	Site    []string
 	WebURL  []string
+
+	User []string
 )
 
 // common flag names
@@ -42,6 +46,24 @@ const (
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
 )
+
+// AddBackupIDFlag adds the --backup flag.
+func AddBackupIDFlag(cmd *cobra.Command, require bool) {
+	cmd.Flags().StringVar(&BackupID, BackupFN, "", "ID of the backup to retrieve.")
+
+	if require {
+		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))
+	}
+}
+
+// AddUserFlag adds the --user flag.
+func AddUserFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSliceVar(
+		&User,
+		UserFN, nil,
+		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
+	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
+}
 
 type PopulatedFlags map[string]struct{}
 

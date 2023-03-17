@@ -39,73 +39,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --site) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		fs.StringVar(
-			&backupID,
-			utils.BackupFN, "",
-			"ID of the backup to restore. (required)")
-		cobra.CheckErr(c.MarkFlagRequired(utils.BackupFN))
-
-		// sharepoint hierarchy (path/name) flags
-
-		fs.StringVar(
-			&utils.Library,
-			utils.LibraryFN, "",
-			"Restore files within a library. Default includes all libraries.")
-
-		fs.StringSliceVar(
-			&utils.FolderPaths,
-			utils.FolderFN, nil,
-			"Restore files by folder; defaults to root.")
-
-		fs.StringSliceVar(
-			&utils.FileNames,
-			utils.FileFN, nil,
-			"Restore files by name.")
-
-		fs.StringSliceVar(
-			&listPaths,
-			utils.ListFN, nil,
-			"Restore list items by SharePoint list ID")
-		cobra.CheckErr(fs.MarkHidden(utils.ListFN))
-
-		fs.StringSliceVar(
-			&listItems,
-			utils.ListItemFN, nil,
-			"Restore list items by ID")
-		cobra.CheckErr(fs.MarkHidden(utils.ListItemFN))
-
-		fs.StringSliceVar(
-			&pageFolders,
-			utils.PageFolderFN, nil,
-			"Restore Site pages by page folder name")
-		cobra.CheckErr(fs.MarkHidden(utils.PageFolderFN))
-
-		fs.StringSliceVar(
-			&pages,
-			utils.PagesFN, nil,
-			"Restore site pages by file name(s)")
-		cobra.CheckErr(fs.MarkHidden(utils.PagesFN))
-
-		// sharepoint info flags
-
-		fs.StringVar(
-			&utils.FileCreatedAfter,
-			utils.FileCreatedAfterFN, "",
-			"Restore files created after this datetime.")
-
-		fs.StringVar(
-			&utils.FileCreatedBefore,
-			utils.FileCreatedBeforeFN, "",
-			"Restore files created before this datetime.")
-
-		fs.StringVar(
-			&utils.FileModifiedAfter,
-			utils.FileModifiedAfterFN, "",
-			"Restore files modified after this datetime.")
-		fs.StringVar(
-			&utils.FileModifiedBefore,
-			utils.FileModifiedBeforeFN, "",
-			"Restore files modified before this datetime.")
+		utils.AddBackupIDFlag(c, true)
+		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 		// others
 		options.AddOperationFlags(c)

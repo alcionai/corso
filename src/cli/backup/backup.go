@@ -250,7 +250,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 
 	defer utils.CloseRepo(ctx, r)
 
-	if len(backupID) > 0 {
+	if len(bID) > 0 {
 		b, err := r.Backup(ctx, model.StableID(bID))
 		if err != nil {
 			if errors.Is(err, data.ErrNotFound) {
