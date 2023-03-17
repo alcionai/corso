@@ -27,17 +27,21 @@ func getBackupAndDetailsFromID(
 	}
 
 	var (
-		deets     details.Details
-		umt       = streamstore.DetailsReader(details.UnmarshalTo(&deets))
-		detailsID = bup.DetailsID
+		deets details.Details
+		umt   = streamstore.DetailsReader(details.UnmarshalTo(&deets))
+		ssid  = bup.StreamStoreID
 	)
 
-	if len(detailsID) == 0 {
-		return bup, nil, clues.New("no details in backup").WithClues(ctx)
+	if len(ssid) == 0 {
+		ssid = bup.DetailsID
 	}
 
-	if err := detailsStore.Read(ctx, detailsID, umt, errs); err != nil {
-		return nil, nil, errors.Wrap(err, "reading backup details")
+	if len(ssid) == 0 {
+		return bup, nil, clues.New("no details or errors in backup").WithClues(ctx)
+	}
+
+	if err := detailsStore.Read(ctx, ssid, umt, errs); err != nil {
+		return nil, nil, errors.Wrap(err, "reading backup data from streamstore")
 	}
 
 	return bup, &deets, nil

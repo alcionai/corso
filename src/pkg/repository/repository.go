@@ -384,7 +384,7 @@ func getBackupDetails(
 	}
 
 	if len(ssid) == 0 {
-		return nil, b, clues.New("no details in backup").WithClues(ctx)
+		return nil, b, clues.New("no streamstore id in backup").WithClues(ctx)
 	}
 
 	var (

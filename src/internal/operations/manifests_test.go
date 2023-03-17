@@ -38,15 +38,19 @@ func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
 }
 
 type mockGetBackuper struct {
-	detailsID string
-	err       error
+	detailsID     string
+	streamstoreID string
+	err           error
 }
 
 func (mg mockGetBackuper) GetBackup(
 	ctx context.Context,
 	backupID model.StableID,
 ) (*backup.Backup, error) {
-	return &backup.Backup{DetailsID: mg.detailsID}, mg.err
+	return &backup.Backup{
+		DetailsID:     mg.detailsID,
+		StreamStoreID: mg.streamstoreID,
+	}, mg.err
 }
 
 type mockColl struct {

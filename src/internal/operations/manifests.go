@@ -105,16 +105,20 @@ func produceManifestsAndMetadata(
 			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
 		}
 
-		dID := bup.DetailsID
-		mctx = clues.Add(mctx, "manifest_details_id", dID)
+		ssid := bup.StreamStoreID
+		if len(ssid) == 0 {
+			ssid = bup.DetailsID
+		}
+
+		mctx = clues.Add(mctx, "manifest_streamstore_id", ssid)
 
 		// if no detailsID exists for any of the complete manifests, we want
 		// to fall back to a complete backup.  This is a temporary prevention
 		// mechanism to keep backups from falling into a perpetually bad state.
 		// This makes an assumption that the ID points to a populated set of
 		// details; we aren't doing the work to look them up.
-		if len(dID) == 0 {
-			logger.Ctx(ctx).Infow("backup missing details ID, falling back to full backup", clues.In(mctx).Slice()...)
+		if len(ssid) == 0 {
+			logger.Ctx(ctx).Infow("backup missing streamstore ID, falling back to full backup", clues.In(mctx).Slice()...)
 			return ms, nil, false, nil
 		}
 

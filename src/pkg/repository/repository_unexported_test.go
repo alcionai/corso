@@ -258,17 +258,13 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		expectErr    require.ErrorAssertionFunc
 	}{
 		{
-			name:       "nil errors",
-			writeBupID: "error_marmots",
-			readBupID:  "error_marmots",
-			deets:      builder.Details(),
-			errors:     nil,
-			expectErrors: &fault.Errors{
-				Recovered: []*clues.ErrCore{},
-				Items:     []fault.Item{},
-				FailFast:  failFast,
-			},
-			expectErr: require.NoError,
+			name:         "nil errors",
+			writeBupID:   "error_marmots",
+			readBupID:    "error_marmots",
+			deets:        builder.Details(),
+			errors:       nil,
+			expectErrors: &fault.Errors{},
+			expectErr:    require.NoError,
 		},
 		{
 			name:       "good",
@@ -316,7 +312,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
 					test.deets,
 					test.errors,
-					fault.New(true))
+					fault.New(failFast))
 			)
 
 			rErrors, rBup, err := getBackupErrors(ctx, test.readBupID, tenantID, suite.kw, suite.sw, fault.New(failFast))

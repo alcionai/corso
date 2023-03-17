@@ -65,14 +65,16 @@ func (suite *StreamStoreIntgSuite) TearDownSubTest() {
 
 func (suite *StreamStoreIntgSuite) TestStreamer() {
 	table := []struct {
-		name  string
-		deets func(*testing.T) *details.Details
-		errs  func() *fault.Errors
+		name      string
+		deets     func(*testing.T) *details.Details
+		errs      func() *fault.Errors
+		hasSnapID assert.ValueAssertionFunc
 	}{
 		{
-			name:  "none",
-			deets: func(*testing.T) *details.Details { return nil },
-			errs:  func() *fault.Errors { return nil },
+			name:      "none",
+			deets:     func(*testing.T) *details.Details { return nil },
+			errs:      func() *fault.Errors { return nil },
+			hasSnapID: assert.Empty,
 		},
 		{
 			name: "details",
@@ -87,7 +89,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 
 				return deetsBuilder.Details()
 			},
-			errs: func() *fault.Errors { return nil },
+			errs:      func() *fault.Errors { return nil },
+			hasSnapID: assert.NotEmpty,
 		},
 		{
 			name:  "errors",
@@ -102,6 +105,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				fe := bus.Errors()
 				return fe
 			},
+			hasSnapID: assert.NotEmpty,
 		},
 		{
 			name: "details and errors",
@@ -126,6 +130,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				fe := bus.Errors()
 				return fe
 			},
+			hasSnapID: assert.NotEmpty,
 		},
 	}
 	for _, test := range table {
@@ -153,7 +158,11 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 
 			snapid, err := ss.Write(ctx, fault.New(true))
 			require.NoError(t, err)
-			require.NotEmpty(t, snapid)
+			test.hasSnapID(t, snapid)
+
+			if len(snapid) == 0 {
+				return
+			}
 
 			var readDeets details.Details
 			if deets != nil {
