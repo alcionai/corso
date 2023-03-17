@@ -60,7 +60,7 @@ corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --user a
 
 # Explore Alice's emails with subject containing "Hello world" in folder "Inbox" from a specific backup 
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-	--user alice@example.com --email-subject "Hello world" --email-folder Inbox
+    --user alice@example.com --email-subject "Hello world" --email-folder Inbox
 
 # Explore Bobs's events occurring after start of 2022 from a specific backup
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
