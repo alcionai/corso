@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/alcionai/corso/src/pkg/logger"
 	backoff "github.com/cenkalti/backoff/v4"
 	khttp "github.com/microsoft/kiota-http-go"
 )
@@ -65,6 +66,12 @@ func (middleware RetryHandler) retryRequest(
 
 	if respErr != nil {
 		return nil, Stack(ctx, respErr).With("retry_count", executionCount)
+	}
+
+	if d, ok := ctx.Deadline(); ok {
+		logger.Ctx(ctx).Infof("Context is %s\n", d.String())
+	} else {
+		logger.Ctx(ctx).Infow("Context has no deadline")
 	}
 
 	return resp, nil

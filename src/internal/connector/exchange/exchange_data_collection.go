@@ -162,6 +162,8 @@ func (col Collection) DoNotMergeItems() bool {
 // Items() channel controller
 // ---------------------------------------------------------------------------
 
+var global = 1
+
 // streamItems is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the added field. data channel is closed by this function
 func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
@@ -238,6 +240,18 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		go func(id string) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
+
+			if global == 0 {
+				log.Infow("Sleeping for 100 seconds")
+				time.Sleep(110 * time.Second)
+				global = 1
+			}
+
+			if d, ok := ctx.Deadline(); ok {
+				log.Infof("Corso Context is %s\n", d.String())
+			} else {
+				log.Info("Corso Context has no deadline")
+			}
 
 			item, info, err := getItemWithRetries(
 				ctx,

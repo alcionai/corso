@@ -103,6 +103,12 @@ func (c Events) GetItem(
 		event models.Eventable
 	)
 
+	if d, ok := ctx.Deadline(); ok {
+		logger.Ctx(ctx).Infof("GetItem Context is %s\n", d.String())
+	} else {
+		logger.Ctx(ctx).Info("GetItem Context has no deadline")
+	}
+
 	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
