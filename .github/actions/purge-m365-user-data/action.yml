@@ -43,7 +43,7 @@ runs:
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
       run: |
-        ./foldersAndItems.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurge ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./foldersAndItems.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata --FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     - name: Reset retention for all mailboxes to 0
       if: ${{ inputs.user == '' }}
