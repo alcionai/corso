@@ -7,6 +7,7 @@ import (
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -113,26 +114,10 @@ func createRestoreFoldersWithPermissions(
 
 // isSame checks equality of two string slices
 func isSame(first, second []string) bool {
-	if len(first) != len(second) {
-		return false
-	}
+	slices.Sort(first)
+	slices.Sort(second)
 
-	for _, f := range first {
-		found := false
-
-		for _, s := range second {
-			if f == s {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return false
-		}
-	}
-
-	return true
+	return slices.Equal(first, second)
 }
 
 func diffPermissions(
@@ -205,9 +190,11 @@ func restorePermissions(
 	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
-		if len(p.Roles) == 1 && p.Roles[0] == "owner" {
-			// Since we can't restore owner permissions, this will be
-			// original owner which we don't/can't delete.
+		if slices.Equal(p.Roles, []string{"owner"}) {
+			// We can't restore owner permissions
+			// TODO: If in future, we are able to restore owner
+			// permissions, make sure we are only skipping the owner
+			// permission for the user to which we are restoring
 			continue
 		}
 
@@ -226,11 +213,9 @@ func restorePermissions(
 		// roles or for owner, this seems to be restriction in graph
 		roles := p.Roles
 		for _, r := range roles {
-			if r == "owner" {
-				continue
+			if r != "owner" {
+				roles = append(roles, r)
 			}
-
-			roles = append(roles, r)
 		}
 
 		if len(roles) == 0 {

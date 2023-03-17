@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved permissions backup and restore for OneDrive
 
 ### Known Issues
-- Owner(Full control) or empty(Restricted View) roles cannot be restored for OneDrive
+- Owner (Full control) or empty (Restricted View) roles cannot be restored for OneDrive
 
 ## [v0.5.0] (beta) - 2023-03-13
 
