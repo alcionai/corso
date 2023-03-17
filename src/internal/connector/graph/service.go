@@ -320,7 +320,8 @@ func (handler *LoggingMiddleware) Intercept(
 				"url", req.URL,
 				"limit", resp.Header.Get(rateLimitHeader),
 				"remaining", resp.Header.Get(rateRemainingHeader),
-				"reset", resp.Header.Get(rateResetHeader))
+				"reset", resp.Header.Get(rateResetHeader),
+				"retry-after", resp.Header.Get(retryAfterHeader))
 		} else if resp.StatusCode == http.StatusBadRequest {
 			respDump, _ := httputil.DumpResponse(resp, true)
 			logger.Ctx(ctx).Infow(
