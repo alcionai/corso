@@ -1588,6 +1588,64 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
+			name: "TwoDrives_DuplicateIDs_OneItemPageEach_NoErrors",
+			drives: []models.Driveable{
+				drive1,
+				drive2,
+			},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+				driveID2: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder", "folder", driveBasePath2, "root", false, true, false),
+							driveItem("file2", "file", driveBasePath2+"/folder", "folder", true, false, false),
+						},
+						deltaLink: &delta2,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+				driveID2: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder", "file"}},
+				rootFolderPath2: {data.NewState: {}},
+				folderPath2:     {data.NewState: {"folder", "file2"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+				driveID2: delta2,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+				driveID2: {
+					"root":   rootFolderPath2,
+					"folder": folderPath2,
+				},
+			},
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+				rootFolderPath2: getDelList("file2"),
+			},
+		},
+		{
 			name:   "OneDrive_OneItemPage_Errors",
 			drives: []models.Driveable{drive1},
 			items: map[string][]deltaPagerResult{
