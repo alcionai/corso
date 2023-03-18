@@ -36,6 +36,7 @@ const (
 	rateLimitHeader           = "RateLimit-Limit"
 	rateRemainingHeader       = "RateLimit-Remaining"
 	rateResetHeader           = "RateLimit-Reset"
+	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -199,7 +200,7 @@ func HTTPClient(opts ...option) *http.Client {
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Minute * 3
+	httpClient.Timeout = defaultHTTPClientTimeout
 
 	clientconfig.apply(httpClient)
 
@@ -302,7 +303,6 @@ func (handler *LoggingMiddleware) Intercept(
 	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
-
 		return resp, err
 	}
 
@@ -313,7 +313,8 @@ func (handler *LoggingMiddleware) Intercept(
 		log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
-			"reset", resp.Header.Get(rateResetHeader))
+			"reset", resp.Header.Get(rateResetHeader),
+			"retry-after", resp.Header.Get(retryAfterHeader))
 	} else if resp.StatusCode/100 == 4 {
 		log.With("response", getRespDump(ctx, resp, true))
 	}
