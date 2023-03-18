@@ -65,6 +65,10 @@ func New(
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
 ) *Backup {
+	if fe == nil {
+		fe = &fault.Errors{}
+	}
+
 	var (
 		errCount                      = len(fe.Items)
 		skipCount                     = len(fe.Skipped)
