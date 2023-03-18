@@ -303,7 +303,6 @@ func (handler *LoggingMiddleware) Intercept(
 	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
 		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
-
 		return resp, err
 	}
 
@@ -314,7 +313,8 @@ func (handler *LoggingMiddleware) Intercept(
 		log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
-			"reset", resp.Header.Get(rateResetHeader))
+			"reset", resp.Header.Get(rateResetHeader),
+			"retry-after", resp.Header.Get(retryAfterHeader))
 	} else if resp.StatusCode/100 == 4 {
 		log.With("response", getRespDump(ctx, resp, true))
 	}
