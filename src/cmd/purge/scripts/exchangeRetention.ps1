@@ -12,7 +12,9 @@ Param (
 
 # Setup ExchangeOnline
 if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+    $ProgressPreference = 'SilentlyContinue'
     Install-Module -Name ExchangeOnlineManagement -MinimumVersion 3.0.0 -Force
+    $ProgressPreference = 'Continue'
 }
 
 Write-Host "`nConnecting to Exchange..."

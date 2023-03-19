@@ -114,6 +114,7 @@ function Purge-Library {
 if (-not (Get-Module -ListAvailable -Name SharePointPnPPowerShellOnline)) {
     $ProgressPreference = 'SilentlyContinue'
     Install-Module -Name PnP.PowerShell -Force
+    $ProgressPreference = 'Continue'
 }
 
 
