@@ -43,7 +43,7 @@ runs:
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
       run: |
-        ./foldersAndItems.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata --FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./foldersAndItems.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata --FolderPrefixPurgeList Corso_Restore_,TestRestore,testfolder,incrementals_ci_,Alcion_Restore_ -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     - name: Reset retention for all mailboxes to 0
       if: ${{ inputs.user == '' }}
@@ -63,8 +63,9 @@ runs:
         AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
-      run: >
-        go run ./cmd/purge/purge.go onedrive
-        --user ${{ inputs.user }}
-        --prefix ${{ inputs.folder-prefix }}
-        --before ${{ inputs.older-than }}
+      run: |
+        go run ./cmd/purge/purge.go onedrive --user ${{ inputs.user }} --before ${{ inputs.older-than }} --prefix Corso_Restore_
+        go run ./cmd/purge/purge.go onedrive --user ${{ inputs.user }} --before ${{ inputs.older-than }} --prefix TestRestore
+        go run ./cmd/purge/purge.go onedrive --user ${{ inputs.user }} --before ${{ inputs.older-than }} --prefix testfolder
+        go run ./cmd/purge/purge.go onedrive --user ${{ inputs.user }} --before ${{ inputs.older-than }} --prefix incrementals_ci_
+        go run ./cmd/purge/purge.go onedrive --user ${{ inputs.user }} --before ${{ inputs.older-than }} --prefix Alcion_Restore_
