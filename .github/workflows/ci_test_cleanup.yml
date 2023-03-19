@@ -31,7 +31,8 @@ jobs:
         uses: ./.github/actions/purge-m365-user-data
         with:
           user: ${{ secrets[matrix.user] }}
-          folder-prefix: ${{ matrix.folder }}
+          site: ${{ secrets.CORSO_M365_TEST_SP_SITE_URL}}
+          folder-prefix: "Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_"
           older-than: ${{ env.HALF_HOUR_AGO }}
           azure-client-id: ${{ secrets.CLIENT_ID }}
           azure-client-secret: ${{ secrets.CLIENT_SECRET }}
