@@ -36,7 +36,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Run the all Exchange amd OneDrive purge scripts for user
+    - name: Run the Exchange purge scripts for user
       if: ${{ inputs.user != '' }}
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
@@ -44,10 +44,17 @@ runs:
         AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
+      run: |
+        ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+    
+    - name: Run the OneDrive purge scripts for user
+      if: ${{ inputs.user != '' }}
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      env:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
-        ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
         ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     - name: Run SharePoint purge script
