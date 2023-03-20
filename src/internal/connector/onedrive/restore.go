@@ -613,6 +613,13 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 // Augment restore path to add extra files(meta) needed for restore as
 // well as do any other ordering operations on the paths
 func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, error) {
+	// Nothing to do for versions where the directory metadata is stored in the
+	// directory it refers to as Corso will retrieve this data inline when
+	// restoring the collection for the directory.
+	if backupVersion >= version.OneDrive4DirIncludesPermissions {
+		return nil, nil
+	}
+
 	colPaths := map[string]path.Path{}
 
 	for _, p := range paths {
@@ -640,30 +647,20 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 	// directories involved are created and not just the final one. No
 	// need to add `.meta` files (metadata for files) as they will
 	// anyways be looked up automatically.
-	// TODO: Stop populating .dirmeta for newer versions once we can
-	// get files from parent directory via `Fetch` in a collection.
-	// As of now look up metadata for parent directories from a
-	// collection.
 	for _, p := range colPaths {
 		el := p.Elements()
-		if backupVersion >= version.OneDrive4DirIncludesPermissions {
-			mPath, err := p.Append(el[len(el)-1]+".dirmeta", true)
-			if err != nil {
-				return nil, err
-			}
 
-			paths = append(paths, mPath)
-		} else if backupVersion >= version.OneDrive1DataAndMetaFiles {
-			pp, err := p.Dir()
-			if err != nil {
-				return nil, err
-			}
-			mPath, err := pp.Append(el[len(el)-1]+".dirmeta", true)
-			if err != nil {
-				return nil, err
-			}
-			paths = append(paths, mPath)
+		pp, err := p.Dir()
+		if err != nil {
+			return nil, err
 		}
+
+		mPath, err := pp.Append(el[len(el)-1]+".dirmeta", true)
+		if err != nil {
+			return nil, err
+		}
+
+		paths = append(paths, mPath)
 	}
 
 	// This sort is done primarily to order `.meta` files after `.data`
