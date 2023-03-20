@@ -1,4 +1,4 @@
-<!-- Insert PR description-->
+<!-- PR description-->
 
 ---
 
@@ -14,7 +14,7 @@
 - [ ] :sunflower: Feature
 - [ ] :bug: Bugfix
 - [ ] :world_map: Documentation
-- [ ] :robot: Test
+- [ ] :robot: Supportability/Tests
 - [ ] :computer: CI/Deployment
 - [ ] :broom: Tech Debt/Cleanup
 
