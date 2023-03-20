@@ -282,14 +282,13 @@ func (handler *LoggingMiddleware) Intercept(
 			"url", req.URL, // TODO: pii
 			"request_len", req.ContentLength,
 		)
-		log = logger.Ctx(ctx)
+		log       = logger.Ctx(ctx)
+		start     = time.Now()
+		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
 	// should get its own middleware
 	events.Inc(ctx, events.APICall)
-
-	start := time.Now()
-	resp, err := pipeline.Next(req, middlewareIndex)
 	events.Since(ctx, events.APICall, start)
 
 	if strings.Contains(req.URL.String(), "users//") {

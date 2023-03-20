@@ -245,7 +245,5 @@ func Since(ctx context.Context, cat m, start time.Time) {
 		return
 	}
 
-	sink.AddSample(
-		[]string{string(cat)},
-		float32(time.Now().Sub(start).Milliseconds()))
+	sink.AddSample([]string{string(cat)}, float32(time.Since(start)))
 }
