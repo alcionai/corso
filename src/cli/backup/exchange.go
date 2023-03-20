@@ -117,6 +117,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 			&exchangeData,
 			utils.DataFN, nil,
 			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
+		options.AddFetchParallelismFlag(c)
 		options.AddOperationFlags(c)
 
 	case listCommand:
