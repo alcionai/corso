@@ -200,7 +200,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	if strings.HasPrefix(s3Cfg.Endpoint, "http") {
+	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
 			"pass --disable-tls flag to use http:// instead of default https://"
 
