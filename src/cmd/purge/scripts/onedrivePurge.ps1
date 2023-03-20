@@ -7,10 +7,10 @@ Param (
     [String]$Site,
 
     [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin email")]
-    [String]$AdminUser = $ENV:M365TENANT_ADMIN_USER,
+    [String]$AdminUser = $ENV:M365_TENANT_ADMIN_USER,
 
     [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin password")]
-    [String]$AdminPwd = $ENV:M365TENANT_ADMIN_PASSWORD,
+    [String]$AdminPwd = $ENV:M365_TENANT_ADMIN_PASSWORD,
 
     [Parameter(Mandatory = $False, HelpMessage = "Document library root. Can add multiple comma-separated values")]
     [String[]]$LibraryNameList = @(),

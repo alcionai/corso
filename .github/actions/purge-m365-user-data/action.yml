@@ -29,9 +29,9 @@ inputs:
   azure-tenant-id:
     description: Secret value of for AZURE_TENANT_ID
   m365-admin-user:
-    description: Secret value of for M365TENANT_ADMIN_USER
+    description: Secret value of for M365_TENANT_ADMIN_USER
   m365-admin-password:
-    description: Secret value of for M365TENANT_ADMIN_PASSWORD
+    description: Secret value of for M365_TENANT_ADMIN_PASSWORD
 
 runs:
   using: composite
@@ -44,8 +44,8 @@ runs:
         AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
-        M365TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
+        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
         ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
         ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
@@ -55,8 +55,8 @@ runs:
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
       env:
-        M365TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
+        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
         ./onedrivePurge.ps1 -Site ${{ inputs.site }} -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
@@ -65,7 +65,7 @@ runs:
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
       env:
-        M365TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
+        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
         ./exchangeRetention.ps1

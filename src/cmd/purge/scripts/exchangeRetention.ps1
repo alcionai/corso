@@ -4,10 +4,10 @@
 #                     -w /usr/reset-retnention m365pnp/powershell pwsh -c "./setRetention.ps1"
 Param (
     [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin email")]
-    [String]$AdminUser = $ENV:M365TENANT_ADMIN_USER,
+    [String]$AdminUser = $ENV:M365_TENANT_ADMIN_USER,
 
     [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin password")]
-    [String]$AdminPwd = $ENV:M365TENANT_ADMIN_PASSWORD
+    [String]$AdminPwd = $ENV:M365_TENANT_ADMIN_PASSWORD
 )
 
 # Setup ExchangeOnline
