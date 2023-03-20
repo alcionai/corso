@@ -42,9 +42,21 @@ func (middleware RetryHandler) retryRequest(
 
 		cumulativeDelay += delay
 
-		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
+		timer := time.NewTimer(delay)
 
-		time.Sleep(delay)
+		select {
+		case <-ctx.Done():
+			// Don't retry if the context is marked as done, it will just error out
+			// when we attempt to send the retry anyway. I guess return the original
+			// response and the error?
+			return resp, ctx.Err()
+
+		// Will exit switch-block so the remainder of the code doesn't need to be
+		// indented.
+		case <-timer.C:
+		}
+
+		req.Header.Set(retryAttemptHeader, strconv.Itoa(executionCount))
 
 		response, err := pipeline.Next(req, middlewareIndex)
 		if err != nil && !IsErrTimeout(err) {
