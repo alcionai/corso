@@ -129,12 +129,11 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
 	}
 
-	if strings.Contains(s3Cfg.Endpoint, "http") {
-		invalidEndpointErr := `endpoint doesn't support fullpath. 
-		pass --disable-tls flag to use http:// instead of default https://`
+	if strings.HasPrefix(s3Cfg.Endpoint, "http") {
+		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
+			"pass --disable-tls flag to use http:// instead of default https://"
 
-		return Only(ctx,
-			errors.New(invalidEndpointErr))
+		return Only(ctx, errors.New(invalidEndpointErr))
 	}
 
 	m365, err := cfg.Account.M365Config()
