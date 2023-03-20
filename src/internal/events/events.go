@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"io"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/armon/go-metrics"
 	analytics "github.com/rudderlabs/analytics-go"
 
 	"github.com/alcionai/corso/src/internal/version"
@@ -158,4 +161,91 @@ func (b *Bus) SetRepoID(hash string) {
 func tenantHash(tenID string) string {
 	sum := md5.Sum([]byte(tenID))
 	return fmt.Sprintf("%x", sum)
+}
+
+// ---------------------------------------------------------------------------
+// hashicorp PoC
+// ---------------------------------------------------------------------------
+
+type m string
+
+// metrics collection bucket
+const APICall m = "api_call"
+
+type sinkKey string
+
+const sinkCtxKey sinkKey = "corsoMetricsSink"
+
+// configurations
+const (
+	reportInterval    = 1 * time.Minute
+	retentionDuration = 2 * time.Minute
+)
+
+// NewMetrics embeds a metrics bus into the provided context.  The bus can be
+// utilized with calls like Inc and Since.
+func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
+	var (
+		sink = metrics.NewInmemSink(reportInterval, retentionDuration)
+		cfg  = metrics.DefaultConfig("corso")
+		sig  = metrics.NewInmemSignal(sink, metrics.DefaultSignal, w)
+	)
+
+	gm, err := metrics.NewGlobal(cfg, sink)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("metrics bus constructor")
+		return ctx, func() { sig.Stop() }
+	}
+
+	stop := make(chan struct{})
+	go dumpMetrics(ctx, stop, sig)
+
+	flush := func() {
+		close(stop)
+		sig.Stop()
+		gm.Shutdown()
+	}
+
+	return context.WithValue(ctx, sinkCtxKey, sink), flush
+}
+
+func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSignal) {
+	tock := time.Tick(reportInterval)
+
+	for {
+		select {
+		case <-tock:
+			if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
+				logger.CtxErr(ctx, err).Error("metrics interval signal")
+			}
+		case <-stop:
+			return
+		}
+	}
+}
+
+// Inc increments the given category by 1.
+func Inc(ctx context.Context, cat m) {
+	is := ctx.Value(sinkCtxKey)
+	sink, ok := is.(*metrics.InmemSink)
+
+	if sink == nil || !ok {
+		return
+	}
+
+	sink.IncrCounter([]string{string(cat)}, 1)
+}
+
+// Since records the duration between the provided time and now, in millis.
+func Since(ctx context.Context, cat m, start time.Time) {
+	is := ctx.Value(sinkCtxKey)
+	sink, ok := is.(*metrics.InmemSink)
+
+	if sink == nil || !ok {
+		return
+	}
+
+	sink.AddSample(
+		[]string{string(cat)},
+		float32(time.Now().Sub(start).Milliseconds()))
 }

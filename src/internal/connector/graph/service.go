@@ -19,6 +19,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -281,8 +282,15 @@ func (handler *LoggingMiddleware) Intercept(
 			"url", req.URL, // TODO: pii
 			"request_len", req.ContentLength,
 		)
-		resp, err = pipeline.Next(req, middlewareIndex)
+		log = logger.Ctx(ctx)
 	)
+
+	// should get its own middleware
+	events.Inc(ctx, events.APICall)
+
+	start := time.Now()
+	resp, err := pipeline.Next(req, middlewareIndex)
+	events.Since(ctx, events.APICall, start)
 
 	if strings.Contains(req.URL.String(), "users//") {
 		logger.Ctx(ctx).Error("malformed request url: missing resource")
