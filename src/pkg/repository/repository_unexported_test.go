@@ -128,7 +128,7 @@ func writeBackup(
 	tID, snapID, backupID string,
 	sel selectors.Selector,
 	deets *details.Details,
-	errors *fault.Errors,
+	fe *fault.Errors,
 	errs *fault.Bus,
 ) *backup.Backup {
 	var (
@@ -139,7 +139,7 @@ func writeBackup(
 	err := sstore.Collect(ctx, streamstore.DetailsCollector(deets))
 	require.NoError(t, err, "collecting details in streamstore")
 
-	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(errors))
+	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(fe))
 	require.NoError(t, err, "collecting errors in streamstore")
 
 	ssid, err := sstore.Write(ctx, errs)
@@ -152,7 +152,7 @@ func writeBackup(
 		sel,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
-		errs)
+		fe)
 
 	err = sw.Put(ctx, model.BackupSchema, b)
 	require.NoError(t, err)
