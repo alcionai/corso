@@ -2,12 +2,17 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
@@ -152,6 +157,29 @@ func Handle() {
 	ctx, cancel := context.WithDeadline(context.Background(), tenDays)
 	defer cancel()
 
+	// ----------------------------------------------------------
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+
+	exporter, err := stdoutmetric.New(stdoutmetric.WithEncoder(enc))
+	if err != nil {
+		fmt.Printf("creating stdoutmetric exporter: %v\n", err)
+	} else {
+		// Register the exporter with an SDK via a periodic reader.
+		sdk := metric.NewMeterProvider(metric.WithReader(metric.NewPeriodicReader(exporter)))
+
+		global.SetMeterProvider(sdk)
+
+		defer func() {
+			if err := sdk.Shutdown(ctx); err != nil {
+				fmt.Printf("stopping sdk: %v\n", err)
+			}
+		}()
+	}
+
+	// ----------------------------------------------------------
+
 	ctx = config.Seed(ctx)
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
@@ -159,6 +187,7 @@ func Handle() {
 	BuildCommandTree(corsoCmd)
 
 	loglevel, logfile := logger.PreloadLoggingFlags()
+
 	ctx, log := logger.Seed(ctx, loglevel, logfile)
 
 	defer func() {

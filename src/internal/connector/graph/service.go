@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	otelrt "github.com/NdoleStudio/go-otelroundtripper"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
@@ -17,6 +18,8 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/metric/global"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -201,6 +204,15 @@ func HTTPClient(opts ...option) *http.Client {
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	httpClient.Timeout = defaultHTTPClientTimeout
+
+	parentTripper := httpClient.Transport
+	meter := global.MeterProvider().Meter("corso")
+
+	httpClient.Transport = otelrt.New(
+		otelrt.WithParent(parentTripper),
+		otelrt.WithMeter(meter),
+		otelrt.WithAttributes(semconv.ServiceNameKey.String("corso")),
+	)
 
 	clientconfig.apply(httpClient)
 
