@@ -17,6 +17,7 @@ func Control() control.Options {
 	opt.SkipReduce = skipReduce
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
 	opt.ToggleFeatures.EnablePermissionsBackup = enablePermissionsBackup
+	opt.ItemFetchParallelism = fetchParallelism
 
 	return opt
 }
@@ -30,6 +31,7 @@ var (
 	noStats            bool
 	restorePermissions bool
 	skipReduce         bool
+	fetchParallelism   int
 )
 
 // AddOperationFlags adds command-local operation flags
@@ -60,6 +62,16 @@ func AddSkipReduceFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(&skipReduce, "skip-reduce", false, "Skip the selector reduce filtering")
 	cobra.CheckErr(fs.MarkHidden("skip-reduce"))
+}
+
+func AddFetchParallelismFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.IntVar(
+		&fetchParallelism,
+		"fetch-parallelism",
+		4,
+		"Control the number of concurrent data fetches for Exchange. Valid range is [1-4]. Default: 4")
+	cobra.CheckErr(fs.MarkHidden("fetch-parallelism"))
 }
 
 // ---------------------------------------------------------------------------
