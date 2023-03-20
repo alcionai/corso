@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OneDrive item downloads that return 404 during backup (normally due to external deletion while Corso processes) are now skipped instead of quietly dropped.  These items will appear in the skipped list alongside other skipped cases such as malware detection.
 - Listing a single backup by id will also list the skipped and failed items that occurred during the backup.  These can be filtered out with the flags `--failed-items hide`, `--skipped-items hide`, and `--recovered-errors hide`.
 - Enable incremental backups for OneDrive if permissions aren't being backed up.
+- Show progressbar while files for user are enumerated
 
 ### Fixed
 - Fix repo connect not working without a config file
