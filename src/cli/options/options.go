@@ -82,7 +82,7 @@ func AddFeatureToggle(cmd *cobra.Command, effs ...exposeFeatureFlag) {
 	}
 }
 
-// Adds the hidden '--no-incrementals' cli flag which, when set, disables
+// Adds the hidden '--disable-incrementals' cli flag which, when set, disables
 // incremental backups.
 func DisableIncrementals() func(*pflag.FlagSet) {
 	return func(fs *pflag.FlagSet) {
