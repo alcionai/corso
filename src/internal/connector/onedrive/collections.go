@@ -673,7 +673,7 @@ func (c *Collections) UpdateCollections(
 
 		// Skip items that don't match the folder selectors we were given.
 		if shouldSkipDrive(ctx, collectionPath, c.matcher, driveName) {
-			logger.Ctx(ictx).Infow("Skipping path", "skipped_path", collectionPath.String())
+			logger.Ctx(ictx).Debugw("Skipping drive path", "skipped_path", collectionPath.String())
 			continue
 		}
 
