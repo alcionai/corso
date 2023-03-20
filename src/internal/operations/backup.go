@@ -161,19 +161,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(errors.Wrap(err, "doing backup"))
 	}
 
-	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Recovered())
-	for i, err := range op.Errors.Recovered() {
-		logger.Ctx(ctx).
-			With("error", err).
-			With(clues.InErr(err).Slice()...).
-			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
-	}
-
-	skippedCount := len(op.Errors.Skipped())
-	for i, skip := range op.Errors.Skipped() {
-		logger.Ctx(ctx).With("skip", skip).Infof("doing backup: skipped item %d of %d", i+1, skippedCount)
-	}
+	LogFaultErrors(ctx, op.Errors.Errors(), "doing backup")
 
 	// -----
 	// Persistence
@@ -292,12 +280,20 @@ func (op *BackupOperation) do(
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
-	// Delta-based incrementals currently only supported for Exchange
-	if sel.Service != selectors.ServiceExchange {
+	enabled := !opts.ToggleFeatures.DisableIncrementals
+
+	switch sel.Service {
+	case selectors.ServiceExchange:
+		return enabled
+
+	case selectors.ServiceOneDrive:
+		// TODO(ashmrtn): Remove the && part once we support permissions and
+		// incrementals.
+		return enabled && !opts.ToggleFeatures.EnablePermissionsBackup
+
+	default:
 		return false
 	}
-
-	return !opts.ToggleFeatures.DisableIncrementals
 }
 
 // ---------------------------------------------------------------------------
@@ -458,9 +454,7 @@ func consumeBackupDataCollections(
 		ctx,
 		bases,
 		cs,
-		// TODO(ashmrtn): When we're ready to enable incremental backups for
-		// OneDrive replace this with `excludes`.
-		nil,
+		excludes,
 		tags,
 		isIncremental,
 		errs)
@@ -687,7 +681,6 @@ func (op *BackupOperation) createBackupModels(
 		return clues.Wrap(err, "persisting details and errors").WithClues(ctx)
 	}
 
-	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
 	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
@@ -695,13 +688,16 @@ func (op *BackupOperation) createBackupModels(
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		errs)
+		op.Errors.Errors())
 
-	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
+	err = op.store.Put(
+		clues.Add(ctx, "streamstore_snapshot_id", ssid),
+		model.BackupSchema,
+		b)
+
+	if err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
-
-	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
 	op.bus.Event(
 		ctx,
@@ -709,7 +705,7 @@ func (op *BackupOperation) createBackupModels(
 		map[string]any{
 			events.BackupID:   b.ID,
 			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   dur,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
 			events.Resources:  op.Results.ResourceOwners,
 			events.Service:    op.Selectors.PathService().String(),
