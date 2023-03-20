@@ -263,6 +263,13 @@ func (c *Collections) Get(
 		return nil, nil, err
 	}
 
+	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
+		"%s - %s",
+		observe.Safe("files"),
+		observe.PII(c.resourceOwner)))
+	defer closer()
+	defer close(driveComplete)
+
 	// Enumerate drives for the specified resourceOwner
 	pager, err := c.drivePagerFunc(c.source, c.service, c.resourceOwner, nil)
 	if err != nil {
