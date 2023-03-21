@@ -88,7 +88,7 @@ func checkEmailRestoration(
 				continue
 			}
 
-			getAllSubFolder(user, r, "", messageCount)
+			getAllSubFolder(user, r, name, messageCount)
 
 			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 		}
@@ -120,7 +120,7 @@ func checkEmailRestoration(
 			os.Exit(1)
 		}
 
-		checkAllSubFolder(user, restore, "", messageCount)
+		checkAllSubFolder(user, restore, *restore.GetDisplayName(), messageCount)
 	}
 }
 
@@ -139,17 +139,14 @@ func getAllSubFolder(
 	}
 
 	for _, child := range childFolder.GetValue() {
-		fullFolderName := *r.GetDisplayName() + "/" + *child.GetDisplayName()
-
-		if parentFolder != "" {
-			fullFolderName = parentFolder + "/" + fullFolderName
-		}
+		fullFolderName := parentFolder + "/" + *child.GetDisplayName()
 
 		messageCount[fullFolderName] = *child.GetTotalItemCount()
 
 		// recursively check for subfolders
 		if *child.GetChildFolderCount() > 0 {
-			parentFolder := *r.GetDisplayName()
+			parentFolder := fullFolderName
+
 			getAllSubFolder(user, child, parentFolder, messageCount)
 		}
 	}
@@ -170,10 +167,7 @@ func checkAllSubFolder(
 	}
 
 	for _, child := range childFolder.GetValue() {
-		fullFolderName := *r.GetDisplayName() + "/" + *child.GetDisplayName()
-		if parentFolder != "" {
-			fullFolderName = parentFolder + "/" + fullFolderName
-		}
+		fullFolderName := parentFolder + "/" + *child.GetDisplayName()
 
 		if messageCount[fullFolderName] != *child.GetTotalItemCount() {
 			fmt.Println("Restore was not succesfull for: ",
@@ -186,7 +180,8 @@ func checkAllSubFolder(
 		}
 
 		if *child.GetChildFolderCount() > 0 {
-			parentFolder := *r.GetDisplayName()
+			parentFolder := fullFolderName
+
 			checkAllSubFolder(user, child, parentFolder, messageCount)
 		}
 	}
