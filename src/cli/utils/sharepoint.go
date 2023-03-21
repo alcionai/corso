@@ -58,9 +58,9 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 	return nil
 }
 
-// AddSharePointFilter adds the scope of the provided values to the selector's
+// AddSharePointInfo adds the scope of the provided values to the selector's
 // filter set
-func AddSharePointFilter(
+func AddSharePointInfo(
 	sel *selectors.SharePointRestore,
 	v string,
 	f func(string) []selectors.SharePointScope,
@@ -165,9 +165,9 @@ func FilterSharePointRestoreInfoSelectors(
 	sel *selectors.SharePointRestore,
 	opts SharePointOpts,
 ) {
-	AddSharePointFilter(sel, opts.Library, sel.Library)
-	AddSharePointFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
-	AddSharePointFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)
-	AddSharePointFilter(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
-	AddSharePointFilter(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
+	AddSharePointInfo(sel, opts.Library, sel.Library)
+	AddSharePointInfo(sel, opts.FileCreatedAfter, sel.CreatedAfter)
+	AddSharePointInfo(sel, opts.FileCreatedBefore, sel.CreatedBefore)
+	AddSharePointInfo(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
+	AddSharePointInfo(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
 }
