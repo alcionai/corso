@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -160,14 +159,6 @@ func Handle() {
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
-
-	// ----------------------------------------------------------------------------------------
-
-	// print to stderr for poc.  should use the logger.
-	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
-	defer flushMetrics()
-
-	// ----------------------------------------------------------------------------------------
 
 	if err := corsoCmd.ExecuteContext(ctx); err != nil {
 		logger.CtxErr(ctx, err).Error("cli execution")

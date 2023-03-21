@@ -164,17 +164,13 @@ func tenantHash(tenID string) string {
 }
 
 // ---------------------------------------------------------------------------
-// hashicorp PoC
+// metrics aggregation
 // ---------------------------------------------------------------------------
 
 type m string
 
 // metrics collection bucket
 const APICall m = "api_call"
-
-type sinkKey string
-
-const sinkCtxKey sinkKey = "corsoMetricsSink"
 
 // configurations
 const (
@@ -212,7 +208,8 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 		gm.Shutdown()
 	}
 
-	return context.WithValue(ctx, sinkCtxKey, sink), flush
+	// return context.WithValue(ctx, sinkCtxKey, sink), flush
+	return ctx, flush
 }
 
 // dumpMetrics runs a loop that sends a os signal (SIGUSR1 on linux/mac, SIGBREAK on windows)
@@ -236,25 +233,13 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 }
 
 // Inc increments the given category by 1.
-func Inc(ctx context.Context, cat m) {
-	is := ctx.Value(sinkCtxKey)
-	sink, ok := is.(*metrics.InmemSink)
-
-	if sink == nil || !ok {
-		return
-	}
-
-	sink.IncrCounter([]string{string(cat)}, 1)
+func Inc(cat m, keys ...string) {
+	cats := append([]string{string(cat)}, keys...)
+	metrics.IncrCounter(cats, 1)
 }
 
 // Since records the duration between the provided time and now, in millis.
-func Since(ctx context.Context, cat m, start time.Time) {
-	is := ctx.Value(sinkCtxKey)
-	sink, ok := is.(*metrics.InmemSink)
-
-	if sink == nil || !ok {
-		return
-	}
-
-	sink.AddSample([]string{string(cat)}, float32(time.Since(start)))
+func Since(start time.Time, cat m, keys ...string) {
+	cats := append([]string{string(cat)}, keys...)
+	metrics.MeasureSince(cats, start)
 }

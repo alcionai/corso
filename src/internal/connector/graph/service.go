@@ -229,6 +229,7 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
 		&ThrottleControlMiddleware{},
+		&MetricsMiddleware{},
 	}
 }
 
@@ -283,13 +284,8 @@ func (handler *LoggingMiddleware) Intercept(
 			"request_len", req.ContentLength,
 		)
 		log       = logger.Ctx(ctx)
-		start     = time.Now()
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
-
-	// should get its own middleware
-	events.Inc(ctx, events.APICall)
-	events.Since(ctx, events.APICall, start)
 
 	if strings.Contains(req.URL.String(), "users//") {
 		logger.Ctx(ctx).Error("malformed request url: missing resource")
@@ -420,4 +416,25 @@ func (handler *ThrottleControlMiddleware) Intercept(
 ) (*http.Response, error) {
 	QueueRequest(req.Context())
 	return pipeline.Next(req, middlewareIndex)
+}
+
+// MetricsMiddleware aggregates per-request metrics on the events bus
+type MetricsMiddleware struct{}
+
+func (handler *MetricsMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	var (
+		start     = time.Now()
+		resp, err = pipeline.Next(req, middlewareIndex)
+	)
+
+	events.Inc(events.APICall)
+	events.Inc(events.APICall, resp.Status)
+	events.Since(start, events.APICall)
+	events.Since(start, events.APICall, resp.Status)
+
+	return resp, err
 }
