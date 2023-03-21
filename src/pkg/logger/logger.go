@@ -398,6 +398,6 @@ type Writer struct {
 }
 
 func (w Writer) Write(p []byte) (int, error) {
-	Ctx(w.Ctx).Warn(string(p))
+	Ctx(w.Ctx).Info(string(p))
 	return len(p), nil
 }
