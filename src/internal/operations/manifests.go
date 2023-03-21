@@ -97,7 +97,7 @@ func produceManifestsAndMetadata(
 		// if no backup exists for any of the complete manifests, we want
 		// to fall back to a complete backup.
 		if errors.Is(err, data.ErrNotFound) {
-			logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
+			logger.Ctx(mctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
 			return ms, nil, false, nil
 		}
 

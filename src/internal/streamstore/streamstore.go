@@ -284,6 +284,8 @@ func read(
 		return clues.Stack(err).WithClues(ctx)
 	}
 
+	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
+
 	cs, err := rer.RestoreMultipleItems(
 		ctx,
 		snapshotID,
