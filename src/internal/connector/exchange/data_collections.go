@@ -259,10 +259,9 @@ func createCollections(
 		Credentials:   creds,
 	}
 
-	foldersComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
-		"%s - %s",
-		observe.Safe(qp.Category.String()),
-		observe.PII(user)))
+	foldersComplete, closer := observe.MessageWithCompletion(
+		ctx,
+		observe.Bulletf("%s", observe.Safe(qp.Category.String())))
 	defer closer()
 	defer close(foldersComplete)
 

@@ -263,10 +263,7 @@ func (c *Collections) Get(
 		return nil, nil, err
 	}
 
-	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf(
-		"%s - %s",
-		observe.Safe("files"),
-		observe.PII(c.resourceOwner)))
+	driveComplete, closer := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
 	defer closer()
 	defer close(driveComplete)
 
