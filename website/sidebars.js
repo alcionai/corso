@@ -34,7 +34,8 @@ const sidebars = {
         'cli/corso-repo-init-s3', 'cli/corso-repo-connect-s3',
         'cli/corso-backup-create-exchange', 'cli/corso-backup-list-exchange', 'cli/corso-backup-details-exchange', 'cli/corso-backup-delete-exchange',
         'cli/corso-backup-create-onedrive', 'cli/corso-backup-list-onedrive', 'cli/corso-backup-details-onedrive', 'cli/corso-backup-delete-onedrive',
-        'cli/corso-restore-exchange', 'cli/corso-restore-onedrive',
+        'cli/corso-backup-create-sharepoint', 'cli/corso-backup-list-sharepoint', 'cli/corso-backup-details-sharepoint', 'cli/corso-backup-delete-sharepoint',
+        'cli/corso-restore-exchange', 'cli/corso-restore-onedrive', 'cli/corso-restore-sharepoint',
         'cli/corso-env'
       ]
     },
