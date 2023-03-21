@@ -187,7 +187,7 @@ func restorePermissions(
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
 	// TODO(meain): Compute this from the data that we have instead of fetching from graph
-	currentPermissions, err := oneDriveItemPermissionInfo(ctx, service, driveID, itemID)
+	currentPermissions, err := driveItemPermissionInfo(ctx, service, driveID, itemID)
 	if err != nil {
 		return graph.Wrap(ctx, err, "fetching current permissions")
 	}
