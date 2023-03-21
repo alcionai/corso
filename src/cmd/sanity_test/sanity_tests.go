@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -17,19 +18,24 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 func main() {
+	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
+	defer func() {
+		_ = log.Sync() // flush all logs in the buffer
+	}()
+
 	adapter, err := graph.CreateAdapter(
 		os.Getenv("AZURE_TENANT_ID"),
 		os.Getenv("AZURE_CLIENT_ID"),
 		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
-		fatal("error while creating adapter", err)
+		fatal(ctx, "creating adapter", err)
 	}
 
 	var (
-		ctx         = context.Background()
 		client      = msgraphsdk.NewGraphServiceClient(adapter)
 		testUser    = os.Getenv("CORSO_M365_TEST_USER_ID")
 		testService = os.Getenv("SANITY_RESTORE_SERVICE")
@@ -38,10 +44,17 @@ func main() {
 
 	startTime, err := common.ExtractTime(folder)
 	if err != nil {
-		fatal("error parsing start time", err)
+		fatal(ctx, "parsing start time", err)
 	}
 
-	fmt.Println("Restore folder: ", folder)
+	ctx = clues.Add(
+		ctx,
+		"resource_owner", testUser,
+		"service", testService,
+		"sanity_restore_folder", folder,
+		"start_time", startTime.Format(time.RFC3339Nano))
+
+	logger.Ctx(ctx).Info("starting sanity test check")
 
 	switch testService {
 	case "exchange":
@@ -49,7 +62,7 @@ func main() {
 	case "onedrive":
 		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
 	default:
-		fatal("no service specified", nil)
+		fatal(ctx, "no service specified", nil)
 	}
 }
 
@@ -70,21 +83,28 @@ func checkEmailRestoration(
 	for {
 		result, err := builder.Get(ctx, nil)
 		if err != nil {
-			fatal("error getting the drive", err)
+			fatal(ctx, "getting the drive", err)
 		}
 
 		values := result.GetValue()
 
 		for _, v := range values {
-			itemName := ptr.Val(v.GetDisplayName())
+			var (
+				itemID   = ptr.Val(v.GetId())
+				itemName = ptr.Val(v.GetDisplayName())
+				ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+			)
 
 			folderTime, err := common.ExtractTime(itemName)
 			if err != nil && !errors.Is(err, common.ErrNoTimeString) {
-				fatal("extracting time from file name", err)
+				fatal(ctx, "extracting time from file name", err)
 			}
 
 			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
-				fmt.Printf("skipping restore folder %s created after %s\n", itemName, folderName)
+				logger.Ctx(ictx).
+					With("folder_time", folderTime).
+					Info("skipping restore folder: not within time bound")
+
 				continue
 			}
 
@@ -93,7 +113,7 @@ func checkEmailRestoration(
 				continue
 			}
 
-			getAllSubFolder(client, testUser, v, itemName, itemCount)
+			getAllSubFolder(ctx, client, testUser, v, itemName, itemCount)
 
 			itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
 		}
@@ -106,24 +126,36 @@ func checkEmailRestoration(
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
 	}
 
-	var (
-		user     = client.UsersById(testUser)
-		folderID = ptr.Val(restoreFolder.GetId())
-		folder   = user.MailFoldersById(folderID)
-	)
+	folderID := ptr.Val(restoreFolder.GetId())
+	folderName = ptr.Val(restoreFolder.GetDisplayName())
+	ctx = clues.Add(
+		ctx,
+		"restore_folder_id", folderID,
+		"restore_folder_name", folderName)
 
-	childFolder, err := folder.ChildFolders().Get(ctx, nil)
+	childFolder, err := client.
+		UsersById(testUser).
+		MailFoldersById(folderID).
+		ChildFolders().
+		Get(ctx, nil)
 	if err != nil {
-		fatal("error getting the drive", err)
+		fatal(ctx, "getting the drive", err)
 	}
 
 	for _, fld := range childFolder.GetValue() {
 		var (
+			fldID   = ptr.Val(fld.GetId())
 			fldName = ptr.Val(fld.GetDisplayName())
 			count   = ptr.Val(fld.GetTotalItemCount())
+			ictx    = clues.Add(ctx,
+				"child_folder_id", fldID,
+				"child_folder_name", fldName,
+				"expected_count", itemCount[fldName],
+				"actual_count", count)
 		)
 
 		if itemCount[fldName] != count {
+			logger.Ctx(ictx).Error("test failure: Restore item counts do not match")
 			fmt.Println("Restore item counts do not match:")
 			fmt.Println("-  expected:", itemCount[fldName])
 			fmt.Println("-  actual:", count)
@@ -131,57 +163,53 @@ func checkEmailRestoration(
 			os.Exit(1)
 		}
 
-		checkAllSubFolder(client, testUser, fld, fldName, itemCount)
+		checkAllSubFolder(ctx, client, testUser, fld, fldName, itemCount)
 	}
 }
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
 // email count.
 func getAllSubFolder(
+	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
 	r models.MailFolderable,
 	parentFolder string,
 	messageCount map[string]int32,
 ) {
-	folderID, ok := ptr.ValOK(r.GetId())
-
-	if !ok {
-		fmt.Println("unable to get sub folder ID")
-		return
-	}
-
-	user := client.UsersById(testUser)
-	folder := user.MailFoldersById(folderID)
-
-	var count int32 = 99
-
-	childFolder, err := folder.ChildFolders().Get(
-		context.Background(),
-		&users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+	var (
+		folderID       = ptr.Val(r.GetId())
+		count    int32 = 99
+		options        = &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
 				Top: &count,
 			},
-		})
+		}
+	)
+
+	childFolder, err := client.
+		UsersById(testUser).
+		MailFoldersById(folderID).
+		ChildFolders().
+		Get(ctx, options)
 	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting the drive", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
-		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
-
-		fullFolderName := parentFolder + "/" + childDisplayName
+		var (
+			childDisplayName = ptr.Val(child.GetDisplayName())
+			childFolderCount = ptr.Val(child.GetChildFolderCount())
+			fullFolderName   = parentFolder + "/" + childDisplayName
+		)
 
 		messageCount[fullFolderName], _ = ptr.ValOK(child.GetTotalItemCount())
-
-		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
 
 		// recursively check for subfolders
 		if childFolderCount > 0 {
 			parentFolder := fullFolderName
 
-			getAllSubFolder(client, testUser, child, parentFolder, messageCount)
+			getAllSubFolder(ctx, client, testUser, child, parentFolder, messageCount)
 		}
 	}
 }
@@ -189,56 +217,51 @@ func getAllSubFolder(
 // checkAllSubFolder will recursively traverse inside the restore folder and
 // verify that data matched in all subfolders
 func checkAllSubFolder(
+	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
 	r models.MailFolderable,
 	parentFolder string,
 	messageCount map[string]int32,
 ) {
-	folderID, ok := ptr.ValOK(r.GetId())
-
-	if !ok {
-		fmt.Println("unable to get sub folder ID")
-		return
-	}
-
-	user := client.UsersById(testUser)
-	folder := user.MailFoldersById(folderID)
-
-	var count int32 = 99
-
-	childFolder, err := folder.ChildFolders().Get(
-		context.Background(),
-		&users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+	var (
+		folderID       = ptr.Val(r.GetId())
+		count    int32 = 99
+		options        = &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
 				Top: &count,
 			},
-		})
+		}
+	)
+
+	childFolder, err := client.
+		UsersById(testUser).
+		MailFoldersById(folderID).
+		ChildFolders().
+		Get(ctx, options)
 	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting the drive", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
-		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
-
-		fullFolderName := parentFolder + "/" + childDisplayName
-
-		childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
+		var (
+			childDisplayName = ptr.Val(child.GetDisplayName())
+			childTotalCount  = ptr.Val(child.GetTotalItemCount())
+			fullFolderName   = parentFolder + "/" + childDisplayName
+		)
 
 		if messageCount[fullFolderName] != childTotalCount {
-			fmt.Println("Restore was not succesfull for: ", fullFolderName,
-				"Folder count: ", messageCount[fullFolderName],
-				"Restore count: ", childTotalCount)
+			fmt.Println("Message count doesn't match:")
+			fmt.Println("-  expected:", messageCount[fullFolderName])
+			fmt.Println("-  actual:", childTotalCount)
+			fmt.Println("Item:", fullFolderName, folderID)
 			os.Exit(1)
 		}
 
-		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
+		childFolderCount := ptr.Val(child.GetChildFolderCount())
 
 		if childFolderCount > 0 {
-			parentFolder := fullFolderName
-
-			checkAllSubFolder(client, testUser, child, parentFolder, messageCount)
+			checkAllSubFolder(ctx, client, testUser, child, fullFolderName, messageCount)
 		}
 	}
 }
@@ -254,15 +277,23 @@ func checkOnedriveRestoration(
 		file = make(map[string]int64)
 		// map itemID -> permission id -> []permission roles
 		folderPermission = make(map[string]map[string][]string)
-		restoreFolderID  = ""
+		folderID         = ""
 	)
 
-	drive, err := client.UsersById(testUser).Drive().Get(ctx, nil)
+	drive, err := client.
+		UsersById(testUser).
+		Drive().
+		Get(ctx, nil)
 	if err != nil {
-		fatal("error getting the drive:", err)
+		fatal(ctx, "getting the drive:", err)
 	}
 
-	driveID := ptr.Val(drive.GetId())
+	var (
+		driveID   = ptr.Val(drive.GetId())
+		driveName = ptr.Val(drive.GetName())
+	)
+
+	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
 
 	response, err := client.
 		DrivesById(driveID).
@@ -270,27 +301,32 @@ func checkOnedriveRestoration(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		fmt.Println("Error getting drive by id:", err)
-		os.Exit(1)
+		fatal(ctx, "getting drive by id", err)
 	}
 
 	for _, driveItem := range response.GetValue() {
 		var (
-			itemID     = ptr.Val(driveItem.GetId())
-			itemName   = ptr.Val(driveItem.GetName())
-			rStartTime time.Time
+			itemID   = ptr.Val(driveItem.GetId())
+			itemName = ptr.Val(driveItem.GetName())
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
 		)
 
 		if itemName == folderName {
-			restoreFolderID = itemID
+			folderID = itemID
 			continue
 		}
 
-		restoreStartTime := strings.SplitAfter(itemName, "Corso_Restore_")
-		if len(restoreStartTime) > 1 {
-			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-			if startTime.Before(rStartTime) {
-				fmt.Printf("skipping restore folder %s created after %s\n", itemName, folderName)
+		if !startTime.IsZero() {
+			folderTime, err := common.ExtractTime(itemName)
+			if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+				fatal(ictx, "extracting time from file name", err)
+			}
+
+			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
+				logger.Ctx(ictx).
+					With("folder_time", folderTime).
+					Info("skipping restore folder: not within time bound")
+
 				continue
 			}
 		}
@@ -305,7 +341,7 @@ func checkOnedriveRestoration(
 		}
 	}
 
-	checkFileData(ctx, client, driveID, restoreFolderID, file, folderPermission)
+	checkFileData(ctx, client, driveID, folderID, file, folderPermission)
 
 	fmt.Println("Success")
 }
@@ -324,7 +360,7 @@ func checkFileData(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		fatal("error getting item children", err)
+		fatal(ctx, "getting child folder", err)
 	}
 
 	for _, item := range restored.GetValue() {
@@ -374,7 +410,8 @@ func checkFileData(
 // Helpers
 // ---------------------------------------------------------------------------
 
-func fatal(msg string, err error) {
+func fatal(ctx context.Context, msg string, err error) {
+	logger.CtxErr(ctx, err).Error("test failure: " + msg)
 	fmt.Println(msg+":", err)
 	os.Exit(1)
 }
@@ -393,7 +430,7 @@ func permissionsIn(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		fatal("error getting permission", err)
+		fatal(ctx, "getting permission", err)
 	}
 
 	if len(init) > 0 {

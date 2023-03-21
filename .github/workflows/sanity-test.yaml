@@ -19,21 +19,21 @@ concurrency:
   group: sanity_testing-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   Sanity-Tests:
     environment: Testing
     runs-on: ubuntu-latest
     env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
       AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+      CORSO_LOG_FILE: ./src/testlog/testlogging.log
       CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
       TEST_RESULT: "test_results"
-      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
 
     defaults:
       run:
@@ -104,7 +104,9 @@ jobs:
         run: |
           ./corso backup create exchange \
           --user "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress --json 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+           --hide-progress \
+           --json \
+           2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 
@@ -116,12 +118,28 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
 
-      # list the backup exhange
+      # list all exhange backups
       - name: Backup exchange list test
         run: |
           set -euo pipefail
           ./corso backup list exchange \
-          --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
+          --hide-progress \
+          2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
+
+          if ! grep -q  ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt 
+          then
+              echo "listing of backup was not successfull"
+              exit 1
+          fi
+
+      # list the previous exhange backups
+      - name: Backup exchange list test
+        run: |
+          set -euo pipefail
+          ./corso backup list exchange \
+          --hide-progress \
+          --backup "${{ steps.exchange-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
 
           if ! grep -q  ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt 
           then
@@ -136,7 +154,8 @@ jobs:
           set -euo pipefail
           ./corso restore exchange \
           --hide-progress \
-          --backup "${{ steps.exchange-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
+          --backup "${{ steps.exchange-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
       - name: Restoration check
@@ -153,8 +172,11 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create exchange \
+          --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --hide-progress  --json 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+          --hide-progress \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange_incremental.txt ) 
 
@@ -172,7 +194,8 @@ jobs:
           set -euo pipefail
           ./corso restore exchange \
           --hide-progress \
-          --backup "${{ steps.exchange-incremental-test.outputs.result }}" 2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
+          --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
       - name: Restoration check
@@ -192,8 +215,11 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
+          --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --hide-progress  --json 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
+          --hide-progress  \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive.txt ) 
 
@@ -205,12 +231,28 @@ jobs:
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
 
-      # list the bakcup onedrive
+      # list all onedrive backups
       - name: Backup onedrive list test
         run: |
           set -euo pipefail
           ./corso backup list onedrive \
-          --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
+          --hide-progress \
+          2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
+
+          if ! grep -q  ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt 
+          then
+              echo "listing of backup was not successfull"
+              exit 1
+          fi
+
+      # list the previous onedrive backup
+      - name: Backup onedrive list test
+        run: |
+          set -euo pipefail
+          ./corso backup list onedrive \
+          --hide-progress \
+          --backup "${{ steps.onedrive-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
 
           if ! grep -q  ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt 
           then
@@ -223,7 +265,10 @@ jobs:
         id: onedrive-restore-test
         run: |
           set -euo pipefail
-          ./corso restore onedrive --backup "${{ steps.onedrive-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
+          ./corso restore onedrive \
+          --hide-progress \
+          --backup "${{ steps.onedrive-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
 
       - name: Restoration oneDrive check
@@ -240,8 +285,11 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
+          --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}"\
-           --hide-progress  --json 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
+           --hide-progress \
+           --json \
+           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive_incremental.txt ) 
 
@@ -258,7 +306,10 @@ jobs:
         id: onedrive-incremental-restore-test
         run: |
           set -euo pipefail
-          ./corso restore onedrive --backup "${{ steps.onedrive-incremental-test.outputs.result }}"  --hide-progress 2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
+          ./corso restore onedrive \
+          --hide-progress \
+          --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
+          2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
 
       - name: Restoration oneDrive check
@@ -268,4 +319,14 @@ jobs:
         run: |
           set -euo pipefail
           ./sanityCheck
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
       
