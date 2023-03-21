@@ -4,7 +4,6 @@ on:
     branches:
       - main
       - noreflect
-      - less-sanity
   workflow_dispatch:
 
 permissions:
