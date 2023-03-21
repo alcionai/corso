@@ -27,12 +27,10 @@ import (
 const (
 	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
 	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
-	numberOfRetries           = 3
 	retryAttemptHeader        = "Retry-Attempt"
 	retryAfterHeader          = "Retry-After"
 	defaultMaxRetries         = 3
 	defaultDelay              = 3 * time.Second
-	absoluteMaxDelaySeconds   = 180
 	rateLimitHeader           = "RateLimit-Limit"
 	rateRemainingHeader       = "RateLimit-Remaining"
 	rateResetHeader           = "RateLimit-Reset"
