@@ -186,6 +186,8 @@ func (op *RestoreOperation) do(
 		return nil, errors.Wrap(err, "getting backup and details")
 	}
 
+	observe.Message(ctx, observe.Safe("Restoring"), observe.Bullet, observe.PII(bup.Selector.DiscreteOwner))
+
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "formatting paths from details")

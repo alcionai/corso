@@ -148,6 +148,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
+	observe.Message(ctx, observe.Safe("Backing Up"), observe.Bullet, observe.PII(op.ResourceOwner))
+
 	deets, err := op.do(
 		ctx,
 		&opStats,
