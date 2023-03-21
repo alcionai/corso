@@ -308,13 +308,13 @@ func (handler *LoggingMiddleware) Intercept(
 
 	// special case for supportability: log all throttling cases.
 	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
-		log.With(
+		log = log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
 	} else if resp.StatusCode/100 == 4 {
-		log.With("response", getRespDump(ctx, resp, true))
+		log = log.With("response", getRespDump(ctx, resp, true))
 	}
 
 	log.Info(msg)
