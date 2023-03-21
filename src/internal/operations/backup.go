@@ -525,7 +525,7 @@ func mergeDetails(
 		mctx = clues.Add(mctx, "manifest_backup_id", bID)
 
 		_, baseDeets, err := getBackupAndDetailsFromID(
-			ctx,
+			mctx,
 			model.StableID(bID),
 			ms,
 			detailsStore,
