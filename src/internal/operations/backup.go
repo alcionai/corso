@@ -445,11 +445,17 @@ func consumeBackupDataCollections(
 			cats = append(cats, k)
 		}
 
+		mbID, ok := m.GetTag(kopia.TagBackupID)
+		if !ok {
+			mbID = "no_backup_id_tag"
+		}
+
 		logger.Ctx(ctx).Infow(
 			"using base for backup",
-			"snapshot_id", m.ID,
+			"base_snapshot_id", m.ID,
 			"services", svcs,
-			"categories", cats)
+			"categories", cats,
+			"base_backup_id", mbID)
 	}
 
 	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
@@ -509,7 +515,10 @@ func mergeDetails(
 	var addedEntries int
 
 	for _, man := range mans {
-		mctx := clues.Add(ctx, "manifest_id", man.ID)
+		var (
+			mctx                 = clues.Add(ctx, "base_manifest_id", man.ID)
+			manifestAddedEntries int
+		)
 
 		// For now skip snapshots that aren't complete. We will need to revisit this
 		// when we tackle restartability.
@@ -522,7 +531,7 @@ func mergeDetails(
 			return clues.New("no backup ID in snapshot manifest").WithClues(mctx)
 		}
 
-		mctx = clues.Add(mctx, "manifest_backup_id", bID)
+		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
 
 		_, baseDeets, err := getBackupAndDetailsFromID(
 			mctx,
@@ -599,7 +608,13 @@ func mergeDetails(
 			// Track how many entries we added so that we know if we got them all when
 			// we're done.
 			addedEntries++
+			manifestAddedEntries++
 		}
+
+		logger.Ctx(mctx).Infow(
+			"merged details with base manifest",
+			"base_item_count_unfiltered", len(baseDeets.Items()),
+			"base_item_count_added", manifestAddedEntries)
 	}
 
 	if addedEntries != len(shortRefsFromPrevBackup) {
