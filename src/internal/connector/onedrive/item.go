@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -68,10 +69,36 @@ func oneDriveItemMetaReader(
 	driveID string,
 	item models.DriveItemable,
 	fetchPermissions bool,
+	errs *fault.Bus,
 ) (io.ReadCloser, int, error) {
-	meta := Metadata{
-		FileName: ptr.Val(item.GetName()),
-	}
+	return baseItemMetaReader(ctx, service, driveID, item, fetchPermissions, errs)
+}
+
+func sharePointItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+	fetchPermissions bool,
+	errs *fault.Bus,
+) (io.ReadCloser, int, error) {
+	return baseItemMetaReader(ctx, service, driveID, item, false, errs)
+}
+
+func baseItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+	fetchPermissions bool,
+	errs *fault.Bus,
+) (io.ReadCloser, int, error) {
+	var (
+		perms []UserPermission
+		err   error
+		meta  = Metadata{FileName: ptr.Val(item.GetName())}
+		el    = errs.Local()
+	)
 
 	if item.GetShared() == nil {
 		meta.SharingMode = SharingModeInherited
@@ -79,41 +106,21 @@ func oneDriveItemMetaReader(
 		meta.SharingMode = SharingModeCustom
 	}
 
-	var (
-		perms []UserPermission
-		err   error
-	)
-
 	if meta.SharingMode == SharingModeCustom && fetchPermissions {
-		perms, err = oneDriveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
+		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
-			// Keep this in an if-block because if it's not then we have a weird issue
-			// of having no value in error but golang thinking it's non nil because of
-			// the way interfaces work.
-			err = clues.Wrap(err, "fetching item permissions")
+			el.AddRecoverable(clues.Wrap(err, "fetching item permissions"))
 		} else {
 			meta.Permissions = perms
 		}
 	}
 
-	metaJSON, serializeErr := json.Marshal(meta)
-	if serializeErr != nil {
-		serializeErr = clues.Wrap(serializeErr, "serializing item metadata")
-
-		// Need to check if err was already non-nil since it doesn't filter nil
-		// values out in calls to Stack().
-		if err != nil {
-			err = clues.Stack(err, serializeErr)
-		} else {
-			err = serializeErr
-		}
-
-		return nil, 0, err
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, clues.Wrap(err, "serializing item metadata").WithClues(ctx)
 	}
 
-	r := io.NopCloser(bytes.NewReader(metaJSON))
-
-	return r, len(metaJSON), err
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), el.Failure()
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -222,9 +229,9 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 	}
 }
 
-// OneDriveItemPermissionInfo will fetch the permission information
+// driveItemPermissionInfo will fetch the permission information
 // for a drive item given a drive and item id.
-func oneDriveItemPermissionInfo(
+func driveItemPermissionInfo(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID string,

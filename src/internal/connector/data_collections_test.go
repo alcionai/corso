@@ -260,7 +260,6 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
-				sel.DiscreteOwner,
 				sel,
 				connector.credentials,
 				connector.Service,
