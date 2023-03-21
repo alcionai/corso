@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -181,6 +182,7 @@ func checkServiceEnabled(
 	}
 
 	if _, ok := info.DiscoveredServices[service]; !ok {
+		logger.Ctx(ctx).Error("service not enabled")
 		return false, nil
 	}
 
