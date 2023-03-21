@@ -271,12 +271,11 @@ func (handler *LoggingMiddleware) Intercept(
 			"url", req.URL, // TODO: pii
 			"request_len", req.ContentLength,
 		)
-		log       = logger.Ctx(ctx)
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
 	if strings.Contains(req.URL.String(), "users//") {
-		log.Error("malformed request url: missing resource")
+		logger.Ctx(ctx).Error("malformed request url: missing resource")
 	}
 
 	if resp == nil {
@@ -284,6 +283,7 @@ func (handler *LoggingMiddleware) Intercept(
 	}
 
 	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
+	log := logger.Ctx(ctx)
 
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
