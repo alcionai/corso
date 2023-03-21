@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.6.0] (beta) - 2023-03-21
+
 ### Added
 - Sharepoint library (document files) support: backup, list, details, and restore.
 - OneDrive item downloads that return 404 during backup (normally due to external deletion while Corso processes) are now skipped instead of quietly dropped.  These items will appear in the skipped list alongside other skipped cases such as malware detection.
@@ -216,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/alcionai/corso/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/alcionai/corso/compare/v0.2.0...v0.3.0
