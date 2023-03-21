@@ -255,11 +255,12 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			sel := test.getSelector()
 
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
-				test.getSelector(),
+				sel,
 				connector.credentials,
 				connector.Service,
 				connector,

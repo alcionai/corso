@@ -217,7 +217,7 @@ func RestoreCollection(
 				continue
 			}
 
-			if source == OneDriveSource && backupVersion >= version.OneDrive1DataAndMetaFiles {
+			if backupVersion >= version.OneDrive1DataAndMetaFiles {
 				name := itemData.UUID()
 
 				if strings.HasSuffix(name, DataFileSuffix) {

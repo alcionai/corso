@@ -157,6 +157,7 @@ func NewCollection(
 	case SharePointSource:
 		c.itemGetter = getDriveItem
 		c.itemReader = sharePointItemReader
+		c.itemMetaReader = sharePointItemMetaReader
 	default:
 		c.itemGetter = getDriveItem
 		c.itemReader = oneDriveItemReader
@@ -383,10 +384,15 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 		return
 	}
 
+	queuedPath := "/" + parentPathString
+	if oc.source == SharePointSource && len(oc.driveName) > 0 {
+		queuedPath = "/" + oc.driveName + queuedPath
+	}
+
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		observe.PII("/"+parentPathString),
+		observe.PII(queuedPath),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -420,11 +426,11 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				err          error
 			)
 
-			ctx = clues.Add(ctx,
+			ctx = clues.Add(
+				ctx,
 				"backup_item_id", itemID,
 				"backup_item_name", itemName,
-				"backup_item_size", itemSize,
-			)
+				"backup_item_size", itemSize)
 
 			item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
@@ -442,19 +448,17 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				metaSuffix = DirMetaFileSuffix
 			}
 
-			if oc.source == OneDriveSource {
-				// Fetch metadata for the file
-				itemMeta, itemMetaSize, err = oc.itemMetaReader(
-					ctx,
-					oc.service,
-					oc.driveID,
-					item,
-					oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
+			// Fetch metadata for the file
+			itemMeta, itemMetaSize, err = oc.itemMetaReader(
+				ctx,
+				oc.service,
+				oc.driveID,
+				item,
+				oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
 
-				if err != nil {
-					el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
-					return
-				}
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
+				return
 			}
 
 			switch oc.source {
@@ -469,10 +473,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			ctx = clues.Add(ctx, "backup_item_info", itemInfo)
 
 			if isFile {
-				dataSuffix := ""
-				if oc.source == OneDriveSource {
-					dataSuffix = DataFileSuffix
-				}
+				dataSuffix := DataFileSuffix
 
 				// Construct a new lazy readCloser to feed to the collection consumer.
 				// This ensures that downloads won't be attempted unless that consumer
@@ -503,20 +504,18 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				}
 			}
 
-			if oc.source == OneDriveSource {
-				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-					progReader, closer := observe.ItemProgress(
-						ctx, itemMeta, observe.ItemBackupMsg,
-						observe.PII(metaFileName+metaSuffix), int64(itemMetaSize))
-					go closer()
-					return progReader, nil
-				})
+			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+				progReader, closer := observe.ItemProgress(
+					ctx, itemMeta, observe.ItemBackupMsg,
+					observe.PII(metaFileName+metaSuffix), int64(itemMetaSize))
+				go closer()
+				return progReader, nil
+			})
 
-				oc.data <- &metadataItem{
-					id:      metaFileName + metaSuffix,
-					data:    metaReader,
-					modTime: time.Now(),
-				}
+			oc.data <- &metadataItem{
+				id:      metaFileName + metaSuffix,
+				data:    metaReader,
+				modTime: time.Now(),
 			}
 
 			// Item read successfully, add to collection

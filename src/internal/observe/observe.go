@@ -167,9 +167,12 @@ func Message(ctx context.Context, msgs ...cleanable) {
 	bar := progress.New(
 		-1,
 		mpb.NopStyle(),
-		mpb.PrependDecorators(
-			decor.Name(message, decor.WC{W: len(message) + 1, C: decor.DidentRight}),
-		),
+		mpb.PrependDecorators(decor.Name(
+			message,
+			decor.WC{
+				W: len(message) + 1,
+				C: decor.DidentRight,
+			})),
 	)
 
 	// Complete the bar immediately
@@ -206,8 +209,7 @@ func MessageWithCompletion(
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
 			decor.Name(message+":"),
-			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8}),
-		),
+			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
 		mpb.BarFillerOnComplete("done"),
 	)
 
@@ -261,8 +263,7 @@ func ItemProgress(
 			decor.Name(header, decor.WCSyncSpaceR),
 			decor.Name(iname.String(), decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
-			decor.NewPercentage("%d ", decor.WC{W: 4}),
-		),
+			decor.NewPercentage("%d ", decor.WC{W: 4})),
 	}
 
 	if !cfg.keepBarsAfterComplete {
@@ -308,8 +309,7 @@ func ProgressWithCount(
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
 			decor.Name(message.String()),
-			decor.Counters(0, " %d/%d "),
-		),
+			decor.Counters(0, " %d/%d ")),
 	}
 
 	if !cfg.keepBarsAfterComplete {
