@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Listing a single backup by id will also list the skipped and failed items that occurred during the backup.  These can be filtered out with the flags `--failed-items hide`, `--skipped-items hide`, and `--recovered-errors hide`.
 - Enable incremental backups for OneDrive if permissions aren't being backed up.
 - Show progressbar while files for user are enumerated
+- Hidden flag to control parallelism for fetching Exchange items (`--fetch-parallelism`). May help reduce `ApplicationThrottled` errors but will slow down backup.
 
 ### Fixed
 - Fix repo connect not working without a config file

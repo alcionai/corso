@@ -284,7 +284,9 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 // and packs all of the structured data in the error inside it.
 func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
 	return Ctx(ctx).
-		With("error", err).
+		With(
+			"error", err,
+			"error_labels", clues.Labels(err)).
 		With(clues.InErr(err).Slice()...)
 }
 
