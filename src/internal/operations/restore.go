@@ -196,7 +196,8 @@ func (op *RestoreOperation) do(
 	ctx = clues.Add(
 		ctx,
 		"resource_owner", bup.Selector.DiscreteOwner,
-		"details_paths", len(paths))
+		"details_paths", len(paths),
+		"backup_snapshot_id", bup.SnapshotID)
 
 	op.bus.Event(
 		ctx,
