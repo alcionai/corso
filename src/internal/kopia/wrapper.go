@@ -333,8 +333,7 @@ func getItemStream(
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
 		snapshotRoot,
-		encodeElements(itemPath.PopFront().Elements()...),
-	)
+		encodeElements(itemPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
 			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
@@ -413,7 +412,9 @@ func (w Wrapper) RestoreMultipleItems(
 			return nil, el.Failure()
 		}
 
-		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
+		ictx := clues.Add(ctx, "item_path", itemPath.String)
+
+		ds, err := getItemStream(ictx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 			continue
@@ -422,7 +423,7 @@ func (w Wrapper) RestoreMultipleItems(
 		parentPath, err := itemPath.Dir()
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "making directory collection").
-				WithClues(ctx).
+				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
 
 			continue
