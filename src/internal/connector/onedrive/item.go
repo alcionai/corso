@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -69,9 +68,8 @@ func oneDriveItemMetaReader(
 	driveID string,
 	item models.DriveItemable,
 	fetchPermissions bool,
-	errs *fault.Bus,
 ) (io.ReadCloser, int, error) {
-	return baseItemMetaReader(ctx, service, driveID, item, fetchPermissions, errs)
+	return baseItemMetaReader(ctx, service, driveID, item, fetchPermissions)
 }
 
 func sharePointItemMetaReader(
@@ -80,9 +78,9 @@ func sharePointItemMetaReader(
 	driveID string,
 	item models.DriveItemable,
 	fetchPermissions bool,
-	errs *fault.Bus,
 ) (io.ReadCloser, int, error) {
-	return baseItemMetaReader(ctx, service, driveID, item, false, errs)
+	// TODO: include permissions
+	return baseItemMetaReader(ctx, service, driveID, item, false)
 }
 
 func baseItemMetaReader(
@@ -91,13 +89,11 @@ func baseItemMetaReader(
 	driveID string,
 	item models.DriveItemable,
 	fetchPermissions bool,
-	errs *fault.Bus,
 ) (io.ReadCloser, int, error) {
 	var (
 		perms []UserPermission
 		err   error
 		meta  = Metadata{FileName: ptr.Val(item.GetName())}
-		el    = errs.Local()
 	)
 
 	if item.GetShared() == nil {
@@ -109,10 +105,10 @@ func baseItemMetaReader(
 	if meta.SharingMode == SharingModeCustom && fetchPermissions {
 		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
-			el.AddRecoverable(clues.Wrap(err, "fetching item permissions"))
-		} else {
-			meta.Permissions = perms
+			return nil, 0, err
 		}
+
+		meta.Permissions = perms
 	}
 
 	metaJSON, err := json.Marshal(meta)
@@ -120,7 +116,7 @@ func baseItemMetaReader(
 		return nil, 0, clues.Wrap(err, "serializing item metadata").WithClues(ctx)
 	}
 
-	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), el.Failure()
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -244,7 +240,7 @@ func driveItemPermissionInfo(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
+		return nil, graph.Wrap(ctx, err, "fetching item permissions").With("item_id", itemID)
 	}
 
 	uperms := filterUserPermissions(ctx, perm.GetValue())

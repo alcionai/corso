@@ -237,7 +237,6 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				_ string,
 				_ models.DriveItemable,
 				_ bool,
-				_ *fault.Bus,
 			) (io.ReadCloser, int, error) {
 				metaJSON, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -386,7 +385,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				_ string,
 				_ models.DriveItemable,
 				_ bool,
-				_ *fault.Bus,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
@@ -492,7 +490,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				_ string,
 				_ models.DriveItemable,
 				_ bool,
-				_ *fault.Bus,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
@@ -579,7 +576,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				_ string,
 				_ models.DriveItemable,
 				_ bool,
-				_ *fault.Bus,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 16, nil
 			}
