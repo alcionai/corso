@@ -2,6 +2,7 @@ package repo
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -73,7 +74,7 @@ corso repo init s3 --bucket my-bucket
 corso repo init s3 --bucket my-bucket --prefix my-prefix
 
 # Create a new Corso repo in an S3 compliant storage provider
-corso repo init s3 --bucket my-bucket --endpoint https://my-s3-server-endpoint`
+corso repo init s3 --bucket my-bucket --endpoint my-s3-server-endpoint`
 
 	s3ProviderCommandConnectExamples = `# Connect to a Corso repo in AWS S3 bucket named "my-bucket"
 corso repo connect s3 --bucket my-bucket
@@ -82,7 +83,7 @@ corso repo connect s3 --bucket my-bucket
 corso repo connect s3 --bucket my-bucket --prefix my-prefix
 
 # Connect to a Corso repo in an S3 compliant storage provider
-corso repo connect s3 --bucket my-bucket --endpoint https://my-s3-server-endpoint`
+corso repo connect s3 --bucket my-bucket --endpoint my-s3-server-endpoint`
 )
 
 // ---------------------------------------------------------------------------------------------------------
@@ -126,6 +127,13 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
+	}
+
+	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
+		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
+			"pass --disable-tls flag to use http:// instead of default https://"
+
+		return Only(ctx, errors.New(invalidEndpointErr))
 	}
 
 	m365, err := cfg.Account.M365Config()
@@ -190,6 +198,13 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
+	}
+
+	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
+		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
+			"pass --disable-tls flag to use http:// instead of default https://"
+
+		return Only(ctx, errors.New(invalidEndpointErr))
 	}
 
 	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, options.Control())

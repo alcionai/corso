@@ -27,12 +27,10 @@ import (
 const (
 	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
 	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
-	numberOfRetries           = 3
 	retryAttemptHeader        = "Retry-Attempt"
 	retryAfterHeader          = "Retry-After"
 	defaultMaxRetries         = 3
 	defaultDelay              = 3 * time.Second
-	absoluteMaxDelaySeconds   = 180
 	rateLimitHeader           = "RateLimit-Limit"
 	rateRemainingHeader       = "RateLimit-Remaining"
 	rateResetHeader           = "RateLimit-Reset"
@@ -309,7 +307,7 @@ func (handler *LoggingMiddleware) Intercept(
 	msg := fmt.Sprintf("graph api error: %s", resp.Status)
 
 	// special case for supportability: log all throttling cases.
-	if resp.StatusCode == http.StatusTooManyRequests {
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
 		log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),

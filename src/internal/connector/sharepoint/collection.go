@@ -186,7 +186,6 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		sc.fullPath.Category().String(),
-		observe.Safe("name"),
 		observe.PII(sc.fullPath.Folder(false)))
 	go closer()
 

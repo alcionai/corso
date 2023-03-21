@@ -38,9 +38,9 @@ var (
 )
 
 const (
-	scopeKeyCategory   = "category"
-	scopeKeyInfoFilter = "info_filter"
-	scopeKeyDataType   = "type"
+	scopeKeyCategory     = "category"
+	scopeKeyInfoCategory = "details_info_category"
+	scopeKeyDataType     = "type"
 )
 
 // The granularity exprerssed by the scope.  Groups imply non-item granularity,
@@ -116,7 +116,7 @@ type Selector struct {
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
 	Excludes []scope `json:"exclusions,omitempty"`
-	// A slice of filter scopes.  All inclusions must also match ALL filters.
+	// A slice of info scopes.  All inclusions must also match ALL filters.
 	Filters []scope `json:"filters,omitempty"`
 	// A slice of inclusion scopes.  Comparators must match either one of these,
 	// or all filters, to be included.
