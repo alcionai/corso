@@ -7,7 +7,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -18,6 +17,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
+	"golang.org/x/time/rate"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -211,15 +211,7 @@ func HTTPClient(opts ...option) *http.Client {
 
 // GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
 func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
-	tcm := ThrottleControlMiddleware{
-		interval: time.Minute,
-		getLimit: 975,
-	}
-
-	go tcm.tick(context.Background())
-
 	return []khttp.Middleware{
-		&tcm,
 		&RetryHandler{
 			// The maximum number of times a request can be retried
 			MaxRetries: maxRetry,
@@ -232,6 +224,7 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
+		&ThrottleControlMiddleware{},
 	}
 }
 
@@ -379,55 +372,42 @@ func (middleware RetryHandler) Intercept(
 	return response, nil
 }
 
+// We're trying to keep calls below the 10k-per-10-minute threshold.
+// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
+// which is a bit below the mark.
+// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
+// We'll have built up 900 tokens in reserve, so the first 900 calls go through
+// immediately.  Over the next 10 minutes, we'll partition out the other calls
+// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
+// the volume keeps up after that, we'll always stay between 9000 and 9900 out
+// of 10k.
+const (
+	perSecond = 15
+	maxCap    = 900
+)
+
+// Single, global rate limiter at this time.  Refinements for method (creates,
+// versus reads) or service can come later.
+var limiter = rate.NewLimiter(perSecond, maxCap)
+
+// QueueRequest will allow the request to occur immediately if we're under the
+// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
+// the next token set is available.
+func QueueRequest(ctx context.Context) {
+	if err := limiter.Wait(ctx); err != nil {
+		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	}
+}
+
 // ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
-// request limits.  Currently a rudimentary implementation, and in need of
-// configuration refinement.
-// TODO: doesn't actually save us until this tracker is shared across all http
-// clients as a singleton.  But this gets the point across.
-type ThrottleControlMiddleware struct {
-	interval time.Duration
-	getLimit int64
-	getCount int64
-	block    chan struct{}
-}
-
-func (handler *ThrottleControlMiddleware) tick(ctx context.Context) {
-	tock := time.NewTicker(handler.interval)
-	handler.block = make(chan struct{})
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-tock.C:
-			atomic.AddInt64(&handler.getCount, -1*handler.getLimit)
-			close(handler.block)
-			handler.block = make(chan struct{})
-		}
-	}
-}
-
-func (handler *ThrottleControlMiddleware) inc() {
-	atomic.AddInt64(&handler.getCount, 1)
-}
-
-func (handler *ThrottleControlMiddleware) blockUntilOK() {
-	if handler.getCount > handler.getLimit {
-		<-handler.block
-	}
-}
+// request limits.
+type ThrottleControlMiddleware struct{}
 
 func (handler *ThrottleControlMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	if req.Method != http.MethodGet {
-		return pipeline.Next(req, middlewareIndex)
-	}
-
-	handler.inc()
-	handler.blockUntilOK()
-
+	QueueRequest(req.Context())
 	return pipeline.Next(req, middlewareIndex)
 }
