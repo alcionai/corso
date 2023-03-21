@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - noreflect
   workflow_dispatch:
     inputs:
       user:
