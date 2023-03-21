@@ -35,8 +35,7 @@ func (middleware RetryHandler) retryRequest(
 ) (*http.Response, error) {
 	if (respErr != nil || middleware.isRetriableErrorCode(req, resp.StatusCode)) &&
 		middleware.isRetriableRequest(req) &&
-		executionCount < middleware.MaxRetries &&
-		cumulativeDelay < time.Duration(absoluteMaxDelaySeconds)*time.Second {
+		executionCount < middleware.MaxRetries {
 		executionCount++
 
 		delay := middleware.getRetryDelay(req, resp, exponentialBackoff)
@@ -71,7 +70,7 @@ func (middleware RetryHandler) retryRequest(
 }
 
 func (middleware RetryHandler) isRetriableErrorCode(req *http.Request, code int) bool {
-	return code == http.StatusInternalServerError
+	return code == http.StatusInternalServerError || code == http.StatusServiceUnavailable
 }
 
 func (middleware RetryHandler) isRetriableRequest(req *http.Request) bool {
