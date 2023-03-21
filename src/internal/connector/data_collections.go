@@ -115,7 +115,6 @@ func (gc *GraphConnector) DataCollections(
 		colls, excludes, err := sharepoint.DataCollections(
 			ctx,
 			gc.itemClient,
-			gc.Sites[sels.DiscreteOwner], // siteID -> webURL lookup
 			sels,
 			gc.credentials,
 			gc.Service,

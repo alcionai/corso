@@ -31,7 +31,6 @@ type statusUpdater interface {
 func DataCollections(
 	ctx context.Context,
 	itemClient *http.Client,
-	ownerName string,
 	selector selectors.Selector,
 	creds account.M365Config,
 	serv graph.Servicer,
