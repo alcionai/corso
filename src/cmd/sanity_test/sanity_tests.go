@@ -46,13 +46,19 @@ func main() {
 	}
 }
 
-func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
+func checkEmailRestoration(
+	client *msgraphsdk.GraphServiceClient,
+	testUser,
+	folderName string,
+	startTime time.Time,
+) {
 	var (
 		messageCount  = make(map[string]int32)
 		restoreFolder models.MailFolderable
 	)
 
-	builder := client.UsersById(testUser).MailFolders()
+	user := client.UsersById(testUser)
+	builder := user.MailFolders()
 
 	for {
 		result, err := builder.Get(context.Background(), nil)
@@ -82,6 +88,8 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 				continue
 			}
 
+			getAllSubFolder(user, r, "", messageCount)
+
 			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
 		}
 
@@ -93,7 +101,6 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
 	}
 
-	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(*restoreFolder.GetId())
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
@@ -111,6 +118,76 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 				"Restore count: ",
 				*restore.GetTotalItemCount())
 			os.Exit(1)
+		}
+
+		checkAllSubFolder(user, restore, "", messageCount)
+	}
+}
+
+func getAllSubFolder(
+	user *users.UserItemRequestBuilder,
+	r models.MailFolderable,
+	parentFolder string,
+	messageCount map[string]int32,
+) {
+	folder := user.MailFoldersById(*r.GetId())
+
+	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Error getting the drive: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, child := range childFolder.GetValue() {
+		fullFolderName := *r.GetDisplayName() + "/" + *child.GetDisplayName()
+
+		if parentFolder != "" {
+			fullFolderName = parentFolder + "/" + fullFolderName
+		}
+
+		messageCount[fullFolderName] = *child.GetTotalItemCount()
+
+		// recursively check for subfolders
+		if *child.GetChildFolderCount() > 0 {
+			parentFolder := *r.GetDisplayName()
+			getAllSubFolder(user, child, parentFolder, messageCount)
+		}
+	}
+}
+
+func checkAllSubFolder(
+	user *users.UserItemRequestBuilder,
+	r models.MailFolderable,
+	parentFolder string,
+	messageCount map[string]int32,
+) {
+	folder := user.MailFoldersById(*r.GetId())
+
+	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Error getting the drive: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, child := range childFolder.GetValue() {
+		fullFolderName := *r.GetDisplayName() + "/" + *child.GetDisplayName()
+		if parentFolder != "" {
+			fullFolderName = parentFolder + "/" + fullFolderName
+		}
+
+		if messageCount[fullFolderName] != *child.GetTotalItemCount() {
+			fmt.Println("Restore was not succesfull for: ",
+				fullFolderName,
+				"Folder count: ",
+				messageCount[fullFolderName],
+				"Restore count: ",
+				*child.GetTotalItemCount())
+			os.Exit(1)
+		}
+
+		if *child.GetChildFolderCount() > 0 {
+			parentFolder := *r.GetDisplayName()
+			checkAllSubFolder(user, child, parentFolder, messageCount)
 		}
 	}
 }
