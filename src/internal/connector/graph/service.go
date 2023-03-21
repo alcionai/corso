@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -163,7 +164,10 @@ func MinimumBackoff(dur time.Duration) option {
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
 // to create  *msgraphsdk.GraphServiceClient
-func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.GraphRequestAdapter, error) {
+func CreateAdapter(
+	tenant, client, secret string,
+	opts ...option,
+) (*msgraphsdk.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
@@ -207,7 +211,15 @@ func HTTPClient(opts ...option) *http.Client {
 
 // GetDefaultMiddlewares creates a new default set of middlewares for the Kiota request adapter
 func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
+	tcm := ThrottleControlMiddleware{
+		interval: time.Minute,
+		getLimit: 975,
+	}
+
+	go tcm.tick(context.Background())
+
 	return []khttp.Middleware{
+		&tcm,
 		&RetryHandler{
 			// The maximum number of times a request can be retried
 			MaxRetries: maxRetry,
@@ -224,8 +236,10 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 }
 
 // GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
-	maxRetry int, minDelay time.Duration,
+func GetKiotaMiddlewares(
+	options *msgraphgocore.GraphClientOptions,
+	maxRetry int,
+	minDelay time.Duration,
 ) []khttp.Middleware {
 	kiotaMiddlewares := GetMiddlewares(maxRetry, minDelay)
 	graphMiddlewares := []khttp.Middleware{
@@ -363,4 +377,57 @@ func (middleware RetryHandler) Intercept(
 	}
 
 	return response, nil
+}
+
+// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
+// request limits.  Currently a rudimentary implementation, and in need of
+// configuration refinement.
+// TODO: doesn't actually save us until this tracker is shared across all http
+// clients as a singleton.  But this gets the point across.
+type ThrottleControlMiddleware struct {
+	interval time.Duration
+	getLimit int64
+	getCount int64
+	block    chan struct{}
+}
+
+func (handler *ThrottleControlMiddleware) tick(ctx context.Context) {
+	tock := time.NewTicker(handler.interval)
+	handler.block = make(chan struct{})
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tock.C:
+			atomic.AddInt64(&handler.getCount, -1*handler.getLimit)
+			close(handler.block)
+			handler.block = make(chan struct{})
+		}
+	}
+}
+
+func (handler *ThrottleControlMiddleware) inc() {
+	atomic.AddInt64(&handler.getCount, 1)
+}
+
+func (handler *ThrottleControlMiddleware) blockUntilOK() {
+	if handler.getCount > handler.getLimit {
+		<-handler.block
+	}
+}
+
+func (handler *ThrottleControlMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	if req.Method != http.MethodGet {
+		return pipeline.Next(req, middlewareIndex)
+	}
+
+	handler.inc()
+	handler.blockUntilOK()
+
+	return pipeline.Next(req, middlewareIndex)
 }

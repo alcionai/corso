@@ -345,12 +345,18 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				return bsel.Selector
 			},
 			cleanup: func(t *testing.T, dest string) {
+				ctx, flush := tester.NewContext()
+				defer flush()
+
 				act := tester.NewM365Account(t)
 
 				m365, err := act.M365Config()
 				require.NoError(t, err, clues.ToCore(err))
 
-				adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+				adpt, err := graph.CreateAdapter(
+					m365.AzureTenantID,
+					m365.AzureClientID,
+					m365.AzureClientSecret)
 				require.NoError(t, err, clues.ToCore(err))
 
 				service := graph.NewService(adpt)

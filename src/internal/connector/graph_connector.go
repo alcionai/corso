@@ -105,8 +105,7 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
-		gc.credentials.AzureClientSecret,
-	)
+		gc.credentials.AzureClientSecret)
 	if err != nil {
 		return &graph.Service{}, err
 	}

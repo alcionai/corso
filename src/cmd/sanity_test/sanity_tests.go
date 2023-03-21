@@ -19,8 +19,7 @@ func main() {
 	adapter, err := graph.CreateAdapter(
 		os.Getenv("AZURE_TENANT_ID"),
 		os.Getenv("AZURE_CLIENT_ID"),
-		os.Getenv("AZURE_CLIENT_SECRET"),
-	)
+		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
 		fmt.Println("error while creating adapter: ", err)
 		os.Exit(1)
