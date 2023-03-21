@@ -186,10 +186,16 @@ const (
 // utilized with calls like Inc and Since.
 func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 	var (
+		// report interval time-bounds metrics into buckets.  Retention
+		// controls how long each interval sticks around.  Neither one controls
+		// logging rates; that's handled by dumpMetrics().
 		sink = metrics.NewInmemSink(reportInterval, retentionDuration)
 		cfg  = metrics.DefaultConfig("corso")
 		sig  = metrics.NewInmemSignal(sink, metrics.DefaultSignal, w)
 	)
+
+	cfg.EnableHostname = false
+	cfg.EnableRuntimeMetrics = false
 
 	gm, err := metrics.NewGlobal(cfg, sink)
 	if err != nil {
@@ -209,6 +215,11 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 	return context.WithValue(ctx, sinkCtxKey, sink), flush
 }
 
+// dumpMetrics runs a loop that sends a os signal (SIGUSR1 on linux/mac, SIGBREAK on windows)
+// every logging interval.  This syscall getts picked up by the metrics inmem signal and causes
+// it to dump metrics to the provided writer (which should be the logger).
+// Expectation is for users to call this in a goroutine.  Any signal or close() on the stop chan
+// will exit the loop.
 func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSignal) {
 	tock := time.Tick(reportInterval)
 
