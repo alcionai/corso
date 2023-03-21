@@ -63,7 +63,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 	}{
 		{"Include Scopes", sel.Includes},
 		{"Exclude Scopes", sel.Excludes},
-		{"Filter Scopes", sel.Filters},
+		{"info scopes", sel.Filters},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -348,10 +348,10 @@ func (suite *OneDriveSelectorSuite) TestCategory_PathType() {
 		{OneDriveUser, path.UnknownCategory},
 		{OneDriveItem, path.FilesCategory},
 		{OneDriveFolder, path.FilesCategory},
-		{FileFilterCreatedAfter, path.FilesCategory},
-		{FileFilterCreatedBefore, path.FilesCategory},
-		{FileFilterModifiedAfter, path.FilesCategory},
-		{FileFilterModifiedBefore, path.FilesCategory},
+		{FileInfoCreatedAfter, path.FilesCategory},
+		{FileInfoCreatedBefore, path.FilesCategory},
+		{FileInfoModifiedAfter, path.FilesCategory},
+		{FileInfoModifiedBefore, path.FilesCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {

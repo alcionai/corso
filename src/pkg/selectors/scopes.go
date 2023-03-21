@@ -140,7 +140,7 @@ type (
 		categorizer() categorizer
 
 		// matchesInfo is used to determine if the scope values match a specific DetailsEntry
-		// ItemInfo filter.  Unlike path filtering, the entry comparison requires service-specific
+		// ItemInfo value.  Unlike path comparison, the entry comparison requires service-specific
 		// context in order for the scope to extract the correct serviceInfo in the entry.
 		//
 		// Params:
@@ -178,18 +178,18 @@ func makeScope[T scopeT](
 	return s
 }
 
-// makeFilterScope produces a well formatted, typed scope, with properties specifically oriented
+// makeInfoScope produces a well formatted, typed scope, with properties specifically oriented
 // towards identifying filter-type scopes, that ensures all base values are populated.
-func makeFilterScope[T scopeT](
-	cat, filterCat categorizer,
+func makeInfoScope[T scopeT](
+	cat, infoCat categorizer,
 	vs []string,
 	f func([]string) filters.Filter,
 ) T {
 	return T{
-		scopeKeyCategory:   filters.Identity(cat.String()),
-		scopeKeyDataType:   filters.Identity(cat.leafCat().String()),
-		scopeKeyInfoFilter: filters.Identity(filterCat.String()),
-		filterCat.String(): f(clean(vs)),
+		scopeKeyCategory:     filters.Identity(cat.String()),
+		scopeKeyDataType:     filters.Identity(cat.leafCat().String()),
+		scopeKeyInfoCategory: filters.Identity(infoCat.String()),
+		infoCat.String():     f(clean(vs)),
 	}
 }
 
@@ -227,14 +227,14 @@ func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
 }
 
 // getCategory returns the scope's category value.
-// if s is a filter-type scope, returns the filter category.
+// if s is an info-type scope, returns the info category.
 func getCategory[T scopeT](s T) string {
 	return s[scopeKeyCategory].Target
 }
 
-// getFilterCategory returns the scope's infoFilter category value.
-func getFilterCategory[T scopeT](s T) string {
-	return s[scopeKeyInfoFilter].Target
+// getInfoCategory returns the scope's infoFilter category value.
+func getInfoCategory[T scopeT](s T) string {
+	return s[scopeKeyInfoCategory].Target
 }
 
 // getCatValue takes the value of s[cat], split it by the standard
@@ -456,8 +456,8 @@ func matchesEntry[T scopeT, C categoryT](
 	pathValues map[categorizer][]string,
 	entry details.DetailsEntry,
 ) bool {
-	// filterCategory requires matching against service-specific info values
-	if len(getFilterCategory(sc)) > 0 {
+	// InfoCategory requires matching against service-specific info values
+	if len(getInfoCategory(sc)) > 0 {
 		return sc.matchesInfo(entry.ItemInfo)
 	}
 

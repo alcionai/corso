@@ -323,149 +323,149 @@ func (s *exchange) AllData() []ExchangeScope {
 }
 
 // -------------------
-// Filter Factories
+// Info Factories
 
-// ContactName produces one or more exchange contact name filter scopes.
+// ContactName produces one or more exchange contact name info scopes.
 // Matches any contact whose name contains the provided string.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeContact,
-			ExchangeFilterContactName,
+			ExchangeInfoContactName,
 			[]string{senderID},
 			wrapSliceFilter(filters.In)),
 	}
 }
 
-// EventSubject produces one or more exchange event subject filter scopes.
+// EventSubject produces one or more exchange event subject info scopes.
 // Matches any event where the event subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) EventOrganizer(organizer string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeEvent,
-			ExchangeFilterEventOrganizer,
+			ExchangeInfoEventOrganizer,
 			[]string{organizer},
 			wrapSliceFilter(filters.In)),
 	}
 }
 
-// EventRecurs produces one or more exchange event recurrence filter scopes.
+// EventRecurs produces one or more exchange event recurrence info scopes.
 // Matches any event if the comparator flag matches the event recurrence flag.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) EventRecurs(recurs string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeEvent,
-			ExchangeFilterEventRecurs,
+			ExchangeInfoEventRecurs,
 			[]string{recurs},
 			wrapFilter(filters.Equal)),
 	}
 }
 
-// EventStartsAfter produces an exchange event starts-after filter scope.
+// EventStartsAfter produces an exchange event starts-after info scope.
 // Matches any event where the start time is after the timestring.
 // If the input equals selectors.Any, the scope will match all times.
 // If the input is empty or selectors.None, the scope will always fail comparisons.
 func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeEvent,
-			ExchangeFilterEventStartsAfter,
+			ExchangeInfoEventStartsAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
 }
 
-// EventStartsBefore produces an exchange event starts-before filter scope.
+// EventStartsBefore produces an exchange event starts-before info scope.
 // Matches any event where the start time is before the timestring.
 // If the input equals selectors.Any, the scope will match all times.
 // If the input is empty or selectors.None, the scope will always fail comparisons.
 func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeEvent,
-			ExchangeFilterEventStartsBefore,
+			ExchangeInfoEventStartsBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
 }
 
-// EventSubject produces one or more exchange event subject filter scopes.
+// EventSubject produces one or more exchange event subject info scopes.
 // Matches any event where the event subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) EventSubject(subject string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeEvent,
-			ExchangeFilterEventSubject,
+			ExchangeInfoEventSubject,
 			[]string{subject},
 			wrapSliceFilter(filters.In)),
 	}
 }
 
-// MailReceivedAfter produces an exchange mail received-after filter scope.
+// MailReceivedAfter produces an exchange mail received-after info scope.
 // Matches any mail which was received after the timestring.
 // If the input equals selectors.Any, the scope will match all times.
 // If the input is empty or selectors.None, the scope will always fail comparisons.
 func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeMail,
-			ExchangeFilterMailReceivedAfter,
+			ExchangeInfoMailReceivedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
 }
 
-// MailReceivedBefore produces an exchange mail received-before filter scope.
+// MailReceivedBefore produces an exchange mail received-before info scope.
 // Matches any mail which was received before the timestring.
 // If the input equals selectors.Any, the scope will match all times.
 // If the input is empty or selectors.None, the scope will always fail comparisons.
 func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeMail,
-			ExchangeFilterMailReceivedBefore,
+			ExchangeInfoMailReceivedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
 }
 
-// MailSender produces one or more exchange mail sender filter scopes.
+// MailSender produces one or more exchange mail sender info scopes.
 // Matches any mail whose sender contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) MailSender(sender string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeMail,
-			ExchangeFilterMailSender,
+			ExchangeInfoMailSender,
 			[]string{sender},
 			wrapSliceFilter(filters.In)),
 	}
 }
 
-// MailSubject produces one or more exchange mail subject line filter scopes.
+// MailSubject produces one or more exchange mail subject line info scopes.
 // Matches any mail whose subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 	return []ExchangeScope{
-		makeFilterScope[ExchangeScope](
+		makeInfoScope[ExchangeScope](
 			ExchangeMail,
-			ExchangeFilterMailSubject,
+			ExchangeInfoMailSubject,
 			[]string{subject},
 			wrapSliceFilter(filters.In)),
 	}
@@ -484,6 +484,7 @@ var _ categorizer = ExchangeCategoryUnknown
 
 const (
 	ExchangeCategoryUnknown exchangeCategory = ""
+
 	// types of data identified by exchange
 	ExchangeContact       exchangeCategory = "ExchangeContact"
 	ExchangeContactFolder exchangeCategory = "ExchangeContactFolder"
@@ -492,20 +493,18 @@ const (
 	ExchangeMail          exchangeCategory = "ExchangeMail"
 	ExchangeMailFolder    exchangeCategory = "ExchangeMailFolder"
 	ExchangeUser          exchangeCategory = "ExchangeUser"
-	// append new data cats here
 
-	// filterable topics identified by exchange
-	ExchangeFilterMailSender         exchangeCategory = "ExchangeFilterMailSender"
-	ExchangeFilterMailSubject        exchangeCategory = "ExchangeFilterMailSubject"
-	ExchangeFilterMailReceivedAfter  exchangeCategory = "ExchangeFilterMailReceivedAfter"
-	ExchangeFilterMailReceivedBefore exchangeCategory = "ExchangeFilterMailReceivedBefore"
-	ExchangeFilterContactName        exchangeCategory = "ExchangeFilterContactName"
-	ExchangeFilterEventOrganizer     exchangeCategory = "ExchangeFilterEventOrganizer"
-	ExchangeFilterEventRecurs        exchangeCategory = "ExchangeFilterEventRecurs"
-	ExchangeFilterEventStartsAfter   exchangeCategory = "ExchangeFilterEventStartsAfter"
-	ExchangeFilterEventStartsBefore  exchangeCategory = "ExchangeFilterEventStartsBefore"
-	ExchangeFilterEventSubject       exchangeCategory = "ExchangeFilterEventSubject"
-	// append new filter cats here
+	// data contained within details.ItemInfo
+	ExchangeInfoMailSender         exchangeCategory = "ExchangeInfoMailSender"
+	ExchangeInfoMailSubject        exchangeCategory = "ExchangeInfoMailSubject"
+	ExchangeInfoMailReceivedAfter  exchangeCategory = "ExchangeInfoMailReceivedAfter"
+	ExchangeInfoMailReceivedBefore exchangeCategory = "ExchangeInfoMailReceivedBefore"
+	ExchangeInfoContactName        exchangeCategory = "ExchangeInfoContactName"
+	ExchangeInfoEventOrganizer     exchangeCategory = "ExchangeInfoEventOrganizer"
+	ExchangeInfoEventRecurs        exchangeCategory = "ExchangeInfoEventRecurs"
+	ExchangeInfoEventStartsAfter   exchangeCategory = "ExchangeInfoEventStartsAfter"
+	ExchangeInfoEventStartsBefore  exchangeCategory = "ExchangeInfoEventStartsBefore"
+	ExchangeInfoEventSubject       exchangeCategory = "ExchangeInfoEventSubject"
 )
 
 // exchangeLeafProperties describes common metadata of the leaf categories
@@ -535,22 +534,22 @@ func (ec exchangeCategory) String() string {
 // leafCat returns the leaf category of the receiver.
 // If the receiver category has multiple leaves (ex: User) or no leaves,
 // (ex: Unknown), the receiver itself is returned.
-// If the receiver category is a filter type (ex: ExchangeFilterMailSubject),
-// returns the category covered by the filter.
+// If the receiver category is an info type (ex: ExchangeInfoMailSubject),
+// returns the category covered by the info.
 // Ex: ExchangeContactFolder.leafCat() => ExchangeContact
 // Ex: ExchangeEvent.leafCat() => ExchangeEvent
 // Ex: ExchangeUser.leafCat() => ExchangeUser
 func (ec exchangeCategory) leafCat() categorizer {
 	switch ec {
-	case ExchangeContact, ExchangeContactFolder, ExchangeFilterContactName:
+	case ExchangeContact, ExchangeContactFolder, ExchangeInfoContactName:
 		return ExchangeContact
 
-	case ExchangeEvent, ExchangeEventCalendar, ExchangeFilterEventOrganizer, ExchangeFilterEventRecurs,
-		ExchangeFilterEventStartsAfter, ExchangeFilterEventStartsBefore, ExchangeFilterEventSubject:
+	case ExchangeEvent, ExchangeEventCalendar, ExchangeInfoEventOrganizer, ExchangeInfoEventRecurs,
+		ExchangeInfoEventStartsAfter, ExchangeInfoEventStartsBefore, ExchangeInfoEventSubject:
 		return ExchangeEvent
 
-	case ExchangeMail, ExchangeMailFolder, ExchangeFilterMailReceivedAfter,
-		ExchangeFilterMailReceivedBefore, ExchangeFilterMailSender, ExchangeFilterMailSubject:
+	case ExchangeMail, ExchangeMailFolder, ExchangeInfoMailReceivedAfter,
+		ExchangeInfoMailReceivedBefore, ExchangeInfoMailSender, ExchangeInfoMailSubject:
 		return ExchangeMail
 	}
 
@@ -652,10 +651,10 @@ func (s ExchangeScope) Matches(cat exchangeCategory, target string) bool {
 	return matches(s, cat, target)
 }
 
-// FilterCategory returns the category enum of the scope filter.
-// If the scope is not a filter type, returns ExchangeUnknownCategory.
-func (s ExchangeScope) FilterCategory() exchangeCategory {
-	return exchangeCategory(getFilterCategory(s))
+// InfoCategory returns the category enum of the scope info.
+// If the scope is not an info type, returns ExchangeUnknownCategory.
+func (s ExchangeScope) InfoCategory() exchangeCategory {
+	return exchangeCategory(getInfoCategory(s))
 }
 
 // IncludeCategory checks whether the scope includes a certain category of data.
@@ -733,7 +732,7 @@ func (s exchange) Reduce(
 		errs)
 }
 
-// matchesInfo handles the standard behavior when comparing a scope and an ExchangeFilter
+// matchesInfo handles the standard behavior when comparing a scope and an ExchangeInfo
 // returns true if the scope and info match for the provided category.
 func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	info := dii.Exchange
@@ -741,35 +740,35 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 		return false
 	}
 
-	filterCat := s.FilterCategory()
+	infoCat := s.InfoCategory()
 
 	cfpc := categoryFromItemType(info.ItemType)
-	if !typeAndCategoryMatches(filterCat, cfpc) {
+	if !typeAndCategoryMatches(infoCat, cfpc) {
 		return false
 	}
 
 	i := ""
 
-	switch filterCat {
-	case ExchangeFilterContactName:
+	switch infoCat {
+	case ExchangeInfoContactName:
 		i = info.ContactName
-	case ExchangeFilterEventOrganizer:
+	case ExchangeInfoEventOrganizer:
 		i = info.Organizer
-	case ExchangeFilterEventRecurs:
+	case ExchangeInfoEventRecurs:
 		i = strconv.FormatBool(info.EventRecurs)
-	case ExchangeFilterEventStartsAfter, ExchangeFilterEventStartsBefore:
+	case ExchangeInfoEventStartsAfter, ExchangeInfoEventStartsBefore:
 		i = common.FormatTime(info.EventStart)
-	case ExchangeFilterEventSubject:
+	case ExchangeInfoEventSubject:
 		i = info.Subject
-	case ExchangeFilterMailSender:
+	case ExchangeInfoMailSender:
 		i = info.Sender
-	case ExchangeFilterMailSubject:
+	case ExchangeInfoMailSubject:
 		i = info.Subject
-	case ExchangeFilterMailReceivedAfter, ExchangeFilterMailReceivedBefore:
+	case ExchangeInfoMailReceivedAfter, ExchangeInfoMailReceivedBefore:
 		i = common.FormatTime(info.Received)
 	}
 
-	return s.Matches(filterCat, i)
+	return s.Matches(infoCat, i)
 }
 
 // categoryFromItemType interprets the category represented by the ExchangeInfo
