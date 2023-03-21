@@ -309,7 +309,7 @@ func (handler *LoggingMiddleware) Intercept(
 	msg := fmt.Sprintf("graph api error: %s", resp.Status)
 
 	// special case for supportability: log all throttling cases.
-	if resp.StatusCode == http.StatusTooManyRequests {
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
 		log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
