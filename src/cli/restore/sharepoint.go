@@ -106,7 +106,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		Populated:          utils.GetPopulatedFlags(cmd),
 	}
 
-	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
+	if err := utils.ValidateSharePointRestoreFlags(utils.BackupID, opts); err != nil {
 		return err
 	}
 
@@ -128,7 +128,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize SharePoint restore"))
 	}
@@ -136,7 +136,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", backupID))
+			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", utils.BackupID))
 		}
 
 		return Only(ctx, errors.Wrap(err, "Failed to run SharePoint restore"))

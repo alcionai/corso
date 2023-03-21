@@ -17,8 +17,7 @@ import (
 
 // exchange bucket info from flags
 var (
-	backupID string
-	user     []string
+	user []string
 
 	contact       []string
 	contactFolder []string
@@ -128,7 +127,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
+	if err := utils.ValidateExchangeRestoreFlags(utils.BackupID, opts); err != nil {
 		return err
 	}
 
@@ -150,7 +149,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, backupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
 	}
@@ -158,7 +157,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", backupID))
+			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", utils.BackupID))
 		}
 
 		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))

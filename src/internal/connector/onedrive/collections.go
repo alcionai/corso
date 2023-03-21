@@ -273,9 +273,7 @@ func (c *Collections) Get(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	retry := c.source == OneDriveSource
-
-	drives, err := drives(ctx, pager, retry)
+	drives, err := drives(ctx, pager, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -729,7 +727,7 @@ func (c *Collections) UpdateCollections(
 			c.CollectionMap[driveID][itemID] = col
 			c.NumContainers++
 
-			if c.source != OneDriveSource || item.GetRoot() != nil {
+			if item.GetRoot() != nil {
 				continue
 			}
 
