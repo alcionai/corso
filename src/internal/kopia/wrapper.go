@@ -336,7 +336,7 @@ func getItemStream(
 		encodeElements(itemPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
-			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
+			err = clues.Stack(data.ErrNotFound, err)
 		}
 
 		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
