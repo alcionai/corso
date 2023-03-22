@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
-## [v0.6.0] (beta) - 2023-03-21
+## [v0.6.1] (beta) - 2023-03-21
 
 ### Added
 - Sharepoint library (document files) support: backup, list, details, and restore.
