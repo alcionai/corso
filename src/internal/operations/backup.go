@@ -687,12 +687,12 @@ func (op *BackupOperation) createBackupModels(
 
 	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {
-		return clues.Wrap(err, "creating details persistence").WithClues(ctx)
+		return clues.Wrap(err, "collecting details for persistence").WithClues(ctx)
 	}
 
 	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(op.Errors.Errors()))
 	if err != nil {
-		return clues.Wrap(err, "creating errors persistence").WithClues(ctx)
+		return clues.Wrap(err, "collecting errors for persistence").WithClues(ctx)
 	}
 
 	ssid, err := sscw.Write(ctx, errs)

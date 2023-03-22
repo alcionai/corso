@@ -960,7 +960,7 @@ func inflateBaseTree(
 		return nil
 	}
 
-	ctx = clues.Add(ctx, "snapshot_root_id", snap.ID)
+	ctx = clues.Add(ctx, "snapshot_base_id", snap.ID)
 
 	root, err := loader.SnapshotRoot(snap.Manifest)
 	if err != nil {
@@ -978,7 +978,7 @@ func inflateBaseTree(
 	for _, subtreePath := range snap.SubtreePaths {
 		// We're starting from the root directory so don't need it in the path.
 		pathElems := encodeElements(subtreePath.PopFront().Elements()...)
-		ictx := clues.Add(ctx, "subtree_path_elems", pathElems)
+		ictx := clues.Add(ctx, "subtree_path", subtreePath)
 
 		ent, err := snapshotfs.GetNestedEntry(ictx, dir, pathElems)
 		if err != nil {
