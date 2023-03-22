@@ -76,17 +76,14 @@ func Only(ctx context.Context, e error) error {
 // if s is nil, prints nothing.
 // Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
-	err(getRootCmd(ctx).ErrOrStderr(), s...)
+	out(getRootCmd(ctx).ErrOrStderr())
 }
 
-// err is the testable core of Err()
-func err(w io.Writer, s ...any) {
-	if len(s) == 0 {
-		return
-	}
-
-	msg := append([]any{"Error: "}, s...)
-	fmt.Fprint(w, msg...)
+// Errf prints the params to cobra's error writer (stdErr by default)
+// if s is nil, prints nothing.
+// Prepends the message with "Error: "
+func Errf(ctx context.Context, tmpl string, s ...any) {
+	outf(getRootCmd(ctx).ErrOrStderr(), "Error: "+tmpl, s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)
@@ -95,7 +92,25 @@ func Out(ctx context.Context, s ...any) {
 	out(getRootCmd(ctx).OutOrStdout(), s...)
 }
 
-// out is the testable core of Out()
+// Out prints the formatted strings to cobra's output writer (stdOut by default)
+// if t is empty, prints nothing.
+func Outf(ctx context.Context, t string, s ...any) {
+	outf(getRootCmd(ctx).OutOrStdout(), t, s...)
+}
+
+// Info prints the params to cobra's error writer (stdErr by default)
+// if s is nil, prints nothing.
+func Info(ctx context.Context, s ...any) {
+	out(getRootCmd(ctx).ErrOrStderr(), s...)
+}
+
+// Info prints the formatted strings to cobra's error writer (stdErr by default)
+// if t is empty, prints nothing.
+func Infof(ctx context.Context, t string, s ...any) {
+	outf(getRootCmd(ctx).ErrOrStderr(), t, s...)
+}
+
+// out is the testable core of exported print funcs
 func out(w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
@@ -105,46 +120,8 @@ func out(w io.Writer, s ...any) {
 	fmt.Fprintf(w, "\n")
 }
 
-// Out prints the formatted strings to cobra's output writer (stdOut by default)
-// if t is empty, prints nothing.
-func Outf(ctx context.Context, t string, s ...any) {
-	outf(getRootCmd(ctx).OutOrStdout(), t, s...)
-}
-
-// outf is the testable core of Outf()
+// outf is the testable core of exported print funcs
 func outf(w io.Writer, t string, s ...any) {
-	if len(t) == 0 {
-		return
-	}
-
-	fmt.Fprintf(w, t, s...)
-	fmt.Fprintf(w, "\n")
-}
-
-// Info prints the params to cobra's error writer (stdErr by default)
-// if s is nil, prints nothing.
-func Info(ctx context.Context, s ...any) {
-	info(getRootCmd(ctx).ErrOrStderr(), s...)
-}
-
-// info is the testable core of Info()
-func info(w io.Writer, s ...any) {
-	if len(s) == 0 {
-		return
-	}
-
-	fmt.Fprint(w, s...)
-	fmt.Fprintf(w, "\n")
-}
-
-// Info prints the formatted strings to cobra's error writer (stdErr by default)
-// if t is empty, prints nothing.
-func Infof(ctx context.Context, t string, s ...any) {
-	infof(getRootCmd(ctx).ErrOrStderr(), t, s...)
-}
-
-// infof is the testable core of Infof()
-func infof(w io.Writer, t string, s ...any) {
 	if len(t) == 0 {
 		return
 	}

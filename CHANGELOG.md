@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
-## [v0.6.0] (beta) - 2023-03-21
+### Fixed
+- Fixed permissions restore in latest backup version
+- Incremental OneDrive backups could panic if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
+
+## [v0.6.1] (beta) - 2023-03-21
 
 ### Added
 - Sharepoint library (document files) support: backup, list, details, and restore.
@@ -21,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix repo connect not working without a config file
 - Fix item re-download on expired links silently being skipped
 - Improved permissions backup and restore for OneDrive
-- CLI calls default to a 10-day context deadline to avoid letting graph api restrict requests to a 100 second deadline.
 
 ### Known Issues
 - Owner (Full control) or empty (Restricted View) roles cannot be restored for OneDrive
@@ -218,8 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.0...HEAD
-[v0.6.0]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.0
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.1...HEAD
+[v0.6.1]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.1
 [v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/alcionai/corso/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/alcionai/corso/compare/v0.2.0...v0.3.0

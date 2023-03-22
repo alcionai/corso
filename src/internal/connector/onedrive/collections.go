@@ -347,9 +347,14 @@ func (c *Collections) Get(
 		logger.Ctx(ictx).Infow(
 			"persisted metadata for drive",
 			"num_paths_entries", len(paths),
-			"num_deltas_entries", numDeltas)
+			"num_deltas_entries", numDeltas,
+			"delta_reset", delta.Reset)
 
-		if !delta.Reset {
+		// For both cases we don't need to do set difference on folder map if the
+		// delta token was valid because we should see all the changes.
+		if !delta.Reset && len(excluded) == 0 {
+			continue
+		} else if !delta.Reset {
 			p, err := GetCanonicalPath(
 				fmt.Sprintf(rootDrivePattern, driveID),
 				c.tenant,
@@ -376,8 +381,11 @@ func (c *Collections) Get(
 		// Set all folders in previous backup but not in the current
 		// one with state deleted
 		modifiedPaths := map[string]struct{}{}
+
 		for _, p := range c.CollectionMap[driveID] {
-			modifiedPaths[p.FullPath().String()] = struct{}{}
+			if p.FullPath() != nil {
+				modifiedPaths[p.FullPath().String()] = struct{}{}
+			}
 		}
 
 		for fldID, p := range oldPaths {
@@ -493,6 +501,7 @@ func (c *Collections) handleDelete(
 	oldPaths, newPaths map[string]string,
 	isFolder bool,
 	excluded map[string]struct{},
+	invalidPrevDelta bool,
 ) error {
 	if !isFolder {
 		excluded[itemID+DataFileSuffix] = struct{}{}
@@ -526,11 +535,18 @@ func (c *Collections) handleDelete(
 	// the deleted folder/package.
 	delete(newPaths, itemID)
 
-	if prevPath == nil {
-		// It is possible that an item was created and
-		// deleted between two delta invocations. In
-		// that case, it will only produce a single
-		// delete entry in the delta response.
+	if prevPath == nil || invalidPrevDelta {
+		// It is possible that an item was created and deleted between two delta
+		// invocations. In that case, it will only produce a single delete entry in
+		// the delta response.
+		//
+		// It's also possible the item was made and deleted while getting the delta
+		// results or our delta token expired and the folder was seen and now is
+		// marked as deleted. If either of those is the case we should try to delete
+		// the collection with this ID so it doesn't show up with items. For the
+		// latter case, we rely on the set difference in the Get() function to find
+		// folders that need to be marked as deleted and make collections for them.
+		delete(c.CollectionMap[driveID], itemID)
 		return nil
 	}
 
@@ -659,6 +675,7 @@ func (c *Collections) UpdateCollections(
 				newPaths,
 				isFolder,
 				excluded,
+				invalidPrevDelta,
 			); err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}
@@ -671,6 +688,8 @@ func (c *Collections) UpdateCollections(
 			el.AddRecoverable(clues.Stack(err).
 				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
+
+			continue
 		}
 
 		// Skip items that don't match the folder selectors we were given.
@@ -763,7 +782,7 @@ func (c *Collections) UpdateCollections(
 					return clues.New("previous collection not found").WithClues(ictx)
 				}
 
-				removed := pcollection.Remove(item)
+				removed := pcollection.Remove(itemID)
 				if !removed {
 					return clues.New("removing from prev collection").WithClues(ictx)
 				}

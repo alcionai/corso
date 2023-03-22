@@ -133,7 +133,11 @@ func (c *clientConfig) applyMiddlewareConfig() (retry int, delay time.Duration) 
 // apply updates the http.Client with the expected options.
 func (c *clientConfig) apply(hc *http.Client) {
 	if c.noTimeout {
-		hc.Timeout = 0
+		// FIXME: This should ideally be 0, but if we set to 0, graph
+		// client with automatically set the context timeout to 0 as
+		// well which will make the client unusable.
+		// https://github.com/microsoft/kiota-http-go/pull/71
+		hc.Timeout = 48 * time.Hour
 	}
 }
 
