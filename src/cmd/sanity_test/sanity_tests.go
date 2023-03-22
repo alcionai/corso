@@ -70,7 +70,10 @@ func checkEmailRestoration(
 		res := result.GetValue()
 
 		for _, r := range res {
-			name := *r.GetDisplayName()
+			name, ok := ptr.ValOK(r.GetDisplayName())
+			if !ok {
+				continue
+			}
 
 			var rStartTime time.Time
 
@@ -90,7 +93,10 @@ func checkEmailRestoration(
 
 			getAllSubFolder(user, r, name, messageCount)
 
-			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
+			messageCount[name], ok = ptr.ValOK(r.GetTotalItemCount())
+			if !ok {
+				fmt.Println("unable to fetch item count for:", name)
+			}
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
@@ -101,7 +107,15 @@ func checkEmailRestoration(
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
 	}
 
-	folder := user.MailFoldersById(*restoreFolder.GetId())
+	var (
+		folderID, ok = ptr.ValOK(restoreFolder.GetId())
+	)
+	if !ok {
+		fmt.Printf("can't find ID of restore folder")
+		os.Exit(1)
+	}
+
+	folder := user.MailFoldersById(folderID)
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
 	if err != nil {
@@ -110,17 +124,24 @@ func checkEmailRestoration(
 	}
 
 	for _, restore := range childFolder.GetValue() {
-		if messageCount[*restore.GetDisplayName()] != *restore.GetTotalItemCount() {
-			fmt.Println("Restore was not succesfull for: ",
-				*restore.GetDisplayName(),
-				"Folder count: ",
-				messageCount[*restore.GetDisplayName()],
-				"Restore count: ",
-				*restore.GetTotalItemCount())
+		restoreDisplayName, ok := ptr.ValOK(restore.GetDisplayName())
+		if !ok {
+			continue
+		}
+
+		restoreItemCount, ok := ptr.ValOK(restore.GetTotalItemCount())
+		if !ok {
+			fmt.Println("Unable to find item count for ", restoreDisplayName)
+		}
+
+		if messageCount[restoreDisplayName] != restoreItemCount {
+			fmt.Println("Restore was not succesfull for: ", restoreDisplayName,
+				"Folder count: ", messageCount[restoreDisplayName],
+				"Restore count: ", restoreItemCount)
 			os.Exit(1)
 		}
 
-		checkAllSubFolder(user, restore, *restore.GetDisplayName(), messageCount)
+		checkAllSubFolder(user, restore, restoreDisplayName, messageCount)
 	}
 }
 
@@ -130,7 +151,16 @@ func getAllSubFolder(
 	parentFolder string,
 	messageCount map[string]int32,
 ) {
-	folder := user.MailFoldersById(*r.GetId())
+	var (
+		folderID, ok = ptr.ValOK(r.GetId())
+	)
+
+	if !ok {
+		fmt.Println("unable to get sub folder ID")
+		return
+	}
+
+	folder := user.MailFoldersById(folderID)
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
 	if err != nil {
@@ -139,7 +169,12 @@ func getAllSubFolder(
 	}
 
 	for _, child := range childFolder.GetValue() {
-		fullFolderName := parentFolder + "/" + *child.GetDisplayName()
+		childDisplayName, ok := ptr.ValOK(child.GetDisplayName())
+		if !ok {
+			fmt.Println("unable to get child display name")
+		}
+
+		fullFolderName := parentFolder + "/" + childDisplayName
 
 		messageCount[fullFolderName] = *child.GetTotalItemCount()
 
@@ -170,12 +205,9 @@ func checkAllSubFolder(
 		fullFolderName := parentFolder + "/" + *child.GetDisplayName()
 
 		if messageCount[fullFolderName] != *child.GetTotalItemCount() {
-			fmt.Println("Restore was not succesfull for: ",
-				fullFolderName,
-				"Folder count: ",
-				messageCount[fullFolderName],
-				"Restore count: ",
-				*child.GetTotalItemCount())
+			fmt.Println("Restore was not succesfull for: ", fullFolderName,
+				"Folder count: ", messageCount[fullFolderName],
+				"Restore count: ", *child.GetTotalItemCount())
 			os.Exit(1)
 		}
 
