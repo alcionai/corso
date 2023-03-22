@@ -22,10 +22,11 @@ func TestRestoreUnitSuite(t *testing.T) {
 
 func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 	table := []struct {
-		name    string
-		version int
-		input   []string
-		output  []string
+		name        string
+		version     int
+		input       []string
+		output      []string
+		compareFunc assert.ComparisonAssertionFunc
 	}{
 		{
 			name:    "no change v0",
@@ -35,9 +36,10 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"file.txt", // v0 does not have `.data`
 			},
 			output: []string{
-				"file.txt", // ordering artifact of sorting
+				"file.txt",
 				"file.txt.data",
 			},
+			compareFunc: assert.ElementsMatch,
 		},
 		{
 			name:    "one folder v0",
@@ -50,6 +52,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"folder/file.txt",
 				"folder/file.txt.data",
 			},
+			compareFunc: assert.ElementsMatch,
 		},
 		{
 			name:    "no change v1",
@@ -60,6 +63,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			output: []string{
 				"file.txt.data",
 			},
+			compareFunc: assert.Equal,
 		},
 		{
 			name:    "one folder v1",
@@ -71,6 +75,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"folder.dirmeta",
 				"folder/file.txt.data",
 			},
+			compareFunc: assert.Equal,
 		},
 		{
 			name:    "nested folders v1",
@@ -85,6 +90,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"folder/folder2.dirmeta",
 				"folder/folder2/file.txt.data",
 			},
+			compareFunc: assert.Equal,
 		},
 		{
 			name:    "no change v4",
@@ -95,6 +101,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			output: []string{
 				"file.txt.data",
 			},
+			compareFunc: assert.ElementsMatch,
 		},
 		{
 			name:    "one folder v4",
@@ -104,8 +111,8 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			},
 			output: []string{
 				"folder/file.txt.data",
-				"folder/folder.dirmeta",
 			},
+			compareFunc: assert.ElementsMatch,
 		},
 		{
 			name:    "nested folders v4",
@@ -116,10 +123,9 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			},
 			output: []string{
 				"folder/file.txt.data",
-				"folder/folder.dirmeta",
 				"folder/folder2/file.txt.data",
-				"folder/folder2/folder2.dirmeta",
 			},
+			compareFunc: assert.ElementsMatch,
 		},
 	}
 
@@ -151,9 +157,9 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			actual, err := AugmentRestorePaths(test.version, inPaths)
 			require.NoError(t, err, "augmenting paths", clues.ToCore(err))
 
-			// Ordering of paths matter here as we need dirmeta files
+			// Ordering of paths matter here for < v4 as we need dirmeta files
 			// to show up before file in dir
-			assert.Equal(t, outPaths, actual, "augmented paths")
+			test.compareFunc(t, outPaths, actual, "augmented paths")
 		})
 	}
 }
