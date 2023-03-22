@@ -960,14 +960,16 @@ func inflateBaseTree(
 		return nil
 	}
 
+	ctx = clues.Add(ctx, "snapshot_root_id", snap.ID)
+
 	root, err := loader.SnapshotRoot(snap.Manifest)
 	if err != nil {
-		return errors.Wrapf(err, "getting snapshot %s root directory", snap.ID)
+		return clues.Wrap(err, "getting snapshot root directory").WithClues(ctx)
 	}
 
 	dir, ok := root.(fs.Directory)
 	if !ok {
-		return errors.Errorf("snapshot %s root is not a directory", snap.ID)
+		return clues.New("snapshot root is not a directory").WithClues(ctx)
 	}
 
 	// For each subtree corresponding to the tuple
@@ -980,16 +982,16 @@ func inflateBaseTree(
 		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
 		if err != nil {
 			if isErrEntryNotFound(err) {
-				logger.Ctx(ctx).Infow("base snapshot missing subtree", "error", err)
+				logger.CtxErr(ctx, err).Infow("base snapshot missing subtree")
 				continue
 			}
 
-			return errors.Wrapf(err, "snapshot %s getting subtree root", snap.ID)
+			return clues.Wrap(err, "getting subtree root").WithClues(ctx)
 		}
 
 		subtreeDir, ok := ent.(fs.Directory)
 		if !ok {
-			return errors.Wrapf(err, "snapshot %s subtree root is not directory", snap.ID)
+			return clues.Wrap(err, "subtree root is not directory").WithClues(ctx)
 		}
 
 		// We're assuming here that the prefix for the path has not changed (i.e.
@@ -1004,7 +1006,7 @@ func inflateBaseTree(
 			subtreeDir,
 			roots,
 		); err != nil {
-			return errors.Wrapf(err, "traversing base snapshot %s", snap.ID)
+			return clues.Wrap(err, "traversing base snapshot").WithClues(ctx)
 		}
 	}
 
