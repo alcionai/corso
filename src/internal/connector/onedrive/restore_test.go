@@ -121,6 +121,41 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"folder/folder2/folder2.dirmeta",
 			},
 		},
+		{
+			name:    "no change v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"file.txt.data",
+			},
+			output: []string{
+				"file.txt.data",
+			},
+		},
+		{
+			name:    "one folder v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"folder/file.txt.data",
+			},
+			output: []string{
+				"folder/.dirmeta",
+				"folder/file.txt.data",
+			},
+		},
+		{
+			name:    "nested folders v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"folder/file.txt.data",
+				"folder/folder2/file.txt.data",
+			},
+			output: []string{
+				"folder/.dirmeta",
+				"folder/file.txt.data",
+				"folder/folder2/.dirmeta",
+				"folder/folder2/file.txt.data",
+			},
+		},
 	}
 
 	for _, test := range table {
