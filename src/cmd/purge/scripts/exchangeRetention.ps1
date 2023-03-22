@@ -4,23 +4,34 @@
 #                     -w /usr/reset-retnention m365pnp/powershell pwsh -c "./setRetention.ps1"
 Param (
     [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin email")]
-    [String]$AdminUser = $ENV:M365TENANT_ADMIN_USER,
+    [String]$AdminUser = $ENV:M365_TENANT_ADMIN_USER,
 
     [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin password")]
-    [String]$AdminPwd = $ENV:M365TENANT_ADMIN_PASSWORD
+    [String]$AdminPwd = $ENV:M365_TENANT_ADMIN_PASSWORD
 )
 
 # Setup ExchangeOnline
 if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+    $ProgressPreference = 'SilentlyContinue'
     Install-Module -Name ExchangeOnlineManagement -MinimumVersion 3.0.0 -Force
+    $ProgressPreference = 'Continue'
 }
 
-Write-Host "Connecting to Exchange..."
+Write-Host "`nConnecting to Exchange..."
 $password = convertto-securestring -String "$AdminPwd" -AsPlainText -Force
 $cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $AdminUser, $password
 Connect-ExchangeOnline -Credential $cred
 
-Write-Host "Resetting retention..."
+Write-Host "`nResetting retention..."
+
 # Set retention values for all mailboxes 
-Get-Mailbox | ForEach-Object { Set-Mailbox -Identity $_.Alias -RetentionHoldEnabled $false  -LitigationHoldEnabled $false -SingleItemRecoveryEnabled $false -RetainDeletedItemsFor 0 -AuditLogAgeLimit 0 -Force }
-Get-Mailbox | ForEach-Object { Start-ManagedFolderAssistant -Identity $_.Alias }
+Get-Mailbox | ForEach-Object {
+    Write-Host "...for" $_
+    Set-Mailbox -Identity $_.Alias `
+        -RetentionHoldEnabled $false `
+        -LitigationHoldEnabled $false `
+        -SingleItemRecoveryEnabled $false `
+        -RetainDeletedItemsFor 0 `
+        -AuditLogAgeLimit 0 `
+        -Force
+}

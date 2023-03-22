@@ -136,25 +136,28 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 // integration
 // ---------------------------------------------------------------------------
 
+type bupResults struct {
+	backupID model.StableID
+	items    int
+}
+
 type RestoreOpIntegrationSuite struct {
 	tester.Suite
 
-	backupID     model.StableID
-	sharepointID model.StableID
-	shareItems   int
-	numItems     int
-	kopiaCloser  func(ctx context.Context)
-	kw           *kopia.Wrapper
-	sw           *store.Wrapper
-	ms           *kopia.ModelStore
+	exchange   bupResults
+	sharepoint bupResults
+
+	kopiaCloser func(ctx context.Context)
+	kw          *kopia.Wrapper
+	sw          *store.Wrapper
+	ms          *kopia.ModelStore
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RestoreOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoOperationTests),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -213,10 +216,12 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results.BackupID)
 
-	suite.backupID = bo.Results.BackupID
-	// Discount metadata files (3 paths, 3 deltas) as
-	// they are not part of the data restored.
-	suite.numItems = bo.Results.ItemsWritten - 6
+	suite.exchange = bupResults{
+		backupID: bo.Results.BackupID,
+		// Discount metadata files (3 paths, 3 deltas) as
+		// they are not part of the data restored.
+		items: bo.Results.ItemsWritten - 6,
+	}
 
 	siteID := tester.M365SiteID(t)
 	sites := []string{siteID}
@@ -231,16 +236,19 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		sw,
 		acct,
 		csel.Selector,
-		evmock.NewBus(),
-	)
+		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = bo.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results.BackupID)
-	suite.sharepointID = bo.Results.BackupID
-	// Discount MetaData files (1 path, 1 delta)
-	suite.shareItems = bo.Results.ItemsWritten - 2
+
+	suite.sharepoint = bupResults{
+		backupID: bo.Results.BackupID,
+		// Discount metadata files (2 paths, 2 deltas) as
+		// they are not part of the data restored.
+		items: bo.Results.ItemsWritten - 4,
+	}
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
@@ -314,8 +322,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	}{
 		{
 			name:          "Exchange_Restore",
-			bID:           suite.backupID,
-			expectedItems: suite.numItems,
+			bID:           suite.exchange.backupID,
+			expectedItems: suite.exchange.items,
 			dest:          tester.DefaultTestRestoreDestination(),
 			getSelector: func(t *testing.T) selectors.Selector {
 				users := []string{tester.M365UserID(t)}
@@ -327,8 +335,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		},
 		{
 			name:          "SharePoint_Restore",
-			bID:           suite.sharepointID,
-			expectedItems: suite.shareItems,
+			bID:           suite.sharepoint.backupID,
+			expectedItems: suite.sharepoint.items,
 			dest:          control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
 			getSelector: func(t *testing.T) selectors.Selector {
 				bsel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
@@ -338,13 +346,16 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			},
 			cleanup: func(t *testing.T, dest string) {
 				act := tester.NewM365Account(t)
+
 				m365, err := act.M365Config()
 				require.NoError(t, err, clues.ToCore(err))
 
 				adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
 				require.NoError(t, err, clues.ToCore(err))
+
 				service := graph.NewService(adpt)
 				pager := api.NewSiteDrivePager(service, tester.M365SiteID(t), []string{"id", "name"})
+
 				driveID, err := pager.GetDriveIDByName(ctx, "Documents")
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotEmpty(t, driveID)
@@ -376,7 +387,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 			ds, err := ro.Run(ctx)
 
-			require.NoError(t, err, "restoreOp.Run()", clues.ToCore(err))
+			require.NoError(t, err, "restoreOp.Run() %+v", clues.ToCore(err))
 			require.NotEmpty(t, ro.Results, "restoreOp results")
 			require.NotNil(t, ds, "restored details")
 			assert.Equal(t, ro.Status, Completed, "restoreOp status")
@@ -416,7 +427,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		suite.kw,
 		suite.sw,
 		tester.NewM365Account(t),
-		suite.backupID,
+		suite.exchange.backupID,
 		rsel.Selector,
 		dest,
 		mb)

@@ -69,9 +69,32 @@ func oneDriveItemMetaReader(
 	item models.DriveItemable,
 	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
-	meta := Metadata{
-		FileName: ptr.Val(item.GetName()),
-	}
+	return baseItemMetaReader(ctx, service, driveID, item, fetchPermissions)
+}
+
+func sharePointItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+	fetchPermissions bool,
+) (io.ReadCloser, int, error) {
+	// TODO: include permissions
+	return baseItemMetaReader(ctx, service, driveID, item, false)
+}
+
+func baseItemMetaReader(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID string,
+	item models.DriveItemable,
+	fetchPermissions bool,
+) (io.ReadCloser, int, error) {
+	var (
+		perms []UserPermission
+		err   error
+		meta  = Metadata{FileName: ptr.Val(item.GetName())}
+	)
 
 	if item.GetShared() == nil {
 		meta.SharingMode = SharingModeInherited
@@ -79,41 +102,21 @@ func oneDriveItemMetaReader(
 		meta.SharingMode = SharingModeCustom
 	}
 
-	var (
-		perms []UserPermission
-		err   error
-	)
-
 	if meta.SharingMode == SharingModeCustom && fetchPermissions {
-		perms, err = oneDriveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
+		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
-			// Keep this in an if-block because if it's not then we have a weird issue
-			// of having no value in error but golang thinking it's non nil because of
-			// the way interfaces work.
-			err = clues.Wrap(err, "fetching item permissions")
-		} else {
-			meta.Permissions = perms
-		}
-	}
-
-	metaJSON, serializeErr := json.Marshal(meta)
-	if serializeErr != nil {
-		serializeErr = clues.Wrap(serializeErr, "serializing item metadata")
-
-		// Need to check if err was already non-nil since it doesn't filter nil
-		// values out in calls to Stack().
-		if err != nil {
-			err = clues.Stack(err, serializeErr)
-		} else {
-			err = serializeErr
+			return nil, 0, err
 		}
 
-		return nil, 0, err
+		meta.Permissions = perms
 	}
 
-	r := io.NopCloser(bytes.NewReader(metaJSON))
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, clues.Wrap(err, "serializing item metadata").WithClues(ctx)
+	}
 
-	return r, len(metaJSON), err
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
 // oneDriveItemReader will return a io.ReadCloser for the specified item
@@ -222,9 +225,9 @@ func oneDriveItemInfo(di models.DriveItemable, itemSize int64) *details.OneDrive
 	}
 }
 
-// OneDriveItemPermissionInfo will fetch the permission information
+// driveItemPermissionInfo will fetch the permission information
 // for a drive item given a drive and item id.
-func oneDriveItemPermissionInfo(
+func driveItemPermissionInfo(
 	ctx context.Context,
 	service graph.Servicer,
 	driveID string,
@@ -237,7 +240,7 @@ func oneDriveItemPermissionInfo(
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
+		return nil, graph.Wrap(ctx, err, "fetching item permissions").With("item_id", itemID)
 	}
 
 	uperms := filterUserPermissions(ctx, perm.GetValue())
@@ -256,18 +259,15 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		}
 
 		gv2 := p.GetGrantedToV2()
-		roles := []string{}
 
-		for _, r := range p.GetRoles() {
-			// Skip if the only role available in owner
-			if r != "owner" {
-				roles = append(roles, r)
-			}
-		}
-
-		if len(roles) == 0 {
-			continue
-		}
+		// Below are the mapping from roles to "Advanced" permissions
+		// screen entries:
+		//
+		// owner - Full Control
+		// write - Design | Edit | Contribute (no difference in /permissions api)
+		// read  - Read
+		// empty - Restricted View
+		roles := p.GetRoles()
 
 		entityID := ""
 		if gv2.GetUser() != nil {
@@ -275,7 +275,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 		} else if gv2.GetGroup() != nil {
 			entityID = ptr.Val(gv2.GetGroup().GetId())
 		} else {
-			// TODO Add appliction permissions when adding permissions for SharePoint
+			// TODO Add application permissions when adding permissions for SharePoint
 			// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 			logm := logger.Ctx(ctx)
 			if gv2.GetApplication() != nil {

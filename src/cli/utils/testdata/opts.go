@@ -10,9 +10,10 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	ftd "github.com/alcionai/corso/src/pkg/fault/testdata"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -469,28 +470,28 @@ var (
 			Name:     "AllLibraryItems",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: selectors.Any(),
+				FolderPath: selectors.Any(),
 			},
 		},
 		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: []string{testdata.SharePointLibraryFolder},
+				FolderPath: []string{testdata.SharePointLibraryFolder},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: []string{testdata.SharePointLibraryFolder + "/"},
+				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.SharePointLibraryItems,
 			Opts: utils.SharePointOpts{
-				FolderPaths: []string{testdata.SharePointLibraryFolder + "/"},
+				FolderPath: []string{testdata.SharePointLibraryFolder + "/"},
 			},
 		},
 		{
@@ -500,7 +501,7 @@ var (
 				testdata.SharePointLibraryItems[1],
 			},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItems[0].ShortRef,
 					testdata.SharePointLibraryItems[1].ShortRef,
 				},
@@ -510,7 +511,7 @@ var (
 			Name:     "SingleItem",
 			Expected: []details.DetailsEntry{testdata.SharePointLibraryItems[0]},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 				},
 			},
@@ -522,7 +523,7 @@ var (
 				testdata.SharePointLibraryItems[1],
 			},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItems[0].SharePoint.ItemName,
 					testdata.SharePointLibraryItems[1].SharePoint.ItemName,
 				},
@@ -532,7 +533,7 @@ var (
 			Name:     "NoSelectRepoItemName",
 			Expected: []details.DetailsEntry{},
 			Opts: utils.SharePointOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.SharePointLibraryItemPath1.Item(),
 				},
 			},
@@ -551,7 +552,9 @@ var (
 // (selectors/testdata.GetDetailsSet(), nil, nil) when BackupDetails is called
 // on the nil instance. If an instance is given or Backups is called returns an
 // error.
-type MockBackupGetter struct{}
+type MockBackupGetter struct {
+	failure, recovered, skipped bool
+}
 
 func (MockBackupGetter) Backup(
 	context.Context,
@@ -574,12 +577,24 @@ func (MockBackupGetter) BackupsByTag(
 	return nil, errors.New("unexpected call to mock")
 }
 
-func (bg *MockBackupGetter) BackupDetails(
+func (bg *MockBackupGetter) GetBackupDetails(
 	ctx context.Context,
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Bus) {
 	if bg == nil {
 		return testdata.GetDetailsSet(), nil, fault.New(true)
+	}
+
+	return nil, nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
+}
+
+func (bg *MockBackupGetter) GetBackupErrors(
+	ctx context.Context,
+	backupID string,
+) (*fault.Errors, *backup.Backup, *fault.Bus) {
+	if bg == nil {
+		fe := ftd.MakeErrors(bg.failure, bg.recovered, bg.skipped)
+		return &fe, nil, fault.New(true)
 	}
 
 	return nil, nil, fault.New(false).Fail(errors.New("unexpected call to mock"))

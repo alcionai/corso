@@ -27,15 +27,64 @@ const sidebars = {
       label: 'Command line reference',
       link: {
         slug: 'cli/corso',
-        description: 'Explore the commonly used Corso CLI commands',
+        description: 'Explore the commonly-used Corso CLI commands',
         type: 'generated-index',
       },
       items: [
-        'cli/corso-repo-init-s3', 'cli/corso-repo-connect-s3',
-        'cli/corso-backup-create-exchange', 'cli/corso-backup-list-exchange', 'cli/corso-backup-details-exchange', 'cli/corso-backup-delete-exchange',
-        'cli/corso-backup-create-onedrive', 'cli/corso-backup-list-onedrive', 'cli/corso-backup-details-onedrive', 'cli/corso-backup-delete-onedrive',
-        'cli/corso-restore-exchange', 'cli/corso-restore-onedrive',
-        'cli/corso-env'
+        {
+          type: 'category',
+          label: 'Setup',
+          link: {
+            slug: 'cli/setup',
+            description: 'Documentation for commonly-used Corso setup CLI commands',
+          },
+          items: [
+            'cli/corso-repo-init-s3',
+            'cli/corso-repo-connect-s3',
+            'cli/corso-env']
+        },
+        {
+          type: 'category',
+          label: 'Exchange',
+          link: {
+            slug: 'cli/exchange',
+            description: 'Documentation for commonly-used Corso Exchange CLI commands',
+          },
+          items: [
+            'cli/corso-backup-create-exchange',
+            'cli/corso-backup-list-exchange',
+            'cli/corso-backup-details-exchange',
+            'cli/corso-backup-delete-exchange',
+            'cli/corso-restore-exchange']
+        },
+        {
+          type: 'category',
+          label: 'OneDrive',
+          link: {
+            slug: 'cli/onedrive',
+            description: 'Documentation for commonly-used Corso OneDrive CLI commands',
+          },
+          items: [
+            'cli/corso-backup-create-onedrive',
+            'cli/corso-backup-list-onedrive',
+            'cli/corso-backup-details-onedrive',
+            'cli/corso-backup-delete-onedrive',
+            'cli/corso-restore-onedrive']
+        },
+        {
+          type: 'category',
+          label: 'SharePoint',
+          link: {
+            slug: 'cli/sharepoint',
+            description: 'Documentation for commonly-used Corso SharePoint CLI commands',
+          },
+          items: [
+            'cli/corso-backup-create-sharepoint',
+            'cli/corso-backup-list-sharepoint',
+            'cli/corso-backup-details-sharepoint',
+            'cli/corso-backup-delete-sharepoint',
+            'cli/corso-restore-sharepoint']
+        }
       ]
     },
     {

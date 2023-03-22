@@ -45,8 +45,7 @@ func TestNoBackupSharePointE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIBackupTests)})
+	)})
 }
 
 func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
@@ -127,8 +126,7 @@ func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 
@@ -195,8 +193,8 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
-
-	assert.Equal(t, fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID)), result)
+	expect := fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID))
+	assert.Equal(t, expect, result)
 }
 
 // moved out of the func above to make the linter happy

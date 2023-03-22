@@ -255,11 +255,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			wg.Wait()
 
-			if test.source == OneDriveSource {
-				require.Len(t, readItems, 2) // .data and .meta
-			} else {
-				require.Len(t, readItems, 1)
-			}
+			require.Len(t, readItems, 2) // .data and .meta
 
 			// Expect only 1 item
 			require.Equal(t, 1, collStatus.Metrics.Objects)
@@ -269,11 +265,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItem := readItems[0]
 			readItemInfo := readItem.(data.StreamInfo)
 
-			if test.source == OneDriveSource {
-				assert.Equal(t, testItemID+DataFileSuffix, readItem.UUID())
-			} else {
-				assert.Equal(t, testItemID, readItem.UUID())
-			}
+			assert.Equal(t, testItemID+DataFileSuffix, readItem.UUID())
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)

@@ -22,11 +22,11 @@ type Backup struct {
 	// SnapshotID is the kopia snapshot ID
 	SnapshotID string `json:"snapshotID"`
 
-	// Reference to `Details`
-	// We store the ModelStoreID since Details is immutable
-	DetailsID string `json:"detailsID"`
+	// Reference to the details and fault errors storage location.
+	// Used to read backup.Details and fault.Errors from the streamstore.
+	StreamStoreID string `json:"streamStoreID"`
 
-	// Status of the operation
+	// Status of the operation, eg: completed, failed, etc
 	Status string `json:"status"`
 
 	// Selector used in this operation
@@ -47,33 +47,41 @@ type Backup struct {
 	stats.ReadWrites
 	stats.StartAndEndTime
 	stats.SkippedCounts
+
+	// **Deprecated**
+	// Reference to the backup details storage location.
+	// Used to read backup.Details from the streamstore.
+	DetailsID string `json:"detailsID"`
 }
 
 // interface compliance checks
 var _ print.Printable = &Backup{}
 
 func New(
-	snapshotID, detailsID, status string,
+	snapshotID, streamStoreID, status string,
 	id model.StableID,
 	selector selectors.Selector,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
-	errs *fault.Bus,
+	fe *fault.Errors,
 ) *Backup {
+	if fe == nil {
+		fe = &fault.Errors{}
+	}
+
 	var (
-		ee = errs.Errors()
-		// TODO: count errData.Items(), not all recovered errors.
-		errCount                      = len(ee.Recovered)
+		errCount                      = len(fe.Items)
+		skipCount                     = len(fe.Skipped)
 		failMsg                       string
 		malware, notFound, otherSkips int
 	)
 
-	if ee.Failure != nil {
-		failMsg = ee.Failure.Error()
+	if fe.Failure != nil {
+		failMsg = fe.Failure.Msg
 		errCount++
 	}
 
-	for _, s := range ee.Skipped {
+	for _, s := range fe.Skipped {
 		switch true {
 		case s.HasCause(fault.SkipMalware):
 			malware++
@@ -92,15 +100,15 @@ func New(
 			},
 		},
 
-		Version:    version.Backup,
-		SnapshotID: snapshotID,
-		DetailsID:  detailsID,
+		Version:       version.Backup,
+		SnapshotID:    snapshotID,
+		StreamStoreID: streamStoreID,
 
 		CreationTime: time.Now(),
 		Status:       status,
 
 		Selector: selector,
-		FailFast: errs.FailFast(),
+		FailFast: fe.FailFast,
 
 		ErrorCount: errCount,
 		Failure:    failMsg,
@@ -108,8 +116,9 @@ func New(
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		SkippedCounts: stats.SkippedCounts{
-			TotalSkippedItems: len(ee.Skipped),
+			TotalSkippedItems: skipCount,
 			SkippedMalware:    malware,
+			SkippedNotFound:   notFound,
 		},
 	}
 }

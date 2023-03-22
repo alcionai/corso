@@ -27,8 +27,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoGraphConnectorExchangeTests),
+		),
 	})
 }
 
@@ -207,6 +206,13 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 				cat := models.HTML_BODYTYPE
 				body.SetContentType(&cat)
 				return body
+			},
+		},
+		{
+			name:          "No body",
+			hasAttachment: assert.False,
+			getBodyable: func(t *testing.T) models.ItemBodyable {
+				return nil
 			},
 		},
 	}

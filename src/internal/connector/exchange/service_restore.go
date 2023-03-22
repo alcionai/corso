@@ -391,7 +391,6 @@ func restoreCollection(
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		category.String(),
-		observe.PII(user),
 		observe.PII(directory.Folder(false)))
 	defer closer()
 	defer close(colProgress)

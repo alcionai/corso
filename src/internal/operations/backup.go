@@ -120,9 +120,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// -----
 
 	var (
-		opStats      backupStats
-		startTime    = time.Now()
-		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
+		opStats   backupStats
+		startTime = time.Now()
+		sstore    = streamstore.NewStreamer(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
@@ -148,32 +148,22 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
+	observe.Message(ctx, observe.Safe("Backing Up"), observe.Bullet, observe.PII(op.ResourceOwner))
+
 	deets, err := op.do(
 		ctx,
 		&opStats,
-		detailsStore,
+		sstore,
 		op.Results.BackupID)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.Ctx(ctx).
 			With("err", err).
-			Errorw("doing backup", clues.InErr(err).Slice()...)
-		op.Errors.Fail(errors.Wrap(err, "doing backup"))
+			Errorw("running backup", clues.InErr(err).Slice()...)
+		op.Errors.Fail(errors.Wrap(err, "running backup"))
 	}
 
-	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Recovered())
-	for i, err := range op.Errors.Recovered() {
-		logger.Ctx(ctx).
-			With("error", err).
-			With(clues.InErr(err).Slice()...).
-			Errorf("doing backup: recoverable error %d of %d", i+1, recoverableCount)
-	}
-
-	skippedCount := len(op.Errors.Skipped())
-	for i, skip := range op.Errors.Skipped() {
-		logger.Ctx(ctx).With("skip", skip).Infof("doing backup: skipped item %d of %d", i+1, skippedCount)
-	}
+	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
 	// -----
 	// Persistence
@@ -201,7 +191,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	err = op.createBackupModels(
 		ctx,
-		detailsStore,
+		sstore,
 		opStats.k.SnapshotID,
 		op.Results.BackupID,
 		deets.Details())
@@ -292,12 +282,20 @@ func (op *BackupOperation) do(
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
-	// Delta-based incrementals currently only supported for Exchange
-	if sel.Service != selectors.ServiceExchange {
+	enabled := !opts.ToggleFeatures.DisableIncrementals
+
+	switch sel.Service {
+	case selectors.ServiceExchange:
+		return enabled
+
+	case selectors.ServiceOneDrive:
+		// TODO(ashmrtn): Remove the && part once we support permissions and
+		// incrementals.
+		return enabled && !opts.ToggleFeatures.EnablePermissionsBackup
+
+	default:
 		return false
 	}
-
-	return !opts.ToggleFeatures.DisableIncrementals
 }
 
 // ---------------------------------------------------------------------------
@@ -447,20 +445,24 @@ func consumeBackupDataCollections(
 			cats = append(cats, k)
 		}
 
+		mbID, ok := m.GetTag(kopia.TagBackupID)
+		if !ok {
+			mbID = "no_backup_id_tag"
+		}
+
 		logger.Ctx(ctx).Infow(
 			"using base for backup",
-			"snapshot_id", m.ID,
+			"base_snapshot_id", m.ID,
 			"services", svcs,
-			"categories", cats)
+			"categories", cats,
+			"base_backup_id", mbID)
 	}
 
 	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
 		ctx,
 		bases,
 		cs,
-		// TODO(ashmrtn): When we're ready to enable incremental backups for
-		// OneDrive replace this with `excludes`.
-		nil,
+		excludes,
 		tags,
 		isIncremental,
 		errs)
@@ -505,8 +507,7 @@ func mergeDetails(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) error {
-	// Don't bother loading any of the base details if there's nothing we need to
-	// merge.
+	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if len(shortRefsFromPrevBackup) == 0 {
 		return nil
 	}
@@ -514,7 +515,10 @@ func mergeDetails(
 	var addedEntries int
 
 	for _, man := range mans {
-		mctx := clues.Add(ctx, "manifest_id", man.ID)
+		var (
+			mctx                 = clues.Add(ctx, "base_manifest_id", man.ID)
+			manifestAddedEntries int
+		)
 
 		// For now skip snapshots that aren't complete. We will need to revisit this
 		// when we tackle restartability.
@@ -527,10 +531,10 @@ func mergeDetails(
 			return clues.New("no backup ID in snapshot manifest").WithClues(mctx)
 		}
 
-		mctx = clues.Add(mctx, "manifest_backup_id", bID)
+		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
 
 		_, baseDeets, err := getBackupAndDetailsFromID(
-			ctx,
+			mctx,
 			model.StableID(bID),
 			ms,
 			detailsStore,
@@ -604,7 +608,13 @@ func mergeDetails(
 			// Track how many entries we added so that we know if we got them all when
 			// we're done.
 			addedEntries++
+			manifestAddedEntries++
 		}
+
+		logger.Ctx(mctx).Infow(
+			"merged details with base manifest",
+			"base_item_count_unfiltered", len(baseDeets.Items()),
+			"base_item_count_added", manifestAddedEntries)
 	}
 
 	if addedEntries != len(shortRefsFromPrevBackup) {
@@ -658,36 +668,54 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
-	detailsStore streamstore.Writer,
+	sscw streamstore.CollectorWriter,
 	snapID string,
 	backupID model.StableID,
-	backupDetails *details.Details,
+	deets *details.Details,
 ) error {
-	ctx = clues.Add(ctx, "snapshot_id", snapID)
+	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
+	// generate a new fault bus so that we can maintain clean
+	// separation between the errors we serialize and those that
+	// are generated during the serialization process.
+	errs := fault.New(true)
 
-	if backupDetails == nil {
+	if deets == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
-	detailsID, err := detailsStore.Write(ctx, backupDetails, op.Errors)
+	ctx = clues.Add(ctx, "details_entry_count", len(deets.Entries))
+
+	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {
-		return clues.Wrap(err, "creating backupDetails model").WithClues(ctx)
+		return clues.Wrap(err, "collecting details for persistence").WithClues(ctx)
 	}
 
-	ctx = clues.Add(ctx, "details_id", detailsID)
+	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(op.Errors.Errors()))
+	if err != nil {
+		return clues.Wrap(err, "collecting errors for persistence").WithClues(ctx)
+	}
+
+	ssid, err := sscw.Write(ctx, errs)
+	if err != nil {
+		return clues.Wrap(err, "persisting details and errors").WithClues(ctx)
+	}
+
+	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
+
 	b := backup.New(
-		snapID, detailsID, op.Status.String(),
+		snapID, ssid,
+		op.Status.String(),
 		backupID,
 		op.Selectors,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
-		op.Errors)
+		op.Errors.Errors())
+
+	logger.Ctx(ctx).Info("creating new backup")
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
-
-	dur := op.Results.CompletedAt.Sub(op.Results.StartedAt)
 
 	op.bus.Event(
 		ctx,
@@ -695,7 +723,7 @@ func (op *BackupOperation) createBackupModels(
 		map[string]any{
 			events.BackupID:   b.ID,
 			events.DataStored: op.Results.BytesUploaded,
-			events.Duration:   dur,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
 			events.EndTime:    common.FormatTime(op.Results.CompletedAt),
 			events.Resources:  op.Results.ResourceOwners,
 			events.Service:    op.Selectors.PathService().String(),

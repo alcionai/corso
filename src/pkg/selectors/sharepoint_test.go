@@ -62,7 +62,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 	}{
 		{"Include Scopes", sel.Includes},
 		{"Exclude Scopes", sel.Excludes},
-		{"Filter Scopes", sel.Filters},
+		{"info scopes", sel.Filters},
 	}
 	for _, test := range table {
 		require.Len(t, test.scopesToCheck, 3)

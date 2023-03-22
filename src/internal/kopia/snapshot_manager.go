@@ -251,7 +251,7 @@ func fetchPrevSnapshotManifests(
 		ictx := clues.Add(ctx, "service", reason.Service.String(), "category", reason.Category.String())
 		logger.Ctx(ictx).Info("searching for previous manifests for reason")
 
-		found, err := fetchPrevManifests(ctx, sm, mans, reason, tags)
+		found, err := fetchPrevManifests(ictx, sm, mans, reason, tags)
 		if err != nil {
 			logger.CtxErr(ictx, err).Info("fetching previous snapshot manifests for service/category/resource owner")
 

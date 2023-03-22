@@ -10,20 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
-      # jobs are expanded per user. Try to run 2 jobs per active user at a time
-      max-parallel: 6
       matrix:
-        folder: [Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_, '']
-        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID]
-        include:
-          - folder: ""
-            user: ""
+        user: [ CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID, '' ]
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '1.19'
 
       # sets the maximum time to now-30m.
       # CI test have a 10 minute timeout.
@@ -37,7 +28,8 @@ jobs:
         uses: ./.github/actions/purge-m365-user-data
         with:
           user: ${{ secrets[matrix.user] }}
-          folder-prefix: ${{ matrix.folder }}
+          site: ${{ secrets.CORSO_M365_TEST_SITE_URL}}
+          folder-prefix: "Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_"
           older-than: ${{ env.HALF_HOUR_AGO }}
           azure-client-id: ${{ secrets.CLIENT_ID }}
           azure-client-secret: ${{ secrets.CLIENT_SECRET }}

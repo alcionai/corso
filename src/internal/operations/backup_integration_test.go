@@ -469,9 +469,7 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &BackupOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoOperationTests,
-			tester.CorsoOperationBackupTests),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -1096,35 +1094,8 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 	runAndCheckBackup(t, ctx, &bo, mb)
 }
 
-// nolint: unused
-func mustGetDefaultDriveID(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	service graph.Servicer,
-	userID string,
-) string {
-	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
-	if err != nil {
-		err = graph.Wrap(
-			ctx,
-			err,
-			"retrieving default user drive").
-			With("user", userID)
-	}
-
-	require.NoError(t, err, clues.ToCore(err))
-
-	id := ptr.Val(d.GetId())
-	require.NotEmpty(t, id, "drive ID not set")
-
-	return id
-}
-
 // TestBackup_Run ensures that Integration Testing works for OneDrive
 func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
-	// TODO: Enable once we have https://github.com/alcionai/corso/pull/2642
-	suite.T().Skip("Enable once OneDrive incrementals is available")
-
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -1160,6 +1131,31 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		connector.Users,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+
+	// TODO: whomever can figure out a way to declare this outside of this func
+	// and not have the linter complain about unused is welcome to do so.
+	mustGetDefaultDriveID := func(
+		t *testing.T,
+		ctx context.Context, //revive:disable-line:context-as-argument
+		service graph.Servicer,
+		userID string,
+	) string {
+		d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
+		if err != nil {
+			err = graph.Wrap(
+				ctx,
+				err,
+				"retrieving default user drive").
+				With("user", userID)
+		}
+
+		require.NoError(t, err)
+
+		id := ptr.Val(d.GetId())
+		require.NotEmpty(t, id, "drive ID not set")
+
+		return id
+	}
 
 	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
 
@@ -1414,7 +1410,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 				containerIDs[container3] = ptr.Val(resp.GetId())
 			},
-			itemsRead:    4, // 2*2 (.data and .meta for 2 files)
+			itemsRead:    2, // 2 .data for 2 files
 			itemsWritten: 6, // read items + 2 directory meta
 		},
 	}

@@ -20,10 +20,7 @@ type BetaClientSuite struct {
 
 func TestBetaClientSuite(t *testing.T) {
 	suite.Run(t, &BetaClientSuite{
-		Suite: tester.NewIntegrationSuite(
-			t,
-			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests),
+		Suite: tester.NewIntegrationSuite(t, [][]string{tester.M365AcctCredEnvs}),
 	})
 }
 

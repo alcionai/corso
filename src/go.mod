@@ -5,17 +5,16 @@ go 1.19
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
 	github.com/alcionai/clues v0.0.0-20230314154528-c469e1adafb6
-	github.com/aws/aws-sdk-go v1.44.218
+	github.com/aws/aws-sdk-go v1.44.220
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
-	github.com/microsoft/kiota-abstractions-go v0.16.0
+	github.com/microsoft/kiota-abstractions-go v0.18.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
-	github.com/microsoft/kiota-http-go v0.13.0
-	github.com/microsoft/kiota-serialization-form-go v0.2.0
-	github.com/microsoft/kiota-serialization-json-go v0.7.2
+	github.com/microsoft/kiota-http-go v0.16.1
+	github.com/microsoft/kiota-serialization-form-go v0.8.2
+	github.com/microsoft/kiota-serialization-json-go v0.8.2
 	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
 	github.com/pkg/errors v0.9.1
@@ -61,7 +60,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chmduquesne/rollinghash v4.0.0+incompatible // indirect
-	github.com/cjlapao/common-go v0.0.37 // indirect
+	github.com/cjlapao/common-go v0.0.39 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
@@ -69,7 +68,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -84,7 +82,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/microsoft/kiota-serialization-text-go v0.6.0
+	github.com/microsoft/kiota-serialization-text-go v0.7.0
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.45 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
@@ -107,8 +105,8 @@ require (
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
-	go.opentelemetry.io/otel v1.11.2 // indirect
-	go.opentelemetry.io/otel/trace v1.11.2 // indirect
+	go.opentelemetry.io/otel v1.14.0 // indirect
+	go.opentelemetry.io/otel/trace v1.14.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect

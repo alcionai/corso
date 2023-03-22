@@ -21,6 +21,12 @@ func TestRestoreUnitSuite(t *testing.T) {
 }
 
 func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
+	// Adding a simple test here so that we can be sure that this
+	// function gets updated whenever we add a new version.
+	if version.Backup > version.OneDrive6NameInMeta {
+		require.Less(suite.T(), version.OneDrive6NameInMeta+1, version.Backup, "unsupported backup version")
+	}
+
 	table := []struct {
 		name    string
 		version int
@@ -119,6 +125,41 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"folder/folder.dirmeta",
 				"folder/folder2/file.txt.data",
 				"folder/folder2/folder2.dirmeta",
+			},
+		},
+		{
+			name:    "no change v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"file.txt.data",
+			},
+			output: []string{
+				"file.txt.data",
+			},
+		},
+		{
+			name:    "one folder v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"folder/file.txt.data",
+			},
+			output: []string{
+				"folder/.dirmeta",
+				"folder/file.txt.data",
+			},
+		},
+		{
+			name:    "nested folders v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"folder/file.txt.data",
+				"folder/folder2/file.txt.data",
+			},
+			output: []string{
+				"folder/.dirmeta",
+				"folder/file.txt.data",
+				"folder/folder2/.dirmeta",
+				"folder/folder2/file.txt.data",
 			},
 		},
 	}

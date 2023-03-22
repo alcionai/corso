@@ -146,7 +146,6 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
-	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())

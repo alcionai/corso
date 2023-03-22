@@ -202,7 +202,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 		bc  = &stats.ByteCounter{}
 	)
 
-	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries))
+	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries)) // just for logging
 	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
 
 	for _, ent := range prevSnapEntries {
@@ -210,9 +210,17 @@ func (w Wrapper) makeSnapshotWithRoot(
 		snapIDs = append(snapIDs, ent.ID)
 	}
 
-	logger.Ctx(ctx).Infow(
-		"using snapshots for kopia-assisted incrementals",
-		"snapshot_ids", snapIDs)
+	ctx = clues.Add(
+		ctx,
+		"len_prev_base_snapshots", len(prevSnapEntries),
+		"assist_snap_ids", snapIDs,
+		"additional_tags", addlTags)
+
+	if len(snapIDs) > 0 {
+		logger.Ctx(ctx).Info("using snapshots for kopia-assisted incrementals")
+	} else {
+		logger.Ctx(ctx).Info("no base snapshots for kopia-assisted incrementals")
+	}
 
 	tags := map[string]string{}
 
@@ -333,11 +341,10 @@ func getItemStream(
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
 		snapshotRoot,
-		encodeElements(itemPath.PopFront().Elements()...),
-	)
+		encodeElements(itemPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
-			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
+			err = clues.Stack(data.ErrNotFound, err)
 		}
 
 		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
@@ -413,7 +420,9 @@ func (w Wrapper) RestoreMultipleItems(
 			return nil, el.Failure()
 		}
 
-		ds, err := getItemStream(ctx, itemPath, snapshotRoot, bcounter)
+		ictx := clues.Add(ctx, "item_path", itemPath.String)
+
+		ds, err := getItemStream(ictx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 			continue
@@ -422,7 +431,7 @@ func (w Wrapper) RestoreMultipleItems(
 		parentPath, err := itemPath.Dir()
 		if err != nil {
 			el.AddRecoverable(clues.Wrap(err, "making directory collection").
-				WithClues(ctx).
+				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
 
 			continue
@@ -457,9 +466,8 @@ func (w Wrapper) DeleteSnapshot(
 	snapshotID string,
 ) error {
 	mid := manifest.ID(snapshotID)
-
 	if len(mid) == 0 {
-		return clues.New("attempt to delete unidentified snapshot").WithClues(ctx)
+		return clues.New("snapshot ID required for deletion").WithClues(ctx)
 	}
 
 	err := repo.WriteSession(
