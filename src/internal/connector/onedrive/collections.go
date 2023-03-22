@@ -499,9 +499,9 @@ func (c *Collections) handleDelete(
 	invalidPrevDelta bool,
 ) error {
 	if !isFolder {
-		// Try to remove the item from the Collection if one exists for this item.
-		// This handles cases where an item was created and deleted during the same
-		// delta query.
+		// Try to remove the item from the Collection if an entry exists for this
+		// item. This handles cases where an item was created and deleted during the
+		// same delta query.
 		if parentID, ok := itemCollection[driveID][itemID]; ok {
 			if col := c.CollectionMap[driveID][parentID]; col != nil {
 				col.Remove(itemID)
