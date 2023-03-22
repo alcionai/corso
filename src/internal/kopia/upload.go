@@ -978,27 +978,28 @@ func inflateBaseTree(
 	for _, subtreePath := range snap.SubtreePaths {
 		// We're starting from the root directory so don't need it in the path.
 		pathElems := encodeElements(subtreePath.PopFront().Elements()...)
+		ictx := clues.Add(ctx, "subtree_path_elems", pathElems)
 
-		ent, err := snapshotfs.GetNestedEntry(ctx, dir, pathElems)
+		ent, err := snapshotfs.GetNestedEntry(ictx, dir, pathElems)
 		if err != nil {
 			if isErrEntryNotFound(err) {
-				logger.CtxErr(ctx, err).Infow("base snapshot missing subtree")
+				logger.CtxErr(ictx, err).Infow("base snapshot missing subtree")
 				continue
 			}
 
-			return clues.Wrap(err, "getting subtree root").WithClues(ctx)
+			return clues.Wrap(err, "getting subtree root").WithClues(ictx)
 		}
 
 		subtreeDir, ok := ent.(fs.Directory)
 		if !ok {
-			return clues.Wrap(err, "subtree root is not directory").WithClues(ctx)
+			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
 		}
 
 		// We're assuming here that the prefix for the path has not changed (i.e.
 		// all of tenant, service, resource owner, and category are the same in the
 		// old snapshot (snap) and the snapshot we're currently trying to make.
 		if err = traverseBaseDir(
-			ctx,
+			ictx,
 			0,
 			updatedPaths,
 			subtreePath.Dir(),
@@ -1006,7 +1007,7 @@ func inflateBaseTree(
 			subtreeDir,
 			roots,
 		); err != nil {
-			return clues.Wrap(err, "traversing base snapshot").WithClues(ctx)
+			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
 	}
 
