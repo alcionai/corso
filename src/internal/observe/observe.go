@@ -121,8 +121,7 @@ func SeedWriter(ctx context.Context, w io.Writer, c *config) {
 		contxt,
 		mpb.WithWidth(progressBarWidth),
 		mpb.WithWaitGroup(&wg),
-		mpb.WithOutput(writer),
-	)
+		mpb.WithOutput(writer))
 }
 
 // Complete blocks until the progress finishes writing out all data.
@@ -172,8 +171,7 @@ func Message(ctx context.Context, msgs ...cleanable) {
 			decor.WC{
 				W: len(message) + 1,
 				C: decor.DidentRight,
-			})),
-	)
+			})))
 
 	// Complete the bar immediately
 	bar.SetTotal(-1, true)
@@ -210,8 +208,7 @@ func MessageWithCompletion(
 		mpb.PrependDecorators(
 			decor.Name(message+":"),
 			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
-		mpb.BarFillerOnComplete("done"),
-	)
+		mpb.BarFillerOnComplete("done"))
 
 	go listen(
 		ctx,
