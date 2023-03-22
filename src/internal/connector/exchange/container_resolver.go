@@ -216,9 +216,5 @@ func (cr *containerResolver) populatePaths(
 		}
 	}
 
-	if lastErr != nil {
-		return lastErr
-	}
-
-	return nil
+	return lastErr
 }
