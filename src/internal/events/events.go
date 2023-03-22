@@ -196,13 +196,17 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 	gm, err := metrics.NewGlobal(cfg, sink)
 	if err != nil {
 		logger.CtxErr(ctx, err).Error("metrics bus constructor")
-		return ctx, func() { sig.Stop() }
+		sig.Stop()
+
+		return ctx, func() {}
 	}
 
 	stop := make(chan struct{})
 	go dumpMetrics(ctx, stop, sig)
 
 	flush := func() {
+		signalDump(ctx)
+		time.Sleep(500 * time.Millisecond)
 		close(stop)
 		sig.Stop()
 		gm.Shutdown()
@@ -223,12 +227,16 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 	for {
 		select {
 		case <-tock:
-			if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
-				logger.CtxErr(ctx, err).Error("metrics interval signal")
-			}
+			signalDump(ctx)
 		case <-stop:
 			return
 		}
+	}
+}
+
+func signalDump(ctx context.Context) {
+	if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
+		logger.CtxErr(ctx, err).Error("metrics interval signal")
 	}
 }
 
