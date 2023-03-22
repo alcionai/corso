@@ -238,7 +238,7 @@ func runBackups(
 		return Only(ctx, errors.Wrap(berrs.Failure(), "Unable to retrieve backup results from storage"))
 	}
 
-	Info(ctx, "All Backups Complete:")
+	Info(ctx, "Completed Backups:")
 	backup.PrintAll(ctx, bups)
 
 	if len(errs) > 0 {

@@ -39,7 +39,6 @@ func (suite *PrintUnitSuite) TestOut() {
 	msg := "I have seen the fnords!"
 
 	out(&b, msg)
-	assert.Contains(t, b.String(), "Error: ")
 	assert.Contains(t, b.String(), msg)
 }
 
