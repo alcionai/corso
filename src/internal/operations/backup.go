@@ -671,21 +671,25 @@ func (op *BackupOperation) createBackupModels(
 	sscw streamstore.CollectorWriter,
 	snapID string,
 	backupID model.StableID,
-	backupDetails *details.Details,
+	deets *details.Details,
 ) error {
-	ctx = clues.Add(ctx, "snapshot_id", snapID)
+	ctx = clues.Add(
+		ctx,
+		"snapshot_id", snapID,
+		"backup_id", backupID,
+		"details_entry_count", len(deets.Entries))
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
 	// are generated during the serialization process.
 	errs := fault.New(true)
 
-	if backupDetails == nil {
+	if deets == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
-	err := sscw.Collect(ctx, streamstore.DetailsCollector(backupDetails))
+	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {
-		return clues.Wrap(err, "creating backupDetails persistence").WithClues(ctx)
+		return clues.Wrap(err, "creating details persistence").WithClues(ctx)
 	}
 
 	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(op.Errors.Errors()))
@@ -698,6 +702,8 @@ func (op *BackupOperation) createBackupModels(
 		return clues.Wrap(err, "persisting details and errors").WithClues(ctx)
 	}
 
+	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
+
 	b := backup.New(
 		snapID, ssid,
 		op.Status.String(),
@@ -707,12 +713,9 @@ func (op *BackupOperation) createBackupModels(
 		op.Results.StartAndEndTime,
 		op.Errors.Errors())
 
-	err = op.store.Put(
-		clues.Add(ctx, "streamstore_snapshot_id", ssid),
-		model.BackupSchema,
-		b)
+	logger.Ctx(ctx).Info("creating new backup")
 
-	if err != nil {
+	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
 	}
 
