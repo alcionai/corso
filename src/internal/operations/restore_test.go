@@ -209,6 +209,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		sw,
 		acct,
 		bsel.Selector,
+		bsel.Selector.DiscreteOwner,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -236,6 +237,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		sw,
 		acct,
 		csel.Selector,
+		csel.Selector.DiscreteOwner,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 

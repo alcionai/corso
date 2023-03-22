@@ -35,10 +35,12 @@ import (
 type BackupOperation struct {
 	operation
 
-	ResourceOwner string             `json:"resourceOwner"`
-	Results       BackupResults      `json:"results"`
-	Selectors     selectors.Selector `json:"selectors"`
-	Version       string             `json:"version"`
+	ResourceOwner     string `json:"resourceOwner"`
+	ResourceOwnerName string `json:"resourceOwnerName"`
+
+	Results   BackupResults      `json:"results"`
+	Selectors selectors.Selector `json:"selectors"`
+	Version   string             `json:"version"`
 
 	account account.Account
 
@@ -61,15 +63,17 @@ func NewBackupOperation(
 	sw *store.Wrapper,
 	acct account.Account,
 	selector selectors.Selector,
+	ownerName string,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:     newOperation(opts, bus, kw, sw),
-		ResourceOwner: selector.DiscreteOwner,
-		Selectors:     selector,
-		Version:       "v0",
-		account:       acct,
-		incremental:   useIncrementalBackup(selector, opts),
+		operation:         newOperation(opts, bus, kw, sw),
+		ResourceOwner:     selector.DiscreteOwner,
+		ResourceOwnerName: ownerName,
+		Selectors:         selector,
+		Version:           "v0",
+		account:           acct,
+		incremental:       useIncrementalBackup(selector, opts),
 	}
 	if err := op.validate(); err != nil {
 		return BackupOperation{}, err
@@ -676,7 +680,7 @@ func (op *BackupOperation) createBackupModels(
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
-	// are generated during the serialization process.
+	// are generated during the serialization process.c
 	errs := fault.New(true)
 
 	if deets == nil {
@@ -707,6 +711,8 @@ func (op *BackupOperation) createBackupModels(
 		op.Status.String(),
 		backupID,
 		op.Selectors,
+		op.ResourceOwner,
+		op.ResourceOwnerName,
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 		op.Errors.Errors())
