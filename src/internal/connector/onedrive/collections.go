@@ -381,6 +381,7 @@ func (c *Collections) Get(
 		// Set all folders in previous backup but not in the current
 		// one with state deleted
 		modifiedPaths := map[string]struct{}{}
+
 		for _, p := range c.CollectionMap[driveID] {
 			if p.FullPath() != nil {
 				modifiedPaths[p.FullPath().String()] = struct{}{}
