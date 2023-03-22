@@ -159,11 +159,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.Ctx(ctx).
 			With("err", err).
-			Errorw("doing backup", clues.InErr(err).Slice()...)
-		op.Errors.Fail(errors.Wrap(err, "doing backup"))
+			Errorw("running backup", clues.InErr(err).Slice()...)
+		op.Errors.Fail(errors.Wrap(err, "running backup"))
 	}
 
-	LogFaultErrors(ctx, op.Errors.Errors(), "doing backup")
+	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
 	// -----
 	// Persistence

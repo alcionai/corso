@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -134,19 +133,9 @@ func runPurgeForEachUser(
 	boundary time.Time,
 	ps ...purger,
 ) error {
-	var (
-		errs  error
-		ferrs = fault.New(false)
-	)
-
-	users, err := m365.Users(ctx, acct, ferrs)
+	users, err := m365.Users(ctx, acct, fault.New(true))
 	if err != nil {
 		return clues.Wrap(err, "getting users")
-	}
-
-	if len(ferrs.Errors().Recovered) > 0 {
-		// TODO(keepers): remove multierr
-		errs = multierror.Append(errs, ferrs.Recovered()...)
 	}
 
 	for _, u := range userOrUsers(user, users) {
@@ -154,12 +143,12 @@ func runPurgeForEachUser(
 
 		for _, p := range ps {
 			if err := p(ctx, gc, boundary, u.PrincipalName); err != nil {
-				errs = multierror.Append(errs, err)
+				return err
 			}
 		}
 	}
 
-	return errs
+	return nil
 }
 
 // ----- OneDrive
@@ -240,10 +229,9 @@ func purgeFolders(
 		dnTime, err := common.ExtractTime(displayName)
 		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
 			err = errors.Wrapf(err, "!! Error: parsing container named [%s]", displayName)
-			errs = multierror.Append(errs, err)
 			Info(ctx, err)
 
-			continue
+			return err
 		}
 
 		if !dnTime.Before(boundary) || dnTime == (time.Time{}) {
@@ -255,7 +243,6 @@ func purgeFolders(
 		err = deleter(gc.Service, uid, fld)
 		if err != nil {
 			err = errors.Wrapf(err, "!! Error")
-			errs = multierror.Append(errs, err)
 			Info(ctx, err)
 		}
 	}
