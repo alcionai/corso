@@ -495,9 +495,27 @@ func (c *Collections) handleDelete(
 	oldPaths, newPaths map[string]string,
 	isFolder bool,
 	excluded map[string]struct{},
+	itemCollection map[string]map[string]string,
 	invalidPrevDelta bool,
 ) error {
 	if !isFolder {
+		// Try to remove the item from the Collection if one exists for this item.
+		// This handles cases where an item was created and deleted during the same
+		// delta query.
+		if parentID, ok := itemCollection[driveID][itemID]; ok {
+			if col := c.CollectionMap[driveID][parentID]; col != nil {
+				col.Remove(itemID)
+			}
+
+			delete(itemCollection[driveID], itemID)
+		}
+
+		// Don't need to add to exclude list if the delta is invalid since the
+		// exclude list only matters if we're merging with a base.
+		if invalidPrevDelta {
+			return nil
+		}
+
 		excluded[itemID+DataFileSuffix] = struct{}{}
 		excluded[itemID+MetaFileSuffix] = struct{}{}
 		// Exchange counts items streamed through it which includes deletions so
@@ -669,6 +687,7 @@ func (c *Collections) UpdateCollections(
 				newPaths,
 				isFolder,
 				excluded,
+				itemCollection,
 				invalidPrevDelta,
 			); err != nil {
 				return clues.Stack(err).WithClues(ictx)
