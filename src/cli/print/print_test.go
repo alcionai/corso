@@ -33,32 +33,23 @@ func (suite *PrintUnitSuite) TestOnly() {
 	assert.True(t, c.SilenceUsage)
 }
 
-func (suite *PrintUnitSuite) TestErr() {
+func (suite *PrintUnitSuite) TestOut() {
 	t := suite.T()
 	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
 
-	err(&b, msg)
+	out(&b, msg)
 	assert.Contains(t, b.String(), "Error: ")
 	assert.Contains(t, b.String(), msg)
 }
 
-func (suite *PrintUnitSuite) TestInfo() {
-	t := suite.T()
-	b := bytes.Buffer{}
-	msg := "I have seen the fnords!"
-
-	info(&b, msg)
-	assert.Contains(t, b.String(), msg)
-}
-
-func (suite *PrintUnitSuite) TestInfof() {
+func (suite *PrintUnitSuite) TestOutf() {
 	t := suite.T()
 	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
 	msg2 := "smarf"
 
-	infof(&b, msg, msg2)
+	outf(&b, msg, msg2)
 	bs := b.String()
 	assert.Contains(t, bs, msg)
 	assert.Contains(t, bs, msg2)
