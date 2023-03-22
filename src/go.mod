@@ -14,7 +14,7 @@ require (
 	github.com/microsoft/kiota-abstractions-go v0.17.3
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
 	github.com/microsoft/kiota-http-go v0.16.1
-	github.com/microsoft/kiota-serialization-form-go v0.3.0
+	github.com/microsoft/kiota-serialization-form-go v0.8.2
 	github.com/microsoft/kiota-serialization-json-go v0.8.2
 	github.com/microsoftgraph/msgraph-sdk-go v0.53.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v0.33.0
