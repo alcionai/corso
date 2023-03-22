@@ -283,7 +283,6 @@ func (handler *LoggingMiddleware) Intercept(
 			"url", req.URL, // TODO: pii
 			"request_len", req.ContentLength,
 		)
-		log       = logger.Ctx(ctx)
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
