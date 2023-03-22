@@ -347,29 +347,34 @@ func (c *Collections) Get(
 		logger.Ctx(ictx).Infow(
 			"persisted metadata for drive",
 			"num_paths_entries", len(paths),
-			"num_deltas_entries", numDeltas)
+			"num_deltas_entries", numDeltas,
+			"delta_reset", delta.Reset)
 
 		if !delta.Reset {
-			p, err := GetCanonicalPath(
-				fmt.Sprintf(rootDrivePattern, driveID),
-				c.tenant,
-				c.resourceOwner,
-				c.source)
-			if err != nil {
-				return nil, nil,
-					clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+			if len(excluded) > 0 {
+				p, err := GetCanonicalPath(
+					fmt.Sprintf(rootDrivePattern, driveID),
+					c.tenant,
+					c.resourceOwner,
+					c.source)
+				if err != nil {
+					return nil, nil,
+						clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+				}
+
+				pstr := p.String()
+
+				eidi, ok := excludedItems[pstr]
+				if !ok {
+					eidi = map[string]struct{}{}
+				}
+
+				maps.Copy(eidi, excluded)
+				excludedItems[pstr] = eidi
 			}
 
-			pstr := p.String()
-
-			eidi, ok := excludedItems[pstr]
-			if !ok {
-				eidi = map[string]struct{}{}
-			}
-
-			maps.Copy(eidi, excluded)
-			excludedItems[pstr] = eidi
-
+			// Don't need to do set difference on folder map if the delta token was
+			// valid because we should see all the changes.
 			continue
 		}
 
@@ -767,7 +772,7 @@ func (c *Collections) UpdateCollections(
 					return clues.New("previous collection not found").WithClues(ictx)
 				}
 
-				removed := pcollection.Remove(item)
+				removed := pcollection.Remove(itemID)
 				if !removed {
 					return clues.New("removing from prev collection").WithClues(ictx)
 				}
