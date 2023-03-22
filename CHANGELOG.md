@@ -218,8 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.0...HEAD
-[v0.6.0]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.0
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.1...HEAD
+[v0.6.1]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.1
 [v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/alcionai/corso/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/alcionai/corso/compare/v0.2.0...v0.3.0
