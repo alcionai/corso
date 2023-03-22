@@ -202,7 +202,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 		bc  = &stats.ByteCounter{}
 	)
 
-	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries))
+	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries)) // just for logging
 	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
 
 	for _, ent := range prevSnapEntries {
@@ -210,9 +210,17 @@ func (w Wrapper) makeSnapshotWithRoot(
 		snapIDs = append(snapIDs, ent.ID)
 	}
 
-	logger.Ctx(ctx).Infow(
-		"using snapshots for kopia-assisted incrementals",
-		"snapshot_ids", snapIDs)
+	ctx = clues.Add(
+		ctx,
+		"len_prev_base_snapshots", len(prevSnapEntries),
+		"assist_snap_ids", snapIDs,
+		"additional_tags", addlTags)
+
+	if len(snapIDs) > 0 {
+		logger.Ctx(ctx).Info("using snapshots for kopia-assisted incrementals")
+	} else {
+		logger.Ctx(ctx).Info("no base snapshots for kopia-assisted incrementals")
+	}
 
 	tags := map[string]string{}
 

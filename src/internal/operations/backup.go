@@ -661,20 +661,37 @@ func (op *BackupOperation) createBackupModels(
 	detailsStore streamstore.Writer,
 	snapID string,
 	backupID model.StableID,
-	backupDetails *details.Details,
+	deets *details.Details,
 ) error {
-	ctx = clues.Add(ctx, "snapshot_id", snapID)
+	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
+	// generate a new fault bus so that we can maintain clean
+	// separation between the errors we serialize and those that
+	// are generated during the serialization process.
+	errs := fault.New(true)
 
-	if backupDetails == nil {
+	if deets == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
-	detailsID, err := detailsStore.Write(ctx, backupDetails, op.Errors)
+	ctx = clues.Add(ctx, "details_entry_count", len(deets.Entries))
+
+	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {
-		return clues.Wrap(err, "creating backupDetails model").WithClues(ctx)
+		return clues.Wrap(err, "collecting details for persistence").WithClues(ctx)
 	}
 
-	ctx = clues.Add(ctx, "details_id", detailsID)
+	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(op.Errors.Errors()))
+	if err != nil {
+		return clues.Wrap(err, "collecting errors for persistence").WithClues(ctx)
+	}
+
+	ssid, err := sscw.Write(ctx, errs)
+	if err != nil {
+		return clues.Wrap(err, "persisting details and errors").WithClues(ctx)
+	}
+
+	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
+
 	b := backup.New(
 		snapID, detailsID, op.Status.String(),
 		backupID,
@@ -682,6 +699,8 @@ func (op *BackupOperation) createBackupModels(
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 		op.Errors)
+
+	logger.Ctx(ctx).Info("creating new backup")
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
 		return clues.Wrap(err, "creating backup model").WithClues(ctx)
