@@ -377,7 +377,9 @@ func (c *Collections) Get(
 		// one with state deleted
 		modifiedPaths := map[string]struct{}{}
 		for _, p := range c.CollectionMap[driveID] {
-			modifiedPaths[p.FullPath().String()] = struct{}{}
+			if p.FullPath() != nil {
+				modifiedPaths[p.FullPath().String()] = struct{}{}
+			}
 		}
 
 		for fldID, p := range oldPaths {
@@ -671,6 +673,8 @@ func (c *Collections) UpdateCollections(
 			el.AddRecoverable(clues.Stack(err).
 				WithClues(ictx).
 				Label(fault.LabelForceNoBackupCreation))
+
+			continue
 		}
 
 		// Skip items that don't match the folder selectors we were given.
