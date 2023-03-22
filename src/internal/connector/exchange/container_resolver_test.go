@@ -370,7 +370,7 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestPopulatePaths() {
 
 	t := suite.T()
 
-	err := suite.fc.populatePaths(ctx, false)
+	err := suite.fc.populatePaths(ctx, false, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	items := suite.fc.Items()

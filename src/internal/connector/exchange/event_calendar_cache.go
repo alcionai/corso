@@ -81,7 +81,7 @@ func (ecc *eventCalendarCache) Populate(
 		return errors.Wrap(err, "enumerating containers")
 	}
 
-	if err := ecc.populatePaths(ctx, true); err != nil {
+	if err := ecc.populatePaths(ctx, true, errs); err != nil {
 		return errors.Wrap(err, "establishing calendar paths")
 	}
 

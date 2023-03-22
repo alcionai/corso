@@ -9,7 +9,6 @@ require (
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
 	github.com/microsoft/kiota-abstractions-go v0.18.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
@@ -69,7 +68,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
