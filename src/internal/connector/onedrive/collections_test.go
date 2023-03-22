@@ -2009,6 +2009,192 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			expectedDelList: map[string]map[string]struct{}{},
 			doNotMergeItems: true,
 		},
+		{
+			name:   "One Drive Delta Error Random Item Delete",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						err: getDeltaError(),
+					},
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							delItem("file", driveBasePath1, "root", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+				},
+			},
+			expectedDelList: map[string]map[string]struct{}{},
+			doNotMergeItems: true,
+		},
+		{
+			name:   "One Drive Folder Made And Deleted",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+						},
+						nextLink: &next,
+					},
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							delItem("folder", driveBasePath1, "root", false, true, false),
+							delItem("file", driveBasePath1, "root", true, false, false),
+						},
+						deltaLink: &delta2,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta2,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+				},
+			},
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
+		},
+		{
+			name:   "One Drive Item Made And Deleted",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+						},
+						nextLink: &next,
+					},
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							delItem("file", driveBasePath1, "root", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
+		},
+		{
+			name:   "One Drive Random Folder Delete",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							delItem("folder", driveBasePath1, "root", false, true, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+				},
+			},
+			expectedDelList: map[string]map[string]struct{}{},
+		},
+		{
+			name:   "One Drive Random Item Delete",
+			drives: []models.Driveable{drive1},
+			items: map[string][]deltaPagerResult{
+				driveID1: {
+					{
+						items: []models.DriveItemable{
+							driveRootItem("root"),
+							delItem("file", driveBasePath1, "root", true, false, false),
+						},
+						deltaLink: &delta,
+					},
+				},
+			},
+			errCheck: assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+				},
+			},
+			expectedDelList: map[string]map[string]struct{}{
+				rootFolderPath1: getDelList("file"),
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
