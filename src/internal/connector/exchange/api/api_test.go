@@ -208,6 +208,13 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 				return body
 			},
 		},
+		{
+			name:          "No body",
+			hasAttachment: assert.False,
+			getBodyable: func(t *testing.T) models.ItemBodyable {
+				return nil
+			},
+		},
 	}
 
 	for _, test := range tests {
