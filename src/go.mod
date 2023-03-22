@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
-	github.com/microsoft/kiota-abstractions-go v0.17.3
+	github.com/microsoft/kiota-abstractions-go v0.18.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
 	github.com/microsoft/kiota-http-go v0.16.1
 	github.com/microsoft/kiota-serialization-form-go v0.8.2
