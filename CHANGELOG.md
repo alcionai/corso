@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed permissions restore in latest backup version.
 - Incremental OneDrive backups could panic if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
 - Incorrectly moving subfolder hierarchy from a deleted folder to a new folder at the same path during OneDrive incremental backup.
-- Handle cases where calendar entries don't have body
+- Handle calendar events with no body.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
