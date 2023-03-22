@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed permissions restore in latest backup version
-- Panic during an incremental OneDrive backup if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
+- Incremental OneDrive backups could panic if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
 
 ## [v0.6.1] (beta) - 2023-03-21
 

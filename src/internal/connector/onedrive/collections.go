@@ -350,31 +350,31 @@ func (c *Collections) Get(
 			"num_deltas_entries", numDeltas,
 			"delta_reset", delta.Reset)
 
-		if !delta.Reset {
-			if len(excluded) > 0 {
-				p, err := GetCanonicalPath(
-					fmt.Sprintf(rootDrivePattern, driveID),
-					c.tenant,
-					c.resourceOwner,
-					c.source)
-				if err != nil {
-					return nil, nil,
-						clues.Wrap(err, "making exclude prefix").WithClues(ictx)
-				}
-
-				pstr := p.String()
-
-				eidi, ok := excludedItems[pstr]
-				if !ok {
-					eidi = map[string]struct{}{}
-				}
-
-				maps.Copy(eidi, excluded)
-				excludedItems[pstr] = eidi
+		// For both cases we don't need to do set difference on folder map if the
+		// delta token was valid because we should see all the changes.
+		if !delta.Reset && len(excluded) == 0 {
+			continue
+		} else if !delta.Reset {
+			p, err := GetCanonicalPath(
+				fmt.Sprintf(rootDrivePattern, driveID),
+				c.tenant,
+				c.resourceOwner,
+				c.source)
+			if err != nil {
+				return nil, nil,
+					clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
 
-			// Don't need to do set difference on folder map if the delta token was
-			// valid because we should see all the changes.
+			pstr := p.String()
+
+			eidi, ok := excludedItems[pstr]
+			if !ok {
+				eidi = map[string]struct{}{}
+			}
+
+			maps.Copy(eidi, excluded)
+			excludedItems[pstr] = eidi
+
 			continue
 		}
 
