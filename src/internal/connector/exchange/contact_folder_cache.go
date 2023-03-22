@@ -60,7 +60,7 @@ func (cfc *contactFolderCache) Populate(
 		return errors.Wrap(err, "enumerating containers")
 	}
 
-	if err := cfc.populatePaths(ctx, false); err != nil {
+	if err := cfc.populatePaths(ctx, false, errs); err != nil {
 		return errors.Wrap(err, "populating paths")
 	}
 
