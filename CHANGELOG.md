@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+
+- Fixed permissions restore in latest backup version
+
 ## [v0.6.1] (beta) - 2023-03-21
 
 ### Added
