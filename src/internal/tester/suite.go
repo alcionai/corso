@@ -12,9 +12,10 @@ import (
 
 // Flags for declaring which scope of tests to run.
 const (
-	CorsoCITests   = "CORSO_CI_TESTS"
-	CorsoE2ETests  = "CORSO_E2E_TESTS"
-	CorsoLoadTests = "CORSO_LOAD_TESTS"
+	CorsoCITests      = "CORSO_CI_TESTS"
+	CorsoE2ETests     = "CORSO_E2E_TESTS"
+	CorsoLoadTests    = "CORSO_LOAD_TESTS"
+	CorsoNightlyTests = "CORSO_NIGHTLY_TESTS"
 )
 
 type Suite interface {
@@ -109,6 +110,32 @@ func NewLoadSuite(
 }
 
 type loadSuite struct {
+	suite.Suite
+}
+
+// ---------------------------------------------------------------------------
+// Nightly
+// ---------------------------------------------------------------------------
+
+func NewNightlySuite(
+	t *testing.T,
+	envSets [][]string,
+	runOnAnyEnv ...string,
+) *nightlySuite {
+	RunOnAny(
+		t,
+		append(
+			[]string{CorsoNightlyTests},
+			runOnAnyEnv...,
+		)...,
+	)
+
+	MustGetEnvSets(t, envSets...)
+
+	return new(nightlySuite)
+}
+
+type nightlySuite struct {
 	suite.Suite
 }
 
