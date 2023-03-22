@@ -673,11 +673,7 @@ func (op *BackupOperation) createBackupModels(
 	backupID model.StableID,
 	deets *details.Details,
 ) error {
-	ctx = clues.Add(
-		ctx,
-		"snapshot_id", snapID,
-		"backup_id", backupID,
-		"details_entry_count", len(deets.Entries))
+	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
 	// are generated during the serialization process.
@@ -686,6 +682,8 @@ func (op *BackupOperation) createBackupModels(
 	if deets == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
+
+	ctx = clues.Add(ctx, "details_entry_count", len(deets.Entries))
 
 	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {
