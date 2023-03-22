@@ -1042,9 +1042,13 @@ func inflateDirTree(
 		baseIDs = append(baseIDs, snap.ID)
 	}
 
-	logger.Ctx(ctx).Infow(
-		"merging hierarchies from base snapshots",
-		"snapshot_ids", baseIDs)
+	ctx = clues.Add(ctx, "len_base_snapshots", len(baseSnaps), "snapshot_ids", baseIDs)
+
+	if len(baseIDs) > 0 {
+		logger.Ctx(ctx).Info("merging hierarchies from base snapshots")
+	} else {
+		logger.Ctx(ctx).Info("no base snapshots to merge")
+	}
 
 	for _, snap := range baseSnaps {
 		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
