@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Incremental OneDrive backups could panic if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
 - Incorrectly moving subfolder hierarchy from a deleted folder to a new folder at the same path during OneDrive incremental backup.
 - Handle calendar events with no body.
+- Items not being deleted if they were created and deleted during item enumeration of a OneDrive backup.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
