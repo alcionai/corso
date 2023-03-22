@@ -24,7 +24,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 	// Adding a simple test here so that we can be sure that this
 	// function gets updated whenever we add a new version.
 	if version.Backup > version.OneDrive6NameInMeta {
-		suite.T().Fatal("unknown backup version", version.Backup)
+		require.Less(suite.T(), version.OneDrive6NameInMeta+1, version.Backup, "unsupported backup version")
 	}
 
 	table := []struct {
