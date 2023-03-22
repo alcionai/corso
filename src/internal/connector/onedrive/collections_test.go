@@ -1850,8 +1850,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				rootFolderPath1:          {data.NewState: {}},
-				expectedPath1("/folder"): {data.NewState: {"folder2", "file"}},
+				rootFolderPath1: {data.NewState: {}},
+				expectedPath1("/folder"): {
+					// Old folder path should be marked as deleted since it should compare
+					// by ID.
+					data.DeletedState: {},
+					data.NewState:     {"folder2", "file"},
+				},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,

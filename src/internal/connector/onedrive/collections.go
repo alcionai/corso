@@ -378,24 +378,18 @@ func (c *Collections) Get(
 			continue
 		}
 
-		// Set all folders in previous backup but not in the current
-		// one with state deleted
-		modifiedPaths := map[string]struct{}{}
+		// Set all folders in previous backup but not in the current one with state
+		// deleted. Need to compare by ID because it's possible to make new folders
+		// with the same path as deleted old folders. We shouldn't merge items or
+		// subtrees if that happens though.
+		foundFolders := map[string]struct{}{}
 
-		for _, p := range c.CollectionMap[driveID] {
-			if p.FullPath() != nil {
-				modifiedPaths[p.FullPath().String()] = struct{}{}
-			}
+		for id := range c.CollectionMap[driveID] {
+			foundFolders[id] = struct{}{}
 		}
 
 		for fldID, p := range oldPaths {
-			if _, ok := paths[fldID]; ok {
-				continue
-			}
-
-			if _, ok := modifiedPaths[p]; ok {
-				// Original folder was deleted and new folder with the
-				// same name/path was created in its place
+			if _, ok := foundFolders[fldID]; ok {
 				continue
 			}
 
