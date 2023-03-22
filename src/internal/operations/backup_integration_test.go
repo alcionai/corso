@@ -59,7 +59,14 @@ func prepNewTestBackupOp(
 	bus events.Eventer,
 	sel selectors.Selector,
 	featureToggles control.Toggles,
-) (BackupOperation, account.Account, *kopia.Wrapper, *kopia.ModelStore, func()) {
+) (
+	BackupOperation,
+	account.Account,
+	*kopia.Wrapper,
+	*kopia.ModelStore,
+	*connector.GraphConnector,
+	func(),
+) {
 	//revive:enable:context-as-argument
 	acct := tester.NewM365Account(t)
 	// need to initialize the repository before we can test connecting to it.
@@ -96,9 +103,20 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
-	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureToggles, closer)
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		graph.HTTPClient(graph.NoTimeout()),
+		acct,
+		connector.Users,
+		fault.New(true))
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		closer()
+		t.FailNow()
+	}
 
-	return bo, acct, kw, ms, closer
+	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
+
+	return bo, acct, kw, ms, gc, closer
 }
 
 // newTestBackupOp accepts the clients required to compose a backup operation, plus
@@ -112,6 +130,7 @@ func newTestBackupOp(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
+	gc *connector.GraphConnector,
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
@@ -126,7 +145,7 @@ func newTestBackupOp(
 
 	opts.ToggleFeatures = featureToggles
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, sel.DiscreteOwner, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel.DiscreteOwner, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -503,6 +522,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
+	gc := &connector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
@@ -510,13 +530,15 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
+		gc       *connector.GraphConnector
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
+		{"missing graphconnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -528,6 +550,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.opts,
 				test.kw,
 				test.sw,
+				test.gc,
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
 				"test-name",
@@ -604,7 +627,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.Toggles{}
 			)
 
-			bo, acct, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -634,7 +657,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB)
@@ -826,7 +849,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		sel.ContactFolders(containers, selectors.PrefixMatch()),
 	)
 
-	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
 	defer closer()
 
 	// run the initial backup
@@ -1060,7 +1083,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel.Selector, incMB, ffs, closer)
 			)
 
 			test.updateUserData(t)
@@ -1111,7 +1134,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)
@@ -1206,7 +1229,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	sel := selectors.NewOneDriveBackup(owners)
 	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
 
-	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
 	defer closer()
 
 	// run the initial backup
@@ -1513,7 +1536,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel.Selector, incMB, ffs, closer)
 			)
 
 			tester.LogTimeOfTest(suite.T())
@@ -1566,7 +1589,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.LibraryFolders(selectors.Any()))
 
-	bo, _, kw, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb)

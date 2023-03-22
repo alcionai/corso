@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -25,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -48,6 +50,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
+		gc   = &connector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination()
@@ -108,6 +111,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				control.Options{},
 				kw,
 				sw,
+				gc,
 				acct,
 				"foo",
 				selectors.Selector{DiscreteOwner: "test"},
@@ -152,6 +156,7 @@ type RestoreOpIntegrationSuite struct {
 	kw          *kopia.Wrapper
 	sw          *store.Wrapper
 	ms          *kopia.ModelStore
+	gc          *connector.GraphConnector
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
@@ -201,6 +206,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 			bsel  = selectors.NewExchangeBackup(users)
 		)
 
+		gc, err := connector.NewGraphConnector(
+			ctx,
+			graph.HTTPClient(graph.NoTimeout()),
+			acct,
+			connector.Users,
+			fault.New(true))
+		require.NoError(t, err, clues.ToCore(err))
+
 		bsel.DiscreteOwner = m365UserID
 		bsel.Include(
 			bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
@@ -213,6 +226,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 			control.Options{},
 			kw,
 			sw,
+			gc,
 			acct,
 			bsel.Selector,
 			bsel.Selector.DiscreteOwner,
@@ -242,6 +256,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 			spsel  = selectors.NewSharePointBackup(sites)
 		)
 
+		gc, err := connector.NewGraphConnector(
+			ctx,
+			graph.HTTPClient(graph.NoTimeout()),
+			acct,
+			connector.Sites,
+			fault.New(true))
+		require.NoError(t, err, clues.ToCore(err))
+
 		spsel.DiscreteOwner = siteID
 		// assume a folder name "test" exists in the drive.
 		// this is brittle, and requires us to backfill anytime
@@ -254,6 +276,7 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 			control.Options{},
 			kw,
 			sw,
+			gc,
 			acct,
 			spsel.Selector,
 			spsel.Selector.DiscreteOwner,
@@ -314,6 +337,7 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
+	gc := &connector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 	dest := tester.DefaultTestRestoreDestination()
 
@@ -322,13 +346,15 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
+		gc       *connector.GraphConnector
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
+		{"missing graphConnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -340,6 +366,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.opts,
 				test.kw,
 				test.sw,
+				test.gc,
 				test.acct,
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
@@ -399,6 +426,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				control.Options{FailFast: true},
 				suite.kw,
 				suite.sw,
+				suite.gc,
 				tester.NewM365Account(t),
 				test.bID,
 				test.getSelector(t),
@@ -442,6 +470,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		control.Options{},
 		suite.kw,
 		suite.sw,
+		suite.gc,
 		tester.NewM365Account(t),
 		suite.exchange.backupID,
 		rsel.Selector,

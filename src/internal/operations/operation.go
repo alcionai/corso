@@ -1,20 +1,15 @@
 package operations
 
 import (
-	"context"
 	"time"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -62,6 +57,7 @@ type operation struct {
 	bus   events.Eventer
 	kopia *kopia.Wrapper
 	store *store.Wrapper
+	gc    *connector.GraphConnector
 }
 
 func newOperation(
@@ -69,6 +65,7 @@ func newOperation(
 	bus events.Eventer,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
+	gc *connector.GraphConnector,
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
@@ -78,6 +75,7 @@ func newOperation(
 		bus:   bus,
 		kopia: kw,
 		store: sw,
+		gc:    gc,
 
 		Status: InProgress,
 	}
@@ -92,33 +90,9 @@ func (op operation) validate() error {
 		return clues.New("missing modelstore")
 	}
 
+	if op.gc == nil {
+		return errors.New("missing graph connector")
+	}
+
 	return nil
-}
-
-// produces a graph connector.
-func connectToM365(
-	ctx context.Context,
-	sel selectors.Selector,
-	acct account.Account,
-	errs *fault.Bus,
-) (*connector.GraphConnector, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to M365"))
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-		closer()
-	}()
-
-	// retrieve data from the producer
-	resource := connector.Users
-	if sel.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
-	}
-
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
-	if err != nil {
-		return nil, err
-	}
-
-	return gc, nil
 }
