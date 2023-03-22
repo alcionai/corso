@@ -615,9 +615,10 @@ func getMetadata(metar io.ReadCloser) (Metadata, error) {
 func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, error) {
 	// Nothing to do for versions where the directory metadata is stored in the
 	// directory it refers to as Corso will retrieve this data inline when
-	// restoring the collection for the directory.
-	if backupVersion >= version.OneDrive4DirIncludesPermissions {
-		return nil, nil
+	// restoring the collection for the directory. Path ordering does not matter
+	// for these versions.
+	if backupVersion == 0 || backupVersion >= version.OneDrive4DirIncludesPermissions {
+		return paths, nil
 	}
 
 	colPaths := map[string]path.Path{}
