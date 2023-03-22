@@ -500,6 +500,7 @@ func (c *Collections) handleDelete(
 	oldPaths, newPaths map[string]string,
 	isFolder bool,
 	excluded map[string]struct{},
+	invalidPrevDelta bool,
 ) error {
 	if !isFolder {
 		excluded[itemID+DataFileSuffix] = struct{}{}
@@ -533,11 +534,18 @@ func (c *Collections) handleDelete(
 	// the deleted folder/package.
 	delete(newPaths, itemID)
 
-	if prevPath == nil {
-		// It is possible that an item was created and
-		// deleted between two delta invocations. In
-		// that case, it will only produce a single
-		// delete entry in the delta response.
+	if prevPath == nil || invalidPrevDelta {
+		// It is possible that an item was created and deleted between two delta
+		// invocations. In that case, it will only produce a single delete entry in
+		// the delta response.
+		//
+		// It's also possible the item was made and deleted while getting the delta
+		// results or our delta token expired and the folder was seen and now is
+		// marked as deleted. If either of those is the case we should try to delete
+		// the collection with this ID so it doesn't show up with items. For the
+		// latter case, we rely on the set difference in the Get() function to find
+		// folders that need to be marked as deleted and make collections for them.
+		delete(c.CollectionMap[driveID], itemID)
 		return nil
 	}
 
@@ -666,6 +674,7 @@ func (c *Collections) UpdateCollections(
 				newPaths,
 				isFolder,
 				excluded,
+				invalidPrevDelta,
 			); err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}
