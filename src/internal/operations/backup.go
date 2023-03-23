@@ -680,7 +680,7 @@ func (op *BackupOperation) createBackupModels(
 	ctx = clues.Add(ctx, "snapshot_id", snapID, "backup_id", backupID)
 	// generate a new fault bus so that we can maintain clean
 	// separation between the errors we serialize and those that
-	// are generated during the serialization process.c
+	// are generated during the serialization process.
 	errs := fault.New(true)
 
 	if deets == nil {

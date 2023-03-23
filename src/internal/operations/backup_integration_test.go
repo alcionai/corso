@@ -508,7 +508,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.sw,
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
-				"test",
+				"test-name",
 				evmock.NewBus())
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
