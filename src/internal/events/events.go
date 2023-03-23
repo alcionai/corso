@@ -222,11 +222,11 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 // Expectation is for users to call this in a goroutine.  Any signal or close() on the stop chan
 // will exit the loop.
 func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSignal) {
-	tock := time.Tick(reportInterval)
+	tock := time.NewTicker(reportInterval)
 
 	for {
 		select {
-		case <-tock:
+		case <-tock.C:
 			signalDump(ctx)
 		case <-stop:
 			return
