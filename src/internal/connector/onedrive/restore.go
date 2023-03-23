@@ -646,7 +646,15 @@ func AugmentRestorePaths(backupVersion int, paths []path.Path) ([]path.Path, err
 	// collection.
 	for _, p := range colPaths {
 		el := p.Elements()
-		if backupVersion >= version.OneDrive4DirIncludesPermissions {
+
+		if backupVersion >= version.OneDrive6NameInMeta {
+			mPath, err := p.Append(".dirmeta", true)
+			if err != nil {
+				return nil, err
+			}
+
+			paths = append(paths, mPath)
+		} else if backupVersion >= version.OneDrive4DirIncludesPermissions {
 			mPath, err := p.Append(el[len(el)-1]+".dirmeta", true)
 			if err != nil {
 				return nil, err

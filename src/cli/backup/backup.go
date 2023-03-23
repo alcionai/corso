@@ -2,10 +2,10 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -202,48 +203,53 @@ func runBackups(
 	selectorSet []selectors.Selector,
 ) error {
 	var (
-		merrs *multierror.Error
-		bIDs  []model.StableID
+		bIDs []model.StableID
+		errs = []error{}
 	)
 
 	for _, discSel := range selectorSet {
-		bo, err := r.NewBackup(ctx, discSel)
+		var (
+			owner = discSel.DiscreteOwner
+			bctx  = clues.Add(ctx, "resource_owner", owner)
+		)
+
+		bo, err := r.NewBackup(bctx, discSel)
 		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to initialize %s backup for %s %s",
-				serviceName,
-				resourceOwnerType,
-				discSel.DiscreteOwner))
+			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
+			Errf(bctx, "%v\n", err)
 
 			continue
 		}
 
-		err = bo.Run(ctx)
+		err = bo.Run(bctx)
 		if err != nil {
-			merrs = multierror.Append(merrs, errors.Wrapf(
-				err,
-				"Failed to run %s backup for %s %s",
-				serviceName,
-				resourceOwnerType,
-				discSel.DiscreteOwner))
+			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
+			Errf(bctx, "%v\n", err)
 
 			continue
 		}
 
 		bIDs = append(bIDs, bo.Results.BackupID)
+		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
 	}
 
-	bups, ferrs := r.Backups(ctx, bIDs)
-	// TODO: print/log recoverable errors
-	if ferrs.Failure() != nil {
-		return Only(ctx, errors.Wrap(ferrs.Failure(), "Unable to retrieve backup results from storage"))
+	bups, berrs := r.Backups(ctx, bIDs)
+	if berrs.Failure() != nil {
+		return Only(ctx, errors.Wrap(berrs.Failure(), "Unable to retrieve backup results from storage"))
 	}
 
+	Info(ctx, "Completed Backups:")
 	backup.PrintAll(ctx, bups)
 
-	if e := merrs.ErrorOrNil(); e != nil {
-		return Only(ctx, e)
+	if len(errs) > 0 {
+		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))
+
+		for i, e := range errs {
+			logger.CtxErr(ctx, e).Errorf("Backup %d of %d failed", i+1, len(selectorSet))
+			sb += "∙ " + e.Error() + "\n"
+		}
+
+		return Only(ctx, clues.New(sb))
 	}
 
 	return nil
