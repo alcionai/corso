@@ -41,6 +41,9 @@ const (
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
 	DataFileSuffix    = ".data"
+
+	// Used to compare in case of OneNote files
+	Size2GB = 2 * 1024 * 1024 * 1024
 )
 
 func IsMetaFile(name string) bool {
@@ -347,6 +350,17 @@ func (oc *Collection) getDriveItemContent(
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Error("item not found")
 			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
+
+			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+		}
+
+		// Skip big OneNote files as they can't be downloaded
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
+			item.GetPackage() != nil && *item.GetSize() >= Size2GB {
+			// TODO(meain): The actual big thing is not the package
+
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Error("invalid file")
+			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
 		}
