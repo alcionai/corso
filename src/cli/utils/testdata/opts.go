@@ -2,9 +2,9 @@ package testdata
 
 import (
 	"context"
-	"errors"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/model"
@@ -560,21 +560,21 @@ func (MockBackupGetter) Backup(
 	context.Context,
 	model.StableID,
 ) (*backup.Backup, error) {
-	return nil, errors.New("unexpected call to mock")
+	return nil, clues.New("unexpected call to mock")
 }
 
 func (MockBackupGetter) Backups(
 	context.Context,
 	[]model.StableID,
 ) ([]*backup.Backup, *fault.Bus) {
-	return nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
+	return nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
 }
 
 func (MockBackupGetter) BackupsByTag(
 	context.Context,
 	...store.FilterOption,
 ) ([]*backup.Backup, error) {
-	return nil, errors.New("unexpected call to mock")
+	return nil, clues.New("unexpected call to mock")
 }
 
 func (bg *MockBackupGetter) GetBackupDetails(
@@ -585,7 +585,7 @@ func (bg *MockBackupGetter) GetBackupDetails(
 		return testdata.GetDetailsSet(), nil, fault.New(true)
 	}
 
-	return nil, nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
+	return nil, nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
 }
 
 func (bg *MockBackupGetter) GetBackupErrors(
@@ -597,5 +597,5 @@ func (bg *MockBackupGetter) GetBackupErrors(
 		return &fe, nil, fault.New(true)
 	}
 
-	return nil, nil, fault.New(false).Fail(errors.New("unexpected call to mock"))
+	return nil, nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
 }

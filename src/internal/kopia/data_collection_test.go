@@ -3,7 +3,6 @@ package kopia
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"testing"
 
@@ -133,7 +132,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 type mockSeeker struct{}
 
 func (s mockSeeker) Seek(offset int64, whence int) (int64, error) {
-	return 0, errors.New("not implemented")
+	return 0, clues.New("not implemented")
 }
 
 type mockReader struct {
@@ -142,7 +141,7 @@ type mockReader struct {
 }
 
 func (r mockReader) Entry() (fs.Entry, error) {
-	return nil, errors.New("not implemented")
+	return nil, clues.New("not implemented")
 }
 
 type mockFile struct {

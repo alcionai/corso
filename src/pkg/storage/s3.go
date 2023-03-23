@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -82,7 +81,7 @@ func (c S3Config) validate() error {
 	}
 	for k, v := range check {
 		if len(v) == 0 {
-			return clues.Stack(errMissingRequired, errors.New(k))
+			return clues.Stack(errMissingRequired, clues.New(k))
 		}
 	}
 

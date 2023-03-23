@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -50,7 +49,7 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 ) {
 	results, ok := mg[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, errors.New("mock not found for " + cID)
+		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	return results.added, results.removed, results.newDelta, results.err

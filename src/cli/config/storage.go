@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws/defaults"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -21,7 +21,7 @@ func s3ConfigsFromViper(vpr *viper.Viper) (storage.S3Config, error) {
 
 	providerType := vpr.GetString(StorageProviderTypeKey)
 	if providerType != storage.ProviderS3.String() {
-		return s3Config, errors.New("unsupported storage provider: " + providerType)
+		return s3Config, clues.New("unsupported storage provider: " + providerType)
 	}
 
 	s3Config.Bucket = vpr.GetString(BucketNameKey)
@@ -59,7 +59,7 @@ func configureStorage(
 
 	if readConfigFromViper {
 		if s3Cfg, err = s3ConfigsFromViper(vpr); err != nil {
-			return store, errors.Wrap(err, "reading s3 configs from corso config file")
+			return store, clues.Wrap(err, "reading s3 configs from corso config file")
 		}
 
 		if b, ok := overrides[storage.Bucket]; ok {
@@ -71,13 +71,13 @@ func configureStorage(
 		}
 
 		if err := mustMatchConfig(vpr, s3Overrides(overrides)); err != nil {
-			return store, errors.Wrap(err, "verifying s3 configs in corso config file")
+			return store, clues.Wrap(err, "verifying s3 configs in corso config file")
 		}
 	}
 
 	_, err = defaults.CredChain(defaults.Config().WithCredentialsChainVerboseErrors(true), defaults.Handlers()).Get()
 	if err != nil {
-		return store, errors.Wrap(err, "validating aws credentials")
+		return store, clues.Wrap(err, "validating aws credentials")
 	}
 
 	s3Cfg = storage.S3Config{
@@ -97,7 +97,7 @@ func configureStorage(
 	// compose the common config and credentials
 	corso := credentials.GetCorso()
 	if err := corso.Validate(); err != nil {
-		return store, errors.Wrap(err, "validating corso credentials")
+		return store, clues.Wrap(err, "validating corso credentials")
 	}
 
 	cCfg := storage.CommonConfig{
@@ -122,7 +122,7 @@ func configureStorage(
 	// build the storage
 	store, err = storage.NewStorage(storage.ProviderS3, s3Cfg, cCfg)
 	if err != nil {
-		return store, errors.Wrap(err, "configuring repository storage")
+		return store, clues.Wrap(err, "configuring repository storage")
 	}
 
 	return store, nil

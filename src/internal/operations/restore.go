@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -150,7 +149,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		logger.Ctx(ctx).
 			With("err", err).
 			Errorw("running restore", clues.InErr(err).Slice()...)
-		op.Errors.Fail(errors.Wrap(err, "running restore"))
+		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
 	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
@@ -161,7 +160,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	err = op.persistResults(ctx, start, &opStats)
 	if err != nil {
-		op.Errors.Fail(errors.Wrap(err, "persisting restore results"))
+		op.Errors.Fail(clues.Wrap(err, "persisting restore results"))
 		return nil, op.Errors.Failure()
 	}
 
@@ -183,14 +182,14 @@ func (op *RestoreOperation) do(
 		detailsStore,
 		op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting backup and details")
+		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
 	observe.Message(ctx, observe.Safe("Restoring"), observe.Bullet, observe.PII(bup.Selector.DiscreteOwner))
 
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "formatting paths from details")
+		return nil, clues.Wrap(err, "formatting paths from details")
 	}
 
 	ctx = clues.Add(
@@ -219,7 +218,7 @@ func (op *RestoreOperation) do(
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "producing collections to restore")
+		return nil, clues.Wrap(err, "producing collections to restore")
 	}
 
 	kopiaComplete <- struct{}{}
@@ -232,7 +231,7 @@ func (op *RestoreOperation) do(
 
 	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "connecting to M365")
+		return nil, clues.Wrap(err, "connecting to M365")
 	}
 
 	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
@@ -249,7 +248,7 @@ func (op *RestoreOperation) do(
 		dcs,
 		op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "restoring collections")
+		return nil, clues.Wrap(err, "restoring collections")
 	}
 
 	restoreComplete <- struct{}{}
@@ -282,7 +281,7 @@ func (op *RestoreOperation) persistResults(
 
 	if opStats.gc == nil {
 		op.Status = Failed
-		return errors.New("restoration never completed")
+		return clues.New("restoration never completed")
 	}
 
 	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {

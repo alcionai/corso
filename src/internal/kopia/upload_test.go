@@ -2374,7 +2374,7 @@ func (msw *mockMultiSnapshotWalker) SnapshotRoot(man *snapshot.Manifest) (fs.Ent
 		return snap, nil
 	}
 
-	return nil, errors.New("snapshot not found")
+	return nil, clues.New("snapshot not found")
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubtrees() {

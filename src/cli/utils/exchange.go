@@ -1,8 +1,7 @@
 package utils
 
 import (
-	"errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/spf13/cobra"
 )
@@ -197,27 +196,27 @@ func AddExchangeInfo(
 // ValidateExchangeRestoreFlags checks common flags for correctness and interdependencies
 func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 	if len(backupID) == 0 {
-		return errors.New("a backup ID is required")
+		return clues.New("a backup ID is required")
 	}
 
 	if _, ok := opts.Populated[EmailReceivedAfterFN]; ok && !IsValidTimeFormat(opts.EmailReceivedAfter) {
-		return errors.New("invalid time format for email-received-after")
+		return clues.New("invalid time format for email-received-after")
 	}
 
 	if _, ok := opts.Populated[EmailReceivedBeforeFN]; ok && !IsValidTimeFormat(opts.EmailReceivedBefore) {
-		return errors.New("invalid time format for email-received-before")
+		return clues.New("invalid time format for email-received-before")
 	}
 
 	if _, ok := opts.Populated[EventStartsAfterFN]; ok && !IsValidTimeFormat(opts.EventStartsAfter) {
-		return errors.New("invalid time format for event-starts-after")
+		return clues.New("invalid time format for event-starts-after")
 	}
 
 	if _, ok := opts.Populated[EventStartsBeforeFN]; ok && !IsValidTimeFormat(opts.EventStartsBefore) {
-		return errors.New("invalid time format for event-starts-before")
+		return clues.New("invalid time format for event-starts-before")
 	}
 
 	if _, ok := opts.Populated[EventRecursFN]; ok && !IsValidBool(opts.EventRecurs) {
-		return errors.New("invalid format for event-recurs")
+		return clues.New("invalid format for event-recurs")
 	}
 
 	return nil

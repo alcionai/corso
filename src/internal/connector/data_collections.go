@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -212,7 +210,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 
 	creds, err := acct.M365Config()
 	if err != nil {
-		return nil, errors.Wrap(err, "malformed azure credentials")
+		return nil, clues.Wrap(err, "malformed azure credentials")
 	}
 
 	switch selector.Service {

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
@@ -23,7 +22,7 @@ func getBackupAndDetailsFromID(
 ) (*backup.Backup, *details.Details, error) {
 	bup, err := ms.GetBackup(ctx, backupID)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "getting backup details ID")
+		return nil, nil, clues.Wrap(err, "getting backup details ID")
 	}
 
 	var (
@@ -41,7 +40,7 @@ func getBackupAndDetailsFromID(
 	}
 
 	if err := detailsStore.Read(ctx, ssid, umt, errs); err != nil {
-		return nil, nil, errors.Wrap(err, "reading backup data from streamstore")
+		return nil, nil, clues.Wrap(err, "reading backup data from streamstore")
 	}
 
 	return bup, &deets, nil

@@ -1,8 +1,7 @@
 package api
 
 import (
-	"github.com/pkg/errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 )
@@ -49,7 +48,7 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 		creds.AzureClientID,
 		creds.AzureClientSecret)
 	if err != nil {
-		return nil, errors.Wrap(err, "generating graph api service client")
+		return nil, clues.Wrap(err, "generating graph api service client")
 	}
 
 	return graph.NewService(adapter), nil

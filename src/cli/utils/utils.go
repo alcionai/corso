@@ -2,12 +2,12 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -26,7 +26,7 @@ const (
 func RequireProps(props map[string]string) error {
 	for name, val := range props {
 		if len(val) == 0 {
-			return errors.New(name + " is required to perform this command")
+			return clues.New(name + " is required to perform this command")
 		}
 	}
 

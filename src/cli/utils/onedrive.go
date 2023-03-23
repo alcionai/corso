@@ -1,8 +1,7 @@
 package utils
 
 import (
-	"errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/spf13/cobra"
 )
@@ -57,23 +56,23 @@ func AddOneDriveDetailsAndRestoreFlags(cmd *cobra.Command) {
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
 func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 	if len(backupID) == 0 {
-		return errors.New("a backup ID is required")
+		return clues.New("a backup ID is required")
 	}
 
 	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return errors.New("invalid time format for created-after")
+		return clues.New("invalid time format for created-after")
 	}
 
 	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return errors.New("invalid time format for created-before")
+		return clues.New("invalid time format for created-before")
 	}
 
 	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return errors.New("invalid time format for modified-after")
+		return clues.New("invalid time format for modified-after")
 	}
 
 	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return errors.New("invalid time format for modified-before")
+		return clues.New("invalid time format for modified-before")
 	}
 
 	return nil

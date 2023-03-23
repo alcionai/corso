@@ -3,10 +3,10 @@ package fault
 import (
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -36,7 +36,7 @@ func (suite *ItemUnitSuite) TestItem_Error() {
 func (suite *ItemUnitSuite) TestContainerErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := ContainerErr(errors.New("foo"), "id", "name", addtl)
+	i := ContainerErr(clues.New("foo"), "id", "name", addtl)
 
 	expect := Item{
 		ID:         "id",
@@ -52,7 +52,7 @@ func (suite *ItemUnitSuite) TestContainerErr() {
 func (suite *ItemUnitSuite) TestFileErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := FileErr(errors.New("foo"), "id", "name", addtl)
+	i := FileErr(clues.New("foo"), "id", "name", addtl)
 
 	expect := Item{
 		ID:         "id",
@@ -68,7 +68,7 @@ func (suite *ItemUnitSuite) TestFileErr() {
 func (suite *ItemUnitSuite) TestOwnerErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := OwnerErr(errors.New("foo"), "id", "name", addtl)
+	i := OwnerErr(clues.New("foo"), "id", "name", addtl)
 
 	expect := Item{
 		ID:         "id",

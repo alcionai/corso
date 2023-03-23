@@ -10,7 +10,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -448,7 +447,7 @@ func toDataLayerPath(
 	case path.OneDriveService:
 		p, err = pb.ToDataLayerOneDrivePath(tenant, user, isItem)
 	default:
-		err = errors.Errorf("unknown service %s", service.String())
+		err = clues.Wrap(clues.New(service.String()), "unknown service")
 	}
 
 	require.NoError(t, err, clues.ToCore(err))

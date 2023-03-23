@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -126,19 +127,19 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
+		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
 
 	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
 			"pass --disable-tls flag to use http:// instead of default https://"
 
-		return Only(ctx, errors.New(invalidEndpointErr))
+		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, options.Control())
@@ -147,7 +148,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return Only(ctx, errors.Wrap(err, "Failed to initialize a new S3 repository"))
+		return Only(ctx, clues.Wrap(err, "Failed to initialize a new S3 repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -155,7 +156,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
+		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
 	return nil
@@ -192,24 +193,24 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	s3Cfg, err := cfg.Storage.S3Config()
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Retrieving s3 configuration"))
+		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to parse m365 account config"))
+		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
 	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
 			"pass --disable-tls flag to use http:// instead of default https://"
 
-		return Only(ctx, errors.New(invalidEndpointErr))
+		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
 	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to connect to the S3 repository"))
+		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -217,7 +218,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to write repository configuration"))
+		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
 	return nil

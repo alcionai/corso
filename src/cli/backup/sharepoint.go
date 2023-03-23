@@ -161,12 +161,12 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), *acct, connector.Sites, errs)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to connect to Microsoft APIs"))
+		return Only(ctx, clues.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
 	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteID, utils.WebURL, sharepointData, gc)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
+		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
 
 	selectorSet := []selectors.Selector{}
@@ -185,7 +185,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	if len(sites) == 0 && len(weburls) == 0 {
-		return errors.New(
+		return clues.New(
 			"requires one or more --" +
 				utils.SiteFN + " urls, or the wildcard --" +
 				utils.SiteFN + " *",
@@ -194,7 +194,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 
 	for _, d := range cats {
 		if d != dataLibraries && d != dataPages {
-			return errors.New(
+			return clues.New(
 				d + " is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
 			)
 		}
@@ -383,10 +383,10 @@ func runDetailsSharePointCmd(
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {
 		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, errors.Errorf("no backup exists with the id %s", backupID)
+			return nil, clues.New("no backup exists with the id " + backupID)
 		}
 
-		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
 	if !skipReduce {

@@ -6,8 +6,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/pkg/errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -42,18 +41,18 @@ func NewMetadataEntry(fileName string, mData any) MetadataCollectionEntry {
 
 func (mce MetadataCollectionEntry) toMetadataItem() (MetadataItem, error) {
 	if len(mce.fileName) == 0 {
-		return MetadataItem{}, errors.New("missing metadata filename")
+		return MetadataItem{}, clues.New("missing metadata filename")
 	}
 
 	if mce.data == nil {
-		return MetadataItem{}, errors.New("missing metadata")
+		return MetadataItem{}, clues.New("missing metadata")
 	}
 
 	buf := &bytes.Buffer{}
 	encoder := json.NewEncoder(buf)
 
 	if err := encoder.Encode(mce.data); err != nil {
-		return MetadataItem{}, errors.Wrap(err, "serializing metadata")
+		return MetadataItem{}, clues.Wrap(err, "serializing metadata")
 	}
 
 	return NewMetadataItem(mce.fileName, buf.Bytes()), nil
@@ -81,7 +80,7 @@ func MakeMetadataCollection(
 		false,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "making metadata path")
+		return nil, clues.Wrap(err, "making metadata path")
 	}
 
 	items := make([]MetadataItem, 0, len(metadata))

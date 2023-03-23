@@ -20,7 +20,6 @@ import (
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
@@ -97,7 +96,7 @@ func (rw *restoreStreamReader) checkVersion() error {
 	for newlyRead := 0; newlyRead < versionSize; {
 		n, err := rw.ReadCloser.Read(versionBuf[newlyRead:])
 		if err != nil {
-			return errors.Wrap(err, "reading data format version")
+			return clues.Wrap(err, "reading data format version")
 		}
 
 		newlyRead += n
@@ -106,7 +105,7 @@ func (rw *restoreStreamReader) checkVersion() error {
 	version := binary.BigEndian.Uint32(versionBuf)
 
 	if version != rw.expectedVersion {
-		return errors.Errorf("unexpected data format %v", version)
+		return clues.New("unexpected data format").With("read_version", version)
 	}
 
 	return nil
@@ -370,7 +369,7 @@ func collectionEntries(
 			// For now assuming that item IDs don't need escaping.
 			itemPath, err := streamedEnts.FullPath().Append(e.UUID(), true)
 			if err != nil {
-				err = errors.Wrap(err, "getting full item path")
+				err = clues.Wrap(err, "getting full item path")
 				progress.errs.AddRecoverable(err)
 
 				logger.CtxErr(ctx, err).Error("getting full item path")
@@ -443,14 +442,15 @@ func streamBaseEntries(
 	}
 
 	var (
-		excludeSet    map[string]struct{}
-		curPrefix     string
-		curPathString = curPath.String()
+		excludeSet map[string]struct{}
+		curPrefix  string
 	)
+
+	ctx = clues.Add(ctx, "current_item_path", curPath)
 
 	for prefix, excludes := range globalExcludeSet {
 		// Select the set with the longest prefix to be most precise.
-		if strings.HasPrefix(curPathString, prefix) && len(prefix) >= len(curPrefix) {
+		if strings.HasPrefix(curPath.String(), prefix) && len(prefix) >= len(curPrefix) {
 			excludeSet = excludes
 			curPrefix = prefix
 		}
@@ -475,7 +475,7 @@ func streamBaseEntries(
 
 		entName, err := decodeElement(entry.Name())
 		if err != nil {
-			return errors.Wrapf(err, "unable to decode entry name %s", entry.Name())
+			return clues.Wrap(err, "decoding entry name: "+entry.Name())
 		}
 
 		// This entry was marked as deleted by a service that can't tell us the
@@ -487,7 +487,7 @@ func streamBaseEntries(
 		// For now assuming that item IDs don't need escaping.
 		itemPath, err := curPath.Append(entName, true)
 		if err != nil {
-			return errors.Wrap(err, "getting full item path for base entry")
+			return clues.Wrap(err, "getting full item path for base entry")
 		}
 
 		// We need the previous path so we can find this item in the base snapshot's
@@ -496,7 +496,7 @@ func streamBaseEntries(
 		// to look for.
 		prevItemPath, err := prevPath.Append(entName, true)
 		if err != nil {
-			return errors.Wrap(err, "getting previous full item path for base entry")
+			return clues.Wrap(err, "getting previous full item path for base entry")
 		}
 
 		// Meta files aren't in backup details since it's the set of items the user
@@ -520,17 +520,13 @@ func streamBaseEntries(
 		}
 
 		if err := cb(ctx, entry); err != nil {
-			return errors.Wrapf(err, "executing callback on item %q", itemPath)
+			return clues.Wrap(err, "executing callback on item").With("item_path", itemPath)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(
-			err,
-			"traversing items in base snapshot directory %q",
-			curPath,
-		)
+		return clues.Wrap(err, "traversing items in base snapshot directory")
 	}
 
 	return nil
@@ -568,7 +564,7 @@ func getStreamItemFunc(
 
 		seen, err := collectionEntries(ctx, cb, streamedEnts, progress)
 		if err != nil {
-			return errors.Wrap(err, "streaming collection entries")
+			return clues.Wrap(err, "streaming collection entries")
 		}
 
 		if err := streamBaseEntries(
@@ -582,7 +578,7 @@ func getStreamItemFunc(
 			globalExcludeSet,
 			progress,
 		); err != nil {
-			return errors.Wrap(err, "streaming base snapshot entries")
+			return clues.Wrap(err, "streaming base snapshot entries")
 		}
 
 		return nil
@@ -738,15 +734,14 @@ func inflateCollectionTree(
 		switch s.State() {
 		case data.DeletedState:
 			if s.PreviousPath() == nil {
-				return nil, nil, errors.Errorf("nil previous path on deleted collection")
+				return nil, nil, clues.New("nil previous path on deleted collection")
 			}
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, errors.Errorf(
-					"multiple previous state changes to collection %s",
-					s.PreviousPath())
+				return nil, nil, clues.New("multiple previous state changes to collection").
+					With("collection_previouspath", s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -757,31 +752,26 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, errors.Errorf(
-					"multiple previous state changes to collection %s",
-					s.PreviousPath(),
-				)
+				return nil, nil, clues.New("multiple previous state changes to collection").
+					With("collection_previouspath", s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, errors.New("no identifier for collection")
+			return nil, nil, clues.New("no identifier for collection")
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, errors.Errorf(
-				"unable to get tree node for path %s",
-				s.FullPath(),
-			)
+			return nil, nil, clues.New("getting tree node").With("collection_fullpath", s.FullPath())
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, errors.Errorf("multiple instances of collection at %s", s.FullPath())
+			return nil, nil, clues.New("multiple instances of collection").With("collection_fullpath", s.FullPath())
 		}
 
 		node.collection = s
@@ -799,7 +789,7 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			return nil, nil, errors.Errorf("conflicting states for collection %s", p)
+			return nil, nil, clues.New("conflicting states for collection").With("changed_path", p)
 		}
 	}
 
@@ -827,8 +817,12 @@ func traverseBaseDir(
 	dir fs.Directory,
 	roots map[string]*treeMap,
 ) error {
+	ctx = clues.Add(ctx,
+		"old_dir_path", oldDirPath,
+		"new_dir_path", newDirPath)
+
 	if depth >= maxInflateTraversalDepth {
-		return errors.Errorf("base snapshot tree too tall %s", oldDirPath)
+		return clues.New("base snapshot tree too tall")
 	}
 
 	// Wrapper base64 encodes all file and folder names to avoid issues with
@@ -836,7 +830,7 @@ func traverseBaseDir(
 	// from kopia we need to do the decoding here.
 	dirName, err := decodeElement(dir.Name())
 	if err != nil {
-		return errors.Wrapf(err, "decoding base directory name %s", dir.Name())
+		return clues.Wrap(err, "decoding base directory name").With("dir_name", dir.Name())
 	}
 
 	// Form the path this directory would be at if the hierarchy remained the same
@@ -854,6 +848,8 @@ func traverseBaseDir(
 	if currentPath != nil {
 		currentPath = currentPath.Append(dirName)
 	}
+
+	ctx = clues.Add(ctx, "current_path", currentPath)
 
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
@@ -892,7 +888,7 @@ func traverseBaseDir(
 		)
 	})
 	if err != nil {
-		return errors.Wrapf(err, "traversing base directory %s", oldDirPath)
+		return clues.Wrap(err, "traversing base directory")
 	}
 
 	// We only need to add this base directory to the tree we're building if it
@@ -909,7 +905,7 @@ func traverseBaseDir(
 		// in the if-block though as that is an optimization.
 		node := getTreeNode(roots, currentPath.Elements())
 		if node == nil {
-			return errors.Errorf("unable to get tree node for path %s", currentPath)
+			return clues.New("getting tree node")
 		}
 
 		// Now that we have the node we need to check if there is a collection
@@ -924,18 +920,12 @@ func traverseBaseDir(
 
 		curP, err := path.FromDataLayerPath(currentPath.String(), false)
 		if err != nil {
-			return errors.Errorf(
-				"unable to convert current path %s to path.Path",
-				currentPath,
-			)
+			return clues.New("converting current path to path.Path")
 		}
 
 		oldP, err := path.FromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
-			return errors.Errorf(
-				"unable to convert old path %s to path.Path",
-				oldDirPath,
-			)
+			return clues.New("converting old path to path.Path")
 		}
 
 		node.baseDir = dir
@@ -1037,7 +1027,7 @@ func inflateDirTree(
 ) (fs.Directory, error) {
 	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
-		return nil, errors.Wrap(err, "inflating collection tree")
+		return nil, clues.Wrap(err, "inflating collection tree")
 	}
 
 	baseIDs := make([]manifest.ID, 0, len(baseSnaps))
@@ -1055,12 +1045,12 @@ func inflateDirTree(
 
 	for _, snap := range baseSnaps {
 		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
-			return nil, errors.Wrap(err, "inflating base snapshot tree(s)")
+			return nil, clues.Wrap(err, "inflating base snapshot tree(s)")
 		}
 	}
 
 	if len(roots) > 1 {
-		return nil, errors.New("multiple root directories")
+		return nil, clues.New("multiple root directories")
 	}
 
 	var res fs.Directory

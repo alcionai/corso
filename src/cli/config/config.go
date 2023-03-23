@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/alcionai/clues"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -127,7 +127,7 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 
 	ext := filepath.Ext(configFP)
 	if len(ext) == 0 {
-		return errors.New("config file requires an extension e.g. `toml`")
+		return clues.New("config file requires an extension e.g. `toml`")
 	}
 
 	fileName := filepath.Base(configFP)
@@ -265,7 +265,7 @@ func getStorageAndAccountWithViper(
 		err = vpr.ReadInConfig()
 		if err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return config, errors.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
+				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
 
 			readConfigFromViper = false
@@ -277,12 +277,12 @@ func getStorageAndAccountWithViper(
 
 	config.Account, err = configureAccount(vpr, readConfigFromViper, overrides)
 	if err != nil {
-		return config, errors.Wrap(err, "retrieving account configuration details")
+		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
 	config.Storage, err = configureStorage(vpr, readConfigFromViper, overrides)
 	if err != nil {
-		return config, errors.Wrap(err, "retrieving storage provider details")
+		return config, clues.Wrap(err, "retrieving storage provider details")
 	}
 
 	return config, nil
@@ -317,7 +317,7 @@ func mustMatchConfig(vpr *viper.Viper, m map[string]string) error {
 
 		vv := vpr.GetString(tomlK)
 		if v != vv {
-			return errors.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
+			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
 		}
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -87,7 +86,7 @@ func (cr *containerResolver) idToPath(
 		depth+1,
 		useIDInPath)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "retrieving parent folder")
+		return nil, nil, clues.Wrap(err, "retrieving parent folder")
 	}
 
 	toAppend := ptr.Val(c.GetDisplayName())
@@ -135,11 +134,11 @@ func (cr *containerResolver) addFolder(cf graph.CacheFolder) error {
 	// Only require a non-nil non-empty parent if the path isn't already populated.
 	if cf.Path() != nil {
 		if err := checkIDAndName(cf.Container); err != nil {
-			return errors.Wrap(err, "adding item to cache")
+			return clues.Wrap(err, "adding item to cache")
 		}
 	} else {
 		if err := checkRequiredValues(cf.Container); err != nil {
-			return errors.Wrap(err, "adding item to cache")
+			return clues.Wrap(err, "adding item to cache")
 		}
 	}
 
@@ -180,7 +179,7 @@ func (cr *containerResolver) AddToCache(
 	// when they're made.
 	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
 	if err != nil {
-		return errors.Wrap(err, "adding cache entry")
+		return clues.Wrap(err, "adding cache entry")
 	}
 
 	return nil

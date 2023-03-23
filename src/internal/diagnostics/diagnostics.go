@@ -8,8 +8,8 @@ import (
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
-	"github.com/pkg/errors"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -33,7 +33,7 @@ func InitCollector() error {
 	}
 
 	if err := xray.Configure(cfg); err != nil {
-		return errors.Wrap(err, "initializing observability tooling")
+		return clues.Wrap(err, "initializing observability tooling")
 	}
 
 	// TODO: feed in the corso logger

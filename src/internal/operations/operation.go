@@ -4,8 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/pkg/errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/events"
@@ -85,11 +84,11 @@ func newOperation(
 
 func (op operation) validate() error {
 	if op.kopia == nil {
-		return errors.New("missing kopia connection")
+		return clues.New("missing kopia connection")
 	}
 
 	if op.store == nil {
-		return errors.New("missing modelstore")
+		return clues.New("missing modelstore")
 	}
 
 	return nil

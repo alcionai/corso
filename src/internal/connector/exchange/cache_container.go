@@ -1,8 +1,6 @@
 package exchange
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -13,7 +11,7 @@ import (
 func checkIDAndName(c graph.Container) error {
 	id, ok := ptr.ValOK(c.GetId())
 	if !ok {
-		return errors.New("container missing ID")
+		return clues.New("container missing ID")
 	}
 
 	if _, ok := ptr.ValOK(c.GetDisplayName()); !ok {

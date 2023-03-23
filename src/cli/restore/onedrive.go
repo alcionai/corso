@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -103,7 +104,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
+		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -116,16 +117,16 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize OneDrive restore"))
+		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
 	}
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", utils.BackupID))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupID))
 		}
 
-		return Only(ctx, errors.Wrap(err, "Failed to run OneDrive restore"))
+		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
 	}
 
 	ds.PrintEntries(ctx)

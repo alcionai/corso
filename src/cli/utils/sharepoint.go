@@ -1,8 +1,7 @@
 package utils
 
 import (
-	"errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/spf13/cobra"
 )
@@ -97,23 +96,23 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
 func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error {
 	if len(backupID) == 0 {
-		return errors.New("a backup ID is required")
+		return clues.New("a backup ID is required")
 	}
 
 	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return errors.New("invalid time format for " + FileCreatedAfterFN)
+		return clues.New("invalid time format for " + FileCreatedAfterFN)
 	}
 
 	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return errors.New("invalid time format for " + FileCreatedBeforeFN)
+		return clues.New("invalid time format for " + FileCreatedBeforeFN)
 	}
 
 	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return errors.New("invalid time format for " + FileModifiedAfterFN)
+		return clues.New("invalid time format for " + FileModifiedAfterFN)
 	}
 
 	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return errors.New("invalid time format for " + FileModifiedBeforeFN)
+		return clues.New("invalid time format for " + FileModifiedBeforeFN)
 	}
 
 	return nil

@@ -6,8 +6,6 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -206,7 +204,7 @@ func RestoreSitePage(
 	// Hydrate Page
 	page, err := support.CreatePageFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
+		return dii, clues.Wrap(err, "creating Page object").WithClues(ctx)
 	}
 
 	name, ok := ptr.ValOK(page.GetName())

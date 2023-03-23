@@ -182,7 +182,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 func validateUser(item any) (models.Userable, error) {
 	m, ok := item.(models.Userable)
 	if !ok {
-		return nil, clues.Stack(clues.New("unexpected model"), errors.Errorf("%T", item))
+		return nil, clues.Wrap(errors.Errorf("%T", item), "unexpected model")
 	}
 
 	if m.GetId() == nil {

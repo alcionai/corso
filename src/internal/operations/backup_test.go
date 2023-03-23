@@ -2,13 +2,13 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	stdpath "path"
 	"testing"
 	"time"
 
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -123,18 +123,24 @@ func (mbs mockBackupStorer) Get(
 	id model.StableID,
 	toPopulate model.Model,
 ) error {
+	ctx = clues.Add(
+		ctx,
+		"model_schema", s,
+		"model_id", id,
+		"model_type", fmt.Sprintf("%T", toPopulate))
+
 	if s != model.BackupSchema {
-		return errors.Errorf("unexpected schema %s", s)
+		return clues.New("unexpected schema")
 	}
 
 	r, ok := mbs.entries[id]
 	if !ok {
-		return errors.Errorf("model with id %s not found", id)
+		return clues.New("model not found")
 	}
 
 	bu, ok := toPopulate.(*backup.Backup)
 	if !ok {
-		return errors.Errorf("bad input type %T", toPopulate)
+		return clues.New("bad population type")
 	}
 
 	*bu = r
@@ -143,11 +149,11 @@ func (mbs mockBackupStorer) Get(
 }
 
 func (mbs mockBackupStorer) Delete(context.Context, model.Schema, model.StableID) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) DeleteWithModelStoreID(context.Context, manifest.ID) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) GetIDsForType(
@@ -155,7 +161,7 @@ func (mbs mockBackupStorer) GetIDsForType(
 	model.Schema,
 	map[string]string,
 ) ([]*model.BaseModel, error) {
-	return nil, errors.New("not implemented")
+	return nil, clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) GetWithModelStoreID(
@@ -164,15 +170,15 @@ func (mbs mockBackupStorer) GetWithModelStoreID(
 	manifest.ID,
 	model.Model,
 ) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) Put(context.Context, model.Schema, model.Model) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 // ---------------------------------------------------------------------------

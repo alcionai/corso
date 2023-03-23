@@ -1,8 +1,7 @@
 package account
 
 import (
-	"errors"
-
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 )
 
@@ -16,7 +15,7 @@ const (
 
 // storage parsing errors
 var (
-	errMissingRequired = errors.New("missing required storage configuration")
+	errMissingRequired = clues.New("missing required storage configuration")
 )
 
 // Account defines an account provider, along with any credentials

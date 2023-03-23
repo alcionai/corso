@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 )
 
 type Bus struct {
@@ -35,7 +35,7 @@ func (b *Bus) Close() error {
 	b.TimesClosed++
 
 	if b.TimesClosed > 1 {
-		return errors.New("multiple closes on Bus")
+		return clues.New("multiple closes on Bus")
 	}
 
 	return nil

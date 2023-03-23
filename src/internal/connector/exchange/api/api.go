@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -95,7 +94,7 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 		creds.AzureClientID,
 		creds.AzureClientSecret)
 	if err != nil {
-		return nil, errors.Wrap(err, "generating no-timeout graph adapter")
+		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
 	}
 
 	return graph.NewService(a), nil
@@ -108,7 +107,7 @@ func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
 		creds.AzureClientSecret,
 		graph.NoTimeout())
 	if err != nil {
-		return nil, errors.Wrap(err, "generating no-timeout graph adapter")
+		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
 	}
 
 	return graph.NewService(a), nil
@@ -123,7 +122,7 @@ func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
 func checkIDAndName(c graph.Container) error {
 	id := ptr.Val(c.GetId())
 	if len(id) == 0 {
-		return errors.New("container missing ID")
+		return clues.New("container missing ID")
 	}
 
 	dn := ptr.Val(c.GetDisplayName())

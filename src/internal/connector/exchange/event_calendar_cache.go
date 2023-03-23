@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -44,7 +43,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 
 	f, err := ecc.getter.GetContainerByID(ctx, ecc.userID, container)
 	if err != nil {
-		return errors.Wrap(err, "fetching calendar")
+		return clues.Wrap(err, "fetching calendar")
 	}
 
 	temp := graph.NewCacheFolder(
@@ -68,7 +67,7 @@ func (ecc *eventCalendarCache) Populate(
 	baseContainerPath ...string,
 ) error {
 	if err := ecc.init(ctx); err != nil {
-		return errors.Wrap(err, "initializing")
+		return clues.Wrap(err, "initializing")
 	}
 
 	err := ecc.enumer.EnumerateContainers(
@@ -78,11 +77,11 @@ func (ecc *eventCalendarCache) Populate(
 		ecc.addFolder,
 		errs)
 	if err != nil {
-		return errors.Wrap(err, "enumerating containers")
+		return clues.Wrap(err, "enumerating containers")
 	}
 
 	if err := ecc.populatePaths(ctx, true, errs); err != nil {
-		return errors.Wrap(err, "establishing calendar paths")
+		return clues.Wrap(err, "establishing calendar paths")
 	}
 
 	return nil
@@ -116,7 +115,7 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 	_, _, err := ecc.IDToPath(ctx, ptr.Val(f.GetId()), true)
 	if err != nil {
 		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
-		return errors.Wrap(err, "setting path to container id")
+		return clues.Wrap(err, "setting path to container id")
 	}
 
 	return nil
