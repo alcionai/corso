@@ -32,8 +32,7 @@ import (
 type BackupOperation struct {
 	operation
 
-	ResourceOwner     string `json:"resourceOwner"`
-	ResourceOwnerName string `json:"resourceOwnerName"`
+	ResourceOwner common.IDNamer
 
 	Results   BackupResults      `json:"results"`
 	Selectors selectors.Selector `json:"selectors"`
@@ -62,22 +61,16 @@ func NewBackupOperation(
 	bp BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
-	ownerName string,
+	owner common.IDNamer,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:         newOperation(opts, bus, kw, sw),
-		ResourceOwner:     selector.DiscreteOwner,
-		ResourceOwnerName: ownerName,
-		Selectors:         selector,
-		Version:           "v0",
-		account:           acct,
-		incremental:       useIncrementalBackup(selector, opts),
-		bp:                bp,
-	}
-
-	if len(ownerName) == 0 {
-		op.ResourceOwnerName = op.ResourceOwner
+		operation:     newOperation(opts, bus, kw, sw),
+		ResourceOwner: owner,
+		Selectors:     selector,
+		Version:       "v0",
+		account:       acct,
+		incremental:   useIncrementalBackup(selector, opts),
 	}
 
 	if err := op.validate(); err != nil {
@@ -88,8 +81,12 @@ func NewBackupOperation(
 }
 
 func (op BackupOperation) validate() error {
-	if len(op.ResourceOwner) == 0 {
+	if op.ResourceOwner == nil {
 		return clues.New("backup requires a resource owner")
+	}
+
+	if len(op.ResourceOwner.ID()) == 0 {
+		return clues.New("backup requires a resource owner with a populated ID")
 	}
 
 	if op.bp == nil {
@@ -164,7 +161,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	observe.Message(ctx, observe.Safe("Backing Up"), observe.Bullet, observe.PII(op.ResourceOwner))
+	observe.Message(ctx, observe.Safe("Backing Up"), observe.Bullet, observe.PII(op.ResourceOwner.Name()))
 
 	deets, err := op.do(
 		ctx,
@@ -251,7 +248,6 @@ func (op *BackupOperation) do(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
-		op.ResourceOwnerName,
 		op.Selectors,
 		mdColls,
 		op.Options,
@@ -324,7 +320,7 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 type BackupProducer interface {
 	ProduceBackupCollections(
 		ctx context.Context,
-		ownerID, ownerName string,
+		resourceOwner common.IDNamer,
 		sels selectors.Selector,
 		metadata []data.RestoreCollection,
 		ctrlOpts control.Options,
@@ -339,7 +335,7 @@ type BackupProducer interface {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp BackupProducer,
-	ownerID, ownerName string,
+	resourceOwner common.IDNamer,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
@@ -352,7 +348,7 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, ownerID, ownerName, sel, metadata, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -741,8 +737,8 @@ func (op *BackupOperation) createBackupModels(
 		op.Status.String(),
 		backupID,
 		op.Selectors,
-		op.ResourceOwner,
-		op.ResourceOwnerName,
+		op.ResourceOwner.ID(),
+		op.ResourceOwner.Name(),
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 		op.Errors.Errors())

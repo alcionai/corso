@@ -415,7 +415,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				gc,
 				acct,
 				sel,
-				sel.DiscreteOwner,
+				sel,
 				evmock.NewBus())
 			require.NoError(t, err, clues.ToCore(err))
 

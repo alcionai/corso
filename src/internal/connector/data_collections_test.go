@@ -207,7 +207,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 
 			collections, excludes, err := connector.ProduceBackupCollections(
 				ctx,
-				owners[0], owners[0],
+				test.getSelector(t),
 				test.getSelector(t),
 				nil,
 				control.Options{},
@@ -339,7 +339,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		siteIDs[0], siteIDs[0],
+		sel.Selector,
 		sel.Selector,
 		nil,
 		control.Options{},
@@ -378,7 +378,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
-		siteIDs[0], siteIDs[0],
+		sel.Selector,
 		sel.Selector,
 		nil,
 		control.Options{},
