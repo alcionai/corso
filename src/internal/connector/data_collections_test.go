@@ -117,9 +117,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			}
 
 			// Categories with delta endpoints will produce a collection for metadata
-			// as well as the actual data pulled.
+			// as well as the actual data pulled, and the "temp" root collection.
 			assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
-			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
+			assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
 
 			for _, col := range collections {
 				for object := range col.Items(ctx, fault.New(true)) {
