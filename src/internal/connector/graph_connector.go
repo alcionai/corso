@@ -223,7 +223,7 @@ func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
-func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
+func (gc *GraphConnector) Wait() *support.ConnectorOperationStatus {
 	defer func() {
 		if gc.region != nil {
 			gc.region.End()

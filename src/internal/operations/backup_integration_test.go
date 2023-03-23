@@ -383,7 +383,7 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
-	deets, err := gc.RestoreDataCollections(
+	deets, err := gc.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		acct,
@@ -539,7 +539,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &connector.GraphConnector{}
+	gc := &mockconnector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
@@ -547,7 +547,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
-		gc       *connector.GraphConnector
+		bp       BackupProducer
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
@@ -555,7 +555,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
 		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
 		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing graphconnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"missing backup producer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -567,7 +567,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.opts,
 				test.kw,
 				test.sw,
-				test.gc,
+				test.bp,
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
 				"test-name",

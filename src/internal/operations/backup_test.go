@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -85,9 +85,9 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 	assert.ElementsMatch(t, expected, got)
 }
 
-// ----- backup producer
+// ----- backup consumer
 
-type mockBackuper struct {
+type mockBackupConsumer struct {
 	checkFunc func(
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
@@ -95,7 +95,7 @@ type mockBackuper struct {
 		buildTreeWithBase bool)
 }
 
-func (mbu mockBackuper) BackupCollections(
+func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
@@ -360,7 +360,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &connector.GraphConnector{}
+		gc   = &mockconnector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -564,7 +564,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mbu := &mockBackuper{
+			mbu := &mockBackupConsumer{
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
 					cs []data.BackupCollection,
@@ -576,7 +576,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			}
 
 			//nolint:errcheck
-			consumeBackupDataCollections(
+			consumeBackupCollections(
 				ctx,
 				mbu,
 				tenant,

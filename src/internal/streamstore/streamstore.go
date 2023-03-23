@@ -222,7 +222,7 @@ func collect(
 }
 
 type backuper interface {
-	BackupCollections(
+	ConsumeBackupCollections(
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
@@ -240,7 +240,7 @@ func write(
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
-	backupStats, _, _, err := bup.BackupCollections(
+	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,
 		dbcs,

@@ -111,8 +111,7 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	go statusTestTask(&gc, 4, 1, 1)
 	go statusTestTask(&gc, 4, 1, 1)
 
-	status := gc.AwaitStatus()
-
+	status := gc.Wait()
 	t := suite.T()
 
 	assert.NotEmpty(t, gc.PrintableStatus())

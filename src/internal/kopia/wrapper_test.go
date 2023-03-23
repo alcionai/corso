@@ -276,7 +276,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			stats, deets, _, err := suite.w.BackupCollections(
+			stats, deets, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -423,7 +423,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			t := suite.T()
 			collections := test.cols()
 
-			stats, deets, prevShortRefs, err := suite.w.BackupCollections(
+			stats, deets, prevShortRefs, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -525,7 +525,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
 	require.NoError(t, err, clues.ToCore(err))
 
-	stats, _, _, err := w.BackupCollections(
+	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
 		nil,
 		[]data.BackupCollection{dc1, dc2},
@@ -644,7 +644,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	stats, deets, _, err := suite.w.BackupCollections(
+	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -706,7 +706,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			s, d, _, err := suite.w.BackupCollections(
+			s, d, _, err := suite.w.ConsumeBackupCollections(
 				ctx,
 				nil,
 				test.collections,
@@ -866,7 +866,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		tags[k] = ""
 	}
 
-	stats, deets, _, err := suite.w.BackupCollections(
+	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -1018,7 +1018,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				}
 			}
 
-			stats, _, _, err := suite.w.BackupCollections(
+			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				[]IncrementalBase{
 					{
