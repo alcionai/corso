@@ -211,17 +211,21 @@ func DataCollections(
 		collections = append(collections, dcs...)
 	}
 
-	baseCols, baseErrs := graph.BaseCollections(
-		acct.AzureTenantID,
-		user,
-		path.ExchangeService,
-		categories,
-		su)
-	if baseErrs != nil {
-		return collections, nil, baseErrs
-	}
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			acct.AzureTenantID,
+			user,
+			path.ExchangeService,
+			categories,
+			su,
+			errs)
+		if err != nil {
+			return collections, nil, err
+		}
 
-	collections = append(collections, baseCols...)
+		collections = append(collections, baseCols...)
+	}
 
 	return collections, nil, el.Failure()
 }

@@ -18,11 +18,11 @@ type emptyCollection struct {
 	su support.StatusUpdater
 }
 
-func (c emptyCollection) Items(ctx context.Context, errs *fault.Errors) <-chan data.Stream {
+func (c emptyCollection) Items(ctx context.Context, _ *fault.Bus) <-chan data.Stream {
 	res := make(chan data.Stream)
 	close(res)
 
-	s := support.CreateStatus(ctx, support.Backup, 0, support.CollectionMetrics{}, nil, "")
+	s := support.CreateStatus(ctx, support.Backup, 0, support.CollectionMetrics{}, "")
 	c.su(s)
 
 	return res
@@ -47,23 +47,28 @@ func (c emptyCollection) DoNotMergeItems() bool {
 }
 
 func BaseCollections(
-	tenant, user string,
+	ctx context.Context,
+	tenant, rOwner string,
 	service path.ServiceType,
 	categories map[path.CategoryType]struct{},
 	su support.StatusUpdater,
+	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	var (
-		errs = []error{}
-		res  = []data.BackupCollection{}
+		res     = []data.BackupCollection{}
+		el      = errs.Local()
+		lastErr error
 	)
 
 	for cat := range categories {
-		p, err := path.Builder{}.Append("tmp").ToDataLayerPath(tenant, user, service, cat, false)
+		ictx := clues.Add(ctx, "base_service", service, "base_category", cat)
+
+		p, err := path.Build(tenant, rOwner, service, cat, false, "tmp")
 		if err != nil {
 			// Shouldn't happen.
-			errs = append(
-				errs,
-				clues.Wrap(err, "making path").With("service", service, "category", cat))
+			err = clues.Wrap(err, "making path").WithClues(ictx)
+			el.AddRecoverable(err)
+			lastErr = err
 
 			continue
 		}
@@ -71,9 +76,9 @@ func BaseCollections(
 		p, err = p.Dir()
 		if err != nil {
 			// Shouldn't happen.
-			errs = append(
-				errs,
-				clues.Wrap(err, "getting base prefix").With("serivce", service, "category", cat))
+			err = clues.Wrap(err, "getting base prefix").WithClues(ictx)
+			el.AddRecoverable(err)
+			lastErr = err
 
 			continue
 		}
@@ -82,9 +87,5 @@ func BaseCollections(
 		res = append(res, emptyCollection{p: p, su: su})
 	}
 
-	if len(errs) > 0 {
-		return res, clues.Stack(errs...)
-	}
-
-	return res, nil
+	return res, lastErr
 }

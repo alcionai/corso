@@ -115,18 +115,21 @@ func DataCollections(
 		categories[scope.Category().PathType()] = struct{}{}
 	}
 
-	baseCols, baseErrs := graph.BaseCollections(
-		creds.AzureTenantID,
-		site,
-		path.SharePointService,
-		categories,
-		su.UpdateStatus)
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			creds.AzureTenantID,
+			site,
+			path.SharePointService,
+			categories,
+			su.UpdateStatus,
+			errs)
+		if err != nil {
+			return collections, nil, err
+		}
 
-	if baseErrs != nil {
-		return collections, nil, baseErrs
+		collections = append(collections, baseCols...)
 	}
-
-	collections = append(collections, baseCols...)
 
 	return collections, nil, el.Failure()
 }

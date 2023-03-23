@@ -1124,15 +1124,17 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-			backupSel := test.selectorFunc(t)
+			var (
+				t         = suite.T()
+				backupGC  = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+				backupSel = test.selectorFunc(t)
+				errs      = fault.New(true)
+				start     = time.Now()
+			)
 
-			start := time.Now()
 			dcs, excludes, err := backupGC.DataCollections(
 				ctx,
 				backupSel,
@@ -1156,8 +1158,6 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				// these collections to avoid deadlocking.
 				var found int
 
-				errs := fault.New(true)
-
 				// Need to iterate through this before the continue below else we'll
 				// hang checking the status.
 				for range col.Items(ctx, errs) {
@@ -1176,16 +1176,14 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 				t.Logf("looking at collection %s\n", fullPath)
 
-				assert.NoError(t, errs.Err())
 				assert.Zero(t, found, "non-empty collection")
 			}
 
 			assert.ElementsMatch(t, test.categories, foundCategories)
 
-			status := backupGC.AwaitStatus()
+			backupGC.AwaitStatus()
 
-			assert.NoError(t, status.Err, "backup status.Err")
-			assert.Zero(t, status.ErrorCount, "backup status.ErrorCount")
+			assert.NoError(t, errs.Failure())
 		})
 	}
 }

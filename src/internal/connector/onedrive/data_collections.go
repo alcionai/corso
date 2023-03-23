@@ -79,19 +79,6 @@ func DataCollections(
 
 		collections = append(collections, odcs...)
 
-		baseCols, baseErrs := graph.BaseCollections(
-			tenant,
-			user,
-			path.OneDriveService,
-			categories,
-			su)
-
-		if baseErrs != nil {
-			return collections, allExcludes, baseErrs
-		}
-
-		collections = append(collections, baseCols...)
-
 		for k, ex := range excludes {
 			if _, ok := allExcludes[k]; !ok {
 				allExcludes[k] = map[string]struct{}{}
@@ -99,6 +86,22 @@ func DataCollections(
 
 			maps.Copy(allExcludes[k], ex)
 		}
+	}
+
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			tenant,
+			user,
+			path.OneDriveService,
+			categories,
+			su,
+			errs)
+		if err != nil {
+			return collections, allExcludes, err
+		}
+
+		collections = append(collections, baseCols...)
 	}
 
 	return collections, allExcludes, el.Failure()
