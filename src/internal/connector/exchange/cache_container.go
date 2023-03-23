@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 )

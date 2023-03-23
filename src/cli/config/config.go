@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/clues"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"

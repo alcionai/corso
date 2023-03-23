@@ -2,8 +2,9 @@ package utils
 
 import (
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type OneDriveOpts struct {

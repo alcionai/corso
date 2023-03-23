@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/alcionai/clues"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 )
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"

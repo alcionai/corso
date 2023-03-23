@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/clues"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"

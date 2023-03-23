@@ -6,9 +6,10 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+
+	"github.com/alcionai/corso/src/internal/streamstore"
 )
 
 var _ streamstore.Streamer = &Streamer{}
@@ -41,11 +42,11 @@ func (ms Streamer) Read(
 	case streamstore.FaultErrorsType:
 		mr = ms.Errors[snapshotID]
 	default:
-		return clues.New("unknown type: " + col.Type)
+		return clues.New("unknown type: " + col.Type).WithClues(ctx)
 	}
 
 	if mr == nil {
-		return clues.New("collectable " + col.Type + " has no marshaller")
+		return clues.New("collectable " + col.Type + " has no marshaller").WithClues(ctx)
 	}
 
 	bs, err := mr.Marshal()

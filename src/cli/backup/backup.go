@@ -6,6 +6,9 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -19,8 +22,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 // ---------------------------------------------------------------------------

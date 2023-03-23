@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"

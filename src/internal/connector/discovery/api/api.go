@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 )

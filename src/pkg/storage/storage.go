@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common"
 )
 

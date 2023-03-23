@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"

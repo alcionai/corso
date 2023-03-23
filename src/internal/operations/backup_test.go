@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -130,17 +130,17 @@ func (mbs mockBackupStorer) Get(
 		"model_type", fmt.Sprintf("%T", toPopulate))
 
 	if s != model.BackupSchema {
-		return clues.New("unexpected schema")
+		return clues.New("unexpected schema").WithClues(ctx)
 	}
 
 	r, ok := mbs.entries[id]
 	if !ok {
-		return clues.New("model not found")
+		return clues.New("model not found").WithClues(ctx)
 	}
 
 	bu, ok := toPopulate.(*backup.Backup)
 	if !ok {
-		return clues.New("bad population type")
+		return clues.New("bad population type").WithClues(ctx)
 	}
 
 	*bu = r
