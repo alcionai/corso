@@ -46,6 +46,8 @@ func main() {
 	}
 }
 
+// checkEmailRestoration verifies that the emails count in restored folder is equivalent to
+// emails in actual m365 account
 func checkEmailRestoration(
 	client *msgraphsdk.GraphServiceClient,
 	testUser,
@@ -91,12 +93,9 @@ func checkEmailRestoration(
 				continue
 			}
 
-			getAllSubFolder(user, r, name, messageCount)
+			getAllSubFolder(client, testUser, r, name, messageCount)
 
-			messageCount[name], ok = ptr.ValOK(r.GetTotalItemCount())
-			if !ok {
-				fmt.Println("unable to fetch item count for:", name)
-			}
+			messageCount[name], _ = ptr.ValOK(r.GetTotalItemCount())
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
@@ -107,9 +106,7 @@ func checkEmailRestoration(
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
 	}
 
-	var (
-		folderID, ok = ptr.ValOK(restoreFolder.GetId())
-	)
+	folderID, ok := ptr.ValOK(restoreFolder.GetId())
 	if !ok {
 		fmt.Printf("can't find ID of restore folder")
 		os.Exit(1)
@@ -129,10 +126,7 @@ func checkEmailRestoration(
 			continue
 		}
 
-		restoreItemCount, ok := ptr.ValOK(restore.GetTotalItemCount())
-		if !ok {
-			fmt.Println("Unable to find item count for ", restoreDisplayName)
-		}
+		restoreItemCount, _ := ptr.ValOK(restore.GetTotalItemCount())
 
 		if messageCount[restoreDisplayName] != restoreItemCount {
 			fmt.Println("Restore was not succesfull for: ", restoreDisplayName,
@@ -141,25 +135,27 @@ func checkEmailRestoration(
 			os.Exit(1)
 		}
 
-		checkAllSubFolder(user, restore, restoreDisplayName, messageCount)
+		checkAllSubFolder(client, testUser, restore, restoreDisplayName, messageCount)
 	}
 }
 
+// getAllSubFolder will recursively check for all subfolders and get the corresponding
+// email count.
 func getAllSubFolder(
-	user *users.UserItemRequestBuilder,
+	client *msgraphsdk.GraphServiceClient,
+	testUser string,
 	r models.MailFolderable,
 	parentFolder string,
 	messageCount map[string]int32,
 ) {
-	var (
-		folderID, ok = ptr.ValOK(r.GetId())
-	)
+	folderID, ok := ptr.ValOK(r.GetId())
 
 	if !ok {
 		fmt.Println("unable to get sub folder ID")
 		return
 	}
 
+	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(folderID)
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
@@ -169,31 +165,41 @@ func getAllSubFolder(
 	}
 
 	for _, child := range childFolder.GetValue() {
-		childDisplayName, ok := ptr.ValOK(child.GetDisplayName())
-		if !ok {
-			fmt.Println("unable to get child display name")
-		}
+		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
 
 		fullFolderName := parentFolder + "/" + childDisplayName
 
-		messageCount[fullFolderName] = *child.GetTotalItemCount()
+		messageCount[fullFolderName], _ = ptr.ValOK(child.GetTotalItemCount())
+
+		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
 
 		// recursively check for subfolders
-		if *child.GetChildFolderCount() > 0 {
+		if childFolderCount > 0 {
 			parentFolder := fullFolderName
 
-			getAllSubFolder(user, child, parentFolder, messageCount)
+			getAllSubFolder(client, testUser, child, parentFolder, messageCount)
 		}
 	}
 }
 
+// checkAllSubFolder will recursively traverse inside the restore folder and
+// verify that data matched in all subfolders
 func checkAllSubFolder(
-	user *users.UserItemRequestBuilder,
+	client *msgraphsdk.GraphServiceClient,
+	testUser string,
 	r models.MailFolderable,
 	parentFolder string,
 	messageCount map[string]int32,
 ) {
-	folder := user.MailFoldersById(*r.GetId())
+	folderID, ok := ptr.ValOK(r.GetId())
+
+	if !ok {
+		fmt.Println("unable to get sub folder ID")
+		return
+	}
+
+	user := client.UsersById(testUser)
+	folder := user.MailFoldersById(folderID)
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
 	if err != nil {
@@ -202,19 +208,25 @@ func checkAllSubFolder(
 	}
 
 	for _, child := range childFolder.GetValue() {
-		fullFolderName := parentFolder + "/" + *child.GetDisplayName()
+		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
 
-		if messageCount[fullFolderName] != *child.GetTotalItemCount() {
+		fullFolderName := parentFolder + "/" + childDisplayName
+
+		childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
+
+		if messageCount[fullFolderName] != childTotalCount {
 			fmt.Println("Restore was not succesfull for: ", fullFolderName,
 				"Folder count: ", messageCount[fullFolderName],
-				"Restore count: ", *child.GetTotalItemCount())
+				"Restore count: ", childTotalCount)
 			os.Exit(1)
 		}
 
-		if *child.GetChildFolderCount() > 0 {
+		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
+
+		if childFolderCount > 0 {
 			parentFolder := fullFolderName
 
-			checkAllSubFolder(user, child, parentFolder, messageCount)
+			checkAllSubFolder(client, testUser, child, parentFolder, messageCount)
 		}
 	}
 }
