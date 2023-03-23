@@ -798,11 +798,11 @@ func inflateCollectionTree(
 
 // traverseBaseDir is an unoptimized function that reads items in a directory
 // and traverses subdirectories in the given directory. oldDirPath is the path
-// the directory would be at if the hierarchy was unchanged. newDirPath is the
+// the directory would be at if the hierarchy was unchanged. expectedDirPath is the
 // path the directory would be at if all changes from the root to this directory
 // were taken into account. Both are needed to detect some changes like moving
 // a parent directory and moving one of the child directories out of the parent.
-// If a directory on the path was deleted, newDirPath is set to nil.
+// If a directory on the path was deleted, expectedDirPath is set to nil.
 //
 // TODO(ashmrtn): A potentially more memory efficient version of this would
 // traverse only the directories that we know are present in the collections
@@ -813,13 +813,13 @@ func traverseBaseDir(
 	depth int,
 	updatedPaths map[string]path.Path,
 	oldDirPath *path.Builder,
-	newDirPath *path.Builder,
+	expectedDirPath *path.Builder,
 	dir fs.Directory,
 	roots map[string]*treeMap,
 ) error {
 	ctx = clues.Add(ctx,
 		"old_dir_path", oldDirPath,
-		"expected_dir_path", newDirPath)
+		"expected_dir_path", expectedDirPath)
 
 	if depth >= maxInflateTraversalDepth {
 		return clues.New("base snapshot tree too tall")
@@ -843,7 +843,7 @@ func traverseBaseDir(
 	// override any subtree movement with what's in updatedPaths if an entry
 	// exists.
 	oldDirPath = oldDirPath.Append(dirName)
-	currentPath := newDirPath
+	currentPath := expectedDirPath
 
 	if currentPath != nil {
 		currentPath = currentPath.Append(dirName)
