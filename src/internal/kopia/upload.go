@@ -741,7 +741,7 @@ func inflateCollectionTree(
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					With("collection_previouspath", s.PreviousPath())
+					With("collection_previous_path", s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -753,7 +753,7 @@ func inflateCollectionTree(
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					With("collection_previouspath", s.PreviousPath())
+					With("collection_previous_path", s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
@@ -765,13 +765,13 @@ func inflateCollectionTree(
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, clues.New("getting tree node").With("collection_fullpath", s.FullPath())
+			return nil, nil, clues.New("getting tree node").With("collection_full_path", s.FullPath())
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").With("collection_fullpath", s.FullPath())
+			return nil, nil, clues.New("multiple instances of collection").With("collection_full_path", s.FullPath())
 		}
 
 		node.collection = s
@@ -819,7 +819,7 @@ func traverseBaseDir(
 ) error {
 	ctx = clues.Add(ctx,
 		"old_dir_path", oldDirPath,
-		"new_dir_path", newDirPath)
+		"expected_dir_path", newDirPath)
 
 	if depth >= maxInflateTraversalDepth {
 		return clues.New("base snapshot tree too tall")
@@ -849,8 +849,6 @@ func traverseBaseDir(
 		currentPath = currentPath.Append(dirName)
 	}
 
-	ctx = clues.Add(ctx, "current_path", currentPath)
-
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
 		if upb == nil {
@@ -860,6 +858,8 @@ func traverseBaseDir(
 			currentPath = upb.ToBuilder()
 		}
 	}
+
+	ctx = clues.Add(ctx, "new_path", currentPath)
 
 	// TODO(ashmrtn): If we can do prefix matching on elements in updatedPaths and
 	// we know that the tree node for this directory has no collection reference

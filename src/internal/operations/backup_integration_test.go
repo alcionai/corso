@@ -447,7 +447,7 @@ func toDataLayerPath(
 	case path.OneDriveService:
 		p, err = pb.ToDataLayerOneDrivePath(tenant, user, isItem)
 	default:
-		err = clues.Wrap(clues.New(service.String()), "unknown service")
+		err = clues.New(fmt.Sprintf("unknown service: %s", service))
 	}
 
 	require.NoError(t, err, clues.ToCore(err))
