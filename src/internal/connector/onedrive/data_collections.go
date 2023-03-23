@@ -77,6 +77,8 @@ func DataCollections(
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
 
+		categories[scope.Category().PathType()] = struct{}{}
+
 		collections = append(collections, odcs...)
 
 		for k, ex := range excludes {
