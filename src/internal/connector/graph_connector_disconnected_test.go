@@ -116,9 +116,9 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 
 	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	assert.Equal(t, 8, status.Metrics.Objects)
+	assert.Equal(t, 8, status.Objects)
 	// Expect 2 success
-	assert.Equal(t, 2, status.Metrics.Successes)
+	assert.Equal(t, 2, status.Successes)
 	// Expect 2 folders
 	assert.Equal(t, 2, status.Folders)
 }

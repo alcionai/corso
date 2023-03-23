@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -381,9 +380,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 					TotalHashedBytes:   1,
 					TotalUploadedBytes: 1,
 				},
-				gc: &support.ConnectorOperationStatus{
-					Metrics: support.CollectionMetrics{Successes: 1},
-				},
+				gc: data.CollectionStats{Successes: 1},
 			},
 		},
 		{
@@ -392,7 +389,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: &support.ConnectorOperationStatus{},
+				gc: data.CollectionStats{},
 			},
 		},
 		{
@@ -400,7 +397,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			expectErr:    assert.NoError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: &support.ConnectorOperationStatus{},
+				gc: data.CollectionStats{},
 			},
 		},
 	}
@@ -427,7 +424,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")

@@ -161,9 +161,9 @@ func (suite *GraphConnectorUnitSuite) TestGraphConnector_AwaitStatus() {
 	assert.Nil(t, gc.region, "region")
 	assert.Empty(t, gc.status, "status")
 	assert.Equal(t, 1, result.Folders)
-	assert.Equal(t, 2, result.Metrics.Objects)
-	assert.Equal(t, 3, result.Metrics.Successes)
-	assert.Equal(t, int64(4), result.Metrics.Bytes)
+	assert.Equal(t, 2, result.Objects)
+	assert.Equal(t, 3, result.Successes)
+	assert.Equal(t, int64(4), result.Bytes)
 }
 
 // ---------------------------------------------------------------------------
@@ -257,9 +257,9 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	assert.NotNil(t, deets)
 
 	status := suite.connector.Wait()
-	assert.Equal(t, 0, status.Metrics.Objects)
+	assert.Equal(t, 0, status.Objects)
 	assert.Equal(t, 0, status.Folders)
-	assert.Equal(t, 0, status.Metrics.Successes)
+	assert.Equal(t, 0, status.Successes)
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
@@ -336,9 +336,9 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			assert.NotNil(t, deets)
 
 			stats := suite.connector.Wait()
-			assert.Zero(t, stats.Metrics.Objects)
+			assert.Zero(t, stats.Objects)
 			assert.Zero(t, stats.Folders)
-			assert.Zero(t, stats.Metrics.Successes)
+			assert.Zero(t, stats.Successes)
 		})
 	}
 }
@@ -415,8 +415,8 @@ func runRestore(
 	status := restoreGC.Wait()
 	runTime := time.Since(start)
 
-	assert.Equal(t, numRestoreItems, status.Metrics.Objects, "restored status.Metrics.Objects")
-	assert.Equal(t, numRestoreItems, status.Metrics.Successes, "restored status.Metrics.Successes")
+	assert.Equal(t, numRestoreItems, status.Objects, "restored status.Objects")
+	assert.Equal(t, numRestoreItems, status.Successes, "restored status.Successes")
 	assert.Len(
 		t,
 		deets.Entries,
@@ -484,10 +484,10 @@ func runBackupAndCompare(
 
 	status := backupGC.Wait()
 
-	assert.Equalf(t, totalItems+skipped, status.Metrics.Objects,
-		"backup status.Metrics.Objects; wanted %d items + %d skipped", totalItems, skipped)
-	assert.Equalf(t, totalItems+skipped, status.Metrics.Successes,
-		"backup status.Metrics.Successes; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Objects,
+		"backup status.Objects; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Successes,
+		"backup status.Successes; wanted %d items + %d skipped", totalItems, skipped)
 }
 
 func runRestoreBackupTest(
@@ -983,10 +983,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 				status := restoreGC.Wait()
 				// Always just 1 because it's just 1 collection.
-				assert.Equal(t, totalItems, status.Metrics.Objects, "status.Metrics.Objects")
-				assert.Equal(t, totalItems, status.Metrics.Successes, "status.Metrics.Successes")
-				assert.Len(
-					t, deets.Entries, totalItems,
+				assert.Equal(t, totalItems, status.Objects, "status.Objects")
+				assert.Equal(t, totalItems, status.Successes, "status.Successes")
+				assert.Equal(
+					t, totalItems, len(deets.Entries),
 					"details entries contains same item count as total successful items restored")
 
 				t.Log("Restore complete")
@@ -1028,8 +1028,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				true)
 
 			status := backupGC.Wait()
-			assert.Equal(t, allItems+skipped, status.Metrics.Objects, "status.Metrics.Objects")
-			assert.Equal(t, allItems+skipped, status.Metrics.Successes, "status.Metrics.Successes")
+			assert.Equal(t, allItems+skipped, status.Objects, "status.Objects")
+			assert.Equal(t, allItems+skipped, status.Successes, "status.Successes")
 		})
 	}
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -107,7 +106,7 @@ func (op BackupOperation) validate() error {
 // get populated asynchronously.
 type backupStats struct {
 	k             *kopia.BackupStats
-	gc            *support.ConnectorOperationStatus
+	gc            data.CollectionStats
 	resourceCount int
 }
 
@@ -661,16 +660,16 @@ func (op *BackupOperation) persistResults(
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc == nil {
+	if opStats.gc.IsZero() {
 		op.Status = Failed
 		return clues.New("backup population never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.gc.Successes == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsRead = opStats.gc.Metrics.Successes
+	op.Results.ItemsRead = opStats.gc.Successes
 
 	return op.Errors.Failure()
 }

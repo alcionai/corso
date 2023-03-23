@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -76,11 +75,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 						Collection: &mockconnector.MockExchangeDataCollection{},
 					},
 				},
-				gc: &support.ConnectorOperationStatus{
-					Metrics: support.CollectionMetrics{
-						Objects:   1,
-						Successes: 1,
-					},
+				gc: data.CollectionStats{
+					Objects:   1,
+					Successes: 1,
 				},
 			},
 		},
@@ -90,7 +87,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
-				gc:        &support.ConnectorOperationStatus{},
+				gc:        data.CollectionStats{},
 			},
 		},
 		{
@@ -99,7 +96,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.RestoreCollection{},
-				gc:        &support.ConnectorOperationStatus{},
+				gc:        data.CollectionStats{},
 			},
 		},
 	}
@@ -127,7 +124,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsWritten, "items written")
+			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
