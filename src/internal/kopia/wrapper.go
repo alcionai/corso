@@ -420,7 +420,7 @@ func (w Wrapper) RestoreMultipleItems(
 			return nil, el.Failure()
 		}
 
-		ictx := clues.Add(ctx, "item_path", itemPath.String)
+		ictx := clues.Add(ctx, "item_path", itemPath.String())
 
 		ds, err := getItemStream(ictx, itemPath, snapshotRoot, bcounter)
 		if err != nil {
