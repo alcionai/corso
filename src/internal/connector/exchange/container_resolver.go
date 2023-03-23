@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -193,16 +192,29 @@ func (cr *containerResolver) DestinationNameToID(dest string) string {
 	return ""
 }
 
-func (cr *containerResolver) populatePaths(ctx context.Context, useIDInPath bool) error {
-	var errs *multierror.Error
+func (cr *containerResolver) populatePaths(
+	ctx context.Context,
+	useIDInPath bool,
+	errs *fault.Bus,
+) error {
+	var (
+		el      = errs.Local()
+		lastErr error
+	)
 
 	// Populate all folder paths.
 	for _, f := range cr.Items() {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
+
 		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
 		if err != nil {
-			errs = multierror.Append(errs, errors.Wrap(err, "populating path"))
+			err = clues.Wrap(err, "populating path")
+			el.AddRecoverable(err)
+			lastErr = err
 		}
 	}
 
-	return errs.ErrorOrNil()
+	return lastErr
 }

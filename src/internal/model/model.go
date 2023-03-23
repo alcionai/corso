@@ -11,6 +11,10 @@ type (
 	Schema   int
 )
 
+func (id StableID) String() string {
+	return string(id)
+}
+
 // Schema constants denote the type of model stored. The integer values of the
 // constants can be changed without issue, but the string values should remain
 // the same. If the string values are changed, additional code will be needed to
