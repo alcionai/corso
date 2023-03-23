@@ -1,12 +1,14 @@
 package connector
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -117,10 +119,12 @@ var (
 
 func newOneDriveCollection(
 	t *testing.T,
+	service path.ServiceType,
 	pathElements []string,
 	backupVersion int,
 ) *onedriveCollection {
 	return &onedriveCollection{
+		service:       service,
 		pathElements:  pathElements,
 		backupVersion: backupVersion,
 		t:             t,
@@ -128,6 +132,7 @@ func newOneDriveCollection(
 }
 
 type onedriveCollection struct {
+	service       path.ServiceType
 	pathElements  []string
 	items         []itemInfo
 	aux           []itemInfo
@@ -136,9 +141,14 @@ type onedriveCollection struct {
 }
 
 func (c onedriveCollection) collection() colInfo {
+	cat := path.FilesCategory
+	if c.service == path.SharePointService {
+		cat = path.LibrariesCategory
+	}
+
 	return colInfo{
 		pathElements: c.pathElements,
-		category:     path.FilesCategory,
+		category:     cat,
 		items:        c.items,
 		auxItems:     c.aux,
 	}
@@ -276,11 +286,16 @@ type onedriveColInfo struct {
 	folders      []itemData
 }
 
-func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int) []colInfo {
+func testDataForInfo(
+	t *testing.T,
+	service path.ServiceType,
+	cols []onedriveColInfo,
+	backupVersion int,
+) []colInfo {
 	var res []colInfo
 
 	for _, c := range cols {
-		onedriveCol := newOneDriveCollection(t, c.pathElements, backupVersion)
+		onedriveCol := newOneDriveCollection(t, service, c.pathElements, backupVersion)
 
 		for _, f := range c.files {
 			onedriveCol.withFile(f.name, f.data, f.perms)
@@ -298,16 +313,146 @@ func testDataForInfo(t *testing.T, cols []onedriveColInfo, backupVersion int) []
 	return res
 }
 
+func mustGetDefaultDriveID(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	backupService path.ServiceType,
+	service graph.Servicer,
+	resourceOwner string,
+) string {
+	var (
+		err error
+		d   models.Driveable
+	)
+
+	switch backupService {
+	case path.OneDriveService:
+		d, err = service.Client().UsersById(resourceOwner).Drive().Get(ctx, nil)
+	case path.SharePointService:
+		d, err = service.Client().SitesById(resourceOwner).Drive().Get(ctx, nil)
+	default:
+		assert.FailNowf(t, "unknown service type %s", backupService.String())
+	}
+
+	if err != nil {
+		err = graph.Wrap(ctx, err, "retrieving drive")
+	}
+
+	require.NoError(t, err, clues.ToCore(err))
+
+	id := ptr.Val(d.GetId())
+	require.NotEmpty(t, id)
+
+	return id
+}
+
 type oneDriveSuite interface {
 	tester.Suite
 	Service() graph.Servicer
 	Account() account.Account
 	Tenant() string
-	// Returns (username, user ID) for the user.
+	// Returns (username, user ID) for the user. These values are used for
+	// permissions.
 	PrimaryUser() (string, string)
 	SecondaryUser() (string, string)
+	// BackupResourceOwner returns the resource owner to run the backup/restore
+	// with. This can be different from the values used for permissions and it can
+	// also be a site.
+	BackupResourceOwner() string
+	BackupService() path.ServiceType
+	Resource() resource
 }
 
+// ---------------------------------------------------------------------------
+// SharePoint Libraries
+// ---------------------------------------------------------------------------
+// SharePoint shares most of its libraries implementation with OneDrive so we
+// only test simple things here and leave the more extensive testing to
+// OneDrive.
+//
+// TODO(ashmrtn): SharePoint doesn't have permissions backup/restore enabled
+// right now. Adjust the tests here when that is enabled so we have at least
+// basic assurances that it's doing the right thing. We can leave the more
+// extensive permissions tests to OneDrive as well.
+
+type GraphConnectorSharePointIntegrationSuite struct {
+	tester.Suite
+	connector       *GraphConnector
+	site            string
+	user            string
+	userID          string
+	secondaryUser   string
+	secondaryUserID string
+	acct            account.Account
+}
+
+func TestGraphConnectorSharePointIntegrationSuite(t *testing.T) {
+	suite.Run(t, &GraphConnectorSharePointIntegrationSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+		),
+	})
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
+	suite.user = tester.M365UserID(suite.T())
+	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
+	suite.site = tester.M365SiteID(suite.T())
+	suite.acct = tester.NewM365Account(suite.T())
+
+	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
+	require.NoError(suite.T(), err, "fetching user", suite.user, clues.ToCore(err))
+	suite.userID = ptr.Val(user.GetId())
+
+	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
+	require.NoError(suite.T(), err, "fetching user", suite.secondaryUser, clues.ToCore(err))
+	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) Service() graph.Servicer {
+	return suite.connector.Service
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) Account() account.Account {
+	return suite.acct
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) Tenant() string {
+	return suite.connector.tenant
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) PrimaryUser() (string, string) {
+	return suite.user, suite.userID
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) SecondaryUser() (string, string) {
+	return suite.secondaryUser, suite.secondaryUserID
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) BackupResourceOwner() string {
+	return suite.site
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) BackupService() path.ServiceType {
+	return path.SharePointService
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) Resource() resource {
+	return Sites
+}
+
+func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
+}
+
+// ---------------------------------------------------------------------------
+// OneDrive most recent backup version
+// ---------------------------------------------------------------------------
 type GraphConnectorOneDriveIntegrationSuite struct {
 	tester.Suite
 	connector       *GraphConnector
@@ -365,6 +510,18 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SecondaryUser() (string, st
 	return suite.secondaryUser, suite.secondaryUserID
 }
 
+func (suite *GraphConnectorOneDriveIntegrationSuite) BackupResourceOwner() string {
+	return suite.user
+}
+
+func (suite *GraphConnectorOneDriveIntegrationSuite) BackupService() path.ServiceType {
+	return path.OneDriveService
+}
+
+func (suite *GraphConnectorOneDriveIntegrationSuite) Resource() resource {
+	return Users
+}
+
 func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
 }
@@ -391,14 +548,14 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 
 	t := suite.T()
 
-	userName, _ := suite.PrimaryUser()
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
 
 	driveID := mustGetDefaultDriveID(
 		t,
 		ctx,
+		suite.BackupService(),
 		suite.Service(),
-		userName,
+		suite.BackupResourceOwner(),
 	)
 
 	secondaryUserRead := permData{
@@ -414,12 +571,13 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 	}
 
 	test := restoreBackupInfoMultiVersion{
-		service:       path.OneDriveService,
-		resource:      Users,
+		service:       suite.BackupService(),
+		resource:      suite.Resource(),
 		backupVersion: version.Backup,
 		collectionsPrevious: []colInfo{
 			newOneDriveCollection(
 				suite.T(),
+				suite.BackupService(),
 				[]string{
 					"drives",
 					driveID,
@@ -439,6 +597,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				collection(),
 			newOneDriveCollection(
 				suite.T(),
+				suite.BackupService(),
 				[]string{
 					"drives",
 					driveID,
@@ -460,6 +619,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		collectionsLatest: []colInfo{
 			newOneDriveCollection(
 				suite.T(),
+				suite.BackupService(),
 				[]string{
 					"drives",
 					driveID,
@@ -479,6 +639,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 				collection(),
 			newOneDriveCollection(
 				suite.T(),
+				suite.BackupService(),
 				[]string{
 					"drives",
 					driveID,
@@ -506,7 +667,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 		suite.Account(),
 		test,
 		suite.Tenant(),
-		[]string{userName},
+		[]string{suite.BackupResourceOwner()},
 		control.Options{
 			RestorePermissions: true,
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
@@ -514,6 +675,9 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 	)
 }
 
+// ---------------------------------------------------------------------------
+// OneDrive regression
+// ---------------------------------------------------------------------------
 type GraphConnectorOneDriveNightlySuite struct {
 	tester.Suite
 	connector       *GraphConnector
@@ -571,6 +735,18 @@ func (suite *GraphConnectorOneDriveNightlySuite) SecondaryUser() (string, string
 	return suite.secondaryUser, suite.secondaryUserID
 }
 
+func (suite *GraphConnectorOneDriveNightlySuite) BackupResourceOwner() string {
+	return suite.user
+}
+
+func (suite *GraphConnectorOneDriveNightlySuite) BackupService() path.ServiceType {
+	return path.OneDriveService
+}
+
+func (suite *GraphConnectorOneDriveNightlySuite) Resource() resource {
+	return Users
+}
+
 func (suite *GraphConnectorOneDriveNightlySuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
 	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, 0)
 }
@@ -596,14 +772,13 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	userName, _ := suite.PrimaryUser()
-
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
+		suite.BackupService(),
 		suite.Service(),
-		userName,
+		suite.BackupResourceOwner(),
 	)
 
 	rootPath := []string{
@@ -705,16 +880,16 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), cols, version.Backup)
+	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, cols, vn)
+			input := testDataForInfo(t, suite.BackupService(), cols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             path.OneDriveService,
-				resource:            Users,
+				service:             suite.BackupService(),
+				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -725,7 +900,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{userName},
+				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
@@ -739,15 +914,15 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	userName, _ := suite.PrimaryUser()
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
+		suite.BackupService(),
 		suite.Service(),
-		userName,
+		suite.BackupResourceOwner(),
 	)
 
 	fileName2 := "test-file2.txt"
@@ -913,7 +1088,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), cols, version.Backup)
+	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
@@ -921,11 +1096,11 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input := testDataForInfo(t, cols, vn)
+			input := testDataForInfo(t, suite.BackupService(), cols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             path.OneDriveService,
-				resource:            Users,
+				service:             suite.BackupService(),
+				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -936,7 +1111,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{userName},
+				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
@@ -950,15 +1125,15 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	userName, _ := suite.PrimaryUser()
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
+		suite.BackupService(),
 		suite.Service(),
-		userName,
+		suite.BackupResourceOwner(),
 	)
 
 	inputCols := []onedriveColInfo{
@@ -999,16 +1174,16 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), expectedCols, version.Backup)
+	expected := testDataForInfo(suite.T(), suite.BackupService(), expectedCols, version.Backup)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input := testDataForInfo(t, inputCols, vn)
+			input := testDataForInfo(t, suite.BackupService(), inputCols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             path.OneDriveService,
-				resource:            Users,
+				service:             suite.BackupService(),
+				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1019,7 +1194,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{userName},
+				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: false,
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
@@ -1035,15 +1210,15 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	userName, _ := suite.PrimaryUser()
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
 		suite.T(),
 		ctx,
+		suite.BackupService(),
 		suite.Service(),
-		userName,
+		suite.BackupResourceOwner(),
 	)
 
 	folderAName := "custom"
@@ -1148,7 +1323,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 	}
 
-	expected := testDataForInfo(suite.T(), cols, version.Backup)
+	expected := testDataForInfo(suite.T(), suite.BackupService(), cols, version.Backup)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
@@ -1156,11 +1331,11 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input := testDataForInfo(t, cols, vn)
+			input := testDataForInfo(t, suite.BackupService(), cols, vn)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             path.OneDriveService,
-				resource:            Users,
+				service:             suite.BackupService(),
+				resource:            suite.Resource(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1171,7 +1346,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				suite.Account(),
 				testData,
 				suite.Tenant(),
-				[]string{userName},
+				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},

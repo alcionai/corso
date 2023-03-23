@@ -11,7 +11,6 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
@@ -313,27 +312,6 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 //-------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------------
-
-//revive:disable:context-as-argument
-func mustGetDefaultDriveID(
-	t *testing.T,
-	ctx context.Context,
-	service graph.Servicer,
-	userID string,
-) string {
-	//revive:enable:context-as-argument
-	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
-	if err != nil {
-		err = graph.Wrap(ctx, err, "retrieving drive")
-	}
-
-	require.NoError(t, err, clues.ToCore(err))
-
-	id := ptr.Val(d.GetId())
-	require.NotEmpty(t, id)
-
-	return id
-}
 
 func getCollectionsAndExpected(
 	t *testing.T,
