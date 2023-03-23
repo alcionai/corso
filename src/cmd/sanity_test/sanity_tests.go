@@ -45,13 +45,21 @@ func main() {
 	}
 }
 
-func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
+// checkEmailRestoration verifies that the emails count in restored folder is equivalent to
+// emails in actual m365 account
+func checkEmailRestoration(
+	client *msgraphsdk.GraphServiceClient,
+	testUser,
+	folderName string,
+	startTime time.Time,
+) {
 	var (
 		messageCount  = make(map[string]int32)
 		restoreFolder models.MailFolderable
 	)
 
-	builder := client.UsersById(testUser).MailFolders()
+	user := client.UsersById(testUser)
+	builder := user.MailFolders()
 
 	for {
 		result, err := builder.Get(context.Background(), nil)
@@ -63,7 +71,10 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		res := result.GetValue()
 
 		for _, r := range res {
-			name := *r.GetDisplayName()
+			name, ok := ptr.ValOK(r.GetDisplayName())
+			if !ok {
+				continue
+			}
 
 			var rStartTime time.Time
 
@@ -81,7 +92,9 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 				continue
 			}
 
-			messageCount[*r.GetDisplayName()] = *r.GetTotalItemCount()
+			getAllSubFolder(client, testUser, r, name, messageCount)
+
+			messageCount[name], _ = ptr.ValOK(r.GetTotalItemCount())
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
@@ -92,8 +105,13 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
 	}
 
-	user := client.UsersById(testUser)
-	folder := user.MailFoldersById(*restoreFolder.GetId())
+	folderID, ok := ptr.ValOK(restoreFolder.GetId())
+	if !ok {
+		fmt.Printf("can't find ID of restore folder")
+		os.Exit(1)
+	}
+
+	folder := user.MailFoldersById(folderID)
 
 	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
 	if err != nil {
@@ -102,14 +120,128 @@ func checkEmailRestoration(client *msgraphsdk.GraphServiceClient, testUser, fold
 	}
 
 	for _, restore := range childFolder.GetValue() {
-		if messageCount[*restore.GetDisplayName()] != *restore.GetTotalItemCount() {
-			fmt.Println("Restore was not succesfull for: ",
-				*restore.GetDisplayName(),
-				"Folder count: ",
-				messageCount[*restore.GetDisplayName()],
-				"Restore count: ",
-				*restore.GetTotalItemCount())
+		restoreDisplayName, ok := ptr.ValOK(restore.GetDisplayName())
+		if !ok {
+			continue
+		}
+
+		restoreItemCount, _ := ptr.ValOK(restore.GetTotalItemCount())
+
+		if messageCount[restoreDisplayName] != restoreItemCount {
+			fmt.Println("Restore was not succesfull for: ", restoreDisplayName,
+				"Folder count: ", messageCount[restoreDisplayName],
+				"Restore count: ", restoreItemCount)
 			os.Exit(1)
+		}
+
+		checkAllSubFolder(client, testUser, restore, restoreDisplayName, messageCount)
+	}
+}
+
+// getAllSubFolder will recursively check for all subfolders and get the corresponding
+// email count.
+func getAllSubFolder(
+	client *msgraphsdk.GraphServiceClient,
+	testUser string,
+	r models.MailFolderable,
+	parentFolder string,
+	messageCount map[string]int32,
+) {
+	folderID, ok := ptr.ValOK(r.GetId())
+
+	if !ok {
+		fmt.Println("unable to get sub folder ID")
+		return
+	}
+
+	user := client.UsersById(testUser)
+	folder := user.MailFoldersById(folderID)
+
+	var count int32 = 99
+
+	childFolder, err := folder.ChildFolders().Get(
+		context.Background(),
+		&users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Top: &count,
+			},
+		})
+	if err != nil {
+		fmt.Printf("Error getting the drive: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, child := range childFolder.GetValue() {
+		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
+
+		fullFolderName := parentFolder + "/" + childDisplayName
+
+		messageCount[fullFolderName], _ = ptr.ValOK(child.GetTotalItemCount())
+
+		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
+
+		// recursively check for subfolders
+		if childFolderCount > 0 {
+			parentFolder := fullFolderName
+
+			getAllSubFolder(client, testUser, child, parentFolder, messageCount)
+		}
+	}
+}
+
+// checkAllSubFolder will recursively traverse inside the restore folder and
+// verify that data matched in all subfolders
+func checkAllSubFolder(
+	client *msgraphsdk.GraphServiceClient,
+	testUser string,
+	r models.MailFolderable,
+	parentFolder string,
+	messageCount map[string]int32,
+) {
+	folderID, ok := ptr.ValOK(r.GetId())
+
+	if !ok {
+		fmt.Println("unable to get sub folder ID")
+		return
+	}
+
+	user := client.UsersById(testUser)
+	folder := user.MailFoldersById(folderID)
+
+	var count int32 = 99
+
+	childFolder, err := folder.ChildFolders().Get(
+		context.Background(),
+		&users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Top: &count,
+			},
+		})
+	if err != nil {
+		fmt.Printf("Error getting the drive: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, child := range childFolder.GetValue() {
+		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
+
+		fullFolderName := parentFolder + "/" + childDisplayName
+
+		childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
+
+		if messageCount[fullFolderName] != childTotalCount {
+			fmt.Println("Restore was not succesfull for: ", fullFolderName,
+				"Folder count: ", messageCount[fullFolderName],
+				"Restore count: ", childTotalCount)
+			os.Exit(1)
+		}
+
+		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
+
+		if childFolderCount > 0 {
+			parentFolder := fullFolderName
+
+			checkAllSubFolder(client, testUser, child, parentFolder, messageCount)
 		}
 	}
 }
@@ -210,21 +342,23 @@ func checkFileData(
 
 		itemBuilder := client.DrivesById(driveID).ItemsById(*restoreData.GetId())
 
-		permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
-		if err != nil {
-			fmt.Printf("Error getting permission: %v\n", err)
-			os.Exit(1)
-		}
+		if restoreData.GetFolder() != nil {
+			permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
+			if err != nil {
+				fmt.Printf("Error getting permission: %v\n", err)
+				os.Exit(1)
+			}
 
-		userPermission := []string{}
+			userPermission := []string{}
 
-		for _, perm := range permissionColl.GetValue() {
-			userPermission = perm.GetRoles()
-		}
+			for _, perm := range permissionColl.GetValue() {
+				userPermission = perm.GetRoles()
+			}
 
-		if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
-			fmt.Printf("Permission mismatch for %s.", restoreName)
-			os.Exit(1)
+			if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
+				fmt.Printf("Permission mismatch for %s.", restoreName)
+				os.Exit(1)
+			}
 		}
 	}
 }

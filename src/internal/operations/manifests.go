@@ -91,7 +91,7 @@ func produceManifestsAndMetadata(
 			return nil, nil, false, err
 		}
 
-		mctx = clues.Add(mctx, "manifest_backup_id", man.ID)
+		mctx = clues.Add(mctx, "manifest_backup_id", bID)
 
 		bup, err := gb.GetBackup(mctx, model.StableID(bID))
 		// if no backup exists for any of the complete manifests, we want

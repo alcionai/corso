@@ -149,11 +149,11 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.Ctx(ctx).
 			With("err", err).
-			Errorw("doing restore", clues.InErr(err).Slice()...)
-		op.Errors.Fail(errors.Wrap(err, "doing restore"))
+			Errorw("running restore", clues.InErr(err).Slice()...)
+		op.Errors.Fail(errors.Wrap(err, "running restore"))
 	}
 
-	LogFaultErrors(ctx, op.Errors.Errors(), "doing restore")
+	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
 
 	// -----
 	// Persistence

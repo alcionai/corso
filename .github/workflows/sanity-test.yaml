@@ -103,14 +103,17 @@ jobs:
         run: |
           ./corso backup create exchange \
           --user "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+           --hide-progress --json 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
-          if ! grep -q 'Completed' $TEST_RESULT/backup_exchange.txt
-          then
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
               echo "backup was not successfull"
               exit 1
           fi
-          echo result=$(grep -i -e 'Completed' $TEST_RESULT/backup_exchange.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
 
       # list the backup exhange
       - name: Backup exchange list test
@@ -150,15 +153,16 @@ jobs:
           set -euo pipefail
           ./corso backup create exchange \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --hide-progress 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+          --hide-progress  --json 2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
 
-          if ! grep -q  'Completed' $TEST_RESULT/backup_exchange_incremental.txt
-          then
-              echo "backup was not successful"
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange_incremental.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
+              echo "backup was not successfull"
               exit 1
           fi
 
-          echo result=$(grep -i -e 'Completed' $TEST_RESULT/backup_exchange_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          echo result=$( echo $resultjson | jq -r '.[0] | .id' ) >> $GITHUB_OUTPUT
 
       # test exchange restore
       - name: Backup incremantal exchange restore
@@ -188,15 +192,17 @@ jobs:
           set -euo pipefail
           ./corso backup create onedrive \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
+          --hide-progress  --json 2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
-          if ! grep -q 'Completed' $TEST_RESULT/backup_onedrive.txt
-          then
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
               echo "backup was not successfull"
               exit 1
           fi
 
-          echo result=$(grep 'Completed' $TEST_RESULT/backup_onedrive.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
 
       # list the bakcup onedrive
       - name: Backup onedrive list test
@@ -233,16 +239,18 @@ jobs:
           set -euo pipefail
           ./corso backup create onedrive \
           --user "${CORSO_M365_TEST_USER_ID}"\
-           --hide-progress 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
+           --hide-progress  --json 2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
-          if ! grep -q 'Completed' $TEST_RESULT/backup_onedrive_incremental.txt
-          then
+          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive_incremental.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
               echo "backup was not successfull"
               exit 1
           fi
 
-          echo result=$(grep -i -e 'Completed' $TEST_RESULT/backup_onedrive_incremental.txt  | awk '{print $2}') >> $GITHUB_OUTPUT
-
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+          
       # test onedrive restore
       - name: Backup onedrive restore
         id: onedrive-incremental-restore-test

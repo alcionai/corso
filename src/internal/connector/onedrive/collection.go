@@ -178,13 +178,13 @@ func (oc *Collection) Add(item models.DriveItemable) bool {
 }
 
 // Remove removes a item from the collection
-func (oc *Collection) Remove(item models.DriveItemable) bool {
-	_, found := oc.driveItems[ptr.Val(item.GetId())]
+func (oc *Collection) Remove(itemID string) bool {
+	_, found := oc.driveItems[itemID]
 	if !found {
 		return false
 	}
 
-	delete(oc.driveItems, ptr.Val(item.GetId()))
+	delete(oc.driveItems, itemID)
 
 	return true
 }

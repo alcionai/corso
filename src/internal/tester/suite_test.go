@@ -72,6 +72,23 @@ func (suite *TesterLoadSuite) SetupSuite() {
 	suite.called = true
 }
 
-func (suite *TesterLoadSuite) TestE2ESuite() {
+func (suite *TesterLoadSuite) TestLoadSuite() {
+	require.True(suite.T(), suite.called)
+}
+
+type TesterNightlySuite struct {
+	tester.Suite
+	called bool
+}
+
+func TestTesterNightlySuite(t *testing.T) {
+	suite.Run(t, &TesterNightlySuite{Suite: tester.NewNightlySuite(t, nil)})
+}
+
+func (suite *TesterNightlySuite) SetupSuite() {
+	suite.called = true
+}
+
+func (suite *TesterNightlySuite) TestNightlySuite() {
 	require.True(suite.T(), suite.called)
 }

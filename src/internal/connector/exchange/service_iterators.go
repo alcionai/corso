@@ -51,10 +51,7 @@ func filterContainersAndFillCollections(
 		tombstones = makeTombstones(dps)
 	)
 
-	logger.Ctx(ctx).Infow(
-		"filling collections",
-		"metadata_count",
-		len(dps))
+	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
 	// TODO(rkeepers): this should be passed in from the caller, probably
 	// as an interface that satisfies the NewCollection requirements.

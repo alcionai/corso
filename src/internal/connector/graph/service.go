@@ -134,7 +134,11 @@ func (c *clientConfig) applyMiddlewareConfig() (retry int, delay time.Duration) 
 // apply updates the http.Client with the expected options.
 func (c *clientConfig) apply(hc *http.Client) {
 	if c.noTimeout {
-		hc.Timeout = 0
+		// FIXME: This should ideally be 0, but if we set to 0, graph
+		// client with automatically set the context timeout to 0 as
+		// well which will make the client unusable.
+		// https://github.com/microsoft/kiota-http-go/pull/71
+		hc.Timeout = 48 * time.Hour
 	}
 }
 
@@ -278,12 +282,11 @@ func (handler *LoggingMiddleware) Intercept(
 			"url", req.URL, // TODO: pii
 			"request_len", req.ContentLength,
 		)
-		log       = logger.Ctx(ctx)
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
 	if strings.Contains(req.URL.String(), "users//") {
-		log.Error("malformed request url: missing resource")
+		logger.Ctx(ctx).Error("malformed request url: missing resource")
 	}
 
 	if resp == nil {
@@ -291,6 +294,7 @@ func (handler *LoggingMiddleware) Intercept(
 	}
 
 	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
+	log := logger.Ctx(ctx)
 
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
@@ -315,13 +319,13 @@ func (handler *LoggingMiddleware) Intercept(
 
 	// special case for supportability: log all throttling cases.
 	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
-		log.With(
+		log = log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
 	} else if resp.StatusCode/100 == 4 {
-		log.With("response", getRespDump(ctx, resp, true))
+		log = log.With("response", getRespDump(ctx, resp, true))
 	}
 
 	log.Info(msg)
