@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -94,7 +93,7 @@ func (op RestoreOperation) validate() error {
 // get populated asynchronously.
 type restoreStats struct {
 	cs            []data.RestoreCollection
-	gc            *support.ConnectorOperationStatus
+	gc            data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -281,16 +280,16 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc == nil {
+	if opStats.gc.IsZero() {
 		op.Status = Failed
 		return clues.New("restoration never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.gc.Successes == 0 {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsWritten = opStats.gc.Metrics.Successes
+	op.Results.ItemsWritten = opStats.gc.Successes
 
 	op.bus.Event(
 		ctx,
@@ -330,7 +329,7 @@ type RestoreConsumer interface {
 	) (*details.Details, error)
 	// TODO: ConnectorOperationStatus should be replaced with something
 	// more generic.
-	Wait() *support.ConnectorOperationStatus
+	Wait() data.CollectionStats
 }
 
 func consumeRestoreCollections(
