@@ -849,8 +849,6 @@ func traverseBaseDir(
 		currentPath = currentPath.Append(dirName)
 	}
 
-	ctx = clues.Add(ctx, "current_path", currentPath)
-
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
 		if upb == nil {
