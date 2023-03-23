@@ -256,7 +256,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := suite.connector.AwaitStatus()
+	status := suite.connector.Wait()
 	assert.Equal(t, 0, status.Metrics.Objects)
 	assert.Equal(t, 0, status.Folders)
 	assert.Equal(t, 0, status.Metrics.Successes)
@@ -335,7 +335,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
-			stats := suite.connector.AwaitStatus()
+			stats := suite.connector.Wait()
 			assert.Zero(t, stats.Metrics.Objects)
 			assert.Zero(t, stats.Folders)
 			assert.Zero(t, stats.Metrics.Successes)
@@ -412,7 +412,7 @@ func runRestore(
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := restoreGC.AwaitStatus()
+	status := restoreGC.Wait()
 	runTime := time.Since(start)
 
 	assert.Equal(t, numRestoreItems, status.Metrics.Objects, "restored status.Metrics.Objects")
@@ -457,8 +457,10 @@ func runBackupAndCompare(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
-	dcs, excludes, err := backupGC.DataCollections(
+	dcs, excludes, err := backupGC.ProduceBackupCollections(
 		ctx,
+		backupSel.DiscreteOwner,
+		backupSel.DiscreteOwner,
 		backupSel,
 		nil,
 		config.opts,
@@ -480,7 +482,7 @@ func runBackupAndCompare(
 		config.dest,
 		config.opts.RestorePermissions)
 
-	status := backupGC.AwaitStatus()
+	status := backupGC.Wait()
 
 	assert.Equalf(t, totalItems+skipped, status.Metrics.Objects,
 		"backup status.Metrics.Objects; wanted %d items + %d skipped", totalItems, skipped)
@@ -979,7 +981,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
-				status := restoreGC.AwaitStatus()
+				status := restoreGC.Wait()
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, totalItems, status.Metrics.Objects, "status.Metrics.Objects")
 				assert.Equal(t, totalItems, status.Metrics.Successes, "status.Metrics.Successes")
@@ -996,8 +998,10 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, excludes, err := backupGC.DataCollections(
+			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
+				backupSel.DiscreteOwner,
+				backupSel.DiscreteOwner,
 				backupSel,
 				nil,
 				control.Options{
@@ -1023,7 +1027,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				control.RestoreDestination{},
 				true)
 
-			status := backupGC.AwaitStatus()
+			status := backupGC.Wait()
 			assert.Equal(t, allItems+skipped, status.Metrics.Objects, "status.Metrics.Objects")
 			assert.Equal(t, allItems+skipped, status.Metrics.Successes, "status.Metrics.Successes")
 		})

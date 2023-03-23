@@ -50,7 +50,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &connector.GraphConnector{}
+		gc   = &mockconnector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination()
@@ -217,7 +217,7 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &connector.GraphConnector{}
+	gc := &mockconnector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 	dest := tester.DefaultTestRestoreDestination()
 
@@ -226,7 +226,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
-		gc       *connector.GraphConnector
+		rc       RestoreConsumer
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
@@ -234,7 +234,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
 		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
 		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing graphConnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"missing restore consumer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -246,7 +246,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.opts,
 				test.kw,
 				test.sw,
-				test.gc,
+				test.rc,
 				test.acct,
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},

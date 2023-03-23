@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
@@ -42,6 +41,7 @@ type BackupOperation struct {
 	Version   string             `json:"version"`
 
 	account account.Account
+	bp      BackupProducer
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
@@ -60,14 +60,14 @@ func NewBackupOperation(
 	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	gc *connector.GraphConnector,
+	bp BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
 	ownerName string,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:         newOperation(opts, bus, kw, sw, gc),
+		operation:         newOperation(opts, bus, kw, sw),
 		ResourceOwner:     selector.DiscreteOwner,
 		ResourceOwnerName: ownerName,
 		Selectors:         selector,
@@ -90,6 +90,10 @@ func NewBackupOperation(
 func (op BackupOperation) validate() error {
 	if len(op.ResourceOwner) == 0 {
 		return clues.New("backup requires a resource owner")
+	}
+
+	if op.bp == nil {
+		return errors.New("missing backup producer")
 	}
 
 	return op.operation.validate()
@@ -243,14 +247,22 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	cs, excludes, err := produceBackupDataCollections(ctx, op.gc, op.Selectors, mdColls, op.Options, op.Errors)
+	cs, excludes, err := produceBackupDataCollections(
+		ctx,
+		op.bp,
+		op.ResourceOwner,
+		op.ResourceOwnerName,
+		op.Selectors,
+		mdColls,
+		op.Options,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing backup data collections")
 	}
 
 	ctx = clues.Add(ctx, "coll_count", len(cs))
 
-	writeStats, deets, toMerge, err := consumeBackupDataCollections(
+	writeStats, deets, toMerge, err := consumeBackupCollections(
 		ctx,
 		op.kopia,
 		op.account.ID(),
@@ -279,9 +291,9 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "merging details")
 	}
 
-	opStats.gc = op.gc.AwaitStatus()
+	opStats.gc = op.bp.Wait()
 
-	logger.Ctx(ctx).Debug(op.gc.PrintableStatus())
+	logger.Ctx(ctx).Debug(opStats.gc)
 
 	return deets, nil
 }
@@ -309,10 +321,25 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 // Producer funcs
 // ---------------------------------------------------------------------------
 
+type BackupProducer interface {
+	ProduceBackupCollections(
+		ctx context.Context,
+		ownerID, ownerName string,
+		sels selectors.Selector,
+		metadata []data.RestoreCollection,
+		ctrlOpts control.Options,
+		errs *fault.Bus,
+	) ([]data.BackupCollection, map[string]map[string]struct{}, error)
+	// TODO: ConnectorOperationStatus should be replaced with something
+	// more generic.
+	Wait() *support.ConnectorOperationStatus
+}
+
 // calls the producer to generate collections of data to backup
 func produceBackupDataCollections(
 	ctx context.Context,
-	gc *connector.GraphConnector,
+	bp BackupProducer,
+	ownerID, ownerName string,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
@@ -325,15 +352,15 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return gc.DataCollections(ctx, sel, metadata, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(ctx, ownerID, ownerName, sel, metadata, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-type backuper interface {
-	BackupCollections(
+type BackupConsumer interface {
+	ConsumeBackupCollections(
 		ctx context.Context,
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
@@ -389,9 +416,9 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 }
 
 // calls kopia to backup the collections of data
-func consumeBackupDataCollections(
+func consumeBackupCollections(
 	ctx context.Context,
-	bu backuper,
+	bc BackupConsumer,
 	tenantID string,
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
@@ -465,7 +492,7 @@ func consumeBackupDataCollections(
 			"base_backup_id", mbID)
 	}
 
-	kopiaStats, deets, itemsSourcedFromBase, err := bu.BackupCollections(
+	kopiaStats, deets, itemsSourcedFromBase, err := bc.ConsumeBackupCollections(
 		ctx,
 		bases,
 		cs,

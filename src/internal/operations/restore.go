@@ -7,10 +7,10 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -42,6 +42,7 @@ type RestoreOperation struct {
 	Version     string                     `json:"version"`
 
 	account account.Account
+	rc      RestoreConsumer
 }
 
 // RestoreResults aggregate the details of the results of the operation.
@@ -56,7 +57,7 @@ func NewRestoreOperation(
 	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	gc *connector.GraphConnector,
+	rc RestoreConsumer,
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
@@ -64,12 +65,13 @@ func NewRestoreOperation(
 	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:   newOperation(opts, bus, kw, sw, gc),
+		operation:   newOperation(opts, bus, kw, sw),
 		BackupID:    backupID,
 		Selectors:   sel,
 		Destination: dest,
 		Version:     "v0",
 		account:     acct,
+		rc:          rc,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -79,6 +81,10 @@ func NewRestoreOperation(
 }
 
 func (op RestoreOperation) validate() error {
+	if op.rc == nil {
+		return clues.New("missing restore consumer")
+	}
+
 	return op.operation.validate()
 }
 
@@ -235,12 +241,9 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
-	defer closer()
-	defer close(restoreComplete)
-
-	restoreDetails, err := op.gc.RestoreDataCollections(
+	deets, err = consumeRestoreCollections(
 		ctx,
+		op.rc,
 		bup.Version,
 		op.account,
 		op.Selectors,
@@ -252,13 +255,11 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "restoring collections")
 	}
 
-	restoreComplete <- struct{}{}
+	opStats.gc = op.rc.Wait()
 
-	opStats.gc = op.gc.AwaitStatus()
+	logger.Ctx(ctx).Debug(opStats.gc)
 
-	logger.Ctx(ctx).Debug(op.gc.PrintableStatus())
-
-	return restoreDetails, nil
+	return deets, nil
 }
 
 // persists details and statistics about the restore operation.
@@ -310,6 +311,60 @@ func (op *RestoreOperation) persistResults(
 	)
 
 	return op.Errors.Failure()
+}
+
+// ---------------------------------------------------------------------------
+// Restorer funcs
+// ---------------------------------------------------------------------------
+
+type RestoreConsumer interface {
+	ConsumeRestoreCollections(
+		ctx context.Context,
+		backupVersion int,
+		acct account.Account,
+		selector selectors.Selector,
+		dest control.RestoreDestination,
+		opts control.Options,
+		dcs []data.RestoreCollection,
+		errs *fault.Bus,
+	) (*details.Details, error)
+	// TODO: ConnectorOperationStatus should be replaced with something
+	// more generic.
+	Wait() *support.ConnectorOperationStatus
+}
+
+func consumeRestoreCollections(
+	ctx context.Context,
+	rc RestoreConsumer,
+	backupVersion int,
+	acct account.Account,
+	sel selectors.Selector,
+	dest control.RestoreDestination,
+	opts control.Options,
+	dcs []data.RestoreCollection,
+	errs *fault.Bus,
+) (*details.Details, error) {
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	deets, err := rc.ConsumeRestoreCollections(
+		ctx,
+		backupVersion,
+		acct,
+		sel,
+		dest,
+		opts,
+		dcs,
+		errs)
+	if err != nil {
+		return nil, errors.Wrap(err, "restoring collections")
+	}
+
+	return deets, nil
 }
 
 // formatDetailsForRestoration reduces the provided detail entries according to the
