@@ -73,6 +73,7 @@ func BaseCollections(
 			continue
 		}
 
+		// Pop off the last path element because we just want the prefix.
 		p, err = p.Dir()
 		if err != nil {
 			// Shouldn't happen.
@@ -83,7 +84,6 @@ func BaseCollections(
 			continue
 		}
 
-		// Pop off the last path element because we just want the prefix.
 		res = append(res, emptyCollection{p: p, su: su})
 	}
 

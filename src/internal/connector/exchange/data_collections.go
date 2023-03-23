@@ -221,7 +221,7 @@ func DataCollections(
 			su,
 			errs)
 		if err != nil {
-			return collections, nil, err
+			return nil, nil, err
 		}
 
 		collections = append(collections, baseCols...)

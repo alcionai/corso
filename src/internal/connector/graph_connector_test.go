@@ -1174,8 +1174,6 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				assert.NotEqual(t, col.State(), data.NewState, "prefix collection marked as new")
 				foundCategories = append(foundCategories, fullPath.Category().String())
 
-				t.Logf("looking at collection %s\n", fullPath)
-
 				assert.Zero(t, found, "non-empty collection")
 			}
 
