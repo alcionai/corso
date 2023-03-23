@@ -27,7 +27,7 @@ type manifestFetcher interface {
 
 type manifestRestorer interface {
 	manifestFetcher
-	restorer
+	kopia.Restorer
 }
 
 type getBackuper interface {
@@ -173,7 +173,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry) error
 // collectMetadata retrieves all metadata files associated with the manifest.
 func collectMetadata(
 	ctx context.Context,
-	r restorer,
+	r kopia.Restorer,
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,

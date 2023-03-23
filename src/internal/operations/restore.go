@@ -95,16 +95,6 @@ type restoreStats struct {
 	restoreID string
 }
 
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-		errs *fault.Bus,
-	) ([]data.RestoreCollection, error)
-}
-
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	defer func() {

@@ -325,18 +325,6 @@ func produceBackupDataCollections(
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-type backuper interface {
-	BackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.BackupCollection,
-		excluded map[string]map[string]struct{},
-		tags map[string]string,
-		buildTreeWithBase bool,
-		errs *fault.Bus,
-	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
-}
-
 func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
@@ -384,7 +372,7 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 // calls kopia to backup the collections of data
 func consumeBackupDataCollections(
 	ctx context.Context,
-	bu backuper,
+	bu kopia.Backuper,
 	tenantID string,
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
