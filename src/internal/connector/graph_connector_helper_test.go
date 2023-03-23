@@ -1193,8 +1193,8 @@ func collectionsForInfo(
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
 			// We do not count metadata files against item count
-			if backupVersion == 0 || service != path.OneDriveService ||
-				(service == path.OneDriveService &&
+			if backupVersion == 0 ||
+				((service == path.OneDriveService || service == path.SharePointService) &&
 					strings.HasSuffix(info.items[i].name, onedrive.DataFileSuffix)) {
 				totalItems++
 			}
