@@ -22,6 +22,54 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+type IncrementalBase struct {
+	*snapshot.Manifest
+	SubtreePaths []*path.Builder
+}
+
+// PrevRefs hold the repoRef and locationRef from the items
+// that need to be merged in from prior snapshots.
+type PrevRefs struct {
+	Repo     path.Path
+	Location path.Path
+}
+
+type Backuper interface {
+	// BackupCollections takes a set of collections and creates a kopia snapshot
+	// with the data that they contain. previousSnapshots is used for incremental
+	// backups and should represent the base snapshot from which metadata is
+	// sourced from as well as any incomplete snapshot checkpoints that may
+	// contain more recent data than the base snapshot. The absence of
+	// previousSnapshots causes a complete backup of all data.
+	BackupCollections(
+		ctx context.Context,
+		previousSnapshots []IncrementalBase,
+		collections []data.BackupCollection,
+		globalExcludeSet map[string]map[string]struct{},
+		tags map[string]string,
+		buildTreeWithBase bool,
+		errs *fault.Bus,
+	) (*BackupStats, *details.Builder, map[string]PrevRefs, error)
+}
+
+type Restorer interface {
+	// RestoreMultipleItems looks up all paths- assuming each is an item
+	// declaration, not a directory- in the snapshot with id snapshotID. The path
+	// should be the full path of the item from the root. Returns the results as a
+	// slice of RestoreCollections, where the RestoreCollection.FullPath()
+	// matches the directory path of the item. Each returned RestoreCollection
+	// will have 1 or more items. If the item does not exist in or is not a file
+	// an error is returned. The UUID of the returned DataStreams will be the name
+	// of the backing file the data is sourced from.
+	RestoreMultipleItems(
+		ctx context.Context,
+		snapshotID string,
+		paths []path.Path,
+		bcounter ByteCounter,
+		errs *fault.Bus,
+	) ([]data.RestoreCollection, error)
+}
+
 const (
 	// TODO(ashmrtnz): These should be some values from upper layer corso,
 	// possibly corresponding to who is making the backup.
@@ -86,6 +134,11 @@ func manifestToStats(
 	}
 }
 
+var (
+	_ Backuper = &Wrapper{}
+	_ Restorer = &Wrapper{}
+)
+
 func NewWrapper(c *conn) (*Wrapper, error) {
 	if err := c.wrap(); err != nil {
 		return nil, errors.Wrap(err, "creating Wrapper")
@@ -113,24 +166,6 @@ func (w *Wrapper) Close(ctx context.Context) error {
 	return nil
 }
 
-type IncrementalBase struct {
-	*snapshot.Manifest
-	SubtreePaths []*path.Builder
-}
-
-// PrevRefs hold the repoRef and locationRef from the items
-// that need to be merged in from prior snapshots.
-type PrevRefs struct {
-	Repo     path.Path
-	Location path.Path
-}
-
-// BackupCollections takes a set of collections and creates a kopia snapshot
-// with the data that they contain. previousSnapshots is used for incremental
-// backups and should represent the base snapshot from which metadata is sourced
-// from as well as any incomplete snapshot checkpoints that may contain more
-// recent data than the base snapshot. The absence of previousSnapshots causes a
-// complete backup of all data.
 func (w Wrapper) BackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
@@ -383,13 +418,6 @@ type ByteCounter interface {
 	Count(numBytes int64)
 }
 
-// RestoreMultipleItems looks up all paths- assuming each is an item declaration,
-// not a directory- in the snapshot with id snapshotID. The path should be the
-// full path of the item from the root.  Returns the results as a slice of single-
-// item DataCollections, where the DataCollection.FullPath() matches the path.
-// If the item does not exist in kopia or is not a file an error is returned.
-// The UUID of the returned DataStreams will be the name of the kopia file the
-// data is sourced from.
 func (w Wrapper) RestoreMultipleItems(
 	ctx context.Context,
 	snapshotID string,
