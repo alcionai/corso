@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 

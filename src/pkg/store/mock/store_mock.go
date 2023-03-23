@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 )
