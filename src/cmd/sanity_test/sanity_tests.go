@@ -158,7 +158,15 @@ func getAllSubFolder(
 	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(folderID)
 
-	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	var count int32 = 99
+
+	childFolder, err := folder.ChildFolders().Get(
+		context.Background(),
+		&users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Top: &count,
+			},
+		})
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
 		os.Exit(1)
@@ -201,7 +209,15 @@ func checkAllSubFolder(
 	user := client.UsersById(testUser)
 	folder := user.MailFoldersById(folderID)
 
-	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	var count int32 = 99
+
+	childFolder, err := folder.ChildFolders().Get(
+		context.Background(),
+		&users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Top: &count,
+			},
+		})
 	if err != nil {
 		fmt.Printf("Error getting the drive: %v\n", err)
 		os.Exit(1)
@@ -327,21 +343,23 @@ func checkFileData(
 
 		itemBuilder := client.DrivesById(driveID).ItemsById(*restoreData.GetId())
 
-		permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
-		if err != nil {
-			fmt.Printf("Error getting permission: %v\n", err)
-			os.Exit(1)
-		}
+		if restoreData.GetFolder() != nil {
+			permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
+			if err != nil {
+				fmt.Printf("Error getting permission: %v\n", err)
+				os.Exit(1)
+			}
 
-		userPermission := []string{}
+			userPermission := []string{}
 
-		for _, perm := range permissionColl.GetValue() {
-			userPermission = perm.GetRoles()
-		}
+			for _, perm := range permissionColl.GetValue() {
+				userPermission = perm.GetRoles()
+			}
 
-		if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
-			fmt.Printf("Permission mismatch for %s.", restoreName)
-			os.Exit(1)
+			if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
+				fmt.Printf("Permission mismatch for %s.", restoreName)
+				os.Exit(1)
+			}
 		}
 	}
 }
