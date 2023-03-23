@@ -214,6 +214,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionKindFolder,
 				true)
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
@@ -353,6 +354,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionKindFolder,
 				true)
 
 			mockItem := models.NewDriveItem()
@@ -442,6 +444,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionKindFolder,
 				true)
 
 			mockItem := models.NewDriveItem()
@@ -541,6 +544,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionKindFolder,
 				true)
 
 			mtime := time.Now().AddDate(0, -1, 0)
@@ -610,60 +614,60 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 	strval := "not-important"
 
 	table := []struct {
-		name      string
-		itemType  string
-		itemSize  int64
-		skippable bool
-		err       error
+		name           string
+		collectionKind collectionKind
+		itemSize       int64
+		skippable      bool
+		err            error
 	}{
 		{
-			name:     "Simple item fetch no error",
-			itemType: "file",
-			itemSize: 10,
-			err:      nil,
+			name:           "Simple item fetch no error",
+			collectionKind: CollectionKindFolder,
+			itemSize:       10,
+			err:            nil,
 		},
 		{
-			name:     "Simple item fetch error",
-			itemType: "file",
-			itemSize: 10,
-			err:      assert.AnError,
+			name:           "Simple item fetch error",
+			collectionKind: CollectionKindFolder,
+			itemSize:       10,
+			err:            assert.AnError,
 		},
 		{
-			name:      "malware error",
-			itemType:  "file",
-			itemSize:  10,
-			err:       clues.New("test error").Label(graph.LabelsMalware),
-			skippable: true,
+			name:           "malware error",
+			collectionKind: CollectionKindFolder,
+			itemSize:       10,
+			err:            clues.New("test error").Label(graph.LabelsMalware),
+			skippable:      true,
 		},
 		{
-			name:      "file not found error",
-			itemType:  "file",
-			itemSize:  10,
-			err:       clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
-			skippable: true,
+			name:           "file not found error",
+			collectionKind: CollectionKindFolder,
+			itemSize:       10,
+			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
+			skippable:      true,
 		},
 		{
 			// This should create an error that stops the backup
-			name:      "small OneNote file",
-			itemType:  "package",
-			itemSize:  10,
-			err:       clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			skippable: false,
+			name:           "small OneNote file",
+			collectionKind: CollectionKindPackage,
+			itemSize:       10,
+			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			skippable:      false,
 		},
 		{
-			name:      "big OneNote file",
-			itemType:  "package",
-			itemSize:  Size2GB,
-			err:       clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			skippable: true,
+			name:           "big OneNote file",
+			collectionKind: CollectionKindPackage,
+			itemSize:       Size2GB,
+			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			skippable:      true,
 		},
 		{
 			// This should block backup, only big OneNote files should be a problem
-			name:      "big file",
-			itemType:  "file",
-			itemSize:  Size2GB,
-			err:       clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			skippable: false,
+			name:           "big file",
+			collectionKind: CollectionKindFolder,
+			itemSize:       Size2GB,
+			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			skippable:      false,
 		},
 	}
 
@@ -676,7 +680,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 				t    = suite.T()
 				errs = fault.New(false)
 				item = models.NewDriveItem()
-				col  = &Collection{}
+				col  = &Collection{kind: test.collectionKind}
 			)
 
 			item.SetId(&strval)
@@ -698,12 +702,6 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			) (models.DriveItemable, error) {
 				// We are not testing this err here
 				return item, nil
-			}
-
-			if test.itemType == "package" {
-				item.SetPackage(models.NewPackage_escaped())
-			} else if test.itemType == "file" {
-				item.SetFile(models.NewFile())
 			}
 
 			_, err := col.getDriveItemContent(ctx, item, errs)

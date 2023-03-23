@@ -33,6 +33,20 @@ const (
 	SharePointSource
 )
 
+type collectionKind int
+
+const (
+	// CollectionKindUnknown is used when we don't know and don't need
+	// to know the kind, like in the case of deletes
+	CollectionKindUnknown collectionKind = iota
+
+	// CollectionKindFolder is used for regular folder collections
+	CollectionKindFolder
+
+	// CollectionKindPackage is used to represent OneNote items
+	CollectionKindPackage
+)
+
 const (
 	restrictedDirectory = "Site Pages"
 	rootDrivePattern    = "/drives/%s/root:"
@@ -411,6 +425,7 @@ func (c *Collections) Get(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
+				CollectionKindUnknown,
 				true)
 
 			c.CollectionMap[driveID][fldID] = col
@@ -572,6 +587,7 @@ func (c *Collections) handleDelete(
 		c.statusUpdater,
 		c.source,
 		c.ctrl,
+		CollectionKindUnknown,
 		// DoNotMerge is not checked for deleted items.
 		false)
 
@@ -744,6 +760,11 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
+			collectionKind := CollectionKindFolder
+			if item.GetPackage() != nil {
+				collectionKind = CollectionKindPackage
+			}
+
 			col := NewCollection(
 				c.itemClient,
 				collectionPath,
@@ -753,6 +774,7 @@ func (c *Collections) UpdateCollections(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
+				collectionKind,
 				invalidPrevDelta,
 			)
 			col.driveName = driveName
