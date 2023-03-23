@@ -859,6 +859,14 @@ func compareItem(
 	case path.OneDriveService:
 		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
 
+	case path.SharePointService:
+		if category != path.LibrariesCategory {
+			assert.FailNowf(t, "unsupported SharePoint category: %s", category.String())
+		}
+
+		// SharePoint libraries reuses OneDrive code.
+		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
+
 	default:
 		assert.FailNowf(t, "unexpected service: %s", service.String())
 	}
@@ -1029,6 +1037,38 @@ func makeOneDriveBackupSel(
 	return sel.Selector
 }
 
+func makeSharePointBackupSel(
+	t *testing.T,
+	dests []destAndCats,
+) selectors.Selector {
+	toInclude := [][]selectors.SharePointScope{}
+	resourceOwners := map[string]struct{}{}
+
+	for _, d := range dests {
+		for c := range d.cats {
+			if c != path.LibrariesCategory {
+				assert.FailNowf(t, "unsupported category type %s", c.String())
+			}
+
+			resourceOwners[d.resourceOwner] = struct{}{}
+
+			// nil owners here, we'll need to stitch this together
+			// below after the loops are complete.
+			sel := selectors.NewSharePointBackup(nil)
+
+			toInclude = append(toInclude, sel.LibraryFolders(
+				[]string{d.dest},
+				selectors.PrefixMatch(),
+			))
+		}
+	}
+
+	sel := selectors.NewSharePointBackup(maps.Keys(resourceOwners))
+	sel.Include(toInclude...)
+
+	return sel.Selector
+}
+
 // backupSelectorForExpected creates a selector that can be used to backup the
 // given items in expected based on the item paths. Fails the test if items from
 // multiple services are in expected.
@@ -1045,6 +1085,9 @@ func backupSelectorForExpected(
 
 	case path.OneDriveService:
 		return makeOneDriveBackupSel(t, dests)
+
+	case path.SharePointService:
+		return makeSharePointBackupSel(t, dests)
 
 	default:
 		assert.FailNow(t, "unknown service type %s", service.String())
@@ -1066,7 +1109,7 @@ func backupOutputPathFromRestore(
 	base := []string{restoreDest.ContainerName}
 
 	// OneDrive has leading information like the drive ID.
-	if inputPath.Service() == path.OneDriveService {
+	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
 		folders := inputPath.Folders()
 		base = append(append([]string{}, folders[:3]...), restoreDest.ContainerName)
 
