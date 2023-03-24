@@ -617,7 +617,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 		name           string
 		collectionKind collectionKind
 		itemSize       int64
-		labels         map[string]struct{}
+		labels         []string
 		err            error
 	}{
 		{
@@ -631,27 +631,20 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			collectionKind: CollectionKindFolder,
 			itemSize:       10,
 			err:            assert.AnError,
-			labels:         map[string]struct{}{},
 		},
 		{
 			name:           "malware error",
 			collectionKind: CollectionKindFolder,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelsMalware),
-			labels: map[string]struct{}{
-				graph.LabelsMalware:   {},
-				graph.LabelsSkippable: {},
-			},
+			labels:         []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
 			name:           "file not found error",
 			collectionKind: CollectionKindFolder,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
-			labels: map[string]struct{}{
-				graph.LabelStatus(http.StatusNotFound): {},
-				graph.LabelsSkippable:                  {},
-			},
+			labels:         []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
 			// This should create an error that stops the backup
@@ -659,19 +652,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			collectionKind: CollectionKindPackage,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels: map[string]struct{}{
-				graph.LabelStatus(http.StatusServiceUnavailable): {},
-			},
+			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 		{
 			name:           "big OneNote file",
 			collectionKind: CollectionKindPackage,
 			itemSize:       MaxOneNoteFileSize,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels: map[string]struct{}{
-				graph.LabelStatus(http.StatusServiceUnavailable): {},
-				graph.LabelsSkippable:                            {},
-			},
+			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			// This should block backup, only big OneNote files should be a problem
@@ -679,9 +667,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			collectionKind: CollectionKindFolder,
 			itemSize:       MaxOneNoteFileSize,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels: map[string]struct{}{
-				graph.LabelStatus(http.StatusServiceUnavailable): {},
-			},
+			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 	}
 
@@ -725,7 +711,13 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			}
 
 			assert.EqualError(t, err, clues.Wrap(test.err, "downloading item").Error(), "error")
-			assert.Equal(t, test.labels, clues.Labels(err))
+
+			labelsMap := map[string]struct{}{}
+			for _, l := range test.labels {
+				labelsMap[l] = struct{}{}
+			}
+
+			assert.Equal(t, labelsMap, clues.Labels(err))
 		})
 	}
 }
