@@ -617,7 +617,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 		name           string
 		collectionKind collectionKind
 		itemSize       int64
-		skippable      bool
+		labels         map[string]struct{}
 		err            error
 	}{
 		{
@@ -631,20 +631,27 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			collectionKind: CollectionKindFolder,
 			itemSize:       10,
 			err:            assert.AnError,
+			labels:         map[string]struct{}{},
 		},
 		{
 			name:           "malware error",
 			collectionKind: CollectionKindFolder,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelsMalware),
-			skippable:      true,
+			labels: map[string]struct{}{
+				graph.LabelsMalware:   {},
+				graph.LabelsSkippable: {},
+			},
 		},
 		{
 			name:           "file not found error",
 			collectionKind: CollectionKindFolder,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
-			skippable:      true,
+			labels: map[string]struct{}{
+				graph.LabelStatus(http.StatusNotFound): {},
+				graph.LabelsSkippable:                  {},
+			},
 		},
 		{
 			// This should create an error that stops the backup
@@ -652,22 +659,29 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			collectionKind: CollectionKindPackage,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			skippable:      false,
+			labels: map[string]struct{}{
+				graph.LabelStatus(http.StatusServiceUnavailable): {},
+			},
 		},
 		{
 			name:           "big OneNote file",
 			collectionKind: CollectionKindPackage,
-			itemSize:       Size2GB,
+			itemSize:       MaxOneNoteFileSize,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			skippable:      true,
+			labels: map[string]struct{}{
+				graph.LabelStatus(http.StatusServiceUnavailable): {},
+				graph.LabelsSkippable:                            {},
+			},
 		},
 		{
 			// This should block backup, only big OneNote files should be a problem
 			name:           "big file",
 			collectionKind: CollectionKindFolder,
-			itemSize:       Size2GB,
+			itemSize:       MaxOneNoteFileSize,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			skippable:      false,
+			labels: map[string]struct{}{
+				graph.LabelStatus(http.StatusServiceUnavailable): {},
+			},
 		},
 	}
 
@@ -707,10 +721,11 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			_, err := col.getDriveItemContent(ctx, item, errs)
 			if test.err == nil {
 				assert.NoError(t, err, "no error")
-			} else {
-				assert.EqualError(t, err, clues.Wrap(test.err, "downloading item").Error(), "error")
-				assert.Equal(t, test.skippable, clues.HasLabel(err, graph.LabelsSkippable), "skippable")
+				return
 			}
+
+			assert.EqualError(t, err, clues.Wrap(test.err, "downloading item").Error(), "error")
+			assert.Equal(t, test.labels, clues.Labels(err))
 		})
 	}
 }

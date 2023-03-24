@@ -43,7 +43,7 @@ const (
 	DataFileSuffix    = ".data"
 
 	// Used to compare in case of OneNote files
-	Size2GB = 2 * 1024 * 1024 * 1024
+	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
 
 func IsMetaFile(name string) bool {
@@ -360,13 +360,13 @@ func (oc *Collection) getDriveItemContent(
 
 		// Skip big OneNote files as they can't be downloaded
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
-			oc.kind == CollectionKindPackage && *item.GetSize() >= Size2GB {
+			oc.kind == CollectionKindPackage && *item.GetSize() >= MaxOneNoteFileSize {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
 			// the one file which is the important part of the OneNote
-			// "item". This will have to be handed during the restore,
-			// or we have to handle it separately by somehow deleting
-			// the entire collection.
+			// "item". This will have to be handled during the
+			// restore, or we have to handle it separately by somehow
+			// deleting the entire collection.
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Error("invalid file")
 			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
 
