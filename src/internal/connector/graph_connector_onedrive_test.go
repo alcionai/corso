@@ -346,8 +346,7 @@ func mustGetDefaultDriveID(
 	return id
 }
 
-type oneDriveSuite interface {
-	tester.Suite
+type suiteInfo interface {
 	Service() graph.Servicer
 	Account() account.Account
 	Tenant() string
@@ -361,6 +360,55 @@ type oneDriveSuite interface {
 	BackupResourceOwner() string
 	BackupService() path.ServiceType
 	Resource() resource
+}
+
+type oneDriveSuite interface {
+	tester.Suite
+	suiteInfo
+}
+
+type suiteInfoImpl struct {
+	connector       *GraphConnector
+	resourceOwner   string
+	user            string
+	userID          string
+	secondaryUser   string
+	secondaryUserID string
+	acct            account.Account
+	service         path.ServiceType
+	resourceType    resource
+}
+
+func (si suiteInfoImpl) Service() graph.Servicer {
+	return si.connector.Service
+}
+
+func (si suiteInfoImpl) Account() account.Account {
+	return si.acct
+}
+
+func (si suiteInfoImpl) Tenant() string {
+	return si.connector.tenant
+}
+
+func (si suiteInfoImpl) PrimaryUser() (string, string) {
+	return si.user, si.userID
+}
+
+func (si suiteInfoImpl) SecondaryUser() (string, string) {
+	return si.secondaryUser, si.secondaryUserID
+}
+
+func (si suiteInfoImpl) BackupResourceOwner() string {
+	return si.resourceOwner
+}
+
+func (si suiteInfoImpl) BackupService() path.ServiceType {
+	return si.service
+}
+
+func (si suiteInfoImpl) Resource() resource {
+	return si.resourceType
 }
 
 // ---------------------------------------------------------------------------
@@ -377,13 +425,7 @@ type oneDriveSuite interface {
 
 type GraphConnectorSharePointIntegrationSuite struct {
 	tester.Suite
-	connector       *GraphConnector
-	site            string
-	user            string
-	userID          string
-	secondaryUser   string
-	secondaryUserID string
-	acct            account.Account
+	suiteInfo
 }
 
 func TestGraphConnectorSharePointIntegrationSuite(t *testing.T) {
@@ -399,51 +441,26 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
-	suite.user = tester.M365UserID(suite.T())
-	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
-	suite.site = tester.M365SiteID(suite.T())
-	suite.acct = tester.NewM365Account(suite.T())
+	si := suiteInfoImpl{
+		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites),
+		user:          tester.M365UserID(suite.T()),
+		secondaryUser: tester.SecondaryM365UserID(suite.T()),
+		acct:          tester.NewM365Account(suite.T()),
+		service:       path.SharePointService,
+		resourceType:  Sites,
+	}
 
-	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
-	require.NoError(suite.T(), err, "fetching user", suite.user, clues.ToCore(err))
-	suite.userID = ptr.Val(user.GetId())
+	si.resourceOwner = tester.M365SiteID(suite.T())
 
-	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
-	require.NoError(suite.T(), err, "fetching user", suite.secondaryUser, clues.ToCore(err))
-	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
-}
+	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
+	si.userID = ptr.Val(user.GetId())
 
-func (suite *GraphConnectorSharePointIntegrationSuite) Service() graph.Servicer {
-	return suite.connector.Service
-}
+	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
+	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-func (suite *GraphConnectorSharePointIntegrationSuite) Account() account.Account {
-	return suite.acct
-}
-
-func (suite *GraphConnectorSharePointIntegrationSuite) Tenant() string {
-	return suite.connector.tenant
-}
-
-func (suite *GraphConnectorSharePointIntegrationSuite) PrimaryUser() (string, string) {
-	return suite.user, suite.userID
-}
-
-func (suite *GraphConnectorSharePointIntegrationSuite) SecondaryUser() (string, string) {
-	return suite.secondaryUser, suite.secondaryUserID
-}
-
-func (suite *GraphConnectorSharePointIntegrationSuite) BackupResourceOwner() string {
-	return suite.site
-}
-
-func (suite *GraphConnectorSharePointIntegrationSuite) BackupService() path.ServiceType {
-	return path.SharePointService
-}
-
-func (suite *GraphConnectorSharePointIntegrationSuite) Resource() resource {
-	return Sites
+	suite.suiteInfo = si
 }
 
 func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
@@ -455,12 +472,7 @@ func (suite *GraphConnectorSharePointIntegrationSuite) TestRestoreAndBackup_Mult
 // ---------------------------------------------------------------------------
 type GraphConnectorOneDriveIntegrationSuite struct {
 	tester.Suite
-	connector       *GraphConnector
-	user            string
-	userID          string
-	secondaryUser   string
-	secondaryUserID string
-	acct            account.Account
+	suiteInfo
 }
 
 func TestGraphConnectorOneDriveIntegrationSuite(t *testing.T) {
@@ -476,50 +488,26 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
-	suite.user = tester.M365UserID(suite.T())
-	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
-	suite.acct = tester.NewM365Account(suite.T())
+	si := suiteInfoImpl{
+		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		user:          tester.M365UserID(suite.T()),
+		secondaryUser: tester.SecondaryM365UserID(suite.T()),
+		acct:          tester.NewM365Account(suite.T()),
+		service:       path.OneDriveService,
+		resourceType:  Users,
+	}
 
-	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
-	require.NoError(suite.T(), err, "fetching user", suite.user, clues.ToCore(err))
-	suite.userID = ptr.Val(user.GetId())
+	si.resourceOwner = si.user
 
-	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
-	require.NoError(suite.T(), err, "fetching user", suite.secondaryUser, clues.ToCore(err))
-	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
-}
+	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
+	si.userID = ptr.Val(user.GetId())
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) Service() graph.Servicer {
-	return suite.connector.Service
-}
+	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
+	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-func (suite *GraphConnectorOneDriveIntegrationSuite) Account() account.Account {
-	return suite.acct
-}
-
-func (suite *GraphConnectorOneDriveIntegrationSuite) Tenant() string {
-	return suite.connector.tenant
-}
-
-func (suite *GraphConnectorOneDriveIntegrationSuite) PrimaryUser() (string, string) {
-	return suite.user, suite.userID
-}
-
-func (suite *GraphConnectorOneDriveIntegrationSuite) SecondaryUser() (string, string) {
-	return suite.secondaryUser, suite.secondaryUserID
-}
-
-func (suite *GraphConnectorOneDriveIntegrationSuite) BackupResourceOwner() string {
-	return suite.user
-}
-
-func (suite *GraphConnectorOneDriveIntegrationSuite) BackupService() path.ServiceType {
-	return path.OneDriveService
-}
-
-func (suite *GraphConnectorOneDriveIntegrationSuite) Resource() resource {
-	return Users
+	suite.suiteInfo = si
 }
 
 func (suite *GraphConnectorOneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
@@ -680,12 +668,7 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNo
 // ---------------------------------------------------------------------------
 type GraphConnectorOneDriveNightlySuite struct {
 	tester.Suite
-	connector       *GraphConnector
-	user            string
-	userID          string
-	secondaryUser   string
-	secondaryUserID string
-	acct            account.Account
+	suiteInfo
 }
 
 func TestGraphConnectorOneDriveNightlySuite(t *testing.T) {
@@ -701,50 +684,26 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users)
-	suite.user = tester.M365UserID(suite.T())
-	suite.secondaryUser = tester.SecondaryM365UserID(suite.T())
-	suite.acct = tester.NewM365Account(suite.T())
+	si := suiteInfoImpl{
+		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Users),
+		user:          tester.M365UserID(suite.T()),
+		secondaryUser: tester.SecondaryM365UserID(suite.T()),
+		acct:          tester.NewM365Account(suite.T()),
+		service:       path.OneDriveService,
+		resourceType:  Users,
+	}
 
-	user, err := suite.connector.Owners.Users().GetByID(ctx, suite.user)
-	require.NoError(suite.T(), err, "fetching user", suite.user, clues.ToCore(err))
-	suite.userID = ptr.Val(user.GetId())
+	si.resourceOwner = si.user
 
-	secondaryUser, err := suite.connector.Owners.Users().GetByID(ctx, suite.secondaryUser)
-	require.NoError(suite.T(), err, "fetching user", suite.secondaryUser, clues.ToCore(err))
-	suite.secondaryUserID = ptr.Val(secondaryUser.GetId())
-}
+	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
+	si.userID = ptr.Val(user.GetId())
 
-func (suite *GraphConnectorOneDriveNightlySuite) Service() graph.Servicer {
-	return suite.connector.Service
-}
+	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
+	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-func (suite *GraphConnectorOneDriveNightlySuite) Account() account.Account {
-	return suite.acct
-}
-
-func (suite *GraphConnectorOneDriveNightlySuite) Tenant() string {
-	return suite.connector.tenant
-}
-
-func (suite *GraphConnectorOneDriveNightlySuite) PrimaryUser() (string, string) {
-	return suite.user, suite.userID
-}
-
-func (suite *GraphConnectorOneDriveNightlySuite) SecondaryUser() (string, string) {
-	return suite.secondaryUser, suite.secondaryUserID
-}
-
-func (suite *GraphConnectorOneDriveNightlySuite) BackupResourceOwner() string {
-	return suite.user
-}
-
-func (suite *GraphConnectorOneDriveNightlySuite) BackupService() path.ServiceType {
-	return path.OneDriveService
-}
-
-func (suite *GraphConnectorOneDriveNightlySuite) Resource() resource {
-	return Users
+	suite.suiteInfo = si
 }
 
 func (suite *GraphConnectorOneDriveNightlySuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
