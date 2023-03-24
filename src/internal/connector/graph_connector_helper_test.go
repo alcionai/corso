@@ -758,8 +758,6 @@ func compareOneDriveItem(
 			expectedMeta onedrive.Metadata
 		)
 
-		t.Logf("attempting to unmarshal %v\n", string(buf))
-
 		err = json.Unmarshal(buf, &itemMeta)
 		if !assert.NoError(t, err, "unmarshalling retrieved metadata for file", name, clues.ToCore(err)) {
 			return true
@@ -770,8 +768,6 @@ func compareOneDriveItem(
 		if strings.HasSuffix(name, onedrive.MetaFileSuffix) {
 			key = itemMeta.FileName
 		}
-
-		t.Logf("using metadata lookup key of %s\n", key)
 
 		expectedData := expected[key]
 
@@ -934,8 +930,6 @@ func checkCollections(
 			rootDir         = folders[len(folders)-1] == dest.ContainerName
 		)
 
-		t.Logf("looking at items for collection %s\n", returned.FullPath().String())
-
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for GC status. Unexpected or
 		// missing collection paths will be reported by checkHasCollections.
@@ -958,8 +952,6 @@ func checkCollections(
 			if expectedColData == nil {
 				continue
 			}
-
-			t.Logf("looking at item with name %s\n", item.UUID())
 
 			if !compareItem(
 				t,
