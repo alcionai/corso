@@ -47,8 +47,7 @@ func newService(creds account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
-		creds.AzureClientSecret,
-	)
+		creds.AzureClientSecret)
 	if err != nil {
 		return nil, errors.Wrap(err, "generating graph api service client")
 	}

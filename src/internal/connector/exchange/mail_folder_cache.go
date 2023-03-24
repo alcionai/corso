@@ -38,28 +38,23 @@ func (mc *mailFolderCache) init(
 
 // populateMailRoot manually fetches directories that are not returned during Graph for msgraph-sdk-go v. 40+
 // rootFolderAlias is the top-level directory for exchange.Mail.
-// DefaultMailFolder is the traditional "Inbox" for exchange.Mail
 // Action ensures that cache will stop at appropriate level.
 // @error iff the struct is not properly instantiated
 func (mc *mailFolderCache) populateMailRoot(ctx context.Context) error {
-	for _, fldr := range []string{rootFolderAlias, DefaultMailFolder} {
-		var directory string
+	f, err := mc.getter.GetContainerByID(ctx, mc.userID, rootFolderAlias)
+	if err != nil {
+		return clues.Wrap(err, "fetching root folder")
+	}
 
-		f, err := mc.getter.GetContainerByID(ctx, mc.userID, fldr)
-		if err != nil {
-			return clues.Wrap(err, "fetching root folder")
-		}
-
-		if fldr == DefaultMailFolder {
-			directory = DefaultMailFolder
-		}
-
-		temp := graph.NewCacheFolder(f,
-			path.Builder{}.Append(directory), // storage path
-			path.Builder{}.Append(directory)) // display location
-		if err := mc.addFolder(temp); err != nil {
-			return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
-		}
+	temp := graph.NewCacheFolder(
+		f,
+		// Root folder doesn't store any mail messages so it isn't given any paths.
+		// Giving it a path/location would cause us to add extra path elements that
+		// the user doesn't see in the regular UI for Exchange.
+		path.Builder{}.Append(), // storage path
+		path.Builder{}.Append()) // display location
+	if err := mc.addFolder(temp); err != nil {
+		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
 	}
 
 	return nil

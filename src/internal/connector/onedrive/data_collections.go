@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"golang.org/x/exp/maps"
 )
@@ -48,6 +49,7 @@ func DataCollections(
 	var (
 		el          = errs.Local()
 		user        = selector.DiscreteOwner
+		categories  = map[path.CategoryType]struct{}{}
 		collections = []data.BackupCollection{}
 		allExcludes = map[string]map[string]struct{}{}
 	)
@@ -75,6 +77,8 @@ func DataCollections(
 			el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
 
+		categories[scope.Category().PathType()] = struct{}{}
+
 		collections = append(collections, odcs...)
 
 		for k, ex := range excludes {
@@ -84,6 +88,22 @@ func DataCollections(
 
 			maps.Copy(allExcludes[k], ex)
 		}
+	}
+
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			tenant,
+			user,
+			path.OneDriveService,
+			categories,
+			su,
+			errs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		collections = append(collections, baseCols...)
 	}
 
 	return collections, allExcludes, el.Failure()

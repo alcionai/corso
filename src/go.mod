@@ -29,6 +29,7 @@ require (
 	github.com/vbauerster/mpb/v8 v8.1.6
 	go.uber.org/zap v1.24.0
 	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
+	golang.org/x/time v0.1.0
 	golang.org/x/tools v0.7.0
 	gopkg.in/resty.v1 v1.12.0
 )

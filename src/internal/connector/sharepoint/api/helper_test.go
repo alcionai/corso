@@ -15,8 +15,7 @@ func createTestBetaService(t *testing.T, credentials account.M365Config) *discov
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret,
-	)
+		credentials.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return discover.NewBetaService(adapter)

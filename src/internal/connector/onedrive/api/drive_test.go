@@ -27,7 +27,10 @@ func (suite *OneDriveAPISuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
-	adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		m365.AzureTenantID,
+		m365.AzureClientID,
+		m365.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.service = graph.NewService(adpt)

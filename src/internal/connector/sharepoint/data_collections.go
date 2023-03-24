@@ -47,6 +47,7 @@ func DataCollections(
 		el          = errs.Local()
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
+		categories  = map[path.CategoryType]struct{}{}
 	)
 
 	for _, scope := range b.Scopes() {
@@ -110,6 +111,24 @@ func DataCollections(
 
 		collections = append(collections, spcs...)
 		foldersComplete <- struct{}{}
+
+		categories[scope.Category().PathType()] = struct{}{}
+	}
+
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			creds.AzureTenantID,
+			site,
+			path.SharePointService,
+			categories,
+			su.UpdateStatus,
+			errs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		collections = append(collections, baseCols...)
 	}
 
 	return collections, nil, el.Failure()
@@ -217,7 +236,10 @@ func collectPages(
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
-	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
