@@ -43,8 +43,7 @@ func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret,
-	)
+		credentials.AzureClientSecret)
 	if err != nil {
 		return nil, err
 	}

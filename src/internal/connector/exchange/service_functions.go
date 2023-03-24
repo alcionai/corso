@@ -21,8 +21,7 @@ func createService(credentials account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret,
-	)
+		credentials.AzureClientSecret)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
 	}
