@@ -73,6 +73,7 @@ func checkEmailRestoration(
 		for _, r := range res {
 			name, ok := ptr.ValOK(r.GetDisplayName())
 			if !ok {
+				fmt.Println("display name not found. Will continue")
 				continue
 			}
 
@@ -95,6 +96,8 @@ func checkEmailRestoration(
 			getAllSubFolder(client, testUser, r, name, messageCount)
 
 			messageCount[name], _ = ptr.ValOK(r.GetTotalItemCount())
+
+			fmt.Println("Got top folder: ", name, " with email counts: ", r.GetTotalItemCount())
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
@@ -122,6 +125,7 @@ func checkEmailRestoration(
 	for _, restore := range childFolder.GetValue() {
 		restoreDisplayName, ok := ptr.ValOK(restore.GetDisplayName())
 		if !ok {
+			fmt.Println("display name not found. Will continue")
 			continue
 		}
 
@@ -180,6 +184,8 @@ func getAllSubFolder(
 
 		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
 
+		fmt.Println("Got folder: ", fullFolderName, " with email counts: ", childFolderCount)
+
 		// recursively check for subfolders
 		if childFolderCount > 0 {
 			parentFolder := fullFolderName
@@ -228,6 +234,8 @@ func checkAllSubFolder(
 		fullFolderName := parentFolder + "/" + childDisplayName
 
 		childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
+
+		fmt.Println("Check folder: ", fullFolderName, " with email counts: ", childTotalCount)
 
 		if messageCount[fullFolderName] != childTotalCount {
 			fmt.Println("Restore was not succesfull for: ", fullFolderName,
