@@ -236,7 +236,10 @@ func collectPages(
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
-	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}

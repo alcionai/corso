@@ -51,8 +51,7 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret,
-	)
+		credentials.AzureClientSecret)
 	require.NoError(t, err, "creating microsoft graph service for exchange", clues.ToCore(err))
 
 	return graph.NewService(adapter)

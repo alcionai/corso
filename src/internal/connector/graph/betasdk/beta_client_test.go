@@ -38,8 +38,7 @@ func (suite *BetaClientSuite) TestCreateBetaClient() {
 	adpt, err := graph.CreateAdapter(
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
-	)
+		suite.credentials.AzureClientSecret)
 
 	require.NoError(t, err, clues.ToCore(err))
 
