@@ -37,11 +37,11 @@ func main() {
 	}
 
 	var (
-		client      = msgraphsdk.NewGraphServiceClient(adapter)
-		testUser    = os.Getenv("CORSO_M365_TEST_USER_ID")
-		testService = os.Getenv("SANITY_RESTORE_SERVICE")
-		folder      = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
-		startTime   = mustGetTimeFromName(ctx, folder)
+		client       = msgraphsdk.NewGraphServiceClient(adapter)
+		testUser     = os.Getenv("CORSO_M365_TEST_USER_ID")
+		testService  = os.Getenv("SANITY_RESTORE_SERVICE")
+		folder       = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
+		startTime, _ = mustGetTimeFromName(ctx, folder)
 	)
 
 	ctx = clues.Add(
@@ -88,18 +88,13 @@ func checkEmailRestoration(
 		// recursive restore folder discovery before proceeding with tests
 		for _, v := range values {
 			var (
-				itemID     = ptr.Val(v.GetId())
-				itemName   = ptr.Val(v.GetDisplayName())
-				ictx       = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
-				folderTime = mustGetTimeFromName(ctx, itemName)
+				itemID              = ptr.Val(v.GetId())
+				itemName            = ptr.Val(v.GetDisplayName())
+				ictx                = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+				folderTime, hasTime = mustGetTimeFromName(ctx, itemName)
 			)
 
-			// only test against folders within the test boundary time
-			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
-				logger.Ctx(ictx).
-					With("folder_time", folderTime).
-					Info("skipping restore folder: not within time bound")
-
+			if !isWithinTimeBound(ictx, startTime, folderTime, hasTime) {
 				continue
 			}
 
@@ -317,13 +312,9 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		folderTime := mustGetTimeFromName(ictx, itemName)
+		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
 
-		if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
-			logger.Ctx(ictx).
-				With("folder_time", folderTime).
-				Info("skipping restore folder: not within time bound")
-
+		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
 			continue
 		}
 
@@ -445,11 +436,27 @@ func permissionsIn(
 	return result
 }
 
-func mustGetTimeFromName(ctx context.Context, name string) time.Time {
+func mustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
 	t, err := common.ExtractTime(name)
 	if err != nil && !errors.Is(err, common.ErrNoTimeString) {
 		fatal(ctx, "extracting time from name: "+name, err)
 	}
 
-	return t
+	return t, !errors.Is(err, common.ErrNoTimeString)
+}
+
+func isWithinTimeBound(ctx context.Context, bound, check time.Time, skip bool) bool {
+	if skip {
+		return true
+	}
+
+	if bound.Before(check) {
+		logger.Ctx(ctx).
+			With("boundary_time", bound, "check_time", check).
+			Info("skipping restore folder: not older than time bound")
+
+		return false
+	}
+
+	return true
 }
