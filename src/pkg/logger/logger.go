@@ -49,6 +49,11 @@ const (
 	readableLogsFN = "readable-logs"
 )
 
+const (
+	Stderr = "stderr"
+	Stdout = "stdout"
+)
+
 // Returns the default location for writing logs
 func defaultLogLocation() string {
 	return filepath.Join(userLogsDir, "corso", "logs", time.Now().UTC().Format("2006-01-02T15-04-05Z")+".log")
@@ -125,15 +130,15 @@ func GetLogFile(logFileFlagVal string) string {
 	}
 
 	if r == "-" {
-		r = "stdout"
+		r = Stdout
 	}
 
-	if r != "stdout" && r != "stderr" {
+	if r != Stdout && r != Stderr {
 		logdir := filepath.Dir(r)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
-			return "stderr"
+			return Stderr
 		}
 	}
 
@@ -192,7 +197,7 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 			opts = append(opts, zap.WithCaller(false))
 			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
 
-			if logfile == "stderr" || logfile == "stdout" {
+			if logfile == Stderr || logfile == Stdout {
 				cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 			}
 		}

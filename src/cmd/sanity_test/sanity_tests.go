@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -40,12 +41,8 @@ func main() {
 		testUser    = os.Getenv("CORSO_M365_TEST_USER_ID")
 		testService = os.Getenv("SANITY_RESTORE_SERVICE")
 		folder      = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
+		startTime   = mustGetTimeFromName(ctx, folder)
 	)
-
-	startTime, err := common.ExtractTime(folder)
-	if err != nil {
-		fatal(ctx, "parsing start time", err)
-	}
 
 	ctx = clues.Add(
 		ctx,
@@ -83,23 +80,21 @@ func checkEmailRestoration(
 	for {
 		result, err := builder.Get(ctx, nil)
 		if err != nil {
-			fatal(ctx, "getting the drive", err)
+			fatal(ctx, "getting mail folders", err)
 		}
 
 		values := result.GetValue()
 
+		// recursive restore folder discovery before proceeding with tests
 		for _, v := range values {
 			var (
-				itemID   = ptr.Val(v.GetId())
-				itemName = ptr.Val(v.GetDisplayName())
-				ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+				itemID     = ptr.Val(v.GetId())
+				itemName   = ptr.Val(v.GetDisplayName())
+				ictx       = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+				folderTime = mustGetTimeFromName(ctx, itemName)
 			)
 
-			folderTime, err := common.ExtractTime(itemName)
-			if err != nil && !errors.Is(err, common.ErrNoTimeString) {
-				fatal(ctx, "extracting time from file name", err)
-			}
-
+			// only test against folders within the test boundary time
 			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
 				logger.Ctx(ictx).
 					With("folder_time", folderTime).
@@ -108,11 +103,13 @@ func checkEmailRestoration(
 				continue
 			}
 
+			// if we found the folder to testt against, back out of this loop.
 			if itemName == folderName {
 				restoreFolder = v
 				continue
 			}
 
+			// otherwise, recursively aggregate all child folders.
 			getAllSubFolder(ctx, client, testUser, v, itemName, itemCount)
 
 			itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
@@ -139,7 +136,7 @@ func checkEmailRestoration(
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
-		fatal(ctx, "getting the drive", err)
+		fatal(ctx, "getting restore folder child folders", err)
 	}
 
 	for _, fld := range childFolder.GetValue() {
@@ -147,7 +144,8 @@ func checkEmailRestoration(
 			fldID   = ptr.Val(fld.GetId())
 			fldName = ptr.Val(fld.GetDisplayName())
 			count   = ptr.Val(fld.GetTotalItemCount())
-			ictx    = clues.Add(ctx,
+			ictx    = clues.Add(
+				ctx,
 				"child_folder_id", fldID,
 				"child_folder_name", fldName,
 				"expected_count", itemCount[fldName],
@@ -157,8 +155,8 @@ func checkEmailRestoration(
 		if itemCount[fldName] != count {
 			logger.Ctx(ictx).Error("test failure: Restore item counts do not match")
 			fmt.Println("Restore item counts do not match:")
-			fmt.Println("-  expected:", itemCount[fldName])
-			fmt.Println("-  actual:", count)
+			fmt.Println("*  expected:", itemCount[fldName])
+			fmt.Println("*  actual:", count)
 			fmt.Println("Folder:", fldName, ptr.Val(fld.GetId()))
 			os.Exit(1)
 		}
@@ -187,13 +185,15 @@ func getAllSubFolder(
 		}
 	)
 
+	ctx = clues.Add(ctx, "parent_folder_id", folderID)
+
 	childFolder, err := client.
 		UsersById(testUser).
 		MailFoldersById(folderID).
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
-		fatal(ctx, "getting the drive", err)
+		fatal(ctx, "getting mail subfolders", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
@@ -240,20 +240,21 @@ func checkAllSubFolder(
 		ChildFolders().
 		Get(ctx, options)
 	if err != nil {
-		fatal(ctx, "getting the drive", err)
+		fatal(ctx, "getting mail subfolders", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			childTotalCount  = ptr.Val(child.GetTotalItemCount())
-			fullFolderName   = parentFolder + "/" + childDisplayName
+			//nolint:forbidigo
+			fullFolderName = path.Join(parentFolder, childDisplayName)
 		)
 
 		if messageCount[fullFolderName] != childTotalCount {
 			fmt.Println("Message count doesn't match:")
-			fmt.Println("-  expected:", messageCount[fullFolderName])
-			fmt.Println("-  actual:", childTotalCount)
+			fmt.Println("*  expected:", messageCount[fullFolderName])
+			fmt.Println("*  actual:", childTotalCount)
 			fmt.Println("Item:", fullFolderName, folderID)
 			os.Exit(1)
 		}
@@ -274,10 +275,9 @@ func checkOnedriveRestoration(
 ) {
 	var (
 		// map itemID -> item size
-		file = make(map[string]int64)
+		fileSizes = make(map[string]int64)
 		// map itemID -> permission id -> []permission roles
 		folderPermission = make(map[string]map[string][]string)
-		folderID         = ""
 	)
 
 	drive, err := client.
@@ -289,8 +289,9 @@ func checkOnedriveRestoration(
 	}
 
 	var (
-		driveID   = ptr.Val(drive.GetId())
-		driveName = ptr.Val(drive.GetName())
+		driveID         = ptr.Val(drive.GetId())
+		driveName       = ptr.Val(drive.GetName())
+		restoreFolderID string
 	)
 
 	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
@@ -312,36 +313,29 @@ func checkOnedriveRestoration(
 		)
 
 		if itemName == folderName {
-			folderID = itemID
+			restoreFolderID = itemID
 			continue
 		}
 
-		if !startTime.IsZero() {
-			folderTime, err := common.ExtractTime(itemName)
-			if err != nil && !errors.Is(err, common.ErrNoTimeString) {
-				fatal(ictx, "extracting time from file name", err)
-			}
+		folderTime := mustGetTimeFromName(ictx, itemName)
 
-			if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
-				logger.Ctx(ictx).
-					With("folder_time", folderTime).
-					Info("skipping restore folder: not within time bound")
+		if !errors.Is(err, common.ErrNoTimeString) && startTime.Before(folderTime) {
+			logger.Ctx(ictx).
+				With("folder_time", folderTime).
+				Info("skipping restore folder: not within time bound")
 
-				continue
-			}
+			continue
 		}
 
 		// if it's a file check the size
 		if driveItem.GetFile() != nil {
-			file[itemName] = ptr.Val(driveItem.GetSize())
+			fileSizes[itemName] = ptr.Val(driveItem.GetSize())
 		}
 
-		if driveItem.GetFolder() != nil {
-			folderPermission[itemID] = permissionsIn(ctx, client, driveID, itemID, folderPermission[itemID])
-		}
+		folderPermission[itemID] = permissionsIn(ctx, client, driveID, itemID, folderPermission[itemID])
 	}
 
-	checkFileData(ctx, client, driveID, folderID, file, folderPermission)
+	checkFileData(ctx, client, driveID, restoreFolderID, fileSizes, folderPermission)
 
 	fmt.Println("Success")
 }
@@ -351,7 +345,7 @@ func checkFileData(
 	client *msgraphsdk.GraphServiceClient,
 	driveID,
 	restoreFolderID string,
-	file map[string]int64,
+	fileSizes map[string]int64,
 	folderPermission map[string]map[string][]string,
 ) {
 	restored, err := client.
@@ -371,10 +365,10 @@ func checkFileData(
 		)
 
 		if item.GetFile() != nil {
-			if itemSize != file[itemName] {
+			if itemSize != fileSizes[itemName] {
 				fmt.Println("File size does not match:")
-				fmt.Println("-  expected:", file[itemName])
-				fmt.Println("-  actual:", itemSize)
+				fmt.Println("*  expected:", fileSizes[itemName])
+				fmt.Println("*  actual:", itemSize)
 				fmt.Println("Item:", itemName, itemID)
 				os.Exit(1)
 			}
@@ -382,7 +376,7 @@ func checkFileData(
 			continue
 		}
 
-		if item.GetFolder() == nil {
+		if item.GetFolder() == nil && item.GetPackage() == nil {
 			continue
 		}
 
@@ -396,8 +390,8 @@ func checkFileData(
 
 			if !slices.Equal(expect, result) {
 				fmt.Println("permissions are not equal")
-				fmt.Println("-  expected: ", expect)
-				fmt.Println("-  actual: ", result)
+				fmt.Println("*  expected: ", expect)
+				fmt.Println("*  actual: ", result)
 				fmt.Println("Item:", itemName, itemID)
 				fmt.Println("Permission:", pid)
 				os.Exit(1)
@@ -412,7 +406,7 @@ func checkFileData(
 
 func fatal(ctx context.Context, msg string, err error) {
 	logger.CtxErr(ctx, err).Error("test failure: " + msg)
-	fmt.Println(msg+":", err)
+	fmt.Println(msg+": ", err)
 	os.Exit(1)
 }
 
@@ -437,7 +431,6 @@ func permissionsIn(
 		maps.Copy(result, init)
 	}
 
-	// check if permission are correct on folder
 	for _, p := range pcr.GetValue() {
 		var (
 			pid   = ptr.Val(p.GetId())
@@ -450,4 +443,13 @@ func permissionsIn(
 	}
 
 	return result
+}
+
+func mustGetTimeFromName(ctx context.Context, name string) time.Time {
+	t, err := common.ExtractTime(name)
+	if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+		fatal(ctx, "extracting time from name: "+name, err)
+	}
+
+	return t
 }
