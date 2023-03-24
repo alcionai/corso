@@ -745,11 +745,20 @@ func compareOneDriveItem(
 		strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
 
 	if isMeta {
-		_, ok := item.(*onedrive.MetadataItem)
-		assert.True(t, ok, "metadata item")
+		var itemType *onedrive.MetadataItem
+
+		assert.IsType(t, itemType, item)
 	} else {
 		oitem := item.(*onedrive.Item)
-		assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
+		info := oitem.Info()
+
+		// Don't need to check SharePoint because it was added after we stopped
+		// adding meta files to backup details.
+		if info.OneDrive != nil {
+			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
+		} else if info.SharePoint == nil {
+			assert.Fail(t, "ItemInfo is not SharePoint or OneDrive")
+		}
 	}
 
 	if isMeta {
