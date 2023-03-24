@@ -53,8 +53,8 @@ var (
 	_ data.Stream           = &Item{}
 	_ data.StreamInfo       = &Item{}
 	_ data.StreamModTime    = &Item{}
-	_ data.Stream           = &metadataItem{}
-	_ data.StreamModTime    = &metadataItem{}
+	_ data.Stream           = &MetadataItem{}
+	_ data.StreamModTime    = &MetadataItem{}
 )
 
 type SharingMode int
@@ -276,28 +276,28 @@ func (od *Item) ModTime() time.Time {
 	return od.info.Modified()
 }
 
-type metadataItem struct {
+type MetadataItem struct {
 	id      string
 	data    io.ReadCloser
 	modTime time.Time
 }
 
-func (od *metadataItem) UUID() string {
+func (od *MetadataItem) UUID() string {
 	return od.id
 }
 
-func (od *metadataItem) ToReader() io.ReadCloser {
+func (od *MetadataItem) ToReader() io.ReadCloser {
 	return od.data
 }
 
 // Deleted implements an interface function. However, OneDrive items are marked
 // as deleted by adding them to the exclude list so this can always return
 // false.
-func (od metadataItem) Deleted() bool {
+func (od MetadataItem) Deleted() bool {
 	return false
 }
 
-func (od *metadataItem) ModTime() time.Time {
+func (od *MetadataItem) ModTime() time.Time {
 	return od.modTime
 }
 
@@ -512,7 +512,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				return progReader, nil
 			})
 
-			oc.data <- &metadataItem{
+			oc.data <- &MetadataItem{
 				id:      metaFileName + metaSuffix,
 				data:    metaReader,
 				modTime: time.Now(),
