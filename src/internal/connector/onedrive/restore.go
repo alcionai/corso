@@ -357,7 +357,6 @@ func restoreItem(
 		permissionIDMappings,
 		restorePerms,
 		itemData)
-
 	if err != nil {
 		return details.ItemInfo{}, false, clues.Wrap(err, "v2 restore")
 	}
