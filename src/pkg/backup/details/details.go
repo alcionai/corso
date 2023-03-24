@@ -471,7 +471,7 @@ const (
 func UpdateItem(item *ItemInfo, repoPath, locPath path.Path) error {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(path.Path, path.Path) error
+	var updatePath func(repo path.Path, location path.Path) error
 
 	switch item.infoType() {
 	case ExchangeContact, ExchangeEvent, ExchangeMail:
