@@ -32,6 +32,10 @@ type Backup struct {
 	// Selector used in this operation
 	Selector selectors.Selector `json:"selectors"`
 
+	// ResourceOwner reference
+	ResourceOwnerID   string `json:"resourceOwnerID"`
+	ResourceOwnerName string `json:"resourceOwnerName"`
+
 	// Version represents the version of the backup format
 	Version int `json:"version"`
 
@@ -61,6 +65,7 @@ func New(
 	snapshotID, streamStoreID, status string,
 	id model.StableID,
 	selector selectors.Selector,
+	ownerID, ownerName string,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,

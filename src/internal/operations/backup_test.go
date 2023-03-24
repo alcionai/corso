@@ -408,6 +408,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				sw,
 				acct,
 				sel,
+				sel.DiscreteOwner,
 				evmock.NewBus())
 			require.NoError(t, err, clues.ToCore(err))
 

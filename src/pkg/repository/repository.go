@@ -292,6 +292,7 @@ func (r repository) NewBackup(
 		store.NewKopiaStore(r.modelStore),
 		r.Account,
 		selector,
+		selector.DiscreteOwner,
 		r.Bus)
 }
 

@@ -127,7 +127,7 @@ func newTestBackupOp(
 
 	opts.ToggleFeatures = featureToggles
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, sel.DiscreteOwner, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -508,6 +508,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.sw,
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
+				"test-name",
 				evmock.NewBus())
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
