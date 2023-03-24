@@ -98,13 +98,29 @@ jobs:
               exit 1
           fi
 
+      # generate new entries to roll into the next load test
+      # only runs if the test was successful
+      - name: New Data Creation
+        working-directory: ./src/cmd/factory
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+        run: |
+          go run . exchange emails \
+          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
+          --tenant ${{ env.AZURE_TENANT_ID }} \
+          --destination lt_${{ steps.repo-init.outputs.result }} \
+          --count 4
+
       # run the tests
       - name: Backup exchange test
         id: exchange-test
         run: |
           ./corso backup create exchange \
           --user "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress --json 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+           --hide-progress  --data 'email' --json 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 
@@ -143,6 +159,7 @@ jobs:
         env:
           RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
           RESTORE_SERVICE: "exchange"
+          TEST_DATA: ${{ steps.repo-init.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityCheck
@@ -179,6 +196,8 @@ jobs:
         env:
           RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
           RESTORE_SERVICE: "exchange"
+          TEST_DATA: ${{ steps.repo-init.outputs.result }}
+          BASE_BACKUP: ${{ steps.exchange-restore-test.outputs.result }}
         run: |
           set -euo pipefail
           ./sanityCheck

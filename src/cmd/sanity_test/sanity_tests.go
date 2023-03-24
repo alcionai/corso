@@ -29,6 +29,8 @@ func main() {
 
 	testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
 	folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
+	dataFolder := os.Getenv("TEST_DATA")
+	baseBackupFolder := os.Getenv("BASE_BACKUP")
 
 	restoreStartTime := strings.SplitAfter(folder, "Corso_Restore_")[1]
 	startTime, _ := time.Parse(time.RFC822, restoreStartTime)
@@ -39,7 +41,7 @@ func main() {
 
 	switch service := os.Getenv("RESTORE_SERVICE"); service {
 	case "exchange":
-		checkEmailRestoration(client, testUser, folder, startTime)
+		checkEmailRestoration(client, testUser, folder, dataFolder, baseBackupFolder, startTime)
 	default:
 		checkOnedriveRestoration(client, testUser, folder, startTime)
 	}
@@ -50,12 +52,15 @@ func main() {
 func checkEmailRestoration(
 	client *msgraphsdk.GraphServiceClient,
 	testUser,
-	folderName string,
+	folderName,
+	dataFolder,
+	baseBackupFolder string,
 	startTime time.Time,
 ) {
 	var (
-		messageCount  = make(map[string]int32)
-		restoreFolder models.MailFolderable
+		messageCount        = make(map[string]int32)
+		restoreFolder       models.MailFolderable
+		restoreMessageCount = make(map[string]int32)
 	)
 
 	user := client.UsersById(testUser)
@@ -77,27 +82,16 @@ func checkEmailRestoration(
 				continue
 			}
 
-			var rStartTime time.Time
-
-			restoreStartTime := strings.SplitAfter(name, "Corso_Restore_")
-			if len(restoreStartTime) > 1 {
-				rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-				if startTime.Before(rStartTime) {
-					fmt.Printf("The restore folder %s was created after %s. Will skip check.", name, folderName)
-					continue
-				}
-			}
-
 			if name == folderName {
 				restoreFolder = r
 				continue
 			}
 
-			getAllSubFolder(client, testUser, r, name, messageCount)
+			if name == dataFolder || name == baseBackupFolder {
+				getAllSubFolder(client, testUser, r, name, dataFolder, messageCount)
 
-			messageCount[name], _ = ptr.ValOK(r.GetTotalItemCount())
-
-			fmt.Println("Got top folder: ", name, " with email counts: ", r.GetTotalItemCount())
+				messageCount[name], _ = ptr.ValOK(r.GetTotalItemCount())
+			}
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
@@ -129,16 +123,29 @@ func checkEmailRestoration(
 			continue
 		}
 
-		restoreItemCount, _ := ptr.ValOK(restore.GetTotalItemCount())
+		// check if folder is the data folder we loaded or the base backup to verify
+		// the incremental backup worked fine
+		if strings.EqualFold(restoreDisplayName, dataFolder) || strings.EqualFold(restoreDisplayName, baseBackupFolder) {
+			restoreItemCount, _ := ptr.ValOK(restore.GetTotalItemCount())
 
-		if messageCount[restoreDisplayName] != restoreItemCount {
-			fmt.Println("Restore was not succesfull for: ", restoreDisplayName,
-				"Folder count: ", messageCount[restoreDisplayName],
-				"Restore count: ", restoreItemCount)
+			restoreMessageCount[restoreDisplayName] = restoreItemCount
+			checkAllSubFolder(client, testUser, restore, restoreDisplayName, dataFolder, restoreMessageCount)
+		}
+	}
+
+	verifyEmailData(restoreMessageCount, messageCount)
+}
+
+func verifyEmailData(restoreMessageCount, messageCount map[string]int32) {
+	for folderName, emailCount := range messageCount {
+		fmt.Println("verifying message count for ", folderName)
+
+		if restoreMessageCount[folderName] != emailCount {
+			fmt.Println("Restore was not succesfull for: ", folderName,
+				"Folder count: ", emailCount,
+				"Restore count: ", restoreMessageCount[folderName])
 			os.Exit(1)
 		}
-
-		checkAllSubFolder(client, testUser, restore, restoreDisplayName, messageCount)
 	}
 }
 
@@ -148,7 +155,8 @@ func getAllSubFolder(
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
 	r models.MailFolderable,
-	parentFolder string,
+	parentFolder,
+	dataFolder string,
 	messageCount map[string]int32,
 ) {
 	folderID, ok := ptr.ValOK(r.GetId())
@@ -180,17 +188,16 @@ func getAllSubFolder(
 
 		fullFolderName := parentFolder + "/" + childDisplayName
 
-		messageCount[fullFolderName], _ = ptr.ValOK(child.GetTotalItemCount())
+		if strings.Contains(fullFolderName, dataFolder) {
+			messageCount[fullFolderName], _ = ptr.ValOK(child.GetTotalItemCount())
+			childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
 
-		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
+			// recursively check for subfolders
+			if childFolderCount > 0 {
+				parentFolder := fullFolderName
 
-		fmt.Println("Got folder: ", fullFolderName, " with email counts: ", childFolderCount)
-
-		// recursively check for subfolders
-		if childFolderCount > 0 {
-			parentFolder := fullFolderName
-
-			getAllSubFolder(client, testUser, child, parentFolder, messageCount)
+				getAllSubFolder(client, testUser, child, parentFolder, dataFolder, messageCount)
+			}
 		}
 	}
 }
@@ -201,8 +208,9 @@ func checkAllSubFolder(
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
 	r models.MailFolderable,
-	parentFolder string,
-	messageCount map[string]int32,
+	parentFolder,
+	dataFolder string,
+	restoreMessageCount map[string]int32,
 ) {
 	folderID, ok := ptr.ValOK(r.GetId())
 
@@ -230,26 +238,18 @@ func checkAllSubFolder(
 
 	for _, child := range childFolder.GetValue() {
 		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
-
 		fullFolderName := parentFolder + "/" + childDisplayName
 
-		childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
-
-		fmt.Println("Check folder: ", fullFolderName, " with email counts: ", childTotalCount)
-
-		if messageCount[fullFolderName] != childTotalCount {
-			fmt.Println("Restore was not succesfull for: ", fullFolderName,
-				"Folder count: ", messageCount[fullFolderName],
-				"Restore count: ", childTotalCount)
-			os.Exit(1)
+		if strings.Contains(fullFolderName, dataFolder) {
+			childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
+			restoreMessageCount[fullFolderName] = childTotalCount
 		}
 
 		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
 
 		if childFolderCount > 0 {
 			parentFolder := fullFolderName
-
-			checkAllSubFolder(client, testUser, child, parentFolder, messageCount)
+			checkAllSubFolder(client, testUser, child, parentFolder, dataFolder, restoreMessageCount)
 		}
 	}
 }
