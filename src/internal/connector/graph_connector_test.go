@@ -949,8 +949,8 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, totalItems, status.Metrics.Objects, "status.Metrics.Objects")
 				assert.Equal(t, totalItems, status.Metrics.Successes, "status.Metrics.Successes")
-				assert.Equal(
-					t, totalItems, len(deets.Entries),
+				assert.Len(
+					t, deets.Entries, totalItems,
 					"details entries contains same item count as total successful items restored")
 
 				t.Log("Restore complete")
