@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -14,7 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 func getValues[T any](l api.PageLinker) ([]T, error) {
@@ -268,4 +270,77 @@ func (p *siteDrivePager) GetFolderIDByName(ctx context.Context, driveID, folderN
 	}
 
 	return empty, nil
+}
+
+// ---------------------------------------------------------------------------
+// Drive Paging
+// ---------------------------------------------------------------------------
+
+// DrivePager pages through different types of drive owners
+type DrivePager interface {
+	GetPage(context.Context) (api.PageLinker, error)
+	SetNext(nextLink string)
+	ValuesIn(api.PageLinker) ([]models.Driveable, error)
+}
+
+// GetAllDrives fetches all drives for the given pager
+func GetAllDrives(
+	ctx context.Context,
+	pager DrivePager,
+	retry bool,
+	maxRetryCount int,
+) ([]models.Driveable, error) {
+	drives := []models.Driveable{}
+
+	if !retry {
+		maxRetryCount = 0
+	}
+
+	// Loop through all pages returned by Graph API.
+	for {
+		var (
+			err  error
+			page api.PageLinker
+		)
+
+		// Retry Loop for Drive retrieval. Request can timeout
+		for i := 0; i <= maxRetryCount; i++ {
+			page, err = pager.GetPage(ctx)
+			if err != nil {
+				if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+					logger.Ctx(ctx).Infof("resource owner does not have a drive")
+					return make([]models.Driveable, 0), nil // no license or drives.
+				}
+
+				if graph.IsErrTimeout(err) && i < maxRetryCount {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					continue
+				}
+
+				return nil, graph.Wrap(ctx, err, "retrieving drives")
+			}
+
+			// No error encountered, break the retry loop so we can extract results
+			// and see if there's another page to fetch.
+			break
+		}
+
+		tmp, err := pager.ValuesIn(page)
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "extracting drives from response")
+		}
+
+		drives = append(drives, tmp...)
+
+		nextLink := ptr.Val(page.GetOdataNextLink())
+		if len(nextLink) == 0 {
+			break
+		}
+
+		pager.SetNext(nextLink)
+	}
+
+	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(drives))
+
+	return drives, nil
 }
