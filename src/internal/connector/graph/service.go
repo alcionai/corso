@@ -17,6 +17,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
+	"golang.org/x/time/rate"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -167,7 +168,10 @@ func MinimumBackoff(dur time.Duration) option {
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
 // to create  *msgraphsdk.GraphServiceClient
-func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.GraphRequestAdapter, error) {
+func CreateAdapter(
+	tenant, client, secret string,
+	opts ...option,
+) (*msgraphsdk.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
@@ -224,12 +228,15 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
+		&ThrottleControlMiddleware{},
 	}
 }
 
 // GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
-	maxRetry int, minDelay time.Duration,
+func GetKiotaMiddlewares(
+	options *msgraphgocore.GraphClientOptions,
+	maxRetry int,
+	minDelay time.Duration,
 ) []khttp.Middleware {
 	kiotaMiddlewares := GetMiddlewares(maxRetry, minDelay)
 	graphMiddlewares := []khttp.Middleware{
@@ -367,4 +374,44 @@ func (middleware RetryHandler) Intercept(
 	}
 
 	return response, nil
+}
+
+// We're trying to keep calls below the 10k-per-10-minute threshold.
+// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
+// which is a bit below the mark.
+// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
+// We'll have built up 900 tokens in reserve, so the first 900 calls go through
+// immediately.  Over the next 10 minutes, we'll partition out the other calls
+// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
+// the volume keeps up after that, we'll always stay between 9000 and 9900 out
+// of 10k.
+const (
+	perSecond = 15
+	maxCap    = 900
+)
+
+// Single, global rate limiter at this time.  Refinements for method (creates,
+// versus reads) or service can come later.
+var limiter = rate.NewLimiter(perSecond, maxCap)
+
+// QueueRequest will allow the request to occur immediately if we're under the
+// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
+// the next token set is available.
+func QueueRequest(ctx context.Context) {
+	if err := limiter.Wait(ctx); err != nil {
+		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	}
+}
+
+// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
+// request limits.
+type ThrottleControlMiddleware struct{}
+
+func (handler *ThrottleControlMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	QueueRequest(req.Context())
+	return pipeline.Next(req, middlewareIndex)
 }

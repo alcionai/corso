@@ -304,7 +304,10 @@ func RestorePageCollection(
 
 	defer end()
 
-	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return metrics, clues.Wrap(err, "constructing graph client")
 	}

@@ -127,6 +127,7 @@ func writeBackup(
 	sw *store.Wrapper,
 	tID, snapID, backupID string,
 	sel selectors.Selector,
+	ownerID, ownerName string,
 	deets *details.Details,
 	fe *fault.Errors,
 	errs *fault.Bus,
@@ -150,6 +151,7 @@ func writeBackup(
 		operations.Completed.String(),
 		model.StableID(backupID),
 		sel,
+		ownerID, ownerName,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
 		fe)
@@ -161,7 +163,10 @@ func writeBackup(
 }
 
 func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
-	const tenantID = "tenant"
+	const (
+		brunhilda = "brunhilda"
+		tenantID  = "tenant"
+	)
 
 	info := details.ItemInfo{
 		Folder: &details.FolderInfo{
@@ -207,7 +212,8 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 					suite.kw,
 					suite.sw,
 					tenantID, "snapID", test.writeBupID,
-					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
+					selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+					brunhilda, brunhilda,
 					test.deets,
 					&fault.Errors{},
 					fault.New(true))
@@ -228,8 +234,9 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 
 func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	const (
-		tenantID = "tenant"
-		failFast = true
+		tenantID  = "tenant"
+		failFast  = true
+		brunhilda = "brunhilda"
 	)
 
 	var (
@@ -309,7 +316,8 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 					suite.kw,
 					suite.sw,
 					tenantID, "snapID", test.writeBupID,
-					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
+					selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+					brunhilda, brunhilda,
 					test.deets,
 					test.errors,
 					fault.New(failFast))

@@ -30,8 +30,7 @@ func (suite *BetaUnitSuite) TestBetaService_Adapter() {
 	adpt, err := graph.CreateAdapter(
 		m365.AzureTenantID,
 		m365.AzureClientID,
-		m365.AzureClientSecret,
-	)
+		m365.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	service := NewBetaService(adpt)
