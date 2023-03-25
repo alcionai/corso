@@ -291,8 +291,11 @@ func restoreItem(
 			restoreFolderID,
 			copyBuffer,
 			itemData)
+		if err != nil {
+			return details.ItemInfo{}, false, clues.Wrap(err, "v0 restore")
+		}
 
-		return itemInfo, false, clues.Wrap(err, "v0 restore")
+		return itemInfo, false, nil
 	}
 
 	// only v1+ backups from this point on
@@ -340,8 +343,11 @@ func restoreItem(
 			permissionIDMappings,
 			restorePerms,
 			itemData)
+		if err != nil {
+			return details.ItemInfo{}, false, clues.Wrap(err, "v1 restore")
+		}
 
-		return itemInfo, false, clues.Wrap(err, "v1 restore")
+		return itemInfo, false, nil
 	}
 
 	// only v6+ backups from this point on
