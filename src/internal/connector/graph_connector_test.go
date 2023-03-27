@@ -123,14 +123,121 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
+
+			t := suite.T()
 
 			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.expect, result)
+		})
+	}
+}
+
+func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
+	const (
+		ownerID   = "owner-id"
+		ownerName = "owner-name"
+	)
+
+	var (
+		itn = map[string]string{ownerID: ownerName}
+		nti = map[string]string{ownerName: ownerID}
+	)
+
+	table := []struct {
+		name       string
+		owner      string
+		idToName   map[string]string
+		nameToID   map[string]string
+		expectID   string
+		expectName string
+	}{
+		{
+			name:       "nil maps",
+			owner:      ownerID,
+			idToName:   nil,
+			nameToID:   nil,
+			expectID:   ownerID,
+			expectName: ownerID,
+		},
+		{
+			name:       "only id map with owner id",
+			owner:      ownerID,
+			idToName:   itn,
+			nameToID:   nil,
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:       "only name map with owner id",
+			owner:      ownerID,
+			idToName:   nil,
+			nameToID:   nti,
+			expectID:   ownerID,
+			expectName: ownerID,
+		},
+		{
+			name:       "only id map with owner name",
+			owner:      ownerName,
+			idToName:   itn,
+			nameToID:   nil,
+			expectID:   ownerName,
+			expectName: ownerName,
+		},
+		{
+			name:       "only name map with owner name",
+			owner:      ownerName,
+			idToName:   nil,
+			nameToID:   nti,
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:       "both maps with owner id",
+			owner:      ownerID,
+			idToName:   itn,
+			nameToID:   nti,
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:       "both maps with owner name",
+			owner:      ownerName,
+			idToName:   itn,
+			nameToID:   nti,
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:       "non-matching maps with owner id",
+			owner:      ownerID,
+			idToName:   map[string]string{"foo": "bar"},
+			nameToID:   map[string]string{"fnords": "smarf"},
+			expectID:   ownerID,
+			expectName: ownerID,
+		},
+		{
+			name:       "non-matching with owner name",
+			owner:      ownerName,
+			idToName:   map[string]string{"foo": "bar"},
+			nameToID:   map[string]string{"fnords": "smarf"},
+			expectID:   ownerName,
+			expectName: ownerName,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t  = suite.T()
+				gc = &GraphConnector{}
+			)
+
+			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.idToName, test.nameToID)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expectID, id)
+			assert.Equal(t, test.expectName, name)
 		})
 	}
 }

@@ -56,34 +56,29 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 	return ret, nil
 }
 
-func UserIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
+// UsersMap retrieves all users in the tenant, and returns two maps: one id-to-principalName,
+// and one principalName-to-id.
+func UsersMap(
+	ctx context.Context,
+	acct account.Account,
+	errs *fault.Bus,
+) (map[string]string, map[string]string, error) {
 	users, err := Users(ctx, acct, errs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	ret := make([]string, 0, len(users))
+	var (
+		idToName = make(map[string]string, len(users))
+		nameToID = make(map[string]string, len(users))
+	)
+
 	for _, u := range users {
-		ret = append(ret, u.ID)
+		idToName[u.ID] = u.PrincipalName
+		nameToID[u.PrincipalName] = u.ID
 	}
 
-	return ret, nil
-}
-
-// UserPNs retrieves all user principleNames in the tenant.  Principle Names
-// can be used analogous userIDs in graph API queries.
-func UserPNs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
-	users, err := Users(ctx, acct, errs)
-	if err != nil {
-		return nil, err
-	}
-
-	ret := make([]string, 0, len(users))
-	for _, u := range users {
-		ret = append(ret, u.PrincipalName)
-	}
-
-	return ret, nil
+	return idToName, nameToID, nil
 }
 
 type Site struct {

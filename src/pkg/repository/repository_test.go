@@ -198,7 +198,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"})
+	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"}, nil, nil)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 }

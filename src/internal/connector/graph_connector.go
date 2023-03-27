@@ -49,8 +49,16 @@ type GraphConnector struct {
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
-	Sites       map[string]string // webURL -> siteID and siteID -> webURL
 	credentials account.M365Config
+
+	// TODO: remove in favor of the maps below.
+	Sites map[string]string // webURL -> siteID and siteID -> webURL
+
+	// maps of resource owner ids to names, and names to ids.
+	// not guaranteed to be populated, only here as a post-population
+	// reference for processes that choose to populate the values.
+	ResourceOwnerIDToName map[string]string
+	ResourceOwnerNameToID map[string]string
 
 	// wg is used to track completion of GC tasks
 	wg     *sync.WaitGroup
@@ -106,6 +114,63 @@ func NewGraphConnector(
 	}
 
 	return &gc, nil
+}
+
+// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// the owner's name and ID from that value.  Returns an error if the owner is
+// not recognized by the current tenant.
+//
+// The id-name maps are optional.  Some processes will look up all owners in
+// the tenant before reaching this step.  In that case, the data gets handed
+// down for this func to consume instead of performing further queries.  The
+// maps get stored inside the gc instance for later re-use.
+//
+// TODO: If the maps are nil or empty, this func will perform a lookup on the given
+// owner, and populate each map with that owner's id and name for downstream
+// guarantees about that data being present.  Optional performance enhancement
+// idea: downstream from here, we should _only_ need the given user's id and name,
+// and could store minimal map copies with that info instead of the whole tenant.
+func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+	owner string, // input value, can be either id or name
+	idToName, nameToID map[string]string, // optionally pre-populated lookups
+) (string, string, error) {
+	// ensure the maps exist, even if they aren't populated so that
+	// getOwnerIDAndNameFrom can populate any values it looks up.
+	if len(idToName) == 0 {
+		idToName = map[string]string{}
+	}
+
+	if len(nameToID) == 0 {
+		nameToID = map[string]string{}
+	}
+
+	// move this to GC method
+	id, name, err := getOwnerIDAndNameFrom(owner, idToName, nameToID)
+	if err != nil {
+		return "", "", errors.Wrap(err, "resolving resource owner details")
+	}
+
+	gc.ResourceOwnerIDToName = idToName
+	gc.ResourceOwnerNameToID = nameToID
+
+	return id, name, nil
+}
+
+func getOwnerIDAndNameFrom(
+	owner string,
+	idToName, nameToID map[string]string,
+) (string, string, error) {
+	if n, ok := idToName[owner]; ok {
+		return owner, n, nil
+	} else if i, ok := nameToID[owner]; ok {
+		return i, owner, nil
+	}
+
+	// TODO: look-up user by owner, either id or name,
+	// and populate with maps as a result.  Only
+	// return owner, owner as a very last resort.
+
+	return owner, owner, nil
 }
 
 // createService constructor for graphService component
