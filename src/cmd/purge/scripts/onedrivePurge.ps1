@@ -70,6 +70,8 @@ function Purge-Library {
         [String[]]$SiteSuffix
     )
 
+    Write-Host "`nPurging library: $LibraryName"
+
     $foldersToPurge = @()
     $folders = Get-PnPFolderItem -FolderSiteRelativeUrl $LibraryName -ItemType Folder 
 
