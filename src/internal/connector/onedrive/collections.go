@@ -33,18 +33,18 @@ const (
 	SharePointSource
 )
 
-type collectionKind int
+type collectionScope int
 
 const (
-	// CollectionKindUnknown is used when we don't know and don't need
+	// CollectionScopeUnknown is used when we don't know and don't need
 	// to know the kind, like in the case of deletes
-	CollectionKindUnknown collectionKind = iota
+	CollectionScopeUnknown collectionScope = iota
 
-	// CollectionKindFolder is used for regular folder collections
-	CollectionKindFolder
+	// CollectionScopeFolder is used for regular folder collections
+	CollectionScopeFolder
 
-	// CollectionKindPackage is used to represent OneNote items
-	CollectionKindPackage
+	// CollectionScopePackage is used to represent OneNote items
+	CollectionScopePackage
 )
 
 const (
@@ -425,7 +425,7 @@ func (c *Collections) Get(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
-				CollectionKindUnknown,
+				CollectionScopeUnknown,
 				true)
 
 			c.CollectionMap[driveID][fldID] = col
@@ -587,7 +587,7 @@ func (c *Collections) handleDelete(
 		c.statusUpdater,
 		c.source,
 		c.ctrl,
-		CollectionKindUnknown,
+		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
 		false)
 
@@ -760,9 +760,9 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			collectionKind := CollectionKindFolder
+			collectionKind := CollectionScopeFolder
 			if item.GetPackage() != nil {
-				collectionKind = CollectionKindPackage
+				collectionKind = CollectionScopePackage
 			}
 
 			col := NewCollection(

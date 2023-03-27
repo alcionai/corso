@@ -214,7 +214,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-				CollectionKindFolder,
+				CollectionScopeFolder,
 				true)
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
@@ -354,7 +354,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-				CollectionKindFolder,
+				CollectionScopeFolder,
 				true)
 
 			mockItem := models.NewDriveItem()
@@ -444,7 +444,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-				CollectionKindFolder,
+				CollectionScopeFolder,
 				true)
 
 			mockItem := models.NewDriveItem()
@@ -544,7 +544,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
-				CollectionKindFolder,
+				CollectionScopeFolder,
 				true)
 
 			mtime := time.Now().AddDate(0, -1, 0)
@@ -615,33 +615,33 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 
 	table := []struct {
 		name           string
-		collectionKind collectionKind
+		collectionKind collectionScope
 		itemSize       int64
 		labels         []string
 		err            error
 	}{
 		{
 			name:           "Simple item fetch no error",
-			collectionKind: CollectionKindFolder,
+			collectionKind: CollectionScopeFolder,
 			itemSize:       10,
 			err:            nil,
 		},
 		{
 			name:           "Simple item fetch error",
-			collectionKind: CollectionKindFolder,
+			collectionKind: CollectionScopeFolder,
 			itemSize:       10,
 			err:            assert.AnError,
 		},
 		{
 			name:           "malware error",
-			collectionKind: CollectionKindFolder,
+			collectionKind: CollectionScopeFolder,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelsMalware),
 			labels:         []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
 			name:           "file not found error",
-			collectionKind: CollectionKindFolder,
+			collectionKind: CollectionScopeFolder,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
 			labels:         []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
@@ -649,14 +649,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 		{
 			// This should create an error that stops the backup
 			name:           "small OneNote file",
-			collectionKind: CollectionKindPackage,
+			collectionKind: CollectionScopePackage,
 			itemSize:       10,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 		{
 			name:           "big OneNote file",
-			collectionKind: CollectionKindPackage,
+			collectionKind: CollectionScopePackage,
 			itemSize:       MaxOneNoteFileSize,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
@@ -664,7 +664,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 		{
 			// This should block backup, only big OneNote files should be a problem
 			name:           "big file",
-			collectionKind: CollectionKindFolder,
+			collectionKind: CollectionScopeFolder,
 			itemSize:       MaxOneNoteFileSize,
 			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable)},
@@ -680,7 +680,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 				t    = suite.T()
 				errs = fault.New(false)
 				item = models.NewDriveItem()
-				col  = &Collection{kind: test.collectionKind}
+				col  = &Collection{scope: test.collectionKind}
 			)
 
 			item.SetId(&strval)
