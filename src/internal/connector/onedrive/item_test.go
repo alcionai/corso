@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -47,7 +48,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	pager, err := PagerForSource(OneDriveSource, suite.service, suite.user, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
-	odDrives, err := drives(ctx, pager, true)
+	odDrives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	require.NoError(t, err, clues.ToCore(err))
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
