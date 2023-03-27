@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle calendar events with no body.
 - Items not being deleted if they were created and deleted during item enumeration of a OneDrive backup.
 - Enable compression for all data uploaded by kopia.
+- SharePoint --folder selectors correctly return items.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
@@ -33,8 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Issues
 - Owner (Full control) or empty (Restricted View) roles cannot be restored for OneDrive
 - OneDrive will not do an incremental backup if permissions are being backed up.
-
-### Known Issues
+- SharePoint --folder selection in details and restore always return "no items match the specified selectors".
 - Event instance exceptions (ie: changes to a single event within a recurring series) are not backed up.
 
 ## [v0.5.0] (beta) - 2023-03-13
