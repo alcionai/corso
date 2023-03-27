@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/dustin/go-humanize"
@@ -23,7 +24,9 @@ const (
 )
 
 // styling
-const Bullet = "∙"
+const bullet = "∙"
+
+const Bullet = Safe(bullet)
 
 var (
 	wg sync.WaitGroup
@@ -118,8 +121,7 @@ func SeedWriter(ctx context.Context, w io.Writer, c *config) {
 		contxt,
 		mpb.WithWidth(progressBarWidth),
 		mpb.WithWaitGroup(&wg),
-		mpb.WithOutput(writer),
-	)
+		mpb.WithOutput(writer))
 }
 
 // Complete blocks until the progress finishes writing out all data.
@@ -141,9 +143,19 @@ const (
 // Progress Updates
 
 // Message is used to display a progress message
-func Message(ctx context.Context, msg cleanable) {
-	logger.Ctx(ctx).Info(msg.clean())
-	message := msg.String()
+func Message(ctx context.Context, msgs ...cleanable) {
+	var (
+		cleaned = make([]string, len(msgs))
+		msg     = make([]string, len(msgs))
+	)
+
+	for i := range msgs {
+		cleaned[i] = msgs[i].clean()
+		msg[i] = msgs[i].String()
+	}
+
+	logger.Ctx(ctx).Info(strings.Join(cleaned, " "))
+	message := strings.Join(msg, " ")
 
 	if cfg.hidden() {
 		return
@@ -154,10 +166,12 @@ func Message(ctx context.Context, msg cleanable) {
 	bar := progress.New(
 		-1,
 		mpb.NopStyle(),
-		mpb.PrependDecorators(
-			decor.Name(message, decor.WC{W: len(message) + 1, C: decor.DidentRight}),
-		),
-	)
+		mpb.PrependDecorators(decor.Name(
+			message,
+			decor.WC{
+				W: len(message) + 1,
+				C: decor.DidentRight,
+			})))
 
 	// Complete the bar immediately
 	bar.SetTotal(-1, true)
@@ -193,10 +207,8 @@ func MessageWithCompletion(
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
 			decor.Name(message+":"),
-			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8}),
-		),
-		mpb.BarFillerOnComplete("done"),
-	)
+			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
+		mpb.BarFillerOnComplete("done"))
 
 	go listen(
 		ctx,
@@ -248,8 +260,7 @@ func ItemProgress(
 			decor.Name(header, decor.WCSyncSpaceR),
 			decor.Name(iname.String(), decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
-			decor.NewPercentage("%d ", decor.WC{W: 4}),
-		),
+			decor.NewPercentage("%d ", decor.WC{W: 4})),
 	}
 
 	if !cfg.keepBarsAfterComplete {
@@ -295,8 +306,7 @@ func ProgressWithCount(
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
 			decor.Name(message.String()),
-			decor.Counters(0, " %d/%d "),
-		),
+			decor.Counters(0, " %d/%d ")),
 	}
 
 	if !cfg.keepBarsAfterComplete {
@@ -356,13 +366,12 @@ func makeSpinFrames(barWidth int) {
 func CollectionProgress(
 	ctx context.Context,
 	category string,
-	user, dirName cleanable,
+	dirName cleanable,
 ) (chan<- struct{}, func()) {
 	var (
 		counted int
 		ch      = make(chan struct{})
 		log     = logger.Ctx(ctx).With(
-			"user", user.clean(),
 			"category", category,
 			"dir", dirName.clean())
 		message = "Collecting Directory"
@@ -378,7 +387,7 @@ func CollectionProgress(
 		}
 	}
 
-	if cfg.hidden() || len(user.String()) == 0 || len(dirName.String()) == 0 {
+	if cfg.hidden() || len(dirName.String()) == 0 {
 		go listen(ctx, ch, nop, incCount)
 		return ch, func() { log.Infow("done - "+message, "count", counted) }
 	}
@@ -389,7 +398,7 @@ func CollectionProgress(
 		mpb.PrependDecorators(decor.Name(string(category))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
-			decor.Name(fmt.Sprintf("%s - %s", user, dirName)),
+			decor.Name(dirName.String()),
 		),
 		mpb.BarFillerOnComplete(spinFrames[0]),
 	}

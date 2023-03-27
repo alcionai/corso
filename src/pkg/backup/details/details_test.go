@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,7 +32,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 	initial := time.Now()
 	nowStr := common.FormatTimeWith(initial, common.TabularOutput)
 	now, err := common.ParseTime(nowStr)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name     string
@@ -118,19 +119,20 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						Size:       1000,
 						WebURL:     "https://not.a.real/url",
 						DriveName:  "aLibrary",
+						Owner:      "user@email.com",
 						Created:    now,
 						Modified:   now,
 					},
 				},
 			},
-			expectHs: []string{"ID", "ItemName", "Library", "ParentPath", "Size", "WebURL", "Created", "Modified"},
+			expectHs: []string{"ID", "ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"},
 			expectVs: []string{
 				"deadbeef",
 				"itemName",
 				"aLibrary",
 				"parentPath",
 				"1.0 kB",
-				"https://not.a.real/url",
+				"user@email.com",
 				nowStr,
 				nowStr,
 			},
@@ -253,8 +255,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde"},
-		expectLocationRefs: []string{"locationref"},
+		expectRepoRefs:     []string{"abcde", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
 	},
 	{
 		name: "multiple entries with folder and meta file",
@@ -291,8 +293,8 @@ var pathItemsTable = []struct {
 				},
 			},
 		},
-		expectRepoRefs:     []string{"abcde", "12345"},
-		expectLocationRefs: []string{"locationref", "locationref2"},
+		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
 	},
 }
 
@@ -361,7 +363,7 @@ func (suite *DetailsUnitSuite) TestDetailsModel_FilterMetaFiles() {
 
 	d2 := d.FilterMetaFiles()
 
-	assert.Len(t, d2.Entries, 1)
+	assert.Len(t, d2.Entries, 2)
 	assert.Len(t, d.Entries, 3)
 }
 
@@ -846,7 +848,7 @@ func makeItemPath(
 		category,
 		true,
 		elems...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
@@ -1001,10 +1003,10 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			item := test.input
+
 			err := UpdateItem(&item, test.repoPath)
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
@@ -1184,7 +1186,7 @@ func (suite *DetailsUnitSuite) TestDetails_Marshal() {
 			}}
 
 			bs, err := d.Marshal()
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 			assert.NotEmpty(suite.T(), bs)
 		})
 	}
@@ -1198,7 +1200,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			}}
 
 			bs, err := orig.Marshal()
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 			assert.NotEmpty(suite.T(), bs)
 
 			var result Details
@@ -1206,7 +1208,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			err = umt(io.NopCloser(bytes.NewReader(bs)))
 
 			t := suite.T()
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, result)
 			assert.ElementsMatch(t, orig.Entries, result.Entries)
 		})

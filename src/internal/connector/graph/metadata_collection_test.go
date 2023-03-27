@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -34,7 +35,7 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 		path.EmailCategory,
 		false,
 		"foo")
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	c := NewMetadataCollection(p, nil, nil)
 
@@ -76,7 +77,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		path.EmailCategory,
 		false,
 		"foo")
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	c := NewMetadataCollection(
 		p,
@@ -94,7 +95,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		gotNames = append(gotNames, s.UUID())
 
 		buf, err := io.ReadAll(s.ToReader())
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err, clues.ToCore(err)) {
 			continue
 		}
 
@@ -168,7 +169,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 				[]MetadataCollectionEntry{test.metadata},
 				func(*support.ConnectorOperationStatus) {})
 
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 			if err != nil {
 				return
 			}
@@ -187,7 +188,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 				itemCount++
 
 				err := decoder.Decode(&gotMap)
-				if !assert.NoError(t, err) {
+				if !assert.NoError(t, err, clues.ToCore(err)) {
 					continue
 				}
 

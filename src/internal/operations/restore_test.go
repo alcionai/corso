@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -113,11 +114,12 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
 
-			test.expectErr(t, op.persistResults(ctx, now, &test.stats))
+			err = op.persistResults(ctx, now, &test.stats)
+			test.expectErr(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
@@ -134,25 +136,28 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 // integration
 // ---------------------------------------------------------------------------
 
+type bupResults struct {
+	backupID model.StableID
+	items    int
+}
+
 type RestoreOpIntegrationSuite struct {
 	tester.Suite
 
-	backupID     model.StableID
-	sharepointID model.StableID
-	shareItems   int
-	numItems     int
-	kopiaCloser  func(ctx context.Context)
-	kw           *kopia.Wrapper
-	sw           *store.Wrapper
-	ms           *kopia.ModelStore
+	exchange   bupResults
+	sharepoint bupResults
+
+	kopiaCloser func(ctx context.Context)
+	kw          *kopia.Wrapper
+	sw          *store.Wrapper
+	ms          *kopia.ModelStore
 }
 
 func TestRestoreOpIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RestoreOpIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoOperationTests),
+			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs}),
 	})
 }
 
@@ -161,27 +166,26 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	defer flush()
 
 	t := suite.T()
-
 	m365UserID := tester.M365UserID(t)
 	acct := tester.NewM365Account(t)
-
 	// need to initialize the repository before we can test connecting to it.
 	st := tester.NewPrefixedS3Storage(t)
-
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+
+	err := k.Initialize(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
 		k.Close(ctx)
 	}
 
 	kw, err := kopia.NewWrapper(k)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kw = kw
 
 	ms, err := kopia.NewModelStore(k)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ms = ms
 
@@ -205,15 +209,20 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		sw,
 		acct,
 		bsel.Selector,
+		bsel.Selector.DiscreteOwner,
 		evmock.NewBus())
-	require.NoError(t, err)
-	require.NoError(t, bo.Run(ctx))
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = bo.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results.BackupID)
 
-	suite.backupID = bo.Results.BackupID
-	// Discount metadata files (3 paths, 3 deltas) as
-	// they are not part of the data restored.
-	suite.numItems = bo.Results.ItemsWritten - 6
+	suite.exchange = bupResults{
+		backupID: bo.Results.BackupID,
+		// Discount metadata files (3 paths, 3 deltas) as
+		// they are not part of the data restored.
+		items: bo.Results.ItemsWritten - 6,
+	}
 
 	siteID := tester.M365SiteID(t)
 	sites := []string{siteID}
@@ -228,14 +237,20 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 		sw,
 		acct,
 		csel.Selector,
-		evmock.NewBus(),
-	)
-	require.NoError(t, err)
-	require.NoError(t, bo.Run(ctx))
+		csel.Selector.DiscreteOwner,
+		evmock.NewBus())
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = bo.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results.BackupID)
-	suite.sharepointID = bo.Results.BackupID
-	// Discount MetaData files (1 path, 1 delta)
-	suite.shareItems = bo.Results.ItemsWritten - 2
+
+	suite.sharepoint = bupResults{
+		backupID: bo.Results.BackupID,
+		// Discount metadata files (2 paths, 2 deltas) as
+		// they are not part of the data restored.
+		items: bo.Results.ItemsWritten - 4,
+	}
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
@@ -289,7 +304,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				selectors.Selector{DiscreteOwner: "test"},
 				dest,
 				evmock.NewBus())
-			test.errCheck(suite.T(), err)
+			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -309,8 +324,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	}{
 		{
 			name:          "Exchange_Restore",
-			bID:           suite.backupID,
-			expectedItems: suite.numItems,
+			bID:           suite.exchange.backupID,
+			expectedItems: suite.exchange.items,
 			dest:          tester.DefaultTestRestoreDestination(),
 			getSelector: func(t *testing.T) selectors.Selector {
 				users := []string{tester.M365UserID(t)}
@@ -322,8 +337,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 		},
 		{
 			name:          "SharePoint_Restore",
-			bID:           suite.sharepointID,
-			expectedItems: suite.shareItems,
+			bID:           suite.sharepoint.backupID,
+			expectedItems: suite.sharepoint.items,
 			dest:          control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive),
 			getSelector: func(t *testing.T) selectors.Selector {
 				bsel := selectors.NewSharePointRestore([]string{tester.M365SiteID(t)})
@@ -332,24 +347,33 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				return bsel.Selector
 			},
 			cleanup: func(t *testing.T, dest string) {
-				act := tester.NewM365Account(t)
-				m365, err := act.M365Config()
-				require.NoError(t, err)
+				ctx, flush := tester.NewContext()
+				defer flush()
 
-				adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
-				require.NoError(t, err)
+				act := tester.NewM365Account(t)
+
+				m365, err := act.M365Config()
+				require.NoError(t, err, clues.ToCore(err))
+
+				adpt, err := graph.CreateAdapter(
+					m365.AzureTenantID,
+					m365.AzureClientID,
+					m365.AzureClientSecret)
+				require.NoError(t, err, clues.ToCore(err))
+
 				service := graph.NewService(adpt)
 				pager := api.NewSiteDrivePager(service, tester.M365SiteID(t), []string{"id", "name"})
+
 				driveID, err := pager.GetDriveIDByName(ctx, "Documents")
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				require.NotEmpty(t, driveID)
 
 				folderID, err := pager.GetFolderIDByName(ctx, driveID, dest)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				require.NotEmpty(t, folderID)
 
 				err = onedrive.DeleteItem(ctx, service, driveID, folderID)
-				assert.NoError(t, err, "failed to delete restore folder: operations_SharePoint_Restore")
+				assert.NoError(t, err, "deleting restore folder", clues.ToCore(err))
 			},
 		},
 	}
@@ -367,11 +391,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 				test.getSelector(t),
 				test.dest,
 				mb)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			ds, err := ro.Run(ctx)
 
-			require.NoError(t, err, "restoreOp.Run()")
+			require.NoError(t, err, "restoreOp.Run() %+v", clues.ToCore(err))
 			require.NotEmpty(t, ro.Results, "restoreOp results")
 			require.NotNil(t, ds, "restored details")
 			assert.Equal(t, ro.Status, Completed, "restoreOp status")
@@ -379,7 +403,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 			assert.Less(t, 0, ro.Results.ItemsRead, "restore items read")
 			assert.Less(t, int64(0), ro.Results.BytesRead, "bytes read")
 			assert.Equal(t, 1, ro.Results.ResourceOwners, "resource Owners")
-			assert.NoError(t, ro.Errors.Failure(), "non-recoverable error")
+			assert.NoError(t, ro.Errors.Failure(), "non-recoverable error", clues.ToCore(ro.Errors.Failure()))
 			assert.Empty(t, ro.Errors.Recovered(), "recoverable errors")
 			assert.Equal(t, test.expectedItems, ro.Results.ItemsWritten, "backup and restore wrote the same num of items")
 			assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
@@ -411,11 +435,11 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_ErrorNoResults() {
 		suite.kw,
 		suite.sw,
 		tester.NewM365Account(t),
-		suite.backupID,
+		suite.exchange.backupID,
 		rsel.Selector,
 		dest,
 		mb)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	ds, err := ro.Run(ctx)
 	require.Error(t, err, "restoreOp.Run() should have errored")

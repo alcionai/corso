@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -241,7 +242,7 @@ func (suite *PathUnitSuite) TestUnescapeAndAppend() {
 			t := suite.T()
 
 			p, err := Builder{}.UnescapeAndAppend(test.input...)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedString, p.String())
 		})
@@ -256,7 +257,7 @@ func (suite *PathUnitSuite) TestEscapedFailure() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Error(t, err, "path with unescaped %s did not error", string(c))
+			assert.Errorf(t, err, "path with unescaped %s did not error", string(c))
 		})
 	}
 }
@@ -270,13 +271,12 @@ func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Error(
+			assert.Errorf(
 				t,
 				err,
 				"path with bad escape sequence %c%c did not error",
 				escapeCharacter,
-				c,
-			)
+				c)
 		})
 	}
 }
@@ -294,8 +294,7 @@ func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 			assert.Error(
 				t,
 				err,
-				"path with trailing escape character did not error",
-			)
+				"path with trailing escape character did not error")
 		})
 	}
 }
@@ -337,7 +336,7 @@ func (suite *PathUnitSuite) TestElements() {
 			t := suite.T()
 
 			p, err := test.pathFunc(test.input)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.output, p.Elements())
 		})
@@ -506,7 +505,7 @@ func (suite *PathUnitSuite) TestFolder() {
 				p, err := Builder{}.
 					Append("a", "b", "c").
 					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return p
 			},
@@ -519,7 +518,7 @@ func (suite *PathUnitSuite) TestFolder() {
 				p, err := Builder{}.
 					Append("a", "b", "c").
 					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return p
 			},
@@ -533,7 +532,7 @@ func (suite *PathUnitSuite) TestFolder() {
 				p, err := Builder{}.
 					Append("a/", "b", "c").
 					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return p
 			},
@@ -546,7 +545,7 @@ func (suite *PathUnitSuite) TestFolder() {
 				p, err := Builder{}.
 					Append("a/", "b", "c").
 					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return p
 			},
@@ -680,7 +679,7 @@ func (suite *PathUnitSuite) TestFromString() {
 							testPath := fmt.Sprintf(test.unescapedPath, service, cat)
 
 							p, err := FromDataLayerPath(testPath, item.isItem)
-							require.NoError(t, err)
+							require.NoError(t, err, clues.ToCore(err))
 
 							assert.Equal(t, service, p.Service(), "service")
 							assert.Equal(t, cat, p.Category(), "category")

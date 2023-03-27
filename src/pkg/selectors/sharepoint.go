@@ -197,17 +197,17 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 
 	scopes = append(
 		scopes,
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
 			SharePointWebURL,
 			urlSuffixes,
 			pathFilterFactory(opts...)),
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointListItem,
 			SharePointWebURL,
 			urlSuffixes,
 			pathFilterFactory(opts...)),
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointPage,
 			SharePointWebURL,
 			urlSuffixes,
@@ -276,9 +276,9 @@ func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePoi
 // If any slice is empty, it defaults to [selectors.None]
 func (s *sharePoint) Library(library string) []SharePointScope {
 	return []SharePointScope{
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
-			SharePointFilterLibraryDrive,
+			SharePointInfoLibraryDrive,
 			[]string{library},
 			wrapFilter(filters.Equal)),
 	}
@@ -352,13 +352,13 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 }
 
 // -------------------
-// Filter Factories
+// ItemInfo Factories
 
 func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 	return []SharePointScope{
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterCreatedAfter,
+			SharePointInfoCreatedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -366,9 +366,9 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 
 func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 	return []SharePointScope{
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterCreatedBefore,
+			SharePointInfoCreatedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -376,9 +376,9 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 
 func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 	return []SharePointScope{
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterModifiedAfter,
+			SharePointInfoModifiedAfter,
 			[]string{timeStrings},
 			wrapFilter(filters.Less)),
 	}
@@ -386,9 +386,9 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 
 func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 	return []SharePointScope{
-		makeFilterScope[SharePointScope](
+		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
-			FileFilterModifiedBefore,
+			SharePointInfoModifiedBefore,
 			[]string{timeStrings},
 			wrapFilter(filters.Greater)),
 	}
@@ -408,7 +408,7 @@ var _ categorizer = SharePointCategoryUnknown
 const (
 	SharePointCategoryUnknown sharePointCategory = ""
 
-	// types of data identified by SharePoint
+	// types of data in SharePoint
 	SharePointWebURL        sharePointCategory = "SharePointWebURL"
 	SharePointSite          sharePointCategory = "SharePointSite"
 	SharePointList          sharePointCategory = "SharePointList"
@@ -418,14 +418,14 @@ const (
 	SharePointPageFolder    sharePointCategory = "SharePointPageFolder"
 	SharePointPage          sharePointCategory = "SharePointPage"
 
-	// filterable topics identified by SharePoint
-	SiteFilterCreatedAfter   sharePointCategory = "FileFilterCreatedAfter"
-	SiteFilterCreatedBefore  sharePointCategory = "FileFilterCreatedBefore"
-	SiteFilterModifiedAfter  sharePointCategory = "FileFilterModifiedAfter"
-	SiteFilterModifiedBefore sharePointCategory = "FileFilterModifiedBefore"
+	// details.itemInfo comparables
+	SharePointInfoCreatedAfter   sharePointCategory = "SharePointInfoCreatedAfter"
+	SharePointInfoCreatedBefore  sharePointCategory = "SharePointInfoCreatedBefore"
+	SharePointInfoModifiedAfter  sharePointCategory = "SharePointInfoModifiedAfter"
+	SharePointInfoModifiedBefore sharePointCategory = "SharePointInfoModifiedBefore"
 
 	// library drive selection
-	SharePointFilterLibraryDrive sharePointCategory = "SharePointFilterLibraryDrive"
+	SharePointInfoLibraryDrive sharePointCategory = "SharePointInfoLibraryDrive"
 )
 
 // sharePointLeafProperties describes common metadata of the leaf categories
@@ -459,9 +459,9 @@ func (c sharePointCategory) String() string {
 // Ex: ServiceUser.leafCat() => ServiceUser
 func (c sharePointCategory) leafCat() categorizer {
 	switch c {
-	case SharePointLibraryFolder, SharePointLibraryItem, SharePointFilterLibraryDrive,
-		SiteFilterCreatedAfter, SiteFilterCreatedBefore,
-		SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+	case SharePointLibraryFolder, SharePointLibraryItem, SharePointInfoLibraryDrive,
+		SharePointInfoCreatedAfter, SharePointInfoCreatedBefore,
+		SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
 		return SharePointLibraryItem
 	case SharePointList, SharePointListItem:
 		return SharePointListItem
@@ -576,10 +576,10 @@ func (s SharePointScope) Matches(cat sharePointCategory, target string) bool {
 	return matches(s, cat, target)
 }
 
-// FilterCategory returns the category enum of the scope filter.
-// If the scope is not a filter type, returns SharePointUnknownCategory.
-func (s SharePointScope) FilterCategory() sharePointCategory {
-	return sharePointCategory(getFilterCategory(s))
+// InfoCategory returns the category enum of the scope info.
+// If the scope is not an info type, returns SharePointUnknownCategory.
+func (s SharePointScope) InfoCategory() sharePointCategory {
+	return sharePointCategory(getInfoCategory(s))
 }
 
 // IncludeCategory checks whether the scope includes a
@@ -667,23 +667,23 @@ func (s sharePoint) Reduce(
 // returns true if the scope and info match for the provided category.
 func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	var (
-		filterCat = s.FilterCategory()
-		i         = ""
-		info      = dii.SharePoint
+		infoCat = s.InfoCategory()
+		i       = ""
+		info    = dii.SharePoint
 	)
 
 	if info == nil {
 		return false
 	}
 
-	switch filterCat {
+	switch infoCat {
 	case SharePointWebURL:
 		i = info.WebURL
-	case SiteFilterCreatedAfter, SiteFilterCreatedBefore:
+	case SharePointInfoCreatedAfter, SharePointInfoCreatedBefore:
 		i = common.FormatTime(info.Created)
-	case SiteFilterModifiedAfter, SiteFilterModifiedBefore:
+	case SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
 		i = common.FormatTime(info.Modified)
-	case SharePointFilterLibraryDrive:
+	case SharePointInfoLibraryDrive:
 		ds := []string{}
 
 		if len(info.DriveName) > 0 {
@@ -694,8 +694,8 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 			ds = append(ds, info.DriveID)
 		}
 
-		return matchesAny(s, SharePointFilterLibraryDrive, ds)
+		return matchesAny(s, SharePointInfoLibraryDrive, ds)
 	}
 
-	return s.Matches(filterCat, i)
+	return s.Matches(infoCat, i)
 }

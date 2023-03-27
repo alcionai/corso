@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -15,23 +17,25 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/pkg/errors"
+	"golang.org/x/time/rate"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
-	logGraphRequestsEnvKey  = "LOG_GRAPH_REQUESTS"
-	numberOfRetries         = 3
-	retryAttemptHeader      = "Retry-Attempt"
-	retryAfterHeader        = "Retry-After"
-	defaultMaxRetries       = 3
-	defaultDelay            = 3 * time.Second
-	absoluteMaxDelaySeconds = 180
-	rateLimitHeader         = "RateLimit-Limit"
-	rateRemainingHeader     = "RateLimit-Remaining"
-	rateResetHeader         = "RateLimit-Reset"
+	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
+	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
+	retryAttemptHeader        = "Retry-Attempt"
+	retryAfterHeader          = "Retry-After"
+	defaultMaxRetries         = 3
+	defaultDelay              = 3 * time.Second
+	rateLimitHeader           = "RateLimit-Limit"
+	rateRemainingHeader       = "RateLimit-Remaining"
+	rateResetHeader           = "RateLimit-Reset"
+	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
 // AllMetadataFileNames produces the standard set of filenames used to store graph
@@ -130,7 +134,11 @@ func (c *clientConfig) applyMiddlewareConfig() (retry int, delay time.Duration) 
 // apply updates the http.Client with the expected options.
 func (c *clientConfig) apply(hc *http.Client) {
 	if c.noTimeout {
-		hc.Timeout = 0
+		// FIXME: This should ideally be 0, but if we set to 0, graph
+		// client with automatically set the context timeout to 0 as
+		// well which will make the client unusable.
+		// https://github.com/microsoft/kiota-http-go/pull/71
+		hc.Timeout = 48 * time.Hour
 	}
 }
 
@@ -160,7 +168,10 @@ func MinimumBackoff(dur time.Duration) option {
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
 // to create  *msgraphsdk.GraphServiceClient
-func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.GraphRequestAdapter, error) {
+func CreateAdapter(
+	tenant, client, secret string,
+	opts ...option,
+) (*msgraphsdk.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
@@ -195,7 +206,7 @@ func HTTPClient(opts ...option) *http.Client {
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
 	httpClient := msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
-	httpClient.Timeout = time.Minute * 3
+	httpClient.Timeout = defaultHTTPClientTimeout
 
 	clientconfig.apply(httpClient)
 
@@ -217,12 +228,15 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
+		&ThrottleControlMiddleware{},
 	}
 }
 
 // GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
-	maxRetry int, minDelay time.Duration,
+func GetKiotaMiddlewares(
+	options *msgraphgocore.GraphClientOptions,
+	maxRetry int,
+	minDelay time.Duration,
 ) []khttp.Middleware {
 	kiotaMiddlewares := GetMiddlewares(maxRetry, minDelay)
 	graphMiddlewares := []khttp.Middleware{
@@ -262,34 +276,31 @@ func (handler *LoggingMiddleware) Intercept(
 	req *http.Request,
 ) (*http.Response, error) {
 	var (
-		ctx       = req.Context()
+		ctx = clues.Add(
+			req.Context(),
+			"method", req.Method,
+			"url", req.URL, // TODO: pii
+			"request_len", req.ContentLength,
+		)
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
 	if strings.Contains(req.URL.String(), "users//") {
-		logger.Ctx(ctx).Errorw("malformed request url: missing resource", "url", req.URL)
+		logger.Ctx(ctx).Error("malformed request url: missing resource")
 	}
 
 	if resp == nil {
 		return resp, err
 	}
 
+	ctx = clues.Add(ctx, "status", resp.Status, "statusCode", resp.StatusCode)
+	log := logger.Ctx(ctx)
+
 	// Return immediately if the response is good (2xx).
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
-		if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
-			respDump, _ := httputil.DumpResponse(resp, false)
-
-			metadata := []any{
-				"method", req.Method,
-				"status", resp.Status,
-				"statusCode", resp.StatusCode,
-				"requestLen", req.ContentLength,
-				"url", req.URL,
-				"response", respDump,
-			}
-
-			logger.Ctx(ctx).Debugw("2xx graph api resp", metadata...)
+		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
+			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, false))
 		}
 
 		return resp, err
@@ -300,44 +311,35 @@ func (handler *LoggingMiddleware) Intercept(
 	// Otherwise, throttling cases and other non-2xx responses are logged
 	// with a slimmer reference for telemetry/supportability purposes.
 	if logger.DebugAPI || os.Getenv(logGraphRequestsEnvKey) != "" {
-		respDump, _ := httputil.DumpResponse(resp, true)
-
-		metadata := []any{
-			"method", req.Method,
-			"status", resp.Status,
-			"statusCode", resp.StatusCode,
-			"requestLen", req.ContentLength,
-			"url", req.URL,
-			"response", string(respDump),
-		}
-
-		logger.Ctx(ctx).Errorw("non-2xx graph api response", metadata...)
-	} else {
-		// special case for supportability: log all throttling cases.
-		if resp.StatusCode == http.StatusTooManyRequests {
-			logger.Ctx(ctx).Infow("graph api throttling",
-				"method", req.Method,
-				"url", req.URL,
-				"limit", resp.Header.Get(rateLimitHeader),
-				"remaining", resp.Header.Get(rateRemainingHeader),
-				"reset", resp.Header.Get(rateResetHeader))
-		} else if resp.StatusCode == http.StatusBadRequest {
-			respDump, _ := httputil.DumpResponse(resp, true)
-			logger.Ctx(ctx).Infow(
-				"graph api error",
-				"status", resp.Status,
-				"method", req.Method,
-				"url", req.URL,
-				"response", string(respDump),
-			)
-		} else if resp.StatusCode/100 != 2 {
-			logger.Ctx(ctx).
-				With("status", resp.Status, "method", req.Method, "url", req.URL).
-				Infof("graph api error: %s", resp.Status)
-		}
+		log.Errorw("non-2xx graph api response", "response", getRespDump(ctx, resp, true))
+		return resp, err
 	}
 
+	msg := fmt.Sprintf("graph api error: %s", resp.Status)
+
+	// special case for supportability: log all throttling cases.
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+		log = log.With(
+			"limit", resp.Header.Get(rateLimitHeader),
+			"remaining", resp.Header.Get(rateRemainingHeader),
+			"reset", resp.Header.Get(rateResetHeader),
+			"retry-after", resp.Header.Get(retryAfterHeader))
+	} else if resp.StatusCode/100 == 4 {
+		log = log.With("response", getRespDump(ctx, resp, true))
+	}
+
+	log.Info(msg)
+
 	return resp, err
+}
+
+func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string {
+	respDump, err := httputil.DumpResponse(resp, getBody)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http response")
+	}
+
+	return string(respDump)
 }
 
 // Intercept implements the interface and evaluates whether to retry a failed request.
@@ -372,4 +374,44 @@ func (middleware RetryHandler) Intercept(
 	}
 
 	return response, nil
+}
+
+// We're trying to keep calls below the 10k-per-10-minute threshold.
+// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
+// which is a bit below the mark.
+// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
+// We'll have built up 900 tokens in reserve, so the first 900 calls go through
+// immediately.  Over the next 10 minutes, we'll partition out the other calls
+// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
+// the volume keeps up after that, we'll always stay between 9000 and 9900 out
+// of 10k.
+const (
+	perSecond = 15
+	maxCap    = 900
+)
+
+// Single, global rate limiter at this time.  Refinements for method (creates,
+// versus reads) or service can come later.
+var limiter = rate.NewLimiter(perSecond, maxCap)
+
+// QueueRequest will allow the request to occur immediately if we're under the
+// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
+// the next token set is available.
+func QueueRequest(ctx context.Context) {
+	if err := limiter.Wait(ctx); err != nil {
+		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	}
+}
+
+// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
+// request limits.
+type ThrottleControlMiddleware struct{}
+
+func (handler *ThrottleControlMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	QueueRequest(req.Context())
+	return pipeline.Next(req, middlewareIndex)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -78,7 +79,7 @@ func (suite *FaultErrorsUnitSuite) TestErr() {
 
 			n := fault.New(test.failFast)
 			require.NotNil(t, n)
-			require.NoError(t, n.Failure())
+			require.NoError(t, n.Failure(), clues.ToCore(n.Failure()))
 			require.Empty(t, n.Recovered())
 
 			e := n.Fail(test.fail)
@@ -97,11 +98,11 @@ func (suite *FaultErrorsUnitSuite) TestFail() {
 
 	n := fault.New(false)
 	require.NotNil(t, n)
-	require.NoError(t, n.Failure())
+	require.NoError(t, n.Failure(), clues.ToCore(n.Failure()))
 	require.Empty(t, n.Recovered())
 
 	n.Fail(assert.AnError)
-	assert.Error(t, n.Failure())
+	assert.Error(t, n.Failure(), clues.ToCore(n.Failure()))
 	assert.Empty(t, n.Recovered())
 
 	n.Fail(assert.AnError)
@@ -210,8 +211,8 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	n.AddRecoverable(errors.New("2"))
 
 	d := n.Errors()
-	assert.Equal(t, n.Failure(), d.Failure)
-	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
+	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
+	assert.Len(t, d.Recovered, len(n.Recovered()))
 	assert.False(t, d.FailFast)
 
 	// fail-fast
@@ -223,90 +224,98 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	n.AddRecoverable(errors.New("2"))
 
 	d = n.Errors()
-	assert.Equal(t, n.Failure(), d.Failure)
-	assert.ElementsMatch(t, n.Recovered(), d.Recovered)
+	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
+	assert.Len(t, d.Recovered, len(n.Recovered()))
 	assert.True(t, d.FailFast)
 }
 
 func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
-	ae := assert.AnError
+	ae := clues.Stack(assert.AnError)
+	noncore := []*clues.ErrCore{ae.Core()}
 	addtl := map[string]any{"foo": "bar", "baz": 1}
 
 	table := []struct {
-		name   string
-		errs   func() fault.Errors
-		expect []fault.Item
+		name              string
+		errs              func() *fault.Errors
+		expectItems       []fault.Item
+		expectRecoverable []*clues.ErrCore
 	}{
 		{
 			name: "no errors",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				return fault.New(false).Errors()
 			},
-			expect: []fault.Item{},
+			expectItems:       []fault.Item{},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "no items",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(ae)
 
 				return b.Errors()
 			},
-			expect: []fault.Item{},
+			expectItems:       []fault.Item{},
+			expectRecoverable: noncore,
 		},
 		{
 			name: "failure item",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
 				b.AddRecoverable(ae)
 
 				return b.Errors()
 			},
-			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectItems:       []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectRecoverable: noncore,
 		},
 		{
 			name: "recoverable item",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(fault.OwnerErr(ae, "id", "name", addtl))
 
 				return b.Errors()
 			},
-			expect: []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectItems:       []fault.Item{*fault.OwnerErr(ae, "id", "name", addtl)},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "two items",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "oid", "name", addtl))
 				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
 
 				return b.Errors()
 			},
-			expect: []fault.Item{
+			expectItems: []fault.Item{
 				*fault.OwnerErr(ae, "oid", "name", addtl),
 				*fault.FileErr(ae, "fid", "name", addtl),
 			},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "duplicate items - failure priority",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(fault.OwnerErr(ae, "id", "name", addtl))
 				b.AddRecoverable(fault.FileErr(ae, "id", "name", addtl))
 
 				return b.Errors()
 			},
-			expect: []fault.Item{
+			expectItems: []fault.Item{
 				*fault.OwnerErr(ae, "id", "name", addtl),
 			},
+			expectRecoverable: []*clues.ErrCore{},
 		},
 		{
 			name: "duplicate items - last recoverable priority",
-			errs: func() fault.Errors {
+			errs: func() *fault.Errors {
 				b := fault.New(false)
 				b.Fail(ae)
 				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
@@ -314,14 +323,41 @@ func (suite *FaultErrorsUnitSuite) TestErrors_Items() {
 
 				return b.Errors()
 			},
-			expect: []fault.Item{
+			expectItems: []fault.Item{
 				*fault.FileErr(ae, "fid", "name2", addtl),
 			},
+			expectRecoverable: []*clues.ErrCore{},
+		},
+		{
+			name: "recoverable item and non-items",
+			errs: func() *fault.Errors {
+				b := fault.New(false)
+				b.Fail(ae)
+				b.AddRecoverable(fault.FileErr(ae, "fid", "name", addtl))
+				b.AddRecoverable(ae)
+
+				return b.Errors()
+			},
+			expectItems: []fault.Item{
+				*fault.FileErr(ae, "fid", "name", addtl),
+			},
+			expectRecoverable: noncore,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.ElementsMatch(suite.T(), test.expect, test.errs().Items)
+			t := suite.T()
+			fe := test.errs()
+
+			assert.ElementsMatch(t, test.expectItems, fe.Items)
+			require.Equal(t, test.expectRecoverable, fe.Recovered)
+
+			for i := range test.expectRecoverable {
+				expect := test.expectRecoverable[i]
+				got := fe.Recovered[i]
+
+				assert.Equal(t, *expect, *got)
+			}
 		})
 	}
 }
@@ -337,10 +373,10 @@ func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
 	n.AddRecoverable(errors.New("2"))
 
 	bs, err := json.Marshal(n.Errors())
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	err = json.Unmarshal(bs, &fault.Errors{})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 type legacyErrorsData struct {
@@ -357,14 +393,14 @@ func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
 	}
 
 	jsonStr, err := json.Marshal(oldData)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	t.Logf("jsonStr is %s\n", jsonStr)
 
 	um := fault.Errors{}
 
 	err = json.Unmarshal(jsonStr, &um)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *FaultErrorsUnitSuite) TestTracker() {
@@ -373,18 +409,18 @@ func (suite *FaultErrorsUnitSuite) TestTracker() {
 	eb := fault.New(false)
 
 	lb := eb.Local()
-	assert.NoError(t, lb.Failure())
+	assert.NoError(t, lb.Failure(), clues.ToCore(lb.Failure()))
 	assert.Empty(t, eb.Recovered())
 
 	lb.AddRecoverable(assert.AnError)
-	assert.NoError(t, lb.Failure())
-	assert.NoError(t, eb.Failure())
+	assert.NoError(t, lb.Failure(), clues.ToCore(lb.Failure()))
+	assert.NoError(t, eb.Failure(), clues.ToCore(eb.Failure()))
 	assert.NotEmpty(t, eb.Recovered())
 
 	ebt := fault.New(true)
 
 	lbt := ebt.Local()
-	assert.NoError(t, lbt.Failure())
+	assert.NoError(t, lbt.Failure(), clues.ToCore(lbt.Failure()))
 	assert.Empty(t, ebt.Recovered())
 
 	lbt.AddRecoverable(assert.AnError)

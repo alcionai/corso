@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -35,8 +36,7 @@ func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoConnectorDataCollectionTests),
+		),
 	})
 }
 
@@ -109,7 +109,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				connector.UpdateStatus,
 				control.Options{},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.Empty(t, excludes)
 
 			for range collections {
@@ -117,15 +117,15 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			}
 
 			// Categories with delta endpoints will produce a collection for metadata
-			// as well as the actual data pulled.
+			// as well as the actual data pulled, and the "temp" root collection.
 			assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
-			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
+			assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
 
 			for _, col := range collections {
 				for object := range col.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "received a buf.Read error")
+					assert.NoError(t, err, "received a buf.Read error", clues.ToCore(err))
 				}
 			}
 
@@ -211,7 +211,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 				nil,
 				control.Options{},
 				fault.New(true))
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 			assert.Empty(t, collections)
 			assert.Empty(t, excludes)
 		})
@@ -255,17 +255,18 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			sel := test.getSelector()
 
 			collections, excludes, err := sharepoint.DataCollections(
 				ctx,
 				graph.HTTPClient(graph.NoTimeout()),
-				test.getSelector(),
+				sel,
 				connector.credentials,
 				connector.Service,
 				connector,
 				control.Options{},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			// Not expecting excludes as this isn't an incremental backup.
 			assert.Empty(t, excludes)
 
@@ -281,7 +282,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				for object := range coll.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 					_, err := buf.ReadFrom(object.ToReader())
-					assert.NoError(t, err, "reading item")
+					assert.NoError(t, err, "reading item", clues.ToCore(err))
 				}
 			}
 
@@ -307,8 +308,7 @@ func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoConnectorCreateSharePointCollectionTests),
+		),
 	})
 }
 
@@ -342,18 +342,22 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		nil,
 		control.Options{},
 		fault.New(true))
-	require.NoError(t, err)
-	assert.Len(t, cols, 1)
+	require.NoError(t, err, clues.ToCore(err))
+	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
 
-	for _, collection := range cols {
-		t.Logf("Path: %s\n", collection.FullPath().String())
-		assert.Equal(
-			t,
-			path.SharePointMetadataService.String(),
-			collection.FullPath().Service().String())
-	}
+	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
+	assert.Equal(
+		t,
+		path.SharePointMetadataService.String(),
+		cols[0].FullPath().Service().String())
+
+	t.Logf("cols[1] Path: %s\n", cols[1].FullPath().String())
+	assert.Equal(
+		t,
+		path.SharePointService.String(),
+		cols[1].FullPath().Service().String())
 }
 
 func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection_Lists() {
@@ -376,7 +380,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		nil,
 		control.Options{},
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(cols))
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
@@ -388,7 +392,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 			t.Log("File: " + item.UUID())
 
 			bs, err := io.ReadAll(item.ToReader())
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			t.Log(string(bs))
 		}
 	}

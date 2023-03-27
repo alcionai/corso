@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -33,8 +34,8 @@ func (suite *UploadSessionSuite) TestWriter() {
 
 	// Expected Content-Range value format
 	contentRangeRegex := regexp.MustCompile(`^bytes (?P<rangestart>\d+)-(?P<rangeend>\d+)/(?P<length>\d+)$`)
-
 	nextOffset := -1
+
 	// Initialize a test http server that validates expeected headers
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, r.Method, http.MethodPut)
@@ -45,12 +46,15 @@ func (suite *UploadSessionSuite) TestWriter() {
 
 		// Extract the Content-Range components
 		matches := contentRangeRegex.FindStringSubmatch(r.Header[contentRangeHeaderKey][0])
+
 		rangeStart, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("rangestart")])
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
+
 		rangeEnd, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("rangeend")])
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
+
 		length, err := strconv.Atoi(matches[contentRangeRegex.SubexpIndex("length")])
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
 
 		// Validate total size and range start/end
 		assert.Equal(t, int(writeSize), length)
@@ -62,6 +66,7 @@ func (suite *UploadSessionSuite) TestWriter() {
 
 		nextOffset = rangeEnd
 	}))
+
 	defer ts.Close()
 
 	writer := NewWriter("item", ts.URL, writeSize)
@@ -72,7 +77,7 @@ func (suite *UploadSessionSuite) TestWriter() {
 	copyBuffer := make([]byte, 32*1024)
 
 	size, err := io.CopyBuffer(writer, td, copyBuffer)
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	require.Equal(suite.T(), writeSize, size)
 }
 

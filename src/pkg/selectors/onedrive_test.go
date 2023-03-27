@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -35,7 +36,7 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveBackup() {
 	ob := NewOneDriveBackup(Any())
 	s := ob.Selector
 	ob, err := s.ToOneDriveBackup()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, ob.Service, ServiceOneDrive)
 	assert.NotZero(t, ob.Scopes())
 }
@@ -62,7 +63,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 	}{
 		{"Include Scopes", sel.Includes},
 		{"Exclude Scopes", sel.Excludes},
-		{"Filter Scopes", sel.Filters},
+		{"info scopes", sel.Filters},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -155,7 +156,7 @@ func (suite *OneDriveSelectorSuite) TestToOneDriveRestore() {
 	eb := NewOneDriveRestore(Any())
 	s := eb.Selector
 	or, err := s.ToOneDriveRestore()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, or.Service, ServiceOneDrive)
 	assert.NotZero(t, or.Scopes())
 }
@@ -265,7 +266,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileName + "-id"}
 
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	expected := map[categorizer][]string{
 		OneDriveFolder: {"dir1/dir2"},
@@ -347,10 +348,10 @@ func (suite *OneDriveSelectorSuite) TestCategory_PathType() {
 		{OneDriveUser, path.UnknownCategory},
 		{OneDriveItem, path.FilesCategory},
 		{OneDriveFolder, path.FilesCategory},
-		{FileFilterCreatedAfter, path.FilesCategory},
-		{FileFilterCreatedBefore, path.FilesCategory},
-		{FileFilterModifiedAfter, path.FilesCategory},
-		{FileFilterModifiedBefore, path.FilesCategory},
+		{FileInfoCreatedAfter, path.FilesCategory},
+		{FileInfoCreatedBefore, path.FilesCategory},
+		{FileInfoModifiedAfter, path.FilesCategory},
+		{FileInfoModifiedBefore, path.FilesCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {

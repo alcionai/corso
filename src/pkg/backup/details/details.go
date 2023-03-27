@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -128,13 +127,9 @@ func (dm DetailsModel) FilterMetaFiles() DetailsModel {
 // additional data like permissions in case of OneDrive and are not to
 // be treated as regular files.
 func (de DetailsEntry) isMetaFile() bool {
-	if de.ItemInfo.OneDrive == nil {
-		return false
-	}
-
-	return de.ItemInfo.OneDrive.IsMeta ||
-		strings.HasSuffix(de.RepoRef, ".meta") ||
-		strings.HasSuffix(de.RepoRef, ".dirmeta")
+	// TODO: Add meta file filtering to SharePoint as well once we add
+	// meta files for SharePoint.
+	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
 }
 
 // ---------------------------------------------------------------------------
@@ -652,7 +647,7 @@ type SharePointInfo struct {
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
-	return []string{"ItemName", "Library", "ParentPath", "Size", "WebURL", "Created", "Modified"}
+	return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 }
 
 // Values returns the values matching the Headers list for printing
@@ -663,7 +658,7 @@ func (i SharePointInfo) Values() []string {
 		i.DriveName,
 		i.ParentPath,
 		humanize.Bytes(uint64(i.Size)),
-		i.WebURL,
+		i.Owner,
 		common.FormatTabularDisplayTime(i.Created),
 		common.FormatTabularDisplayTime(i.Modified),
 	}

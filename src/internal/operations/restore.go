@@ -118,8 +118,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			bytesRead: &stats.ByteCounter{},
 			restoreID: uuid.NewString(),
 		}
-		start        = time.Now()
-		detailsStore = streamstore.NewDetails(op.kopia, op.account.ID(), op.Selectors.PathService())
+		start  = time.Now()
+		sstore = streamstore.NewStreamer(op.kopia, op.account.ID(), op.Selectors.PathService())
 	)
 
 	// -----
@@ -144,23 +144,16 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// Execution
 	// -----
 
-	deets, err := op.do(ctx, &opStats, detailsStore, start)
+	deets, err := op.do(ctx, &opStats, sstore, start)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
 		logger.Ctx(ctx).
 			With("err", err).
-			Errorw("doing restore", clues.InErr(err).Slice()...)
-		op.Errors.Fail(errors.Wrap(err, "doing restore"))
+			Errorw("running restore", clues.InErr(err).Slice()...)
+		op.Errors.Fail(errors.Wrap(err, "running restore"))
 	}
 
-	// TODO: the consumer (sdk or cli) should run this, not operations.
-	recoverableCount := len(op.Errors.Recovered())
-	for i, err := range op.Errors.Recovered() {
-		logger.Ctx(ctx).
-			With("error", err).
-			With(clues.InErr(err).Slice()...).
-			Errorf("doing restore: recoverable error %d of %d", i+1, recoverableCount)
-	}
+	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
 
 	// -----
 	// Persistence
@@ -193,6 +186,8 @@ func (op *RestoreOperation) do(
 		return nil, errors.Wrap(err, "getting backup and details")
 	}
 
+	observe.Message(ctx, observe.Safe("Restoring"), observe.Bullet, observe.PII(bup.Selector.DiscreteOwner))
+
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "formatting paths from details")
@@ -201,7 +196,8 @@ func (op *RestoreOperation) do(
 	ctx = clues.Add(
 		ctx,
 		"resource_owner", bup.Selector.DiscreteOwner,
-		"details_paths", len(paths))
+		"details_paths", len(paths),
+		"backup_snapshot_id", bup.SnapshotID)
 
 	op.bus.Event(
 		ctx,

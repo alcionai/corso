@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -60,7 +61,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Valid() {
 	// Read the message using the `ExchangeData` reader and validate it matches what we set
 	buf := &bytes.Buffer{}
 	_, err := buf.ReadFrom(ed.ToReader())
-	assert.Nil(suite.T(), err, "received a buf.Read error")
+	assert.NoError(suite.T(), err, clues.ToCore(err))
 	assert.Equal(suite.T(), buf.Bytes(), m)
 	assert.Equal(suite.T(), description, ed.UUID())
 }
@@ -77,7 +78,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataReader_Empty() {
 	received, err := buf.ReadFrom(ed.ToReader())
 
 	assert.Equal(t, expected, received)
-	assert.Nil(t, err, "received buf.Readfrom error ")
+	assert.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
@@ -93,7 +94,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeData_FullPath() {
 		path.EmailCategory,
 		false,
 		folder)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	edc := Collection{
 		user:     user,
@@ -117,7 +118,7 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 		path.EmailCategory,
 		false,
 		folder)
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	edc := Collection{
 		user:     name,
@@ -129,11 +130,11 @@ func (suite *ExchangeDataCollectionSuite) TestExchangeDataCollection_NewExchange
 
 func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	locP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "human-readable")
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name   string
@@ -198,7 +199,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			name:  "happy",
 			items: &mockItemer{},
 			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err)
+				assert.NoError(t, err, clues.ToCore(err))
 			},
 			expectGetCalls: 1,
 		},
@@ -206,7 +207,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			name:  "an error",
 			items: &mockItemer{getErr: assert.AnError},
 			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err)
+				assert.Error(t, err, clues.ToCore(err))
 			},
 			expectGetCalls: 3,
 		},

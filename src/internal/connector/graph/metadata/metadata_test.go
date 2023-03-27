@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -96,7 +97,7 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_MetaSuffixes() {
 					test.category,
 					true,
 					"file"+ext)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				test.expected(t, metadata.IsMetadataFile(p), "extension %s", ext)
 			})
@@ -117,7 +118,7 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Files_NotMetaSuffixes() {
 					test.category,
 					true,
 					"file"+ext)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				assert.Falsef(t, metadata.IsMetadataFile(p), "extension %s", ext)
 			})
@@ -140,7 +141,7 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Directories() {
 					test.category,
 					false,
 					"file"+ext)
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				assert.Falsef(t, metadata.IsMetadataFile(p), "extension %s", ext)
 			})

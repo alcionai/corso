@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,7 +14,7 @@ func LoadAFile(t *testing.T, fileName string) []byte {
 	bytes, err := os.ReadFile(fileName)
 	if err != nil {
 		f, err := os.Open(fileName)
-		require.NoError(t, err, "opening file: "+fileName)
+		require.NoError(t, err, "opening file:", fileName, clues.ToCore(err))
 
 		defer f.Close()
 
@@ -25,7 +26,7 @@ func LoadAFile(t *testing.T, fileName string) []byte {
 			buffer = append(buffer, temp...)
 		}
 
-		require.NoError(t, reader.Err(), "reading file: "+fileName)
+		require.NoError(t, reader.Err(), "reading file:", fileName, clues.ToCore(err))
 
 		return buffer
 	}

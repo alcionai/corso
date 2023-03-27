@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -175,7 +176,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 				testUser,
 				true,
 			)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Empty(t, p.Folder(false))
 			assert.Empty(t, p.Folders())
@@ -201,7 +202,7 @@ func (suite *DataLayerResourcePath) TestPopFront() {
 				path.EmailCategory,
 				m.isItem,
 			)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			b := p.PopFront()
 			assert.Equal(t, expected.String(), b.String())
@@ -226,14 +227,14 @@ func (suite *DataLayerResourcePath) TestDir() {
 				path.EmailCategory,
 				m.isItem,
 			)
-			require.NoError(suite.T(), err)
+			require.NoError(suite.T(), err, clues.ToCore(err))
 
 			for i := 1; i <= len(rest); i++ {
 				suite.Run(fmt.Sprintf("%v", i), func() {
 					t := suite.T()
 
 					p, err = p.Dir()
-					require.NoError(t, err)
+					require.NoError(t, err, clues.ToCore(err))
 
 					expected := path.Builder{}.Append(elements...).Append(rest[:len(rest)-i]...)
 					assert.Equal(t, expected.String(), p.String())
@@ -332,17 +333,15 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			test.category.String(),
 		}, "_"), func() {
 			t := suite.T()
-
 			pb := path.Builder{}.Append(test.postfix...)
+
 			p, err := pb.ToServiceCategoryMetadataPath(
 				tenant,
 				user,
 				test.service,
 				test.category,
-				false,
-			)
-
-			test.check(t, err)
+				false)
+			test.check(t, err, clues.ToCore(err))
 
 			if err != nil {
 				return
@@ -391,10 +390,8 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 						testTenant,
 						testUser,
 						test.category,
-						m.isItem,
-					)
-
-					test.check(t, err)
+						m.isItem)
+					test.check(t, err, clues.ToCore(err))
 
 					if err != nil {
 						return
@@ -434,7 +431,7 @@ func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 			path.EmailCategory,
 			t,
 		)
-		require.NoError(suite.T(), err)
+		require.NoError(suite.T(), err, clues.ToCore(err))
 
 		suite.paths[t] = p
 	}

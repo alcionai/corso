@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
@@ -45,8 +46,7 @@ func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 
@@ -61,7 +61,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -80,10 +80,9 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
@@ -105,7 +104,8 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
 
@@ -135,7 +135,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 
 	// run the command
 	err := cmd.ExecuteContext(ctx)
-	require.Error(t, err)
+	require.Error(t, err, clues.ToCore(err))
 	assert.Contains(
 		t,
 		err.Error(),
@@ -169,8 +169,7 @@ func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 			t,
 			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 			tester.CorsoCITests,
-			tester.CorsoCLITests,
-			tester.CorsoCLIBackupTests),
+		),
 	})
 }
 
@@ -182,7 +181,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	suite.st = tester.NewPrefixedS3Storage(t)
 
 	cfg, err := suite.st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
 		tester.TestCfgAccountProvider: "M365",
@@ -202,10 +201,9 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	m365UserID := tester.M365UserID(t)
 	users := []string{m365UserID}
@@ -215,8 +213,10 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	sel.Include(sel.Folders(selectors.Any()))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
-	require.NoError(t, suite.backupOp.Run(ctx))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = suite.backupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
@@ -238,7 +238,8 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	ctx = print.SetRootCmd(ctx, cmd)
 
 	// run the command
-	require.NoError(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
 	result := suite.recorder.String()
 
@@ -251,7 +252,8 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 		"--backup", string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID() {
@@ -268,5 +270,6 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }

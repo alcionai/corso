@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -36,16 +37,20 @@ func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
 	return mmr.mans, mmr.mrErr
 }
 
-type mockGetDetailsIDer struct {
-	detailsID string
-	err       error
+type mockGetBackuper struct {
+	detailsID     string
+	streamstoreID string
+	err           error
 }
 
-func (mg mockGetDetailsIDer) GetDetailsIDFromBackupID(
+func (mg mockGetBackuper) GetBackup(
 	ctx context.Context,
 	backupID model.StableID,
-) (string, *backup.Backup, error) {
-	return mg.detailsID, nil, mg.err
+) (*backup.Backup, error) {
+	return &backup.Backup{
+		DetailsID:     mg.detailsID,
+		StreamStoreID: mg.streamstoreID,
+	}, mg.err
 }
 
 type mockColl struct {
@@ -117,7 +122,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -140,7 +145,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -168,10 +173,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 					p, err = contactPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -199,10 +204,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				for _, f := range files {
 					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 					p, err = contactPath.Append(f, true)
-					assert.NoError(t, err)
+					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
@@ -229,7 +234,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			}
 
 			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
-			assert.ErrorIs(t, err, test.expectErr)
+			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 		})
 	}
 }
@@ -394,7 +399,7 @@ func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
 			defer flush()
 
 			err := verifyDistinctBases(ctx, test.mans)
-			test.expect(suite.T(), err)
+			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -431,7 +436,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	table := []struct {
 		name          string
 		mr            mockManifestRestorer
-		gdi           mockGetDetailsIDer
+		gb            mockGetBackuper
 		reasons       []kopia.Reason
 		getMeta       bool
 		assertErr     assert.ErrorAssertionFunc
@@ -445,7 +450,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -458,7 +463,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -471,7 +476,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   false,
 			assertErr: assert.NoError,
@@ -484,7 +489,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mrErr:        assert.AnError,
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.Error,
@@ -500,7 +505,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.EmailCategory, "", "", ""),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError, // No error, even though verify failed.
@@ -513,7 +518,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -529,7 +534,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.ContactsCategory, "", "ir", ""),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -544,7 +549,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
-			gdi:           mockGetDetailsIDer{detailsID: did},
+			gb:            mockGetBackuper{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
@@ -557,7 +562,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
-			gdi:       mockGetDetailsIDer{},
+			gb:        mockGetBackuper{},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -575,7 +580,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.EmailCategory, "incmpl_id", "ir", ""),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -590,7 +595,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				}},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -609,7 +614,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					makeMan(path.ContactsCategory, "contact", "", "bid"),
 				},
 			},
-			gdi:       mockGetDetailsIDer{detailsID: did},
+			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
 			getMeta:   true,
 			assertErr: assert.NoError,
@@ -625,7 +630,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				mockRestorer: mockRestorer{err: assert.AnError},
 				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
-			gdi:           mockGetDetailsIDer{detailsID: did},
+			gb:            mockGetBackuper{detailsID: did},
 			reasons:       []kopia.Reason{},
 			getMeta:       true,
 			assertErr:     assert.Error,
@@ -644,12 +649,12 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				&test.mr,
-				&test.gdi,
+				&test.gb,
 				test.reasons,
 				tid,
 				test.getMeta,
 				fault.New(true))
-			test.assertErr(t, err)
+			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
 			expectMans := test.mr.mans
@@ -837,7 +842,8 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_VerifyDistinctBases() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			test.errCheck(suite.T(), verifyDistinctBases(ctx, test.input))
+			err := verifyDistinctBases(ctx, test.input)
+			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }
@@ -958,7 +964,7 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
 			mr := &mockRestorer{}
 
 			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			checkPaths(t, test.expected, mr.gotPaths)
 		})

@@ -41,7 +41,7 @@ type GraphConnector struct {
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
-	Sites       map[string]string // key<???> value<???>
+	Sites       map[string]string // webURL -> siteID and siteID -> webURL
 	credentials account.M365Config
 
 	// wg is used to track completion of GC tasks
@@ -105,8 +105,7 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		gc.credentials.AzureTenantID,
 		gc.credentials.AzureClientID,
-		gc.credentials.AzureClientSecret,
-	)
+		gc.credentials.AzureClientSecret)
 	if err != nil {
 		return &graph.Service{}, err
 	}
@@ -310,6 +309,7 @@ func getResources(
 		}
 
 		resources[k] = v
+		resources[v] = k
 
 		return true
 	}

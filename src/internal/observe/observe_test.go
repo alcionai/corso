@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -71,7 +72,7 @@ func (suite *ObserveProgressUnitSuite) TestItemProgress() {
 			break
 		}
 
-		assert.NoError(t, err)
+		assert.NoError(t, err, clues.ToCore(err))
 		assert.Equal(t, 25, n)
 		i++
 	}
@@ -104,7 +105,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnCtxCancel
 		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := CollectionProgress(ctx, "test", testcat, testertons)
+	progCh, closer := CollectionProgress(ctx, testcat.clean(), testertons)
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 
@@ -139,7 +140,7 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 		SeedWriter(context.Background(), nil, nil)
 	}()
 
-	progCh, closer := CollectionProgress(ctx, "test", testcat, testertons)
+	progCh, closer := CollectionProgress(ctx, testcat.clean(), testertons)
 	require.NotNil(t, progCh)
 	require.NotNil(t, closer)
 

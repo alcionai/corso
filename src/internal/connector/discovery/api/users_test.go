@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -64,7 +65,7 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 			t := suite.T()
 
 			got, err := validateUser(tt.args)
-			tt.errCheck(t, err)
+			tt.errCheck(t, err, clues.ToCore(err))
 
 			assert.Equal(t, tt.want, got)
 		})

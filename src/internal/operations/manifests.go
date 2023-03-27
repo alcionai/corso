@@ -30,18 +30,18 @@ type manifestRestorer interface {
 	restorer
 }
 
-type getDetailsIDer interface {
-	GetDetailsIDFromBackupID(
+type getBackuper interface {
+	GetBackup(
 		ctx context.Context,
 		backupID model.StableID,
-	) (string, *backup.Backup, error)
+	) (*backup.Backup, error)
 }
 
 // calls kopia to retrieve prior backup manifests, metadata collections to supply backup heuristics.
 func produceManifestsAndMetadata(
 	ctx context.Context,
 	mr manifestRestorer,
-	gdi getDetailsIDer,
+	gb getBackuper,
 	reasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
@@ -91,29 +91,34 @@ func produceManifestsAndMetadata(
 			return nil, nil, false, err
 		}
 
-		mctx = clues.Add(mctx, "manifest_backup_id", man.ID)
+		mctx = clues.Add(mctx, "manifest_backup_id", bID)
 
-		dID, _, err := gdi.GetDetailsIDFromBackupID(mctx, model.StableID(bID))
+		bup, err := gb.GetBackup(mctx, model.StableID(bID))
+		// if no backup exists for any of the complete manifests, we want
+		// to fall back to a complete backup.
+		if errors.Is(err, data.ErrNotFound) {
+			logger.Ctx(mctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
+			return ms, nil, false, nil
+		}
+
 		if err != nil {
-			// if no backup exists for any of the complete manifests, we want
-			// to fall back to a complete backup.
-			if errors.Is(err, data.ErrNotFound) {
-				logger.Ctx(ctx).Infow("backup missing, falling back to full backup", clues.In(mctx).Slice()...)
-				return ms, nil, false, nil
-			}
-
 			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
 		}
 
-		mctx = clues.Add(mctx, "manifest_details_id", dID)
+		ssid := bup.StreamStoreID
+		if len(ssid) == 0 {
+			ssid = bup.DetailsID
+		}
+
+		mctx = clues.Add(mctx, "manifest_streamstore_id", ssid)
 
 		// if no detailsID exists for any of the complete manifests, we want
 		// to fall back to a complete backup.  This is a temporary prevention
 		// mechanism to keep backups from falling into a perpetually bad state.
 		// This makes an assumption that the ID points to a populated set of
 		// details; we aren't doing the work to look them up.
-		if len(dID) == 0 {
-			logger.Ctx(ctx).Infow("backup missing details ID, falling back to full backup", clues.In(mctx).Slice()...)
+		if len(ssid) == 0 {
+			logger.Ctx(ctx).Infow("backup missing streamstore ID, falling back to full backup", clues.In(mctx).Slice()...)
 			return ms, nil, false, nil
 		}
 

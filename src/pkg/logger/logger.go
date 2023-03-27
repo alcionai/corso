@@ -49,6 +49,11 @@ const (
 	readableLogsFN = "readable-logs"
 )
 
+const (
+	Stderr = "stderr"
+	Stdout = "stdout"
+)
+
 // Returns the default location for writing logs
 func defaultLogLocation() string {
 	return filepath.Join(userLogsDir, "corso", "logs", time.Now().UTC().Format("2006-01-02T15-04-05Z")+".log")
@@ -104,31 +109,40 @@ func PreloadLoggingFlags() (string, string) {
 
 	// retrieve the user's preferred log file location
 	// automatically defaults to default log location
-	logfile, err := fs.GetString(logFileFN)
+	lffv, err := fs.GetString(logFileFN)
 	if err != nil {
 		return "info", dlf
 	}
 
+	logfile := GetLogFile(lffv)
+
+	return levelString, logfile
+}
+
+// GetLogFile parses the log file.  Uses the provided value, if populated,
+// then falls back to the env var, and then defaults to stderr.
+func GetLogFile(logFileFlagVal string) string {
+	r := logFileFlagVal
+
 	// if not specified, attempt to fall back to env declaration.
-	if len(logfile) == 0 {
-		logfile = os.Getenv("CORSO_LOG_FILE")
+	if len(r) == 0 {
+		r = os.Getenv("CORSO_LOG_FILE")
 	}
 
-	if logfile == "-" {
-		logfile = "stdout"
+	if r == "-" {
+		r = Stdout
 	}
 
-	if logfile != "stdout" && logfile != "stderr" {
-		LogFile = logfile
-		logdir := filepath.Dir(logfile)
+	if r != Stdout && r != Stderr {
+		logdir := filepath.Dir(r)
 
 		err := os.MkdirAll(logdir, 0o755)
 		if err != nil {
-			return "info", "stderr"
+			return Stderr
 		}
 	}
 
-	return levelString, logfile
+	return r
 }
 
 func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogger) {
@@ -183,7 +197,7 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 			opts = append(opts, zap.WithCaller(false))
 			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
 
-			if logfile == "stderr" || logfile == "stdout" {
+			if logfile == Stderr || logfile == Stdout {
 				cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 			}
 		}
@@ -284,7 +298,9 @@ func Ctx(ctx context.Context) *zap.SugaredLogger {
 // and packs all of the structured data in the error inside it.
 func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
 	return Ctx(ctx).
-		With("error", err).
+		With(
+			"error", err,
+			"error_labels", clues.Labels(err)).
 		With(clues.InErr(err).Slice()...)
 }
 

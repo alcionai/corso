@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
@@ -126,7 +127,7 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			defer flush()
 
 			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
@@ -149,8 +150,7 @@ func TestGraphConnectorIntegrationSuite(t *testing.T) {
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
-			tester.CorsoGraphConnectorTests,
-			tester.CorsoGraphConnectorExchangeTests),
+		),
 	})
 }
 
@@ -181,13 +181,13 @@ func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
 	t := suite.T()
 
 	service, err := newConnector.createService()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	newConnector.Service = service
 	assert.Equal(t, 0, len(newConnector.Sites))
 
 	err = newConnector.setTenantSites(ctx, fault.New(true))
-	assert.NoError(t, err)
+	assert.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(newConnector.Sites))
 
 	for _, site := range newConnector.Sites {
@@ -220,7 +220,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		},
 		nil,
 		fault.New(true))
-	assert.Error(t, err)
+	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
 	status := suite.connector.AwaitStatus()
@@ -299,7 +299,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				},
 				test.col,
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
 			stats := suite.connector.AwaitStatus()
@@ -327,7 +327,7 @@ func mustGetDefaultDriveID(
 		err = graph.Wrap(ctx, err, "retrieving drive")
 	}
 
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	id := ptr.Val(d.GetId())
 	require.NotEmpty(t, id)
@@ -397,7 +397,7 @@ func runRestore(
 		config.opts,
 		collections,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
 	status := restoreGC.AwaitStatus()
@@ -451,7 +451,7 @@ func runBackupAndCompare(
 		nil,
 		config.opts,
 		fault.New(true))
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	// No excludes yet because this isn't an incremental backup.
 	assert.Empty(t, excludes)
 
@@ -649,6 +649,36 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 								bodyText+" 3.",
 							),
 							lookupKey: subjectText + "-3",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Work", "Inbox"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID4",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-4",
+								bodyText+" 4.",
+								bodyText+" 4.",
+							),
+							lookupKey: subjectText + "-4",
+						},
+					},
+				},
+				{
+					pathElements: []string{"Work", "Inbox", "Work"},
+					category:     path.EmailCategory,
+					items: []itemInfo{
+						{
+							name: "someencodeditemID5",
+							data: mockconnector.GetMockMessageWithBodyBytes(
+								subjectText+"-5",
+								bodyText+" 5.",
+								bodyText+" 5.",
+							),
+							lookupKey: subjectText + "-5",
 						},
 					},
 				},
@@ -934,7 +964,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					},
 					collections,
 					fault.New(true))
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
 				status := restoreGC.AwaitStatus()
@@ -963,7 +993,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 				},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			// No excludes yet because this isn't an incremental backup.
 			assert.Empty(t, excludes)
 
@@ -1023,4 +1053,135 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
 		},
 	)
+}
+
+func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections() {
+	table := []struct {
+		name         string
+		resource     resource
+		selectorFunc func(t *testing.T) selectors.Selector
+		service      path.ServiceType
+		categories   []string
+	}{
+		{
+			name:     "Exchange",
+			resource: Users,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewExchangeBackup([]string{suite.user})
+				sel.Include(
+					sel.ContactFolders([]string{selectors.NoneTgt}),
+					sel.EventCalendars([]string{selectors.NoneTgt}),
+					sel.MailFolders([]string{selectors.NoneTgt}),
+				)
+
+				return sel.Selector
+			},
+			service: path.ExchangeService,
+			categories: []string{
+				path.EmailCategory.String(),
+				path.ContactsCategory.String(),
+				path.EventsCategory.String(),
+			},
+		},
+		{
+			name:     "OneDrive",
+			resource: Users,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewOneDriveBackup([]string{suite.user})
+				sel.Include(
+					sel.Folders([]string{selectors.NoneTgt}),
+				)
+
+				return sel.Selector
+			},
+			service: path.OneDriveService,
+			categories: []string{
+				path.FilesCategory.String(),
+			},
+		},
+		// SharePoint lists and pages don't seem to check selectors as expected.
+		//{
+		//	name:     "SharePoint",
+		//	resource: Sites,
+		//	selectorFunc: func(t *testing.T) selectors.Selector {
+		//    sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
+		//    sel.Include(
+		//      sel.Pages([]string{selectors.NoneTgt}),
+		//      sel.Lists([]string{selectors.NoneTgt}),
+		//      sel.Libraries([]string{selectors.NoneTgt}),
+		//    )
+
+		//    return sel.Selector
+		//	},
+		//  service: path.SharePointService,
+		//	categories: []string{
+		//		path.PagesCategory.String(),
+		//		path.ListsCategory.String(),
+		//		path.LibrariesCategory.String(),
+		//	},
+		//},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			var (
+				t         = suite.T()
+				backupGC  = loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
+				backupSel = test.selectorFunc(t)
+				errs      = fault.New(true)
+				start     = time.Now()
+			)
+
+			dcs, excludes, err := backupGC.DataCollections(
+				ctx,
+				backupSel,
+				nil,
+				control.Options{
+					RestorePermissions: false,
+					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
+				},
+				fault.New(true))
+			require.NoError(t, err)
+			// No excludes yet because this isn't an incremental backup.
+			assert.Empty(t, excludes)
+
+			t.Logf("Backup enumeration complete in %v\n", time.Since(start))
+
+			// Use a map to find duplicates.
+			foundCategories := []string{}
+			for _, col := range dcs {
+				// TODO(ashmrtn): We should be able to remove the below if we change how
+				// status updates are done. Ideally we shouldn't have to fetch items in
+				// these collections to avoid deadlocking.
+				var found int
+
+				// Need to iterate through this before the continue below else we'll
+				// hang checking the status.
+				for range col.Items(ctx, errs) {
+					found++
+				}
+
+				// Ignore metadata collections.
+				fullPath := col.FullPath()
+				if fullPath.Service() != test.service {
+					continue
+				}
+
+				assert.Empty(t, fullPath.Folders(), "non-prefix collection")
+				assert.NotEqual(t, col.State(), data.NewState, "prefix collection marked as new")
+				foundCategories = append(foundCategories, fullPath.Category().String())
+
+				assert.Zero(t, found, "non-empty collection")
+			}
+
+			assert.ElementsMatch(t, test.categories, foundCategories)
+
+			backupGC.AwaitStatus()
+
+			assert.NoError(t, errs.Failure())
+		})
+	}
 }

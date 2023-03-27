@@ -11,14 +11,10 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        folder: [Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_, '']
-        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID]
+        user: [ CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID, '' ]
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '1.19'
 
       # sets the maximum time to now-30m.
       # CI test have a 10 minute timeout.
@@ -32,8 +28,12 @@ jobs:
         uses: ./.github/actions/purge-m365-user-data
         with:
           user: ${{ secrets[matrix.user] }}
-          folder-prefix: ${{ matrix.folder }}
+          site: ${{ secrets.CORSO_M365_TEST_SITE_URL}}
+          folder-prefix: "Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_"
+          libraries: ${{ secrets.CORSO_M365_TEST_SITE_LIBRARIES }}
           older-than: ${{ env.HALF_HOUR_AGO }}
           azure-client-id: ${{ secrets.CLIENT_ID }}
           azure-client-secret: ${{ secrets.CLIENT_SECRET }}
           azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}

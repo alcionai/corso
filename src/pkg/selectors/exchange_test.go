@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -37,7 +38,7 @@ func (suite *ExchangeSelectorSuite) TestToExchangeBackup() {
 	eb := NewExchangeBackup(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeBackup()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }
@@ -54,7 +55,7 @@ func (suite *ExchangeSelectorSuite) TestToExchangeRestore() {
 	eb := NewExchangeRestore(nil)
 	s := eb.Selector
 	eb, err := s.ToExchangeRestore()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, eb.Service, ServiceExchange)
 	assert.NotZero(t, eb.Scopes())
 }
@@ -1571,16 +1572,16 @@ func (suite *ExchangeSelectorSuite) TestCategory_PathType() {
 		{ExchangeMail, path.EmailCategory},
 		{ExchangeMailFolder, path.EmailCategory},
 		{ExchangeUser, path.UnknownCategory},
-		{ExchangeFilterMailSender, path.EmailCategory},
-		{ExchangeFilterMailSubject, path.EmailCategory},
-		{ExchangeFilterMailReceivedAfter, path.EmailCategory},
-		{ExchangeFilterMailReceivedBefore, path.EmailCategory},
-		{ExchangeFilterContactName, path.ContactsCategory},
-		{ExchangeFilterEventOrganizer, path.EventsCategory},
-		{ExchangeFilterEventRecurs, path.EventsCategory},
-		{ExchangeFilterEventStartsAfter, path.EventsCategory},
-		{ExchangeFilterEventStartsBefore, path.EventsCategory},
-		{ExchangeFilterEventSubject, path.EventsCategory},
+		{ExchangeInfoMailSender, path.EmailCategory},
+		{ExchangeInfoMailSubject, path.EmailCategory},
+		{ExchangeInfoMailReceivedAfter, path.EmailCategory},
+		{ExchangeInfoMailReceivedBefore, path.EmailCategory},
+		{ExchangeInfoContactName, path.ContactsCategory},
+		{ExchangeInfoEventOrganizer, path.EventsCategory},
+		{ExchangeInfoEventRecurs, path.EventsCategory},
+		{ExchangeInfoEventStartsAfter, path.EventsCategory},
+		{ExchangeInfoEventStartsBefore, path.EventsCategory},
+		{ExchangeInfoEventSubject, path.EventsCategory},
 	}
 	for _, test := range table {
 		suite.T().Run(test.cat.String(), func(t *testing.T) {

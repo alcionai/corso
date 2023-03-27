@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -110,7 +111,7 @@ func TestServiceIteratorsSuite(t *testing.T) {
 func (suite *ServiceIteratorsSuite) SetupSuite() {
 	a := tester.NewMockM365Account(suite.T())
 	m365, err := a.M365Config()
-	require.NoError(suite.T(), err)
+	require.NoError(suite.T(), err, clues.ToCore(err))
 	suite.creds = m365
 }
 
@@ -308,7 +309,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				dps,
 				control.Options{FailFast: test.failFast},
 				fault.New(test.failFast))
-			test.expectErr(t, err)
+			test.expectErr(t, err, clues.ToCore(err))
 
 			// collection assertions
 
@@ -463,7 +464,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				dps,
 				control.Options{FailFast: true},
 				fault.New(true))
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// collection assertions
 
@@ -536,7 +537,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 
 	prevPath := func(t *testing.T, at ...string) path.Path {
 		p, err := path.Build(tenantID, userID, path.ExchangeService, cat, false, at...)
-		require.NoError(t, err)
+		require.NoError(t, err, clues.ToCore(err))
 
 		return p
 	}
@@ -815,7 +816,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incre
 				test.dps,
 				control.Options{},
 				fault.New(true))
-			assert.NoError(t, err)
+			assert.NoError(t, err, clues.ToCore(err))
 
 			metadatas := 0
 			for _, c := range collections {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
@@ -18,7 +19,7 @@ var M365AcctCredEnvs = []string{
 // variables used for integration tests that use Graph Connector.
 func NewM365Account(t *testing.T) account.Account {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "configuring m365 account from test configuration")
+	require.NoError(t, err, "configuring m365 account from test configuration", clues.ToCore(err))
 
 	acc, err := account.NewAccount(
 		account.ProviderM365,
@@ -27,7 +28,7 @@ func NewM365Account(t *testing.T) account.Account {
 			AzureTenantID: cfg[TestCfgAzureTenantID],
 		},
 	)
-	require.NoError(t, err, "initializing account")
+	require.NoError(t, err, "initializing account", clues.ToCore(err))
 
 	return acc
 }
@@ -43,7 +44,7 @@ func NewMockM365Account(t *testing.T) account.Account {
 			AzureTenantID: "09876",
 		},
 	)
-	require.NoError(t, err, "initializing mock account")
+	require.NoError(t, err, "initializing mock account", clues.ToCore(err))
 
 	return acc
 }

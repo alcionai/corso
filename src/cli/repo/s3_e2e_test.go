@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -25,8 +26,7 @@ func TestS3E2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		tester.CorsoCLITests,
-		tester.CorsoCLIRepoTests)})
+	)})
 }
 
 func (suite *S3E2ESuite) TestInitS3Cmd() {
@@ -61,7 +61,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 
 			st := tester.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 			if !test.hasConfigFile {
@@ -80,12 +80,12 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			require.NoError(t, cmd.ExecuteContext(ctx))
+			err = cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// a second initialization should result in an error
 			err = cmd.ExecuteContext(ctx)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists)
+			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists, clues.ToCore(err))
 		})
 	}
 }
@@ -98,7 +98,7 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -115,7 +115,8 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 		cli.BuildCommandTree(cmd)
 
 		// run the command
-		require.NoError(t, cmd.ExecuteContext(ctx))
+		err = cmd.ExecuteContext(ctx)
+		require.NoError(t, err, clues.ToCore(err))
 	}
 }
 
@@ -127,7 +128,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -140,7 +141,8 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *S3E2ESuite) TestConnectS3Cmd() {
@@ -175,7 +177,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 
 			st := tester.NewPrefixedS3Storage(t)
 			cfg, err := st.S3Config()
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			force := map[string]string{
 				tester.TestCfgAccountProvider: "M365",
@@ -193,7 +195,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 
 			// init the repo first
 			_, err = repository.Initialize(ctx, account.Account{}, st, control.Options{})
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it
 			cmd := tester.StubRootCmd(
@@ -205,7 +207,8 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			cli.BuildCommandTree(cmd)
 
 			// run the command
-			assert.NoError(t, cmd.ExecuteContext(ctx))
+			err = cmd.ExecuteContext(ctx)
+			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -218,7 +221,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -232,7 +235,8 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
@@ -243,7 +247,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 
 	st := tester.NewPrefixedS3Storage(t)
 	cfg, err := st.S3Config()
-	require.NoError(t, err)
+	require.NoError(t, err, clues.ToCore(err))
 
 	vpr, configFP := tester.MakeTempTestConfigClone(t, nil)
 
@@ -257,5 +261,6 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 	cli.BuildCommandTree(cmd)
 
 	// run the command
-	require.Error(t, cmd.ExecuteContext(ctx))
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -52,7 +53,8 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), utils.ValidateExchangeRestoreFlags(test.backupID, test.opts))
+			err := utils.ValidateExchangeRestoreFlags(test.backupID, test.opts)
+			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
 }

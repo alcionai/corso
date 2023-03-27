@@ -3,6 +3,7 @@ package onedrive
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -20,6 +21,12 @@ func TestRestoreUnitSuite(t *testing.T) {
 }
 
 func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
+	// Adding a simple test here so that we can be sure that this
+	// function gets updated whenever we add a new version.
+	if version.Backup > version.OneDrive6NameInMeta {
+		require.Less(suite.T(), version.OneDrive6NameInMeta+1, version.Backup, "unsupported backup version")
+	}
+
 	table := []struct {
 		name    string
 		version int
@@ -120,6 +127,41 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 				"folder/folder2/folder2.dirmeta",
 			},
 		},
+		{
+			name:    "no change v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"file.txt.data",
+			},
+			output: []string{
+				"file.txt.data",
+			},
+		},
+		{
+			name:    "one folder v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"folder/file.txt.data",
+			},
+			output: []string{
+				"folder/.dirmeta",
+				"folder/file.txt.data",
+			},
+		},
+		{
+			name:    "nested folders v6",
+			version: version.OneDrive6NameInMeta,
+			input: []string{
+				"folder/file.txt.data",
+				"folder/folder2/file.txt.data",
+			},
+			output: []string{
+				"folder/.dirmeta",
+				"folder/file.txt.data",
+				"folder/folder2/.dirmeta",
+				"folder/folder2/file.txt.data",
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -134,7 +176,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			inPaths := []path.Path{}
 			for _, ps := range test.input {
 				p, err := path.FromDataLayerPath(base+ps, true)
-				require.NoError(t, err, "creating path")
+				require.NoError(t, err, "creating path", clues.ToCore(err))
 
 				inPaths = append(inPaths, p)
 			}
@@ -142,13 +184,13 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 			outPaths := []path.Path{}
 			for _, ps := range test.output {
 				p, err := path.FromDataLayerPath(base+ps, true)
-				require.NoError(t, err, "creating path")
+				require.NoError(t, err, "creating path", clues.ToCore(err))
 
 				outPaths = append(outPaths, p)
 			}
 
 			actual, err := AugmentRestorePaths(test.version, inPaths)
-			require.NoError(t, err, "augmenting paths")
+			require.NoError(t, err, "augmenting paths", clues.ToCore(err))
 
 			// Ordering of paths matter here as we need dirmeta files
 			// to show up before file in dir

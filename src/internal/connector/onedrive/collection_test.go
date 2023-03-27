@@ -201,9 +201,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/dir1/dir2/dir3", "tenant", "owner", test.source)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 			driveFolderPath, err := path.GetDriveFolderPath(folderPath)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -255,11 +255,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 
 			wg.Wait()
 
-			if test.source == OneDriveSource {
-				require.Len(t, readItems, 2) // .data and .meta
-			} else {
-				require.Len(t, readItems, 1)
-			}
+			require.Len(t, readItems, 2) // .data and .meta
 
 			// Expect only 1 item
 			require.Equal(t, 1, collStatus.Metrics.Objects)
@@ -269,11 +265,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			readItem := readItems[0]
 			readItemInfo := readItem.(data.StreamInfo)
 
-			if test.source == OneDriveSource {
-				assert.Equal(t, testItemID+DataFileSuffix, readItem.UUID())
-			} else {
-				assert.Equal(t, testItemID, readItem.UUID())
-			}
+			assert.Equal(t, testItemID+DataFileSuffix, readItem.UUID())
 
 			require.Implements(t, (*data.StreamModTime)(nil), readItem)
 			mt := readItem.(data.StreamModTime)
@@ -302,7 +294,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				assert.Equal(t, testItemID+MetaFileSuffix, readItemMeta.UUID())
 
 				readMetaData, err := io.ReadAll(readItemMeta.ToReader())
-				require.NoError(t, err)
+				require.NoError(t, err, clues.ToCore(err))
 
 				tm, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -350,7 +342,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -393,7 +385,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			assert.True(t, ok)
 
 			_, err = io.ReadAll(collItem.ToReader())
-			assert.Error(t, err)
+			assert.Error(t, err, clues.ToCore(err))
 
 			wg.Wait()
 
@@ -538,7 +530,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			wg.Add(1)
 
 			folderPath, err := GetCanonicalPath("drive/driveID1/root:/folderPath", "a-tenant", "a-user", test.source)
-			require.NoError(t, err)
+			require.NoError(t, err, clues.ToCore(err))
 
 			coll := NewCollection(
 				graph.HTTPClient(graph.NoTimeout()),
@@ -594,8 +586,9 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			for _, i := range readItems {
 				if strings.HasSuffix(i.UUID(), MetaFileSuffix) {
 					content, err := io.ReadAll(i.ToReader())
-					require.NoError(t, err)
+					require.NoError(t, err, clues.ToCore(err))
 					require.Equal(t, content, []byte("{}"))
+
 					im, ok := i.(data.StreamModTime)
 					require.Equal(t, ok, true, "modtime interface")
 					require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
