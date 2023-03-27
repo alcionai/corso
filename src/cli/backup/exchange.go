@@ -167,7 +167,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	idToPN, pnToID, err := m365.UsersMap(ctx, *acct, errs)
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 user(s)"))
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
 	selectorSet := []selectors.Selector{}

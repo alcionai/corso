@@ -31,10 +31,11 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-
-	acct := tester.NewM365Account(t)
-	errs := fault.New(true)
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		errs = fault.New(true)
+	)
 
 	users, err := discovery.Users(ctx, acct, errs)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -42,8 +43,7 @@ func (suite *DiscoveryIntegrationSuite) TestUsers() {
 	ferrs := errs.Errors()
 	assert.Nil(t, ferrs.Failure)
 	assert.Empty(t, ferrs.Recovered)
-
-	assert.Less(t, 0, len(users))
+	assert.NotEmpty(t, users)
 }
 
 func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
@@ -84,16 +84,85 @@ func (suite *DiscoveryIntegrationSuite) TestUsers_InvalidCredentials() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
+			var (
+				t    = suite.T()
+				a    = test.acct(t)
+				errs = fault.New(true)
+			)
 
-			a := test.acct(t)
-			errs := fault.New(true)
 			users, err := discovery.Users(ctx, a, errs)
-
 			assert.Empty(t, users, "returned some users")
 			assert.NotNil(t, err)
-			// TODO(ashmrtn): Uncomment when fault package is used in discovery API.
-			// assert.NotNil(t, errs.Err())
+		})
+	}
+}
+
+func (suite *DiscoveryIntegrationSuite) TestSites() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		errs = fault.New(true)
+	)
+
+	sites, err := discovery.Sites(ctx, acct, errs)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	ferrs := errs.Errors()
+	assert.Nil(t, ferrs.Failure)
+	assert.Empty(t, ferrs.Recovered)
+	assert.NotEmpty(t, sites)
+}
+
+func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	table := []struct {
+		name string
+		acct func(t *testing.T) account.Account
+	}{
+		{
+			name: "Invalid Credentials",
+			acct: func(t *testing.T) account.Account {
+				a, err := account.NewAccount(
+					account.ProviderM365,
+					account.M365Config{
+						M365: credentials.M365{
+							AzureClientID:     "Test",
+							AzureClientSecret: "without",
+						},
+						AzureTenantID: "data",
+					},
+				)
+				require.NoError(t, err, clues.ToCore(err))
+
+				return a
+			},
+		},
+		{
+			name: "Empty Credentials",
+			acct: func(t *testing.T) account.Account {
+				// intentionally swallowing the error here
+				a, _ := account.NewAccount(account.ProviderM365)
+				return a
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t    = suite.T()
+				a    = test.acct(t)
+				errs = fault.New(true)
+			)
+
+			users, err := discovery.Users(ctx, a, errs)
+			assert.Empty(t, users, "returned some users")
+			assert.NotNil(t, err)
 		})
 	}
 }
