@@ -34,11 +34,14 @@ linters-settings:
       # Use filepath instead.
       - '\bpath\.(Ext|Base|Dir|Join)'
       # Don't allow the typo m356 to be used in place of m365.
-      - '[Mm]356'
+      - '[Mm]356(# typo: should be 365)?'
       # Don't allow use of testify suite directly. Use one of the wrappers from
       # tester/suite.go instead. Use an ignore lower down to exclude packages
       # that result in import cycles if they try to use the wrapper.
       - 'suite\.Suite(# tests should use one of the Suite wrappers in tester package )?'
+      # All errors should be constructed and wrapped with the clues package.
+      # String formatting should be avoided in favor of structured errors (ie: err.With(k, v)).
+      - '(errors|fmt)\.(New|Stack|Wrap|Error)f?\((# error handling should use clues pkg)?'
   lll:
     line-length: 120
   revive:
@@ -120,6 +123,7 @@ issues:
         - gofumpt
         - misspell
         - errcheck
+        - forbidigo
     - path: internal/tester/suite.go
       linters:
         - forbidigo
