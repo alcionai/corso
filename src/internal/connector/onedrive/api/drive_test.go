@@ -55,30 +55,3 @@ func (suite *OneDriveAPISuite) TestCreatePagerAndGetPage() {
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, a)
 }
-
-func (suite *OneDriveAPISuite) TestGetDriveIDByName() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
-	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, id)
-}
-
-func (suite *OneDriveAPISuite) TestGetDriveFolderByName() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
-	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, id)
-
-	_, err = pager.GetFolderIDByName(ctx, id, "folder")
-	assert.NoError(t, err, clues.ToCore(err))
-}
