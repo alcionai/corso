@@ -52,7 +52,11 @@ func (ms *ModelStore) Close(ctx context.Context) error {
 	err := ms.c.Close(ctx)
 	ms.c = nil
 
-	return clues.Wrap(err, "closing ModelStore")
+	if err != nil {
+		return clues.Wrap(err, "closing ModelStore")
+	}
+
+	return nil
 }
 
 // tagsForModel creates a copy of tags and adds a tag for the model schema to it.
