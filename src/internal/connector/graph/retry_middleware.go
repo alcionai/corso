@@ -47,9 +47,8 @@ func (middleware RetryHandler) retryRequest(
 		select {
 		case <-ctx.Done():
 			// Don't retry if the context is marked as done, it will just error out
-			// when we attempt to send the retry anyway. I guess return the original
-			// response and the error?
-			return resp, ctx.Err()
+			// when we attempt to send the retry anyway.
+			return nil, ctx.Err()
 
 		// Will exit switch-block so the remainder of the code doesn't need to be
 		// indented.
