@@ -17,6 +17,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -2208,11 +2210,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				servicer graph.Servicer,
 				resourceOwner string,
 				fields []string,
-			) (drivePager, error) {
-				return &mockDrivePager{
-					toReturn: []pagerResult{
+			) (api.DrivePager, error) {
+				return &mock.DrivePager{
+					ToReturn: []mock.PagerResult{
 						{
-							drives: test.drives,
+							Drives: test.drives,
 						},
 					},
 				}, nil
