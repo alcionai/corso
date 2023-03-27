@@ -468,12 +468,14 @@ const (
 	FolderItem ItemType = 306
 )
 
-func UpdateItem(item *ItemInfo, repoPath path.Path) error {
+func UpdateItem(item *ItemInfo, repoPath, locPath path.Path) error {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(path.Path) error
+	var updatePath func(repo path.Path, location path.Path) error
 
 	switch item.infoType() {
+	case ExchangeContact, ExchangeEvent, ExchangeMail:
+		updatePath = item.Exchange.UpdateParentPath
 	case SharePointLibrary:
 		updatePath = item.SharePoint.UpdateParentPath
 	case OneDriveItem:
@@ -482,7 +484,7 @@ func UpdateItem(item *ItemInfo, repoPath path.Path) error {
 		return nil
 	}
 
-	return updatePath(repoPath)
+	return updatePath(repoPath, locPath)
 }
 
 // ItemInfo is a oneOf that contains service specific
@@ -630,6 +632,17 @@ func (i ExchangeInfo) Values() []string {
 	return []string{}
 }
 
+func (i *ExchangeInfo) UpdateParentPath(_, locPath path.Path) error {
+	// Not all data types have this set yet.
+	if locPath == nil {
+		return nil
+	}
+
+	i.ParentPath = locPath.Folder(true)
+
+	return nil
+}
+
 // SharePointInfo describes a sharepoint item
 type SharePointInfo struct {
 	Created    time.Time `json:"created,omitempty"`
@@ -664,7 +677,7 @@ func (i SharePointInfo) Values() []string {
 	}
 }
 
-func (i *SharePointInfo) UpdateParentPath(newPath path.Path) error {
+func (i *SharePointInfo) UpdateParentPath(newPath, _ path.Path) error {
 	newParent, err := path.GetDriveFolderPath(newPath)
 	if err != nil {
 		return clues.Wrap(err, "making sharePoint path").With("path", newPath)
@@ -708,7 +721,7 @@ func (i OneDriveInfo) Values() []string {
 	}
 }
 
-func (i *OneDriveInfo) UpdateParentPath(newPath path.Path) error {
+func (i *OneDriveInfo) UpdateParentPath(newPath, _ path.Path) error {
 	newParent, err := path.GetDriveFolderPath(newPath)
 	if err != nil {
 		return clues.Wrap(err, "making oneDrive path").With("path", newPath)
