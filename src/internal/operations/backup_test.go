@@ -290,8 +290,9 @@ func makeDetailsEntry(
 		}
 
 		res.Exchange = &details.ExchangeInfo{
-			ItemType: details.ExchangeMail,
-			Size:     int64(size),
+			ItemType:   details.ExchangeMail,
+			Size:       int64(size),
+			ParentPath: l.Folder(false),
 		}
 
 	case path.OneDriveService:
