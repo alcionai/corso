@@ -577,7 +577,7 @@ func mergeDetails(
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, newPath); err != nil {
+			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
 				return clues.New("updating item details").WithClues(mctx)
 			}
 
