@@ -179,6 +179,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Collect Workflow Telemetry
+        uses: runforesight/foresight-workflow-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: eebc6219-a63b-4325-bd40-d8267f2a3302
+
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v4
         with:
@@ -219,6 +225,15 @@ jobs:
           -failfast     \
           -p 1          \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
+
+      - name: Analyze Test and/or Coverage Results
+        uses: runforesight/foresight-test-kit-action@v1
+        if: ${{ always() }}
+        with:
+          api_key: eebc6219-a63b-4325-bd40-d8267f2a3302
+          test_format: TEXT
+          test_framework: GOLANG
+          test_path: src/testlog/gotest.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
