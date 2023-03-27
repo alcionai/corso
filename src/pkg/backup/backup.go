@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alcionai/corso/src/cli/print"
@@ -75,10 +76,12 @@ func New(
 	}
 
 	var (
-		errCount                      = len(fe.Items)
-		skipCount                     = len(fe.Skipped)
-		failMsg                       string
-		malware, notFound, otherSkips int
+		errCount  = len(fe.Items)
+		skipCount = len(fe.Skipped)
+		failMsg   string
+
+		malware, notFound,
+		invalidONFile, otherSkips int
 	)
 
 	if fe.Failure != nil {
@@ -92,6 +95,8 @@ func New(
 			malware++
 		case s.HasCause(fault.SkipNotFound):
 			notFound++
+		case s.HasCause(fault.SkipBigOneNote):
+			invalidONFile++
 		default:
 			otherSkips++
 		}
@@ -121,9 +126,10 @@ func New(
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		SkippedCounts: stats.SkippedCounts{
-			TotalSkippedItems: skipCount,
-			SkippedMalware:    malware,
-			SkippedNotFound:   notFound,
+			TotalSkippedItems:         skipCount,
+			SkippedMalware:            malware,
+			SkippedNotFound:           notFound,
+			SkippedInvalidOneNoteFile: invalidONFile,
 		},
 	}
 }
@@ -211,22 +217,26 @@ func (b Backup) Values() []string {
 	if b.TotalSkippedItems > 0 {
 		status += fmt.Sprintf("%d skipped", b.TotalSkippedItems)
 
-		if b.SkippedMalware+b.SkippedNotFound > 0 {
+		if b.SkippedMalware+b.SkippedNotFound+b.SkippedInvalidOneNoteFile > 0 {
 			status += ": "
 		}
 	}
 
-	if b.SkippedMalware > 0 {
-		status += fmt.Sprintf("%d malware", b.SkippedMalware)
+	skipped := []string{}
 
-		if b.SkippedNotFound > 0 {
-			status += ", "
-		}
+	if b.SkippedMalware > 0 {
+		skipped = append(skipped, fmt.Sprintf("%d malware", b.SkippedMalware))
 	}
 
 	if b.SkippedNotFound > 0 {
-		status += fmt.Sprintf("%d not found", b.SkippedNotFound)
+		skipped = append(skipped, fmt.Sprintf("%d not found", b.SkippedNotFound))
 	}
+
+	if b.SkippedInvalidOneNoteFile > 0 {
+		skipped = append(skipped, fmt.Sprintf("%d invalid OneNote file", b.SkippedInvalidOneNoteFile))
+	}
+
+	status += strings.Join(skipped, ", ")
 
 	if errCount+b.TotalSkippedItems > 0 {
 		status += (")")
