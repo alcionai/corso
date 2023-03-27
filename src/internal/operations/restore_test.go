@@ -194,97 +194,104 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	sw := store.NewKopiaStore(ms)
 	suite.sw = sw
 
-	var (
-		users = []string{m365UserID}
-		bsel  = selectors.NewExchangeBackup(users)
-	)
+	suite.Run("exchange_setup", func() {
+		var (
+			t     = suite.T()
+			users = []string{m365UserID}
+			bsel  = selectors.NewExchangeBackup(users)
+		)
 
-	bsel.DiscreteOwner = m365UserID
-	bsel.Include(
-		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
-		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
-		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
-	)
+		bsel.DiscreteOwner = m365UserID
+		bsel.Include(
+			bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
+			bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
+			bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
+		)
 
-	bo, err := NewBackupOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		bsel.Selector,
-		bsel.Selector.DiscreteOwner,
-		evmock.NewBus())
-	require.NoError(t, err, clues.ToCore(err))
+		bo, err := NewBackupOperation(
+			ctx,
+			control.Options{},
+			kw,
+			sw,
+			acct,
+			bsel.Selector,
+			bsel.Selector.DiscreteOwner,
+			evmock.NewBus())
+		require.NoError(t, err, clues.ToCore(err))
 
-	err = bo.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, bo.Results.BackupID)
+		err = bo.Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
+		require.NotEmpty(t, bo.Results.BackupID)
 
-	suite.exchange = bupResults{
-		selectorResourceOwners: users,
-		resourceOwner:          m365UserID,
-		backupID:               bo.Results.BackupID,
-		// Discount metadata collection files (1 delta
-		// and one prev path for each category) as
-		// they are not part of the data restored.
-		items: bo.Results.ItemsWritten - 6,
-	}
+		suite.exchange = bupResults{
+			selectorResourceOwners: users,
+			resourceOwner:          m365UserID,
+			backupID:               bo.Results.BackupID,
+			// Discount metadata collection files (1 delta and one prev path for each category).
+			// These meta files are used to aid restore, but are not themselves
+			// restored (ie: counted as writes).
+			items: bo.Results.ItemsWritten - 6,
+		}
+	})
 
-	var (
-		siteID = tester.M365SiteID(t)
-		sites  = []string{siteID}
-		spsel  = selectors.NewSharePointBackup(sites)
-	)
+	suite.Run("sharepoint_setup", func() {
+		var (
+			t      = suite.T()
+			siteID = tester.M365SiteID(t)
+			sites  = []string{siteID}
+			spsel  = selectors.NewSharePointBackup(sites)
+		)
 
-	spsel.DiscreteOwner = siteID
-	// assume a folder name "test" exists in the drive.
-	// this is brittle, and requires us to backfill anytime
-	// the site under test changes, but also prevents explosive
-	// growth from re-backup/restore of restored files.
-	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+		spsel.DiscreteOwner = siteID
+		// assume a folder name "test" exists in the drive.
+		// this is brittle, and requires us to backfill anytime
+		// the site under test changes, but also prevents explosive
+		// growth from re-backup/restore of restored files.
+		spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 
-	bo, err = NewBackupOperation(
-		ctx,
-		control.Options{},
-		kw,
-		sw,
-		acct,
-		spsel.Selector,
-		spsel.Selector.DiscreteOwner,
-		evmock.NewBus())
-	require.NoError(t, err, clues.ToCore(err))
+		bo, err := NewBackupOperation(
+			ctx,
+			control.Options{},
+			kw,
+			sw,
+			acct,
+			spsel.Selector,
+			spsel.Selector.DiscreteOwner,
+			evmock.NewBus())
+		require.NoError(t, err, clues.ToCore(err))
 
-	// get the count of drives
-	m365, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
+		// get the count of drives
+		m365, err := acct.M365Config()
+		require.NoError(t, err, clues.ToCore(err))
 
-	adpt, err := graph.CreateAdapter(
-		m365.AzureTenantID,
-		m365.AzureClientID,
-		m365.AzureClientSecret)
-	require.NoError(t, err, clues.ToCore(err))
+		adpt, err := graph.CreateAdapter(
+			m365.AzureTenantID,
+			m365.AzureClientID,
+			m365.AzureClientSecret)
+		require.NoError(t, err, clues.ToCore(err))
 
-	service := graph.NewService(adpt)
-	spPgr := api.NewSiteDrivePager(service, siteID, []string{"id", "name"})
+		service := graph.NewService(adpt)
+		spPgr := api.NewSiteDrivePager(service, siteID, []string{"id", "name"})
 
-	drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
-	require.NoError(t, err, clues.ToCore(err))
+		drives, err := api.GetAllDrives(ctx, spPgr, true, 3)
+		require.NoError(t, err, clues.ToCore(err))
 
-	err = bo.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, bo.Results.BackupID)
+		err = bo.Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
+		require.NotEmpty(t, bo.Results.BackupID)
 
-	suite.sharepoint = bupResults{
-		selectorResourceOwners: sites,
-		resourceOwner:          siteID,
-		backupID:               bo.Results.BackupID,
-		// Discount metadata files (1 delta, 1 prev path)
-		// assume only one folder, and therefore 1 dirmeta per drive
-		// assume only one file in each folder, and therefore 1 meta per drive
-		// all of these are not part of the data restored.
-		items: bo.Results.ItemsWritten - 2 - len(drives) - len(drives),
-	}
+		suite.sharepoint = bupResults{
+			selectorResourceOwners: sites,
+			resourceOwner:          siteID,
+			backupID:               bo.Results.BackupID,
+			// Discount metadata files (1 delta, 1 prev path)
+			// assume only one folder, and therefore 1 dirmeta per drive
+			// assume only one file in each folder, and therefore 1 meta per drive.
+			// These meta files are used to aid restore, but are not themselves
+			// restored (ie: counted as writes).
+			items: bo.Results.ItemsWritten - 2 - len(drives) - len(drives),
+		}
+	})
 }
 
 func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
@@ -383,7 +390,8 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 	}
 
 	for _, test := range tables {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
 			mb := evmock.NewBus()
 
 			ro, err := NewRestoreOperation(

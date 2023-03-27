@@ -240,7 +240,7 @@ func RestoreCollection(
 			}
 
 			if skipped {
-				logger.Ctx(ctx).With("item_path", itemPath).Debug("did not restoring item")
+				logger.Ctx(ctx).With("item_path", itemPath).Debug("did not restore item")
 				continue
 			}
 
@@ -352,7 +352,7 @@ func restoreItem(
 
 	// only v6+ backups from this point on
 
-	itemInfo, err := restoreV2File(
+	itemInfo, err := restoreV6File(
 		ctx,
 		source,
 		service,
@@ -364,7 +364,7 @@ func restoreItem(
 		restorePerms,
 		itemData)
 	if err != nil {
-		return details.ItemInfo{}, false, clues.Wrap(err, "v2 restore")
+		return details.ItemInfo{}, false, clues.Wrap(err, "v6 restore")
 	}
 
 	return itemInfo, false, nil
@@ -379,7 +379,6 @@ func restoreV0File(
 	copyBuffer []byte,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
-	// No permissions stored at the moment for SharePoint
 	_, itemInfo, err := restoreData(
 		ctx,
 		service,
@@ -455,7 +454,7 @@ func restoreV1File(
 	return itemInfo, nil
 }
 
-func restoreV2File(
+func restoreV6File(
 	ctx context.Context,
 	source driveSource,
 	service graph.Servicer,
