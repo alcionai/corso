@@ -14,7 +14,7 @@ import (
 
 const (
 	loglevel = "info"
-	logfile  = "stderr"
+	logfile  = logger.Stderr
 	itemID   = "item_id"
 )
 

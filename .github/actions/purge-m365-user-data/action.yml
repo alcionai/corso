@@ -18,6 +18,8 @@ inputs:
     description: User whose data is to be purged.
   site:
     description: Sharepoint site where data is to be purged.
+  libraries:
+    description: List of library names within site where data is to be purged.
   folder-prefix:
     description: Name of the folder to be purged.  If falsy, will purge the set of static, well known folders instead.
   older-than:
@@ -65,7 +67,7 @@ runs:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
-        ./onedrivePurge.ps1 -Site ${{ inputs.site }} -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList ${{ inputs.libraries }} -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     - name: Reset retention for all mailboxes to 0
       if: ${{ inputs.user == '' }}

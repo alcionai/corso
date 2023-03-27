@@ -80,8 +80,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 }
@@ -202,8 +201,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 
