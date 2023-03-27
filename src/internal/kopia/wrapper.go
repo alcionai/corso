@@ -334,7 +334,7 @@ func getItemStream(
 	bcounter ByteCounter,
 ) (data.Stream, error) {
 	if itemPath == nil {
-		return nil, clues.Stack(errNoRestorePath).WithClues(ctx)
+		return nil, clues.Wrap(errNoRestorePath, "getting item stream").WithClues(ctx)
 	}
 
 	// GetNestedEntry handles nil properly.
@@ -420,7 +420,7 @@ func (w Wrapper) RestoreMultipleItems(
 			return nil, el.Failure()
 		}
 
-		ictx := clues.Add(ctx, "item_path", itemPath.String)
+		ictx := clues.Add(ctx, "item_path", itemPath.String())
 
 		ds, err := getItemStream(ictx, itemPath, snapshotRoot, bcounter)
 		if err != nil {

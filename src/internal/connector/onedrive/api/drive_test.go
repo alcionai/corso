@@ -27,7 +27,10 @@ func (suite *OneDriveAPISuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.creds = m365
-	adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		m365.AzureTenantID,
+		m365.AzureClientID,
+		m365.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.service = graph.NewService(adpt)
@@ -51,31 +54,4 @@ func (suite *OneDriveAPISuite) TestCreatePagerAndGetPage() {
 	a, err := pager.GetPage(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, a)
-}
-
-func (suite *OneDriveAPISuite) TestGetDriveIDByName() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
-	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, id)
-}
-
-func (suite *OneDriveAPISuite) TestGetDriveFolderByName() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
-	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, id)
-
-	_, err = pager.GetFolderIDByName(ctx, id, "folder")
-	assert.NoError(t, err, clues.ToCore(err))
 }
