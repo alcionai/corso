@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -164,14 +165,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, *acct, errs)
+	idToPN, pnToID, err := m365.UsersMap(ctx, *acct, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 user(s)"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(users) {
+	for _, discSel := range sel.SplitByResourceOwner(maps.Keys(pnToID)) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -180,7 +181,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"Exchange", "user",
 		selectorSet,
-	)
+		idToPN, pnToID)
 }
 
 func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {

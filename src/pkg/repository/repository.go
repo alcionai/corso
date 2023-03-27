@@ -54,6 +54,7 @@ type Repository interface {
 	NewBackup(
 		ctx context.Context,
 		self selectors.Selector,
+		ownerIDToName, ownerNameToID map[string]string,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -283,17 +284,25 @@ func (r *repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
+// ownerIDToName and ownerNameToID are optional populations, in case the caller has
+// already generated those values.
 func (r repository) NewBackup(
 	ctx context.Context,
 	sel selectors.Selector,
+	ownerIDToName, ownerNameToID map[string]string,
 ) (operations.BackupOperation, error) {
 	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
 
+	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ownerIDToName, ownerNameToID)
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
+	}
+
 	// TODO: retrieve display name from gc
-	sel = sel.SetDiscreteOwnerIDName(sel.DiscreteOwner, "")
+	sel = sel.SetDiscreteOwnerIDName(ownerID, ownerName)
 
 	return operations.NewBackupOperation(
 		ctx,

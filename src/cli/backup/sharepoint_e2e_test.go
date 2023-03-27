@@ -156,14 +156,18 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	m365SiteID := tester.M365SiteID(t)
-	sites := []string{m365SiteID}
+	var (
+		m365SiteID = tester.M365SiteID(t)
+		sites      = []string{m365SiteID}
+		idToName   = map[string]string{m365SiteID: "todo-name-" + m365SiteID}
+		nameToID   = map[string]string{"todo-name-" + m365SiteID: m365SiteID}
+	)
 
 	// some tests require an existing backup
 	sel := selectors.NewSharePointBackup(sites)
 	sel.Include(sel.LibraryFolders(selectors.Any()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, idToName, nameToID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)

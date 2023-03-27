@@ -300,7 +300,11 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	suite.backupOps = make(map[path.CategoryType]string)
 
-	users := []string{suite.m365UserID}
+	var (
+		users    = []string{suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
+		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+	)
 
 	for _, set := range backupDataSets {
 		var (
@@ -321,7 +325,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackup(ctx, sel.Selector, idToName, nameToID)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -546,7 +550,7 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, nil, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)

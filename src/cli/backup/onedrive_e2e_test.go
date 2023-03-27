@@ -205,14 +205,18 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 		})
 	require.NoError(t, err, clues.ToCore(err))
 
-	m365UserID := tester.M365UserID(t)
-	users := []string{m365UserID}
+	var (
+		m365UserID = tester.M365UserID(t)
+		users      = []string{m365UserID}
+		idToName   = map[string]string{m365UserID: "todo-name-" + m365UserID}
+		nameToID   = map[string]string{"todo-name-" + m365UserID: m365UserID}
+	)
 
 	// some tests require an existing backup
 	sel := selectors.NewOneDriveBackup(users)
 	sel.Include(sel.Folders(selectors.Any()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, idToName, nameToID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)

@@ -73,7 +73,12 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
 	suite.m365UserID = tester.M365UserID(t)
-	users := []string{suite.m365UserID}
+
+	var (
+		users    = []string{suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
+		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+	)
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
@@ -100,7 +105,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackup(ctx, sel.Selector, idToName, nameToID)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
