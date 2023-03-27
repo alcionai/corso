@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/stretchr/testify/assert"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
 )
 
@@ -30,7 +30,7 @@ type DrivePager struct {
 
 func (p *DrivePager) GetPage(context.Context) (api.PageLinker, error) {
 	if len(p.ToReturn) <= p.GetIdx {
-		return nil, assert.AnError
+		return nil, clues.New("ToReturn index out of bounds")
 	}
 
 	idx := p.GetIdx
@@ -49,7 +49,7 @@ func (p *DrivePager) ValuesIn(api.PageLinker) ([]models.Driveable, error) {
 	}
 
 	if len(p.ToReturn) <= idx {
-		return nil, assert.AnError
+		return nil, clues.New("ToReturn index out of bounds")
 	}
 
 	return p.ToReturn[idx].Drives, nil
