@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Incorrectly moving subfolder hierarchy from a deleted folder to a new folder at the same path during OneDrive incremental backup.
 - Handle calendar events with no body.
 - Items not being deleted if they were created and deleted during item enumeration of a OneDrive backup.
+- Enable compression for all data uploaded by kopia.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
