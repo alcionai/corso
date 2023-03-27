@@ -740,9 +740,12 @@ func compareOneDriveItem(
 		return true
 	}
 
-	name := item.UUID()
-	isMeta := strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
-		strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
+	var (
+		displayName string
+		name        = item.UUID()
+		isMeta      = strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
+			strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
+	)
 
 	if isMeta {
 		var itemType *onedrive.MetadataItem
@@ -755,8 +758,12 @@ func compareOneDriveItem(
 		// Don't need to check SharePoint because it was added after we stopped
 		// adding meta files to backup details.
 		if info.OneDrive != nil {
+			displayName = oitem.Info().OneDrive.ItemName
+
 			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
-		} else if info.SharePoint == nil {
+		} else if info.SharePoint != nil {
+			displayName = oitem.Info().SharePoint.ItemName
+		} else {
 			assert.Fail(t, "ItemInfo is not SharePoint or OneDrive")
 		}
 	}
@@ -842,6 +849,10 @@ func compareOneDriveItem(
 	// Compare against the version with the file name embedded because that's what
 	// the auto-generated expected data has.
 	assert.Equal(t, expectedData, buf)
+	// Display name in ItemInfo should match the name the file was given in the
+	// test. Name used for the lookup key has a `.data` suffix to make it unique
+	// from the metadata files' lookup keys.
+	assert.Equal(t, fileData.FileName, displayName+onedrive.DataFileSuffix)
 
 	return true
 }
