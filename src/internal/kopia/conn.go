@@ -24,7 +24,7 @@ import (
 const (
 	defaultKopiaConfigDir  = "/tmp/"
 	defaultKopiaConfigFile = "repository.config"
-	defaultCompressor      = "s2-default"
+	defaultCompressor      = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
 )
