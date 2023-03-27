@@ -57,7 +57,7 @@ type CachedContainer interface {
 type ContainerResolver interface {
 	// IDToPath takes an m365 container ID and converts it to a hierarchical path
 	// to that container. The path has a similar format to paths on the local
-	// file system. Returned path uses folder IDs.
+	// file system.
 	IDToPath(ctx context.Context, m365ID string) (*path.Builder, *path.Builder, error)
 
 	// Populate performs initialization steps for the resolver

@@ -95,9 +95,9 @@ func (cr *containerResolver) idToPath(
 	return fullPath, locPath, nil
 }
 
-// PathInCache utility function to return m365ID of folder if the path.Folders
-// matches the directory of a container within the cache. A boolean result
-// is provided to indicate whether the lookup was successful.
+// PathInCache is a utility function to return m365ID of a folder if the
+// path.Folders matches the directory of a container within the cache. A boolean
+// result is provided to indicate whether the lookup was successful.
 func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 	if len(pathString) == 0 || cr == nil {
 		return "", false
@@ -116,9 +116,9 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 	return "", false
 }
 
-// LocationInCache utility function to return m365ID of folder if the path.Folders
-// matches the directory of a container within the cache. A boolean result
-// is provided to indicate whether the lookup was successful.
+// LocationInCache is a utility function to return m365ID of a folder if the
+// path.Folders matches the directory of a container within the cache. A boolean
+// result is provided to indicate whether the lookup was successful.
 func (cr *containerResolver) LocationInCache(pathString string) (string, bool) {
 	if len(pathString) == 0 || cr == nil {
 		return "", false
