@@ -15,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -80,7 +81,7 @@ type Collections struct {
 		servicer graph.Servicer,
 		resourceOwner string,
 		fields []string,
-	) (drivePager, error)
+	) (api.DrivePager, error)
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
@@ -273,7 +274,7 @@ func (c *Collections) Get(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	drives, err := drives(ctx, pager, true)
+	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -197,7 +197,8 @@ func (op *RestoreOperation) do(
 		ctx,
 		"resource_owner", bup.Selector.DiscreteOwner,
 		"details_paths", len(paths),
-		"backup_snapshot_id", bup.SnapshotID)
+		"backup_snapshot_id", bup.SnapshotID,
+		"backup_version", bup.Version)
 
 	op.bus.Event(
 		ctx,
@@ -218,7 +219,7 @@ func (op *RestoreOperation) do(
 
 	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving collections from repository")
+		return nil, errors.Wrap(err, "producing collections to restore")
 	}
 
 	kopiaComplete <- struct{}{}
