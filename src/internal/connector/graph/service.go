@@ -13,9 +13,9 @@ import (
 	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	ka "github.com/microsoft/kiota-authentication-azure-go"
+	kauth "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"golang.org/x/time/rate"
 
@@ -57,22 +57,22 @@ type QueryParams struct {
 var _ Servicer = &Service{}
 
 type Service struct {
-	adapter *msgraphsdk.GraphRequestAdapter
-	client  *msgraphsdk.GraphServiceClient
+	adapter *msgraphsdkgo.GraphRequestAdapter
+	client  *msgraphsdkgo.GraphServiceClient
 }
 
-func NewService(adapter *msgraphsdk.GraphRequestAdapter) *Service {
+func NewService(adapter *msgraphsdkgo.GraphRequestAdapter) *Service {
 	return &Service{
 		adapter: adapter,
-		client:  msgraphsdk.NewGraphServiceClient(adapter),
+		client:  msgraphsdkgo.NewGraphServiceClient(adapter),
 	}
 }
 
-func (s Service) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (s Service) Adapter() *msgraphsdkgo.GraphRequestAdapter {
 	return s.adapter
 }
 
-func (s Service) Client() *msgraphsdk.GraphServiceClient {
+func (s Service) Client() *msgraphsdkgo.GraphServiceClient {
 	return s.client
 }
 
@@ -171,14 +171,14 @@ func MinimumBackoff(dur time.Duration) option {
 func CreateAdapter(
 	tenant, client, secret string,
 	opts ...option,
-) (*msgraphsdk.GraphRequestAdapter, error) {
+) (*msgraphsdkgo.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating m365 client identity")
 	}
 
-	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
+	auth, err := kauth.NewAzureIdentityAuthenticationProviderWithScopes(
 		cred,
 		[]string{"https://graph.microsoft.com/.default"},
 	)
@@ -188,7 +188,7 @@ func CreateAdapter(
 
 	httpClient := HTTPClient(opts...)
 
-	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
 		nil, nil,
 		httpClient)
@@ -201,7 +201,7 @@ func CreateAdapter(
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
 func HTTPClient(opts ...option) *http.Client {
-	clientOptions := msgraphsdk.GetDefaultClientOptions()
+	clientOptions := msgraphsdkgo.GetDefaultClientOptions()
 	clientconfig := (&clientConfig{}).populate(opts...)
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
@@ -258,10 +258,10 @@ func GetKiotaMiddlewares(
 type Servicer interface {
 	// Client() returns msgraph Service client that can be used to process and execute
 	// the majority of the queries to the M365 Backstore
-	Client() *msgraphsdk.GraphServiceClient
+	Client() *msgraphsdkgo.GraphServiceClient
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
-	Adapter() *msgraphsdk.GraphRequestAdapter
+	Adapter() *msgraphsdkgo.GraphRequestAdapter
 }
 
 // ---------------------------------------------------------------------------

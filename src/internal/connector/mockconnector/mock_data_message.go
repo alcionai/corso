@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	js "github.com/microsoft/kiota-serialization-json-go"
+	serialization "github.com/microsoft/kiota-abstractions-go/serialization"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
@@ -715,7 +715,7 @@ func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, 
 	message, err := hydrateMessage(base)
 	require.NoError(t, err, clues.ToCore(err))
 
-	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
+	parseNode, err := kioser.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
 	require.NoError(t, err, clues.ToCore(err))
 
 	anObject, err := parseNode.GetObjectValue(models.CreateContactFromDiscriminatorValue)
@@ -733,8 +733,8 @@ func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, 
 	return serialize(t, message)
 }
 
-func serialize(t *testing.T, item absser.Parsable) []byte {
-	wtr := js.NewJsonSerializationWriter()
+func serialize(t *testing.T, item serialization.Parsable) []byte {
+	wtr := kioser.NewJsonSerializationWriter()
 	err := wtr.WriteObjectValue("", item)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -745,7 +745,7 @@ func serialize(t *testing.T, item absser.Parsable) []byte {
 }
 
 func hydrateMessage(byteArray []byte) (models.Messageable, error) {
-	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
+	parseNode, err := kioser.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes into base m365 object")
 	}

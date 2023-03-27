@@ -12,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -111,7 +111,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	ctx, end := D.Span(ctx, "operations:backup:run")
+	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
 	defer func() {
 		end()
 		// wait for the progress display to clean up
