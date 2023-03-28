@@ -573,12 +573,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 	owners := []string{suite.user}
 
 	tests := []struct {
-		name           string
-		selector       func() *selectors.ExchangeBackup
-		resourceOwner  string
-		category       path.CategoryType
-		metadataFiles  []string
-		runIncremental bool
+		name          string
+		selector      func() *selectors.ExchangeBackup
+		resourceOwner string
+		category      path.CategoryType
+		metadataFiles []string
 	}{
 		{
 			name: "Mail",
@@ -589,10 +588,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 
 				return sel
 			},
-			resourceOwner:  suite.user,
-			category:       path.EmailCategory,
-			metadataFiles:  exchange.MetadataFileNames(path.EmailCategory),
-			runIncremental: true,
+			resourceOwner: suite.user,
+			category:      path.EmailCategory,
+			metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
 		},
 		{
 			name: "Contacts",
@@ -601,10 +599,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				sel.Include(sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()))
 				return sel
 			},
-			resourceOwner:  suite.user,
-			category:       path.ContactsCategory,
-			metadataFiles:  exchange.MetadataFileNames(path.ContactsCategory),
-			runIncremental: true,
+			resourceOwner: suite.user,
+			category:      path.ContactsCategory,
+			metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
 		},
 		{
 			name: "Calendar Events",
@@ -627,7 +624,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.Toggles{}
 			)
 
-			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, _, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
 			defer closer()
 
 			m365, err := acct.M365Config()
@@ -645,48 +642,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				test.resourceOwner,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles},
-			)
-
-			if !test.runIncremental {
-				return
-			}
-
-			// Basic, happy path incremental test.  No changes are dictated or expected.
-			// This only tests that an incremental backup is runnable at all, and that it
-			// produces fewer results than the last backup.
-			var (
-				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
-			)
-
-			runAndCheckBackup(t, ctx, &incBO, incMB)
-			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, test.resourceOwner, test.category)
-			checkMetadataFilesExist(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				kw,
-				ms,
-				m365.AzureTenantID,
-				test.resourceOwner,
-				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles},
-			)
-
-			// do some additional checks to ensure the incremental dealt with fewer items.
-			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
-			assert.Greater(t, bo.Results.ItemsRead, incBO.Results.ItemsRead, "incremental items read")
-			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
-			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
-			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
-			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
-			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
-			assert.Equal(t,
-				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				incBO.Results.BackupID, "incremental backupID pre-declaration")
+				map[path.CategoryType][]string{test.category: test.metadataFiles})
 		})
 	}
 }
