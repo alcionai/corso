@@ -60,7 +60,14 @@ func (c Contacts) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
-	err := c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := newService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}

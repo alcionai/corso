@@ -1408,7 +1408,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		{
 			name: "delete file",
 			updateUserData: func(t *testing.T) {
-				err = gc.Service.
+				// deletes require unique http clients
+				// https://github.com/alcionai/corso/issues/2707
+				err = newDeleteServicer(t).
 					Client().
 					DrivesById(driveID).
 					ItemsById(ptr.Val(newFile.GetId())).
@@ -1467,7 +1469,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			name: "delete a folder",
 			updateUserData: func(t *testing.T) {
 				container := containerIDs[container2]
-				err := gc.Service.
+				// deletes require unique http clients
+				// https://github.com/alcionai/corso/issues/2707
+				err = newDeleteServicer(t).
 					Client().
 					DrivesById(driveID).
 					ItemsById(container).
@@ -1571,4 +1575,20 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	runAndCheckBackup(t, ctx, &bo, mb)
 	checkBackupIsInManifests(t, ctx, kw, &bo, sel.Selector, suite.site, path.LibrariesCategory)
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func newDeleteServicer(t *testing.T) graph.Servicer {
+	acct := tester.NewM365Account(t)
+
+	m365, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	a, err := graph.CreateAdapter(acct.ID(), m365.AzureClientID, m365.AzureClientSecret)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return graph.NewService(a)
 }

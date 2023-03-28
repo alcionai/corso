@@ -389,6 +389,8 @@ func fetchColumnLinks(
 }
 
 // DeleteList removes a list object from a site.
+// deletes require unique http clients
+// https://github.com/alcionai/corso/issues/2707
 func DeleteList(
 	ctx context.Context,
 	gs graph.Servicer,
