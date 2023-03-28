@@ -333,6 +333,7 @@ func checkOnedriveRestoration(
 		}
 
 		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission)
 	}
 
 	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission)
@@ -365,6 +366,39 @@ func checkOnedriveRestoration(
 	}
 
 	fmt.Println("Success")
+}
+
+func getOneDriveChildFolder(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	driveID, itemID, parentName string,
+	fileSizes map[string]int64,
+	folderPermission map[string][]permissionInfo,
+) {
+	response, err := client.DrivesById(driveID).ItemsById(itemID).Children().Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting permission", err)
+	}
+
+	for _, driveItem := range response.GetValue() {
+		var (
+			itemID   = ptr.Val(driveItem.GetId())
+			itemName = path.Join(parentName, ptr.Val(driveItem.GetName()))
+		)
+
+		// if it's a file check the size
+		if driveItem.GetFile() != nil {
+			fileSizes[itemName] = ptr.Val(driveItem.GetSize())
+		}
+
+		if driveItem.GetFolder() == nil && driveItem.GetPackage() == nil {
+			continue
+		}
+
+		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission)
+	}
+
 }
 
 func permissionIn(
@@ -442,6 +476,8 @@ func getRestoreData(
 		}
 
 		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder)
+
 	}
 }
 

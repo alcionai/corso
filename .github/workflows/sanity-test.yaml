@@ -324,7 +324,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore onedrive \
-          --restore-permissions
+          --restore-permissions \
           --hide-progress \
           --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
