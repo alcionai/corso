@@ -100,44 +100,36 @@ jobs:
         id: environment
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=environment::Production"
-            echo "::set-output name=environment::Production"
+            echo "environment=Production" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=environment::Testing"
-            echo "::set-output name=environment::Testing"
+            echo "environment=Testing" | tee -a $GITHUB_OUTPUT
           fi
 
       - name: Get version string
         id: version
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
-            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+            echo "version=$(git describe --exact-match --tags $(git rev-parse HEAD))" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
-            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+            echo "version=$(echo unreleased-$(git rev-parse --short HEAD))" | tee -a $GITHUB_OUTPUT
           fi
 
       - name: Get bucket name for website
         id: website-bucket
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=website-bucket::corsobackup.io"
-            echo "::set-output name=website-bucket::corsobackup.io"
+            echo "website-bucket=corsobackup.io" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=website-bucket::test-corso-docs"
-            echo "::set-output name=website-bucket::test-corso-docs"
+            echo "website-bucket=test-corso-docs" | tee -a $GITHUB_OUTPUT
           fi
 
       - name: Get cfid for website
         id: website-cfid
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=website-cfid::E1W9NGI9YTVZ1A"
-            echo "::set-output name=website-cfid::E1W9NGI9YTVZ1A"
+            echo "website-cfid=E1W9NGI9YTVZ1A" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=website-cfid::ESFTEIYTIP7Y3"
-            echo "::set-output name=website-cfid::ESFTEIYTIP7Y3"
+            echo "website-cfid=ESFTEIYTIP7Y3" | tee -a $GITHUB_OUTPUT
           fi
 
 

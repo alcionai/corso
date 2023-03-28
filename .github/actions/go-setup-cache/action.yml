@@ -37,8 +37,7 @@ runs:
     - name: Determine Golang cache paths
       id: golang-path
       run: |
-        echo "::set-output name=build::$(go env GOCACHE)"
-        echo "::set-output name=module::$(go env GOMODCACHE)"
+        echo "build=$(go env GOCACHE)" | tee -a $GITHUB_OUTPUT
       shell: bash
 
     - name: Setup Golang cache
