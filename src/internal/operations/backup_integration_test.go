@@ -455,6 +455,29 @@ func toDataLayerPath(
 	return p
 }
 
+func mustGetDefaultDriveID(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	service graph.Servicer,
+	userID string,
+) string {
+	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
+	if err != nil {
+		err = graph.Wrap(
+			ctx,
+			err,
+			"retrieving default user drive").
+			With("user", userID)
+	}
+
+	require.NoError(t, err)
+
+	id := ptr.Val(d.GetId())
+	require.NotEmpty(t, id, "drive ID not set")
+
+	return id
+}
+
 // ---------------------------------------------------------------------------
 // integration tests
 // ---------------------------------------------------------------------------
@@ -1131,31 +1154,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		connector.Users,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-
-	// TODO: whomever can figure out a way to declare this outside of this func
-	// and not have the linter complain about unused is welcome to do so.
-	mustGetDefaultDriveID := func(
-		t *testing.T,
-		ctx context.Context, //revive:disable-line:context-as-argument
-		service graph.Servicer,
-		userID string,
-	) string {
-		d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
-		if err != nil {
-			err = graph.Wrap(
-				ctx,
-				err,
-				"retrieving default user drive").
-				With("user", userID)
-		}
-
-		require.NoError(t, err)
-
-		id := ptr.Val(d.GetId())
-		require.NotEmpty(t, id, "drive ID not set")
-
-		return id
-	}
 
 	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
 
