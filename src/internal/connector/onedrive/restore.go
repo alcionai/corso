@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -144,7 +144,7 @@ func RestoreCollection(
 		el          = errs.Local()
 	)
 
-	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", directory))
+	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreCollection", diagnostics.Label("path", directory))
 	defer end()
 
 	drivePath, err := path.ToOneDrivePath(directory)
@@ -573,7 +573,7 @@ func restoreData(
 	copyBuffer []byte,
 	source driveSource,
 ) (string, details.ItemInfo, error) {
-	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
 	ctx = clues.Add(ctx, "item_name", itemData.UUID())
