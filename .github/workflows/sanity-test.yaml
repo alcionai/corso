@@ -233,6 +233,7 @@ jobs:
           ./corso backup create onedrive \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
+          --enable-permissions-backup \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
@@ -281,6 +282,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore onedrive \
+          --restore-permissions \
           --hide-progress \
           --backup "${{ steps.onedrive-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
@@ -300,6 +302,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
+          --enable-permissions-backup \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}"\
           --json \
@@ -321,6 +324,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore onedrive \
+          --restore-permissions
           --hide-progress \
           --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 

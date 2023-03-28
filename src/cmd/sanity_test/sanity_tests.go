@@ -87,10 +87,7 @@ func checkEmailRestoration(
 		values := result.GetValue()
 
 		for _, v := range values {
-
-			var (
-				itemName = ptr.Val(v.GetDisplayName())
-			)
+			itemName := ptr.Val(v.GetDisplayName())
 
 			if itemName == folderName {
 				restoreFolder = v
@@ -196,7 +193,7 @@ func getAllSubFolder(
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			childFolderCount = ptr.Val(child.GetChildFolderCount())
-			fullFolderName   = path.Join(parentFolder, childDisplayName)
+			fullFolderName   = parentFolder + "/" + childDisplayName
 		)
 
 		if strings.Contains(fullFolderName, dataFolder) {
@@ -267,7 +264,13 @@ type permissionInfo struct {
 	roles    []string
 }
 
-func checkOnedriveRestoration(ctx context.Context, client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
+func checkOnedriveRestoration(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	testUser,
+	folderName string,
+	startTime time.Time,
+) {
 	var (
 		// map itemID -> item size
 		fileSizes = make(map[string]int64)
@@ -329,27 +332,18 @@ func checkOnedriveRestoration(ctx context.Context, client *msgraphsdk.GraphServi
 			continue
 		}
 
-		// permission, err := client.
-		// 	DrivesById(*drive.GetId()).
-		// 	ItemsById(*driveItem.GetId()).
-		// 	Permissions().
-		// 	Get(context.TODO(), nil)
-		// if err != nil {
-		// 	fmt.Printf("Error getting item by id: %v\n", err)
-		// 	os.Exit(1)
-		// }
-
 		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
-
 	}
 
 	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission)
 
 	for checkFolderName, checkfolderPer := range folderPermission {
+		fmt.Printf("checking for folder: %s", checkFolderName)
+
 		for i, orginalFolderPer := range checkfolderPer {
 			if !(orginalFolderPer.entityID != restoreFolderPermission[checkFolderName][i].entityID) &&
 				!slices.Equal(orginalFolderPer.roles, restoreFolderPermission[checkFolderName][i].roles) {
-				fmt.Println("permissions are not equal")
+				fmt.Printf("permissions are not equal")
 				fmt.Printf("*  expected role: %+v \n", orginalFolderPer.roles)
 				fmt.Printf("*  actual:  %+v \n", restoreFolderPermission[checkFolderName][i].roles)
 				fmt.Printf("* entitiy ID expected: %+v \n", orginalFolderPer.entityID)
@@ -374,7 +368,6 @@ func checkOnedriveRestoration(ctx context.Context, client *msgraphsdk.GraphServi
 }
 
 func permissionIn(
-	// permissionColl models.PermissionCollectionResponseable,
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	driveID, itemID, folderName string,
@@ -438,7 +431,6 @@ func getRestoreData(
 			itemName = ptr.Val(item.GetName())
 			itemSize = ptr.Val(item.GetSize())
 		)
-		// restoreName := ptr.Val(restoreData.GetName())
 
 		if item.GetFile() != nil {
 			restoreFile[itemName] = itemSize
@@ -450,7 +442,6 @@ func getRestoreData(
 		}
 
 		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
-
 	}
 }
 
