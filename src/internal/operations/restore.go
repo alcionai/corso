@@ -132,6 +132,9 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		observe.Complete()
 	}()
 
+	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
+	defer flushMetrics()
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", op.account.ID(), // TODO: pii
