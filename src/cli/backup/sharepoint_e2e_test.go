@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -161,7 +162,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 
 	// some tests require an existing backup
 	sel := selectors.NewSharePointBackup(sites)
-	sel.Include(sel.LibraryFolders(selectors.Any()))
+	sel.Include(testdata.BackupFolderScope(sel))
 
 	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, err, clues.ToCore(err))
