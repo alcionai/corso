@@ -67,7 +67,7 @@ func RestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, _, _, err = onedrive.RestoreCollection(
+			metrics, _, err = onedrive.RestoreCollection(
 				ictx,
 				backupVersion,
 				service,
@@ -76,7 +76,6 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				map[string]string{},
 				false,
 				errs)
 		case path.ListsCategory:
