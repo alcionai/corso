@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.220
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.0
+	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/kopia/kopia v0.12.2-0.20230123092305-e5387cec0acb
 	github.com/microsoft/kiota-abstractions-go v0.18.0

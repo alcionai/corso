@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"golang.org/x/exp/slices"
 )
 
 func main() {
@@ -27,8 +27,10 @@ func main() {
 		return
 	}
 
-	testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
-	folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
+	testUser := "HenriettaM@10rqc2.onmicrosoft.com"
+	folder := "Corso_Restore_28-Mar-2023_07-13-04"
+	// testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
+	// folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
 	dataFolder := os.Getenv("TEST_DATA")
 	baseBackupFolder := os.Getenv("BASE_BACKUP")
 
@@ -254,10 +256,20 @@ func checkAllSubFolder(
 	}
 }
 
+type permissionInfo struct {
+	entityID string
+	roles    []string
+}
+
 func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
-	file := make(map[string]int64)
-	folderPermission := make(map[string][]string)
-	restoreFolderID := ""
+	var (
+		file            = make(map[string]int64)
+		perMap          = make(map[string][]permissionInfo)
+		restoreFolderID = ""
+		restoreFile     = make(map[string]int64)
+		restorePerMap   = make(map[string][]permissionInfo)
+		rStartTime      time.Time
+	)
 
 	drive, err := client.UsersById(testUser).Drive().Get(context.Background(), nil)
 	if err != nil {
@@ -276,8 +288,6 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 			restoreFolderID = *driveItem.GetId()
 			continue
 		}
-
-		var rStartTime time.Time
 
 		restoreStartTime := strings.SplitAfter(*driveItem.GetName(), "Corso_Restore_")
 		if len(restoreStartTime) > 1 {
@@ -304,26 +314,76 @@ func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, f
 				os.Exit(1)
 			}
 
-			// check if permission are correct on folder
-			for _, permission := range permission.GetValue() {
-				folderPermission[*driveItem.GetName()] = permission.GetRoles()
-			}
+			checkPermission(permission, perMap, *driveItem.GetName())
 
 			continue
 		}
 	}
 
-	checkFileData(client, *drive.GetId(), restoreFolderID, file, folderPermission)
+	getRestoreData(client, *drive.GetId(), restoreFolderID, restoreFile, restorePerMap)
+
+	for checkFolderName, checkfolderPer := range perMap {
+		for i, orginalFolderPer := range checkfolderPer {
+			if !(orginalFolderPer.entityID != restorePerMap[checkFolderName][i].entityID) &&
+				!slices.Equal(orginalFolderPer.roles, restorePerMap[checkFolderName][i].roles) {
+				fmt.Println("permissions are not equal")
+				fmt.Printf("*  expected role: %+v \n", orginalFolderPer.roles)
+				fmt.Printf("*  actual:  %+v \n", restorePerMap[checkFolderName][i].roles)
+				fmt.Printf("* entitiy ID expected: %+v \n", orginalFolderPer.entityID)
+				fmt.Printf("* entitiy ID actual:  %+v \n", restorePerMap[checkFolderName][i].entityID)
+				fmt.Println("Item:", checkFolderName)
+				os.Exit(1)
+			}
+		}
+	}
+
+	for fileName, fileSize := range file {
+		if fileSize != restoreFile[fileName] {
+			fmt.Println("File size does not match:")
+			fmt.Println("*  expected:", fileSize)
+			fmt.Println("*  actual:", restoreFile[fileName])
+			fmt.Println("Item:", fileName)
+			os.Exit(1)
+		}
+	}
 
 	fmt.Println("Success")
 }
 
-func checkFileData(
+func checkPermission(
+	permissionColl models.PermissionCollectionResponseable,
+	perMap map[string][]permissionInfo,
+	folderName string,
+) {
+	perMap[folderName] = []permissionInfo{}
+
+	for _, per := range permissionColl.GetValue() {
+		perInfo := permissionInfo{}
+
+		if per.GetGrantedToV2() == nil {
+			continue
+		}
+
+		gv2 := per.GetGrantedToV2()
+
+		if gv2.GetUser() != nil {
+			perInfo.entityID = ptr.Val(gv2.GetUser().GetId())
+		} else if gv2.GetGroup() != nil {
+			perInfo.entityID = ptr.Val(gv2.GetGroup().GetId())
+		}
+
+		perInfo.roles = per.GetRoles()
+
+		perMap[folderName] = append(perMap[folderName], perInfo)
+	}
+}
+
+func getRestoreData(
 	client *msgraphsdk.GraphServiceClient,
 	driveID,
 	restoreFolderID string,
-	file map[string]int64,
-	folderPermission map[string][]string,
+	restoreFile map[string]int64,
+	restoreFolder map[string][]permissionInfo,
 ) {
 	itemBuilder := client.DrivesById(driveID).ItemsById(restoreFolderID)
 
@@ -334,22 +394,14 @@ func checkFileData(
 	}
 
 	for _, restoreData := range restoreResponses.GetValue() {
-		restoreName := *restoreData.GetName()
+		restoreName := ptr.Val(restoreData.GetName())
 
 		if restoreData.GetFile() != nil {
-			if *restoreData.GetSize() != file[restoreName] {
-				fmt.Printf("Size of file %s is different in drive %d and restored file: %d ",
-					restoreName,
-					file[restoreName],
-					*restoreData.GetSize())
-				os.Exit(1)
-			}
-
+			restoreFile[restoreName] = *restoreData.GetSize()
 			continue
 		}
 
 		itemBuilder := client.DrivesById(driveID).ItemsById(*restoreData.GetId())
-
 		if restoreData.GetFolder() != nil {
 			permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
 			if err != nil {
@@ -357,16 +409,7 @@ func checkFileData(
 				os.Exit(1)
 			}
 
-			userPermission := []string{}
-
-			for _, perm := range permissionColl.GetValue() {
-				userPermission = perm.GetRoles()
-			}
-
-			if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
-				fmt.Printf("Permission mismatch for %s.", restoreName)
-				os.Exit(1)
-			}
+			checkPermission(permissionColl, restoreFolder, restoreName)
 		}
 	}
 }
