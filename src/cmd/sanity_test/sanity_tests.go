@@ -27,10 +27,8 @@ func main() {
 		return
 	}
 
-	testUser := "HenriettaM@10rqc2.onmicrosoft.com"
-	folder := "Corso_Restore_28-Mar-2023_07-13-04"
-	// testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
-	// folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
+	testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
+	folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
 	dataFolder := os.Getenv("TEST_DATA")
 	baseBackupFolder := os.Getenv("BASE_BACKUP")
 
