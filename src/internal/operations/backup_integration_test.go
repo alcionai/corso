@@ -1253,6 +1253,102 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
 		},
 		{
+			name: "add permission to new file",
+			updateUserData: func(t *testing.T) {
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					*newFile.GetId(),
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{
+							{
+								Roles:    []string{"write"},
+								EntityID: suite.user,
+							},
+						},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    1, // .data file for newitem
+			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+		},
+		{
+			name: "remove permission from new file",
+			updateUserData: func(t *testing.T) {
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					*newFile.GetId(),
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    1, // .data file for newitem
+			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+		},
+		{
+			name: "add permission to container",
+			updateUserData: func(t *testing.T) {
+				targetContainer := containerIDs[container1]
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					targetContainer,
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{
+							{
+								Roles:    []string{"write"},
+								EntityID: suite.user,
+							},
+						},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    0,
+			itemsWritten: 1, // .dirmeta for collection
+		},
+		{
+			name: "remove permission from container",
+			updateUserData: func(t *testing.T) {
+				targetContainer := containerIDs[container1]
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					targetContainer,
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    0,
+			itemsWritten: 1, // .dirmeta for collection
+		},
+		{
 			name: "update contents of a file",
 			updateUserData: func(t *testing.T) {
 				err := gc.Service.
