@@ -24,14 +24,14 @@ import (
 const (
 	defaultKopiaConfigDir  = "/tmp/"
 	defaultKopiaConfigFile = "repository.config"
-	defaultCompressor      = "s2-default"
+	defaultCompressor      = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
 )
 
 var (
-	ErrSettingDefaultConfig = errors.New("setting default repo config values")
-	ErrorRepoAlreadyExists  = errors.New("repo already exists")
+	ErrSettingDefaultConfig = clues.New("setting default repo config values")
+	ErrorRepoAlreadyExists  = clues.New("repo already exists")
 )
 
 // Having all fields set to 0 causes it to keep max-int versions of snapshots.
@@ -72,7 +72,7 @@ func NewConn(s storage.Storage) *conn {
 func (w *conn) Initialize(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
-		return errors.Wrap(err, "initializing storage")
+		return clues.Wrap(err, "initializing storage")
 	}
 	defer bst.Close(ctx)
 
@@ -111,7 +111,7 @@ func (w *conn) Initialize(ctx context.Context) error {
 func (w *conn) Connect(ctx context.Context) error {
 	bst, err := blobStoreByProvider(ctx, w.storage)
 	if err != nil {
-		return errors.Wrap(err, "initializing storage")
+		return clues.Wrap(err, "initializing storage")
 	}
 	defer bst.Close(ctx)
 

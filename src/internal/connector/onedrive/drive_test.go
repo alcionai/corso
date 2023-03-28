@@ -16,59 +16,14 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
-
-type mockPageLinker struct {
-	link *string
-}
-
-func (pl *mockPageLinker) GetOdataNextLink() *string {
-	return pl.link
-}
-
-type pagerResult struct {
-	drives   []models.Driveable
-	nextLink *string
-	err      error
-}
-
-type mockDrivePager struct {
-	toReturn []pagerResult
-	getIdx   int
-}
-
-func (p *mockDrivePager) GetPage(context.Context) (api.PageLinker, error) {
-	if len(p.toReturn) <= p.getIdx {
-		return nil, assert.AnError
-	}
-
-	idx := p.getIdx
-	p.getIdx++
-
-	return &mockPageLinker{p.toReturn[idx].nextLink}, p.toReturn[idx].err
-}
-
-func (p *mockDrivePager) SetNext(string) {}
-
-func (p *mockDrivePager) ValuesIn(api.PageLinker) ([]models.Driveable, error) {
-	idx := p.getIdx
-	if idx > 0 {
-		// Return values lag by one since we increment in GetPage().
-		idx--
-	}
-
-	if len(p.toReturn) <= idx {
-		return nil, assert.AnError
-	}
-
-	return p.toReturn[idx].drives, nil
-}
 
 // Unit tests
 type OneDriveUnitSuite struct {
@@ -117,28 +72,28 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		resultDrives = append(resultDrives, d)
 	}
 
-	tooManyRetries := make([]pagerResult, 0, getDrivesRetries+1)
+	tooManyRetries := make([]mock.PagerResult, 0, maxDrivesRetries+1)
 
-	for i := 0; i < getDrivesRetries+1; i++ {
-		tooManyRetries = append(tooManyRetries, pagerResult{
-			err: context.DeadlineExceeded,
+	for i := 0; i < maxDrivesRetries+1; i++ {
+		tooManyRetries = append(tooManyRetries, mock.PagerResult{
+			Err: context.DeadlineExceeded,
 		})
 	}
 
 	table := []struct {
 		name            string
-		pagerResults    []pagerResult
+		pagerResults    []mock.PagerResult
 		retry           bool
 		expectedErr     assert.ErrorAssertionFunc
 		expectedResults []models.Driveable
 	}{
 		{
 			name: "AllOneResultNilNextLink",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives,
-					nextLink: nil,
-					err:      nil,
+					Drives:   resultDrives,
+					NextLink: nil,
+					Err:      nil,
 				},
 			},
 			retry:           false,
@@ -147,11 +102,11 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "AllOneResultEmptyNextLink",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives,
-					nextLink: &emptyLink,
-					err:      nil,
+					Drives:   resultDrives,
+					NextLink: &emptyLink,
+					Err:      nil,
 				},
 			},
 			retry:           false,
@@ -160,16 +115,16 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsNilNextLink",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives[:numDriveResults/2],
-					nextLink: &link,
-					err:      nil,
+					Drives:   resultDrives[:numDriveResults/2],
+					NextLink: &link,
+					Err:      nil,
 				},
 				{
-					drives:   resultDrives[numDriveResults/2:],
-					nextLink: nil,
-					err:      nil,
+					Drives:   resultDrives[numDriveResults/2:],
+					NextLink: nil,
+					Err:      nil,
 				},
 			},
 			retry:           false,
@@ -178,16 +133,16 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsEmptyNextLink",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives[:numDriveResults/2],
-					nextLink: &link,
-					err:      nil,
+					Drives:   resultDrives[:numDriveResults/2],
+					NextLink: &link,
+					Err:      nil,
 				},
 				{
-					drives:   resultDrives[numDriveResults/2:],
-					nextLink: &emptyLink,
-					err:      nil,
+					Drives:   resultDrives[numDriveResults/2:],
+					NextLink: &emptyLink,
+					Err:      nil,
 				},
 			},
 			retry:           false,
@@ -196,16 +151,16 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "NonRetryableError",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives,
-					nextLink: &link,
-					err:      nil,
+					Drives:   resultDrives,
+					NextLink: &link,
+					Err:      nil,
 				},
 				{
-					drives:   nil,
-					nextLink: nil,
-					err:      assert.AnError,
+					Drives:   nil,
+					NextLink: nil,
+					Err:      assert.AnError,
 				},
 			},
 			retry:           true,
@@ -214,11 +169,11 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "MySiteURLNotFound",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   nil,
-					nextLink: nil,
-					err:      graph.Stack(ctx, mySiteURLNotFound),
+					Drives:   nil,
+					NextLink: nil,
+					Err:      graph.Stack(ctx, mySiteURLNotFound),
 				},
 			},
 			retry:           true,
@@ -227,11 +182,11 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "MySiteNotFound",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   nil,
-					nextLink: nil,
-					err:      graph.Stack(ctx, mySiteNotFound),
+					Drives:   nil,
+					NextLink: nil,
+					Err:      graph.Stack(ctx, mySiteNotFound),
 				},
 			},
 			retry:           true,
@@ -240,21 +195,21 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsContextTimeoutWithRetries",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives[:numDriveResults/2],
-					nextLink: &link,
-					err:      nil,
+					Drives:   resultDrives[:numDriveResults/2],
+					NextLink: &link,
+					Err:      nil,
 				},
 				{
-					drives:   nil,
-					nextLink: nil,
-					err:      context.DeadlineExceeded,
+					Drives:   nil,
+					NextLink: nil,
+					Err:      context.DeadlineExceeded,
 				},
 				{
-					drives:   resultDrives[numDriveResults/2:],
-					nextLink: &emptyLink,
-					err:      nil,
+					Drives:   resultDrives[numDriveResults/2:],
+					NextLink: &emptyLink,
+					Err:      nil,
 				},
 			},
 			retry:           true,
@@ -263,21 +218,21 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		},
 		{
 			name: "SplitResultsContextTimeoutNoRetries",
-			pagerResults: []pagerResult{
+			pagerResults: []mock.PagerResult{
 				{
-					drives:   resultDrives[:numDriveResults/2],
-					nextLink: &link,
-					err:      nil,
+					Drives:   resultDrives[:numDriveResults/2],
+					NextLink: &link,
+					Err:      nil,
 				},
 				{
-					drives:   nil,
-					nextLink: nil,
-					err:      context.DeadlineExceeded,
+					Drives:   nil,
+					NextLink: nil,
+					Err:      context.DeadlineExceeded,
 				},
 				{
-					drives:   resultDrives[numDriveResults/2:],
-					nextLink: &emptyLink,
-					err:      nil,
+					Drives:   resultDrives[numDriveResults/2:],
+					NextLink: &emptyLink,
+					Err:      nil,
 				},
 			},
 			retry:           false,
@@ -287,11 +242,11 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 		{
 			name: "TooManyRetries",
 			pagerResults: append(
-				[]pagerResult{
+				[]mock.PagerResult{
 					{
-						drives:   resultDrives[:numDriveResults/2],
-						nextLink: &link,
-						err:      nil,
+						Drives:   resultDrives[:numDriveResults/2],
+						NextLink: &link,
+						Err:      nil,
 					},
 				},
 				tooManyRetries...,
@@ -308,11 +263,11 @@ func (suite *OneDriveUnitSuite) TestDrives() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			pager := &mockDrivePager{
-				toReturn: test.pagerResults,
+			pager := &mock.DrivePager{
+				ToReturn: test.pagerResults,
 			}
 
-			drives, err := drives(ctx, pager, test.retry)
+			drives, err := api.GetAllDrives(ctx, pager, test.retry, maxDrivesRetries)
 			test.expectedErr(t, err, clues.ToCore(err))
 
 			assert.ElementsMatch(t, test.expectedResults, drives)
@@ -353,7 +308,7 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
-	drives, err := drives(ctx, pager, true)
+	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, drives)
 

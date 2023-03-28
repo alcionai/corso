@@ -3,11 +3,11 @@ package backup
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -171,7 +171,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	users, err := m365.UserPNs(ctx, *acct, errs)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 user(s)"))
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 user(s)"))
 	}
 
 	selectorSet := []selectors.Selector{}
@@ -213,12 +213,12 @@ func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBa
 
 func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
-		return errors.New("--user requires one or more email addresses or the wildcard '*'")
+		return clues.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
 	for _, d := range cats {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
-			return errors.New(
+			return clues.New(
 				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
 		}
 	}
@@ -336,11 +336,13 @@ func runDetailsExchangeCmd(
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {
 		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, errors.Errorf("No backup exists with the id %s", backupID)
+			return nil, clues.New("No backup exists with the id " + backupID)
 		}
 
-		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
+
+	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
 
 	if !skipReduce {
 		sel := utils.IncludeExchangeRestoreDataSelectors(opts)

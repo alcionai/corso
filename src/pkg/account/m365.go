@@ -2,7 +2,6 @@ package account
 
 import (
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
@@ -67,7 +66,7 @@ func (c M365Config) validate() error {
 
 	for k, v := range check {
 		if len(v) == 0 {
-			return clues.Stack(errMissingRequired, errors.New(k))
+			return clues.Stack(errMissingRequired, clues.New(k))
 		}
 	}
 

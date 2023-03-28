@@ -1,9 +1,9 @@
 package api
 
 import (
+	"github.com/alcionai/clues"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 )
@@ -32,12 +32,12 @@ func (s BetaService) Serialize(object absser.Parsable) ([]byte, error) {
 		GetSerializationWriterFactory().
 		GetSerializationWriter("application/json")
 	if err != nil || writer == nil {
-		return nil, errors.Wrap(err, "creating json serialization writer")
+		return nil, clues.Wrap(err, "creating json serialization writer")
 	}
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "writeObjecValue serialization")
+		return nil, clues.Wrap(err, "writeObjecValue serialization")
 	}
 
 	return writer.GetSerializedContent()

@@ -6,17 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
@@ -448,7 +447,7 @@ func toDataLayerPath(
 	case path.OneDriveService:
 		p, err = pb.ToDataLayerOneDrivePath(tenant, user, isItem)
 	default:
-		err = errors.Errorf("unknown service %s", service.String())
+		err = clues.New(fmt.Sprintf("unknown service: %s", service))
 	}
 
 	require.NoError(t, err, clues.ToCore(err))

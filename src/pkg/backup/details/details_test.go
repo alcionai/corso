@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -860,6 +860,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 		driveID       = "abcd"
 		folder1       = "f1"
 		folder2       = "f2"
+		folder3       = "f3"
 		item          = "hello.txt"
 	)
 
@@ -876,6 +877,17 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			driveID,
 			"root:",
 			folder2,
+			item,
+		},
+	)
+	newExchangePath := makeItemPath(
+		suite.T(),
+		path.ExchangeService,
+		path.EmailCategory,
+		tenant,
+		resourceOwner,
+		[]string{
+			folder3,
 			item,
 		},
 	)
@@ -897,44 +909,56 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 		expectedItem ItemInfo
 	}{
 		{
-			name: "ExchangeEventNoChange",
+			name: "ExchangeEvent",
 			input: ItemInfo{
 				Exchange: &ExchangeInfo{
-					ItemType: ExchangeEvent,
+					ItemType:   ExchangeEvent,
+					ParentPath: folder1,
 				},
 			},
+			repoPath: newOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
-					ItemType: ExchangeEvent,
+					ItemType:   ExchangeEvent,
+					ParentPath: folder3,
 				},
 			},
 		},
 		{
-			name: "ExchangeContactNoChange",
+			name: "ExchangeContact",
 			input: ItemInfo{
 				Exchange: &ExchangeInfo{
-					ItemType: ExchangeContact,
+					ItemType:   ExchangeContact,
+					ParentPath: folder1,
 				},
 			},
+			repoPath: newOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
-					ItemType: ExchangeContact,
+					ItemType:   ExchangeContact,
+					ParentPath: folder3,
 				},
 			},
 		},
 		{
-			name: "ExchangeMailNoChange",
+			name: "ExchangeMail",
 			input: ItemInfo{
 				Exchange: &ExchangeInfo{
-					ItemType: ExchangeMail,
+					ItemType:   ExchangeMail,
+					ParentPath: folder1,
 				},
 			},
+			repoPath: newOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
-					ItemType: ExchangeMail,
+					ItemType:   ExchangeMail,
+					ParentPath: folder3,
 				},
 			},
 		},
@@ -947,7 +971,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				OneDrive: &OneDriveInfo{
@@ -965,7 +989,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
@@ -983,7 +1007,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: badOneDrivePath,
-			locPath:  badOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.Error,
 		},
 		{
@@ -995,7 +1019,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: badOneDrivePath,
-			locPath:  badOneDrivePath,
+			locPath:  newExchangePath,
 			errCheck: assert.Error,
 		},
 	}
@@ -1005,7 +1029,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			t := suite.T()
 			item := test.input
 
-			err := UpdateItem(&item, test.repoPath)
+			err := UpdateItem(&item, test.repoPath, test.locPath)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if err != nil {

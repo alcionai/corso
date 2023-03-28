@@ -28,7 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-var ErrorRepoAlreadyExists = errors.New("a repository was already initialized with that configuration")
+var ErrorRepoAlreadyExists = clues.New("a repository was already initialized with that configuration")
 
 // BackupGetter deals with retrieving metadata about backups from the
 // repository.
@@ -115,7 +115,7 @@ func Initialize(
 			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
-		return nil, errors.Wrap(err, "initializing kopia")
+		return nil, clues.Wrap(err, "initializing kopia")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
@@ -133,7 +133,7 @@ func Initialize(
 
 	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "constructing event bus")
+		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
 	repoID := newRepoID(s)
@@ -192,7 +192,7 @@ func Connect(
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
-		return nil, errors.Wrap(err, "connecting kopia client")
+		return nil, clues.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
@@ -210,7 +210,7 @@ func Connect(
 
 	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "constructing event bus")
+		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
 	rm := &repositoryModel{}
@@ -219,7 +219,7 @@ func Connect(
 	if !opts.DisableMetrics {
 		rm, err = getRepoModel(ctx, ms)
 		if err != nil {
-			return nil, errors.New("retrieving repo info")
+			return nil, clues.New("retrieving repo info")
 		}
 
 		bus.SetRepoID(string(rm.ID))

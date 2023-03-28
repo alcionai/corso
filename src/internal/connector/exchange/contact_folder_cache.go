@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -52,16 +51,16 @@ func (cfc *contactFolderCache) Populate(
 	baseContainerPather ...string,
 ) error {
 	if err := cfc.init(ctx, baseID, baseContainerPather); err != nil {
-		return errors.Wrap(err, "initializing")
+		return clues.Wrap(err, "initializing")
 	}
 
 	err := cfc.enumer.EnumerateContainers(ctx, cfc.userID, baseID, cfc.addFolder, errs)
 	if err != nil {
-		return errors.Wrap(err, "enumerating containers")
+		return clues.Wrap(err, "enumerating containers")
 	}
 
 	if err := cfc.populatePaths(ctx, false, errs); err != nil {
-		return errors.Wrap(err, "populating paths")
+		return clues.Wrap(err, "populating paths")
 	}
 
 	return nil

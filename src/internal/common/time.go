@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 )
 
 type TimeFormat string
@@ -87,8 +86,8 @@ var (
 )
 
 var (
-	ErrNoTimeString        = errors.New("no substring contains a known time format")
-	errParsingStringToTime = errors.New("parsing string as time.Time")
+	ErrNoTimeString        = clues.New("no substring contains a known time format")
+	errParsingStringToTime = clues.New("parsing string as time.Time")
 )
 
 // Now produces the current time as a string in the standard format.
@@ -136,7 +135,7 @@ func FormatLegacyTime(t time.Time) string {
 // the provided string.  Always returns a UTC timezone value.
 func ParseTime(s string) (time.Time, error) {
 	if len(s) == 0 {
-		return time.Time{}, clues.Stack(errParsingStringToTime, errors.New("empty string"))
+		return time.Time{}, clues.Stack(errParsingStringToTime, clues.New("empty string"))
 	}
 
 	for _, form := range formats {
@@ -146,14 +145,14 @@ func ParseTime(s string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, clues.Stack(errParsingStringToTime, errors.New(s))
+	return time.Time{}, clues.Stack(errParsingStringToTime, clues.New(s))
 }
 
 // ExtractTime greedily retrieves a timestamp substring from the provided string.
 // returns ErrNoTimeString if no match is found.
 func ExtractTime(s string) (time.Time, error) {
 	if len(s) == 0 {
-		return time.Time{}, clues.Stack(errParsingStringToTime, errors.New("empty string"))
+		return time.Time{}, clues.Stack(errParsingStringToTime, clues.New("empty string"))
 	}
 
 	for _, re := range regexes {
@@ -163,5 +162,5 @@ func ExtractTime(s string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, clues.Stack(ErrNoTimeString, errors.New(s))
+	return time.Time{}, clues.Stack(ErrNoTimeString, clues.New(s))
 }

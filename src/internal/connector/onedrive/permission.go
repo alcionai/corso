@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -24,11 +23,11 @@ func getParentMetadata(
 	if !ok {
 		onedrivePath, err := path.ToOneDrivePath(parentPath)
 		if err != nil {
-			return Metadata{}, errors.Wrap(err, "invalid restore path")
+			return Metadata{}, clues.Wrap(err, "invalid restore path")
 		}
 
 		if len(onedrivePath.Folders) != 0 {
-			return Metadata{}, errors.Wrap(err, "computing item permissions")
+			return Metadata{}, clues.Wrap(err, "computing item permissions")
 		}
 
 		parentMeta = Metadata{}

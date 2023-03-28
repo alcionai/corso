@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -740,16 +740,32 @@ func compareOneDriveItem(
 		return true
 	}
 
-	name := item.UUID()
-	isMeta := strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
-		strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
+	var (
+		displayName string
+		name        = item.UUID()
+		isMeta      = strings.HasSuffix(name, onedrive.MetaFileSuffix) ||
+			strings.HasSuffix(name, onedrive.DirMetaFileSuffix)
+	)
 
 	if isMeta {
-		_, ok := item.(*onedrive.MetadataItem)
-		assert.True(t, ok, "metadata item")
+		var itemType *onedrive.MetadataItem
+
+		assert.IsType(t, itemType, item)
 	} else {
 		oitem := item.(*onedrive.Item)
-		assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
+		info := oitem.Info()
+
+		// Don't need to check SharePoint because it was added after we stopped
+		// adding meta files to backup details.
+		if info.OneDrive != nil {
+			displayName = oitem.Info().OneDrive.ItemName
+
+			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
+		} else if info.SharePoint != nil {
+			displayName = oitem.Info().SharePoint.ItemName
+		} else {
+			assert.Fail(t, "ItemInfo is not SharePoint or OneDrive")
+		}
 	}
 
 	if isMeta {
@@ -763,11 +779,13 @@ func compareOneDriveItem(
 			return true
 		}
 
-		expectedData := expected[name]
+		key := name
 
 		if strings.HasSuffix(name, onedrive.MetaFileSuffix) {
-			expectedData = expected[itemMeta.FileName]
+			key = itemMeta.FileName
 		}
+
+		expectedData := expected[key]
 
 		if !assert.NotNil(
 			t,
@@ -831,6 +849,10 @@ func compareOneDriveItem(
 	// Compare against the version with the file name embedded because that's what
 	// the auto-generated expected data has.
 	assert.Equal(t, expectedData, buf)
+	// Display name in ItemInfo should match the name the file was given in the
+	// test. Name used for the lookup key has a `.data` suffix to make it unique
+	// from the metadata files' lookup keys.
+	assert.Equal(t, fileData.FileName, displayName+onedrive.DataFileSuffix)
 
 	return true
 }
@@ -866,6 +888,14 @@ func compareItem(
 		}
 
 	case path.OneDriveService:
+		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
+
+	case path.SharePointService:
+		if category != path.LibrariesCategory {
+			assert.FailNowf(t, "unsupported SharePoint category: %s", category.String())
+		}
+
+		// SharePoint libraries reuses OneDrive code.
 		return compareOneDriveItem(t, expected, item, restorePermissions, rootDir)
 
 	default:
@@ -1038,6 +1068,38 @@ func makeOneDriveBackupSel(
 	return sel.Selector
 }
 
+func makeSharePointBackupSel(
+	t *testing.T,
+	dests []destAndCats,
+) selectors.Selector {
+	toInclude := [][]selectors.SharePointScope{}
+	resourceOwners := map[string]struct{}{}
+
+	for _, d := range dests {
+		for c := range d.cats {
+			if c != path.LibrariesCategory {
+				assert.FailNowf(t, "unsupported category type %s", c.String())
+			}
+
+			resourceOwners[d.resourceOwner] = struct{}{}
+
+			// nil owners here, we'll need to stitch this together
+			// below after the loops are complete.
+			sel := selectors.NewSharePointBackup(nil)
+
+			toInclude = append(toInclude, sel.LibraryFolders(
+				[]string{d.dest},
+				selectors.PrefixMatch(),
+			))
+		}
+	}
+
+	sel := selectors.NewSharePointBackup(maps.Keys(resourceOwners))
+	sel.Include(toInclude...)
+
+	return sel.Selector
+}
+
 // backupSelectorForExpected creates a selector that can be used to backup the
 // given items in expected based on the item paths. Fails the test if items from
 // multiple services are in expected.
@@ -1054,6 +1116,9 @@ func backupSelectorForExpected(
 
 	case path.OneDriveService:
 		return makeOneDriveBackupSel(t, dests)
+
+	case path.SharePointService:
+		return makeSharePointBackupSel(t, dests)
 
 	default:
 		assert.FailNow(t, "unknown service type %s", service.String())
@@ -1075,7 +1140,7 @@ func backupOutputPathFromRestore(
 	base := []string{restoreDest.ContainerName}
 
 	// OneDrive has leading information like the drive ID.
-	if inputPath.Service() == path.OneDriveService {
+	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
 		folders := inputPath.Folders()
 		base = append(append([]string{}, folders[:3]...), restoreDest.ContainerName)
 
@@ -1159,11 +1224,14 @@ func collectionsForInfo(
 			baseExpected[info.items[i].lookupKey] = info.items[i].data
 
 			// We do not count metadata files against item count
-			if backupVersion == 0 || service != path.OneDriveService ||
-				(service == path.OneDriveService &&
-					strings.HasSuffix(info.items[i].name, onedrive.DataFileSuffix)) {
-				totalItems++
+			if backupVersion > 0 &&
+				(service == path.OneDriveService || service == path.SharePointService) &&
+				(strings.HasSuffix(info.items[i].name, onedrive.MetaFileSuffix) ||
+					strings.HasSuffix(info.items[i].name, onedrive.DirMetaFileSuffix)) {
+				continue
 			}
+
+			totalItems++
 		}
 
 		c := mockRestoreCollection{Collection: mc, auxItems: map[string]data.Stream{}}

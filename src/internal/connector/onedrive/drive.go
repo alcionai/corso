@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -23,7 +21,7 @@ import (
 var errFolderNotFound = clues.New("folder not found")
 
 const (
-	getDrivesRetries = 3
+	maxDrivesRetries = 3
 
 	// nextLinkKey is used to find the next link in a paged
 	// graph response
@@ -44,89 +42,20 @@ type DeltaUpdate struct {
 	Reset bool
 }
 
-type drivePager interface {
-	GetPage(context.Context) (gapi.PageLinker, error)
-	SetNext(nextLink string)
-	ValuesIn(gapi.PageLinker) ([]models.Driveable, error)
-}
-
 func PagerForSource(
 	source driveSource,
 	servicer graph.Servicer,
 	resourceOwner string,
 	fields []string,
-) (drivePager, error) {
+) (api.DrivePager, error) {
 	switch source {
 	case OneDriveSource:
 		return api.NewUserDrivePager(servicer, resourceOwner, fields), nil
 	case SharePointSource:
 		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
-		return nil, errors.Errorf("unrecognized drive data source")
+		return nil, clues.New("unrecognized drive data source")
 	}
-}
-
-func drives(
-	ctx context.Context,
-	pager drivePager,
-	retry bool,
-) ([]models.Driveable, error) {
-	var (
-		numberOfRetries = getDrivesRetries
-		drives          = []models.Driveable{}
-	)
-
-	if !retry {
-		numberOfRetries = 0
-	}
-
-	// Loop through all pages returned by Graph API.
-	for {
-		var (
-			err  error
-			page gapi.PageLinker
-		)
-
-		// Retry Loop for Drive retrieval. Request can timeout
-		for i := 0; i <= numberOfRetries; i++ {
-			page, err = pager.GetPage(ctx)
-			if err != nil {
-				if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
-					logger.Ctx(ctx).Infof("resource owner does not have a drive")
-					return make([]models.Driveable, 0), nil // no license or drives.
-				}
-
-				if graph.IsErrTimeout(err) && i < numberOfRetries {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
-					continue
-				}
-
-				return nil, graph.Wrap(ctx, err, "retrieving drives")
-			}
-
-			// No error encountered, break the retry loop so we can extract results
-			// and see if there's another page to fetch.
-			break
-		}
-
-		tmp, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "extracting drives from response")
-		}
-
-		drives = append(drives, tmp...)
-
-		nextLink := ptr.Val(page.GetOdataNextLink())
-		if len(nextLink) == 0 {
-			break
-		}
-
-		pager.SetNext(nextLink)
-	}
-
-	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(drives))
-
-	return drives, nil
 }
 
 // itemCollector functions collect the items found in a drive
@@ -350,13 +279,13 @@ func (op *Displayable) GetDisplayName() *string {
 func GetAllFolders(
 	ctx context.Context,
 	gs graph.Servicer,
-	pager drivePager,
+	pager api.DrivePager,
 	prefix string,
 	errs *fault.Bus,
 ) ([]*Displayable, error) {
-	drives, err := drives(ctx, pager, true)
+	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting OneDrive folders")
+		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
 
 	var (

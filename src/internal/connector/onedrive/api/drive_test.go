@@ -3,11 +3,11 @@ package api_test
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -54,31 +54,4 @@ func (suite *OneDriveAPISuite) TestCreatePagerAndGetPage() {
 	a, err := pager.GetPage(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, a)
-}
-
-func (suite *OneDriveAPISuite) TestGetDriveIDByName() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
-	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, id)
-}
-
-func (suite *OneDriveAPISuite) TestGetDriveFolderByName() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-	siteID := tester.M365SiteID(t)
-	pager := api.NewSiteDrivePager(suite.service, siteID, []string{"id", "name"})
-	id, err := pager.GetDriveIDByName(ctx, "Documents")
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, id)
-
-	_, err = pager.GetFolderIDByName(ctx, id, "folder")
-	assert.NoError(t, err, clues.ToCore(err))
 }

@@ -6,12 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -65,7 +64,7 @@ func NewTestViper() (*viper.Viper, error) {
 	// Or use a custom file location
 	ext := filepath.Ext(configFilePath)
 	if len(ext) == 0 {
-		return nil, errors.New("corso_test requires an extension")
+		return nil, clues.New("corso_test requires an extension")
 	}
 
 	vpr.SetConfigFile(configFilePath)
@@ -96,7 +95,7 @@ func readTestConfig() (map[string]string, error) {
 	if err = vpr.ReadInConfig(); err != nil {
 		_, ok := err.(viper.ConfigFileNotFoundError)
 		if !ok {
-			return nil, errors.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
+			return nil, clues.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
 		}
 	}
 
@@ -112,36 +111,31 @@ func readTestConfig() (map[string]string, error) {
 		TestCfgUserID,
 		os.Getenv(EnvCorsoM365TestUserID),
 		vpr.GetString(TestCfgUserID),
-		"LynneR@10rqc2.onmicrosoft.com",
-	)
+		"LynneR@10rqc2.onmicrosoft.com")
 	fallbackTo(
 		testEnv,
 		TestCfgSecondaryUserID,
 		os.Getenv(EnvCorsoSecondaryM365TestUserID),
 		vpr.GetString(TestCfgSecondaryUserID),
-		"AdeleV@10rqc2.onmicrosoft.com",
-	)
+		"AdeleV@10rqc2.onmicrosoft.com")
 	fallbackTo(
 		testEnv,
 		TestCfgLoadTestUserID,
 		os.Getenv(EnvCorsoM365LoadTestUserID),
 		vpr.GetString(TestCfgLoadTestUserID),
-		"leeg@10rqc2.onmicrosoft.com",
-	)
+		"leeg@10rqc2.onmicrosoft.com")
 	fallbackTo(
 		testEnv,
 		TestCfgLoadTestOrgUsers,
 		os.Getenv(EnvCorsoM365LoadTestOrgUsers),
 		vpr.GetString(TestCfgLoadTestOrgUsers),
-		"AdeleV@10rqc2.onmicrosoft.com,LynneR@10rqc2.onmicrosoft.com",
-	)
+		"AdeleV@10rqc2.onmicrosoft.com,LynneR@10rqc2.onmicrosoft.com")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteID,
 		os.Getenv(EnvCorsoM365TestSiteID),
 		vpr.GetString(TestCfgSiteID),
-		"10rqc2.sharepoint.com,bb5d5b4a-e089-4e66-9868-9e263ecc635d,4fa3a2c0-fa81-4e6f-8e8b-1479a8927bc6",
-	)
+		"10rqc2.sharepoint.com,4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 	testConfig = testEnv

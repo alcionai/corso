@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -84,7 +83,7 @@ func NewBackupOperation(
 
 func (op BackupOperation) validate() error {
 	if len(op.ResourceOwner) == 0 {
-		return errors.New("backup requires a resource owner")
+		return clues.New("backup requires a resource owner")
 	}
 
 	return op.operation.validate()
@@ -164,7 +163,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		logger.Ctx(ctx).
 			With("err", err).
 			Errorw("running backup", clues.InErr(err).Slice()...)
-		op.Errors.Fail(errors.Wrap(err, "running backup"))
+		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
@@ -175,7 +174,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	err = op.persistResults(startTime, &opStats)
 	if err != nil {
-		op.Errors.Fail(errors.Wrap(err, "persisting backup results"))
+		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
 	}
 
@@ -189,7 +188,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 				Infow("completed backup; conditional error forcing exit without model persistence",
 					"results", op.Results)
 
-			return op.Errors.Fail(errors.Wrap(e, "forced backup")).Failure()
+			return op.Errors.Fail(clues.Wrap(e, "forced backup")).Failure()
 		}
 	}
 
@@ -200,7 +199,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Results.BackupID,
 		deets.Details())
 	if err != nil {
-		op.Errors.Fail(errors.Wrap(err, "persisting backup"))
+		op.Errors.Fail(clues.Wrap(err, "persisting backup"))
 		return op.Errors.Failure()
 	}
 
@@ -232,17 +231,17 @@ func (op *BackupOperation) do(
 		op.incremental,
 		op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "producing manifests and metadata")
+		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
 	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "connectng to m365")
+		return nil, clues.Wrap(err, "connectng to m365")
 	}
 
 	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options, op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "producing backup data collections")
+		return nil, clues.Wrap(err, "producing backup data collections")
 	}
 
 	ctx = clues.Add(ctx, "coll_count", len(cs))
@@ -259,7 +258,7 @@ func (op *BackupOperation) do(
 		op.incremental && canUseMetaData,
 		op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "persisting collection backups")
+		return nil, clues.Wrap(err, "persisting collection backups")
 	}
 
 	opStats.k = writeStats
@@ -273,7 +272,7 @@ func (op *BackupOperation) do(
 		deets,
 		op.Errors)
 	if err != nil {
-		return nil, errors.Wrap(err, "merging details")
+		return nil, clues.Wrap(err, "merging details")
 	}
 
 	opStats.gc = gc.AwaitStatus()
@@ -426,7 +425,7 @@ func consumeBackupDataCollections(
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(ctx, tenantID, reason)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "getting subtree paths for bases")
+				return nil, nil, nil, clues.Wrap(err, "getting subtree paths for bases")
 			}
 
 			paths = append(paths, pb)
@@ -577,7 +576,7 @@ func mergeDetails(
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, newPath); err != nil {
+			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
 				return clues.New("updating item details").WithClues(mctx)
 			}
 
@@ -647,7 +646,7 @@ func (op *BackupOperation) persistResults(
 
 	if opStats.k == nil {
 		op.Status = Failed
-		return errors.New("backup persistence never completed")
+		return clues.New("backup persistence never completed")
 	}
 
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
@@ -657,7 +656,7 @@ func (op *BackupOperation) persistResults(
 
 	if opStats.gc == nil {
 		op.Status = Failed
-		return errors.New("backup population never completed")
+		return clues.New("backup population never completed")
 	}
 
 	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {

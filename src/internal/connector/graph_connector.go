@@ -93,7 +93,7 @@ func NewGraphConnector(
 
 	if r == AllResources || r == Sites {
 		if err = gc.setTenantSites(ctx, errs); err != nil {
-			return nil, errors.Wrap(err, "retrieveing tenant site list")
+			return nil, clues.Wrap(err, "retrieveing tenant site list")
 		}
 	}
 
@@ -139,7 +139,7 @@ func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) e
 	return nil
 }
 
-var errKnownSkippableCase = errors.New("case is known and skippable")
+var errKnownSkippableCase = clues.New("case is known and skippable")
 
 const personalSitePath = "sharepoint.com/personal/"
 

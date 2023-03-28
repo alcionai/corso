@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
@@ -80,8 +80,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 }
@@ -202,8 +201,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			// TODO: turn back on when this stops throttling-out the tests.
-			// ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 

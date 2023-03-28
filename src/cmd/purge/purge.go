@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
@@ -41,7 +41,7 @@ var (
 	prefix string
 )
 
-var ErrPurging = errors.New("not all items were successfully purged")
+var ErrPurging = clues.New("not all items were successfully purged")
 
 // ------------------------------------------------------------------------------------------
 // CLI command handlers
@@ -109,7 +109,7 @@ func handleOneDriveFolderPurge(cmd *cobra.Command, args []string) error {
 
 	if err := runPurgeForEachUser(ctx, acct, gc, t, purgeOneDriveFolders); err != nil {
 		logger.Ctx(ctx).Error(err)
-		return Only(ctx, errors.Wrap(ErrPurging, "OneDrive folders"))
+		return Only(ctx, clues.Wrap(ErrPurging, "OneDrive folders"))
 	}
 
 	return nil
@@ -182,7 +182,7 @@ func purgeOneDriveFolders(
 	deleter := func(gs graph.Servicer, uid string, f purgable) error {
 		driveFolder, ok := f.(*onedrive.Displayable)
 		if !ok {
-			return errors.New("non-OneDrive item")
+			return clues.New("non-OneDrive item")
 		}
 
 		return onedrive.DeleteItem(
@@ -211,7 +211,7 @@ func purgeFolders(
 	// get them folders
 	fs, err := getter(gc.Service, uid, prefix)
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "retrieving %s folders", data))
+		return Only(ctx, clues.Wrap(err, "retrieving folders: "+data))
 	}
 
 	if len(fs) == 0 {
@@ -228,7 +228,7 @@ func purgeFolders(
 
 		dnTime, err := common.ExtractTime(displayName)
 		if err != nil && !errors.Is(err, common.ErrNoTimeString) {
-			err = errors.Wrapf(err, "!! Error: parsing container named [%s]", displayName)
+			err = clues.Wrap(err, "!! Error: parsing container: "+displayName)
 			Info(ctx, err)
 
 			return err
@@ -242,7 +242,7 @@ func purgeFolders(
 
 		err = deleter(gc.Service, uid, fld)
 		if err != nil {
-			err = errors.Wrapf(err, "!! Error")
+			err = clues.Wrap(err, "!! Error")
 			Info(ctx, err)
 		}
 	}
@@ -263,7 +263,7 @@ func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, err
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return account.Account{}, nil, Only(ctx, errors.Wrap(err, "finding m365 account details"))
+		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "finding m365 account details"))
 	}
 
 	// build a graph connector
@@ -272,7 +272,7 @@ func getGC(ctx context.Context) (account.Account, *connector.GraphConnector, err
 
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
-		return account.Account{}, nil, Only(ctx, errors.Wrap(err, "connecting to graph api"))
+		return account.Account{}, nil, Only(ctx, clues.Wrap(err, "connecting to graph api"))
 	}
 
 	return acct, gc, nil
@@ -288,7 +288,7 @@ func getBoundaryTime(ctx context.Context) (time.Time, error) {
 	if len(before) > 0 {
 		boundaryTime, err = common.ParseTime(before)
 		if err != nil {
-			return time.Time{}, Only(ctx, errors.Wrap(err, "parsing before flag to time"))
+			return time.Time{}, Only(ctx, clues.Wrap(err, "parsing before flag to time"))
 		}
 	}
 
