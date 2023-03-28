@@ -32,9 +32,9 @@ var serviceToPathType = map[service]path.ServiceType{
 }
 
 var (
-	ErrorBadSelectorCast     = errors.New("wrong selector service type")
-	ErrorNoMatchingItems     = errors.New("no items match the specified selectors")
-	ErrorUnrecognizedService = errors.New("unrecognized service")
+	ErrorBadSelectorCast     = clues.New("wrong selector service type")
+	ErrorNoMatchingItems     = clues.New("no items match the specified selectors")
+	ErrorUnrecognizedService = clues.New("unrecognized service")
 )
 
 const (
@@ -279,7 +279,7 @@ func selectorAsIface[T any](s Selector) (T, error) {
 		a, err = func() (any, error) { return s.ToSharePointRestore() }()
 		t = a.(T)
 	default:
-		err = clues.Stack(ErrorUnrecognizedService, errors.New(s.Service.String()))
+		err = clues.Stack(ErrorUnrecognizedService, clues.New(s.Service.String()))
 	}
 
 	return t, err

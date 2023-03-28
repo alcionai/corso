@@ -5,12 +5,11 @@ import (
 	"context"
 	"io"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+
+	"github.com/alcionai/corso/src/internal/streamstore"
 )
 
 var _ streamstore.Streamer = &Streamer{}
@@ -30,6 +29,11 @@ func (ms Streamer) Read(
 	col streamstore.Collectable,
 	errs *fault.Bus,
 ) error {
+	ctx = clues.Add(
+		ctx,
+		"read_snapshot_id", snapshotID,
+		"collectable_type", col.Type)
+
 	var mr streamstore.Marshaller
 
 	switch col.Type {
@@ -38,11 +42,11 @@ func (ms Streamer) Read(
 	case streamstore.FaultErrorsType:
 		mr = ms.Errors[snapshotID]
 	default:
-		return clues.New("unknown type: " + col.Type)
+		return clues.New("unknown type: " + col.Type).WithClues(ctx)
 	}
 
 	if mr == nil {
-		return errors.Errorf("no marshaller for %s ID %s", col.Type, snapshotID)
+		return clues.New("collectable " + col.Type + " has no marshaller").WithClues(ctx)
 	}
 
 	bs, err := mr.Marshal()

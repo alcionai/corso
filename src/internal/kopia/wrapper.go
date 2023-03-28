@@ -11,7 +11,6 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
 	D "github.com/alcionai/corso/src/internal/diagnostics"
@@ -38,8 +37,8 @@ const (
 )
 
 var (
-	errNotConnected  = errors.New("not connected to repo")
-	errNoRestorePath = errors.New("no restore path given")
+	errNotConnected  = clues.New("not connected to repo")
+	errNoRestorePath = clues.New("no restore path given")
 )
 
 type BackupStats struct {
@@ -88,7 +87,7 @@ func manifestToStats(
 
 func NewWrapper(c *conn) (*Wrapper, error) {
 	if err := c.wrap(); err != nil {
-		return nil, errors.Wrap(err, "creating Wrapper")
+		return nil, clues.Wrap(err, "creating Wrapper")
 	}
 
 	return &Wrapper{c}, nil
@@ -174,7 +173,7 @@ func (w Wrapper) BackupCollections(
 		globalExcludeSet,
 		progress)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "building kopia directories")
+		return nil, nil, nil, clues.Wrap(err, "building kopia directories")
 	}
 
 	s, err := w.makeSnapshotWithRoot(

@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
@@ -34,9 +33,9 @@ var (
 	User        string
 )
 
-// TODO: ErrGenerating       = errors.New("not all items were successfully generated")
+// TODO: ErrGenerating       = clues.New("not all items were successfully generated")
 
-var ErrNotYetImplemeted = errors.New("not yet implemented")
+var ErrNotYetImplemeted = clues.New("not yet implemented")
 
 // ------------------------------------------------------------------------------------------
 // Restoration
@@ -115,7 +114,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, account.Account{}, errors.Wrap(err, "finding m365 account details")
+		return nil, account.Account{}, clues.Wrap(err, "finding m365 account details")
 	}
 
 	// build a graph connector
@@ -133,7 +132,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	}
 
 	if _, ok := normUsers[strings.ToLower(User)]; !ok {
-		return nil, account.Account{}, errors.New("user not found within tenant")
+		return nil, account.Account{}, clues.New("user not found within tenant")
 	}
 
 	gc, err := connector.NewGraphConnector(
@@ -143,7 +142,7 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 		connector.Users,
 		errs)
 	if err != nil {
-		return nil, account.Account{}, errors.Wrap(err, "connecting to graph api")
+		return nil, account.Account{}, clues.Wrap(err, "connecting to graph api")
 	}
 
 	return gc, acct, nil

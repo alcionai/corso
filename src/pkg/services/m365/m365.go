@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
@@ -47,7 +46,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 	for _, u := range users {
 		pu, err := parseUser(u)
 		if err != nil {
-			return nil, errors.Wrap(err, "parsing userable")
+			return nil, clues.Wrap(err, "parsing userable")
 		}
 
 		ret = append(ret, pu)
@@ -99,7 +98,7 @@ type Site struct {
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "initializing M365 graph connection")
+		return nil, clues.Wrap(err, "initializing M365 graph connection")
 	}
 
 	// gc.Sites is a map with keys: SiteURL, values: ID
@@ -118,7 +117,7 @@ func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site,
 func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "initializing M365 graph connection")
+		return nil, clues.Wrap(err, "initializing M365 graph connection")
 	}
 
 	return gc.GetSiteWebURLs(), nil
@@ -128,7 +127,7 @@ func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]str
 func SiteIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "initializing graph connection")
+		return nil, clues.Wrap(err, "initializing graph connection")
 	}
 
 	return gc.GetSiteIDs(), nil

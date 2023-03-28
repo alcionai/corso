@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/clues"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -52,7 +51,7 @@ func sharePointItemReader(
 ) (details.ItemInfo, io.ReadCloser, error) {
 	resp, err := downloadItem(ctx, hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+		return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
@@ -135,7 +134,7 @@ func oneDriveItemReader(
 	if isFile {
 		resp, err := downloadItem(ctx, hc, item)
 		if err != nil {
-			return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+			return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
 		}
 
 		rc = resp.Body

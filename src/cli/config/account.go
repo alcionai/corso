@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/src/cli/utils"
@@ -18,7 +18,7 @@ func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 
 	providerType := vpr.GetString(AccountProviderTypeKey)
 	if providerType != account.ProviderM365.String() {
-		return m365, errors.New("unsupported account provider: " + providerType)
+		return m365, clues.New("unsupported account provider: " + providerType)
 	}
 
 	m365.AzureTenantID = vpr.GetString(AzureTenantIDKey)
@@ -49,18 +49,18 @@ func configureAccount(
 	if readConfigFromViper {
 		m365Cfg, err = m365ConfigsFromViper(vpr)
 		if err != nil {
-			return acct, errors.Wrap(err, "reading m365 configs from corso config file")
+			return acct, clues.Wrap(err, "reading m365 configs from corso config file")
 		}
 
 		if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
-			return acct, errors.Wrap(err, "verifying m365 configs in corso config file")
+			return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 		}
 	}
 
 	// compose the m365 config and credentials
 	m365 := credentials.GetM365()
 	if err := m365.Validate(); err != nil {
-		return acct, errors.Wrap(err, "validating m365 credentials")
+		return acct, clues.Wrap(err, "validating m365 credentials")
 	}
 
 	m365Cfg = account.M365Config{
@@ -83,7 +83,7 @@ func configureAccount(
 	// build the account
 	acct, err = account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return acct, errors.Wrap(err, "retrieving m365 account configuration")
+		return acct, clues.Wrap(err, "retrieving m365 account configuration")
 	}
 
 	return acct, nil

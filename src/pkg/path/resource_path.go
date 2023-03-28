@@ -5,10 +5,9 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 )
 
-var ErrorUnknownService = errors.New("unknown service string")
+var ErrorUnknownService = clues.New("unknown service string")
 
 // ServiceType denotes what service the path corresponds to. Metadata services
 // are also included though they are only used for paths that house metadata for
@@ -54,7 +53,7 @@ func toServiceType(service string) ServiceType {
 	}
 }
 
-var ErrorUnknownCategory = errors.New("unknown category string")
+var ErrorUnknownCategory = clues.New("unknown category string")
 
 // CategoryType denotes what category of data the path corresponds to. The order
 // of the enums below can be changed, but the string representation of each enum
@@ -256,7 +255,7 @@ func (rp dataLayerResourcePath) Append(
 	isItem bool,
 ) (Path, error) {
 	if rp.hasItem {
-		return nil, errors.New("appending to an item path")
+		return nil, clues.New("appending to an item path")
 	}
 
 	return &dataLayerResourcePath{

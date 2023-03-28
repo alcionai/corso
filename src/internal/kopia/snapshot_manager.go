@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -178,7 +177,7 @@ func fetchPrevManifests(
 
 	metas, err := sm.FindManifests(ctx, allTags)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching manifest metas by tag")
+		return nil, clues.Wrap(err, "fetching manifest metas by tag")
 	}
 
 	if len(metas) == 0 {
@@ -207,7 +206,7 @@ func fetchPrevManifests(
 
 	mans, err := sm.LoadSnapshots(ctx, ids)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching previous manifests")
+		return nil, clues.Wrap(err, "fetching previous manifests")
 	}
 
 	found, hasCompleted := manifestsSinceLastComplete(ctx, mans)

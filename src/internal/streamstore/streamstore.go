@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -83,7 +82,7 @@ func (ss *storeStreamer) Read(ctx context.Context, snapshotID string, col Collec
 func (ss *storeStreamer) Delete(ctx context.Context, detailsID string) error {
 	err := ss.kw.DeleteSnapshot(ctx, detailsID)
 	if err != nil {
-		return errors.Wrap(err, "deleting snapshot in stream store")
+		return clues.Wrap(err, "deleting snapshot in stream store")
 	}
 
 	return nil
@@ -250,7 +249,7 @@ func write(
 		false,
 		errs)
 	if err != nil {
-		return "", errors.Wrap(err, "storing marshalled bytes in repository")
+		return "", clues.Wrap(err, "storing marshalled bytes in repository")
 	}
 
 	return backupStats.SnapshotID, nil
@@ -293,7 +292,7 @@ func read(
 		&stats.ByteCounter{},
 		errs)
 	if err != nil {
-		return errors.Wrap(err, "retrieving data")
+		return clues.Wrap(err, "retrieving data")
 	}
 
 	// Expect only 1 data collection

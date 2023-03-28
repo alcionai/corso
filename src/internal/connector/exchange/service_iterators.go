@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -235,7 +234,7 @@ func makeTombstones(dps DeltaPaths) map[string]string {
 func pathFromPrevString(ps string) (path.Path, error) {
 	p, err := path.FromDataLayerPath(ps, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing previous path string")
+		return nil, clues.Wrap(err, "parsing previous path string")
 	}
 
 	return p, nil

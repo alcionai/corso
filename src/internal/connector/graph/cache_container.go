@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -175,7 +174,7 @@ func CreateCalendarDisplayable(entry any, parentID string) *CalendarDisplayable 
 func CheckRequiredValues(c Container) error {
 	id, ok := ptr.ValOK(c.GetId())
 	if !ok {
-		return errors.New("container missing ID")
+		return clues.New("container missing ID")
 	}
 
 	if _, ok := ptr.ValOK(c.GetDisplayName()); !ok {
