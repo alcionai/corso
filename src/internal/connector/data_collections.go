@@ -55,7 +55,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	serviceEnabled, err := checkServiceEnabled(
 		ctx,
-		gc.Owners.Users(),
+		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner)
 	if err != nil {

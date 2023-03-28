@@ -28,12 +28,13 @@ import (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	Service    graph.Servicer
-	Owners     api.Client
+	Discovery  api.Client
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
 	credentials account.M365Config
 
+	ownerLookup getOwnerIDAndNamer
 	// maps of resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
@@ -49,15 +50,6 @@ type GraphConnector struct {
 	status support.ConnectorOperationStatus // contains the status of the last run status
 }
 
-type resource int
-
-const (
-	UnknownResource resource = iota
-	AllResources
-	Users
-	Sites
-)
-
 func NewGraphConnector(
 	ctx context.Context,
 	itemClient *http.Client,
@@ -65,30 +57,42 @@ func NewGraphConnector(
 	r resource,
 	errs *fault.Bus,
 ) (*GraphConnector, error) {
-	m365, err := acct.M365Config()
+	creds, err := acct.M365Config()
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	gc := GraphConnector{
-		itemClient:  itemClient,
-		tenant:      m365.AzureTenantID,
-		wg:          &sync.WaitGroup{},
-		credentials: m365,
-	}
-
-	gc.Service, err = gc.createService()
+	service, err := createService(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
-	gc.Owners, err = api.NewClient(m365)
+	discovery, err := api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
+	rc, err := r.resourceClient(discovery)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
+	}
+
+	gc := GraphConnector{
+		itemClient:  itemClient,
+		Discovery:   discovery,
+		tenant:      acct.ID(),
+		wg:          &sync.WaitGroup{},
+		credentials: creds,
+		ownerLookup: rc,
+		Service:     service,
+	}
+
 	return &gc, nil
 }
+
+// ---------------------------------------------------------------------------
+// Owner Lookup
+// ---------------------------------------------------------------------------
 
 // PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
 // the owner's name and ID from that value.  Returns an error if the owner is
@@ -105,6 +109,7 @@ func NewGraphConnector(
 // idea: downstream from here, we should _only_ need the given user's id and name,
 // and could store minimal map copies with that info instead of the whole tenant.
 func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+	ctx context.Context,
 	owner string, // input value, can be either id or name
 	idToName, nameToID map[string]string, // optionally pre-populated lookups
 ) (string, string, error) {
@@ -118,8 +123,7 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 		nameToID = map[string]string{}
 	}
 
-	// move this to GC method
-	id, name, err := getOwnerIDAndNameFrom(owner, idToName, nameToID)
+	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, idToName, nameToID)
 	if err != nil {
 		return "", "", errors.Wrap(err, "resolving resource owner details")
 	}
@@ -130,35 +134,26 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	return id, name, nil
 }
 
-func getOwnerIDAndNameFrom(
-	owner string,
-	idToName, nameToID map[string]string,
-) (string, string, error) {
-	if n, ok := idToName[owner]; ok {
-		return owner, n, nil
-	} else if i, ok := nameToID[owner]; ok {
-		return i, owner, nil
-	}
-
-	// TODO: look-up user by owner, either id or name,
-	// and populate with maps as a result.  Only
-	// return owner, owner as a very last resort.
-
-	return owner, owner, nil
-}
+// ---------------------------------------------------------------------------
+// Service Client
+// ---------------------------------------------------------------------------
 
 // createService constructor for graphService component
-func (gc *GraphConnector) createService() (*graph.Service, error) {
+func createService(creds account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
-		gc.credentials.AzureTenantID,
-		gc.credentials.AzureClientID,
-		gc.credentials.AzureClientSecret)
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return &graph.Service{}, err
 	}
 
 	return graph.NewService(adapter), nil
 }
+
+// ---------------------------------------------------------------------------
+// Processing Status
+// ---------------------------------------------------------------------------
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
 func (gc *GraphConnector) Wait() *data.CollectionStats {
@@ -214,4 +209,104 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func (gc *GraphConnector) incrementMessagesBy(num int) {
 	gc.wg.Add(num)
+}
+
+// ---------------------------------------------------------------------------
+// Resource Handling
+// ---------------------------------------------------------------------------
+
+type resource int
+
+const (
+	UnknownResource resource = iota
+	AllResources             // unused
+	Users
+	Sites
+)
+
+func (r resource) resourceClient(discovery api.Client) (*resourceClient, error) {
+	switch r {
+	case Users:
+		return &resourceClient{enum: r, getter: discovery.Users()}, nil
+	case Sites:
+		return &resourceClient{enum: r, getter: discovery.Sites()}, nil
+	default:
+		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", r)
+	}
+}
+
+type resourceClient struct {
+	enum   resource
+	getter getIDAndNamer
+}
+
+type getIDAndNamer interface {
+	GetIDAndName(ctx context.Context, owner string) (
+		ownerID string,
+		ownerName string,
+		err error,
+	)
+}
+
+var _ getOwnerIDAndNamer = &resourceClient{}
+
+type getOwnerIDAndNamer interface {
+	getOwnerIDAndNameFrom(
+		ctx context.Context,
+		discovery api.Client,
+		owner string,
+		idToName, nameToID map[string]string,
+	) (
+		ownerID string,
+		ownerName string,
+		err error,
+	)
+}
+
+var ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
+
+// getOwnerIDAndNameFrom looks up the owner's canonical id and display name.
+// if idToName and nameToID are populated, and the owner is a key of one of
+// those maps, then those values are returned.  As a fallback, the resource
+// calls the discovery api to fetch the user or site using the owner value.
+// This fallback assumes that the owner is a well formed ID or display name
+// of appropriate design (PrincipalName for users, WebURL for sites).
+// If the fallback lookup is used, the maps are populated to contain the
+// id and name references.
+func (r resourceClient) getOwnerIDAndNameFrom(
+	ctx context.Context,
+	discovery api.Client,
+	owner string,
+	idToName, nameToID map[string]string,
+) (string, string, error) {
+	if n, ok := idToName[owner]; ok {
+		return owner, n, nil
+	} else if i, ok := nameToID[owner]; ok {
+		return i, owner, nil
+	}
+
+	ctx = clues.Add(ctx, "owner_identifier", owner)
+
+	var (
+		id, name string
+		err      error
+	)
+
+	if r.enum == Sites {
+		// TODO: check all suffixes in nameToID
+	}
+
+	id, name, err = r.getter.GetIDAndName(ctx, owner)
+	if err != nil {
+		return "", "", err
+	}
+
+	if len(id) == 0 || len(name) == 0 {
+		return "", "", clues.Stack(ErrResourceOwnerNotFound)
+	}
+
+	idToName[id] = name
+	nameToID[name] = id
+
+	return id, name, nil
 }

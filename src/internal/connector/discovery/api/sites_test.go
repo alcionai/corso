@@ -1,11 +1,14 @@
 package api
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -103,6 +106,61 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 			}
 
 			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+type SitesIntgSuite struct {
+	tester.Suite
+}
+
+func TestSitesIntgSuite(t *testing.T) {
+	suite.Run(t, &SitesIntgSuite{
+		Suite: tester.NewIntegrationSuite(t, [][]string{tester.M365AcctCredEnvs}),
+	})
+}
+
+func (suite *SitesIntgSuite) TestSites_GetByID() {
+	var (
+		t       = suite.T()
+		siteID  = tester.M365SiteID(t)
+		host    = strings.Split(siteID, ",")[0]
+		shortID = strings.TrimPrefix(siteID, host+",")
+		siteURL = tester.M365SiteURL(t)
+		acct    = tester.NewM365Account(t)
+	)
+
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	client, err := NewClient(creds)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sitesAPI := client.Sites()
+
+	table := []struct {
+		name      string
+		id        string
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{"3 part id", siteID, assert.NoError},
+		{"2 part id", shortID, assert.NoError},
+		{"malformed id", uuid.NewString(), assert.Error},
+		{"random id", uuid.NewString() + "," + uuid.NewString(), assert.Error},
+		{"url", siteURL, assert.NoError},
+		{"host only", host, assert.NoError},
+		{"malformed url", "barunihlda", assert.Error},
+		{"non-matching url", "https://test/sites/testing", assert.Error},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			_, err := sitesAPI.GetByID(ctx, test.id)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

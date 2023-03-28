@@ -38,6 +38,19 @@ func TestGraphConnectorUnitSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+var _ getIDAndNamer = &mockNameIDGetter{}
+
+type mockNameIDGetter struct {
+	id, name string
+}
+
+func (mnig mockNameIDGetter) GetIDAndName(
+	_ context.Context,
+	_ string,
+) (string, string, error) {
+	return mnig.id, mnig.name, nil
+}
+
 func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
 		ownerID   = "owner-id"
@@ -45,8 +58,13 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	)
 
 	var (
-		itn = map[string]string{ownerID: ownerName}
-		nti = map[string]string{ownerName: ownerID}
+		itn    = map[string]string{ownerID: ownerName}
+		nti    = map[string]string{ownerName: ownerID}
+		lookup = &resourceClient{
+			enum:   Users,
+			getter: &mockNameIDGetter{id: ownerID, name: ownerName},
+		}
+		noLookup = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
 	)
 
 	table := []struct {
@@ -54,93 +72,125 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		owner      string
 		idToName   map[string]string
 		nameToID   map[string]string
+		rc         *resourceClient
 		expectID   string
 		expectName string
+		expectErr  assert.ErrorAssertionFunc
 	}{
 		{
-			name:       "nil maps",
+			name:       "nil maps, getter lookup",
 			owner:      ownerID,
+			rc:         lookup,
 			idToName:   nil,
 			nameToID:   nil,
 			expectID:   ownerID,
-			expectName: ownerID,
+			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "only id map with owner id",
 			owner:      ownerID,
+			rc:         noLookup,
 			idToName:   itn,
 			nameToID:   nil,
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "only name map with owner id",
 			owner:      ownerID,
+			rc:         lookup,
 			idToName:   nil,
 			nameToID:   nti,
 			expectID:   ownerID,
-			expectName: ownerID,
+			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "only id map with owner name",
 			owner:      ownerName,
+			rc:         lookup,
 			idToName:   itn,
 			nameToID:   nil,
-			expectID:   ownerName,
+			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "only name map with owner name",
 			owner:      ownerName,
+			rc:         lookup,
 			idToName:   nil,
 			nameToID:   nti,
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "both maps with owner id",
 			owner:      ownerID,
+			rc:         noLookup,
 			idToName:   itn,
 			nameToID:   nti,
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "both maps with owner name",
 			owner:      ownerName,
+			rc:         noLookup,
 			idToName:   itn,
 			nameToID:   nti,
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  assert.NoError,
 		},
 		{
 			name:       "non-matching maps with owner id",
 			owner:      ownerID,
+			rc:         noLookup,
 			idToName:   map[string]string{"foo": "bar"},
 			nameToID:   map[string]string{"fnords": "smarf"},
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  assert.Error,
 		},
 		{
 			name:       "non-matching with owner name",
 			owner:      ownerName,
+			rc:         noLookup,
 			idToName:   map[string]string{"foo": "bar"},
 			nameToID:   map[string]string{"fnords": "smarf"},
-			expectID:   ownerName,
-			expectName: ownerName,
+			expectID:   "",
+			expectName: "",
+			expectErr:  assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
 				t  = suite.T()
-				gc = &GraphConnector{}
+				gc = &GraphConnector{ownerLookup: test.rc}
 			)
 
-			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.idToName, test.nameToID)
-			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expectID, id)
-			assert.Equal(t, test.expectName, name)
+			id, name, err := gc.PopulateOwnerIDAndNamesFrom(
+				ctx,
+				test.owner,
+				test.idToName,
+				test.nameToID)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expectID, id, "id")
+			assert.Equal(t, test.expectName, name, "name")
 		})
 	}
 }
