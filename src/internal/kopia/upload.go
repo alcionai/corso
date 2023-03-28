@@ -24,7 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/metadata"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -546,7 +546,7 @@ func getStreamItemFunc(
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
 	return func(ctx context.Context, cb func(context.Context, fs.Entry) error) error {
-		ctx, end := D.Span(ctx, "kopia:getStreamItemFunc")
+		ctx, end := diagnostics.Span(ctx, "kopia:getStreamItemFunc")
 		defer end()
 
 		// Return static entries in this directory first.

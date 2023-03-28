@@ -13,7 +13,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -143,7 +143,7 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
 
-	ctx, end := D.Span(ctx, "kopia:backupCollections")
+	ctx, end := diagnostics.Span(ctx, "kopia:backupCollections")
 	defer end()
 
 	if len(collections) == 0 && len(globalExcludeSet) == 0 {
@@ -396,7 +396,7 @@ func (w Wrapper) RestoreMultipleItems(
 	bcounter ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	ctx, end := D.Span(ctx, "kopia:restoreMultipleItems")
+	ctx, end := diagnostics.Span(ctx, "kopia:restoreMultipleItems")
 	defer end()
 
 	if len(paths) == 0 {
