@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
@@ -145,7 +145,7 @@ func GetMockListDefault(title string) models.Listable {
 func GetMockListBytes(title string) ([]byte, error) {
 	list := GetMockListDefault(title)
 
-	objectWriter := kioser.NewJsonSerializationWriter()
+	objectWriter := kjson.NewJsonSerializationWriter()
 	defer objectWriter.Close()
 
 	err := objectWriter.WriteObjectValue("", list)

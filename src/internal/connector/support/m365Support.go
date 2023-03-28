@@ -3,7 +3,7 @@ package support
 import (
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	betamodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
@@ -12,7 +12,7 @@ import (
 // CreateFromBytes helper function to initialize m365 object form bytes.
 // @param bytes -> source, createFunc -> abstract function for initialization
 func CreateFromBytes(bytes []byte, createFunc serialization.ParsableFactory) (serialization.Parsable, error) {
-	parseNode, err := kioser.NewJsonParseNodeFactory().GetRootParseNode("application/json", bytes)
+	parseNode, err := kjson.NewJsonParseNodeFactory().GetRootParseNode("application/json", bytes)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes into base m365 object")
 	}

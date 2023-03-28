@@ -8,7 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -179,7 +179,7 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 	var (
 		err     error
 		metrics support.CollectionMetrics
-		writer  = kioser.NewJsonSerializationWriter()
+		writer  = kjson.NewJsonSerializationWriter()
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
@@ -208,7 +208,7 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 // models.Listable objects based on M365 IDs from the jobs field.
 func (sc *Collection) retrieveLists(
 	ctx context.Context,
-	wtr *kioser.JsonSerializationWriter,
+	wtr *kjson.JsonSerializationWriter,
 	progress chan<- struct{},
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -263,7 +263,7 @@ func (sc *Collection) retrieveLists(
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
-	wtr *kioser.JsonSerializationWriter,
+	wtr *kjson.JsonSerializationWriter,
 	progress chan<- struct{},
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -325,7 +325,7 @@ func (sc *Collection) retrievePages(
 
 func serializeContent(
 	ctx context.Context,
-	writer *kioser.JsonSerializationWriter,
+	writer *kjson.JsonSerializationWriter,
 	obj serialization.Parsable,
 ) ([]byte, error) {
 	defer writer.Close()
