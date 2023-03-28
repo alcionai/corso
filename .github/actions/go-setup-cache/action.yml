@@ -38,6 +38,7 @@ runs:
       id: golang-path
       run: |
         echo "build=$(go env GOCACHE)" | tee -a $GITHUB_OUTPUT
+        echo "module=$(go env GOMODCACHE)" | tee -a $GITHUB_OUTPUT
       shell: bash
 
     - name: Setup Golang cache
