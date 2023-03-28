@@ -335,7 +335,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(siteID, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -379,7 +379,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(siteID, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)

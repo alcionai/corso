@@ -39,6 +39,19 @@ func TestGraphConnectorUnitSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+var _ getIDAndNamer = &mockNameIDGetter{}
+
+type mockNameIDGetter struct {
+	id, name string
+}
+
+func (mnig mockNameIDGetter) GetIDAndName(
+	_ context.Context,
+	_ string,
+) (string, string, error) {
+	return mnig.id, mnig.name, nil
+}
+
 func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
 		ownerID   = "owner-id"
@@ -46,14 +59,20 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	)
 
 	var (
-		itn = map[string]string{ownerID: ownerName}
-		nti = map[string]string{ownerName: ownerID}
+		itn    = map[string]string{ownerID: ownerName}
+		nti    = map[string]string{ownerName: ownerID}
+		lookup = &resourceClient{
+			enum:   Users,
+			getter: &mockNameIDGetter{id: ownerID, name: ownerName},
+		}
+		noLookup = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
 	)
 
 	table := []struct {
 		name       string
 		owner      string
 		ins        common.IDsNames
+		rc         *resourceClient
 		expectID   string
 		expectName string
 		expectErr  require.ErrorAssertionFunc
@@ -61,6 +80,15 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		{
 			name:       "nil ins",
 			owner:      ownerID,
+			rc:         lookup,
+			expectID:   ownerID,
+			expectName: ownerName,
+			expectErr:  require.NoError,
+		},
+		{
+			name:       "nil ins no lookup",
+			owner:      ownerID,
+			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
@@ -72,6 +100,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: itn,
 				NameToID: nil,
 			},
+			rc:         noLookup,
 			expectID:   ownerID,
 			expectName: ownerName,
 			expectErr:  require.NoError,
@@ -83,9 +112,10 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: nil,
 				NameToID: nti,
 			},
-			expectID:   "",
-			expectName: "",
-			expectErr:  require.Error,
+			rc:         lookup,
+			expectID:   ownerID,
+			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "only id map with owner name",
@@ -94,9 +124,10 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: itn,
 				NameToID: nil,
 			},
-			expectID:   "",
-			expectName: "",
-			expectErr:  require.Error,
+			expectID:   ownerName,
+			rc:         lookup,
+			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "only name map with owner name",
@@ -105,6 +136,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: nil,
 				NameToID: nti,
 			},
+			rc:         lookup,
 			expectID:   ownerID,
 			expectName: ownerName,
 			expectErr:  require.NoError,
@@ -116,6 +148,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: itn,
 				NameToID: nti,
 			},
+			rc:         noLookup,
 			expectID:   ownerID,
 			expectName: ownerName,
 			expectErr:  require.NoError,
@@ -127,6 +160,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: itn,
 				NameToID: nti,
 			},
+			rc:         noLookup,
 			expectID:   ownerID,
 			expectName: ownerName,
 			expectErr:  require.NoError,
@@ -138,6 +172,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
+			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
@@ -149,6 +184,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
+			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
@@ -156,15 +192,18 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
 			var (
 				t  = suite.T()
-				gc = &GraphConnector{}
+				gc = &GraphConnector{ownerLookup: test.rc}
 			)
 
-			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.ins)
+			id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expectID, id)
-			assert.Equal(t, test.expectName, name)
+			assert.Equal(t, test.expectID, id, "id")
+			assert.Equal(t, test.expectName, name, "name")
 		})
 	}
 }
@@ -1165,7 +1204,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				start     = time.Now()
 			)
 
-			id, name, err := backupGC.PopulateOwnerIDAndNamesFrom(backupSel.DiscreteOwner, nil)
+			id, name, err := backupGC.PopulateOwnerIDAndNamesFrom(ctx, backupSel.DiscreteOwner, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
 			backupSel.SetDiscreteOwnerIDName(id, name)
