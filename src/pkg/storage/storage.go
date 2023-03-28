@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -17,7 +18,7 @@ const (
 
 // storage parsing errors
 var (
-	errMissingRequired = errors.New("missing required storage configuration")
+	errMissingRequired = clues.New("missing required storage configuration")
 )
 
 // envvar consts

@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/alcionai/clues"
 	absser "github.com/microsoft/kiota-abstractions-go/serialization"
 	js "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 )
 
@@ -748,12 +747,12 @@ func serialize(t *testing.T, item absser.Parsable) []byte {
 func hydrateMessage(byteArray []byte) (models.Messageable, error) {
 	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
 	if err != nil {
-		return nil, errors.Wrap(err, "deserializing bytes into base m365 object")
+		return nil, clues.Wrap(err, "deserializing bytes into base m365 object")
 	}
 
 	anObject, err := parseNode.GetObjectValue(models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing m365 object factory")
+		return nil, clues.Wrap(err, "parsing m365 object factory")
 	}
 
 	message := anObject.(models.Messageable)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -283,7 +282,7 @@ func SendMailToBackStore(
 				continue
 			}
 
-			el.AddRecoverable(errors.Wrap(err, "uploading mail attachment"))
+			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment"))
 
 			break
 		}
@@ -622,7 +621,7 @@ func establishMailRestoreLocation(
 		// call even if we make a new cache.
 		if isNewCache {
 			if err := mfc.Populate(ctx, errs, rootFolderAlias); err != nil {
-				return "", errors.Wrap(err, "populating folder cache")
+				return "", clues.Wrap(err, "populating folder cache")
 			}
 
 			isNewCache = false
@@ -630,7 +629,7 @@ func establishMailRestoreLocation(
 
 		// NOOP if the folder is already in the cache.
 		if err = mfc.AddToCache(ctx, temp, false); err != nil {
-			return "", errors.Wrap(err, "adding folder to cache")
+			return "", clues.Wrap(err, "adding folder to cache")
 		}
 	}
 
@@ -668,11 +667,11 @@ func establishContactsRestoreLocation(
 
 	if isNewCache {
 		if err := cfc.Populate(ctx, errs, folderID, folders[0]); err != nil {
-			return "", errors.Wrap(err, "populating contact cache")
+			return "", clues.Wrap(err, "populating contact cache")
 		}
 
 		if err = cfc.AddToCache(ctx, temp, false); err != nil {
-			return "", errors.Wrap(err, "adding contact folder to cache")
+			return "", clues.Wrap(err, "adding contact folder to cache")
 		}
 	}
 
@@ -705,12 +704,12 @@ func establishEventsRestoreLocation(
 
 	if isNewCache {
 		if err = ecc.Populate(ctx, errs, folderID, folders[0]); err != nil {
-			return "", errors.Wrap(err, "populating event cache")
+			return "", clues.Wrap(err, "populating event cache")
 		}
 
 		displayable := api.CalendarDisplayable{Calendarable: temp}
 		if err = ecc.AddToCache(ctx, displayable, true); err != nil {
-			return "", errors.Wrap(err, "adding new calendar to cache")
+			return "", clues.Wrap(err, "adding new calendar to cache")
 		}
 	}
 

@@ -4,9 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
@@ -40,7 +39,7 @@ func DataCollections(
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (

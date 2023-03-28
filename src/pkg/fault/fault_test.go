@@ -2,7 +2,6 @@ package fault_test
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -206,9 +205,9 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	n := fault.New(false)
 	require.NotNil(t, n)
 
-	n.Fail(errors.New("fail"))
-	n.AddRecoverable(errors.New("1"))
-	n.AddRecoverable(errors.New("2"))
+	n.Fail(clues.New("fail"))
+	n.AddRecoverable(clues.New("1"))
+	n.AddRecoverable(clues.New("2"))
 
 	d := n.Errors()
 	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
@@ -219,9 +218,9 @@ func (suite *FaultErrorsUnitSuite) TestErrors() {
 	n = fault.New(true)
 	require.NotNil(t, n)
 
-	n.Fail(errors.New("fail"))
-	n.AddRecoverable(errors.New("1"))
-	n.AddRecoverable(errors.New("2"))
+	n.Fail(clues.New("fail"))
+	n.AddRecoverable(clues.New("1"))
+	n.AddRecoverable(clues.New("2"))
 
 	d = n.Errors()
 	assert.Equal(t, clues.ToCore(n.Failure()), d.Failure)
@@ -369,8 +368,8 @@ func (suite *FaultErrorsUnitSuite) TestMarshalUnmarshal() {
 	n := fault.New(false)
 	require.NotNil(t, n)
 
-	n.AddRecoverable(errors.New("1"))
-	n.AddRecoverable(errors.New("2"))
+	n.AddRecoverable(clues.New("1"))
+	n.AddRecoverable(clues.New("2"))
 
 	bs, err := json.Marshal(n.Errors())
 	require.NoError(t, err, clues.ToCore(err))

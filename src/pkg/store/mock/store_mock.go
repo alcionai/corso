@@ -3,8 +3,8 @@ package mock
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -58,7 +58,7 @@ func (mms *MockModelStore) Get(
 		*bm = *mms.backup
 
 	default:
-		return errors.Errorf("schema %s not supported by mock Get", s)
+		return clues.New("schema not supported by mock Get").With("schema", s)
 	}
 
 	return nil
@@ -79,7 +79,7 @@ func (mms *MockModelStore) GetIDsForType(
 		return []*model.BaseModel{&b.BaseModel}, nil
 	}
 
-	return nil, errors.Errorf("schema %s not supported by mock GetIDsForType", s)
+	return nil, clues.New("schema not supported by mock GetIDsForType").With("schema", s)
 }
 
 func (mms *MockModelStore) GetWithModelStoreID(
@@ -98,7 +98,7 @@ func (mms *MockModelStore) GetWithModelStoreID(
 		*bm = *mms.backup
 
 	default:
-		return errors.Errorf("schema %s not supported by mock GetWithModelStoreID", s)
+		return clues.New("schema not supported by mock GetWithModelStoreID").With("schema", s)
 	}
 
 	return nil
@@ -115,7 +115,7 @@ func (mms *MockModelStore) Put(ctx context.Context, s model.Schema, m model.Mode
 		mms.backup = bm
 
 	default:
-		return errors.Errorf("schema %s not supported by mock Put", s)
+		return clues.New("schema not supported by mock Put").With("schema", s)
 	}
 
 	return mms.err
@@ -128,7 +128,7 @@ func (mms *MockModelStore) Update(ctx context.Context, s model.Schema, m model.M
 		mms.backup = bm
 
 	default:
-		return errors.Errorf("schema %s not supported by mock Update", s)
+		return clues.New("schema not supported by mock Update").With("schema", s)
 	}
 
 	return mms.err

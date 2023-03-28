@@ -3,17 +3,16 @@ package kopia
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -133,7 +132,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 type mockSeeker struct{}
 
 func (s mockSeeker) Seek(offset int64, whence int) (int64, error) {
-	return 0, errors.New("not implemented")
+	return 0, clues.New("not implemented")
 }
 
 type mockReader struct {
@@ -142,7 +141,7 @@ type mockReader struct {
 }
 
 func (r mockReader) Entry() (fs.Entry, error) {
-	return nil, errors.New("not implemented")
+	return nil, clues.New("not implemented")
 }
 
 type mockFile struct {

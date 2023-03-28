@@ -6,9 +6,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
+	msmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
+	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -19,8 +20,6 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	msmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
-	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
 )
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
@@ -206,7 +205,7 @@ func RestoreSitePage(
 	// Hydrate Page
 	page, err := support.CreatePageFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
+		return dii, clues.Wrap(err, "creating Page object").WithClues(ctx)
 	}
 
 	name, ok := ptr.ValOK(page.GetName())

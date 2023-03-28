@@ -4,12 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -50,7 +49,7 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 ) {
 	results, ok := mg[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, errors.New("mock not found for " + cID)
+		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	return results.added, results.removed, results.newDelta, results.err

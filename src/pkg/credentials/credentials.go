@@ -1,5 +1,5 @@
 package credentials
 
-import "errors"
+import "github.com/alcionai/clues"
 
-var errMissingRequired = errors.New("missing required storage configuration")
+var errMissingRequired = clues.New("missing required storage configuration")

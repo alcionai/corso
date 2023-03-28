@@ -3,10 +3,10 @@ package sharepoint
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"

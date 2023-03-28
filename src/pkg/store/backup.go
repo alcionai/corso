@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -42,7 +42,7 @@ func (w Wrapper) GetBackup(ctx context.Context, backupID model.StableID) (*backu
 
 	err := w.Get(ctx, model.BackupSchema, backupID, &b)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting backup")
+		return nil, clues.Wrap(err, "getting backup")
 	}
 
 	return &b, nil
