@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -39,7 +39,7 @@ func (gc *GraphConnector) DataCollections(
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
-	ctx, end := D.Span(ctx, "gc:dataCollections", D.Index("service", sels.Service.String()))
+	ctx, end := diagnostics.Span(ctx, "gc:dataCollections", diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
 	err := verifyBackupInputs(sels, gc.GetSiteIDs())
@@ -201,7 +201,7 @@ func (gc *GraphConnector) RestoreDataCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 ) (*details.Details, error) {
-	ctx, end := D.Span(ctx, "connector:restore")
+	ctx, end := diagnostics.Span(ctx, "connector:restore")
 	defer end()
 
 	var (
