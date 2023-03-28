@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 

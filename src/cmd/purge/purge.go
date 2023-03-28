@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
