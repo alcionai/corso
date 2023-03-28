@@ -91,7 +91,7 @@ func (op operation) validate() error {
 	}
 
 	if op.gc == nil {
-		return errors.New("missing graph connector")
+		return clues.New("missing graph connector")
 	}
 
 	return nil
