@@ -6,7 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -304,7 +304,7 @@ func reduce[T scopeT, C categoryT](
 	dataCategories map[path.CategoryType]C,
 	errs *fault.Bus,
 ) *details.Details {
-	ctx, end := D.Span(ctx, "selectors:reduce")
+	ctx, end := diagnostics.Span(ctx, "selectors:reduce")
 	defer end()
 
 	if deets == nil {

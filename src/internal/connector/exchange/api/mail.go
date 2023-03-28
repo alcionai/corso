@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
@@ -331,7 +331,7 @@ func (c Mail) Serialize(
 
 	var (
 		err    error
-		writer = kioser.NewJsonSerializationWriter()
+		writer = kjson.NewJsonSerializationWriter()
 	)
 
 	defer writer.Close()

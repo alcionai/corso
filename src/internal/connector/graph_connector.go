@@ -22,7 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -119,7 +119,7 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) error {
 	gc.Sites = map[string]string{}
 
-	ctx, end := D.Span(ctx, "gc:setTenantSites")
+	ctx, end := diagnostics.Span(ctx, "gc:setTenantSites")
 	defer end()
 
 	sites, err := getResources(
