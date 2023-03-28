@@ -199,13 +199,14 @@ func (suite *SharePointSelectorSuite) TestToSharePointRestore() {
 
 func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 	var (
-		pairAC = "folderA/folderC"
-		pairGH = "folderG/folderH"
-		item   = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderA/folderB", "item")
-		item2  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", pairAC, "item2")
-		item3  = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", "folderD/folderE", "item3")
-		item4  = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item4")
-		item5  = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item5")
+		drivePfx = "drive/drive!id/root:/"
+		pairAC   = "folderA/folderC"
+		pairGH   = "folderG/folderH"
+		item     = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", drivePfx+"folderA/folderB", "item")
+		item2    = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", drivePfx+pairAC, "item2")
+		item3    = stubRepoRef(path.SharePointService, path.LibrariesCategory, "sid", drivePfx+"folderD/folderE", "item3")
+		item4    = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item4")
+		item5    = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item5")
 	)
 
 	deets := &details.Details{
@@ -327,26 +328,32 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 }
 
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
-	itemName := "item"
-	shortRef := "short"
-	elems := []string{"dir1", "dir2", itemName + "-id"}
+	var (
+		itemName   = "item"
+		shortRef   = "short"
+		driveElems = []string{"drive", "drive!id", "root:", "dir1", "dir2", itemName + "-id"}
+		elems      = []string{"dir1", "dir2", itemName + "-id"}
+	)
 
 	table := []struct {
-		name     string
-		sc       sharePointCategory
-		expected map[categorizer][]string
+		name      string
+		sc        sharePointCategory
+		pathElems []string
+		expected  map[categorizer][]string
 	}{
 		{
-			name: "SharePoint Libraries",
-			sc:   SharePointLibraryItem,
+			name:      "SharePoint Libraries",
+			sc:        SharePointLibraryItem,
+			pathElems: driveElems,
 			expected: map[categorizer][]string{
 				SharePointLibraryFolder: {"dir1/dir2"},
 				SharePointLibraryItem:   {itemName, shortRef},
 			},
 		},
 		{
-			name: "SharePoint Lists",
-			sc:   SharePointListItem,
+			name:      "SharePoint Lists",
+			sc:        SharePointListItem,
+			pathElems: elems,
 			expected: map[categorizer][]string{
 				SharePointList:     {"dir1/dir2"},
 				SharePointListItem: {"item-id", shortRef},
@@ -364,7 +371,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				path.SharePointService,
 				test.sc.PathType(),
 				true,
-				elems...)
+				test.pathElems...)
 			require.NoError(t, err, clues.ToCore(err))
 
 			ent := details.DetailsEntry{

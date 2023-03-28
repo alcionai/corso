@@ -281,6 +281,8 @@ func runDetailsOneDriveCmd(
 		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
+	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
+
 	if !skipReduce {
 		sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 		utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
