@@ -102,7 +102,7 @@ func produceManifestsAndMetadata(
 		}
 
 		if err != nil {
-			return nil, nil, false, errors.Wrap(err, "retrieving prior backup data")
+			return nil, nil, false, clues.Wrap(err, "retrieving prior backup data")
 		}
 
 		ssid := bup.StreamStoreID
@@ -206,7 +206,7 @@ func collectMetadata(
 		// Restore is best-effort and we want to keep it that way since we want to
 		// return as much metadata as we can to reduce the work we'll need to do.
 		// Just wrap the error here for better reporting/debugging.
-		return dcs, errors.Wrap(err, "collecting prior metadata")
+		return dcs, clues.Wrap(err, "collecting prior metadata")
 	}
 
 	return dcs, nil

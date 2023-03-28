@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -329,7 +328,7 @@ func (oc *Collection) getDriveItemContent(
 		// refresh that download url.
 		di, diErr := oc.itemGetter(ctx, oc.service, oc.driveID, itemID)
 		if diErr != nil {
-			err = errors.Wrap(diErr, "retrieving expired item")
+			err = clues.Wrap(diErr, "retrieving expired item")
 			break
 		}
 

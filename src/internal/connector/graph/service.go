@@ -10,16 +10,15 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	ka "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -81,12 +80,12 @@ func (s Service) Client() *msgraphsdk.GraphServiceClient {
 func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 	writer, err := s.adapter.GetSerializationWriterFactory().GetSerializationWriter("application/json")
 	if err != nil || writer == nil {
-		return nil, errors.Wrap(err, "creating json serialization writer")
+		return nil, clues.Wrap(err, "creating json serialization writer")
 	}
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing object")
+		return nil, clues.Wrap(err, "serializing object")
 	}
 
 	return writer.GetSerializedContent()
@@ -175,7 +174,7 @@ func CreateAdapter(
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating m365 client identity")
+		return nil, clues.Wrap(err, "creating m365 client identity")
 	}
 
 	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
@@ -183,7 +182,7 @@ func CreateAdapter(
 		[]string{"https://graph.microsoft.com/.default"},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating azure authentication")
+		return nil, clues.Wrap(err, "creating azure authentication")
 	}
 
 	httpClient := HTTPClient(opts...)

@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type CrashTestDummySuite struct {

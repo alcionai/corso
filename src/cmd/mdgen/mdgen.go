@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -45,35 +46,35 @@ func main() {
 
 func genDocs(cmd *cobra.Command, args []string) {
 	if err := makeDir(cliMarkdownDir); err != nil {
-		fatal(errors.Wrap(err, "preparing directory for markdown generation"))
+		fatal(clues.Wrap(err, "preparing directory for markdown generation"))
 	}
 
 	corsoCmd := cli.CorsoCommand()
 
 	err := genMarkdownCorso(corsoCmd, cliMarkdownDir)
 	if err != nil {
-		fatal(errors.Wrap(err, "generating the Corso CLI markdown"))
+		fatal(clues.Wrap(err, "generating the Corso CLI markdown"))
 	}
 }
 
 func makeDir(dir string) error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return errors.Wrap(err, "finding current working directory")
+		return clues.Wrap(err, "finding current working directory")
 	}
 
 	if !strings.HasSuffix(wd, "/src") {
-		return errors.New("must be called from /corso/src")
+		return clues.New("must be called from /corso/src")
 	}
 
 	_, err = os.Stat(dir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "unable to discover directory")
+		return clues.Wrap(err, "unable to discover directory")
 	}
 
 	if errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(dir, os.ModePerm); err != nil {
-			return errors.Wrap(err, "generating directory to hold markdown")
+			return clues.Wrap(err, "generating directory to hold markdown")
 		}
 	}
 

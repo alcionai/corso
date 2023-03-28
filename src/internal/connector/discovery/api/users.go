@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	absser "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -182,7 +182,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 func validateUser(item any) (models.Userable, error) {
 	m, ok := item.(models.Userable)
 	if !ok {
-		return nil, clues.Stack(clues.New("unexpected model"), errors.Errorf("%T", item))
+		return nil, clues.New(fmt.Sprintf("unexpected model: %T", item))
 	}
 
 	if m.GetId() == nil {

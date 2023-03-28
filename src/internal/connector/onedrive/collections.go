@@ -231,7 +231,7 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 	tmp := map[string]T{}
 
 	if err := json.NewDecoder(reader).Decode(&tmp); err != nil {
-		return errors.Wrap(err, "deserializing file contents")
+		return clues.Wrap(err, "deserializing file contents")
 	}
 
 	var duplicate bool
@@ -853,7 +853,7 @@ func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "converting to canonical path")
+		return nil, clues.Wrap(err, "converting to canonical path")
 	}
 
 	return result, nil

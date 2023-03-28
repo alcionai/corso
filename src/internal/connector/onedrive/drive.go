@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -55,7 +54,7 @@ func PagerForSource(
 	case SharePointSource:
 		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
-		return nil, errors.Errorf("unrecognized drive data source")
+		return nil, clues.New("unrecognized drive data source")
 	}
 }
 
@@ -286,7 +285,7 @@ func GetAllFolders(
 ) ([]*Displayable, error) {
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting OneDrive folders")
+		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
 
 	var (
