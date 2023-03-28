@@ -6,10 +6,10 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
 
 	"github.com/alcionai/corso/src/internal/streamstore"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 var _ streamstore.Streamer = &Streamer{}

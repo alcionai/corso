@@ -3,6 +3,7 @@ run:
 
 linters:
   enable:
+    - gci
     - gofmt
     - gofumpt
     - errcheck
