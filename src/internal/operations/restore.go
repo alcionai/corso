@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -125,7 +125,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// Setup
 	// -----
 
-	ctx, end := D.Span(ctx, "operations:restore:run")
+	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
 	defer func() {
 		end()
 		// wait for the progress display to clean up
