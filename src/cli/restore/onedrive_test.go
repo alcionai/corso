@@ -11,15 +11,15 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type OneDriveSuite struct {
+type OneDriveUnitSuite struct {
 	tester.Suite
 }
 
-func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{Suite: tester.NewUnitSuite(t)})
+func TestOneDriveUnitSuite(t *testing.T) {
+	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OneDriveSuite) TestAddOneDriveCommands() {
+func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
 
 	table := []struct {
@@ -47,6 +47,35 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+		})
+	}
+}
+
+func (suite *OneDriveUnitSuite) TestAddOneDriveCommands_hasRestoreFlag() {
+	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
+
+	table := []struct {
+		name        string
+		use         string
+		expectUse   string
+		expectShort string
+		expectRunE  func(*cobra.Command, []string) error
+	}{
+		{"restore onedrive", restoreCommand, expectUse, oneDriveRestoreCmd().Short, restoreOneDriveCmd},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			cmd := &cobra.Command{Use: test.use}
+
+			c := addOneDriveCommands(cmd)
+			require.NotNil(t, c)
+
+			cmd.SetArgs([]string{"onedrive", "--restore-permissions"})
+
+			err := cmd.Execute()
+			assert.NotEqual(t, err.Error(), `unknown flag: --restore-permissions`)
 		})
 	}
 }
