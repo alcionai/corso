@@ -19,6 +19,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -228,6 +229,7 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
 		&ThrottleControlMiddleware{},
+		&MetricsMiddleware{},
 	}
 }
 
@@ -413,4 +415,25 @@ func (handler *ThrottleControlMiddleware) Intercept(
 ) (*http.Response, error) {
 	QueueRequest(req.Context())
 	return pipeline.Next(req, middlewareIndex)
+}
+
+// MetricsMiddleware aggregates per-request metrics on the events bus
+type MetricsMiddleware struct{}
+
+func (handler *MetricsMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	var (
+		start     = time.Now()
+		resp, err = pipeline.Next(req, middlewareIndex)
+	)
+
+	events.Inc(events.APICall)
+	events.Inc(events.APICall, resp.Status)
+	events.Since(start, events.APICall)
+	events.Since(start, events.APICall, resp.Status)
+
+	return resp, err
 }

@@ -106,6 +106,10 @@ func generateAndRestoreItems(
 func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphConnector, account.Account, error) {
 	tid := common.First(Tenant, os.Getenv(account.AzureTenantID))
 
+	if len(Tenant) == 0 {
+		Tenant = tid
+	}
+
 	// get account info
 	m365Cfg := account.M365Config{
 		M365:          credentials.GetM365(),

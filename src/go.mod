@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
 	github.com/alcionai/clues v0.0.0-20230324015051-5f61be9f301e
+	github.com/armon/go-metrics v0.4.0
 	github.com/aws/aws-sdk-go v1.44.220
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.0
@@ -40,6 +41,7 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/dnaeon/go-vcr v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
