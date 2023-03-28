@@ -430,6 +430,10 @@ func (handler *MetricsMiddleware) Intercept(
 		resp, err = pipeline.Next(req, middlewareIndex)
 	)
 
+	if resp == nil {
+		return resp, err
+	}
+
 	events.Inc(events.APICall)
 	events.Inc(events.APICall, resp.Status)
 	events.Since(start, events.APICall)
