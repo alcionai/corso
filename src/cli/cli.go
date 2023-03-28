@@ -148,6 +148,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 func Handle() {
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
+
 	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
 	BuildCommandTree(corsoCmd)
