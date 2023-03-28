@@ -118,6 +118,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		observe.Complete()
 	}()
 
+	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
+	defer flushMetrics()
+
 	// -----
 	// Setup
 	// -----

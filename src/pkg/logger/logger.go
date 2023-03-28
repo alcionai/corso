@@ -385,3 +385,19 @@ func (w *wrapper) Errorf(tmpl string, args ...any) {
 
 	w.SugaredLogger.Errorf(tmpl, args...)
 }
+
+// ------------------------------------------------------------------------------------------------
+// io.writer that writes values to the logger
+// ------------------------------------------------------------------------------------------------
+
+// Writer is a wrapper that turns the logger embedded in
+// the given ctx into an io.Writer.  All logs are currently
+// info-level.
+type Writer struct {
+	Ctx context.Context
+}
+
+func (w Writer) Write(p []byte) (int, error) {
+	Ctx(w.Ctx).Info(string(p))
+	return len(p), nil
+}
