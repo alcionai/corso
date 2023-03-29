@@ -74,15 +74,8 @@ func exchangeRestoreCmd() *cobra.Command {
 	}
 }
 
-// processes an exchange service restore.
-func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	opts := utils.ExchangeOpts{
+func getRestoreExchangeCmdOpts(cmd *cobra.Command) utils.ExchangeOpts {
+	return utils.ExchangeOpts{
 		Contact:             utils.Contact,
 		ContactFolder:       utils.ContactFolder,
 		Email:               utils.Email,
@@ -103,6 +96,17 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
+}
+
+// processes an exchange service restore.
+func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	opts := getRestoreExchangeCmdOpts(cmd)
 
 	if err := utils.ValidateExchangeRestoreFlags(utils.BackupID, opts); err != nil {
 		return err

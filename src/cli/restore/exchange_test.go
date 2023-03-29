@@ -1,6 +1,7 @@
 package restore
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -47,6 +48,27 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+
+			// Test arg parsing for few args
+			cmd.SetArgs([]string{
+				"exchange",
+				"--email", "email-id",
+				"--email-folder", "folder-id",
+				"--event", "event-id",
+				"--contact", "contact-id",
+				"--help",
+			})
+
+			cmd.SetOut(new(bytes.Buffer)) // drop output
+			cmd.SetErr(new(bytes.Buffer)) // drop output
+			err := cmd.Execute()
+			assert.NoError(t, err, "no error")
+
+			opts := getRestoreExchangeCmdOpts(cmd)
+			assert.ElementsMatch(t, []string{"email-id"}, opts.Email, "email-id")
+			assert.ElementsMatch(t, []string{"folder-id"}, opts.EmailFolder, "folder-id")
+			assert.ElementsMatch(t, []string{"event-id"}, opts.Event, "event-id")
+			assert.ElementsMatch(t, []string{"contact-id"}, opts.Contact, "contact-id")
 		})
 	}
 }
