@@ -1,4 +1,4 @@
-name: Build/Release Corso
+name: EndToEnd Test
 env:
   IMAGE_NAME: ghcr.io/alcionai/corso
 on:
