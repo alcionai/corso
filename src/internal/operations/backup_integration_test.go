@@ -470,7 +470,7 @@ func mustGetDefaultDriveID(
 			With("user", userID)
 	}
 
-	require.NoError(t, err)
+	require.Nil(t, clues.ToCore(err))
 
 	id := ptr.Val(d.GetId())
 	require.NotEmpty(t, id, "drive ID not set")
@@ -1273,7 +1273,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 						},
 					},
 				)
-				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
