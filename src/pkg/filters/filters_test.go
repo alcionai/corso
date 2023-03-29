@@ -45,20 +45,49 @@ func (suite *FiltersSuite) TestEquals_any() {
 	nf := filters.NotEqual("foo")
 
 	table := []struct {
-		name     string
-		input    []string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
+		name        string
+		input       []string
+		expectF     assert.BoolAssertionFunc
+		expectFVal  string
+		expectFIdx  int
+		expectNF    assert.BoolAssertionFunc
+		expectNFVal string
+		expectNFIdx int
 	}{
-		{"includes target", []string{"foo", "bar"}, assert.True, assert.True},
-		{"not includes target", []string{"baz", "qux"}, assert.False, assert.True},
+		{
+			name:        "includes target",
+			input:       []string{"foo", "bar"},
+			expectF:     assert.True,
+			expectFVal:  "foo",
+			expectFIdx:  0,
+			expectNF:    assert.True,
+			expectNFVal: "bar",
+			expectNFIdx: 1,
+		},
+		{
+			name:        "not includes target",
+			input:       []string{"baz", "qux"},
+			expectF:     assert.False,
+			expectFVal:  "",
+			expectFIdx:  -1,
+			expectNF:    assert.True,
+			expectNFVal: "baz",
+			expectNFIdx: 0,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			test.expectF(t, f.CompareAny(test.input...), "filter")
-			test.expectNF(t, nf.CompareAny(test.input...), "negated filter")
+			v, i, b := f.CompareAny(test.input...)
+			test.expectF(t, b, "filter")
+			assert.Equal(t, test.expectFIdx, i, "index")
+			assert.Equal(t, test.expectFVal, v, "value")
+
+			v, i, b = nf.CompareAny(test.input...)
+			test.expectNF(t, b, "neg-filter")
+			assert.Equal(t, test.expectNFIdx, i, "neg-index")
+			assert.Equal(t, test.expectNFVal, v, "neg-value")
 		})
 	}
 }

@@ -223,7 +223,9 @@ func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
 		return false
 	}
 
-	return s[cat.String()].CompareAny(inpts...)
+	_, _, pass := s[cat.String()].CompareAny(inpts...)
+
+	return pass
 }
 
 // getCategory returns the scope's category value.

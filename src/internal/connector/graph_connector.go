@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -233,6 +234,10 @@ type getOwnerIDAndNamer interface {
 // api to fetch the user or site using the owner value. This fallback assumes
 // that the owner is a well formed ID or display name of appropriate design
 // (PrincipalName for users, WebURL for sites).
+//
+// Consumers are allowed to pass in a path suffix (eg: /sites/foo) as a site
+// owner, but only if they also pass in a nameToID map.  A nil map will cascade
+// to the fallback, which will fail for having a malformed id value.
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
 	discovery api.Client,
@@ -254,9 +259,14 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 		err      error
 	)
 
-	// if r.enum == Sites {
-	// TODO: check all suffixes in nameToID
-	// }
+	// check if the provided owner is a suffix of a weburl in the lookup map
+	if r.enum == Sites {
+		url, _, ok := filters.PathSuffix([]string{owner}).CompareAny(ins.Names()...)
+		if ok {
+			id, _ := ins.IDOf(url)
+			return id, url, nil
+		}
+	}
 
 	id, name, err = r.getter.GetIDAndName(ctx, owner)
 	if err != nil {

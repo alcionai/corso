@@ -359,21 +359,23 @@ func newSliceFilter(c comparator, targets, normTargets []string, negate bool) Fi
 // ----------------------------------------------------------------------------------------------------
 
 // CompareAny checks whether any one of all the provided
-// inputs passes the filter.
+// inputs passes the filter.  If one passes, that value is
+// returned, as well as its index in the input range.
+// If nothing matches, returns ("", -1, false)
 //
 // Note that, as a gotcha, CompareAny can resolve truthily
 // for both the standard and negated versions of a filter.
 // Ex: consider the input CompareAny(true, false), which
 // will return true for both Equals(true) and NotEquals(true),
 // because at least one element matches for both filters.
-func (f Filter) CompareAny(inputs ...string) bool {
-	for _, in := range inputs {
+func (f Filter) CompareAny(inputs ...string) (string, int, bool) {
+	for i, in := range inputs {
 		if f.Compare(in) {
-			return true
+			return in, i, true
 		}
 	}
 
-	return false
+	return "", -1, false
 }
 
 // Compare checks whether the input passes the filter.
@@ -441,6 +443,48 @@ func (f Filter) Compare(input string) bool {
 
 	return res
 }
+
+// Matches extends Compare by not only checking if
+// the input passes the filter, but if it passes, the
+// target which matched and its index are returned as well.
+// If more than one value matches the input, only the
+// first is returned.
+// returns ("", -1, false) if no match is found.
+// TODO: only partially implemented.
+// func (f Filter) Matches(input string) (string, int, bool) {
+// 	var (
+// 		cmp     func(string, string) bool
+// 		res     bool
+// 		targets = f.NormalizedTargets
+// 	)
+
+// 	switch f.Comparator {
+// 	case TargetPathPrefix:
+// 		cmp = pathPrefix
+// 	case TargetPathContains:
+// 		cmp = pathContains
+// 	case TargetPathSuffix:
+// 		cmp = pathSuffix
+// 	case TargetPathEquals:
+// 		cmp = pathEquals
+// 	default:
+// 		return "", -1, false
+// 	}
+
+// 	for i, tgt := range targets {
+// 		res = cmp(norm(tgt), norm(input))
+
+// 		if !f.Negate && res {
+// 			return f.Targets[i], i, true
+// 		}
+
+// 		if f.Negate && !res {
+// 			return f.Targets[i], i, true
+// 		}
+// 	}
+
+// 	return "", -1, false
+// }
 
 // true if t == i
 func equals(target, input string) bool {
