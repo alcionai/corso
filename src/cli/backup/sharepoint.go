@@ -73,6 +73,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, sharePointCreateCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -93,7 +94,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, _ = utils.AddCommand(cmd, sharePointDetailsCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -103,7 +105,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, _ = utils.AddCommand(cmd, sharePointDeleteCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples

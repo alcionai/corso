@@ -76,6 +76,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
+		fs.SortFlags = false
+
 		options.AddFeatureToggle(cmd, options.DisableIncrementals())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
@@ -98,7 +100,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, _ = utils.AddCommand(cmd, exchangeDetailsCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
@@ -111,7 +114,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, _ = utils.AddCommand(cmd, exchangeDeleteCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
