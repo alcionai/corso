@@ -75,9 +75,7 @@ func AddConfigFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	fs.StringVar(
 		&configFilePathFlag,
-		"config-file",
-		displayDefaultFP,
-		"config file location")
+		"config-file", displayDefaultFP, "config file location")
 }
 
 // ---------------------------------------------------------------------------------------------------------

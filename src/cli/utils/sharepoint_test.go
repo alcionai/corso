@@ -56,7 +56,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				FileName:   single,
 				FolderPath: single,
 				ListItem:   single,
-				ListPath:   single,
+				ListFolder: single,
 				SiteID:     single,
 				WebURL:     single,
 			},
@@ -108,7 +108,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				FileName:   empty,
 				FolderPath: empty,
 				ListItem:   empty,
-				ListPath:   containsOnly,
+				ListFolder: containsOnly,
 				SiteID:     empty,
 				WebURL:     empty,
 			},
@@ -117,14 +117,14 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		{
 			name: "list prefixes",
 			opts: utils.SharePointOpts{
-				ListPath: prefixOnly,
+				ListFolder: prefixOnly,
 			},
 			expectIncludeLen: 1,
 		},
 		{
 			name: "list prefixes and contains",
 			opts: utils.SharePointOpts{
-				ListPath: containsAndPrefix,
+				ListFolder: containsAndPrefix,
 			},
 			expectIncludeLen: 2,
 		},
