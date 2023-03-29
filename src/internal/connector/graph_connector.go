@@ -319,9 +319,9 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 		err      error
 	)
 
-	if r.enum == Sites {
-		// TODO: check all suffixes in nameToID
-	}
+	// if r.enum == Sites {
+	// TODO: check all suffixes in nameToID
+	// }
 
 	id, name, err = r.getter.GetIDAndName(ctx, owner)
 	if err != nil {
