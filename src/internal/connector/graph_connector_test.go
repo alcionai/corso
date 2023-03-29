@@ -64,7 +64,8 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			enum:   Users,
 			getter: &mockNameIDGetter{id: ownerID, name: ownerName},
 		}
-		noLookup = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
+		noLookup   = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
+		siteLookup = &resourceClient{enum: Sites, getter: &mockNameIDGetter{}}
 	)
 
 	table := []struct {
@@ -166,6 +167,16 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   "",
 			expectName: "",
 			expectErr:  assert.Error,
+		},
+		{
+			name:       "site suffix lookup",
+			owner:      "/url/path",
+			rc:         siteLookup,
+			idToName:   nil,
+			nameToID:   map[string]string{"http://some/site/url/path": ownerID},
+			expectID:   ownerID,
+			expectName: "http://some/site/url/path",
+			expectErr:  assert.NoError,
 		},
 	}
 	for _, test := range table {

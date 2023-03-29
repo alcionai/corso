@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -17,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -267,12 +269,17 @@ var ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 
 // getOwnerIDAndNameFrom looks up the owner's canonical id and display name.
 // if idToName and nameToID are populated, and the owner is a key of one of
-// those maps, then those values are returned.  As a fallback, the resource
-// calls the discovery api to fetch the user or site using the owner value.
-// This fallback assumes that the owner is a well formed ID or display name
-// of appropriate design (PrincipalName for users, WebURL for sites).
-// If the fallback lookup is used, the maps are populated to contain the
-// id and name references.
+// those maps, then those values are returned.
+//
+// As a fallback, the resource calls the discovery api to fetch the user or
+// site using the owner value. This fallback assumes that the owner is a well
+// formed ID or display name of appropriate design (PrincipalName for users,
+// WebURL for sites). If the fallback lookup is used, the maps are populated
+// to contain the id and name references.
+//
+// Consumers are allowed to pass in a path suffix (eg: /sites/foo) as a site
+// owner, but only if they also pass in a nameToID map.  A nil map will cascade
+// to the fallback, which will fail for having a malformed id value.
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
 	discovery api.Client,
@@ -281,8 +288,8 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 ) (string, string, error) {
 	if n, ok := idToName[owner]; ok {
 		return owner, n, nil
-	} else if i, ok := nameToID[owner]; ok {
-		return i, owner, nil
+	} else if id, ok := nameToID[owner]; ok {
+		return id, owner, nil
 	}
 
 	ctx = clues.Add(ctx, "owner_identifier", owner)
@@ -292,9 +299,13 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 		err      error
 	)
 
-	// if r.enum == Sites {
-	// TODO: check all suffixes in nameToID
-	// }
+	// check if the provided owner is a suffix of a weburl in the lookup map
+	if r.enum == Sites {
+		url, _, ok := filters.PathSuffix([]string{owner}).CompareAny(maps.Keys(nameToID)...)
+		if ok {
+			return nameToID[url], url, nil
+		}
+	}
 
 	id, name, err = r.getter.GetIDAndName(ctx, owner)
 	if err != nil {
