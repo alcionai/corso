@@ -42,11 +42,11 @@ jobs:
         if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.actions == 'true'
         run: |
           echo "src or workflow file changes occurred"
-          echo ::set-output name=srcfileschanged::true
+          echo srcfileschanged=true >> $GITHUB_OUTPUT
 
       - name: Check dorny for changes in website related filepaths
         id: websitechecker
         if: steps.dornycheck.outputs.src == 'true' || steps.dornycheck.outputs.website == 'true' || steps.dornycheck.outputs.actions == 'true'
         run: |
           echo "website or workflow file changes occurred"
-          echo ::set-output name=websitefileschanged::true
+          echo websitefileschanged=true >> $GITHUB_OUTPUT

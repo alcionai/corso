@@ -3,9 +3,10 @@ package tester_test
 import (
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type TesterUnitSuite struct {

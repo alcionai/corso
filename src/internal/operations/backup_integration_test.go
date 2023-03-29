@@ -455,6 +455,29 @@ func toDataLayerPath(
 	return p
 }
 
+func mustGetDefaultDriveID(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	service graph.Servicer,
+	userID string,
+) string {
+	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
+	if err != nil {
+		err = graph.Wrap(
+			ctx,
+			err,
+			"retrieving default user drive").
+			With("user", userID)
+	}
+
+	require.Nil(t, clues.ToCore(err))
+
+	id := ptr.Val(d.GetId())
+	require.NotEmpty(t, id, "drive ID not set")
+
+	return id
+}
+
 // ---------------------------------------------------------------------------
 // integration tests
 // ---------------------------------------------------------------------------
@@ -784,7 +807,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			p, err := path.FromDataLayerPath(dest.deets.Entries[0].RepoRef, true)
 			require.NoError(t, err, clues.ToCore(err))
 
-			id, ok := cr.PathInCache(p.Folder(false))
+			id, ok := cr.LocationInCache(p.Folder(false))
 			require.True(t, ok, "dir %s found in %s cache", p.Folder(false), category)
 
 			d := dataset[category].dests[destName]
@@ -897,7 +920,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)
 					require.NoError(t, err, clues.ToCore(err))
 
-					id, ok := cr.PathInCache(p.Folder(false))
+					id, ok := cr.LocationInCache(p.Folder(false))
 					require.Truef(t, ok, "dir %s found in %s cache", p.Folder(false), category)
 
 					dataset[category].dests[container3] = contDeets{id, deets}
@@ -1132,31 +1155,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	// TODO: whomever can figure out a way to declare this outside of this func
-	// and not have the linter complain about unused is welcome to do so.
-	mustGetDefaultDriveID := func(
-		t *testing.T,
-		ctx context.Context, //revive:disable-line:context-as-argument
-		service graph.Servicer,
-		userID string,
-	) string {
-		d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
-		if err != nil {
-			err = graph.Wrap(
-				ctx,
-				err,
-				"retrieving default user drive").
-				With("user", userID)
-		}
-
-		require.NoError(t, err)
-
-		id := ptr.Val(d.GetId())
-		require.NotEmpty(t, id, "drive ID not set")
-
-		return id
-	}
-
 	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
 
 	fileDBF := func(id, timeStamp, subject, body string) []byte {
@@ -1253,6 +1251,102 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			},
 			itemsRead:    1, // .data file for newitem
 			itemsWritten: 3, // .data and .meta for newitem, .dirmeta for parent
+		},
+		{
+			name: "add permission to new file",
+			updateUserData: func(t *testing.T) {
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					*newFile.GetId(),
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{
+							{
+								Roles:    []string{"write"},
+								EntityID: suite.user,
+							},
+						},
+					},
+				)
+				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
+			},
+			itemsRead:    1, // .data file for newitem
+			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+		},
+		{
+			name: "remove permission from new file",
+			updateUserData: func(t *testing.T) {
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					*newFile.GetId(),
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    1, // .data file for newitem
+			itemsWritten: 2, // .meta for newitem, .dirmeta for parent (.data is not written as it is not updated)
+		},
+		{
+			name: "add permission to container",
+			updateUserData: func(t *testing.T) {
+				targetContainer := containerIDs[container1]
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					targetContainer,
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{
+							{
+								Roles:    []string{"write"},
+								EntityID: suite.user,
+							},
+						},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    0,
+			itemsWritten: 1, // .dirmeta for collection
+		},
+		{
+			name: "remove permission from container",
+			updateUserData: func(t *testing.T) {
+				targetContainer := containerIDs[container1]
+				driveItem := models.NewDriveItem()
+				driveItem.SetName(&newFileName)
+				driveItem.SetFile(models.NewFile())
+				err = onedrive.RestorePermissions(
+					ctx,
+					gc.Service,
+					driveID,
+					targetContainer,
+					onedrive.Metadata{
+						SharingMode: onedrive.SharingModeCustom,
+						Permissions: []onedrive.UserPermission{},
+					},
+				)
+				require.NoError(t, err, "add permission to file", clues.ToCore(err))
+			},
+			itemsRead:    0,
+			itemsWritten: 1, // .dirmeta for collection
 		},
 		{
 			name: "update contents of a file",

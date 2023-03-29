@@ -58,7 +58,7 @@ type ContainerResolver interface {
 	// IDToPath takes an m365 container ID and converts it to a hierarchical path
 	// to that container. The path has a similar format to paths on the local
 	// file system.
-	IDToPath(ctx context.Context, m365ID string, useIDInPath bool) (*path.Builder, *path.Builder, error)
+	IDToPath(ctx context.Context, m365ID string) (*path.Builder, *path.Builder, error)
 
 	// Populate performs initialization steps for the resolver
 	// @param ctx is necessary param for Graph API tracing
@@ -71,13 +71,13 @@ type ContainerResolver interface {
 	// matches the path of a container within the cache.
 	// @returns bool represents if m365ID was found.
 	PathInCache(pathString string) (string, bool)
+	// LocationInCache performs a look up of a path reprensentation
+	// and returns the m365ID of directory iff the pathString
+	// matches the logical path of a container within the cache.
+	// @returns bool represents if m365ID was found.
+	LocationInCache(pathString string) (string, bool)
 
-	AddToCache(ctx context.Context, m365Container Container, useIDInPath bool) error
-
-	// DestinationNameToID returns the ID of the destination container.  Dest is
-	// assumed to be a display name.  The ID is only populated if the destination
-	// was added using `AddToCache()`.  Returns an empty string if not found.
-	DestinationNameToID(dest string) string
+	AddToCache(ctx context.Context, m365Container Container) error
 
 	// Items returns the containers in the cache.
 	Items() []CachedContainer
