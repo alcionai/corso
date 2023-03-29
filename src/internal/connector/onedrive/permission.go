@@ -172,7 +172,7 @@ func diffPermissions(
 // the necessary permissions on onedrive objects.
 func RestorePermissions(
 	ctx context.Context,
-	m365 account.M365Config,
+	creds account.M365Config,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
@@ -197,7 +197,7 @@ func RestorePermissions(
 		// https://github.com/alcionai/corso/issues/2707
 		// this is bad citizenship, and could end up consuming a lot of
 		// system resources if servicers leak client connections (sockets, etc).
-		a, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+		a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
 		if err != nil {
 			return graph.Wrap(ctx, err, "creating delete client")
 		}

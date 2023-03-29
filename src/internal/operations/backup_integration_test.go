@@ -1144,7 +1144,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 		genDests = []string{container1, container2}
 	)
 
-	m365, err := acct.M365Config()
+	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
 	gc, err := connector.NewGraphConnector(
@@ -1176,7 +1176,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			acct,
 			path.FilesCategory,
 			selectors.NewOneDriveRestore(owners).Selector,
-			m365.AzureTenantID, suite.user, driveID, destName,
+			creds.AzureTenantID, suite.user, driveID, destName,
 			2,
 			// Use an old backup version so we don't need metadata files.
 			0,
@@ -1260,6 +1260,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.RestorePermissions(
 					ctx,
+					creds,
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
@@ -1271,8 +1272,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 								EntityID: suite.user,
 							},
 						},
-					},
-				)
+					})
 				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
@@ -1286,14 +1286,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.RestorePermissions(
 					ctx,
+					creds,
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
 					onedrive.Metadata{
 						SharingMode: onedrive.SharingModeCustom,
 						Permissions: []onedrive.UserPermission{},
-					},
-				)
+					})
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
@@ -1308,6 +1308,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.RestorePermissions(
 					ctx,
+					creds,
 					gc.Service,
 					driveID,
 					targetContainer,
@@ -1319,8 +1320,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 								EntityID: suite.user,
 							},
 						},
-					},
-				)
+					})
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
 			},
 			itemsRead:    0,
@@ -1335,14 +1335,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem.SetFile(models.NewFile())
 				err = onedrive.RestorePermissions(
 					ctx,
+					creds,
 					gc.Service,
 					driveID,
 					targetContainer,
 					onedrive.Metadata{
 						SharingMode: onedrive.SharingModeCustom,
 						Permissions: []onedrive.UserPermission{},
-					},
-				)
+					})
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
 			},
 			itemsRead:    0,
@@ -1492,7 +1492,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 					acct,
 					path.FilesCategory,
 					selectors.NewOneDriveRestore(owners).Selector,
-					m365.AzureTenantID, suite.user, driveID, container3,
+					creds.AzureTenantID, suite.user, driveID, container3,
 					2,
 					0,
 					fileDBF)
@@ -1533,11 +1533,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				incBO.Results.BackupID,
 				kw,
 				ms,
-				m365.AzureTenantID,
+				creds.AzureTenantID,
 				suite.user,
 				path.OneDriveService,
-				categories,
-			)
+				categories)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			// +2 on read/writes to account for metadata: 1 delta and 1 path.
