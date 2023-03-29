@@ -25,9 +25,6 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
-// sharePoint bucket info from flags
-var sharepointData []string
-
 const (
 	dataLibraries = "libraries"
 	dataPages     = "pages"
@@ -82,12 +79,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddSiteFlag(c)
 		utils.AddSiteIDFlag(c)
-
-		fs.StringSliceVar(
-			&sharepointData,
-			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataLibraries+" or "+dataPages+".")
-		cobra.CheckErr(fs.MarkHidden(utils.DataFN))
+		utils.AddDataFlag(c, []string{dataLibraries}, true)
 
 		options.AddOperationFlags(c)
 
@@ -145,7 +137,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(utils.SiteID, utils.WebURL, sharepointData); err != nil {
+	if err := validateSharePointBackupCreateFlags(utils.SiteID, utils.WebURL, utils.CategoryData); err != nil {
 		return err
 	}
 
@@ -164,7 +156,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteID, utils.WebURL, sharepointData, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteID, utils.WebURL, utils.CategoryData, gc)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
@@ -325,19 +317,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.SharePointOpts{
-		FolderPath:         utils.FolderPath,
-		FileName:           utils.FileName,
-		Library:            utils.Library,
-		SiteID:             utils.SiteID,
-		WebURL:             utils.WebURL,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.MakeSharePointOpts(cmd)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {

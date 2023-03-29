@@ -74,30 +74,6 @@ func exchangeRestoreCmd() *cobra.Command {
 	}
 }
 
-func getRestoreExchangeCmdOpts(cmd *cobra.Command) utils.ExchangeOpts {
-	return utils.ExchangeOpts{
-		Contact:             utils.Contact,
-		ContactFolder:       utils.ContactFolder,
-		Email:               utils.Email,
-		EmailFolder:         utils.EmailFolder,
-		Event:               utils.Event,
-		EventCalendar:       utils.EventCalendar,
-		Users:               utils.User,
-		ContactName:         utils.ContactName,
-		EmailReceivedAfter:  utils.EmailReceivedAfter,
-		EmailReceivedBefore: utils.EmailReceivedBefore,
-		EmailSender:         utils.EmailSender,
-		EmailSubject:        utils.EmailSubject,
-		EventOrganizer:      utils.EventOrganizer,
-		EventRecurs:         utils.EventRecurs,
-		EventStartsAfter:    utils.EventStartsAfter,
-		EventStartsBefore:   utils.EventStartsBefore,
-		EventSubject:        utils.EventSubject,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
-}
-
 // processes an exchange service restore.
 func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
@@ -106,7 +82,11 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := getRestoreExchangeCmdOpts(cmd)
+	opts := utils.MakeExchangeOpts(cmd)
+
+	if utils.RunMode == utils.RunModeFlagTest {
+		return nil
+	}
 
 	if err := utils.ValidateExchangeRestoreFlags(utils.BackupID, opts); err != nil {
 		return err

@@ -24,11 +24,6 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
-// exchange bucket info from flags
-var (
-	exchangeData []string
-)
-
 const (
 	dataContacts = "contacts"
 	dataEmail    = "email"
@@ -89,11 +84,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		utils.AddUserFlag(c)
-
-		fs.StringSliceVar(
-			&exchangeData,
-			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
+		utils.AddDataFlag(cmd, []string{dataEmail, dataContacts, dataEvents}, false)
 		options.AddFetchParallelismFlag(c)
 		options.AddOperationFlags(c)
 
@@ -153,7 +144,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(utils.User, exchangeData); err != nil {
+	if err := validateExchangeBackupCreateFlags(utils.User, utils.CategoryData); err != nil {
 		return err
 	}
 
@@ -164,7 +155,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(utils.User, exchangeData)
+	sel := exchangeBackupCreateSelectors(utils.User, utils.CategoryData)
 
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
@@ -267,30 +258,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.ExchangeOpts{
-		Users: utils.User,
-
-		Contact:       utils.Contact,
-		ContactFolder: utils.ContactFolder,
-		ContactName:   utils.ContactName,
-
-		Email:               utils.Email,
-		EmailFolder:         utils.EmailFolder,
-		EmailReceivedAfter:  utils.EmailReceivedAfter,
-		EmailReceivedBefore: utils.EmailReceivedBefore,
-		EmailSender:         utils.EmailSender,
-		EmailSubject:        utils.EmailSubject,
-		EventOrganizer:      utils.EventOrganizer,
-
-		Event:             utils.Event,
-		EventCalendar:     utils.EventCalendar,
-		EventRecurs:       utils.EventRecurs,
-		EventStartsAfter:  utils.EventStartsAfter,
-		EventStartsBefore: utils.EventStartsBefore,
-		EventSubject:      utils.EventSubject,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.MakeExchangeOpts(cmd)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {

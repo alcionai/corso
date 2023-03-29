@@ -184,7 +184,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
 				"backup", "create", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+utils.UserFN, suite.m365UserID,
-				"--"+utils.DataFN, set.String())
+				"--"+utils.CategoryDataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
 			cmd.SetOut(&recorder)
@@ -221,7 +221,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
 				"backup", "create", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+utils.UserFN, "foo@nothere.com",
-				"--"+utils.DataFN, set.String())
+				"--"+utils.CategoryDataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
 			cmd.SetOut(&recorder)
