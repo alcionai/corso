@@ -542,8 +542,10 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			})
 
 			oc.data <- &MetadataItem{
-				id:      metaFileName + metaSuffix,
-				data:    metaReader,
+				id:   metaFileName + metaSuffix,
+				data: metaReader,
+				// Metadata file should always use the latest time as
+				// permissions change does not update mod time.
 				modTime: time.Now(),
 			}
 
