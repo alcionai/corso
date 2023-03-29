@@ -119,6 +119,10 @@ func filterContainersAndFillCollections(
 			locPath = nil
 		}
 
+		if newDelta.Reset {
+			logger.Ctx(ctx).Infow("delta token reset", "prev_path", prevPathStr, "loc_path", locPath)
+		}
+
 		edc := NewCollection(
 			qp.ResourceOwner,
 			currPath,
