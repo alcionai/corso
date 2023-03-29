@@ -121,6 +121,7 @@ func CorsoCommand() *cobra.Command {
 func BuildCommandTree(cmd *cobra.Command) {
 	// want to order flags explicitly
 	cmd.PersistentFlags().SortFlags = false
+	utils.AddRunModeFlag(cmd, true)
 
 	cmd.Flags().BoolP("version", "v", false, "current version info")
 	cmd.PersistentPreRunE = preRun
@@ -129,7 +130,6 @@ func BuildCommandTree(cmd *cobra.Command) {
 	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
 	options.AddGlobalOperationFlags(cmd)
-
 	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
 
 	cmd.CompletionOptions.DisableDefaultCmd = true

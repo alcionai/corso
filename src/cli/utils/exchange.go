@@ -52,25 +52,56 @@ var (
 )
 
 type ExchangeOpts struct {
-	Contact             []string
-	ContactFolder       []string
+	Users []string
+
+	Contact       []string
+	ContactFolder []string
+	ContactName   string
+
 	Email               []string
 	EmailFolder         []string
-	Event               []string
-	EventCalendar       []string
-	Users               []string
-	ContactName         string
 	EmailReceivedAfter  string
 	EmailReceivedBefore string
 	EmailSender         string
 	EmailSubject        string
-	EventOrganizer      string
-	EventRecurs         string
-	EventStartsAfter    string
-	EventStartsBefore   string
-	EventSubject        string
+
+	Event             []string
+	EventCalendar     []string
+	EventOrganizer    string
+	EventRecurs       string
+	EventStartsAfter  string
+	EventStartsBefore string
+	EventSubject      string
 
 	Populated PopulatedFlags
+}
+
+// populates an ExchangeOpts struct with the command's current flags.
+func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
+	return ExchangeOpts{
+		Users: User,
+
+		Contact:       Contact,
+		ContactFolder: ContactFolder,
+		ContactName:   ContactName,
+
+		Email:               Email,
+		EmailFolder:         EmailFolder,
+		EmailReceivedAfter:  EmailReceivedAfter,
+		EmailReceivedBefore: EmailReceivedBefore,
+		EmailSender:         EmailSender,
+		EmailSubject:        EmailSubject,
+
+		Event:             Event,
+		EventCalendar:     EventCalendar,
+		EventOrganizer:    EventOrganizer,
+		EventRecurs:       EventRecurs,
+		EventStartsAfter:  EventStartsAfter,
+		EventStartsBefore: EventStartsBefore,
+		EventSubject:      EventSubject,
+
+		Populated: GetPopulatedFlags(cmd),
+	}
 }
 
 // AddExchangeDetailsAndRestoreFlags adds flags that are common to both the

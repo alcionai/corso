@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -12,6 +14,10 @@ import (
 
 // common flag vars
 var (
+	// RunMode describes the type of run, such as:
+	// flagtest, dry, run.  Should default to 'run'.
+	RunMode string
+
 	BackupID string
 
 	FolderPath []string
@@ -27,24 +33,36 @@ var (
 	WebURL  []string
 
 	User []string
+
+	// for selection of data by category.  eg: `--data email,contacts`
+	CategoryData []string
 )
 
 // common flag names
 const (
-	BackupFN  = "backup"
-	DataFN    = "data"
-	LibraryFN = "library"
-	SiteFN    = "site"    // site only accepts WebURL values
-	SiteIDFN  = "site-id" // site-id accepts actual site ids
-	UserFN    = "user"
+	RunModeFN = "run-mode"
 
-	FileFN   = "file"
-	FolderFN = "folder"
+	BackupFN       = "backup"
+	CategoryDataFN = "data"
+
+	SiteFN   = "site"    // site only accepts WebURL values
+	SiteIDFN = "site-id" // site-id accepts actual site ids
+	UserFN   = "user"
+
+	LibraryFN = "library"
+	FileFN    = "file"
+	FolderFN  = "folder"
 
 	FileCreatedAfterFN   = "file-created-after"
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
+)
+
+// well-knwon flag values
+const (
+	RunModeFlagTest = "flag-test"
+	RunModeRun      = "run"
 )
 
 // AddBackupIDFlag adds the --backup flag.
@@ -54,6 +72,47 @@ func AddBackupIDFlag(cmd *cobra.Command, require bool) {
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))
 	}
+}
+
+func AddDataFlag(cmd *cobra.Command, allowed []string, hide bool) {
+	var (
+		allowedMsg string
+		fs         = cmd.Flags()
+	)
+
+	switch len(allowed) {
+	case 0:
+		return
+	case 1:
+		allowedMsg = allowed[0]
+	case 2:
+		allowedMsg = fmt.Sprintf("%s or %s", allowed[0], allowed[1])
+	default:
+		allowedMsg = fmt.Sprintf(
+			"%s or %s",
+			strings.Join(allowed[:len(allowed)-1], ", "),
+			allowed[len(allowed)-1])
+	}
+
+	fs.StringSliceVar(
+		&CategoryData,
+		CategoryDataFN, nil,
+		"Select one or more types of data to backup: "+allowedMsg+".")
+
+	if hide {
+		cobra.CheckErr(fs.MarkHidden(CategoryDataFN))
+	}
+}
+
+// AddRunModeFlag adds the hidden --run-mode flag.
+func AddRunModeFlag(cmd *cobra.Command, persistent bool) {
+	fs := cmd.Flags()
+	if persistent {
+		fs = cmd.PersistentFlags()
+	}
+
+	fs.StringVar(&RunMode, RunModeFN, "run", "What mode to run: dry, test, run.  Defaults to run.")
+	cobra.CheckErr(fs.MarkHidden(RunModeFN))
 }
 
 // AddUserFlag adds the --user flag.
