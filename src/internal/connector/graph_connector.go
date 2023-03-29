@@ -227,11 +227,18 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	defer func() {
 		if gc.region != nil {
 			gc.region.End()
+			gc.region = nil
 		}
 	}()
 	gc.wg.Wait()
 
-	return &gc.status
+	// clean up and reset statefulness
+	status := gc.status
+
+	gc.wg = &sync.WaitGroup{}
+	gc.status = support.ConnectorOperationStatus{}
+
+	return &status
 }
 
 // UpdateStatus is used by gc initiated tasks to indicate completion
