@@ -96,6 +96,7 @@ func checkEmailRestoration(
 			}
 
 			if itemName == dataFolder || itemName == baseBackupFolder {
+				// otherwise, recursively aggregate all child folders.
 				getAllSubFolder(ctx, client, testUser, v, itemName, dataFolder, itemCount)
 
 				itemCount[itemName], _ = ptr.ValOK(v.GetTotalItemCount())
@@ -127,11 +128,7 @@ func checkEmailRestoration(
 	}
 
 	for _, fld := range childFolder.GetValue() {
-		restoreDisplayName, ok := ptr.ValOK(fld.GetDisplayName())
-		if !ok {
-			fmt.Println("display name not found. Will continue")
-			continue
-		}
+		restoreDisplayName := ptr.Val(fld.GetDisplayName())
 
 		// check if folder is the data folder we loaded or the base backup to verify
 		// the incremental backup worked fine
@@ -333,11 +330,18 @@ func checkOnedriveRestoration(
 			continue
 		}
 
+		// currently we don't restore blank folders.
+		// skip permission check for empty folders
+		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
+			fmt.Println("skipped empty folder: ", itemName)
+			continue
+		}
+
 		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
-		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
 	}
 
-	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission)
+	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for checkFolderName, checkfolderPer := range folderPermission {
 		fmt.Printf("checking for folder: %s \n", checkFolderName)
@@ -350,7 +354,9 @@ func checkOnedriveRestoration(
 		if len(restoreFolderPermission[checkFolderName]) < 1 {
 			fmt.Printf("permissions are not equal")
 			fmt.Println("Item:", checkFolderName)
-			fmt.Println("blank permission found in restore")
+			fmt.Println("Permission found: ", checkfolderPer)
+			fmt.Println("blank permission found in restore.")
+
 			os.Exit(1)
 		}
 
@@ -387,6 +393,7 @@ func getOneDriveChildFolder(
 	driveID, itemID, parentName string,
 	fileSizes map[string]int64,
 	folderPermission map[string][]permissionInfo,
+	startTime time.Time,
 ) {
 	response, err := client.DrivesById(driveID).ItemsById(itemID).Children().Get(ctx, nil)
 	if err != nil {
@@ -399,6 +406,12 @@ func getOneDriveChildFolder(
 			itemName = parentName + "/" + ptr.Val(driveItem.GetName())
 		)
 
+		folderTime, hasTime := mustGetTimeFromName(ctx, itemName)
+
+		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+			continue
+		}
+
 		// if it's a file check the size
 		if driveItem.GetFile() != nil {
 			fileSizes[itemName] = ptr.Val(driveItem.GetSize())
@@ -408,8 +421,15 @@ func getOneDriveChildFolder(
 			continue
 		}
 
+		// currently we don't restore blank folders.
+		// skip permission check for empty folders
+		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
+			fmt.Println("skipped empty folder: ", itemName)
+			continue
+		}
+
 		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
-		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
 	}
 }
 
@@ -461,6 +481,7 @@ func getRestoreData(
 	restoreFolderID string,
 	restoreFile map[string]int64,
 	restoreFolder map[string][]permissionInfo,
+	startTime time.Time,
 ) {
 	restored, err := client.
 		DrivesById(driveID).
@@ -488,7 +509,7 @@ func getRestoreData(
 		}
 
 		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
-		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder, startTime)
 	}
 }
 

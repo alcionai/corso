@@ -120,7 +120,9 @@ jobs:
         run: |
           ./corso backup create exchange \
           --user "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress  --data 'email' --json 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+           --hide-progress \
+           --data 'email' \
+            --json 2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 
@@ -167,8 +169,10 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore exchange \
+          --email-folder ${{ steps.repo-init.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.exchange-test.outputs.result }}" \
+
           2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
@@ -209,6 +213,7 @@ jobs:
           ./corso restore exchange \
           --hide-progress \
           --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
+          --email-folder ${{ steps.repo-init.outputs.result }} \
           2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
           echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
         
@@ -302,9 +307,9 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
-          --enable-permissions-backup \
           --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}"\
+          --user "${CORSO_M365_TEST_USER_ID}" \
+          --enable-permissions-backup \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
