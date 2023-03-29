@@ -45,10 +45,6 @@ func RestoreCollections(
 		restoreMetrics support.CollectionMetrics
 		metrics        support.CollectionMetrics
 		folderMetas    map[string]Metadata
-
-		// permissionIDMappings is used to map between old and new id
-		// of permissions as we restore them
-		permissionIDMappings = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -82,7 +78,7 @@ func RestoreCollections(
 				"path", dc.FullPath()) // TODO: pii
 		)
 
-		metrics, folderMetas, permissionIDMappings, err = RestoreCollection(
+		metrics, folderMetas, err = RestoreCollection(
 			ictx,
 			backupVersion,
 			service,
@@ -91,7 +87,6 @@ func RestoreCollections(
 			OneDriveSource,
 			dest.ContainerName,
 			deets,
-			permissionIDMappings,
 			opts.RestorePermissions,
 			errs)
 		if err != nil {
@@ -122,7 +117,8 @@ func RestoreCollections(
 // RestoreCollection handles restoration of an individual collection.
 // returns:
 // - the collection's item and byte count metrics
-// - the context cancellation state (true if the context is canceled)
+// - the updated metadata map that include metadata for folders in this collection
+// - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
 	backupVersion int,
@@ -132,10 +128,9 @@ func RestoreCollection(
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	errs *fault.Bus,
-) (support.CollectionMetrics, map[string]Metadata, map[string]string, error) {
+) (support.CollectionMetrics, map[string]Metadata, error) {
 	var (
 		metrics     = support.CollectionMetrics{}
 		copyBuffer  = make([]byte, copyBufferSize)
@@ -149,7 +144,7 @@ func RestoreCollection(
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
-		return metrics, folderMetas, permissionIDMappings, clues.Wrap(err, "creating drive path").WithClues(ctx)
+		return metrics, folderMetas, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -176,7 +171,7 @@ func RestoreCollection(
 		backupVersion,
 		restorePerms)
 	if err != nil {
-		return metrics, folderMetas, permissionIDMappings, clues.Wrap(err, "getting permissions").WithClues(ctx)
+		return metrics, folderMetas, clues.Wrap(err, "getting permissions").WithClues(ctx)
 	}
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
@@ -185,10 +180,9 @@ func RestoreCollection(
 		service,
 		drivePath,
 		restoreFolderElements,
-		colMeta,
-		permissionIDMappings)
+		colMeta)
 	if err != nil {
-		return metrics, folderMetas, permissionIDMappings, clues.Wrap(err, "creating folders for restore")
+		return metrics, folderMetas, clues.Wrap(err, "creating folders for restore")
 	}
 
 	items := dc.Items(ctx, errs)
@@ -200,11 +194,11 @@ func RestoreCollection(
 
 		select {
 		case <-ctx.Done():
-			return metrics, folderMetas, permissionIDMappings, err
+			return metrics, folderMetas, err
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, folderMetas, permissionIDMappings, nil
+				return metrics, folderMetas, nil
 			}
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
@@ -223,7 +217,6 @@ func RestoreCollection(
 				restoreFolderID,
 				copyBuffer,
 				folderMetas,
-				permissionIDMappings,
 				restorePerms,
 				itemData,
 				itemPath)
@@ -260,7 +253,7 @@ func RestoreCollection(
 		}
 	}
 
-	return metrics, folderMetas, permissionIDMappings, el.Failure()
+	return metrics, folderMetas, el.Failure()
 }
 
 // restores an item, according to correct backup version behavior.
@@ -275,7 +268,6 @@ func restoreItem(
 	restoreFolderID string,
 	copyBuffer []byte,
 	folderMetas map[string]Metadata,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
 	itemPath path.Path,
@@ -340,7 +332,6 @@ func restoreItem(
 			dc,
 			restoreFolderID,
 			copyBuffer,
-			permissionIDMappings,
 			restorePerms,
 			itemData)
 		if err != nil {
@@ -360,7 +351,6 @@ func restoreItem(
 		dc,
 		restoreFolderID,
 		copyBuffer,
-		permissionIDMappings,
 		restorePerms,
 		itemData)
 	if err != nil {
@@ -407,7 +397,6 @@ func restoreV1File(
 	fetcher fileFetcher,
 	restoreFolderID string,
 	copyBuffer []byte,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
@@ -440,13 +429,12 @@ func restoreV1File(
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
-	err = restorePermissions(
+	err = RestorePermissions(
 		ctx,
 		service,
 		drivePath.DriveID,
 		itemID,
-		meta,
-		permissionIDMappings)
+		meta)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -462,7 +450,6 @@ func restoreV6File(
 	fetcher fileFetcher,
 	restoreFolderID string,
 	copyBuffer []byte,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
@@ -506,13 +493,12 @@ func restoreV6File(
 		return itemInfo, nil
 	}
 
-	err = restorePermissions(
+	err = RestorePermissions(
 		ctx,
 		service,
 		drivePath.DriveID,
 		itemID,
 		meta,
-		permissionIDMappings,
 	)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")

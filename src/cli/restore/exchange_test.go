@@ -11,15 +11,15 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type ExchangeSuite struct {
+type ExchangeUnitSuite struct {
 	tester.Suite
 }
 
-func TestExchangeSuite(t *testing.T) {
-	suite.Run(t, &ExchangeSuite{Suite: tester.NewUnitSuite(t)})
+func TestExchangeUnitSuite(t *testing.T) {
+	suite.Run(t, &ExchangeUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExchangeSuite) TestAddExchangeCommands() {
+func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand + " " + exchangeServiceCommandUseSuffix
 
 	table := []struct {

@@ -8,18 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type OneDriveSuite struct {
+type OneDriveUnitSuite struct {
 	tester.Suite
 }
 
-func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{Suite: tester.NewUnitSuite(t)})
+func TestOneDriveUnitSuite(t *testing.T) {
+	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OneDriveSuite) TestAddOneDriveCommands() {
+func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
 
 	table := []struct {
@@ -47,6 +48,9 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+
+			assert.NotNil(t, c.Flag(utils.BackupFN))
+			assert.NotNil(t, c.Flag("restore-permissions"))
 		})
 	}
 }
