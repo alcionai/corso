@@ -569,7 +569,7 @@ func CreateContainerDestination(
 			errs)
 
 	default:
-		return "", clues.Wrap(fmt.Errorf("%T", category), "not support for exchange cache").WithClues(ctx)
+		return "", clues.New(fmt.Sprintf("type not supported: %T", category)).WithClues(ctx)
 	}
 }
 

@@ -36,7 +36,7 @@ type getIDAndAddtler interface {
 func toValues[T any](a any) ([]getIDAndAddtler, error) {
 	gv, ok := a.(interface{ GetValue() []T })
 	if !ok {
-		return nil, clues.Wrap(fmt.Errorf("%T", a), "does not comply with the GetValue() interface")
+		return nil, clues.New(fmt.Sprintf("type does not comply with the GetValue() interface: %T", a))
 	}
 
 	items := gv.GetValue()
@@ -47,7 +47,7 @@ func toValues[T any](a any) ([]getIDAndAddtler, error) {
 
 		ri, ok := a.(getIDAndAddtler)
 		if !ok {
-			return nil, clues.Wrap(fmt.Errorf("%T", item), "does not comply with the getIDAndAddtler interface")
+			return nil, clues.New(fmt.Sprintf("type does not comply with the getIDAndAddtler interface: %T", item))
 		}
 
 		r = append(r, ri)
