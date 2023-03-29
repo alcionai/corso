@@ -117,7 +117,8 @@ func RestoreCollections(
 // RestoreCollection handles restoration of an individual collection.
 // returns:
 // - the collection's item and byte count metrics
-// - the context cancellation state (true if the context is canceled)
+// - the updated metadata map that include metadata for folders in this collection
+// - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
 	backupVersion int,
