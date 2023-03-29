@@ -93,7 +93,7 @@ func (op RestoreOperation) validate() error {
 // get populated asynchronously.
 type restoreStats struct {
 	cs            []data.RestoreCollection
-	gc            data.CollectionStats
+	gc            *data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -270,12 +270,12 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc.IsZero() {
+	if opStats.gc == nil {
 		op.Status = Failed
 		return clues.New("restoration never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Successes == 0 {
+	if op.Status != Failed && opStats.gc.IsZero() {
 		op.Status = NoData
 	}
 

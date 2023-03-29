@@ -380,7 +380,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 					TotalHashedBytes:   1,
 					TotalUploadedBytes: 1,
 				},
-				gc: data.CollectionStats{Successes: 1},
+				gc: &data.CollectionStats{Successes: 1},
 			},
 		},
 		{
@@ -389,7 +389,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: data.CollectionStats{},
+				gc: &data.CollectionStats{},
 			},
 		},
 		{
@@ -397,7 +397,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			expectErr:    assert.NoError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: data.CollectionStats{},
+				gc: &data.CollectionStats{},
 			},
 		},
 	}

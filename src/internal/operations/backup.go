@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -75,6 +74,7 @@ func NewBackupOperation(
 		Version:           "v0",
 		account:           acct,
 		incremental:       useIncrementalBackup(selector, opts),
+		bp:                bp,
 	}
 
 	if len(ownerName) == 0 {
@@ -106,7 +106,7 @@ func (op BackupOperation) validate() error {
 // get populated asynchronously.
 type backupStats struct {
 	k             *kopia.BackupStats
-	gc            data.CollectionStats
+	gc            *data.CollectionStats
 	resourceCount int
 }
 
@@ -660,12 +660,12 @@ func (op *BackupOperation) persistResults(
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc.IsZero() {
+	if opStats.gc == nil {
 		op.Status = Failed
 		return clues.New("backup population never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Successes == 0 {
+	if op.Status != Failed && opStats.gc.IsZero() {
 		op.Status = NoData
 	}
 

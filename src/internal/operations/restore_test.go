@@ -75,7 +75,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 						Collection: &mockconnector.MockExchangeDataCollection{},
 					},
 				},
-				gc: data.CollectionStats{
+				gc: &data.CollectionStats{
 					Objects:   1,
 					Successes: 1,
 				},
@@ -87,7 +87,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
-				gc:        data.CollectionStats{},
+				gc:        &data.CollectionStats{},
 			},
 		},
 		{
@@ -96,7 +96,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.RestoreCollection{},
-				gc:        data.CollectionStats{},
+				gc:        &data.CollectionStats{},
 			},
 		},
 	}

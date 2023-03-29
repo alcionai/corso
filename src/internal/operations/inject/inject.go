@@ -24,7 +24,7 @@ type (
 			errs *fault.Bus,
 		) ([]data.BackupCollection, map[string]map[string]struct{}, error)
 
-		Wait() data.CollectionStats
+		Wait() *data.CollectionStats
 	}
 
 	BackupConsumer interface {
@@ -61,6 +61,6 @@ type (
 			errs *fault.Bus,
 		) (*details.Details, error)
 
-		Wait() data.CollectionStats
+		Wait() *data.CollectionStats
 	}
 )
