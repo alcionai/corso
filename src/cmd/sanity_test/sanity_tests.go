@@ -9,15 +9,16 @@ import (
 	"strings"
 	"time"
 
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"golang.org/x/exp/slices"
+
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/logger"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"golang.org/x/exp/slices"
 )
 
 func main() {
@@ -339,11 +340,18 @@ func checkOnedriveRestoration(
 	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission)
 
 	for checkFolderName, checkfolderPer := range folderPermission {
-		fmt.Printf("checking for folder: %s", checkFolderName)
+		fmt.Printf("checking for folder: %s \n", checkFolderName)
 
 		if len(checkfolderPer) < 1 {
 			fmt.Printf("no permissions found for folder : %s.", checkFolderName)
 			continue
+		}
+
+		if len(restoreFolderPermission[checkFolderName]) < 1 {
+			fmt.Printf("permissions are not equal")
+			fmt.Println("Item:", checkFolderName)
+			fmt.Println("blank permission found in restore")
+			os.Exit(1)
 		}
 
 		for i, orginalFolderPer := range checkfolderPer {
@@ -388,7 +396,7 @@ func getOneDriveChildFolder(
 	for _, driveItem := range response.GetValue() {
 		var (
 			itemID   = ptr.Val(driveItem.GetId())
-			itemName = path.Join(parentName, ptr.Val(driveItem.GetName()))
+			itemName = parentName + "/" + ptr.Val(driveItem.GetName())
 		)
 
 		// if it's a file check the size
@@ -403,7 +411,6 @@ func getOneDriveChildFolder(
 		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission)
 	}
-
 }
 
 func permissionIn(
@@ -482,7 +489,6 @@ func getRestoreData(
 
 		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder)
-
 	}
 }
 
