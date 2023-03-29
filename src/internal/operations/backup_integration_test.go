@@ -68,10 +68,12 @@ func prepNewTestBackupOp(
 	func(),
 ) {
 	//revive:enable:context-as-argument
-	acct := tester.NewM365Account(t)
-	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
-	k := kopia.NewConn(st)
+	var (
+		acct = tester.NewM365Account(t)
+		// need to initialize the repository before we can test connecting to it.
+		st = tester.NewPrefixedS3Storage(t)
+		k  = kopia.NewConn(st)
+	)
 
 	err := k.Initialize(ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -103,11 +105,16 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
+	connectorResource := connector.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		connectorResource = connector.Sites
+	}
+
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		graph.HTTPClient(graph.NoTimeout()),
 		acct,
-		connector.Users,
+		connectorResource,
 		fault.New(true))
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
