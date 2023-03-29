@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
-	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/graph/api"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -34,8 +34,8 @@ const pageSize = int32(999)
 type driveItemPager struct {
 	gs      graph.Servicer
 	driveID string
-	builder *msdrives.ItemRootDeltaRequestBuilder
-	options *msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration
+	builder *drives.ItemRootDeltaRequestBuilder
+	options *drives.ItemRootDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewItemPager(
@@ -54,9 +54,9 @@ func NewItemPager(
 	}
 	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
-	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+	requestConfig := &drives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
 		Headers: headers,
-		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
+		QueryParameters: &drives.ItemRootDeltaRequestBuilderGetQueryParameters{
 			Top:    &pageCount,
 			Select: fields,
 		},
@@ -70,7 +70,7 @@ func NewItemPager(
 	}
 
 	if len(link) > 0 {
-		res.builder = msdrives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
+		res.builder = drives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
 	}
 
 	return res
@@ -91,7 +91,7 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 }
 
 func (p *driveItemPager) SetNext(link string) {
-	p.builder = msdrives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
+	p.builder = drives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *driveItemPager) Reset() {
@@ -104,8 +104,8 @@ func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable
 
 type userDrivePager struct {
 	gs      graph.Servicer
-	builder *msusers.ItemDrivesRequestBuilder
-	options *msusers.ItemDrivesRequestBuilderGetRequestConfiguration
+	builder *users.ItemDrivesRequestBuilder
+	options *users.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
 func NewUserDrivePager(
@@ -113,8 +113,8 @@ func NewUserDrivePager(
 	userID string,
 	fields []string,
 ) *userDrivePager {
-	requestConfig := &msusers.ItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msusers.ItemDrivesRequestBuilderGetQueryParameters{
+	requestConfig := &users.ItemDrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemDrivesRequestBuilderGetQueryParameters{
 			Select: fields,
 		},
 	}
@@ -143,7 +143,7 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 }
 
 func (p *userDrivePager) SetNext(link string) {
-	p.builder = msusers.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+	p.builder = users.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
@@ -152,8 +152,8 @@ func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) 
 
 type siteDrivePager struct {
 	gs      graph.Servicer
-	builder *mssites.ItemDrivesRequestBuilder
-	options *mssites.ItemDrivesRequestBuilderGetRequestConfiguration
+	builder *sites.ItemDrivesRequestBuilder
+	options *sites.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
 // NewSiteDrivePager is a constructor for creating a siteDrivePager
@@ -166,8 +166,8 @@ func NewSiteDrivePager(
 	siteID string,
 	fields []string,
 ) *siteDrivePager {
-	requestConfig := &mssites.ItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &mssites.ItemDrivesRequestBuilderGetQueryParameters{
+	requestConfig := &sites.ItemDrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.ItemDrivesRequestBuilderGetQueryParameters{
 			Select: fields,
 		},
 	}
@@ -196,7 +196,7 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 }
 
 func (p *siteDrivePager) SetNext(link string) {
-	p.builder = mssites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+	p.builder = sites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
@@ -221,7 +221,7 @@ func GetAllDrives(
 	retry bool,
 	maxRetryCount int,
 ) ([]models.Driveable, error) {
-	drives := []models.Driveable{}
+	ds := []models.Driveable{}
 
 	if !retry {
 		maxRetryCount = 0
@@ -261,7 +261,7 @@ func GetAllDrives(
 			return nil, graph.Wrap(ctx, err, "extracting drives from response")
 		}
 
-		drives = append(drives, tmp...)
+		ds = append(ds, tmp...)
 
 		nextLink := ptr.Val(page.GetOdataNextLink())
 		if len(nextLink) == 0 {
@@ -271,7 +271,7 @@ func GetAllDrives(
 		pager.SetNext(nextLink)
 	}
 
-	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(drives))
+	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(ds))
 
-	return drives, nil
+	return ds, nil
 }

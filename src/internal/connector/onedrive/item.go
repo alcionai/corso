@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -354,7 +354,7 @@ func driveItemWriter(
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
-	session := msdrives.NewItemItemsItemCreateUploadSessionPostRequestBody()
+	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)
