@@ -3,10 +3,10 @@ package selectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -391,7 +391,7 @@ func pathComparator() option {
 }
 
 func badCastErr(cast, is service) error {
-	return clues.Stack(ErrorBadSelectorCast, errors.Errorf("%s is not %s", cast, is))
+	return clues.Stack(ErrorBadSelectorCast, clues.New(fmt.Sprintf("%s is not %s", cast, is)))
 }
 
 func join(s ...string) string {

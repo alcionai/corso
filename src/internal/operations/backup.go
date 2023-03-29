@@ -60,13 +60,14 @@ func NewBackupOperation(
 	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
+	gc *connector.GraphConnector,
 	acct account.Account,
 	selector selectors.Selector,
 	ownerName string,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:         newOperation(opts, bus, kw, sw),
+		operation:         newOperation(opts, bus, kw, sw, gc),
 		ResourceOwner:     selector.DiscreteOwner,
 		ResourceOwnerName: ownerName,
 		Selectors:         selector,
@@ -74,6 +75,11 @@ func NewBackupOperation(
 		account:           acct,
 		incremental:       useIncrementalBackup(selector, opts),
 	}
+
+	if len(ownerName) == 0 {
+		op.ResourceOwnerName = op.ResourceOwner
+	}
+
 	if err := op.validate(); err != nil {
 		return BackupOperation{}, err
 	}
@@ -237,12 +243,7 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "connectng to m365")
-	}
-
-	cs, excludes, err := produceBackupDataCollections(ctx, gc, op.Selectors, mdColls, op.Options, op.Errors)
+	cs, excludes, err := produceBackupDataCollections(ctx, op.gc, op.Selectors, mdColls, op.Options, op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing backup data collections")
 	}
@@ -278,9 +279,9 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "merging details")
 	}
 
-	opStats.gc = gc.AwaitStatus()
+	opStats.gc = op.gc.AwaitStatus()
 
-	logger.Ctx(ctx).Debug(gc.PrintableStatus())
+	logger.Ctx(ctx).Debug(op.gc.PrintableStatus())
 
 	return deets, nil
 }

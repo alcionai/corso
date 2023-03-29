@@ -2,7 +2,6 @@ package fault_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -388,7 +387,7 @@ func (suite *FaultErrorsUnitSuite) TestUnmarshalLegacy() {
 	t := suite.T()
 
 	oldData := &legacyErrorsData{
-		Errs: []error{fmt.Errorf("foo error"), fmt.Errorf("foo error"), fmt.Errorf("foo error")},
+		Errs: []error{clues.New("foo error"), clues.New("foo error"), clues.New("foo error")},
 	}
 
 	jsonStr, err := json.Marshal(oldData)
