@@ -92,7 +92,7 @@ func (op BackupOperation) validate() error {
 	}
 
 	if op.bp == nil {
-		return errors.New("missing backup producer")
+		return clues.New("missing backup producer")
 	}
 
 	return op.operation.validate()

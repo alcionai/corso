@@ -111,16 +111,16 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	go statusTestTask(&gc, 4, 1, 1)
 	go statusTestTask(&gc, 4, 1, 1)
 
-	status := gc.Wait()
+	stats := gc.Wait()
 	t := suite.T()
 
 	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	assert.Equal(t, 8, status.Metrics.Objects)
+	assert.Equal(t, 8, stats.Objects)
 	// Expect 2 success
-	assert.Equal(t, 2, status.Metrics.Successes)
+	assert.Equal(t, 2, stats.Successes)
 	// Expect 2 folders
-	assert.Equal(t, 2, status.Folders)
+	assert.Equal(t, 2, stats.Folders)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {

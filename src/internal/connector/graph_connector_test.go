@@ -135,7 +135,7 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 	}
 }
 
-func (suite *GraphConnectorUnitSuite) TestGraphConnector_AwaitStatus() {
+func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -156,14 +156,14 @@ func (suite *GraphConnectorUnitSuite) TestGraphConnector_AwaitStatus() {
 	gc.wg.Add(1)
 	gc.UpdateStatus(status)
 
-	result := gc.AwaitStatus()
+	result := gc.Wait()
 	require.NotNil(t, result)
 	assert.Nil(t, gc.region, "region")
 	assert.Empty(t, gc.status, "status")
 	assert.Equal(t, 1, result.Folders)
-	assert.Equal(t, 2, result.Metrics.Objects)
-	assert.Equal(t, 3, result.Metrics.Successes)
-	assert.Equal(t, int64(4), result.Metrics.Bytes)
+	assert.Equal(t, 2, result.Objects)
+	assert.Equal(t, 3, result.Successes)
+	assert.Equal(t, int64(4), result.Bytes)
 }
 
 // ---------------------------------------------------------------------------
@@ -1151,8 +1151,10 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				start     = time.Now()
 			)
 
-			dcs, excludes, err := backupGC.DataCollections(
+			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
+				backupSel.DiscreteOwner,
+				backupSel.DiscreteOwner,
 				backupSel,
 				nil,
 				control.Options{
@@ -1195,7 +1197,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			assert.ElementsMatch(t, test.categories, foundCategories)
 
-			backupGC.AwaitStatus()
+			backupGC.Wait()
 
 			assert.NoError(t, errs.Failure())
 		})
