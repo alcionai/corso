@@ -85,7 +85,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.OneDriveOpts{
-		Users:              user,
+		Users:              utils.User,
 		FileNames:          utils.FileName,
 		FolderPaths:        utils.FolderPath,
 		FileCreatedAfter:   utils.FileCreatedAfter,

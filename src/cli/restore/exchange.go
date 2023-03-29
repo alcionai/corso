@@ -16,30 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
-// exchange bucket info from flags
-var (
-	user []string
-
-	contact       []string
-	contactFolder []string
-	contactName   string
-
-	email               []string
-	emailFolder         []string
-	emailReceivedAfter  string
-	emailReceivedBefore string
-	emailSender         string
-	emailSubject        string
-
-	event             []string
-	eventCalendar     []string
-	eventOrganizer    string
-	eventRecurs       string
-	eventStartsAfter  string
-	eventStartsBefore string
-	eventSubject      string
-)
-
 // called by restore.go to map subcommands to provider-specific handling.
 func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	var (
@@ -107,23 +83,23 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := utils.ExchangeOpts{
-		Contact:             contact,
-		ContactFolder:       contactFolder,
-		Email:               email,
-		EmailFolder:         emailFolder,
-		Event:               event,
-		EventCalendar:       eventCalendar,
-		Users:               user,
-		ContactName:         contactName,
-		EmailReceivedAfter:  emailReceivedAfter,
-		EmailReceivedBefore: emailReceivedBefore,
-		EmailSender:         emailSender,
-		EmailSubject:        emailSubject,
-		EventOrganizer:      eventOrganizer,
-		EventRecurs:         eventRecurs,
-		EventStartsAfter:    eventStartsAfter,
-		EventStartsBefore:   eventStartsBefore,
-		EventSubject:        eventSubject,
+		Contact:             utils.Contact,
+		ContactFolder:       utils.ContactFolder,
+		Email:               utils.Email,
+		EmailFolder:         utils.EmailFolder,
+		Event:               utils.Event,
+		EventCalendar:       utils.EventCalendar,
+		Users:               utils.User,
+		ContactName:         utils.ContactName,
+		EmailReceivedAfter:  utils.EmailReceivedAfter,
+		EmailReceivedBefore: utils.EmailReceivedBefore,
+		EmailSender:         utils.EmailSender,
+		EmailSubject:        utils.EmailSubject,
+		EventOrganizer:      utils.EventOrganizer,
+		EventRecurs:         utils.EventRecurs,
+		EventStartsAfter:    utils.EventStartsAfter,
+		EventStartsBefore:   utils.EventStartsBefore,
+		EventSubject:        utils.EventSubject,
 
 		Populated: utils.GetPopulatedFlags(cmd),
 	}
