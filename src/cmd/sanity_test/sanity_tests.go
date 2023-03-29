@@ -341,6 +341,11 @@ func checkOnedriveRestoration(
 	for checkFolderName, checkfolderPer := range folderPermission {
 		fmt.Printf("checking for folder: %s", checkFolderName)
 
+		if len(checkfolderPer) < 1 {
+			fmt.Printf("no permissions found for folder : %s.", checkFolderName)
+			continue
+		}
+
 		for i, orginalFolderPer := range checkfolderPer {
 			if !(orginalFolderPer.entityID != restoreFolderPermission[checkFolderName][i].entityID) &&
 				!slices.Equal(orginalFolderPer.roles, restoreFolderPermission[checkFolderName][i].roles) {
