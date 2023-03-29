@@ -224,7 +224,7 @@ func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
-func (gc *GraphConnector) Wait() data.CollectionStats {
+func (gc *GraphConnector) Wait() *data.CollectionStats {
 	defer func() {
 		if gc.region != nil {
 			gc.region.End()
@@ -245,7 +245,7 @@ func (gc *GraphConnector) Wait() data.CollectionStats {
 	gc.wg = &sync.WaitGroup{}
 	gc.status = support.ConnectorOperationStatus{}
 
-	return dcs
+	return &dcs
 }
 
 // UpdateStatus is used by gc initiated tasks to indicate completion

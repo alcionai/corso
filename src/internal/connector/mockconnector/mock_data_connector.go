@@ -37,8 +37,8 @@ func (gc GraphConnector) ProduceBackupCollections(
 	return gc.Collections, gc.Exclude, gc.Err
 }
 
-func (gc GraphConnector) Wait() data.CollectionStats {
-	return gc.Stats
+func (gc GraphConnector) Wait() *data.CollectionStats {
+	return &gc.Stats
 }
 
 func (gc GraphConnector) ConsumeRestoreCollections(

@@ -73,6 +73,7 @@ func NewBackupOperation(
 		Version:           "v0",
 		account:           acct,
 		incremental:       useIncrementalBackup(selector, opts),
+		bp:                bp,
 	}
 
 	if len(ownerName) == 0 {
@@ -104,7 +105,7 @@ func (op BackupOperation) validate() error {
 // get populated asynchronously.
 type backupStats struct {
 	k             *kopia.BackupStats
-	gc            data.CollectionStats
+	gc            *data.CollectionStats
 	resourceCount int
 }
 
@@ -331,7 +332,7 @@ type BackupProducer interface {
 	) ([]data.BackupCollection, map[string]map[string]struct{}, error)
 	// TODO: ConnectorOperationStatus should be replaced with something
 	// more generic.
-	Wait() data.CollectionStats
+	Wait() *data.CollectionStats
 }
 
 // calls the producer to generate collections of data to backup
@@ -684,12 +685,12 @@ func (op *BackupOperation) persistResults(
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc.IsZero() {
+	if opStats.gc == nil {
 		op.Status = Failed
 		return clues.New("backup population never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Successes == 0 {
+	if op.Status != Failed && opStats.gc.IsZero() {
 		op.Status = NoData
 	}
 
