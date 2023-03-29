@@ -21,6 +21,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+type permissionInfo struct {
+	entityID string
+	roles    []string
+}
+
 func main() {
 	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
 	defer func() {
@@ -88,7 +93,9 @@ func checkEmailRestoration(
 		values := result.GetValue()
 
 		for _, v := range values {
-			itemName := ptr.Val(v.GetDisplayName())
+			var (
+				itemName = ptr.Val(v.GetDisplayName())
+			)
 
 			if itemName == folderName {
 				restoreFolder = v
@@ -128,7 +135,9 @@ func checkEmailRestoration(
 	}
 
 	for _, fld := range childFolder.GetValue() {
-		restoreDisplayName := ptr.Val(fld.GetDisplayName())
+		var (
+			restoreDisplayName = ptr.Val(fld.GetDisplayName())
+		)
 
 		// check if folder is the data folder we loaded or the base backup to verify
 		// the incremental backup worked fine
@@ -136,7 +145,7 @@ func checkEmailRestoration(
 			count, _ := ptr.ValOK(fld.GetTotalItemCount())
 
 			restoreItemCount[restoreDisplayName] = count
-			checkAllSubFolder(ctx, client, testUser, fld, restoreDisplayName, dataFolder, restoreItemCount)
+			checkAllSubFolder(ctx, client, fld, testUser, restoreDisplayName, dataFolder, restoreItemCount)
 		}
 	}
 
@@ -211,8 +220,8 @@ func getAllSubFolder(
 func checkAllSubFolder(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	testUser string,
 	r models.MailFolderable,
+	testUser,
 	parentFolder,
 	dataFolder string,
 	restoreMessageCount map[string]int32,
@@ -252,14 +261,9 @@ func checkAllSubFolder(
 
 		if childFolderCount > 0 {
 			parentFolder := fullFolderName
-			checkAllSubFolder(ctx, client, testUser, child, parentFolder, dataFolder, restoreMessageCount)
+			checkAllSubFolder(ctx, client, child, testUser, parentFolder, dataFolder, restoreMessageCount)
 		}
 	}
-}
-
-type permissionInfo struct {
-	entityID string
-	roles    []string
 }
 
 func checkOnedriveRestoration(
