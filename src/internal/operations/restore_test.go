@@ -149,9 +149,6 @@ type bupResults struct {
 type RestoreOpIntegrationSuite struct {
 	tester.Suite
 
-	exchange   bupResults
-	sharepoint bupResults
-
 	kopiaCloser func(ctx context.Context)
 	acct        account.Account
 	kw          *kopia.Wrapper
