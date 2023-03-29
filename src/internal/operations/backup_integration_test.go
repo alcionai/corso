@@ -395,6 +395,8 @@ func generateContainerOfItems(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	// have to wait here, both to ensure the process
+	// finishes, and also to clean up the gc status
 	gc.Wait()
 
 	return deets

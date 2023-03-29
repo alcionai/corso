@@ -135,7 +135,7 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 	}
 }
 
-func (suite *GraphConnectorUnitSuite) TestGraphConnector_AwaitStatus() {
+func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -1153,7 +1153,8 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
-				backupSel.DiscreteOwner, backupSel.DiscreteOwner,
+				backupSel.DiscreteOwner,
+				backupSel.DiscreteOwner,
 				backupSel,
 				nil,
 				control.Options{
