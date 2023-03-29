@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -47,35 +48,9 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
-		})
-	}
-}
 
-func (suite *OneDriveUnitSuite) TestAddOneDriveCommands_hasRestoreFlag() {
-	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
-
-	table := []struct {
-		name        string
-		use         string
-		expectUse   string
-		expectShort string
-		expectRunE  func(*cobra.Command, []string) error
-	}{
-		{"restore onedrive", restoreCommand, expectUse, oneDriveRestoreCmd().Short, restoreOneDriveCmd},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			cmd := &cobra.Command{Use: test.use}
-
-			c := addOneDriveCommands(cmd)
-			require.NotNil(t, c)
-
-			cmd.SetArgs([]string{"onedrive", "--restore-permissions"})
-
-			err := cmd.Execute()
-			assert.NotEqual(t, err.Error(), `unknown flag: --restore-permissions`)
+			assert.NotNil(t, c.Flag(utils.BackupFN))
+			assert.NotNil(t, c.Flag("restore-permissions"))
 		})
 	}
 }
