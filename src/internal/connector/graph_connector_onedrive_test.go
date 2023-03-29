@@ -452,11 +452,11 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 
 	si.resourceOwner = tester.M365SiteID(suite.T())
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -499,11 +499,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 
 	si.resourceOwner = si.user
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -695,11 +695,11 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 
 	si.resourceOwner = si.user
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
