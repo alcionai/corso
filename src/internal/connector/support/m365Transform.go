@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -325,13 +326,13 @@ const (
 func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error) {
 	transform, ok := orig.(models.ItemAttachmentable)
 	if !ok { // Shouldn't ever happen
-		return nil, fmt.Errorf("transforming attachment to item attachment")
+		return nil, clues.New("transforming attachment to item attachment")
 	}
 
 	item := transform.GetItem()
-	itemType := item.GetOdataType()
+	itemType := ptr.Val(item.GetOdataType())
 
-	switch *itemType {
+	switch itemType {
 	case contactItemType:
 		contact := item.(models.Contactable)
 		revised := sanitizeContact(contact)
@@ -362,7 +363,7 @@ func ToItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 
 		return transform, nil
 	default:
-		return nil, fmt.Errorf("exiting ToItemAttachment: %s not supported", *itemType)
+		return nil, clues.New(fmt.Sprintf("unsupported attachment type: %T", itemType))
 	}
 }
 

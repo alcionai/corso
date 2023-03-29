@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
@@ -55,6 +56,7 @@ func NewRestoreOperation(
 	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
+	gc *connector.GraphConnector,
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
@@ -62,7 +64,7 @@ func NewRestoreOperation(
 	bus events.Eventer,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:   newOperation(opts, bus, kw, sw),
+		operation:   newOperation(opts, bus, kw, sw, gc),
 		BackupID:    backupID,
 		Selectors:   sel,
 		Destination: dest,
@@ -233,16 +235,11 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "connecting to M365")
-	}
-
 	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
 	defer closer()
 	defer close(restoreComplete)
 
-	restoreDetails, err := gc.RestoreDataCollections(
+	restoreDetails, err := op.gc.RestoreDataCollections(
 		ctx,
 		bup.Version,
 		op.account,
@@ -257,9 +254,9 @@ func (op *RestoreOperation) do(
 
 	restoreComplete <- struct{}{}
 
-	opStats.gc = gc.AwaitStatus()
+	opStats.gc = op.gc.AwaitStatus()
 
-	logger.Ctx(ctx).Debug(gc.PrintableStatus())
+	logger.Ctx(ctx).Debug(op.gc.PrintableStatus())
 
 	return restoreDetails, nil
 }
