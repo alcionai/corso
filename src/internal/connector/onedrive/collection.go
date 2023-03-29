@@ -132,7 +132,6 @@ type itemMetaReaderFunc func(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
@@ -481,8 +480,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				ctx,
 				oc.service,
 				oc.driveID,
-				item,
-				oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
+				item)
 
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))

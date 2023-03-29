@@ -249,7 +249,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		dest,
 		control.Options{
 			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures:     control.Toggles{},
 		},
 		nil,
 		fault.New(true))
@@ -328,7 +328,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				dest,
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 				test.col,
 				fault.New(true))
@@ -851,7 +851,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				[]string{suite.user},
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 			)
 		})
@@ -973,7 +973,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest,
 					control.Options{
 						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+						ToggleFeatures:     control.Toggles{},
 					},
 					collections,
 					fault.New(true))
@@ -1004,7 +1004,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				nil,
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -1064,7 +1064,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 		[]string{suite.user},
 		control.Options{
 			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures:     control.Toggles{},
 		},
 	)
 }
@@ -1157,7 +1157,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				nil,
 				control.Options{
 					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
+					ToggleFeatures:     control.Toggles{},
 				},
 				fault.New(true))
 			require.NoError(t, err)
