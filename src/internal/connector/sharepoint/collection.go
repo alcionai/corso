@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
+	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -56,7 +56,7 @@ type Collection struct {
 	category      DataCategory
 	service       graph.Servicer
 	ctrl          control.Options
-	betaService   *api.BetaService
+	betaService   *dapi.BetaService
 	statusUpdater support.StatusUpdater
 }
 
@@ -179,7 +179,7 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 	var (
 		err     error
 		metrics support.CollectionMetrics
-		writer  = kw.NewJsonSerializationWriter()
+		writer  = kjson.NewJsonSerializationWriter()
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
@@ -208,7 +208,7 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 // models.Listable objects based on M365 IDs from the jobs field.
 func (sc *Collection) retrieveLists(
 	ctx context.Context,
-	wtr *kw.JsonSerializationWriter,
+	wtr *kjson.JsonSerializationWriter,
 	progress chan<- struct{},
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -263,7 +263,7 @@ func (sc *Collection) retrieveLists(
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
-	wtr *kw.JsonSerializationWriter,
+	wtr *kjson.JsonSerializationWriter,
 	progress chan<- struct{},
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -277,14 +277,14 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := sapi.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
+	parent, err := api.GetSite(ctx, sc.service, sc.fullPath.ResourceOwner())
 	if err != nil {
 		return metrics, err
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pages, err := sapi.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	pages, err := api.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
 	if err != nil {
 		return metrics, err
 	}
@@ -325,8 +325,8 @@ func (sc *Collection) retrievePages(
 
 func serializeContent(
 	ctx context.Context,
-	writer *kw.JsonSerializationWriter,
-	obj absser.Parsable,
+	writer *kjson.JsonSerializationWriter,
+	obj serialization.Parsable,
 ) ([]byte, error) {
 	defer writer.Close()
 

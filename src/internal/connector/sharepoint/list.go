@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	mssite "github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -18,12 +18,12 @@ type listTuple struct {
 	id   string
 }
 
-func preFetchListOptions() *mssite.ItemListsRequestBuilderGetRequestConfiguration {
+func preFetchListOptions() *sites.ItemListsRequestBuilderGetRequestConfiguration {
 	selecting := []string{"id", "displayName"}
-	queryOptions := mssite.ItemListsRequestBuilderGetQueryParameters{
+	queryOptions := sites.ItemListsRequestBuilderGetQueryParameters{
 		Select: selecting,
 	}
-	options := &mssite.ItemListsRequestBuilderGetRequestConfiguration{
+	options := &sites.ItemListsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &queryOptions,
 	}
 
@@ -66,7 +66,7 @@ func preFetchLists(
 			break
 		}
 
-		builder = mssite.NewItemListsRequestBuilder(link, gs.Adapter())
+		builder = sites.NewItemListsRequestBuilder(link, gs.Adapter())
 	}
 
 	return listTuples, nil
@@ -234,7 +234,7 @@ func fetchListItems(
 			break
 		}
 
-		builder = mssite.NewItemListsItemItemsRequestBuilder(link, gs.Adapter())
+		builder = sites.NewItemListsItemItemsRequestBuilder(link, gs.Adapter())
 	}
 
 	return itms, el.Failure()
@@ -267,7 +267,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = mssite.NewItemListsItemColumnsRequestBuilder(link, gs.Adapter())
+			builder = sites.NewItemListsItemColumnsRequestBuilder(link, gs.Adapter())
 		}
 	} else {
 		builder := gs.Client().SitesById(siteID).ListsById(listID).ContentTypesById(cTypeID).Columns()
@@ -285,7 +285,7 @@ func fetchColumns(
 				break
 			}
 
-			builder = mssite.NewItemListsItemContentTypesItemColumnsRequestBuilder(link, gs.Adapter())
+			builder = sites.NewItemListsItemContentTypesItemColumnsRequestBuilder(link, gs.Adapter())
 		}
 	}
 
@@ -351,7 +351,7 @@ func fetchContentTypes(
 			break
 		}
 
-		builder = mssite.NewItemListsItemContentTypesRequestBuilder(link, gs.Adapter())
+		builder = sites.NewItemListsItemContentTypesRequestBuilder(link, gs.Adapter())
 	}
 
 	return cTypes, el.Failure()
@@ -380,7 +380,7 @@ func fetchColumnLinks(
 			break
 		}
 
-		builder = mssite.NewItemListsItemContentTypesItemColumnLinksRequestBuilder(
+		builder = sites.NewItemListsItemContentTypesItemColumnLinksRequestBuilder(
 			link,
 			gs.Adapter())
 	}

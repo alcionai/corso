@@ -11,15 +11,15 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type SharePointSuite struct {
+type SharePointUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, &SharePointSuite{Suite: tester.NewUnitSuite(t)})
+func TestSharePointUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SharePointSuite) TestAddSharePointCommands() {
+func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 	expectUse := sharePointServiceCommand + " " + sharePointServiceCommandUseSuffix
 
 	table := []struct {
