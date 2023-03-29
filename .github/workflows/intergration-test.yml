@@ -7,7 +7,8 @@ on:
   pull_request:
 
   push:
-    branches: [main]
+  # TODO: remove e2eTest from here
+    branches: [main, e2eTest]  
     tags: ["v*.*.*"]
 
   repository_dispatch:
