@@ -784,7 +784,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 			p, err := path.FromDataLayerPath(dest.deets.Entries[0].RepoRef, true)
 			require.NoError(t, err, clues.ToCore(err))
 
-			id, ok := cr.PathInCache(p.Folder(false))
+			id, ok := cr.LocationInCache(p.Folder(false))
 			require.True(t, ok, "dir %s found in %s cache", p.Folder(false), category)
 
 			d := dataset[category].dests[destName]
@@ -897,7 +897,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 					p, err := path.FromDataLayerPath(deets.Entries[0].RepoRef, true)
 					require.NoError(t, err, clues.ToCore(err))
 
-					id, ok := cr.PathInCache(p.Folder(false))
+					id, ok := cr.LocationInCache(p.Folder(false))
 					require.Truef(t, ok, "dir %s found in %s cache", p.Folder(false), category)
 
 					dataset[category].dests[container3] = contDeets{id, deets}

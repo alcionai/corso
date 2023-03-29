@@ -53,16 +53,14 @@ type containerResolver struct {
 func (cr *containerResolver) IDToPath(
 	ctx context.Context,
 	folderID string,
-	useIDInPath bool,
 ) (*path.Builder, *path.Builder, error) {
-	return cr.idToPath(ctx, folderID, 0, useIDInPath)
+	return cr.idToPath(ctx, folderID, 0)
 }
 
 func (cr *containerResolver) idToPath(
 	ctx context.Context,
 	folderID string,
 	depth int,
-	useIDInPath bool,
 ) (*path.Builder, *path.Builder, error) {
 	ctx = clues.Add(ctx, "container_id", folderID)
 
@@ -83,33 +81,23 @@ func (cr *containerResolver) idToPath(
 	parentPath, parentLoc, err := cr.idToPath(
 		ctx,
 		ptr.Val(c.GetParentFolderId()),
-		depth+1,
-		useIDInPath)
+		depth+1)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "retrieving parent folder")
 	}
 
-	toAppend := ptr.Val(c.GetDisplayName())
-	if useIDInPath {
-		toAppend = ptr.Val(c.GetId())
-	}
-
-	fullPath := parentPath.Append(toAppend)
+	fullPath := parentPath.Append(ptr.Val(c.GetId()))
 	c.SetPath(fullPath)
 
-	var locPath *path.Builder
-
-	if parentLoc != nil {
-		locPath = parentLoc.Append(ptr.Val(c.GetDisplayName()))
-		c.SetLocation(locPath)
-	}
+	locPath := parentLoc.Append(ptr.Val(c.GetDisplayName()))
+	c.SetLocation(locPath)
 
 	return fullPath, locPath, nil
 }
 
-// PathInCache utility function to return m365ID of folder if the path.Folders
-// matches the directory of a container within the cache. A boolean result
-// is provided to indicate whether the lookup was successful.
+// PathInCache is a utility function to return m365ID of a folder if the
+// path.Folders matches the directory of a container within the cache. A boolean
+// result is provided to indicate whether the lookup was successful.
 func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 	if len(pathString) == 0 || cr == nil {
 		return "", false
@@ -121,6 +109,27 @@ func (cr *containerResolver) PathInCache(pathString string) (string, bool) {
 		}
 
 		if cc.Path().String() == pathString {
+			return ptr.Val(cc.GetId()), true
+		}
+	}
+
+	return "", false
+}
+
+// LocationInCache is a utility function to return m365ID of a folder if the
+// path.Folders matches the directory of a container within the cache. A boolean
+// result is provided to indicate whether the lookup was successful.
+func (cr *containerResolver) LocationInCache(pathString string) (string, bool) {
+	if len(pathString) == 0 || cr == nil {
+		return "", false
+	}
+
+	for _, cc := range cr.cache {
+		if cc.Location() == nil {
+			continue
+		}
+
+		if cc.Location().String() == pathString {
 			return ptr.Val(cc.GetId()), true
 		}
 	}
@@ -166,7 +175,6 @@ func (cr *containerResolver) Items() []graph.CachedContainer {
 func (cr *containerResolver) AddToCache(
 	ctx context.Context,
 	f graph.Container,
-	useIDInPath bool,
 ) error {
 	temp := graph.CacheFolder{
 		Container: f,
@@ -177,7 +185,7 @@ func (cr *containerResolver) AddToCache(
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
+	_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()))
 	if err != nil {
 		return clues.Wrap(err, "adding cache entry")
 	}
@@ -185,15 +193,8 @@ func (cr *containerResolver) AddToCache(
 	return nil
 }
 
-// DestinationNameToID returns an empty string.  This is only supported by exchange
-// calendars at this time.
-func (cr *containerResolver) DestinationNameToID(dest string) string {
-	return ""
-}
-
 func (cr *containerResolver) populatePaths(
 	ctx context.Context,
-	useIDInPath bool,
 	errs *fault.Bus,
 ) error {
 	var (
@@ -207,7 +208,7 @@ func (cr *containerResolver) populatePaths(
 			return el.Failure()
 		}
 
-		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()), useIDInPath)
+		_, _, err := cr.IDToPath(ctx, ptr.Val(f.GetId()))
 		if err != nil {
 			err = clues.Wrap(err, "populating path")
 			el.AddRecoverable(err)
