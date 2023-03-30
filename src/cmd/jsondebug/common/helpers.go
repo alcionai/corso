@@ -11,6 +11,10 @@ const (
 	FileName = "input.json"
 )
 
+type FooArray struct {
+	Entries []*Foo `json:"entries"`
+}
+
 type Foo struct {
 	A []byte
 }

@@ -19,7 +19,7 @@ func main() {
 
 	dec := json.NewDecoder(f)
 
-	output := []common.Foo{}
+	output := common.FooArray{}
 
 	if err := dec.Decode(&output); err != nil {
 		fmt.Printf("Error decoding input: %v\n", err)
