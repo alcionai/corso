@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -139,8 +140,18 @@ const (
 
 // Message is used to display a progress message
 func Message(ctx context.Context, msgs ...any) {
-	message := toMessage(msgs...)
-	logger.Ctx(ctx).Info(message)
+	plainSl := make([]string, 0, len(msgs))
+	loggableSl := make([]string, 0, len(msgs))
+
+	for _, m := range msgs {
+		plainSl = append(plainSl, plainString(m))
+		loggableSl = append(loggableSl, fmt.Sprintf("%v", m))
+	}
+
+	plain := strings.Join(plainSl, " ")
+	loggable := strings.Join(loggableSl, " ")
+
+	logger.Ctx(ctx).Info(loggable)
 
 	if cfg.hidden() {
 		return
@@ -152,9 +163,9 @@ func Message(ctx context.Context, msgs ...any) {
 		-1,
 		mpb.NopStyle(),
 		mpb.PrependDecorators(decor.Name(
-			message,
+			plain,
 			decor.WC{
-				W: len(message) + 1,
+				W: len(plain) + 1,
 				C: decor.DidentRight,
 			})))
 
@@ -168,17 +179,19 @@ func Message(ctx context.Context, msgs ...any) {
 // that switches to "done" when the completion channel is signalled
 func MessageWithCompletion(
 	ctx context.Context,
-	msg string,
+	msg any,
 ) (chan<- struct{}, func()) {
 	var (
-		log = logger.Ctx(ctx)
-		ch  = make(chan struct{}, 1)
+		plain    = plainString(msg)
+		loggable = fmt.Sprintf("%v", msg)
+		log      = logger.Ctx(ctx)
+		ch       = make(chan struct{}, 1)
 	)
 
-	log.Info(msg)
+	log.Info(loggable)
 
 	if cfg.hidden() {
-		return ch, func() { log.Info("done - " + msg) }
+		return ch, func() { log.Info("done - " + loggable) }
 	}
 
 	wg.Add(1)
@@ -189,7 +202,7 @@ func MessageWithCompletion(
 		-1,
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
-			decor.Name(msg+":"),
+			decor.Name(plain+":"),
 			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
 		mpb.BarFillerOnComplete("done"))
 
@@ -207,7 +220,7 @@ func MessageWithCompletion(
 		})
 
 	wacb := waitAndCloseBar(bar, func() {
-		log.Info("done - " + msg)
+		log.Info("done - " + loggable)
 	})
 
 	return ch, wacb
@@ -227,9 +240,9 @@ func ItemProgress(
 	iname any,
 	totalBytes int64,
 ) (io.ReadCloser, func()) {
-	item := fmt.Sprintf("%v", iname)
+	plain := plainString(iname)
 	log := logger.Ctx(ctx).With(
-		"item", item,
+		"item", iname,
 		"size", humanize.Bytes(uint64(totalBytes)))
 	log.Debug(header)
 
@@ -242,7 +255,7 @@ func ItemProgress(
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(item, decor.WCSyncSpaceR),
+			decor.Name(plain, decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
 			decor.NewPercentage("%d ", decor.WC{W: 4})),
 	}
@@ -272,17 +285,17 @@ func ProgressWithCount(
 	count int64,
 ) (chan<- struct{}, func()) {
 	var (
-		message = fmt.Sprintf("%s", msg)
-		log     = logger.Ctx(ctx)
-		logMsg  = fmt.Sprintf("%s %s - %d", header, msg, count)
-		ch      = make(chan struct{})
+		plain    = plainString(msg)
+		loggable = fmt.Sprintf("%s %v - %d", header, msg, count)
+		log      = logger.Ctx(ctx)
+		ch       = make(chan struct{})
 	)
 
-	log.Info(logMsg)
+	log.Info(loggable)
 
 	if cfg.hidden() {
 		go listen(ctx, ch, nop, nop)
-		return ch, func() { log.Info("done - " + logMsg) }
+		return ch, func() { log.Info("done - " + loggable) }
 	}
 
 	wg.Add(1)
@@ -290,7 +303,7 @@ func ProgressWithCount(
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(message),
+			decor.Name(plain),
 			decor.Counters(0, " %d/%d ")),
 	}
 
@@ -307,7 +320,7 @@ func ProgressWithCount(
 		bar.Increment)
 
 	wacb := waitAndCloseBar(bar, func() {
-		log.Info("done - " + logMsg)
+		log.Info("done - " + loggable)
 	})
 
 	return ch, wacb
@@ -355,11 +368,11 @@ func CollectionProgress(
 ) (chan<- struct{}, func()) {
 	var (
 		counted int
-		dir     = fmt.Sprintf("%v", dirName)
+		plain   = plainString(dirName)
 		ch      = make(chan struct{})
 		log     = logger.Ctx(ctx).With(
 			"category", category,
-			"dir", dir)
+			"dir", dirName)
 		message = "Collecting Directory"
 	)
 
@@ -373,7 +386,7 @@ func CollectionProgress(
 		}
 	}
 
-	if cfg.hidden() || len(dir) == 0 {
+	if cfg.hidden() || len(plain) == 0 {
 		go listen(ctx, ch, nop, incCount)
 		return ch, func() { log.Infow("done - "+message, "count", counted) }
 	}
@@ -384,7 +397,7 @@ func CollectionProgress(
 		mpb.PrependDecorators(decor.Name(string(category))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
-			decor.Name(dir),
+			decor.Name(plain),
 		),
 		mpb.BarFillerOnComplete(spinFrames[0]),
 	}
@@ -457,8 +470,26 @@ func listen(ctx context.Context, ch <-chan struct{}, onEnd, onInc func()) {
 
 const Bullet = "∙"
 
-func Bulletf(template string, vs ...any) string {
-	return fmt.Sprintf("∙ "+template, vs...)
+type bulletf struct {
+	tmpl string
+	vs   []any
+}
+
+func Bulletf(template string, vs ...any) bulletf {
+	return bulletf{template, vs}
+}
+
+func (b bulletf) PlainString() string {
+	ps := make([]any, 0, len(b.vs))
+	for _, v := range b.vs {
+		ps = append(ps, plainString(v))
+	}
+
+	return fmt.Sprintf("∙ "+b.tmpl, ps...)
+}
+
+func (b bulletf) String() string {
+	return fmt.Sprintf("∙ "+b.tmpl, b.vs...)
 }
 
 func toMessage(vs ...any) string {
@@ -469,4 +500,20 @@ func toMessage(vs ...any) string {
 	}
 
 	return strings.Join(msg, " ")
+}
+
+// plainString attempts to cast v to a PlainStringer
+// interface, and retrieve the un-altered value.  If
+// v is not compliant with PlainStringer, returns the
+// %v fmt of v.
+//
+// This should only be used to display the value in the
+// observe progress bar.  Logged values should only use
+// the fmt %v to ensure Concealers hide PII.
+func plainString(v any) string {
+	if ps, ok := v.(clues.PlainStringer); ok {
+		return ps.PlainString()
+	}
+
+	return fmt.Sprintf("%v", v)
 }
