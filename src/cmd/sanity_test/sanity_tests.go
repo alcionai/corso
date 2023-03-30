@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -93,9 +93,7 @@ func checkEmailRestoration(
 		values := result.GetValue()
 
 		for _, v := range values {
-			var (
-				itemName = ptr.Val(v.GetDisplayName())
-			)
+			itemName := ptr.Val(v.GetDisplayName())
 
 			if itemName == folderName {
 				restoreFolder = v
@@ -135,9 +133,7 @@ func checkEmailRestoration(
 	}
 
 	for _, fld := range childFolder.GetValue() {
-		var (
-			restoreDisplayName = ptr.Val(fld.GetDisplayName())
-		)
+		restoreDisplayName := ptr.Val(fld.GetDisplayName())
 
 		// check if folder is the data folder we loaded or the base backup to verify
 		// the incremental backup worked fine
