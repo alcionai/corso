@@ -24,8 +24,10 @@ func TestBackupUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+const testDomainOwner = "test-domain-owner"
+
 func stubBackup(t time.Time) backup.Backup {
-	sel := selectors.NewExchangeBackup([]string{"test"})
+	sel := selectors.NewExchangeBackup([]string{testDomainOwner})
 	sel.Include(sel.AllData())
 
 	return backup.Backup{
@@ -61,30 +63,41 @@ func stubBackup(t time.Time) backup.Backup {
 
 func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 	var (
-		t        = suite.T()
-		now      = time.Now()
-		b        = stubBackup(now)
-		expectHs = []string{
-			"Started At",
-			"ID",
-			"Status",
-			"Resource Owner",
-		}
-		nowFmt   = common.FormatTabularDisplayTime(now)
-		expectVs = []string{
-			nowFmt,
-			"id",
-			"status (2 errors, 1 skipped: 1 malware)",
-			"test",
-		}
+		now          = time.Now()
+		nowFmt       = common.FormatTabularDisplayTime(now)
+		expectHs     = []string{"Started At", "ID", "Status", "Resource Owner"}
+		expectVsBase = []string{nowFmt, "id", "status (2 errors, 1 skipped: 1 malware)"}
 	)
 
-	// single skipped malware
-	hs := b.Headers()
-	assert.Equal(t, expectHs, hs)
+	table := []struct {
+		name     string
+		bup      func() backup.Backup
+		expectVs []string
+	}{
+		{
+			name:     "owner from selectors",
+			bup:      func() backup.Backup { return stubBackup(now) },
+			expectVs: append(expectVsBase, testDomainOwner),
+		},
+		{
+			name: "owner from backup",
+			bup: func() backup.Backup {
+				b := stubBackup(now)
+				b.ResourceOwnerName = "test ro name"
+				return b
+			},
+			expectVs: append(expectVsBase, "test ro name"),
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			b := test.bup()
 
-	vs := b.Values()
-	assert.Equal(t, expectVs, vs)
+			assert.Equal(t, expectHs, b.Headers())     // not elementsMatch, order matters
+			assert.Equal(t, test.expectVs, b.Values()) // not elementsMatch, order matters
+		})
+	}
 }
 
 func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {

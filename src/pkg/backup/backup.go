@@ -165,6 +165,11 @@ type Printable struct {
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (b Backup) MinimumPrintable() any {
+	name := b.ResourceOwnerName
+	if len(name) == 0 {
+		name = b.Selector.Name()
+	}
+
 	return Printable{
 		ID:            b.ID,
 		ErrorCount:    b.ErrorCount,
@@ -173,7 +178,7 @@ func (b Backup) MinimumPrintable() any {
 		Version:       "0",
 		BytesRead:     b.BytesRead,
 		BytesUploaded: b.BytesUploaded,
-		Owner:         b.Selector.DiscreteOwner,
+		Owner:         name,
 	}
 }
 
@@ -232,10 +237,15 @@ func (b Backup) Values() []string {
 		status += (")")
 	}
 
+	name := b.ResourceOwnerName
+	if len(name) == 0 {
+		name = b.Selector.Name()
+	}
+
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),
 		string(b.ID),
 		status,
-		b.Selector.DiscreteOwner,
+		name,
 	}
 }
