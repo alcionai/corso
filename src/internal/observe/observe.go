@@ -23,11 +23,6 @@ const (
 	progressBarWidth     = 32
 )
 
-// styling
-const bullet = "∙"
-
-const Bullet = Safe(bullet)
-
 var (
 	wg sync.WaitGroup
 	// TODO: Revisit this being a global nd make it a parameter to the progress methods
@@ -143,19 +138,9 @@ const (
 // Progress Updates
 
 // Message is used to display a progress message
-func Message(ctx context.Context, msgs ...cleanable) {
-	var (
-		cleaned = make([]string, len(msgs))
-		msg     = make([]string, len(msgs))
-	)
-
-	for i := range msgs {
-		cleaned[i] = msgs[i].clean()
-		msg[i] = msgs[i].String()
-	}
-
-	logger.Ctx(ctx).Info(strings.Join(cleaned, " "))
-	message := strings.Join(msg, " ")
+func Message(ctx context.Context, msgs ...any) {
+	message := toMessage(msgs...)
+	logger.Ctx(ctx).Info(message)
 
 	if cfg.hidden() {
 		return
@@ -183,19 +168,17 @@ func Message(ctx context.Context, msgs ...cleanable) {
 // that switches to "done" when the completion channel is signalled
 func MessageWithCompletion(
 	ctx context.Context,
-	msg cleanable,
+	msg string,
 ) (chan<- struct{}, func()) {
 	var (
-		clean   = msg.clean()
-		message = msg.String()
-		log     = logger.Ctx(ctx)
-		ch      = make(chan struct{}, 1)
+		log = logger.Ctx(ctx)
+		ch  = make(chan struct{}, 1)
 	)
 
-	log.Info(clean)
+	log.Info(msg)
 
 	if cfg.hidden() {
-		return ch, func() { log.Info("done - " + clean) }
+		return ch, func() { log.Info("done - " + msg) }
 	}
 
 	wg.Add(1)
@@ -206,7 +189,7 @@ func MessageWithCompletion(
 		-1,
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
-			decor.Name(message+":"),
+			decor.Name(msg+":"),
 			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
 		mpb.BarFillerOnComplete("done"))
 
@@ -224,7 +207,7 @@ func MessageWithCompletion(
 		})
 
 	wacb := waitAndCloseBar(bar, func() {
-		log.Info("done - " + clean)
+		log.Info("done - " + msg)
 	})
 
 	return ch, wacb
@@ -241,11 +224,12 @@ func ItemProgress(
 	ctx context.Context,
 	rc io.ReadCloser,
 	header string,
-	iname cleanable,
+	iname any,
 	totalBytes int64,
 ) (io.ReadCloser, func()) {
+	item := fmt.Sprintf("%v", iname)
 	log := logger.Ctx(ctx).With(
-		"item", iname.clean(),
+		"item", item,
 		"size", humanize.Bytes(uint64(totalBytes)))
 	log.Debug(header)
 
@@ -258,7 +242,7 @@ func ItemProgress(
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(iname.String(), decor.WCSyncSpaceR),
+			decor.Name(item, decor.WCSyncSpaceR),
 			decor.CountersKibiByte(" %.1f/%.1f ", decor.WC{W: 8}),
 			decor.NewPercentage("%d ", decor.WC{W: 4})),
 	}
@@ -284,20 +268,21 @@ func ItemProgress(
 func ProgressWithCount(
 	ctx context.Context,
 	header string,
-	message cleanable,
+	msg any,
 	count int64,
 ) (chan<- struct{}, func()) {
 	var (
-		log  = logger.Ctx(ctx)
-		lmsg = fmt.Sprintf("%s %s - %d", header, message.clean(), count)
-		ch   = make(chan struct{})
+		message = fmt.Sprintf("%s", msg)
+		log     = logger.Ctx(ctx)
+		logMsg  = fmt.Sprintf("%s %s - %d", header, msg, count)
+		ch      = make(chan struct{})
 	)
 
-	log.Info(lmsg)
+	log.Info(logMsg)
 
 	if cfg.hidden() {
 		go listen(ctx, ch, nop, nop)
-		return ch, func() { log.Info("done - " + lmsg) }
+		return ch, func() { log.Info("done - " + logMsg) }
 	}
 
 	wg.Add(1)
@@ -305,7 +290,7 @@ func ProgressWithCount(
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name(header, decor.WCSyncSpaceR),
-			decor.Name(message.String()),
+			decor.Name(message),
 			decor.Counters(0, " %d/%d ")),
 	}
 
@@ -322,7 +307,7 @@ func ProgressWithCount(
 		bar.Increment)
 
 	wacb := waitAndCloseBar(bar, func() {
-		log.Info("done - " + lmsg)
+		log.Info("done - " + logMsg)
 	})
 
 	return ch, wacb
@@ -366,14 +351,15 @@ func makeSpinFrames(barWidth int) {
 func CollectionProgress(
 	ctx context.Context,
 	category string,
-	dirName cleanable,
+	dirName any,
 ) (chan<- struct{}, func()) {
 	var (
 		counted int
+		dir     = fmt.Sprintf("%v", dirName)
 		ch      = make(chan struct{})
 		log     = logger.Ctx(ctx).With(
 			"category", category,
-			"dir", dirName.clean())
+			"dir", dir)
 		message = "Collecting Directory"
 	)
 
@@ -387,7 +373,7 @@ func CollectionProgress(
 		}
 	}
 
-	if cfg.hidden() || len(dirName.String()) == 0 {
+	if cfg.hidden() || len(dir) == 0 {
 		go listen(ctx, ch, nop, incCount)
 		return ch, func() { log.Infow("done - "+message, "count", counted) }
 	}
@@ -398,7 +384,7 @@ func CollectionProgress(
 		mpb.PrependDecorators(decor.Name(string(category))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
-			decor.Name(dirName.String()),
+			decor.Name(dir),
 		),
 		mpb.BarFillerOnComplete(spinFrames[0]),
 	}
@@ -466,62 +452,21 @@ func listen(ctx context.Context, ch <-chan struct{}, onEnd, onInc func()) {
 }
 
 // ---------------------------------------------------------------------------
-// PII redaction
+// Styling
 // ---------------------------------------------------------------------------
 
-type cleanable interface {
-	clean() string
-	String() string
+const Bullet = "∙"
+
+func Bulletf(template string, vs ...any) string {
+	return fmt.Sprintf("∙ "+template, vs...)
 }
 
-type PII string
+func toMessage(vs ...any) string {
+	msg := make([]string, len(vs))
 
-func (p PII) clean() string {
-	return "***"
-}
-
-func (p PII) String() string {
-	return string(p)
-}
-
-type Safe string
-
-func (s Safe) clean() string {
-	return string(s)
-}
-
-func (s Safe) String() string {
-	return string(s)
-}
-
-type bulletPII struct {
-	tmpl string
-	vars []cleanable
-}
-
-func Bulletf(template string, vs ...cleanable) bulletPII {
-	return bulletPII{
-		tmpl: "∙ " + template,
-		vars: vs,
-	}
-}
-
-func (b bulletPII) clean() string {
-	vs := make([]any, 0, len(b.vars))
-
-	for _, v := range b.vars {
-		vs = append(vs, v.clean())
+	for i, v := range vs {
+		msg[i] = fmt.Sprintf("%v", v)
 	}
 
-	return fmt.Sprintf(b.tmpl, vs...)
-}
-
-func (b bulletPII) String() string {
-	vs := make([]any, 0, len(b.vars))
-
-	for _, v := range b.vars {
-		vs = append(vs, v.String())
-	}
-
-	return fmt.Sprintf(b.tmpl, vs...)
+	return strings.Join(msg, " ")
 }
