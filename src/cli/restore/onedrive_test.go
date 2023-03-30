@@ -59,14 +59,14 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			cmd.SetArgs([]string{
 				"onedrive",
 				"--" + utils.RunModeFN, utils.RunModeFlagTest,
-				"--" + utils.BackupFN, testdata.BackupInpt,
+				"--" + utils.BackupFN, testdata.BackupInput,
 
-				"--" + utils.FileFN, testdata.FlgInpts(testdata.FileNamesInpt),
-				"--" + utils.FolderFN, testdata.FlgInpts(testdata.FolderPathsInpt),
-				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInpt,
-				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInpt,
-				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInpt,
-				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInpt,
+				"--" + utils.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + utils.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -75,14 +75,14 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeOneDriveOpts(cmd)
-			assert.Equal(t, testdata.BackupInpt, utils.BackupID)
+			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
 
-			assert.ElementsMatch(t, testdata.FileNamesInpt, opts.FileNames)
-			assert.ElementsMatch(t, testdata.FolderPathsInpt, opts.FolderPaths)
-			assert.Equal(t, testdata.FileCreatedAfterInpt, opts.FileCreatedAfter)
-			assert.Equal(t, testdata.FileCreatedBeforeInpt, opts.FileCreatedBefore)
-			assert.Equal(t, testdata.FileModifiedAfterInpt, opts.FileModifiedAfter)
-			assert.Equal(t, testdata.FileModifiedBeforeInpt, opts.FileModifiedBefore)
+			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
+			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
+			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
+			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
+			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
+			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
 		})
 	}
 }
