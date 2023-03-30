@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -31,6 +32,12 @@ import (
 // ---------------------------------------------------------------------------
 // Graph Connector
 // ---------------------------------------------------------------------------
+
+// must comply with BackupProducer and RestoreConsumer
+var (
+	_ inject.BackupProducer  = &GraphConnector{}
+	_ inject.RestoreConsumer = &GraphConnector{}
+)
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for

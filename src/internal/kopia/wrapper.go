@@ -93,6 +93,13 @@ func NewWrapper(c *conn) (*Wrapper, error) {
 	return &Wrapper{c}, nil
 }
 
+// FIXME: Circular references.
+// must comply with restore producer and backup consumer
+// var (
+// _ inject.BackupConsumer  = &Wrapper{}
+// _ inject.RestoreProducer = &Wrapper{}
+// )
+
 type Wrapper struct {
 	c *conn
 }
