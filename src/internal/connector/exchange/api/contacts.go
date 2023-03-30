@@ -286,7 +286,7 @@ func (c Contacts) Serialize(
 ) ([]byte, error) {
 	contact, ok := item.(models.Contactable)
 	if !ok {
-		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not a Contactable")
+		return nil, clues.New(fmt.Sprintf("item is not a Contactable: %T", item))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))

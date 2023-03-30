@@ -8,7 +8,8 @@ import (
 )
 
 type OneDriveOpts struct {
-	Users              []string
+	Users []string
+
 	FileNames          []string
 	FolderPaths        []string
 	FileCreatedAfter   string
@@ -17,6 +18,21 @@ type OneDriveOpts struct {
 	FileModifiedBefore string
 
 	Populated PopulatedFlags
+}
+
+func MakeOneDriveOpts(cmd *cobra.Command) OneDriveOpts {
+	return OneDriveOpts{
+		Users: User,
+
+		FileNames:          FileName,
+		FolderPaths:        FolderPath,
+		FileCreatedAfter:   FileCreatedAfter,
+		FileCreatedBefore:  FileCreatedBefore,
+		FileModifiedAfter:  FileModifiedAfter,
+		FileModifiedBefore: FileModifiedBefore,
+
+		Populated: GetPopulatedFlags(cmd),
+	}
 }
 
 // AddOneDriveDetailsAndRestoreFlags adds flags that are common to both the

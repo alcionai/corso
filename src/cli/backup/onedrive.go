@@ -65,7 +65,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, _ = utils.AddCommand(cmd, oneDriveCreateCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
+		fs.SortFlags = false
+
 		options.AddFeatureToggle(cmd, options.EnablePermissionsBackup())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
@@ -84,7 +86,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, _ = utils.AddCommand(cmd, oneDriveDetailsCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
@@ -94,7 +97,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, _ = utils.AddCommand(cmd, oneDriveDeleteCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveDeleteCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
@@ -219,17 +223,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.OneDriveOpts{
-		Users:              utils.User,
-		FileNames:          utils.FileName,
-		FolderPaths:        utils.FolderPath,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.MakeOneDriveOpts(cmd)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {

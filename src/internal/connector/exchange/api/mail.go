@@ -331,7 +331,7 @@ func (c Mail) Serialize(
 ) ([]byte, error) {
 	msg, ok := item.(models.Messageable)
 	if !ok {
-		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not a Messageable")
+		return nil, clues.New(fmt.Sprintf("item is not a Messageable: %T", item))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))

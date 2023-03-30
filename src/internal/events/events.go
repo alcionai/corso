@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -231,12 +230,6 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 		case <-stop:
 			return
 		}
-	}
-}
-
-func signalDump(ctx context.Context) {
-	if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
-		logger.CtxErr(ctx, err).Error("metrics interval signal")
 	}
 }
 

@@ -321,7 +321,7 @@ func (c Events) Serialize(
 ) ([]byte, error) {
 	event, ok := item.(models.Eventable)
 	if !ok {
-		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not an Eventable")
+		return nil, clues.New(fmt.Sprintf("item is not an Eventable: %T", item))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))

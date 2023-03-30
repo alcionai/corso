@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -359,6 +360,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
+		gc   = &connector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -413,6 +415,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				control.Options{},
 				kw,
 				sw,
+				gc,
 				acct,
 				sel,
 				sel.DiscreteOwner,

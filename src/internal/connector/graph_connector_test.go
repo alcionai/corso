@@ -2,6 +2,8 @@ package connector
 
 import (
 	"context"
+	"runtime/trace"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -130,6 +133,37 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
+}
+
+func (suite *GraphConnectorUnitSuite) TestGraphConnector_AwaitStatus() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t  = suite.T()
+		gc = &GraphConnector{
+			wg:     &sync.WaitGroup{},
+			region: &trace.Region{},
+		}
+		metrics = support.CollectionMetrics{
+			Objects:   2,
+			Successes: 3,
+			Bytes:     4,
+		}
+		status = support.CreateStatus(ctx, support.Backup, 1, metrics, "details")
+	)
+
+	gc.wg.Add(1)
+	gc.UpdateStatus(status)
+
+	result := gc.AwaitStatus()
+	require.NotNil(t, result)
+	assert.Nil(t, gc.region, "region")
+	assert.Empty(t, gc.status, "status")
+	assert.Equal(t, 1, result.Folders)
+	assert.Equal(t, 2, result.Metrics.Objects)
+	assert.Equal(t, 3, result.Metrics.Successes)
+	assert.Equal(t, int64(4), result.Metrics.Bytes)
 }
 
 // ---------------------------------------------------------------------------
