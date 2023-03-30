@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Items not being deleted if they were created and deleted during item enumeration of a OneDrive backup.
 - Enable compression for all data uploaded by kopia.
 - SharePoint --folder selectors correctly return items.
+- Fix Exchange cli args for filtering items
 
 ## [v0.6.1] (beta) - 2023-03-21
 

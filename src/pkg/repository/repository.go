@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -283,16 +285,22 @@ func (r *repository) Close(ctx context.Context) error {
 // NewBackup generates a BackupOperation runner.
 func (r repository) NewBackup(
 	ctx context.Context,
-	selector selectors.Selector,
+	sel selectors.Selector,
 ) (operations.BackupOperation, error) {
+	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
+	}
+
 	return operations.NewBackupOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
+		gc,
 		r.Account,
-		selector,
-		selector.DiscreteOwner,
+		sel,
+		sel.DiscreteOwner,
 		r.Bus)
 }
 
@@ -303,11 +311,17 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
+	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	if err != nil {
+		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
+	}
+
 	return operations.NewRestoreOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
+		gc,
 		r.Account,
 		model.StableID(backupID),
 		sel,
@@ -541,4 +555,36 @@ func getRepoModel(ctx context.Context, ms *kopia.ModelStore) (*repositoryModel, 
 // and must be stored after that.
 func newRepoID(s storage.Storage) string {
 	return uuid.NewString()
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+// produces a graph connector.
+func connectToM365(
+	ctx context.Context,
+	sel selectors.Selector,
+	acct account.Account,
+	errs *fault.Bus,
+) (*connector.GraphConnector, error) {
+	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to M365"))
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	// retrieve data from the producer
+	resource := connector.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		resource = connector.Sites
+	}
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	return gc, nil
 }

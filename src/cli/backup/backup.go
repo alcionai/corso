@@ -60,13 +60,6 @@ func AddCommands(cmd *cobra.Command) {
 // common flags and flag attachers for commands
 // ---------------------------------------------------------------------------
 
-var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
-
 // list output filter flags
 var (
 	failedItemsFN       = "failed-items"

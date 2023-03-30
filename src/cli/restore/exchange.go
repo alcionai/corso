@@ -16,30 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
-// exchange bucket info from flags
-var (
-	user []string
-
-	contact       []string
-	contactFolder []string
-	contactName   string
-
-	email               []string
-	emailFolder         []string
-	emailReceivedAfter  string
-	emailReceivedBefore string
-	emailSender         string
-	emailSubject        string
-
-	event             []string
-	eventCalendar     []string
-	eventOrganizer    string
-	eventRecurs       string
-	eventStartsAfter  string
-	eventStartsBefore string
-	eventSubject      string
-)
-
 // called by restore.go to map subcommands to provider-specific handling.
 func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	var (
@@ -106,26 +82,10 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.ExchangeOpts{
-		Contact:             contact,
-		ContactFolder:       contactFolder,
-		Email:               email,
-		EmailFolder:         emailFolder,
-		Event:               event,
-		EventCalendar:       eventCalendar,
-		Users:               user,
-		ContactName:         contactName,
-		EmailReceivedAfter:  emailReceivedAfter,
-		EmailReceivedBefore: emailReceivedBefore,
-		EmailSender:         emailSender,
-		EmailSubject:        emailSubject,
-		EventOrganizer:      eventOrganizer,
-		EventRecurs:         eventRecurs,
-		EventStartsAfter:    eventStartsAfter,
-		EventStartsBefore:   eventStartsBefore,
-		EventSubject:        eventSubject,
+	opts := utils.MakeExchangeOpts(cmd)
 
-		Populated: utils.GetPopulatedFlags(cmd),
+	if utils.RunMode == utils.RunModeFlagTest {
+		return nil
 	}
 
 	if err := utils.ValidateExchangeRestoreFlags(utils.BackupID, opts); err != nil {

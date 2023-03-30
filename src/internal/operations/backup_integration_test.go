@@ -59,12 +59,21 @@ func prepNewTestBackupOp(
 	bus events.Eventer,
 	sel selectors.Selector,
 	featureToggles control.Toggles,
-) (BackupOperation, account.Account, *kopia.Wrapper, *kopia.ModelStore, func()) {
+) (
+	BackupOperation,
+	account.Account,
+	*kopia.Wrapper,
+	*kopia.ModelStore,
+	*connector.GraphConnector,
+	func(),
+) {
 	//revive:enable:context-as-argument
-	acct := tester.NewM365Account(t)
-	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
-	k := kopia.NewConn(st)
+	var (
+		acct = tester.NewM365Account(t)
+		// need to initialize the repository before we can test connecting to it.
+		st = tester.NewPrefixedS3Storage(t)
+		k  = kopia.NewConn(st)
+	)
 
 	err := k.Initialize(ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -96,9 +105,25 @@ func prepNewTestBackupOp(
 		ms.Close(ctx)
 	}
 
-	bo := newTestBackupOp(t, ctx, kw, ms, acct, sel, bus, featureToggles, closer)
+	connectorResource := connector.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		connectorResource = connector.Sites
+	}
 
-	return bo, acct, kw, ms, closer
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		graph.HTTPClient(graph.NoTimeout()),
+		acct,
+		connectorResource,
+		fault.New(true))
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		closer()
+		t.FailNow()
+	}
+
+	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
+
+	return bo, acct, kw, ms, gc, closer
 }
 
 // newTestBackupOp accepts the clients required to compose a backup operation, plus
@@ -112,6 +137,7 @@ func newTestBackupOp(
 	ctx context.Context,
 	kw *kopia.Wrapper,
 	ms *kopia.ModelStore,
+	gc *connector.GraphConnector,
 	acct account.Account,
 	sel selectors.Selector,
 	bus events.Eventer,
@@ -126,7 +152,7 @@ func newTestBackupOp(
 
 	opts.ToggleFeatures = featureToggles
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, acct, sel, sel.DiscreteOwner, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel.DiscreteOwner, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -141,20 +167,28 @@ func runAndCheckBackup(
 	ctx context.Context,
 	bo *BackupOperation,
 	mb *evmock.Bus,
+	acceptNoData bool,
 ) {
 	//revive:enable:context-as-argument
 	err := bo.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
 	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
-	require.Equalf(
-		t,
-		Completed,
-		bo.Status,
-		"backup status should be Completed, got %s",
-		bo.Status)
-	require.Less(t, 0, bo.Results.ItemsWritten)
 
+	expectStatus := []opStatus{Completed}
+	if acceptNoData {
+		expectStatus = append(expectStatus, NoData)
+	}
+
+	require.Contains(
+		t,
+		expectStatus,
+		bo.Status,
+		"backup doesn't match expectation, wanted any of %v, got %s",
+		expectStatus,
+		bo.Status)
+
+	require.Less(t, 0, bo.Results.ItemsWritten)
 	assert.Less(t, 0, bo.Results.ItemsRead, "count of items read")
 	assert.Less(t, int64(0), bo.Results.BytesRead, "bytes read")
 	assert.Less(t, int64(0), bo.Results.BytesUploaded, "bytes uploaded")
@@ -360,6 +394,8 @@ func generateContainerOfItems(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	gc.AwaitStatus()
+
 	return deets
 }
 
@@ -503,6 +539,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
+	gc := &connector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
@@ -510,13 +547,15 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
+		gc       *connector.GraphConnector
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", control.Options{}, kw, sw, acct, nil, assert.NoError},
-		{"missing kopia", control.Options{}, nil, sw, acct, nil, assert.Error},
-		{"missing modelstore", control.Options{}, kw, nil, acct, nil, assert.Error},
+		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
+		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
+		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
+		{"missing graphconnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -528,6 +567,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.opts,
 				test.kw,
 				test.sw,
+				test.gc,
 				test.acct,
 				selectors.Selector{DiscreteOwner: "test"},
 				"test-name",
@@ -604,14 +644,14 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				ffs = control.Toggles{}
 			)
 
-			bo, acct, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
+			bo, acct, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel, ffs)
 			defer closer()
 
 			m365, err := acct.M365Config()
 			require.NoError(t, err, clues.ToCore(err))
 
 			// run the tests
-			runAndCheckBackup(t, ctx, &bo, mb)
+			runAndCheckBackup(t, ctx, &bo, mb, false)
 			checkBackupIsInManifests(t, ctx, kw, &bo, sel, test.resourceOwner, test.category)
 			checkMetadataFilesExist(
 				t,
@@ -622,8 +662,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				test.resourceOwner,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles},
-			)
+				map[path.CategoryType][]string{test.category: test.metadataFiles})
 
 			if !test.runIncremental {
 				return
@@ -634,10 +673,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, incMB, ffs, closer)
 			)
 
-			runAndCheckBackup(t, ctx, &incBO, incMB)
+			runAndCheckBackup(t, ctx, &incBO, incMB, true)
 			checkBackupIsInManifests(t, ctx, kw, &incBO, sel, test.resourceOwner, test.category)
 			checkMetadataFilesExist(
 				t,
@@ -648,8 +687,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				test.resourceOwner,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles},
-			)
+				map[path.CategoryType][]string{test.category: test.metadataFiles})
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
@@ -826,11 +864,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 		sel.ContactFolders(containers, selectors.PrefixMatch()),
 	)
 
-	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
 	defer closer()
 
 	// run the initial backup
-	runAndCheckBackup(t, ctx, &bo, mb)
+	runAndCheckBackup(t, ctx, &bo, mb, false)
 
 	// Although established as a table, these tests are no isolated from each other.
 	// Assume that every test's side effects cascade to all following test cases.
@@ -1057,10 +1095,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			fmt.Printf("\n-----\ntest %+v\n-----\n", test.name)
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel.Selector, incMB, ffs, closer)
 			)
 
 			test.updateUserData(t)
@@ -1111,10 +1150,10 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
 	defer closer()
 
-	runAndCheckBackup(t, ctx, &bo, mb)
+	runAndCheckBackup(t, ctx, &bo, mb, false)
 }
 
 // TestBackup_Run ensures that Integration Testing works for OneDrive
@@ -1206,11 +1245,11 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	sel := selectors.NewOneDriveBackup(owners)
 	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
 
-	bo, _, kw, ms, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
 	defer closer()
 
 	// run the initial backup
-	runAndCheckBackup(t, ctx, &bo, mb)
+	runAndCheckBackup(t, ctx, &bo, mb, false)
 
 	var (
 		newFile     models.DriveItemable
@@ -1513,7 +1552,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(t, ctx, kw, ms, acct, sel.Selector, incMB, ffs, closer)
+				incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel.Selector, incMB, ffs, closer)
 			)
 
 			tester.LogTimeOfTest(suite.T())
@@ -1566,9 +1605,9 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 
 	sel.Include(sel.LibraryFolders(selectors.Any()))
 
-	bo, _, kw, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
+	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
-	runAndCheckBackup(t, ctx, &bo, mb)
+	runAndCheckBackup(t, ctx, &bo, mb, false)
 	checkBackupIsInManifests(t, ctx, kw, &bo, sel.Selector, suite.site, path.LibrariesCategory)
 }

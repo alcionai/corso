@@ -84,16 +84,10 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.OneDriveOpts{
-		Users:              user,
-		FileNames:          utils.FileName,
-		FolderPaths:        utils.FolderPath,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
+	opts := utils.MakeOneDriveOpts(cmd)
 
-		Populated: utils.GetPopulatedFlags(cmd),
+	if utils.RunMode == utils.RunModeFlagTest {
+		return nil
 	}
 
 	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupID, opts); err != nil {
