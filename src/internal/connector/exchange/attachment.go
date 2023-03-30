@@ -52,7 +52,7 @@ func uploadAttachment(
 		ctx,
 		"attachment_size", ptr.Val(attachment.GetSize()),
 		"attachment_id", ptr.Val(attachment.GetId()),
-		"attachment_name", ptr.Val(attachment.GetName()), // TODO: pii
+		"attachment_name", clues.Hide(ptr.Val(attachment.GetName())),
 		"attachment_type", attachmentType,
 		"internal_item_type", getItemAttachmentItemType(attachment),
 		"uploader_item_id", uploader.getItemID())
@@ -104,7 +104,8 @@ func uploadLargeAttachment(
 
 	url := ptr.Val(session.GetUploadUrl())
 	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
-	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", url) // TODO: url pii
+	// TODO: url pii refinementt
+	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", clues.Hide(url))
 
 	// Upload the stream data
 	copyBuffer := make([]byte, attachmentChunkSize)

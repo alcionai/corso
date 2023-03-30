@@ -105,7 +105,7 @@ func Initialize(
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
-		"acct_id", acct.ID(), // TODO: pii
+		"acct_id", clues.Hide(acct.ID()),
 		"storage_provider", s.Provider.String())
 
 	defer func() {
@@ -179,7 +179,7 @@ func Connect(
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
-		"acct_id", acct.ID(), // TODO: pii
+		"acct_id", clues.Hide(acct.ID()),
 		"storage_provider", s.Provider.String())
 
 	defer func() {
