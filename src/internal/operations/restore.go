@@ -139,10 +139,10 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	ctx = clues.Add(
 		ctx,
-		"tenant_id", op.account.ID(), // TODO: pii
+		"tenant_id", clues.Hide(op.account.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
-		"destination_container", op.Destination.ContainerName)
+		"destination_container", clues.Hide(op.Destination.ContainerName))
 
 	// -----
 	// Execution
