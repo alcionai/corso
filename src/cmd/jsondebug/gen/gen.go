@@ -11,7 +11,9 @@ import (
 
 func main() {
 	buf := make([]byte, common.ItemSize)
-	data := make([]common.Foo, 0, common.NumItems)
+	data := &common.FooArray{
+		Entries: make([]*common.Foo, 0, common.NumItems),
+	}
 
 	for i := 0; i < common.NumItems; i++ {
 		n, err := rand.Read(buf)
@@ -28,7 +30,7 @@ func main() {
 		}
 
 		item := common.Foo{A: buf}
-		data = append(data, item)
+		data.Entries = append(data.Entries, &item)
 	}
 
 	f, err := os.Create(common.FileName)
