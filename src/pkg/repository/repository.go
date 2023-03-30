@@ -188,7 +188,7 @@ func Connect(
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
 
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to repository"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer closer()
 	defer close(complete)
 
@@ -568,7 +568,7 @@ func connectToM365(
 	acct account.Account,
 	errs *fault.Bus,
 ) (*connector.GraphConnector, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to M365"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)

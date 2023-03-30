@@ -598,7 +598,12 @@ func restoreData(
 	}
 
 	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(ctx, iReader, observe.ItemRestoreMsg, observe.PII(itemName), ss.Size())
+	progReader, closer := observe.ItemProgress(
+		ctx,
+		iReader,
+		observe.ItemRestoreMsg,
+		clues.Hide(itemName),
+		ss.Size())
 
 	go closer()
 
