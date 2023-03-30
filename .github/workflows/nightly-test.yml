@@ -1,4 +1,4 @@
-name: EndToEnd Test
+name: Nightly Test
 env:
   IMAGE_NAME: ghcr.io/alcionai/corso
 on:
@@ -52,7 +52,7 @@ jobs:
           go-version-file: src/go.mod
 
   # SetM365App will decide which M365 app to use for this CI run
-  SetM365App:
+  SetM365AppForNightlyTest:
     uses: alcionai/corso/.github/workflows/_setup_m365_app.yml
 
   SetEnv:
@@ -80,7 +80,7 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Test-Suite-Trusted:
-    needs: [Precheck, Checkout, SetM365App]
+    needs: [Precheck, Checkout, SetM365AppForNightlyTest]
     environment: Testing
     runs-on: ubuntu-latest
     if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
@@ -89,9 +89,9 @@ jobs:
         working-directory: src
     env:
       # Resolve the name of the secret that contains the Azure client ID/secret
-      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
-      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
-      CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
+      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365AppForNightlyTest.outputs.client_id_env }}
+      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365AppForNightlyTest.outputs.client_secret_env }}
+      CLIENT_APP_SLOT: ${{ needs.SetM365AppForNightlyTest.outputs.client_app_slot }}
     steps:
       - uses: actions/checkout@v3
 
