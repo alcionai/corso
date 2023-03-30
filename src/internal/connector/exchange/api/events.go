@@ -62,7 +62,14 @@ func (c Events) DeleteContainer(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
-	err := c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := newService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
