@@ -158,6 +158,8 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 			os.Exit(1)
 		}
 	}
+
+	fmt.Println("Success")
 }
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
