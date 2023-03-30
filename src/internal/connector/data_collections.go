@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -171,7 +170,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 
 func checkServiceEnabled(
 	ctx context.Context,
-	au api.Users,
+	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
 ) (bool, error) {
@@ -180,12 +179,12 @@ func checkServiceEnabled(
 		return true, nil
 	}
 
-	_, info, err := discovery.User(ctx, au, resource)
+	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
 		return false, err
 	}
 
-	if _, ok := info.DiscoveredServices[service]; !ok {
+	if !info.ServiceEnabled(service) {
 		logger.Ctx(ctx).Error("service not enabled")
 		return false, nil
 	}
