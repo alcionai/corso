@@ -6,46 +6,111 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/cmd/jsondebug/common"
 )
 
 const (
-	arrayOpen  = "["
-	arrayClose = "]"
+	objectOpen  = "{"
+	objectClose = "}"
+	arrayOpen   = "["
+	arrayClose  = "]"
 )
 
-func DecodeArray[T any](r io.Reader, output *[]T) error {
-	dec := json.NewDecoder(r)
-	arrayStarted := false
+var errEOF = clues.New("unexpected end of input")
 
-	for {
+func expectDelimToken(dec *json.Decoder, expectedToken string) error {
+	t, err := dec.Token()
+	if err == io.EOF {
+		return clues.Wrap(errEOF, "")
+	} else if err != nil {
+		return clues.Wrap(err, "reading JSON token")
+	}
+
+	d, ok := t.(json.Delim)
+	if !ok {
+		return clues.New(fmt.Sprintf("unexpected token: (%T) %v", t, t))
+	} else if d.String() != expectedToken {
+		return clues.New(fmt.Sprintf(
+			"unexpected token; wanted %s, got %s",
+			expectedToken,
+			d,
+		))
+	}
+
+	return nil
+}
+
+func DecodeFooArray(r io.Reader) (common.FooArray, error) {
+	var (
+		dec = json.NewDecoder(r)
+		res = common.FooArray{}
+	)
+
+	if err := expectDelimToken(dec, objectOpen); err != nil {
+		return res, err
+	}
+
+	// Need to manually decode fields here since we can't reuse the stdlib
+	// decoder due to memory issues.
+	if err := parseFields(dec, &res); err != nil {
+		return res, err
+	}
+
+	// Consumes closing object curly brace after we're done. Don't need to check
+	// for EOF because json.Decode only guarantees decoding the next JSON item in
+	// the stream so this follows that.
+	return res, expectDelimToken(dec, objectClose)
+}
+
+func parseFields(dec *json.Decoder, res *common.FooArray) error {
+	for dec.More() {
 		t, err := dec.Token()
 		if err == io.EOF {
-			// Done processing input.
-			break
+			return clues.Wrap(errEOF, "")
 		} else if err != nil {
 			return clues.Wrap(err, "reading JSON token")
 		}
 
-		d, ok := t.(json.Delim)
+		l, ok := t.(string)
 		if !ok {
-			return clues.New(fmt.Sprintf("unexpected token: (%T) %v", t, t))
-		} else if arrayStarted && d.String() == arrayClose {
-			break
-		} else if d.String() != arrayOpen {
-			return clues.New(fmt.Sprintf("expected array start but found %s", d))
+			return clues.New(fmt.Sprintf(
+				"unexpected token (%T) %v; wanted field name",
+				t,
+				t,
+			))
 		}
 
-		arrayStarted = true
+		// Only have `entries` field right now. Needs to match the JSON tag for the
+		// struct.
+		if l != "entries" {
+			return clues.New(fmt.Sprintf("unexpected field name %s", l))
+		}
 
-		for dec.More() {
-			tmp := *new(T)
-			if err := dec.Decode(&tmp); err != nil {
-				return clues.Wrap(err, "decoding array element")
-			}
-
-			*output = append(*output, tmp)
+		if err = decodeArray(dec, &res.Entries); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func decodeArray[T any](dec *json.Decoder, output *[]T) error {
+	// Consume starting bracket.
+	if err := expectDelimToken(dec, arrayOpen); err != nil {
+		return err
+	}
+
+	// Read elements.
+	for dec.More() {
+		tmp := *new(T)
+		if err := dec.Decode(&tmp); err != nil {
+			return clues.Wrap(err, "decoding array element")
+		}
+
+		*output = append(*output, tmp)
+	}
+
+	// Consume ending bracket.
+	return expectDelimToken(dec, arrayClose)
 }

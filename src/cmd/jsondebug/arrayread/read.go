@@ -17,14 +17,13 @@ func main() {
 
 	defer f.Close()
 
-	output := []common.Foo{}
-
-	if err := decoder.DecodeArray(f, &output); err != nil {
+	output, err := decoder.DecodeFooArray(f)
+	if err != nil {
 		fmt.Printf("Error decoding input: %v\n", err)
 		return
 	}
 
 	common.PrintMemUsage()
 
-	fmt.Printf("got array with %d items\n", len(output))
+	fmt.Printf("got array with %d items\n", len(output.Entries))
 }
