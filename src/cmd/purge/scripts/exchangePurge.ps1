@@ -115,13 +115,43 @@ function IsNameMatch {
     return ($FolderName -in $FolderNamePurgeList)
 }
 
+function Get-TimestampFromName {
+    param (
+        [Parameter(Mandatory = $True, HelpMessage = "name")]
+        [String]$name,
+
+        [Parameter(Mandatory = $True, HelpMessage = "Default timestamp if not found in name")]
+        [datetime]$defaultTimestamp
+    )
+
+    #fallback on folder create time 
+    [datetime]$timestamp = $defaultTimestamp
+
+    try {
+        # Assumes that the timestamp is at the end and starts with yyyy-mm-ddT and is ISO8601
+        if ($name -imatch "(\d{4}}-\d{2}-\d{2}T.*)") {
+            $timestamp = [System.Convert]::ToDatetime($Matches.0)
+        }
+
+        # Assumes that the timestamp is at the end and starts with dd-MMM-yyyy_HH-MM-SS
+        if ($name -imatch "(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2})") {
+            $timestamp = [datetime]::ParseExact($Matches.0, "dd-MMM-yyyy_HH-mm-ss", [CultureInfo]::InvariantCulture, "AssumeUniversal")
+        }
+    }
+    catch {}
+
+    Write-Verbose "Folder: $name, create timestamp: $timestamp"
+
+    return $timestamp
+}
+
 function IsPrefixAndAgeMatch {
     Param(
         [Parameter(Mandatory = $True, HelpMessage = "Folder name to evaluate for match against a list of targets")]
         [string]$FolderName,
 
         [Parameter(Mandatory = $True, HelpMessage = "Folder creation times")]
-        [string]$FolderCreateTime,
+        [datetime]$FolderCreateTime,
 
         [Parameter(Mandatory = $True, HelpMessage = "Folder name prefixes to evaluate for match")]
         [string[]]$FolderPrefixPurgeList,
@@ -129,8 +159,10 @@ function IsPrefixAndAgeMatch {
         [Parameter(Mandatory = $TRUE, HelpMessage = "Purge folders before this date time (UTC)")]
         [datetime]$PurgeBeforeTimestamp
     )
-
-    if ($PurgeBeforeTimestamp -gt $folderCreateTime ) {
+    
+    $folderTimestamp = Get-TimestampFromName -name $FolderName -defaultTimestamp $FolderCreateTime
+    
+    if ($PurgeBeforeTimestamp -gt $folderTimestamp ) {
         foreach ($prefix in $FolderPrefixPurgeList) {
             if ($FolderName -like "$prefix*") {
                 return $true
@@ -437,7 +469,9 @@ function Get-ItemsToPurge {
             continue
         }
 
-        if (![String]::IsNullOrEmpty($PurgeBeforeTimestamp) -and $itemCreateTime -gt $PurgeBeforeTimestamp) {
+        $itemTimestamp = Get-TimestampFromName -name $itemName -defaultTimestamp $itemCreateTime
+
+        if (![String]::IsNullOrEmpty($PurgeBeforeTimestamp) -and $itemTimestamp -gt $PurgeBeforeTimestamp) {
             continue
         }
 
