@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -42,7 +42,7 @@ type RestoreOperation struct {
 	Version     string                     `json:"version"`
 
 	account account.Account
-	rc      RestoreConsumer
+	rc      inject.RestoreConsumer
 }
 
 // RestoreResults aggregate the details of the results of the operation.
@@ -57,7 +57,7 @@ func NewRestoreOperation(
 	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	rc RestoreConsumer,
+	rc inject.RestoreConsumer,
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
@@ -100,16 +100,6 @@ type restoreStats struct {
 
 	// a transient value only used to pair up start-end events.
 	restoreID string
-}
-
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-		errs *fault.Bus,
-	) ([]data.RestoreCollection, error)
 }
 
 // Run begins a synchronous restore operation.
@@ -228,7 +218,7 @@ func (op *RestoreOperation) do(
 	defer closer()
 	defer close(kopiaComplete)
 
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
+	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing collections to restore")
 	}
@@ -317,25 +307,9 @@ func (op *RestoreOperation) persistResults(
 // Restorer funcs
 // ---------------------------------------------------------------------------
 
-type RestoreConsumer interface {
-	ConsumeRestoreCollections(
-		ctx context.Context,
-		backupVersion int,
-		acct account.Account,
-		selector selectors.Selector,
-		dest control.RestoreDestination,
-		opts control.Options,
-		dcs []data.RestoreCollection,
-		errs *fault.Bus,
-	) (*details.Details, error)
-	// TODO: ConnectorOperationStatus should be replaced with something
-	// more generic.
-	Wait() *support.ConnectorOperationStatus
-}
-
 func consumeRestoreCollections(
 	ctx context.Context,
-	rc RestoreConsumer,
+	rc inject.RestoreConsumer,
 	backupVersion int,
 	acct account.Account,
 	sel selectors.Selector,
@@ -361,7 +335,7 @@ func consumeRestoreCollections(
 		dcs,
 		errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "restoring collections")
+		return nil, clues.Wrap(err, "restoring collections")
 	}
 
 	return deets, nil

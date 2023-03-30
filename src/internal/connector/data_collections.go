@@ -27,7 +27,7 @@ import (
 // Data Collections
 // ---------------------------------------------------------------------------
 
-// ProduceBackupCollections generates a slice of backup collections for the service
+// ProduceBackupCollections generates a slice of data.BackupCollections for the service
 // specified in the selectors.
 // The metadata field can include things like delta tokens or the previous backup's
 // folder hierarchy. The absence of metadata causes the collection creation to ignore

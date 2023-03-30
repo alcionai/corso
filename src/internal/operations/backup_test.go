@@ -38,7 +38,7 @@ import (
 
 // ----- restore producer
 
-type mockRestorer struct {
+type mockRestoreProducer struct {
 	gotPaths  []path.Path
 	colls     []data.RestoreCollection
 	collsByID map[string][]data.RestoreCollection // snapshotID: []RestoreCollection
@@ -48,7 +48,7 @@ type mockRestorer struct {
 
 type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
 
-func (mr *mockRestorer) buildRestoreFunc(
+func (mr *mockRestoreProducer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
@@ -61,7 +61,7 @@ func (mr *mockRestorer) buildRestoreFunc(
 	}
 }
 
-func (mr *mockRestorer) RestoreMultipleItems(
+func (mr *mockRestoreProducer) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,

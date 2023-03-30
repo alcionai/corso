@@ -30,6 +30,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -288,7 +289,7 @@ func checkMetadataFilesExist(
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, fault.New(true))
+			cols, err := kw.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, nil, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
 			for _, col := range cols {
@@ -394,7 +395,7 @@ func generateContainerOfItems(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc.AwaitStatus()
+	gc.Wait()
 
 	return deets
 }
@@ -547,7 +548,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
-		bp       BackupProducer
+		bp       inject.BackupProducer
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc

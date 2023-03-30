@@ -382,21 +382,21 @@ type ByteCounter interface {
 	Count(numBytes int64)
 }
 
-// RestoreMultipleItems looks up all paths- assuming each is an item declaration,
+// ProduceRestoreCollections looks up all paths- assuming each is an item declaration,
 // not a directory- in the snapshot with id snapshotID. The path should be the
 // full path of the item from the root.  Returns the results as a slice of single-
 // item DataCollections, where the DataCollection.FullPath() matches the path.
 // If the item does not exist in kopia or is not a file an error is returned.
 // The UUID of the returned DataStreams will be the name of the kopia file the
 // data is sourced from.
-func (w Wrapper) RestoreMultipleItems(
+func (w Wrapper) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
 	bcounter ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	ctx, end := diagnostics.Span(ctx, "kopia:restoreMultipleItems")
+	ctx, end := diagnostics.Span(ctx, "kopia:produceRestoreCollections")
 	defer end()
 
 	if len(paths) == 0 {

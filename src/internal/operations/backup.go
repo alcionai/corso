@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -16,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -41,7 +43,7 @@ type BackupOperation struct {
 	Version   string             `json:"version"`
 
 	account account.Account
-	bp      BackupProducer
+	bp      inject.BackupProducer
 
 	// when true, this allows for incremental backups instead of full data pulls
 	incremental bool
@@ -60,7 +62,7 @@ func NewBackupOperation(
 	opts control.Options,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	bp BackupProducer,
+	bp inject.BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
 	ownerName string,
@@ -321,24 +323,10 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 // Producer funcs
 // ---------------------------------------------------------------------------
 
-type BackupProducer interface {
-	ProduceBackupCollections(
-		ctx context.Context,
-		ownerID, ownerName string,
-		sels selectors.Selector,
-		metadata []data.RestoreCollection,
-		ctrlOpts control.Options,
-		errs *fault.Bus,
-	) ([]data.BackupCollection, map[string]map[string]struct{}, error)
-	// TODO: ConnectorOperationStatus should be replaced with something
-	// more generic.
-	Wait() *support.ConnectorOperationStatus
-}
-
 // calls the producer to generate collections of data to backup
 func produceBackupDataCollections(
 	ctx context.Context,
-	bp BackupProducer,
+	bp inject.BackupProducer,
 	ownerID, ownerName string,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
@@ -358,18 +346,6 @@ func produceBackupDataCollections(
 // ---------------------------------------------------------------------------
 // Consumer funcs
 // ---------------------------------------------------------------------------
-
-type BackupConsumer interface {
-	ConsumeBackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.BackupCollection,
-		excluded map[string]map[string]struct{},
-		tags map[string]string,
-		buildTreeWithBase bool,
-		errs *fault.Bus,
-	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
-}
 
 func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 	service := sel.PathService()
@@ -418,7 +394,7 @@ func builderFromReason(ctx context.Context, tenant string, r kopia.Reason) (*pat
 // calls kopia to backup the collections of data
 func consumeBackupCollections(
 	ctx context.Context,
-	bc BackupConsumer,
+	bc inject.BackupConsumer,
 	tenantID string,
 	reasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,

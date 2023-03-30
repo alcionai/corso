@@ -156,7 +156,7 @@ func (suite *GraphConnectorUnitSuite) TestGraphConnector_AwaitStatus() {
 	gc.wg.Add(1)
 	gc.UpdateStatus(status)
 
-	result := gc.AwaitStatus()
+	result := gc.Wait()
 	require.NotNil(t, result)
 	assert.Nil(t, gc.region, "region")
 	assert.Empty(t, gc.status, "status")
@@ -241,7 +241,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(
+	deets, err := suite.connector.ConsumeRestoreCollections(
 		ctx,
 		version.Backup,
 		acct,
@@ -320,7 +320,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			deets, err := suite.connector.RestoreDataCollections(
+			deets, err := suite.connector.ConsumeRestoreCollections(
 				ctx,
 				version.Backup,
 				suite.acct,
@@ -400,7 +400,7 @@ func runRestore(
 
 	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
 	restoreSel := getSelectorWith(t, config.service, config.resourceOwners, true)
-	deets, err := restoreGC.RestoreDataCollections(
+	deets, err := restoreGC.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		config.acct,
@@ -966,7 +966,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				)
 
 				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-				deets, err := restoreGC.RestoreDataCollections(
+				deets, err := restoreGC.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
 					suite.acct,
@@ -1151,8 +1151,9 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				start     = time.Now()
 			)
 
-			dcs, excludes, err := backupGC.DataCollections(
+			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
+				backupSel.DiscreteOwner, backupSel.DiscreteOwner,
 				backupSel,
 				nil,
 				control.Options{
@@ -1195,7 +1196,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			assert.ElementsMatch(t, test.categories, foundCategories)
 
-			backupGC.AwaitStatus()
+			backupGC.Wait()
 
 			assert.NoError(t, errs.Failure())
 		})

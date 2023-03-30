@@ -543,7 +543,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		fp2.String(): dc2.Data[0],
 	}
 
-	result, err := w.RestoreMultipleItems(
+	result, err := w.ProduceRestoreCollections(
 		ctx,
 		string(stats.SnapshotID),
 		[]path.Path{
@@ -666,7 +666,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	ic := i64counter{}
 
-	_, err = suite.w.RestoreMultipleItems(
+	_, err = suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(stats.SnapshotID),
 		[]path.Path{failedPath},
@@ -1045,7 +1045,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			ic := i64counter{}
 
-			_, err = suite.w.RestoreMultipleItems(
+			_, err = suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(stats.SnapshotID),
 				[]path.Path{
@@ -1058,7 +1058,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 	}
 }
 
-func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	doesntExist, err := path.Build(
 		testTenant,
 		testUser,
@@ -1148,7 +1148,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 
 			ic := i64counter{}
 
-			result, err := suite.w.RestoreMultipleItems(
+			result, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(suite.snapshotID),
 				test.inputPaths,
@@ -1167,7 +1167,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	}
 }
 
-func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Errors() {
 	itemPath, err := suite.testPath1.Append(testFileName, true)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -1197,7 +1197,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			c, err := suite.w.RestoreMultipleItems(
+			c, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				test.snapshotID,
 				test.paths,
@@ -1219,7 +1219,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	itemPath := suite.files[suite.testPath1.String()][0].itemPath
 	ic := i64counter{}
 
-	c, err := suite.w.RestoreMultipleItems(
+	c, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(suite.snapshotID),
 		[]path.Path{itemPath},

@@ -22,6 +22,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -226,7 +227,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
-		rc       RestoreConsumer
+		rc       inject.RestoreConsumer
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
