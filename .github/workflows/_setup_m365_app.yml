@@ -1,18 +1,17 @@
-name: Filechange Checker
+name: setup m365
 
 on:
   workflow_call:
-    outputs:
-      environment: Testing
-      runs-on: ubuntu-latest
-      outputs:
-        client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
-        client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
-        client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
 
 jobs:
   SetM365App:
-      steps:
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
+      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
+      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
+    steps:
         - name: Figure out which client id to use
           id: roundrobin
           run: |

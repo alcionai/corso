@@ -3,8 +3,7 @@ env:
   IMAGE_NAME: ghcr.io/alcionai/corso
 on:
   workflow_dispatch:
-
-# TODO: remove this on merge 
+  
   pull_request:
 
   push:
@@ -55,7 +54,6 @@ jobs:
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
     uses: alcionai/corso/.github/workflows/_setup_m365_app.yml
-
 
   SetEnv:
     environment: Testing
