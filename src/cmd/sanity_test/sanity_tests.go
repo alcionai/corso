@@ -404,6 +404,7 @@ func getOneDriveChildFolder(
 		var (
 			itemID   = ptr.Val(driveItem.GetId())
 			itemName = parentName + "/" + ptr.Val(driveItem.GetName())
+			fullName = parentName + "/" + itemName
 		)
 
 		folderTime, hasTime := mustGetTimeFromName(ctx, itemName)
@@ -411,10 +412,9 @@ func getOneDriveChildFolder(
 		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
 			continue
 		}
-
 		// if it's a file check the size
 		if driveItem.GetFile() != nil {
-			fileSizes[itemName] = ptr.Val(driveItem.GetSize())
+			fileSizes[fullName] = ptr.Val(driveItem.GetSize())
 		}
 
 		if driveItem.GetFolder() == nil && driveItem.GetPackage() == nil {
@@ -424,12 +424,12 @@ func getOneDriveChildFolder(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			fmt.Println("skipped empty folder: ", itemName)
+			fmt.Println("skipped empty folder: ", fullName)
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
-		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
+		permissionIn(ctx, client, driveID, itemID, fullName, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, fullName, fileSizes, folderPermission, startTime)
 	}
 }
 
