@@ -84,11 +84,11 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.MakeExchangeOpts(cmd)
 
-	if utils.RunMode == utils.RunModeFlagTest {
+	if utils.RunModeFV == utils.RunModeFlagTest {
 		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateExchangeRestoreFlags(utils.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -110,7 +110,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize Exchange restore"))
 	}
@@ -118,7 +118,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupID))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
 		}
 
 		return Only(ctx, clues.Wrap(err, "Failed to run Exchange restore"))
