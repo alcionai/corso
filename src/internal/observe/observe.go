@@ -507,19 +507,3 @@ func plainString(v any) string {
 
 	return fmt.Sprintf("%v", v)
 }
-
-// plainString attempts to cast v to a PlainStringer
-// interface, and retrieve the un-altered value.  If
-// v is not compliant with PlainStringer, returns the
-// %v fmt of v.
-//
-// This should only be used to display the value in the
-// observe progress bar.  Logged values should only use
-// the fmt %v to ensure Concealers hide PII.
-func plainString(v any) string {
-	if ps, ok := v.(clues.PlainStringer); ok {
-		return ps.PlainString()
-	}
-
-	return fmt.Sprintf("%v", v)
-}
