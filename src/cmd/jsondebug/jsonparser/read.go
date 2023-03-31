@@ -29,13 +29,26 @@ func main() {
 		}
 	}()
 
+	d, err := readFile()
+	if err != nil {
+		return
+	}
+
+	parseData(d)
+}
+
+func readFile() ([]byte, error) {
 	common.PrintMemUsage()
 
 	data, err := ioutil.ReadFile(common.FileName)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
-		return
+		return nil, err
 	}
+	return data, nil
+}
+
+func parseData(data []byte) {
 
 	common.PrintMemUsage()
 

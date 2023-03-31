@@ -9,6 +9,10 @@ import (
 )
 
 func main() {
+	readData()
+}
+
+func readData() {
 	f, err := os.Open(common.FileName)
 	if err != nil {
 		fmt.Printf("Error opening input file: %v\n", err)
