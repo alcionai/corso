@@ -169,7 +169,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 			name: "Invalid sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(testdata.BackupFolderScope(sel))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -195,7 +195,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 			name: "missing sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(testdata.BackupFolderScope(sel))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -238,7 +238,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name: "Libraries",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(testdata.BackupFolderScope(sel))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -335,7 +335,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	)
 
 	sel := selectors.NewSharePointBackup(siteIDs)
-	sel.Include(sel.LibraryFolders([]string{"zzazil"}, selectors.PrefixMatch()))
+	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
 
 	cols, excludes, err := gc.DataCollections(
 		ctx,
