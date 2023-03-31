@@ -18,7 +18,7 @@ type (
 	BackupProducer interface {
 		ProduceBackupCollections(
 			ctx context.Context,
-			owner common.IDNamer,
+			resourceOwner common.IDNamer,
 			sels selectors.Selector,
 			metadata []data.RestoreCollection,
 			ctrlOpts control.Options,
