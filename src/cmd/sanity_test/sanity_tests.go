@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -34,7 +35,7 @@ func main() {
 	}()
 
 	adapter, err := graph.CreateAdapter(
-		os.Getenv("AZURE_TENANT_ID"),
+		tester.GetM365TenantID(ctx),
 		os.Getenv("AZURE_CLIENT_ID"),
 		os.Getenv("AZURE_CLIENT_SECRET"))
 	if err != nil {
@@ -43,7 +44,7 @@ func main() {
 
 	var (
 		client           = msgraphsdk.NewGraphServiceClient(adapter)
-		testUser         = os.Getenv("CORSO_M365_TEST_USER_ID")
+		testUser         = tester.GetM365UserID(ctx)
 		testService      = os.Getenv("SANITY_RESTORE_SERVICE")
 		folder           = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
 		startTime, _     = mustGetTimeFromName(ctx, folder)

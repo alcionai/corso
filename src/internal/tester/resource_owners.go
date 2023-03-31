@@ -1,11 +1,13 @@
 package tester
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,8 +17,18 @@ import (
 // last-attempt fallback that will only work on alcion's testing org.
 func M365TenantID(t *testing.T) string {
 	cfg, err := readTestConfig()
-	require.NoError(t, err, "retrieving m365 user id from test configuration", clues.ToCore(err))
+	require.NoError(t, err, "retrieving m365 tenant ID from test configuration", clues.ToCore(err))
 
+	return cfg[TestCfgAzureTenantID]
+}
+
+// M365TenantID returns a tenantID string representing the azureTenantID described
+// by either the env var AZURE_TENANT_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func GetM365TenantID(ctx context.Context) string {
+	cfg, err := readTestConfig()
+	logger.Ctx(ctx).Error(err, "retrieving m365 tenant ID from test configuration")
 	return cfg[TestCfgAzureTenantID]
 }
 
@@ -27,6 +39,17 @@ func M365TenantID(t *testing.T) string {
 func M365UserID(t *testing.T) string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving m365 user id from test configuration", clues.ToCore(err))
+
+	return cfg[TestCfgUserID]
+}
+
+// GetM365UserID returns an userID string representing the m365UserID described
+// by either the env var CORSO_M365_TEST_USER_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func GetM365UserID(ctx context.Context) string {
+	cfg, err := readTestConfig()
+	logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
 
 	return cfg[TestCfgUserID]
 }
