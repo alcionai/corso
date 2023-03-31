@@ -93,6 +93,13 @@ func NewWrapper(c *conn) (*Wrapper, error) {
 	return &Wrapper{c}, nil
 }
 
+// FIXME: Circular references.
+// must comply with restore producer and backup consumer
+// var (
+// _ inject.BackupConsumer  = &Wrapper{}
+// _ inject.RestoreProducer = &Wrapper{}
+// )
+
 type Wrapper struct {
 	c *conn
 }
@@ -124,13 +131,13 @@ type PrevRefs struct {
 	Location path.Path
 }
 
-// BackupCollections takes a set of collections and creates a kopia snapshot
+// ConsumeBackupCollections takes a set of collections and creates a kopia snapshot
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
 // from as well as any incomplete snapshot checkpoints that may contain more
 // recent data than the base snapshot. The absence of previousSnapshots causes a
 // complete backup of all data.
-func (w Wrapper) BackupCollections(
+func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
 	previousSnapshots []IncrementalBase,
 	collections []data.BackupCollection,
@@ -143,7 +150,7 @@ func (w Wrapper) BackupCollections(
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
 
-	ctx, end := diagnostics.Span(ctx, "kopia:backupCollections")
+	ctx, end := diagnostics.Span(ctx, "kopia:consumeBackupCollections")
 	defer end()
 
 	if len(collections) == 0 && len(globalExcludeSet) == 0 {
@@ -382,21 +389,21 @@ type ByteCounter interface {
 	Count(numBytes int64)
 }
 
-// RestoreMultipleItems looks up all paths- assuming each is an item declaration,
+// ProduceRestoreCollections looks up all paths- assuming each is an item declaration,
 // not a directory- in the snapshot with id snapshotID. The path should be the
 // full path of the item from the root.  Returns the results as a slice of single-
 // item DataCollections, where the DataCollection.FullPath() matches the path.
 // If the item does not exist in kopia or is not a file an error is returned.
 // The UUID of the returned DataStreams will be the name of the kopia file the
 // data is sourced from.
-func (w Wrapper) RestoreMultipleItems(
+func (w Wrapper) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
 	bcounter ByteCounter,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	ctx, end := diagnostics.Span(ctx, "kopia:restoreMultipleItems")
+	ctx, end := diagnostics.Span(ctx, "kopia:produceRestoreCollections")
 	defer end()
 
 	if len(paths) == 0 {
