@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
-	github.com/alcionai/clues v0.0.0-20230324015051-5f61be9f301e
+	github.com/alcionai/clues v0.0.0-20230330224331-77c1b3be97e0
 	github.com/armon/go-metrics v0.4.0
 	github.com/aws/aws-sdk-go v1.44.220
 	github.com/aws/aws-xray-sdk-go v1.8.1

@@ -106,11 +106,7 @@ func includeContainer(
 
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == DefaultContactFolder {
-		pb = pb.Append(DefaultContactFolder)
-
-		if loc != nil {
-			loc = loc.Append(DefaultContactFolder)
-		}
+		loc = loc.Append(DefaultContactFolder)
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
@@ -139,18 +135,24 @@ func includeContainer(
 		directory = locPath.Folder(false)
 	}
 
-	var ok bool
+	var (
+		ok      bool
+		pathRes path.Path
+	)
 
 	switch category {
 	case path.EmailCategory:
 		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
+		pathRes = locPath
 	case path.ContactsCategory:
 		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
+		pathRes = locPath
 	case path.EventsCategory:
 		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
+		pathRes = dirPath
 	default:
 		return nil, nil, false
 	}
 
-	return dirPath, locPath, ok
+	return pathRes, locPath, ok
 }

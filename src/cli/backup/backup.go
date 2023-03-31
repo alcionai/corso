@@ -14,7 +14,6 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -59,13 +58,6 @@ func AddCommands(cmd *cobra.Command) {
 // ---------------------------------------------------------------------------
 // common flags and flag attachers for commands
 // ---------------------------------------------------------------------------
-
-var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
 
 // list output filter flags
 var (
@@ -204,7 +196,7 @@ func runBackups(
 	selectorSet []selectors.Selector,
 ) error {
 	var (
-		bIDs []model.StableID
+		bIDs []string
 		errs = []error{}
 	)
 
@@ -230,7 +222,7 @@ func runBackups(
 			continue
 		}
 
-		bIDs = append(bIDs, bo.Results.BackupID)
+		bIDs = append(bIDs, string(bo.Results.BackupID))
 		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
 	}
 
@@ -272,7 +264,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 	defer utils.CloseRepo(ctx, r)
 
-	if err := r.DeleteBackup(ctx, model.StableID(bID)); err != nil {
+	if err := r.DeleteBackup(ctx, bID); err != nil {
 		return Only(ctx, clues.Wrap(err, "Deleting backup "+bID))
 	}
 

@@ -22,7 +22,9 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -31,6 +33,12 @@ import (
 // ---------------------------------------------------------------------------
 // Graph Connector
 // ---------------------------------------------------------------------------
+
+// must comply with BackupProducer and RestoreConsumer
+var (
+	_ inject.BackupProducer  = &GraphConnector{}
+	_ inject.RestoreConsumer = &GraphConnector{}
+)
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
@@ -119,7 +127,7 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) error {
 	gc.Sites = map[string]string{}
 
-	ctx, end := D.Span(ctx, "gc:setTenantSites")
+	ctx, end := diagnostics.Span(ctx, "gc:setTenantSites")
 	defer end()
 
 	sites, err := getResources(
@@ -223,15 +231,28 @@ func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
-func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
+func (gc *GraphConnector) Wait() *data.CollectionStats {
 	defer func() {
 		if gc.region != nil {
 			gc.region.End()
+			gc.region = nil
 		}
 	}()
 	gc.wg.Wait()
 
-	return &gc.status
+	// clean up and reset statefulness
+	dcs := data.CollectionStats{
+		Folders:   gc.status.Folders,
+		Objects:   gc.status.Metrics.Objects,
+		Successes: gc.status.Metrics.Successes,
+		Bytes:     gc.status.Metrics.Bytes,
+		Details:   gc.status.String(),
+	}
+
+	gc.wg = &sync.WaitGroup{}
+	gc.status = support.ConnectorOperationStatus{}
+
+	return &dcs
 }
 
 // UpdateStatus is used by gc initiated tasks to indicate completion

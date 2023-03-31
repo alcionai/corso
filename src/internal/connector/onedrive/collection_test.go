@@ -214,6 +214,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionScopeFolder,
 				true)
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
@@ -353,6 +354,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionScopeFolder,
 				true)
 
 			mockItem := models.NewDriveItem()
@@ -442,6 +444,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionScopeFolder,
 				true)
 
 			mockItem := models.NewDriveItem()
@@ -541,6 +544,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
 				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				CollectionScopeFolder,
 				true)
 
 			mtime := time.Now().AddDate(0, -1, 0)
@@ -594,6 +598,126 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 					require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
 				}
 			}
+		})
+	}
+}
+
+type GetDriveItemUnitTestSuite struct {
+	tester.Suite
+}
+
+func TestGetDriveItemUnitTestSuite(t *testing.T) {
+	suite.Run(t, &GetDriveItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
+	strval := "not-important"
+
+	table := []struct {
+		name     string
+		colScope collectionScope
+		itemSize int64
+		labels   []string
+		err      error
+	}{
+		{
+			name:     "Simple item fetch no error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      nil,
+		},
+		{
+			name:     "Simple item fetch error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      assert.AnError,
+		},
+		{
+			name:     "malware error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      clues.New("test error").Label(graph.LabelsMalware),
+			labels:   []string{graph.LabelsMalware, graph.LabelsSkippable},
+		},
+		{
+			name:     "file not found error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
+			labels:   []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
+		},
+		{
+			// This should create an error that stops the backup
+			name:     "small OneNote file",
+			colScope: CollectionScopePackage,
+			itemSize: 10,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+		},
+		{
+			name:     "big OneNote file",
+			colScope: CollectionScopePackage,
+			itemSize: MaxOneNoteFileSize,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+		},
+		{
+			// This should block backup, only big OneNote files should be a problem
+			name:     "big file",
+			colScope: CollectionScopeFolder,
+			itemSize: MaxOneNoteFileSize,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			var (
+				t    = suite.T()
+				errs = fault.New(false)
+				item = models.NewDriveItem()
+				col  = &Collection{scope: test.colScope}
+			)
+
+			item.SetId(&strval)
+			item.SetName(&strval)
+			item.SetSize(&test.itemSize)
+
+			col.itemReader = func(
+				ctx context.Context,
+				hc *http.Client,
+				item models.DriveItemable,
+			) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, test.err
+			}
+
+			col.itemGetter = func(
+				ctx context.Context,
+				srv graph.Servicer,
+				driveID, itemID string,
+			) (models.DriveItemable, error) {
+				// We are not testing this err here
+				return item, nil
+			}
+
+			_, err := col.getDriveItemContent(ctx, item, errs)
+			if test.err == nil {
+				assert.NoError(t, err, "no error")
+				return
+			}
+
+			assert.EqualError(t, err, clues.Wrap(test.err, "downloading item").Error(), "error")
+
+			labelsMap := map[string]struct{}{}
+			for _, l := range test.labels {
+				labelsMap[l] = struct{}{}
+			}
+
+			assert.Equal(t, labelsMap, clues.Labels(err))
 		})
 	}
 }

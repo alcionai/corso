@@ -7,7 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
@@ -60,7 +60,14 @@ func (c Contacts) DeleteContainer(
 	ctx context.Context,
 	user, folderID string,
 ) error {
-	err := c.stable.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := newService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.Client().UsersById(user).ContactFoldersById(folderID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -279,14 +286,14 @@ func (c Contacts) Serialize(
 ) ([]byte, error) {
 	contact, ok := item.(models.Contactable)
 	if !ok {
-		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not a Contactable")
+		return nil, clues.New(fmt.Sprintf("item is not a Contactable: %T", item))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
 
 	var (
 		err    error
-		writer = kioser.NewJsonSerializationWriter()
+		writer = kjson.NewJsonSerializationWriter()
 	)
 
 	defer writer.Close()

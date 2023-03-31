@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -33,8 +35,8 @@ var ErrorRepoAlreadyExists = clues.New("a repository was already initialized wit
 // BackupGetter deals with retrieving metadata about backups from the
 // repository.
 type BackupGetter interface {
-	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus)
+	Backup(ctx context.Context, id string) (*backup.Backup, error)
+	Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	GetBackupDetails(
 		ctx context.Context,
@@ -59,7 +61,7 @@ type Repository interface {
 		sel selectors.Selector,
 		dest control.RestoreDestination,
 	) (operations.RestoreOperation, error)
-	DeleteBackup(ctx context.Context, id model.StableID) error
+	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
 }
 
@@ -186,7 +188,7 @@ func Connect(
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
 
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to repository"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer closer()
 	defer close(complete)
 
@@ -283,16 +285,22 @@ func (r *repository) Close(ctx context.Context) error {
 // NewBackup generates a BackupOperation runner.
 func (r repository) NewBackup(
 	ctx context.Context,
-	selector selectors.Selector,
+	sel selectors.Selector,
 ) (operations.BackupOperation, error) {
+	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
+	}
+
 	return operations.NewBackupOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
+		gc,
 		r.Account,
-		selector,
-		selector.DiscreteOwner,
+		sel,
+		sel.DiscreteOwner,
 		r.Bus)
 }
 
@@ -303,11 +311,17 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
+	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	if err != nil {
+		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
+	}
+
 	return operations.NewRestoreOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
+		gc,
 		r.Account,
 		model.StableID(backupID),
 		sel,
@@ -316,14 +330,14 @@ func (r repository) NewRestore(
 }
 
 // backups lists a backup by id
-func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
+func (r repository) Backup(ctx context.Context, id string) (*backup.Backup, error) {
 	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetBackup(ctx, id)
+	return sw.GetBackup(ctx, model.StableID(id))
 }
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
-func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus) {
+func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus) {
 	var (
 		bups []*backup.Backup
 		errs = fault.New(false)
@@ -331,9 +345,11 @@ func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backu
 	)
 
 	for _, id := range ids {
-		b, err := sw.GetBackup(ctx, id)
+		ictx := clues.Add(ctx, "backup_id", id)
+
+		b, err := sw.GetBackup(ictx, model.StableID(id))
 		if err != nil {
-			errs.AddRecoverable(clues.Stack(err).With("backup_id", id))
+			errs.AddRecoverable(clues.Stack(err))
 		}
 
 		bups = append(bups, b)
@@ -472,7 +488,7 @@ func getBackupErrors(
 }
 
 // DeleteBackup removes the backup from both the model store and the backup storage.
-func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
+func (r repository) DeleteBackup(ctx context.Context, id string) error {
 	bu, err := r.Backup(ctx, id)
 	if err != nil {
 		return err
@@ -496,7 +512,7 @@ func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
 
 	sw := store.NewKopiaStore(r.modelStore)
 
-	return sw.DeleteBackup(ctx, id)
+	return sw.DeleteBackup(ctx, model.StableID(id))
 }
 
 // ---------------------------------------------------------------------------
@@ -541,4 +557,36 @@ func getRepoModel(ctx context.Context, ms *kopia.ModelStore) (*repositoryModel, 
 // and must be stored after that.
 func newRepoID(s storage.Storage) string {
 	return uuid.NewString()
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+// produces a graph connector.
+func connectToM365(
+	ctx context.Context,
+	sel selectors.Selector,
+	acct account.Account,
+	errs *fault.Bus,
+) (*connector.GraphConnector, error) {
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	// retrieve data from the producer
+	resource := connector.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		resource = connector.Sites
+	}
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	return gc, nil
 }

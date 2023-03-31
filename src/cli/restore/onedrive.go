@@ -36,6 +36,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddBackupIDFlag(c, true)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
+		// restore permissions
+		options.AddRestorePermissionsFlag(c)
+
 		// others
 		options.AddOperationFlags(c)
 	}
@@ -81,19 +84,13 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.OneDriveOpts{
-		Users:              user,
-		FileNames:          utils.FileName,
-		FolderPaths:        utils.FolderPath,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
+	opts := utils.MakeOneDriveOpts(cmd)
 
-		Populated: utils.GetPopulatedFlags(cmd),
+	if utils.RunModeFV == utils.RunModeFlagTest {
+		return nil
 	}
 
-	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -115,7 +112,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
 	}
@@ -123,7 +120,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupID))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
 		}
 
 		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))

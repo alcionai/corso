@@ -65,7 +65,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, _ = utils.AddCommand(cmd, oneDriveCreateCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
+		fs.SortFlags = false
+
 		options.AddFeatureToggle(cmd, options.EnablePermissionsBackup())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
@@ -84,7 +86,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, _ = utils.AddCommand(cmd, oneDriveDetailsCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
@@ -94,7 +97,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, _ = utils.AddCommand(cmd, oneDriveDeleteCmd())
+		c, fs = utils.AddCommand(cmd, oneDriveDeleteCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
@@ -128,7 +132,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateOneDriveBackupCreateFlags(utils.User); err != nil {
+	if err := validateOneDriveBackupCreateFlags(utils.UserFV); err != nil {
 		return err
 	}
 
@@ -139,7 +143,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := oneDriveBackupCreateSelectors(utils.User)
+	sel := oneDriveBackupCreateSelectors(utils.UserFV)
 
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
@@ -194,7 +198,7 @@ func oneDriveListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupID, path.OneDriveService, args)
+	return genericListCommand(cmd, utils.BackupIDFV, path.OneDriveService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -219,17 +223,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.OneDriveOpts{
-		Users:              utils.User,
-		FileNames:          utils.FileName,
-		FolderPaths:        utils.FolderPath,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.MakeOneDriveOpts(cmd)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
@@ -240,7 +234,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsOneDriveCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsOneDriveCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -305,5 +299,5 @@ func oneDriveDeleteCmd() *cobra.Command {
 
 // deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupID, "OneDrive", args)
+	return genericDeleteCommand(cmd, utils.BackupIDFV, "OneDrive", args)
 }

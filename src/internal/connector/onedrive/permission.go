@@ -8,10 +8,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -89,11 +89,11 @@ func getCollectionMetadata(
 // Passing nil for the permissions results in just creating the folder(s).
 func createRestoreFoldersWithPermissions(
 	ctx context.Context,
+	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolders []string,
 	folderMetadata Metadata,
-	permissionIDMappings map[string]string,
 ) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
 	if err != nil {
@@ -105,13 +105,13 @@ func createRestoreFoldersWithPermissions(
 		return id, nil
 	}
 
-	err = restorePermissions(
+	err = RestorePermissions(
 		ctx,
+		creds,
 		service,
 		drivePath.DriveID,
 		id,
-		folderMetadata,
-		permissionIDMappings)
+		folderMetadata)
 
 	return id, err
 }
@@ -126,7 +126,6 @@ func isSame(first, second []string) bool {
 
 func diffPermissions(
 	before, after []UserPermission,
-	permissionIDMappings map[string]string,
 ) ([]UserPermission, []UserPermission) {
 	var (
 		added   = []UserPermission{}
@@ -168,16 +167,16 @@ func diffPermissions(
 	return added, removed
 }
 
-// restorePermissions takes in the permissions that were added and the
+// RestorePermissions takes in the permissions that were added and the
 // removed(ones present in parent but not in child) and adds/removes
 // the necessary permissions on onedrive objects.
-func restorePermissions(
+func RestorePermissions(
 	ctx context.Context,
+	creds account.M365Config,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
 	meta Metadata,
-	permissionIDMappings map[string]string,
 ) error {
 	if meta.SharingMode == SharingModeInherited {
 		return nil
@@ -191,10 +190,20 @@ func restorePermissions(
 		return graph.Wrap(ctx, err, "fetching current permissions")
 	}
 
-	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions, permissionIDMappings)
+	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
 
 	for _, p := range permRemoved {
-		err := service.Client().
+		// deletes require unique http clients
+		// https://github.com/alcionai/corso/issues/2707
+		// this is bad citizenship, and could end up consuming a lot of
+		// system resources if servicers leak client connections (sockets, etc).
+		a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+		if err != nil {
+			return graph.Wrap(ctx, err, "creating delete client")
+		}
+
+		err = graph.NewService(a).
+			Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
 			PermissionsById(p.ID).
@@ -244,12 +253,10 @@ func restorePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
+		_, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
-
-		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil
