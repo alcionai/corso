@@ -11,7 +11,10 @@ import (
 func Control() control.Options {
 	opt := control.Defaults()
 
-	opt.FailFast = fastFail
+	if fastFail {
+		opt.FailureHandling = control.FailFast
+	}
+
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
 	opt.SkipReduce = skipReduce

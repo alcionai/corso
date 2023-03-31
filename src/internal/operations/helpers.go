@@ -2,10 +2,39 @@ package operations
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
+
+// finalizeErrorHandling ensures the operation follow the options
+// failure behavior requirements.
+func finalizeErrorHandling(
+	ctx context.Context,
+	opts control.Options,
+	errs *fault.Bus,
+	prefix string,
+) {
+	rcvd := errs.Recovered()
+
+	// under certain conditions, there's nothing else left to do
+	if opts.FailureHandling == control.BestEffort ||
+		errs.Failure() != nil ||
+		len(rcvd) == 0 {
+		return
+	}
+
+	if opts.FailureHandling == control.FailAfterRecovery {
+		msg := fmt.Sprintf("%s: partial success: recovered after %d errors", prefix, len(rcvd))
+
+		logger.Ctx(ctx).Error(msg)
+		errs.Fail(clues.New(msg))
+	}
+}
 
 // LogFaultErrors is a helper function that logs all entries in the Errors struct.
 func LogFaultErrors(ctx context.Context, fe *fault.Errors, prefix string) {
