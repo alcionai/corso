@@ -9,6 +9,17 @@ import (
 	"github.com/alcionai/corso/src/cmd/jsondebug/common"
 )
 
+var (
+	_ common.ManifestDecoder = Array{}
+)
+
+type Array struct{}
+
+func (d Array) Decode(r io.Reader, gcStats bool) error {
+	_, err := DecodeManifestArray(r)
+	return err
+}
+
 func DecodeManifestArray(r io.Reader) (common.Manifest, error) {
 	var (
 		dec = json.NewDecoder(r)

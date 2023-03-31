@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"runtime"
 	"time"
 )
@@ -97,6 +98,10 @@ type DirectorySummary struct {
 	IncompleteReason  string `json:"incomplete,omitempty"`
 	FatalErrorCount   int    `json:"numFailed"`
 	IgnoredErrorCount int    `json:"numIgnoredErrors,omitempty"`
+}
+
+type ManifestDecoder interface {
+	Decode(r io.Reader, gcStats bool) error
 }
 
 func PrintMemUsage() {
