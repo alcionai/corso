@@ -104,7 +104,7 @@ func checkEmailRestoration(
 				// otherwise, recursively aggregate all child folders.
 				getAllSubFolder(ctx, client, testUser, v, itemName, dataFolder, itemCount)
 
-				itemCount[itemName], _ = ptr.ValOK(v.GetTotalItemCount())
+				itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
 			}
 		}
 
@@ -159,7 +159,6 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 		}
 	}
 
-	fmt.Println("Success")
 }
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
@@ -479,8 +478,7 @@ func permissionIn(
 func getRestoreData(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	driveID,
-	restoreFolderID string,
+	driveID, restoreFolderID string,
 	restoreFile map[string]int64,
 	restoreFolder map[string][]permissionInfo,
 	startTime time.Time,
