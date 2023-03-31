@@ -34,20 +34,20 @@ const (
 
 // flag names
 const (
-	debugAPIFN      = "debug-api-calls"
-	logFileFN       = "log-file"
-	logLevelFN      = "log-level"
-	readableLogsFN  = "readable-logs"
-	sensitiveInfoFN = "sensitive-info"
+	DebugAPIFN      = "debug-api-calls"
+	LogFileFN       = "log-file"
+	LogLevelFN      = "log-level"
+	ReadableLogsFN  = "readable-logs"
+	SensitiveInfoFN = "sensitive-info"
 )
 
 // flag values
 var (
-	DebugAPIFV       bool
-	LogFileFV        = ""
-	logLevelFV       = "info"
-	readableOutputFV bool
-	sensitiveInfoFV  = PIIHash
+	DebugAPIFV      bool
+	LogFileFV       = ""
+	LogLevelFV      = "info"
+	ReadableLogsFV  bool
+	SensitiveInfoFV = PIIHash
 )
 
 const (
@@ -77,30 +77,31 @@ func defaultLogLocation() string {
 func AddLoggingFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
 	fs.StringVar(
-		&logLevelFV,
-		logLevelFN,
+		&LogLevelFV,
+		LogLevelFN,
 		LLInfo,
-		fmt.Sprintf("set the log level to %s|%s (default)|%s|%s", LLDebug, LLInfo, LLWarn, LLError))
+		fmt.Sprintf("set the log level to %s|%s|%s|%s", LLDebug, LLInfo, LLWarn, LLError))
 
 	// The default provided here is only for help info
-	fs.StringVar(&LogFileFV, logFileFN, "corso-<timestamp>.log", "location for writing logs, use '-' for stdout")
-	fs.Bool(debugAPIFN, false, "add non-2xx request/response errors to logging")
+	fs.StringVar(&LogFileFV, LogFileFN, "corso-<timestamp>.log", "location for writing logs, use '-' for stdout")
+	fs.BoolVar(&DebugAPIFV, DebugAPIFN, false, "add non-2xx request/response errors to logging")
 
-	fs.Bool(
-		readableLogsFN,
+	fs.BoolVar(
+		&ReadableLogsFV,
+		ReadableLogsFN,
 		false,
 		"minimizes log output for console readability: removes the file and date, colors the level")
 	//nolint:errcheck
-	fs.MarkHidden(readableLogsFN)
+	fs.MarkHidden(ReadableLogsFN)
 
 	fs.StringVar(
-		&sensitiveInfoFV,
-		sensitiveInfoFN,
+		&SensitiveInfoFV,
+		SensitiveInfoFN,
 		PIIHash,
-		fmt.Sprintf("set the format for sensitive info in logs to %s (default)|%s|%s", PIIHash, PIIMask, PIIPlainText))
+		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
 	// TODO(keepers): unhide when we have sufficient/complete coverage of PII handling
 	//nolint:errcheck
-	fs.MarkHidden(sensitiveInfoFN)
+	fs.MarkHidden(SensitiveInfoFN)
 }
 
 // Settings records the user's preferred logging settings.
@@ -115,40 +116,40 @@ type Settings struct {
 // pre-processed manually here using pflags.  The canonical
 // AddLogLevelFlag() and AddLogFileFlag() ensures the flags are
 // displayed as part of the help/usage output.
-func PreloadLoggingFlags() Settings {
+func PreloadLoggingFlags(args []string) Settings {
 	dlf := defaultLogLocation()
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
-	fs.String(logLevelFN, "info", "set the log level to debug|info|warn|error")
-	fs.String(logFileFN, dlf, "location for writing logs")
-	fs.BoolVar(&DebugAPIFV, debugAPIFN, false, "add non-2xx request/response errors to logging")
+	fs.String(LogLevelFN, LLInfo, fmt.Sprintf("set the log level to %s|%s|%s|%s", LLDebug, LLInfo, LLWarn, LLError))
+	fs.String(LogFileFN, dlf, "location for writing logs")
+	fs.BoolVar(&DebugAPIFV, DebugAPIFN, false, "add non-2xx request/response errors to logging")
 	fs.BoolVar(
-		&readableOutputFV,
-		readableLogsFN,
+		&ReadableLogsFV,
+		ReadableLogsFN,
 		false,
 		"minimizes log output: removes the file and date, colors the level")
 	fs.StringVar(
-		&sensitiveInfoFV,
-		sensitiveInfoFN,
+		&SensitiveInfoFV,
+		SensitiveInfoFN,
 		PIIHash,
-		fmt.Sprintf("set the format for sensitive info in logs to %s (default)|%s|%s", PIIHash, PIIMask, PIIPlainText))
+		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
 	ls := Settings{
 		File:        dlf,
-		Level:       logLevelFV,
-		PIIHandling: sensitiveInfoFV,
+		Level:       LogLevelFV,
+		PIIHandling: SensitiveInfoFV,
 	}
 
 	// parse the os args list to find the log level flag
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	if err := fs.Parse(args); err != nil {
 		return ls
 	}
 
 	// retrieve the user's preferred log level
 	// automatically defaults to "info"
-	levelString, err := fs.GetString(logLevelFN)
+	levelString, err := fs.GetString(LogLevelFN)
 	if err != nil {
 		return ls
 	}
@@ -157,7 +158,7 @@ func PreloadLoggingFlags() Settings {
 
 	// retrieve the user's preferred log file location
 	// automatically defaults to default log location
-	lffv, err := fs.GetString(logFileFN)
+	lffv, err := fs.GetString(LogFileFN)
 	if err != nil {
 		return ls
 	}
@@ -167,7 +168,7 @@ func PreloadLoggingFlags() Settings {
 
 	// retrieve the user's preferred PII handling algorithm
 	// automatically defaults to default log location
-	pii, err := fs.GetString(sensitiveInfoFN)
+	pii, err := fs.GetString(SensitiveInfoFN)
 	if err != nil {
 		return ls
 	}
@@ -251,7 +252,7 @@ func genLogger(level logLevel, logfile string) (*zapcore.Core, *zap.SugaredLogge
 			cfg.Level = zap.NewAtomicLevelAt(zapcore.FatalLevel)
 		}
 
-		if readableOutputFV {
+		if ReadableLogsFV {
 			opts = append(opts, zap.WithCaller(false))
 			cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.00")
 
@@ -361,7 +362,7 @@ func Set(ctx context.Context, logger *zap.SugaredLogger) context.Context {
 func Ctx(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
 	if l == nil {
-		return singleton(levelOf(logLevelFV), defaultLogLocation())
+		return singleton(levelOf(LogLevelFV), defaultLogLocation())
 	}
 
 	return l.(*zap.SugaredLogger).With(clues.In(ctx).Slice()...)
