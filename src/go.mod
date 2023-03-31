@@ -7,8 +7,10 @@ require (
 	github.com/alcionai/clues v0.0.0-20230324015051-5f61be9f301e
 	github.com/aws/aws-sdk-go v1.44.220
 	github.com/aws/aws-xray-sdk-go v1.8.1
+	github.com/buger/jsonparser v1.1.1
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/google/uuid v1.3.0
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/kopia/kopia v0.12.2-0.20230327171220-747baeebdab1
 	github.com/microsoft/kiota-abstractions-go v0.18.0
 	github.com/microsoft/kiota-authentication-azure-go v0.6.0
@@ -38,9 +40,9 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/dnaeon/go-vcr v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
