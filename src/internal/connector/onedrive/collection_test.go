@@ -614,60 +614,60 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 	strval := "not-important"
 
 	table := []struct {
-		name           string
-		collectionKind collectionScope
-		itemSize       int64
-		labels         []string
-		err            error
+		name     string
+		colScope collectionScope
+		itemSize int64
+		labels   []string
+		err      error
 	}{
 		{
-			name:           "Simple item fetch no error",
-			collectionKind: CollectionScopeFolder,
-			itemSize:       10,
-			err:            nil,
+			name:     "Simple item fetch no error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      nil,
 		},
 		{
-			name:           "Simple item fetch error",
-			collectionKind: CollectionScopeFolder,
-			itemSize:       10,
-			err:            assert.AnError,
+			name:     "Simple item fetch error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      assert.AnError,
 		},
 		{
-			name:           "malware error",
-			collectionKind: CollectionScopeFolder,
-			itemSize:       10,
-			err:            clues.New("test error").Label(graph.LabelsMalware),
-			labels:         []string{graph.LabelsMalware, graph.LabelsSkippable},
+			name:     "malware error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      clues.New("test error").Label(graph.LabelsMalware),
+			labels:   []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
-			name:           "file not found error",
-			collectionKind: CollectionScopeFolder,
-			itemSize:       10,
-			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
-			labels:         []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
+			name:     "file not found error",
+			colScope: CollectionScopeFolder,
+			itemSize: 10,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusNotFound)),
+			labels:   []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
 			// This should create an error that stops the backup
-			name:           "small OneNote file",
-			collectionKind: CollectionScopePackage,
-			itemSize:       10,
-			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+			name:     "small OneNote file",
+			colScope: CollectionScopePackage,
+			itemSize: 10,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 		{
-			name:           "big OneNote file",
-			collectionKind: CollectionScopePackage,
-			itemSize:       MaxOneNoteFileSize,
-			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+			name:     "big OneNote file",
+			colScope: CollectionScopePackage,
+			itemSize: MaxOneNoteFileSize,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			// This should block backup, only big OneNote files should be a problem
-			name:           "big file",
-			collectionKind: CollectionScopeFolder,
-			itemSize:       MaxOneNoteFileSize,
-			err:            clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:         []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+			name:     "big file",
+			colScope: CollectionScopeFolder,
+			itemSize: MaxOneNoteFileSize,
+			err:      clues.New("test error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 	}
 
@@ -680,7 +680,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 				t    = suite.T()
 				errs = fault.New(false)
 				item = models.NewDriveItem()
-				col  = &Collection{scope: test.collectionKind}
+				col  = &Collection{scope: test.colScope}
 			)
 
 			item.SetId(&strval)

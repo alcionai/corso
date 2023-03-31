@@ -760,9 +760,9 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
-			collectionKind := CollectionScopeFolder
+			colScope := CollectionScopeFolder
 			if item.GetPackage() != nil {
-				collectionKind = CollectionScopePackage
+				colScope = CollectionScopePackage
 			}
 
 			col := NewCollection(
@@ -774,7 +774,7 @@ func (c *Collections) UpdateCollections(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
-				collectionKind,
+				colScope,
 				invalidPrevDelta,
 			)
 			col.driveName = driveName

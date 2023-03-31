@@ -145,7 +145,7 @@ func NewCollection(
 	statusUpdater support.StatusUpdater,
 	source driveSource,
 	ctrlOpts control.Options,
-	colKind collectionScope,
+	colScope collectionScope,
 	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
@@ -160,7 +160,7 @@ func NewCollection(
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, folderPath),
-		scope:           colKind,
+		scope:           colScope,
 		doNotMergeItems: doNotMergeItems,
 	}
 
