@@ -212,7 +212,7 @@ func (op *RestoreOperation) do(
 		})
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
-	logger.Ctx(ctx).With("selectors", op.Selectors).Info("restoring selection")
+	logger.Ctx(ctx).With("control_options", op.Options, "selectors", op.Selectors).Info("restoring selection")
 
 	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer closer()

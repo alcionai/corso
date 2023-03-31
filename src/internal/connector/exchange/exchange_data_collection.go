@@ -196,22 +196,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		}()
 	}
 
-	// Limit the max number of active requests to GC
-	fetchParallelism := col.ctrl.ItemFetchParallelism
-	if fetchParallelism < 1 || fetchParallelism > urlPrefetchChannelBufferSize {
-		fetchParallelism = urlPrefetchChannelBufferSize
-		logger.Ctx(ctx).Infow(
-			"fetch parallelism value not set or out of bounds, using default",
-			"default_parallelism",
-			urlPrefetchChannelBufferSize,
-			"requested_parallellism",
-			col.ctrl.ItemFetchParallelism,
-		)
-	}
-
-	logger.Ctx(ctx).Infow("fetching data with parallelism", "fetch_parallelism", fetchParallelism)
-
-	semaphoreCh := make(chan struct{}, fetchParallelism)
+	semaphoreCh := make(chan struct{}, col.ctrl.ItemFetchParallelism)
 	defer close(semaphoreCh)
 
 	// delete all removed items

@@ -25,3 +25,10 @@ const (
 	// given endpoint.
 	PreviousPathFileName = "previouspath"
 )
+
+// ---------------------------------------------------------------------------
+// Runtime Configuration
+// ---------------------------------------------------------------------------
+
+// URLItemFetchParallelism controls the worker pool size for streaming items.
+const URLItemFetchParallelism = 4

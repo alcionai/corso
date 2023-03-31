@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -45,6 +46,15 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		"gc:produceBackupCollections",
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
+
+	// Limit the max number of active requests to graph
+	if ctrlOpts.ItemFetchParallelism < 1 || ctrlOpts.ItemFetchParallelism > graph.URLItemFetchParallelism {
+		ctrlOpts.ItemFetchParallelism = graph.URLItemFetchParallelism
+		logger.Ctx(ctx).Infow(
+			"item fetch parallelism value not set or out of bounds, using default",
+			"default_parallelism", graph.URLItemFetchParallelism,
+			"requested_paralellism", ctrlOpts.ItemFetchParallelism)
+	}
 
 	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {

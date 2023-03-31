@@ -234,7 +234,10 @@ func (op *BackupOperation) do(
 		fallbackReasons = makeFallbackReasons(op.Selectors)
 	)
 
-	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
+	logger.Ctx(ctx).With(
+		"control_options", op.Options,
+		"selectors", op.Selectors).
+		Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
 	opStats.resourceCount = 1
