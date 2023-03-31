@@ -14,8 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -38,7 +37,7 @@ import (
 
 // ----- restore producer
 
-type mockRestorer struct {
+type mockRestoreProducer struct {
 	gotPaths  []path.Path
 	colls     []data.RestoreCollection
 	collsByID map[string][]data.RestoreCollection // snapshotID: []RestoreCollection
@@ -48,7 +47,7 @@ type mockRestorer struct {
 
 type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
 
-func (mr *mockRestorer) buildRestoreFunc(
+func (mr *mockRestoreProducer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
@@ -61,7 +60,7 @@ func (mr *mockRestorer) buildRestoreFunc(
 	}
 }
 
-func (mr *mockRestorer) RestoreMultipleItems(
+func (mr *mockRestoreProducer) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
@@ -85,9 +84,9 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 	assert.ElementsMatch(t, expected, got)
 }
 
-// ----- backup producer
+// ----- backup consumer
 
-type mockBackuper struct {
+type mockBackupConsumer struct {
 	checkFunc func(
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
@@ -95,7 +94,7 @@ type mockBackuper struct {
 		buildTreeWithBase bool)
 }
 
-func (mbu mockBackuper) BackupCollections(
+func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
@@ -360,7 +359,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &connector.GraphConnector{}
+		gc   = &mockconnector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -381,9 +380,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 					TotalHashedBytes:   1,
 					TotalUploadedBytes: 1,
 				},
-				gc: &support.ConnectorOperationStatus{
-					Metrics: support.CollectionMetrics{Successes: 1},
-				},
+				gc: &data.CollectionStats{Successes: 1},
 			},
 		},
 		{
@@ -392,7 +389,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: &support.ConnectorOperationStatus{},
+				gc: &data.CollectionStats{},
 			},
 		},
 		{
@@ -400,7 +397,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			expectErr:    assert.NoError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: &support.ConnectorOperationStatus{},
+				gc: &data.CollectionStats{},
 			},
 		},
 	}
@@ -427,7 +424,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
@@ -564,7 +561,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mbu := &mockBackuper{
+			mbu := &mockBackupConsumer{
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
 					cs []data.BackupCollection,
@@ -576,7 +573,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			}
 
 			//nolint:errcheck
-			consumeBackupDataCollections(
+			consumeBackupCollections(
 				ctx,
 				mbu,
 				tenant,

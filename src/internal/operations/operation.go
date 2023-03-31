@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -57,7 +56,6 @@ type operation struct {
 	bus   events.Eventer
 	kopia *kopia.Wrapper
 	store *store.Wrapper
-	gc    *connector.GraphConnector
 }
 
 func newOperation(
@@ -65,7 +63,6 @@ func newOperation(
 	bus events.Eventer,
 	kw *kopia.Wrapper,
 	sw *store.Wrapper,
-	gc *connector.GraphConnector,
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
@@ -75,7 +72,6 @@ func newOperation(
 		bus:   bus,
 		kopia: kw,
 		store: sw,
-		gc:    gc,
 
 		Status: InProgress,
 	}
@@ -88,10 +84,6 @@ func (op operation) validate() error {
 
 	if op.store == nil {
 		return clues.New("missing modelstore")
-	}
-
-	if op.gc == nil {
-		return clues.New("missing graph connector")
 	}
 
 	return nil

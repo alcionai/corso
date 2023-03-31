@@ -129,8 +129,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				}
 			}
 
-			status := connector.AwaitStatus()
-			assert.NotZero(t, status.Metrics.Successes)
+			status := connector.Wait()
+			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -205,8 +205,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			collections, excludes, err := connector.DataCollections(
+			collections, excludes, err := connector.ProduceBackupCollections(
 				ctx,
+				owners[0], owners[0],
 				test.getSelector(t),
 				nil,
 				control.Options{},
@@ -286,8 +287,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				}
 			}
 
-			status := connector.AwaitStatus()
-			assert.NotZero(t, status.Metrics.Successes)
+			status := connector.Wait()
+			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -336,8 +337,9 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
 
-	cols, excludes, err := gc.DataCollections(
+	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
+		siteIDs[0], siteIDs[0],
 		sel.Selector,
 		nil,
 		control.Options{},
@@ -374,8 +376,9 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
 
-	cols, excludes, err := gc.DataCollections(
+	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
+		siteIDs[0], siteIDs[0],
 		sel.Selector,
 		nil,
 		control.Options{},

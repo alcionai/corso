@@ -96,7 +96,7 @@ func generateAndRestoreItems(
 
 	print.Infof(ctx, "Generating %d %s items in %s\n", howMany, cat, Destination)
 
-	return gc.RestoreDataCollections(ctx, version.Backup, acct, sel, dest, opts, dataColls, errs)
+	return gc.ConsumeRestoreCollections(ctx, version.Backup, acct, sel, dest, opts, dataColls, errs)
 }
 
 // ------------------------------------------------------------------------------------------
