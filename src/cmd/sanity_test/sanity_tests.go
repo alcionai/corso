@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -151,14 +152,13 @@ func checkEmailRestoration(
 func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
 	for fldName, emailCount := range messageCount {
 		if restoreMessageCount[fldName] != emailCount {
-			logger.Ctx(ctx).Error("test failure: Restore item counts do not match")
-			fmt.Println("Restore item counts do not match:")
-			fmt.Println("*  expected:", emailCount)
-			fmt.Println("*  actual:", restoreMessageCount[fldName])
+			logger.Ctx(ctx).Errorw(
+				"test failure: Restore item counts do not match",
+				"expected:", emailCount,
+				"actual:", restoreMessageCount[fldName])
 			os.Exit(1)
 		}
 	}
-
 }
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
@@ -197,10 +197,11 @@ func getAllSubFolder(
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			childFolderCount = ptr.Val(child.GetChildFolderCount())
-			fullFolderName   = parentFolder + "/" + childDisplayName
+			//nolint:forbidigo
+			fullFolderName = path.Join(parentFolder, childDisplayName)
 		)
 
-		if strings.Contains(fullFolderName, dataFolder) {
+		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
 			messageCount[fullFolderName] = ptr.Val(child.GetTotalItemCount())
 			// recursively check for subfolders
 			if childFolderCount > 0 {
@@ -249,7 +250,7 @@ func checkAllSubFolder(
 			fullFolderName = path.Join(parentFolder, childDisplayName)
 		)
 
-		if strings.Contains(fullFolderName, dataFolder) {
+		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
 			childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
 			restoreMessageCount[fullFolderName] = childTotalCount
 		}
@@ -334,7 +335,7 @@ func checkOnedriveRestoration(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			fmt.Println("skipped empty folder: ", itemName)
+			logger.Ctx(ctx).Info("skipped empty folder: ", itemName)
 			continue
 		}
 
@@ -344,32 +345,36 @@ func checkOnedriveRestoration(
 
 	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
-	for checkFolderName, checkfolderPer := range folderPermission {
-		fmt.Printf("checking for folder: %s \n", checkFolderName)
+	for folderName, permissions := range folderPermission {
+		fmt.Printf("checking for folder: %s \n", folderName)
 
-		if len(checkfolderPer) < 1 {
-			fmt.Printf("no permissions found for folder : %s.", checkFolderName)
+		restoreFolderPerm := restoreFolderPermission[folderName]
+
+		if len(permissions) < 1 {
+			logger.Ctx(ctx).Info("no permissions found for folder : %s.", folderName)
 			continue
 		}
 
-		if len(restoreFolderPermission[checkFolderName]) < 1 {
-			fmt.Printf("permissions are not equal")
-			fmt.Println("Item:", checkFolderName)
-			fmt.Println("Permission found: ", checkfolderPer)
+		if len(restoreFolderPerm) < 1 {
+			fmt.Println("permission roles are not equal:")
+			fmt.Println("Item:", folderName)
+			fmt.Println("Permission found: ", permissions)
 			fmt.Println("blank permission found in restore.")
 
 			os.Exit(1)
 		}
 
-		for i, orginalFolderPer := range checkfolderPer {
-			if !(orginalFolderPer.entityID != restoreFolderPermission[checkFolderName][i].entityID) &&
-				!slices.Equal(orginalFolderPer.roles, restoreFolderPermission[checkFolderName][i].roles) {
-				fmt.Printf("permissions are not equal")
-				fmt.Printf("*  expected role: %+v \n", orginalFolderPer.roles)
-				fmt.Printf("*  actual:  %+v \n", restoreFolderPermission[checkFolderName][i].roles)
-				fmt.Printf("* entitiy ID expected: %+v \n", orginalFolderPer.entityID)
-				fmt.Printf("* entitiy ID actual:  %+v \n", restoreFolderPermission[checkFolderName][i].entityID)
-				fmt.Println("Item:", checkFolderName)
+		for i, orginalPerm := range permissions {
+			restorePerm := restoreFolderPerm[i]
+
+			if !(orginalPerm.entityID != restorePerm.entityID) &&
+				!slices.Equal(orginalPerm.roles, restorePerm.roles) {
+				fmt.Printf("Item: %s\nOriginal Entity ID: %s\nRestored Entity ID: %s\nOriginal roles: %+v\nRestored roles: %+v\n",
+					folderName,
+					orginalPerm.entityID,
+					restorePerm.entityID,
+					orginalPerm.roles,
+					restorePerm.entityID)
 				os.Exit(1)
 			}
 		}
@@ -398,7 +403,7 @@ func getOneDriveChildFolder(
 ) {
 	response, err := client.DrivesById(driveID).ItemsById(itemID).Children().Get(ctx, nil)
 	if err != nil {
-		fatal(ctx, "getting permission", err)
+		fatal(ctx, "getting child folder", err)
 	}
 
 	for _, driveItem := range response.GetValue() {
@@ -425,7 +430,7 @@ func getOneDriveChildFolder(
 		// currently we don't restore blank folders.
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-			fmt.Println("skipped empty folder: ", fullName)
+			logger.Ctx(ctx).Info("skipped empty folder: ", fullName)
 			continue
 		}
 
@@ -438,9 +443,9 @@ func permissionIn(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	driveID, itemID, folderName string,
-	perMap map[string][]permissionInfo,
+	permMap map[string][]permissionInfo,
 ) {
-	perMap[folderName] = []permissionInfo{}
+	permMap[folderName] = []permissionInfo{}
 
 	pcr, err := client.
 		DrivesById(driveID).
@@ -451,13 +456,13 @@ func permissionIn(
 		fatal(ctx, "getting permission", err)
 	}
 
-	for _, per := range pcr.GetValue() {
-		if per.GetGrantedToV2() == nil {
+	for _, perm := range pcr.GetValue() {
+		if perm.GetGrantedToV2() == nil {
 			continue
 		}
 
 		var (
-			gv2     = per.GetGrantedToV2()
+			gv2     = perm.GetGrantedToV2()
 			perInfo = permissionInfo{}
 		)
 
@@ -467,11 +472,11 @@ func permissionIn(
 			perInfo.entityID = ptr.Val(gv2.GetGroup().GetId())
 		}
 
-		perInfo.roles = per.GetRoles()
+		perInfo.roles = perm.GetRoles()
 
 		slices.Sort(perInfo.roles)
 
-		perMap[folderName] = append(perMap[folderName], perInfo)
+		permMap[folderName] = append(permMap[folderName], perInfo)
 	}
 }
 
