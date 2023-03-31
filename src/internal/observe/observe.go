@@ -492,16 +492,6 @@ func (b bulletf) String() string {
 	return fmt.Sprintf("∙ "+b.tmpl, b.vs...)
 }
 
-func toMessage(vs ...any) string {
-	msg := make([]string, len(vs))
-
-	for i, v := range vs {
-		msg[i] = fmt.Sprintf("%v", v)
-	}
-
-	return strings.Join(msg, " ")
-}
-
 // plainString attempts to cast v to a PlainStringer
 // interface, and retrieve the un-altered value.  If
 // v is not compliant with PlainStringer, returns the
