@@ -100,8 +100,17 @@ type DirectorySummary struct {
 	IgnoredErrorCount int    `json:"numIgnoredErrors,omitempty"`
 }
 
+type Decoder interface {
+	ManifestDecoder
+	ByteManifestDecoder
+}
+
 type ManifestDecoder interface {
 	Decode(r io.Reader, gcStats bool) error
+}
+
+type ByteManifestDecoder interface {
+	DecodeBytes(data []byte, gcStats bool) error
 }
 
 func PrintMemUsage() {

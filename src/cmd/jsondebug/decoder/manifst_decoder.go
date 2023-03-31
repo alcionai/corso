@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 
@@ -10,15 +11,25 @@ import (
 )
 
 var (
-	_ common.ManifestDecoder = Array{}
-	_ common.ManifestDecoder = ArrayFull{}
-	_ common.ManifestDecoder = Map{}
+	_ common.ManifestDecoder     = Array{}
+	_ common.ByteManifestDecoder = Array{}
+	_ common.ManifestDecoder     = ArrayFull{}
+	_ common.ByteManifestDecoder = ArrayFull{}
+	_ common.ManifestDecoder     = Map{}
+	_ common.ByteManifestDecoder = Map{}
 )
 
 type Array struct{}
 
 func (d Array) Decode(r io.Reader, gcStats bool) error {
 	_, err := DecodeManifestArray(r)
+	return err
+}
+
+func (d Array) DecodeBytes(data []byte, gcStats bool) error {
+	r := bytes.NewReader(data)
+	_, err := DecodeManifestArray(r)
+
 	return err
 }
 
@@ -75,6 +86,13 @@ type ArrayFull struct{}
 
 func (d ArrayFull) Decode(r io.Reader, gcStats bool) error {
 	_, err := d.decodeManifestArray(r)
+	return err
+}
+
+func (d ArrayFull) DecodeBytes(data []byte, gcStats bool) error {
+	r := bytes.NewReader(data)
+	_, err := d.decodeManifestArray(r)
+
 	return err
 }
 
@@ -202,6 +220,13 @@ type Map struct{}
 
 func (d Map) Decode(r io.Reader, gcStats bool) error {
 	_, err := d.decodeManifestArray(r)
+	return err
+}
+
+func (d Map) DecodeBytes(data []byte, gcStats bool) error {
+	r := bytes.NewReader(data)
+	_, err := d.decodeManifestArray(r)
+
 	return err
 }
 

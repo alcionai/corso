@@ -32,6 +32,14 @@ func (d JsonParser) Decode(r io.Reader, gcStats bool) error {
 	return parseManifestData(data, gcStats)
 }
 
+func (d JsonParser) DecodeBytes(data []byte, gcStats bool) error {
+	if gcStats {
+		common.PrintMemUsage()
+	}
+
+	return parseManifestData(data, gcStats)
+}
+
 func parseManifestData(data []byte, gcStats bool) error {
 	if gcStats {
 		common.PrintMemUsage()
