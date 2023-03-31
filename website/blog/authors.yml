@@ -21,3 +21,9 @@ gmatev:
   title: Head of Product
   url: https://github.com/gmatev
   image_url: https://github.com/gmatev.png
+
+amartinez:
+  name: Ashlie Martinez
+  title: Product Engineer
+  url: https://github.com/ashmrtn
+  image_url: ./images/ashlie.png
