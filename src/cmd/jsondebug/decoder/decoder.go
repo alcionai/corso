@@ -2,10 +2,9 @@ package decoder
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 
-	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/cmd/jsondebug/common"
 )
@@ -17,25 +16,25 @@ const (
 	arrayClose  = "]"
 )
 
-var errEOF = clues.New("unexpected end of input")
+var errEOF = errors.New("unexpected end of input")
 
 func expectDelimToken(dec *json.Decoder, expectedToken string) error {
 	t, err := dec.Token()
 	if err == io.EOF {
-		return clues.Wrap(errEOF, "")
+		return errors.WithStack(errEOF)
 	} else if err != nil {
-		return clues.Wrap(err, "reading JSON token")
+		return errors.Wrap(err, "reading JSON token")
 	}
 
 	d, ok := t.(json.Delim)
 	if !ok {
-		return clues.New(fmt.Sprintf("unexpected token: (%T) %v", t, t))
+		return errors.Errorf("unexpected token: (%T) %v", t, t)
 	} else if d.String() != expectedToken {
-		return clues.New(fmt.Sprintf(
+		return errors.Errorf(
 			"unexpected token; wanted %s, got %s",
 			expectedToken,
 			d,
-		))
+		)
 	}
 
 	return nil
@@ -67,24 +66,24 @@ func parseFields(dec *json.Decoder, res *common.FooArray) error {
 	for dec.More() {
 		t, err := dec.Token()
 		if err == io.EOF {
-			return clues.Wrap(errEOF, "")
+			return errors.WithStack(errEOF)
 		} else if err != nil {
-			return clues.Wrap(err, "reading JSON token")
+			return errors.Wrap(err, "reading JSON token")
 		}
 
 		l, ok := t.(string)
 		if !ok {
-			return clues.New(fmt.Sprintf(
+			return errors.Errorf(
 				"unexpected token (%T) %v; wanted field name",
 				t,
 				t,
-			))
+			)
 		}
 
 		// Only have `entries` field right now. Needs to match the JSON tag for the
 		// struct.
 		if l != "entries" {
-			return clues.New(fmt.Sprintf("unexpected field name %s", l))
+			return errors.Errorf("unexpected field name %s", l)
 		}
 
 		if err = decodeArray(dec, &res.Entries); err != nil {
@@ -105,7 +104,7 @@ func decodeArray[T any](dec *json.Decoder, output *[]T) error {
 	for dec.More() {
 		tmp := *new(T)
 		if err := dec.Decode(&tmp); err != nil {
-			return clues.Wrap(err, "decoding array element")
+			return errors.Wrap(err, "decoding array element")
 		}
 
 		*output = append(*output, tmp)
