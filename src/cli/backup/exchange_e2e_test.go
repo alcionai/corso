@@ -330,7 +330,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		bIDs := string(bop.Results.BackupID)
 
 		// sanity check, ensure we can find the backup and its details immediately
-		b, err := suite.repo.Backup(ctx, bop.Results.BackupID)
+		b, err := suite.repo.Backup(ctx, string(bop.Results.BackupID))
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
 		_, b, errs := suite.repo.GetBackupDetails(ctx, bIDs)
