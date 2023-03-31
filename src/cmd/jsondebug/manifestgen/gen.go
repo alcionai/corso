@@ -144,7 +144,7 @@ func main() {
 		data.Entries = append(data.Entries, entry)
 	}
 
-	f, err := os.Create(common.FileName)
+	f, err := os.Create(common.ManifestFileName)
 	if err != nil {
 		fmt.Printf("Error making regular output file: %v\n", err)
 		return
@@ -158,7 +158,7 @@ func main() {
 		return
 	}
 
-	fgz, err := os.Create(common.FileName + common.GzipSuffix)
+	fgz, err := os.Create(common.ManifestFileName + common.GzipSuffix)
 	if err != nil {
 		fmt.Printf("Error making gzip output file: %v\n", err)
 		return

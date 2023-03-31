@@ -12,9 +12,9 @@ const (
 	ItemSize   = 1024
 	GzipSuffix = ".gz"
 	FileName   = "input.json"
-
-	ManifestFileName = "manifest-input.json"
 )
+
+var ManifestFileName = fmt.Sprintf("manifest-input.%d.json", NumItems)
 
 type FooArray struct {
 	Entries []*Foo `json:"entries"`
