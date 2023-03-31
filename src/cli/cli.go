@@ -56,8 +56,8 @@ func preRun(cc *cobra.Command, args []string) error {
 		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
 	}
 
-	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
-		print.Info(ctx, "Logging to file: "+logger.LogFile)
+	if len(logger.LogFileFV) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
+		print.Info(ctx, "Logging to file: "+logger.LogFileFV)
 	}
 
 	avoidTheseDescription := []string{
@@ -153,8 +153,7 @@ func Handle() {
 
 	BuildCommandTree(corsoCmd)
 
-	loglevel, logfile := logger.PreloadLoggingFlags()
-	ctx, log := logger.Seed(ctx, loglevel, logfile)
+	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags())
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
