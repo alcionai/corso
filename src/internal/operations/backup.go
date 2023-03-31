@@ -165,7 +165,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	observe.Message(ctx, observe.Safe("Backing Up"), observe.Bullet, observe.PII(op.ResourceOwner))
+	observe.Message(ctx, "Backing Up", observe.Bullet, clues.Hide(op.ResourceOwner))
 
 	deets, err := op.do(
 		ctx,
@@ -332,7 +332,7 @@ func produceBackupDataCollections(
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Discovering items to backup"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
@@ -403,7 +403,7 @@ func consumeBackupCollections(
 	isIncremental bool,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Backing up data"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)
