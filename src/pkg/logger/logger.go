@@ -44,10 +44,12 @@ const (
 // flag values
 var (
 	DebugAPIFV      bool
-	LogFileFV       = ""
+	logFileFV       = ""
 	LogLevelFV      = "info"
 	ReadableLogsFV  bool
 	SensitiveInfoFV = PIIHash
+
+	LogFile string // logFileFV after processing
 )
 
 const (
@@ -76,6 +78,18 @@ func defaultLogLocation() string {
 // need to parse the log level before we execute the command.
 func AddLoggingFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
+
+	addFlags(fs, "corso-<timestamp>.log")
+
+	//nolint:errcheck
+	fs.MarkHidden(ReadableLogsFN)
+	// TODO(keepers): unhide when we have sufficient/complete coverage of PII handling
+	//nolint:errcheck
+	fs.MarkHidden(SensitiveInfoFN)
+}
+
+// internal deduplication for adding flags
+func addFlags(fs *pflag.FlagSet, defaultFile string) {
 	fs.StringVar(
 		&LogLevelFV,
 		LogLevelFN,
@@ -83,7 +97,7 @@ func AddLoggingFlags(cmd *cobra.Command) {
 		fmt.Sprintf("set the log level to %s|%s|%s|%s", LLDebug, LLInfo, LLWarn, LLError))
 
 	// The default provided here is only for help info
-	fs.StringVar(&LogFileFV, LogFileFN, "corso-<timestamp>.log", "location for writing logs, use '-' for stdout")
+	fs.StringVar(&logFileFV, LogFileFN, defaultFile, "location for writing logs, use '-' for stdout")
 	fs.BoolVar(&DebugAPIFV, DebugAPIFN, false, "add non-2xx request/response errors to logging")
 
 	fs.BoolVar(
@@ -91,17 +105,12 @@ func AddLoggingFlags(cmd *cobra.Command) {
 		ReadableLogsFN,
 		false,
 		"minimizes log output for console readability: removes the file and date, colors the level")
-	//nolint:errcheck
-	fs.MarkHidden(ReadableLogsFN)
 
 	fs.StringVar(
 		&SensitiveInfoFV,
 		SensitiveInfoFN,
 		PIIHash,
 		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
-	// TODO(keepers): unhide when we have sufficient/complete coverage of PII handling
-	//nolint:errcheck
-	fs.MarkHidden(SensitiveInfoFN)
 }
 
 // Settings records the user's preferred logging settings.
@@ -120,19 +129,8 @@ func PreloadLoggingFlags(args []string) Settings {
 	dlf := defaultLogLocation()
 	fs := pflag.NewFlagSet("seed-logger", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true
-	fs.String(LogLevelFN, LLInfo, fmt.Sprintf("set the log level to %s|%s|%s|%s", LLDebug, LLInfo, LLWarn, LLError))
-	fs.String(LogFileFN, dlf, "location for writing logs")
-	fs.BoolVar(&DebugAPIFV, DebugAPIFN, false, "add non-2xx request/response errors to logging")
-	fs.BoolVar(
-		&ReadableLogsFV,
-		ReadableLogsFN,
-		false,
-		"minimizes log output: removes the file and date, colors the level")
-	fs.StringVar(
-		&SensitiveInfoFV,
-		SensitiveInfoFN,
-		PIIHash,
-		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
+	addFlags(fs, dlf)
+
 	// prevents overriding the corso/cobra help processor
 	fs.BoolP("help", "h", false, "")
 
@@ -164,7 +162,7 @@ func PreloadLoggingFlags(args []string) Settings {
 	}
 
 	ls.File = GetLogFile(lffv)
-	LogFileFV = ls.File
+	LogFile = ls.File
 
 	// retrieve the user's preferred PII handling algorithm
 	// automatically defaults to default log location
