@@ -130,7 +130,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			}
 
 			status := connector.Wait()
-			assert.NotZero(t, status.Metrics.Successes)
+			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -288,7 +288,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			}
 
 			status := connector.Wait()
-			assert.NotZero(t, status.Metrics.Successes)
+			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
 	}

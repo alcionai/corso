@@ -3,7 +3,6 @@ package mockconnector
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -20,7 +19,7 @@ type GraphConnector struct {
 
 	Err error
 
-	Status *support.ConnectorOperationStatus
+	Stats data.CollectionStats
 }
 
 func (gc GraphConnector) ProduceBackupCollections(
@@ -38,8 +37,8 @@ func (gc GraphConnector) ProduceBackupCollections(
 	return gc.Collections, gc.Exclude, gc.Err
 }
 
-func (gc GraphConnector) Wait() *support.ConnectorOperationStatus {
-	return gc.Status
+func (gc GraphConnector) Wait() *data.CollectionStats {
+	return &gc.Stats
 }
 
 func (gc GraphConnector) ConsumeRestoreCollections(

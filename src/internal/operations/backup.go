@@ -6,11 +6,9 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -76,6 +74,7 @@ func NewBackupOperation(
 		Version:           "v0",
 		account:           acct,
 		incremental:       useIncrementalBackup(selector, opts),
+		bp:                bp,
 	}
 
 	if len(ownerName) == 0 {
@@ -95,7 +94,7 @@ func (op BackupOperation) validate() error {
 	}
 
 	if op.bp == nil {
-		return errors.New("missing backup producer")
+		return clues.New("missing backup producer")
 	}
 
 	return op.operation.validate()
@@ -107,7 +106,7 @@ func (op BackupOperation) validate() error {
 // get populated asynchronously.
 type backupStats struct {
 	k             *kopia.BackupStats
-	gc            *support.ConnectorOperationStatus
+	gc            *data.CollectionStats
 	resourceCount int
 }
 
@@ -666,11 +665,11 @@ func (op *BackupOperation) persistResults(
 		return clues.New("backup population never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.gc.IsZero() {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsRead = opStats.gc.Metrics.Successes
+	op.Results.ItemsRead = opStats.gc.Successes
 
 	return op.Errors.Failure()
 }

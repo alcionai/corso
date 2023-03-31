@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
@@ -94,7 +93,7 @@ func (op RestoreOperation) validate() error {
 // get populated asynchronously.
 type restoreStats struct {
 	cs            []data.RestoreCollection
-	gc            *support.ConnectorOperationStatus
+	gc            *data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -276,11 +275,11 @@ func (op *RestoreOperation) persistResults(
 		return clues.New("restoration never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.gc.IsZero() {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsWritten = opStats.gc.Metrics.Successes
+	op.Results.ItemsWritten = opStats.gc.Successes
 
 	op.bus.Event(
 		ctx,

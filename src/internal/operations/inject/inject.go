@@ -3,7 +3,6 @@ package inject
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -25,7 +24,7 @@ type (
 			errs *fault.Bus,
 		) ([]data.BackupCollection, map[string]map[string]struct{}, error)
 
-		Wait() *support.ConnectorOperationStatus
+		Wait() *data.CollectionStats
 	}
 
 	BackupConsumer interface {
@@ -62,6 +61,6 @@ type (
 			errs *fault.Bus,
 		) (*details.Details, error)
 
-		Wait() *support.ConnectorOperationStatus
+		Wait() *data.CollectionStats
 	}
 )
