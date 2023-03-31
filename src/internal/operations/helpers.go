@@ -29,9 +29,14 @@ func finalizeErrorHandling(
 	}
 
 	if opts.FailureHandling == control.FailAfterRecovery {
-		msg := fmt.Sprintf("%s: partial success: recovered after %d errors", prefix, len(rcvd))
-
+		msg := fmt.Sprintf("%s: partial success: %d errors occurred", prefix, len(rcvd))
 		logger.Ctx(ctx).Error(msg)
+
+		if len(rcvd) == 1 {
+			errs.Fail(rcvd[0])
+			return
+		}
+
 		errs.Fail(clues.New(msg))
 	}
 }

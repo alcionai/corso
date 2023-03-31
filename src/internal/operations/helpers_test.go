@@ -72,6 +72,20 @@ func (suite *HelpersUnitSuite) TestFinalizeErrorHandling() {
 			},
 			expectErr: assert.Error,
 		},
+		{
+			name: "multiple recoverable errors produce hard fail",
+			errs: func() *fault.Bus {
+				fn := fault.New(false)
+				fn.AddRecoverable(assert.AnError)
+				fn.AddRecoverable(assert.AnError)
+				fn.AddRecoverable(assert.AnError)
+				return fn
+			},
+			opts: control.Options{
+				FailureHandling: control.FailAfterRecovery,
+			},
+			expectErr: assert.Error,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
