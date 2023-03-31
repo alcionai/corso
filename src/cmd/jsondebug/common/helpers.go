@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"runtime"
 	"time"
 )
