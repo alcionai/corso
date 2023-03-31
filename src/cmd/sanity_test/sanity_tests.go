@@ -356,6 +356,8 @@ func checkOnedriveRestoration(
 		}
 
 		if len(restoreFolderPerm) < 1 {
+			logger.Ctx(ctx).Info("blank permission found for folder : %s"+
+				" in while restore. Original permissions: %+v", folderName, permissions)
 			fmt.Println("permission roles are not equal:")
 			fmt.Println("Item:", folderName)
 			fmt.Println("Permission found: ", permissions)
@@ -409,7 +411,7 @@ func getOneDriveChildFolder(
 	for _, driveItem := range response.GetValue() {
 		var (
 			itemID   = ptr.Val(driveItem.GetId())
-			itemName = parentName + "/" + ptr.Val(driveItem.GetName())
+			itemName = ptr.Val(driveItem.GetName())
 			fullName = parentName + "/" + itemName
 		)
 
