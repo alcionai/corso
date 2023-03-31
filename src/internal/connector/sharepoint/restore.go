@@ -116,8 +116,8 @@ func RestoreCollections(
 	return status, err
 }
 
-// createRestoreFolders creates the restore folder hieararchy in the specified drive and returns the folder ID
-// of the last folder entry given in the hieararchy
+// createRestoreFolders creates the restore folder hierarchy in the specified drive and returns the folder ID
+// of the last folder entry given in the hierarchy
 func createRestoreFolders(
 	ctx context.Context,
 	service graph.Servicer,
