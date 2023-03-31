@@ -35,9 +35,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddBackupIDFlag(c, true)
 		utils.AddSharePointDetailsAndRestoreFlags(c)
-
-		// others
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 	}
 
 	return c
