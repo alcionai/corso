@@ -148,7 +148,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(utils.User, utils.CategoryData); err != nil {
+	if err := validateExchangeBackupCreateFlags(utils.UserFV, utils.CategoryDataFV); err != nil {
 		return err
 	}
 
@@ -159,7 +159,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(utils.User, utils.CategoryData)
+	sel := exchangeBackupCreateSelectors(utils.UserFV, utils.CategoryDataFV)
 
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
@@ -237,7 +237,7 @@ func exchangeListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupID, path.ExchangeService, args)
+	return genericListCommand(cmd, utils.BackupIDFV, path.ExchangeService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -273,7 +273,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -341,5 +341,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupID, "Exchange", args)
+	return genericDeleteCommand(cmd, utils.BackupIDFV, "Exchange", args)
 }

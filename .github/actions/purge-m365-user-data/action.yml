@@ -47,7 +47,7 @@ runs:
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
       run: |
-        ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
     
     - name: Run the OneDrive purge scripts for user
       if: ${{ inputs.user != '' }}
@@ -57,7 +57,7 @@ runs:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
-        ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
     - name: Run SharePoint purge script
       if: ${{ inputs.user == '' }}

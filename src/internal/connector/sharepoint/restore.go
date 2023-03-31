@@ -69,6 +69,7 @@ func RestoreCollections(
 		case path.LibrariesCategory:
 			metrics, _, err = onedrive.RestoreCollection(
 				ictx,
+				creds,
 				backupVersion,
 				service,
 				dc,

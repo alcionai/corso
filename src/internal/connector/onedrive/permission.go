@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -88,6 +89,7 @@ func getCollectionMetadata(
 // Passing nil for the permissions results in just creating the folder(s).
 func createRestoreFoldersWithPermissions(
 	ctx context.Context,
+	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolders []string,
@@ -105,6 +107,7 @@ func createRestoreFoldersWithPermissions(
 
 	err = RestorePermissions(
 		ctx,
+		creds,
 		service,
 		drivePath.DriveID,
 		id,
@@ -169,6 +172,7 @@ func diffPermissions(
 // the necessary permissions on onedrive objects.
 func RestorePermissions(
 	ctx context.Context,
+	creds account.M365Config,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
@@ -189,7 +193,17 @@ func RestorePermissions(
 	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
 
 	for _, p := range permRemoved {
-		err := service.Client().
+		// deletes require unique http clients
+		// https://github.com/alcionai/corso/issues/2707
+		// this is bad citizenship, and could end up consuming a lot of
+		// system resources if servicers leak client connections (sockets, etc).
+		a, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+		if err != nil {
+			return graph.Wrap(ctx, err, "creating delete client")
+		}
+
+		err = graph.NewService(a).
+			Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
 			PermissionsById(p.ID).

@@ -256,6 +256,7 @@ func (suite *SharePointCollectionSuite) TestRestoreLocation() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	driveID := ptr.Val(siteDrive.GetId())
+
 	err = onedrive.DeleteItem(ctx, service, driveID, folderID)
 	assert.NoError(t, err, clues.ToCore(err))
 }
