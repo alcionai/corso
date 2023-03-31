@@ -33,6 +33,20 @@ const (
 	SharePointSource
 )
 
+type collectionScope int
+
+const (
+	// CollectionScopeUnknown is used when we don't know and don't need
+	// to know the kind, like in the case of deletes
+	CollectionScopeUnknown collectionScope = iota
+
+	// CollectionScopeFolder is used for regular folder collections
+	CollectionScopeFolder
+
+	// CollectionScopePackage is used to represent OneNote items
+	CollectionScopePackage
+)
+
 const (
 	restrictedDirectory = "Site Pages"
 	rootDrivePattern    = "/drives/%s/root:"
@@ -411,6 +425,7 @@ func (c *Collections) Get(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
+				CollectionScopeUnknown,
 				true)
 
 			c.CollectionMap[driveID][fldID] = col
@@ -572,6 +587,7 @@ func (c *Collections) handleDelete(
 		c.statusUpdater,
 		c.source,
 		c.ctrl,
+		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
 		false)
 
@@ -744,6 +760,11 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
+			colScope := CollectionScopeFolder
+			if item.GetPackage() != nil {
+				colScope = CollectionScopePackage
+			}
+
 			col := NewCollection(
 				c.itemClient,
 				collectionPath,
@@ -753,6 +774,7 @@ func (c *Collections) UpdateCollections(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
+				colScope,
 				invalidPrevDelta,
 			)
 			col.driveName = driveName
