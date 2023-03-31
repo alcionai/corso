@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-// flag names
+// flag names (id: FN)
 const (
 	ContactFN       = "contact"
 	ContactFolderFN = "contact-folder"
@@ -29,26 +29,26 @@ const (
 	EventSubjectFN      = "event-subject"
 )
 
-// flag population values
+// flag values (ie: FV)
 var (
-	Contact       []string
-	ContactFolder []string
-	ContactName   string
+	ContactFV       []string
+	ContactFolderFV []string
+	ContactNameFV   string
 
-	Email               []string
-	EmailFolder         []string
-	EmailReceivedAfter  string
-	EmailReceivedBefore string
-	EmailSender         string
-	EmailSubject        string
+	EmailFV               []string
+	EmailFolderFV         []string
+	EmailReceivedAfterFV  string
+	EmailReceivedBeforeFV string
+	EmailSenderFV         string
+	EmailSubjectFV        string
 
-	Event             []string
-	EventCalendar     []string
-	EventOrganizer    string
-	EventRecurs       string
-	EventStartsAfter  string
-	EventStartsBefore string
-	EventSubject      string
+	EventFV             []string
+	EventCalendarFV     []string
+	EventOrganizerFV    string
+	EventRecursFV       string
+	EventStartsAfterFV  string
+	EventStartsBeforeFV string
+	EventSubjectFV      string
 )
 
 type ExchangeOpts struct {
@@ -79,26 +79,26 @@ type ExchangeOpts struct {
 // populates an ExchangeOpts struct with the command's current flags.
 func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
 	return ExchangeOpts{
-		Users: User,
+		Users: UserFV,
 
-		Contact:       Contact,
-		ContactFolder: ContactFolder,
-		ContactName:   ContactName,
+		Contact:       ContactFV,
+		ContactFolder: ContactFolderFV,
+		ContactName:   ContactNameFV,
 
-		Email:               Email,
-		EmailFolder:         EmailFolder,
-		EmailReceivedAfter:  EmailReceivedAfter,
-		EmailReceivedBefore: EmailReceivedBefore,
-		EmailSender:         EmailSender,
-		EmailSubject:        EmailSubject,
+		Email:               EmailFV,
+		EmailFolder:         EmailFolderFV,
+		EmailReceivedAfter:  EmailReceivedAfterFV,
+		EmailReceivedBefore: EmailReceivedBeforeFV,
+		EmailSender:         EmailSenderFV,
+		EmailSubject:        EmailSubjectFV,
 
-		Event:             Event,
-		EventCalendar:     EventCalendar,
-		EventOrganizer:    EventOrganizer,
-		EventRecurs:       EventRecurs,
-		EventStartsAfter:  EventStartsAfter,
-		EventStartsBefore: EventStartsBefore,
-		EventSubject:      EventSubject,
+		Event:             EventFV,
+		EventCalendar:     EventCalendarFV,
+		EventOrganizer:    EventOrganizerFV,
+		EventRecurs:       EventRecursFV,
+		EventStartsAfter:  EventStartsAfterFV,
+		EventStartsBefore: EventStartsBeforeFV,
+		EventSubject:      EventSubjectFV,
 
 		Populated: GetPopulatedFlags(cmd),
 	}
@@ -111,71 +111,71 @@ func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command) {
 
 	// email flags
 	fs.StringSliceVar(
-		&Email,
+		&EmailFV,
 		EmailFN, nil,
 		"Select emails by email ID; accepts '"+Wildcard+"' to select all emails.")
 	fs.StringSliceVar(
-		&EmailFolder,
+		&EmailFolderFV,
 		EmailFolderFN, nil,
 		"Select emails within a folder; accepts '"+Wildcard+"' to select all email folders.")
 	fs.StringVar(
-		&EmailSubject,
+		&EmailSubjectFV,
 		EmailSubjectFN, "",
 		"Select emails with a subject containing this value.")
 	fs.StringVar(
-		&EmailSender,
+		&EmailSenderFV,
 		EmailSenderFN, "",
 		"Select emails from a specific sender.")
 	fs.StringVar(
-		&EmailReceivedAfter,
+		&EmailReceivedAfterFV,
 		EmailReceivedAfterFN, "",
 		"Select emails received after this datetime.")
 	fs.StringVar(
-		&EmailReceivedBefore,
+		&EmailReceivedBeforeFV,
 		EmailReceivedBeforeFN, "",
 		"Select emails received before this datetime.")
 
 	// event flags
 	fs.StringSliceVar(
-		&Event,
+		&EventFV,
 		EventFN, nil,
 		"Select events by event ID; accepts '"+Wildcard+"' to select all events.")
 	fs.StringSliceVar(
-		&EventCalendar,
+		&EventCalendarFV,
 		EventCalendarFN, nil,
 		"Select events under a calendar; accepts '"+Wildcard+"' to select all events.")
 	fs.StringVar(
-		&EventSubject,
+		&EventSubjectFV,
 		EventSubjectFN, "",
 		"Select events with a subject containing this value.")
 	fs.StringVar(
-		&EventOrganizer,
+		&EventOrganizerFV,
 		EventOrganizerFN, "",
 		"Select events from a specific organizer.")
 	fs.StringVar(
-		&EventRecurs,
+		&EventRecursFV,
 		EventRecursFN, "",
 		"Select recurring events. Use `--event-recurs false` to select non-recurring events.")
 	fs.StringVar(
-		&EventStartsAfter,
+		&EventStartsAfterFV,
 		EventStartsAfterFN, "",
 		"Select events starting after this datetime.")
 	fs.StringVar(
-		&EventStartsBefore,
+		&EventStartsBeforeFV,
 		EventStartsBeforeFN, "",
 		"Select events starting before this datetime.")
 
 	// contact flags
 	fs.StringSliceVar(
-		&Contact,
+		&ContactFV,
 		ContactFN, nil,
 		"Select contacts by contact ID; accepts '"+Wildcard+"' to select all contacts.")
 	fs.StringSliceVar(
-		&ContactFolder,
+		&ContactFolderFV,
 		ContactFolderFN, nil,
 		"Select contacts within a folder; accepts '"+Wildcard+"' to select all contact folders.")
 	fs.StringVar(
-		&ContactName,
+		&ContactNameFV,
 		ContactNameFN, "",
 		"Select contacts whose contact name contains this value.")
 }

@@ -140,7 +140,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(utils.SiteID, utils.WebURL, utils.CategoryData); err != nil {
+	if err := validateSharePointBackupCreateFlags(utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV); err != nil {
 		return err
 	}
 
@@ -159,7 +159,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteID, utils.WebURL, utils.CategoryData, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV, gc)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
@@ -275,7 +275,7 @@ func sharePointListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupID, path.SharePointService, args)
+	return genericListCommand(cmd, utils.BackupIDFV, path.SharePointService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -295,7 +295,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupID, "SharePoint", args)
+	return genericDeleteCommand(cmd, utils.BackupIDFV, "SharePoint", args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -331,7 +331,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsSharePointCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsSharePointCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

@@ -59,21 +59,21 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			cmd.SetArgs([]string{
 				"sharepoint",
 				"--" + utils.RunModeFN, utils.RunModeFlagTest,
-				"--" + utils.BackupFN, testdata.BackupInpt,
+				"--" + utils.BackupFN, testdata.BackupInput,
 
-				"--" + utils.LibraryFN, testdata.LibraryInpt,
-				"--" + utils.FileFN, testdata.FlgInpts(testdata.FileNamesInpt),
-				"--" + utils.FolderFN, testdata.FlgInpts(testdata.FolderPathsInpt),
-				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInpt,
-				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInpt,
-				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInpt,
-				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInpt,
+				"--" + utils.LibraryFN, testdata.LibraryInput,
+				"--" + utils.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + utils.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
 
-				"--" + utils.ListItemFN, testdata.FlgInpts(testdata.ListItemInpt),
-				"--" + utils.ListFolderFN, testdata.FlgInpts(testdata.ListFolderInpt),
+				"--" + utils.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
+				"--" + utils.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
 
-				"--" + utils.PageFN, testdata.FlgInpts(testdata.PageInpt),
-				"--" + utils.PageFolderFN, testdata.FlgInpts(testdata.PageFolderInpt),
+				"--" + utils.PageFN, testdata.FlgInputs(testdata.PageInput),
+				"--" + utils.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -82,21 +82,21 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeSharePointOpts(cmd)
-			assert.Equal(t, testdata.BackupInpt, utils.BackupID)
+			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
 
-			assert.Equal(t, testdata.LibraryInpt, opts.Library)
-			assert.ElementsMatch(t, testdata.FileNamesInpt, opts.FileName)
-			assert.ElementsMatch(t, testdata.FolderPathsInpt, opts.FolderPath)
-			assert.Equal(t, testdata.FileCreatedAfterInpt, opts.FileCreatedAfter)
-			assert.Equal(t, testdata.FileCreatedBeforeInpt, opts.FileCreatedBefore)
-			assert.Equal(t, testdata.FileModifiedAfterInpt, opts.FileModifiedAfter)
-			assert.Equal(t, testdata.FileModifiedBeforeInpt, opts.FileModifiedBefore)
+			assert.Equal(t, testdata.LibraryInput, opts.Library)
+			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
+			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
+			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
+			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
+			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
+			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
 
-			assert.ElementsMatch(t, testdata.ListItemInpt, opts.ListItem)
-			assert.ElementsMatch(t, testdata.ListFolderInpt, opts.ListFolder)
+			assert.ElementsMatch(t, testdata.ListItemInput, opts.ListItem)
+			assert.ElementsMatch(t, testdata.ListFolderInput, opts.ListFolder)
 
-			assert.ElementsMatch(t, testdata.PageInpt, opts.Page)
-			assert.ElementsMatch(t, testdata.PageFolderInpt, opts.PageFolder)
+			assert.ElementsMatch(t, testdata.PageInput, opts.Page)
+			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
 		})
 	}
 }

@@ -7,8 +7,9 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // M365TenantID returns a tenantID string representing the azureTenantID described
@@ -28,7 +29,10 @@ func M365TenantID(t *testing.T) string {
 // last-attempt fallback that will only work on alcion's testing org.
 func GetM365TenantID(ctx context.Context) string {
 	cfg, err := readTestConfig()
-	logger.Ctx(ctx).Error(err, "retrieving m365 tenant ID from test configuration")
+	if err != nil {
+		logger.Ctx(ctx).Error(err, "retrieving m365 tenant ID from test configuration")
+	}
+
 	return cfg[TestCfgAzureTenantID]
 }
 
@@ -49,7 +53,9 @@ func M365UserID(t *testing.T) string {
 // last-attempt fallback that will only work on alcion's testing org.
 func GetM365UserID(ctx context.Context) string {
 	cfg, err := readTestConfig()
-	logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
+	if err != nil {
+		logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
+	}
 
 	return cfg[TestCfgUserID]
 }

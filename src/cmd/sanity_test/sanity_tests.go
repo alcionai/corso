@@ -320,8 +320,14 @@ func checkOnedriveRestoration(
 
 		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
 
-		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
-			continue
+		if hasTime {
+			if startTime.Before(folderTime) {
+				logger.Ctx(ctx).
+					With("boundary_time", startTime, "check_time", folderTime).
+					Info("skipping restore folder: not older than time bound")
+
+				continue
+			}
 		}
 
 		// if it's a file check the size
@@ -352,13 +358,13 @@ func checkOnedriveRestoration(
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
 		if len(permissions) < 1 {
-			logger.Ctx(ctx).Info("no permissions found for folder : %s.", folderName)
+			logger.Ctx(ctx).Info("no permissions found for folder :", folderName)
 			continue
 		}
 
 		if len(restoreFolderPerm) < 1 {
-			logger.Ctx(ctx).Info("blank permission found for folder : %s"+
-				" in while restore. Original permissions: %+v", folderName, permissions)
+			logger.Ctx(ctx).Info("blank permission found for folder :", folderName,
+				" in while restore. Original permissions: ", permissions)
 			fmt.Println("permission roles are not equal:")
 			fmt.Println("Item:", folderName)
 			fmt.Println("Permission found: ", permissions)
@@ -418,9 +424,16 @@ func getOneDriveChildFolder(
 
 		folderTime, hasTime := mustGetTimeFromName(ctx, itemName)
 
-		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
-			continue
+		if hasTime {
+			if startTime.Before(folderTime) {
+				logger.Ctx(ctx).
+					With("boundary_time", startTime, "check_time", folderTime).
+					Info("skipping restore folder: not older than time bound")
+
+				continue
+			}
 		}
+
 		// if it's a file check the size
 		if driveItem.GetFile() != nil {
 			fileSizes[fullName] = ptr.Val(driveItem.GetSize())
@@ -540,18 +553,16 @@ func mustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
 	return t, !errors.Is(err, common.ErrNoTimeString)
 }
 
-func isWithinTimeBound(ctx context.Context, bound, check time.Time, skip bool) bool {
-	if skip {
-		return true
-	}
+// func isWithinTimeBound(ctx context.Context, bound, check time.Time, skip bool) bool {
 
-	if bound.Before(check) {
-		logger.Ctx(ctx).
-			With("boundary_time", bound, "check_time", check).
-			Info("skipping restore folder: not older than time bound")
+// 	if !skip {
+// 		if bound.Before(check) {
+// 			logger.Ctx(ctx).
+// 				With("boundary_time", bound, "check_time", folderTime).
+// 				Info("skipping restore folder: not older than time bound")
+// 			return false
+// 		}
+// 	}
 
-		return false
-	}
-
-	return true
-}
+// 	return true
+// }

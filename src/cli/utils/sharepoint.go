@@ -45,16 +45,16 @@ type SharePointOpts struct {
 
 func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 	return SharePointOpts{
-		SiteID: SiteID,
-		WebURL: WebURL,
+		SiteID: SiteIDFV,
+		WebURL: WebURLFV,
 
-		Library:            Library,
-		FileName:           FileName,
-		FolderPath:         FolderPath,
-		FileCreatedAfter:   FileCreatedAfter,
-		FileCreatedBefore:  FileCreatedBefore,
-		FileModifiedAfter:  FileModifiedAfter,
-		FileModifiedBefore: FileModifiedBefore,
+		Library:            LibraryFV,
+		FileName:           FileNameFV,
+		FolderPath:         FolderPathFV,
+		FileCreatedAfter:   FileCreatedAfterFV,
+		FileCreatedBefore:  FileCreatedBeforeFV,
+		FileModifiedAfter:  FileModifiedAfterFV,
+		FileModifiedBefore: FileModifiedBeforeFV,
 
 		ListFolder: ListFolder,
 		ListItem:   ListItem,
@@ -74,31 +74,31 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 	// libraries
 
 	fs.StringVar(
-		&Library,
+		&LibraryFV,
 		LibraryFN, "",
 		"Select only this library; defaults to all libraries.")
 	fs.StringSliceVar(
-		&FolderPath,
+		&FolderPathFV,
 		FolderFN, nil,
 		"Select by folder; defaults to root.")
 	fs.StringSliceVar(
-		&FileName,
+		&FileNameFV,
 		FileFN, nil,
 		"Select by file name.")
 	fs.StringVar(
-		&FileCreatedAfter,
+		&FileCreatedAfterFV,
 		FileCreatedAfterFN, "",
 		"Select files created after this datetime.")
 	fs.StringVar(
-		&FileCreatedBefore,
+		&FileCreatedBeforeFV,
 		FileCreatedBeforeFN, "",
 		"Select files created before this datetime.")
 	fs.StringVar(
-		&FileModifiedAfter,
+		&FileModifiedAfterFV,
 		FileModifiedAfterFN, "",
 		"Select files modified after this datetime.")
 	fs.StringVar(
-		&FileModifiedBefore,
+		&FileModifiedBeforeFV,
 		FileModifiedBeforeFN, "",
 		"Select files modified before this datetime.")
 
