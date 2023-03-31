@@ -1095,7 +1095,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			fmt.Printf("\n-----\ntest %+v\n-----\n", test.name)
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
