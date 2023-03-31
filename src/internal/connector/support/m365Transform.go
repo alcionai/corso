@@ -65,7 +65,7 @@ func ToMessage(orig models.Messageable) models.Messageable {
 	return aMessage
 }
 
-// ToEventSimplified transforms an event to simplifed restore format
+// ToEventSimplified transforms an event to simplified restore format
 // To overcome some of the MS Graph API challenges, the event object is modified in the following ways:
 //   - Instead of adding attendees and generating spurious notifications,
 //     add a summary of attendees at the beginning to the event before the original body content

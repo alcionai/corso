@@ -204,7 +204,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			"fetch parallelism value not set or out of bounds, using default",
 			"default_parallelism",
 			urlPrefetchChannelBufferSize,
-			"requested_paralellism",
+			"requested_parallellism",
 			col.ctrl.ItemFetchParallelism,
 		)
 	}

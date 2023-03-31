@@ -28,7 +28,7 @@ type MetadataCollection struct {
 	statusUpdater support.StatusUpdater
 }
 
-// MetadataCollecionEntry describes a file that should get added to a metadata
+// MetadataCollectionEntry describes a file that should get added to a metadata
 // collection.  The Data value will be encoded into json as part of a
 // transformation into a MetadataItem.
 type MetadataCollectionEntry struct {

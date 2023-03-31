@@ -8,7 +8,7 @@ import (
 // VerticalSection
 type VerticalSection struct {
 	msmodel.Entity
-	// Enumeration value that indicates the emphasis of the section background. The possible values are: none, netural, soft, strong, unknownFutureValue.
+	// Enumeration value that indicates the emphasis of the section background. The possible values are: none, neutral, soft, strong, unknownFutureValue.
 	emphasis *SectionEmphasisType
 	// The set of web parts in this section.
 	webparts []WebPartable
@@ -27,7 +27,7 @@ func CreateVerticalSectionFromDiscriminatorValue(parseNode i878a80d2330e89d26896
 	return NewVerticalSection(), nil
 }
 
-// GetEmphasis gets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, netural, soft, strong, unknownFutureValue.
+// GetEmphasis gets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, neutral, soft, strong, unknownFutureValue.
 func (m *VerticalSection) GetEmphasis() *SectionEmphasisType {
 	return m.emphasis
 }
@@ -93,7 +93,7 @@ func (m *VerticalSection) Serialize(writer i878a80d2330e89d26896388a3f487eef27b0
 	return nil
 }
 
-// SetEmphasis sets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, netural, soft, strong, unknownFutureValue.
+// SetEmphasis sets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, neutral, soft, strong, unknownFutureValue.
 func (m *VerticalSection) SetEmphasis(value *SectionEmphasisType) {
 	m.emphasis = value
 }

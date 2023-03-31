@@ -37,7 +37,7 @@ func (s BetaService) Serialize(object serialization.Parsable) ([]byte, error) {
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, clues.Wrap(err, "writeObjecValue serialization")
+		return nil, clues.Wrap(err, "writeObjectValue serialization")
 	}
 
 	return writer.GetSerializedContent()

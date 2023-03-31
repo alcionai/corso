@@ -268,7 +268,7 @@ func (gc *GraphConnector) UpdateStatus(status *support.ConnectorOperationStatus)
 	gc.status = support.MergeStatus(gc.status, *status)
 }
 
-// Status returns the current status of the graphConnector operaion.
+// Status returns the current status of the graphConnector operation.
 func (gc *GraphConnector) Status() support.ConnectorOperationStatus {
 	return gc.status
 }

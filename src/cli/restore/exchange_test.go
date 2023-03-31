@@ -41,7 +41,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 
 			cmd := &cobra.Command{Use: test.use}
 
-			// normally a persisten flag from the root.
+			// normally a persistent flag from the root.
 			// required to ensure a dry run.
 			utils.AddRunModeFlag(cmd, true)
 

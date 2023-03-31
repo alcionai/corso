@@ -20,7 +20,7 @@ func TestPointerSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-// TestVal checks to ptr derefencing for the
+// TestVal checks to ptr dereferencing for the
 // following types:
 // - *string
 // - *bool

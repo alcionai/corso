@@ -1785,7 +1785,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			doNotMergeItems: false,
 		},
 		{
-			name:   "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistantFolder",
+			name:   "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistentFolder",
 			drives: []models.Driveable{drive1},
 			items: map[string][]deltaPagerResult{
 				driveID1: {
