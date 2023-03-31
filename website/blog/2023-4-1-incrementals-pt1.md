@@ -12,8 +12,10 @@ tags: [corso, microsoft 365, backups]
 date: 2023-4-1
 image: ./images/incremental-encoder.jpg
 ---
+<!-- vale Vale.Spelling = NO -->
 
 ![By © Raimond Spekking / CC BY-SA 4.0 (via Wikimedia Commons), CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=75914553](./images/incremental-encoder.jpg)
+<!-- vale Vale.Spelling = YES -->
 
 Full Microsoft 365 backups can take a long time, especially since Microsoft
 throttles the number of requests an application can make in a given window of
@@ -36,7 +38,7 @@ data is laid out in Corso backups.
 
 Microsoft provides a delta query API that allows developers to get only the
 changes to the endpoint since the last query was made. The API represents the
-idea of the “last query” with an opaque token that is returned when the set of
+idea of the “last query” with an opaque token that's returned when the set of
 items is done being listed. For example, if a developer wants to get a delta
 token for a specific email folder, the developer would first list all the items
 in the folder using the delta endpoint. On the final page of item results from
@@ -83,7 +85,7 @@ Corso also stores a few extra bits of metadata to help with incremental backups.
 Most importantly, it stores the Graph API’s delta tokens retrieved during the
 backup process as well as a mapping relating the current M365 folder IDs to
 their paths. This information is stored with different path prefixes (ex. uses
-`onedriveMetadata` instead of `onedrive`) to make it easy to separate out from
+`onedriveMetadata` instead of `onedrive`) to make it straightforward to separate out from
 backed up item data.
 
 ### Terminology
@@ -135,5 +137,4 @@ each other while still minimizing the amount of item data stored.
 
 Corso implements compression, deduplication *and* incremental backups to give
 you the best backup performance. Check
-[our quickstart guide](https://corsobackup.io/docs/quickstart/) to see how easy
-it is to get started.
+[our quickstart guide](https://corsobackup.io/docs/quickstart/) to see how to get started.
