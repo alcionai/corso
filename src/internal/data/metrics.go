@@ -1,10 +1,11 @@
 package data
 
 type CollectionStats struct {
-	Folders            int
-	Objects, Successes int
-	Bytes              int64
-	Details            string
+	Folders,
+	Objects,
+	Successes int
+	Bytes   int64
+	Details string
 }
 
 func (cs CollectionStats) IsZero() bool {
