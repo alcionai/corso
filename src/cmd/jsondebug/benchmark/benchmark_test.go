@@ -10,6 +10,33 @@ import (
 	"github.com/alcionai/corso/src/cmd/jsondebug/decoder"
 )
 
+func runBenchmarkByteInput(b *testing.B, d common.ByteManifestDecoder) {
+	for i := 0; i < b.N; i++ {
+		fn := common.ManifestFileName
+
+		f, err := os.Open(fn)
+		if err != nil {
+			b.Logf("Error opening input file: %v", err)
+			b.FailNow()
+		}
+
+		data, err := io.ReadAll(f)
+		if err != nil {
+			b.Logf("Error reading input data: %v", err)
+			b.FailNow()
+		}
+
+		f.Close()
+		b.ResetTimer()
+
+		err = d.DecodeBytes(data, false)
+		if err != nil {
+			b.Logf("Error decoding json: %v", err)
+			b.FailNow()
+		}
+	}
+}
+
 func runBenchmark(b *testing.B, d common.ManifestDecoder) {
 	for _, unzip := range []string{"NotZipped", "Zipped"} {
 		b.Run(unzip, func(b *testing.B) {
@@ -51,27 +78,46 @@ func runBenchmark(b *testing.B, d common.ManifestDecoder) {
 	}
 }
 
-func Benchmark_Jsonparser(b *testing.B) {
-	d := decoder.JsonParser{}
-	runBenchmark(b, d)
+type benchmarkInfo struct {
+	name string
+	dec  common.Decoder
 }
 
-func Benchmark_Stdlib(b *testing.B) {
-	d := decoder.Stdlib{}
-	runBenchmark(b, d)
+var decoderTable = []benchmarkInfo{
+	{
+		name: "Stdlib",
+		dec:  decoder.Stdlib{},
+	},
+	{
+		name: "JsonParser",
+		dec:  decoder.JsonParser{},
+	},
+	{
+		name: "Array",
+		dec:  decoder.Array{},
+	},
+	{
+		name: "ArrayFull",
+		dec:  decoder.ArrayFull{},
+	},
+	{
+		name: "Map",
+		dec:  decoder.Map{},
+	},
 }
 
-func Benchmark_Array(b *testing.B) {
-	d := decoder.Array{}
-	runBenchmark(b, d)
+func Benchmark_FromFile(b *testing.B) {
+	for _, benchmark := range decoderTable {
+		b.Run(benchmark.name, func(b *testing.B) {
+			runBenchmark(b, benchmark.dec)
+		})
+	}
 }
 
-func Benchmark_ArrayFull(b *testing.B) {
-	d := decoder.ArrayFull{}
-	runBenchmark(b, d)
-}
-
-func Benchmark_Map(b *testing.B) {
-	d := decoder.Map{}
-	runBenchmark(b, d)
+func Benchmark_FromBytes(b *testing.B) {
+	for _, benchmark := range decoderTable {
+		b.Run(benchmark.name, func(b *testing.B) {
+			runBenchmarkByteInput(b, benchmark.dec)
+		})
+	}
 }
