@@ -367,6 +367,8 @@ func GetAllFolders(
 	return res, el.Failure()
 }
 
+// deletes require unique http clients
+// https://github.com/alcionai/corso/issues/2707
 func DeleteItem(
 	ctx context.Context,
 	gs graph.Servicer,
