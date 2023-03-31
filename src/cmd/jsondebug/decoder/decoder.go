@@ -40,6 +40,22 @@ func expectDelimToken(dec *json.Decoder, expectedToken string) error {
 	return nil
 }
 
+func stringToken(dec *json.Decoder) (string, error) {
+	t, err := dec.Token()
+	if errors.Is(err, io.EOF) {
+		return "", errors.WithStack(errEOF)
+	} else if err != nil {
+		return "", errors.Wrap(err, "reading JSON token")
+	}
+
+	l, ok := t.(string)
+	if !ok {
+		return "", errors.Errorf("unexpected token (%T) %v; wanted field name", t, t)
+	}
+
+	return l, nil
+}
+
 func DecodeFooArray(r io.Reader) (common.FooArray, error) {
 	var (
 		dec = json.NewDecoder(r)
