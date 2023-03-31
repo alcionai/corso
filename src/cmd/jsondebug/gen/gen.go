@@ -30,6 +30,7 @@ func main() {
 			)
 			return
 		}
+
 		content := common.Content{
 			ID:   uuid.NewString(),
 			Data: buf,

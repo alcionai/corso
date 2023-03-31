@@ -16,13 +16,17 @@ import (
 func main() {
 	defer func() {
 		common.PrintMemUsage()
+
 		f, err := os.Create("mem.prof")
 		if err != nil {
 			fmt.Print("could not create memory profile: ", err)
 			return
 		}
+
 		defer f.Close() // error handling omitted for example
-		runtime.GC()    // get up-to-date statistics
+
+		runtime.GC() // get up-to-date statistics
+
 		if err := pprof.WriteHeapProfile(f); err != nil {
 			fmt.Print("could not write memory profile: ", err)
 			return
@@ -45,11 +49,11 @@ func readFile() ([]byte, error) {
 		fmt.Printf("Error reading file: %v\n", err)
 		return nil, err
 	}
+
 	return data, nil
 }
 
 func parseData(data []byte) {
-
 	common.PrintMemUsage()
 
 	output := common.FooArray{
@@ -64,8 +68,8 @@ func parseData(data []byte) {
 	// 	return nil
 	// }
 
+	//nolint:errcheck
 	jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-
 		e, errInner := getEntry(value)
 		if errInner != nil {
 			fmt.Printf("Error decoding input2: %v\n", errInner)
@@ -73,7 +77,6 @@ func parseData(data []byte) {
 		}
 
 		output.Entries = append(output.Entries, e)
-
 	}, "entries")
 
 	common.PrintMemUsage()
@@ -84,6 +87,7 @@ func parseData(data []byte) {
 func getEntry(data []byte) (*common.Foo, error) {
 	e := &common.Foo{}
 
+	//nolint:errcheck
 	jsonparser.ObjectEach(data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 		switch string(key) {
 		case "id":
@@ -111,7 +115,9 @@ func getEntry(data []byte) (*common.Foo, error) {
 			fmt.Printf("Unexpected Input: %v\n", key)
 			return errors.New("Unexpected Input: " + string(key))
 		}
+
 		return nil
 	})
+
 	return e, nil
 }

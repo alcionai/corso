@@ -7,7 +7,9 @@ func Benchmark_parseData(b *testing.B) {
 	if err != nil {
 		return
 	}
+
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		parseData(d)
 	}
