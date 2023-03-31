@@ -72,6 +72,7 @@ func NewBackupOperation(
 		Version:       "v0",
 		account:       acct,
 		incremental:   useIncrementalBackup(selector, opts),
+		bp:            bp,
 	}
 
 	if err := op.validate(); err != nil {
