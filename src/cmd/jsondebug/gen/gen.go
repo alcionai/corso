@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/alcionai/corso/src/cmd/jsondebug/common"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -28,8 +30,18 @@ func main() {
 			)
 			return
 		}
+		content := common.Content{
+			ID:   uuid.NewString(),
+			Data: buf,
+		}
+		payload, _ := json.Marshal(content)
 
-		item := common.Foo{A: buf}
+		item := common.Foo{
+			ID:      uuid.NewString(),
+			Labels:  map[string]string{"foo": "bar"},
+			ModTime: time.Now(),
+			Content: payload,
+		}
 		data.Entries = append(data.Entries, &item)
 	}
 

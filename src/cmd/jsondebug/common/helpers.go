@@ -1,8 +1,10 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
+	"time"
 )
 
 const (
@@ -16,7 +18,16 @@ type FooArray struct {
 }
 
 type Foo struct {
-	A []byte
+	ID      string            `json:"id"`
+	Labels  map[string]string `json:"labels"`
+	ModTime time.Time         `json:"modified"`
+	Deleted bool              `json:"deleted,omitempty"`
+	Content json.RawMessage   `json:"data"`
+}
+
+type Content struct {
+	ID   string `json:"id"`
+	Data []byte `json:"data"`
 }
 
 func PrintMemUsage() {

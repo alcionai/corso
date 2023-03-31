@@ -32,20 +32,34 @@ func main() {
 
 	common.PrintMemUsage()
 
+	// var handler func([]byte, []byte, jsonparser.ValueType, int) error
+	// handler := func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+	// 	fmt.Printf("Key: '%s'\n Value: '%s'\n Type: %s\n", string(key), string(value), dataType)
+	// 	return nil
+	// }
+
 	jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		buf, _, _, errInner := jsonparser.Get(value, "A")
+
+		id, _ := jsonparser.GetString(value, "id")
+		content, _, _, errInner := jsonparser.Get(value, "data")
 		if errInner != nil {
-			fmt.Printf("Error decoding input: %v\n", err)
+			fmt.Printf("Error decoding input: %v\n", errInner)
 			return
 		}
-		_ = value
-		cpBuf := make([]byte, len(buf))
-		_ = copy(cpBuf, buf)
+
+		cpBuf := make([]byte, len(content))
+		_ = copy(cpBuf, content)
 		e := &common.Foo{
-			A: cpBuf,
+			ID:      id,
+			Content: cpBuf,
 		}
 		output.Entries = append(output.Entries, e)
+
 	}, "entries")
 
 	common.PrintMemUsage()
+
+	// for _, e := range output.Entries {
+	// 	fmt.Printf("ID: '%s'\n Content: %s \n", e.ID, e.Content)
+	// }
 }
