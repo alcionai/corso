@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -30,7 +31,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-var ErrorRepoAlreadyExists = clues.New("a repository was already initialized with that configuration")
+var (
+	ErrorRepoAlreadyExists = clues.New("a repository was already initialized with that configuration")
+	ErrorBackupNotFound    = clues.New("no backup exists with that id")
+)
 
 // BackupGetter deals with retrieving metadata about backups from the
 // repository.
@@ -329,10 +333,23 @@ func (r repository) NewRestore(
 		r.Bus)
 }
 
-// backups lists a backup by id
+// GetBackup retrieves a backup by id.
 func (r repository) Backup(ctx context.Context, id string) (*backup.Backup, error) {
-	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetBackup(ctx, model.StableID(id))
+	return getBackup(ctx, id, store.NewKopiaStore(r.modelStore))
+}
+
+// getBackup handles the processing for Backup.
+func getBackup(
+	ctx context.Context,
+	id string,
+	sw store.BackupGetter,
+) (*backup.Backup, error) {
+	b, err := sw.GetBackup(ctx, model.StableID(id))
+	if err != nil {
+		return nil, errWrapper(err)
+	}
+
+	return b, nil
 }
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
@@ -349,7 +366,7 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 
 		b, err := sw.GetBackup(ictx, model.StableID(id))
 		if err != nil {
-			errs.AddRecoverable(clues.Stack(err))
+			errs.AddRecoverable(errWrapper(err))
 		}
 
 		bups = append(bups, b)
@@ -387,12 +404,12 @@ func getBackupDetails(
 	ctx context.Context,
 	backupID, tenantID string,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupGetter,
 	errs *fault.Bus,
 ) (*details.Details, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errWrapper(err)
 	}
 
 	ssid := b.StreamStoreID
@@ -457,12 +474,12 @@ func getBackupErrors(
 	ctx context.Context,
 	backupID, tenantID string,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupGetter,
 	errs *fault.Bus,
 ) (*fault.Errors, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errWrapper(err)
 	}
 
 	ssid := b.StreamStoreID
@@ -487,30 +504,42 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
+type snapshotDeleter interface {
+	DeleteSnapshot(ctx context.Context, snapshotID string) error
+}
+
 // DeleteBackup removes the backup from both the model store and the backup storage.
 func (r repository) DeleteBackup(ctx context.Context, id string) error {
-	bu, err := r.Backup(ctx, id)
+	return deleteBackup(ctx, id, r.dataLayer, store.NewKopiaStore(r.modelStore))
+}
+
+// deleteBackup handles the processing for Backup.
+func deleteBackup(
+	ctx context.Context,
+	id string,
+	kw snapshotDeleter,
+	sw store.BackupGetterDeleter,
+) error {
+	b, err := sw.GetBackup(ctx, model.StableID(id))
 	if err != nil {
+		return errWrapper(err)
+	}
+
+	if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
 		return err
 	}
 
-	if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
-		return err
-	}
-
-	if len(bu.SnapshotID) > 0 {
-		if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
+	if len(b.SnapshotID) > 0 {
+		if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
 			return err
 		}
 	}
 
-	if len(bu.DetailsID) > 0 {
-		if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
+	if len(b.DetailsID) > 0 {
+		if err := kw.DeleteSnapshot(ctx, b.DetailsID); err != nil {
 			return err
 		}
 	}
-
-	sw := store.NewKopiaStore(r.modelStore)
 
 	return sw.DeleteBackup(ctx, model.StableID(id))
 }
@@ -589,4 +618,12 @@ func connectToM365(
 	}
 
 	return gc, nil
+}
+
+func errWrapper(err error) error {
+	if errors.Is(err, data.ErrNotFound) {
+		return clues.Stack(ErrorBackupNotFound, err)
+	}
+
+	return err
 }
