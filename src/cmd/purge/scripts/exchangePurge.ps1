@@ -239,7 +239,7 @@ function Get-FoldersToPurge {
         }
 
         if ((IsNameMatch @IsNameMatchParams) -or (IsPrefixAndAgeMatch @IsPrefixAndAgeMatchParams)) {
-            Write-Host "`nFound desired folder to purge: $folderName ($folderCreateTime)"
+            Write-Host "• Found: $folderName ($folderCreateTime)"
             $foldersToDelete += $folder
         }
     }
@@ -273,7 +273,13 @@ function Empty-Folder {
     }
 
     if ($PSCmdlet.ShouldProcess("Emptying $foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)", "$foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)", "Empty folders")) {
-        Write-Host "`nEmptying $foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)"
+        Write-Host "`nEmptying $foldersToEmptyCount folders..."
+        foreach ($folder in $FolderNameList) {
+            Write-Host "• $folder"
+        }
+        foreach ($folder in $WellKnownRootList) {
+            Write-Host "• $folder"
+        }
 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
@@ -308,6 +314,9 @@ function Delete-Folder {
 
     if ($PSCmdlet.ShouldProcess("Removing $foldersToRemoveCount folders ($FolderNameList)", "$foldersToRemoveCount folders ($FolderNameList)", "Delete folders")) {
         Write-Host "`nRemoving $foldersToRemoveCount folders ($FolderNameList)"
+        foreach ($folder in $FolderNameList) {
+            Write-Host "• $folder"
+        }
 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
@@ -353,7 +362,10 @@ function Purge-Folders {
     }
 
     if ($FolderPrefixPurgeList.count -gt 0 -and $PurgeBeforeTimestamp -ne $null) {
-        Write-Host "Folders older than $PurgeBeforeTimestamp with prefix: $FolderPrefixPurgeList"
+        Write-Host "Folders older than $PurgeBeforeTimestamp with prefix:"
+        foreach ($folder in $FolderPrefixPurgeList) {
+            Write-Host "• $folder"
+        }
     }
 
     $foldersToDeleteParams = @{
@@ -384,6 +396,28 @@ function Purge-Folders {
         Empty-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
         Delete-Folder -FolderIdList $foldersToDeleteIds -FolderNameList $folderNames
     }
+}
+
+function Get-ContactCount {
+    $body = @"
+    <FindItem xmlns="https://schemas.microsoft.com/exchange/services/2006/messages"
+        xmlns:t="https://schemas.microsoft.com/exchange/services/2006/types"
+        Traversal="Shallow">
+    <ItemShape>
+        <t:BaseShape>IdOnly</t:BaseShape>
+    </ItemShape>
+    <ParentFolderIds>
+        <t:DistinguishedFolderId Id="contacts"/>
+    </ParentFolderIds>
+</FindItem>
+"@
+
+    $getContactMsg = Initialize-SOAPMessage -User $User -Body $body
+    $response = Invoke-SOAPRequest -Token $Token -Message $getContactMsg
+
+    Write-Host "R $response"
+    Write-Host "M $response | measure"
+    Write-Host $response.Count
 }
 
 function Create-Contact {
@@ -492,11 +526,6 @@ function Purge-Contacts {
     Write-Host "`nCleaning up contacts older than $PurgeBeforeTimestamp" 
     Write-Host "-------------------------------------------------------" 
 
-    # Create one seed contact which will have recent create date and will not be sweapt
-    # This is needed since tests rely on some contact data being present
-    Write-Host "`nCreating seed contact" 
-    Create-Contact
-
     $moreToList = $True
     # only get max of 1000 results so we may need to iterate over eligible contacts  
     while ($moreToList) {
@@ -536,6 +565,16 @@ function Purge-Contacts {
         
         }
     }
+
+    # use this to check for count of existing contacts.
+    # if non-zero, we don't need to call Create-Contact
+    Get-ContactCount
+
+    # Create one seed contact which will have recent create date and will not be swept
+    # This is needed since tests rely on some contact data being present
+
+    Write-Host "`nCreating seed contact" 
+    # Create-Contact
 }
 
 Write-Host 'Authenticating with Exchange Web Services ...'
