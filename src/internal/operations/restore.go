@@ -152,6 +152,7 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
+	finalizeErrorHandling(ctx, op.Options, op.Errors, "running restore")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
 
 	// -----
