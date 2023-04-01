@@ -186,7 +186,7 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, observe.Safe("Restoring"), observe.Bullet, observe.PII(bup.Selector.DiscreteOwner))
+	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
 
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
 	if err != nil {
@@ -211,10 +211,10 @@ func (op *RestoreOperation) do(
 			events.RestoreID:        opStats.restoreID,
 		})
 
-	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
+	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 	logger.Ctx(ctx).With("selectors", op.Selectors).Info("restoring selection")
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
+	kopiaComplete, closer := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
 	defer closer()
 	defer close(kopiaComplete)
 
@@ -318,7 +318,7 @@ func consumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 ) (*details.Details, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Restoring data")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)

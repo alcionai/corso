@@ -1115,27 +1115,28 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				path.FilesCategory.String(),
 			},
 		},
-		// SharePoint lists and pages don't seem to check selectors as expected.
-		//{
-		//	name:     "SharePoint",
-		//	resource: Sites,
-		//	selectorFunc: func(t *testing.T) selectors.Selector {
-		//    sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
-		//    sel.Include(
-		//      sel.Pages([]string{selectors.NoneTgt}),
-		//      sel.Lists([]string{selectors.NoneTgt}),
-		//      sel.Libraries([]string{selectors.NoneTgt}),
-		//    )
+		{
+			name:     "SharePoint",
+			resource: Sites,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
+				sel.Include(
+					sel.LibraryFolders([]string{selectors.NoneTgt}),
+					// not yet in use
+					//  sel.Pages([]string{selectors.NoneTgt}),
+					//  sel.Lists([]string{selectors.NoneTgt}),
+				)
 
-		//    return sel.Selector
-		//	},
-		//  service: path.SharePointService,
-		//	categories: []string{
-		//		path.PagesCategory.String(),
-		//		path.ListsCategory.String(),
-		//		path.LibrariesCategory.String(),
-		//	},
-		//},
+				return sel.Selector
+			},
+			service: path.SharePointService,
+			categories: []string{
+				path.LibrariesCategory.String(),
+				// not yet in use
+				// path.PagesCategory.String(),
+				// path.ListsCategory.String(),
+			},
+		},
 	}
 
 	for _, test := range table {
