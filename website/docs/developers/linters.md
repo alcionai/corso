@@ -11,7 +11,8 @@ there's also a docker container available. Instructions for installation are
 available on the golangci-lint
 [website](https://golangci-lint.run/usage/install/#local-installation). The
 version that you install should match the version the GitHub workflow uses to
-avoid failures even after running locally. The current version in use can be [found](https://github.com/alcionai/corso/blob/main/.github/workflows/ci.yml#L419) in `.github/worflows/ci.yaml`.
+avoid failures even after running locally. The current version in use can be [found](https://github.com/alcionai/corso/blob/main/.github/workflows/ci.yml#L419) in 
+`.github/worflows/ci.yml`.
 
 ## Running the linter
 
