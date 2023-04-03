@@ -149,18 +149,20 @@ func (s Selector) DiscreteResourceOwners() []string {
 }
 
 // SetDiscreteOwnerIDName ensures the selector has the correct discrete owner
-// id and name.  It is assumed that these values are sourced using the current
+// id and name.  Assumes that these values are sourced using the current
 // s.DiscreteOwner as input.  The reason for taking in both the id and name, and
 // not just the name, is so that constructors can input owner aliases in place
 // of  ids, with the expectation that the two will get sorted and re-written
 // later on with this setter.
+//
+// If the id is empty, the original DiscreteOwner value is retained.
+// If the name is empty, the id is duplicated as the name.
 func (s Selector) SetDiscreteOwnerIDName(id, name string) Selector {
 	r := s
 
 	if len(id) == 0 {
 		// assume a the discreteOwner is already set, and don't replace anything.
-		r.DiscreteOwnerName = s.DiscreteOwner
-		return r
+		id = s.DiscreteOwner
 	}
 
 	r.DiscreteOwner = id

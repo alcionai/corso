@@ -279,7 +279,7 @@ func (suite *SelectorSuite) TestSetDiscreteOwnerIDName() {
 		{"only id", "", "", "id", "", "id", "id"},
 		{"only name", "", "", "", "", "", ""},
 		{"both", "", "", "id", "name", "id", "name"},
-		{"both", "init-id", "", "", "name", "init-id", "init-id"},
+		{"both", "init-id", "", "", "name", "init-id", "name"},
 	}
 	for _, test := range table {
 		suite.Run(test.title, func() {
