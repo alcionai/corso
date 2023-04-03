@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -104,8 +105,7 @@ func uploadLargeAttachment(
 
 	url := ptr.Val(session.GetUploadUrl())
 	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
-	// TODO: url pii refinementt
-	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", clues.Hide(url))
+	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", graph.LoggableURL(url))
 
 	// Upload the stream data
 	copyBuffer := make([]byte, attachmentChunkSize)
