@@ -296,6 +296,9 @@ func (r repository) NewBackup(
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
 
+	// TODO: retrieve display name from gc
+	sel = sel.SetDiscreteOwnerIDName(sel.DiscreteOwner, "")
+
 	return operations.NewBackupOperation(
 		ctx,
 		r.Opts,
@@ -304,7 +307,7 @@ func (r repository) NewBackup(
 		gc,
 		r.Account,
 		sel,
-		sel.DiscreteOwner,
+		sel,
 		r.Bus)
 }
 

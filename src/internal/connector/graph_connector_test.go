@@ -459,8 +459,7 @@ func runBackupAndCompare(
 	start := time.Now()
 	dcs, excludes, err := backupGC.ProduceBackupCollections(
 		ctx,
-		backupSel.DiscreteOwner,
-		backupSel.DiscreteOwner,
+		backupSel,
 		backupSel,
 		nil,
 		config.opts,
@@ -1000,8 +999,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
-				backupSel.DiscreteOwner,
-				backupSel.DiscreteOwner,
+				backupSel,
 				backupSel,
 				nil,
 				control.Options{
@@ -1154,8 +1152,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
-				backupSel.DiscreteOwner,
-				backupSel.DiscreteOwner,
+				backupSel,
 				backupSel,
 				nil,
 				control.Options{
