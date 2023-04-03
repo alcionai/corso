@@ -504,6 +504,11 @@ function Purge-Contacts {
     Write-Host "`nCleaning up contacts older than $PurgeBeforeTimestamp" 
     Write-Host "-------------------------------------------------------" 
 
+    # Create one seed contact which will have recent create date and will not be swept
+    # This is needed since tests rely on some contact data being present
+    Write-Host "`nCreating seed contact" 
+    Create-Contact
+
     $moreToList = $True
     # only get max of 1000 results so we may need to iterate over eligible contacts  
     while ($moreToList) {
@@ -543,12 +548,6 @@ function Purge-Contacts {
         
         }
     }
-
-    # Create one seed contact which will have recent create date and will not be swept
-    # This is needed since tests rely on some contact data being present
-
-    Write-Host "`nCreating seed contact" 
-    Create-Contact
 }
 
 Write-Host 'Authenticating with Exchange Web Services ...'
