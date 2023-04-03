@@ -115,7 +115,6 @@ func filterContainersAndFillCollections(
 			deltaURLs[cID] = newDelta.URL
 		}
 
-
 		edc := NewCollection(
 			qp.ResourceOwner,
 			currPath,
