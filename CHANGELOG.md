@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enable compression for all data uploaded by kopia.
 - SharePoint --folder selectors correctly return items.
 - Fix Exchange cli args for filtering items
-- Skip huge OneNote items that Graph API prevents us from downloading
 - Skip OneNote items bigger than 2GB (Graph API prevents us from downloading them)
+- ParentPath of json output for Exchange calendar now shows names instead of IDs.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
