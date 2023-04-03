@@ -99,7 +99,17 @@ const (
 						"numberOfOccurrences": 0
 					}
 				},
-				"attendees": [],
+				"attendees": [{
+					"emailAddress": {
+						"address":"george.martinez@8qzvrj.onmicrosoft.com",
+						"name": "George Martinez"
+					},
+					"type": "required",
+					"status": {
+						"response": "none",
+						"time": "0001-01-01T00:00:00Z"
+					}
+				}],
 				"organizer": {
 					"emailAddress": {
 						"name": "Megan Bowen",
