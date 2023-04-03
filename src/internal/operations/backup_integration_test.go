@@ -154,7 +154,7 @@ func newTestBackupOp(
 
 	opts.ToggleFeatures = featureToggles
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel.DiscreteOwner, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -566,6 +566,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			sel := selectors.Selector{DiscreteOwner: "test"}
+
 			_, err := NewBackupOperation(
 				ctx,
 				test.opts,
@@ -573,8 +575,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.sw,
 				test.bp,
 				test.acct,
-				selectors.Selector{DiscreteOwner: "test"},
-				"test-name",
+				sel,
+				sel,
 				evmock.NewBus())
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
