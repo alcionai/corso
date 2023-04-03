@@ -157,6 +157,12 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 				"test failure: Restore item counts do not match",
 				"expected:", emailCount,
 				"actual:", restoreMessageCount[fldName])
+
+			fmt.Println(
+				"test failure: Restore item counts do not match",
+				"* expected:", emailCount,
+				"* actual:", restoreMessageCount[fldName])
+
 			os.Exit(1)
 		}
 	}
@@ -319,15 +325,8 @@ func checkOnedriveRestoration(
 		}
 
 		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
-
-		if hasTime {
-			if startTime.Before(folderTime) {
-				logger.Ctx(ctx).
-					With("boundary_time", startTime, "check_time", folderTime).
-					Info("skipping restore folder: not older than time bound")
-
-				continue
-			}
+		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+			continue
 		}
 
 		// if it's a file check the size
@@ -343,6 +342,8 @@ func checkOnedriveRestoration(
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
 			logger.Ctx(ctx).Info("skipped empty folder: ", itemName)
+			fmt.Println("skipped empty folder: ", itemName)
+
 			continue
 		}
 
@@ -353,21 +354,27 @@ func checkOnedriveRestoration(
 	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
+		logger.Ctx(ctx).Info("checking for folder: %s \n", folderName)
 		fmt.Printf("checking for folder: %s \n", folderName)
 
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
 		if len(permissions) < 1 {
 			logger.Ctx(ctx).Info("no permissions found for folder :", folderName)
+			fmt.Println("no permissions found for folder :", folderName)
+
 			continue
 		}
 
 		if len(restoreFolderPerm) < 1 {
-			logger.Ctx(ctx).Info("blank permission found for folder :", folderName,
-				" in while restore. Original permissions: ", permissions)
-			fmt.Println("permission roles are not equal:")
+			logger.Ctx(ctx).Info("permission roles are not equal for :",
+				"Item:", folderName,
+				"* Permission found: ", permissions,
+				"* blank permission found in restore.")
+
+			fmt.Println("permission roles are not equal for:")
 			fmt.Println("Item:", folderName)
-			fmt.Println("Permission found: ", permissions)
+			fmt.Println("* Permission found: ", permissions)
 			fmt.Println("blank permission found in restore.")
 
 			os.Exit(1)
@@ -378,12 +385,15 @@ func checkOnedriveRestoration(
 
 			if !(orginalPerm.entityID != restorePerm.entityID) &&
 				!slices.Equal(orginalPerm.roles, restorePerm.roles) {
-				fmt.Printf("Item: %s\nOriginal Entity ID: %s\nRestored Entity ID: %s\nOriginal roles: %+v\nRestored roles: %+v\n",
-					folderName,
-					orginalPerm.entityID,
-					restorePerm.entityID,
-					orginalPerm.roles,
-					restorePerm.entityID)
+				logger.Ctx(ctx).Info("permission roles are not equal for :",
+					"Item:", folderName,
+					"* Original permission: ", orginalPerm.entityID,
+					"* Restored permission: ", restorePerm.entityID)
+
+				fmt.Println("permission roles are not equal for:")
+				fmt.Println("Item:", folderName)
+				fmt.Println("* Original permission: ", orginalPerm.entityID)
+				fmt.Println("* Restored permission: ", restorePerm.entityID)
 				os.Exit(1)
 			}
 		}
@@ -391,10 +401,15 @@ func checkOnedriveRestoration(
 
 	for fileName, fileSize := range fileSizes {
 		if fileSize != restoreFile[fileName] {
-			fmt.Println("File size does not match:")
+			logger.Ctx(ctx).Info("File size does not match for:",
+				"Item:", fileName,
+				"*  expected:", fileSize,
+				"*  actual:", restoreFile[fileName])
+
+			fmt.Println("File size does not match for:")
+			fmt.Println("item:", fileName)
 			fmt.Println("*  expected:", fileSize)
 			fmt.Println("*  actual:", restoreFile[fileName])
-			fmt.Println("Item:", fileName)
 			os.Exit(1)
 		}
 	}
@@ -423,15 +438,8 @@ func getOneDriveChildFolder(
 		)
 
 		folderTime, hasTime := mustGetTimeFromName(ctx, itemName)
-
-		if hasTime {
-			if startTime.Before(folderTime) {
-				logger.Ctx(ctx).
-					With("boundary_time", startTime, "check_time", folderTime).
-					Info("skipping restore folder: not older than time bound")
-
-				continue
-			}
+		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+			continue
 		}
 
 		// if it's a file check the size
@@ -447,6 +455,8 @@ func getOneDriveChildFolder(
 		// skip permission check for empty folders
 		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
 			logger.Ctx(ctx).Info("skipped empty folder: ", fullName)
+			fmt.Println("skipped empty folder: ", fullName)
+
 			continue
 		}
 
@@ -553,16 +563,16 @@ func mustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
 	return t, !errors.Is(err, common.ErrNoTimeString)
 }
 
-// func isWithinTimeBound(ctx context.Context, bound, check time.Time, skip bool) bool {
+func isWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool) bool {
+	if hasTime {
+		if bound.Before(check) {
+			logger.Ctx(ctx).
+				With("boundary_time", bound, "check_time", check).
+				Info("skipping restore folder: not older than time bound")
 
-// 	if !skip {
-// 		if bound.Before(check) {
-// 			logger.Ctx(ctx).
-// 				With("boundary_time", bound, "check_time", folderTime).
-// 				Info("skipping restore folder: not older than time bound")
-// 			return false
-// 		}
-// 	}
+			return false
+		}
+	}
 
-// 	return true
-// }
+	return true
+}
