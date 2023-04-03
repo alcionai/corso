@@ -56,7 +56,7 @@ func DataCollections(
 
 		foldersComplete, closer := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", observe.Safe(scope.Category().PathType().String())))
+			observe.Bulletf("%s", scope.Category().PathType()))
 		defer closer()
 		defer close(foldersComplete)
 

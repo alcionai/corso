@@ -162,7 +162,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 		getter                mockGetter
 		resolver              graph.ContainerResolver
 		scope                 selectors.ExchangeScope
-		failFast              bool
+		failFast              control.FailureBehavior
 		expectErr             assert.ErrorAssertionFunc
 		expectNewColls        int
 		expectMetadataColls   int
@@ -271,7 +271,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:              newMockResolver(container1, container2),
 			scope:                 allScope,
-			failFast:              true,
+			failFast:              control.FailFast,
 			expectErr:             assert.NoError,
 			expectNewColls:        2,
 			expectMetadataColls:   1,
@@ -285,7 +285,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 			},
 			resolver:            newMockResolver(container1, container2),
 			scope:               allScope,
-			failFast:            true,
+			failFast:            control.FailFast,
 			expectErr:           assert.Error,
 			expectNewColls:      0,
 			expectMetadataColls: 0,
@@ -309,8 +309,8 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
 				test.resolver,
 				test.scope,
 				dps,
-				control.Options{FailFast: test.failFast},
-				fault.New(test.failFast))
+				control.Options{FailureHandling: test.failFast},
+				fault.New(test.failFast == control.FailFast))
 			test.expectErr(t, err, clues.ToCore(err))
 
 			// collection assertions
@@ -465,7 +465,7 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 				resolver,
 				allScope,
 				dps,
-				control.Options{FailFast: true},
+				control.Options{FailureHandling: control.FailFast},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 

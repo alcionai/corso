@@ -24,9 +24,9 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockManifestRestorer struct {
-	mockRestorer
+	mockRestoreProducer
 	mans  []*kopia.ManifestEntry
-	mrErr error // err varname already claimed by mockRestorer
+	mrErr error // err varname already claimed by mockRestoreProducer
 }
 
 func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
@@ -225,7 +225,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 			paths := test.expectPaths(t, test.fileNames)
 
-			mr := mockRestorer{err: test.expectErr}
+			mr := mockRestoreProducer{err: test.expectErr}
 			mr.buildRestoreFunc(t, test.manID, paths)
 
 			man := &kopia.ManifestEntry{
@@ -447,8 +447,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "don't get metadata, no mans",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{},
+				mockRestoreProducer: mockRestoreProducer{},
+				mans:                []*kopia.ManifestEntry{},
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -460,8 +460,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "don't get metadata",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
+				mockRestoreProducer: mockRestoreProducer{},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -473,8 +473,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "don't get metadata, incomplete manifest",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
+				mockRestoreProducer: mockRestoreProducer{},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -486,8 +486,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "fetch manifests errors",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mrErr:        assert.AnError,
+				mockRestoreProducer: mockRestoreProducer{},
+				mrErr:               assert.AnError,
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -499,7 +499,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "verify distinct bases fails",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
+				mockRestoreProducer: mockRestoreProducer{},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "", "", ""),
 					makeMan(path.EmailCategory, "", "", ""),
@@ -515,8 +515,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "no manifests",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{},
+				mockRestoreProducer: mockRestoreProducer{},
+				mans:                []*kopia.ManifestEntry{},
 			},
 			gb:        mockGetBackuper{detailsID: did},
 			reasons:   []kopia.Reason{},
@@ -528,7 +528,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "only incomplete manifests",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
+				mockRestoreProducer: mockRestoreProducer{},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "", "ir", ""),
 					makeMan(path.ContactsCategory, "", "ir", ""),
@@ -544,9 +544,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "man missing backup id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-				}},
+				mockRestoreProducer: mockRestoreProducer{
+					collsByID: map[string][]data.RestoreCollection{
+						"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+					},
+				},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
 			},
 			gb:            mockGetBackuper{detailsID: did},
@@ -559,8 +561,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "backup missing details id",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
+				mockRestoreProducer: mockRestoreProducer{},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
 			gb:        mockGetBackuper{},
 			reasons:   []kopia.Reason{},
@@ -571,10 +573,12 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "one complete, one incomplete",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id":        {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-					"incmpl_id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
-				}},
+				mockRestoreProducer: mockRestoreProducer{
+					collsByID: map[string][]data.RestoreCollection{
+						"id":        {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+						"incmpl_id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
+					},
+				},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "id", "", "bid"),
 					makeMan(path.EmailCategory, "incmpl_id", "ir", ""),
@@ -590,9 +594,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "single valid man",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-				}},
+				mockRestoreProducer: mockRestoreProducer{
+					collsByID: map[string][]data.RestoreCollection{
+						"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
+					},
+				},
 				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
 			},
 			gb:        mockGetBackuper{detailsID: did},
@@ -605,10 +611,12 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "multiple valid mans",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"mail":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
-					"contact": {data.NotFoundRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
-				}},
+				mockRestoreProducer: mockRestoreProducer{
+					collsByID: map[string][]data.RestoreCollection{
+						"mail":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
+						"contact": {data.NotFoundRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
+					},
+				},
 				mans: []*kopia.ManifestEntry{
 					makeMan(path.EmailCategory, "mail", "", "bid"),
 					makeMan(path.ContactsCategory, "contact", "", "bid"),
@@ -627,8 +635,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 		{
 			name: "error collecting metadata",
 			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{err: assert.AnError},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
+				mockRestoreProducer: mockRestoreProducer{err: assert.AnError},
+				mans:                []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
 			},
 			gb:            mockGetBackuper{detailsID: did},
 			reasons:       []kopia.Reason{},
@@ -961,7 +969,7 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mr := &mockRestorer{}
+			mr := &mockRestoreProducer{}
 
 			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))

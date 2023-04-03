@@ -27,19 +27,23 @@ import (
 // Data Collections
 // ---------------------------------------------------------------------------
 
-// DataCollections utility function to launch backup operations for exchange and
-// onedrive. metadataCols contains any collections with metadata files that may
-// be useful for the current backup. Metadata can include things like delta
-// tokens or the previous backup's folder hierarchy. The absence of metadataCols
-// results in all data being pulled.
-func (gc *GraphConnector) DataCollections(
+// ProduceBackupCollections generates a slice of data.BackupCollections for the service
+// specified in the selectors.
+// The metadata field can include things like delta tokens or the previous backup's
+// folder hierarchy. The absence of metadata causes the collection creation to ignore
+// prior history (ie, incrementals) and run a full backup.
+func (gc *GraphConnector) ProduceBackupCollections(
 	ctx context.Context,
+	ownerID, ownerName string,
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:dataCollections", diagnostics.Index("service", sels.Service.String()))
+	ctx, end := diagnostics.Span(
+		ctx,
+		"gc:produceBackupCollections",
+		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
 	err := verifyBackupInputs(sels, gc.GetSiteIDs())
@@ -188,10 +192,10 @@ func checkServiceEnabled(
 	return true, nil
 }
 
-// RestoreDataCollections restores data from the specified collections
+// ConsumeRestoreCollections restores data from the specified collections
 // into M365 using the GraphAPI.
 // SideEffect: gc.status is updated at the completion of operation
-func (gc *GraphConnector) RestoreDataCollections(
+func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	acct account.Account,

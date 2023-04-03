@@ -432,7 +432,7 @@ func (c *Collections) Get(
 		}
 	}
 
-	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
+	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
 	// Add an extra for the metadata collection.
 	collections := []data.BackupCollection{}

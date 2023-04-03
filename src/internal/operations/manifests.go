@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -27,7 +28,7 @@ type manifestFetcher interface {
 
 type manifestRestorer interface {
 	manifestFetcher
-	restorer
+	inject.RestoreProducer
 }
 
 type getBackuper interface {
@@ -173,7 +174,7 @@ func verifyDistinctBases(ctx context.Context, mans []*kopia.ManifestEntry) error
 // collectMetadata retrieves all metadata files associated with the manifest.
 func collectMetadata(
 	ctx context.Context,
-	r restorer,
+	r inject.RestoreProducer,
 	man *kopia.ManifestEntry,
 	fileNames []string,
 	tenantID string,
@@ -201,7 +202,7 @@ func collectMetadata(
 		}
 	}
 
-	dcs, err := r.RestoreMultipleItems(ctx, string(man.ID), paths, nil, errs)
+	dcs, err := r.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, errs)
 	if err != nil {
 		// Restore is best-effort and we want to keep it that way since we want to
 		// return as much metadata as we can to reduce the work we'll need to do.

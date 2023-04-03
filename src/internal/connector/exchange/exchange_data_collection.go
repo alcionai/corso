@@ -186,7 +186,8 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		colProgress, closer = observe.CollectionProgress(
 			ctx,
 			col.fullPath.Category().String(),
-			observe.PII(col.fullPath.Folder(false)))
+			// TODO(keepers): conceal compliance in path, drop Hide()
+			clues.Hide(col.fullPath.Folder(false)))
 
 		go closer()
 
