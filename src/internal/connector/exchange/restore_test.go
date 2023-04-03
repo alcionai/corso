@@ -117,7 +117,7 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	}()
 
 	info, err := RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithAttendeesBytes(name),
+		mockconnector.GetMockEventWithSubjectBytes(name),
 		suite.gs,
 		control.Copy,
 		calendarID,
