@@ -271,17 +271,19 @@ func (suite *SelectorSuite) TestIDName() {
 func (suite *SelectorSuite) TestSetDiscreteOwnerIDName() {
 	table := []struct {
 		title                string
+		initID, initName     string
 		id, name             string
 		expectID, expectName string
 	}{
-		{"empty", "", "", "", ""},
-		{"only id", "id", "", "id", "id"},
-		{"only name", "", "", "", ""},
-		{"both", "id", "name", "id", "name"},
+		{"empty", "", "", "", "", "", ""},
+		{"only id", "", "", "id", "", "id", "id"},
+		{"only name", "", "", "", "", "", ""},
+		{"both", "", "", "id", "name", "id", "name"},
+		{"both", "init-id", "", "", "name", "init-id", "init-id"},
 	}
 	for _, test := range table {
 		suite.Run(test.title, func() {
-			sel := Selector{}
+			sel := Selector{DiscreteOwner: test.initID, DiscreteOwnerName: test.initName}
 			sel = sel.SetDiscreteOwnerIDName(test.id, test.name)
 			assert.Equal(suite.T(), test.expectID, sel.ID())
 			assert.Equal(suite.T(), test.expectName, sel.Name())
