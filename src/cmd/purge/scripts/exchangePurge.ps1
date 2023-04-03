@@ -398,28 +398,6 @@ function Purge-Folders {
     }
 }
 
-function Get-ContactCount {
-    $body = @"
-    <FindItem xmlns="https://schemas.microsoft.com/exchange/services/2006/messages"
-        xmlns:t="https://schemas.microsoft.com/exchange/services/2006/types"
-        Traversal="Shallow">
-    <ItemShape>
-        <t:BaseShape>IdOnly</t:BaseShape>
-    </ItemShape>
-    <ParentFolderIds>
-        <t:DistinguishedFolderId Id="contacts"/>
-    </ParentFolderIds>
-</FindItem>
-"@
-
-    $getContactMsg = Initialize-SOAPMessage -User $User -Body $body
-    $response = Invoke-SOAPRequest -Token $Token -Message $getContactMsg
-
-    Write-Host "R $response"
-    Write-Host "M $response | measure"
-    Write-Host $response.Count
-}
-
 function Create-Contact {
     $now = (Get-Date (Get-Date).ToUniversalTime() -Format "o")
     #used to create a recent seed contact that will be shielded from cleanup. CI tests rely on this    
@@ -566,15 +544,11 @@ function Purge-Contacts {
         }
     }
 
-    # use this to check for count of existing contacts.
-    # if non-zero, we don't need to call Create-Contact
-    Get-ContactCount
-
     # Create one seed contact which will have recent create date and will not be swept
     # This is needed since tests rely on some contact data being present
 
     Write-Host "`nCreating seed contact" 
-    # Create-Contact
+    Create-Contact
 }
 
 Write-Host 'Authenticating with Exchange Web Services ...'
