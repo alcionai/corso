@@ -555,7 +555,7 @@ func mergeDetails(
 			if err != nil {
 				return clues.New("parsing base item info path").
 					WithClues(mctx).
-					With("repo_ref", entry.RepoRef) // todo: pii, path needs concealer compliance
+					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
 			// Although this base has an entry it may not be the most recent. Check
