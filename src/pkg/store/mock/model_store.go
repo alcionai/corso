@@ -14,13 +14,13 @@ import (
 // model wrapper model store
 // ------------------------------------------------------------
 
-type MockModelStore struct {
+type ModelStore struct {
 	backup *backup.Backup
 	err    error
 }
 
-func NewMock(b *backup.Backup, err error) *MockModelStore {
-	return &MockModelStore{
+func NewModelStoreMock(b *backup.Backup, err error) *ModelStore {
+	return &ModelStore{
 		backup: b,
 		err:    err,
 	}
@@ -30,11 +30,11 @@ func NewMock(b *backup.Backup, err error) *MockModelStore {
 // deleter iface
 // ------------------------------------------------------------
 
-func (mms *MockModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
+func (mms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
 	return mms.err
 }
 
-func (mms *MockModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
+func (mms *ModelStore) DeleteWithModelStoreID(ctx context.Context, id manifest.ID) error {
 	return mms.err
 }
 
@@ -42,7 +42,7 @@ func (mms *MockModelStore) DeleteWithModelStoreID(ctx context.Context, id manife
 // getter iface
 // ------------------------------------------------------------
 
-func (mms *MockModelStore) Get(
+func (mms *ModelStore) Get(
 	ctx context.Context,
 	s model.Schema,
 	id model.StableID,
@@ -64,7 +64,7 @@ func (mms *MockModelStore) Get(
 	return nil
 }
 
-func (mms *MockModelStore) GetIDsForType(
+func (mms *ModelStore) GetIDsForType(
 	ctx context.Context,
 	s model.Schema,
 	tags map[string]string,
@@ -82,7 +82,7 @@ func (mms *MockModelStore) GetIDsForType(
 	return nil, clues.New("schema not supported by mock GetIDsForType").With("schema", s)
 }
 
-func (mms *MockModelStore) GetWithModelStoreID(
+func (mms *ModelStore) GetWithModelStoreID(
 	ctx context.Context,
 	s model.Schema,
 	id manifest.ID,
@@ -108,7 +108,7 @@ func (mms *MockModelStore) GetWithModelStoreID(
 // updater iface
 // ------------------------------------------------------------
 
-func (mms *MockModelStore) Put(ctx context.Context, s model.Schema, m model.Model) error {
+func (mms *ModelStore) Put(ctx context.Context, s model.Schema, m model.Model) error {
 	switch s {
 	case model.BackupSchema:
 		bm := m.(*backup.Backup)
@@ -121,7 +121,7 @@ func (mms *MockModelStore) Put(ctx context.Context, s model.Schema, m model.Mode
 	return mms.err
 }
 
-func (mms *MockModelStore) Update(ctx context.Context, s model.Schema, m model.Model) error {
+func (mms *ModelStore) Update(ctx context.Context, s model.Schema, m model.Model) error {
 	switch s {
 	case model.BackupSchema:
 		bm := m.(*backup.Backup)
