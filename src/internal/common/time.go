@@ -53,6 +53,7 @@ var (
 	dateOnlyRE              = regexp.MustCompile(`.*(\d{4}-\d{2}-\d{2}).*`)
 	legacyTimeRE            = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
+	simpleTimeTestingRE      = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}.\d{6}).*`)
 	simpleDateTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
 	simpleDateTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}).*`)
 	standardTimeRE           = regexp.MustCompile(
@@ -65,6 +66,7 @@ var (
 	// get eagerly chosen as the parsable format, slicing out some data.
 	formats = []TimeFormat{
 		StandardTime,
+		SimpleTimeTesting,
 		SimpleDateTime,
 		SimpleDateTimeOneDrive,
 		LegacyTime,
@@ -75,6 +77,7 @@ var (
 	}
 	regexes = []*regexp.Regexp{
 		standardTimeRE,
+		simpleTimeTestingRE,
 		simpleDateTimeRE,
 		simpleDateTimeOneDriveRE,
 		legacyTimeRE,
