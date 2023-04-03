@@ -333,7 +333,7 @@ func (r repository) NewRestore(
 		r.Bus)
 }
 
-// GetBackup retrieves a backup by id.
+// Backup retrieves a backup by id.
 func (r repository) Backup(ctx context.Context, id string) (*backup.Backup, error) {
 	return getBackup(ctx, id, store.NewKopiaStore(r.modelStore))
 }
