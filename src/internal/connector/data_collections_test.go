@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -168,7 +169,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 			name: "Invalid sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(sel.LibraryFolders(selectors.Any()))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -194,7 +195,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 			name: "missing sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(sel.LibraryFolders(selectors.Any()))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -238,7 +239,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name: "Libraries",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(sel.LibraryFolders(selectors.Any()))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -374,7 +375,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	)
 
 	sel := selectors.NewSharePointBackup(siteIDs)
-	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
+	sel.Include(sel.Lists(selectors.Any()))
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,

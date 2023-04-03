@@ -66,7 +66,7 @@ func newOperation(
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
-		Errors:    fault.New(opts.FailFast),
+		Errors:    fault.New(opts.FailureHandling == control.FailFast),
 		Options:   opts,
 
 		bus:   bus,

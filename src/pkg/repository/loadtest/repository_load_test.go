@@ -94,8 +94,8 @@ func initM365Repo(t *testing.T) (
 	st := tester.NewPrefixedS3Storage(t)
 	ac := tester.NewM365Account(t)
 	opts := control.Options{
-		DisableMetrics: true,
-		FailFast:       true,
+		DisableMetrics:  true,
+		FailureHandling: control.FailFast,
 	}
 
 	repo, err := repository.Initialize(ctx, ac, st, opts)
