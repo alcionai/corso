@@ -109,7 +109,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		suite.backupOps[set] = bop
 
 		// sanity check, ensure we can find the backup and its details immediately
-		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
+		_, err = suite.repo.Backup(ctx, string(bop.Results.BackupID))
 		require.NoError(t, err, "retrieving recent backup by ID", clues.ToCore(err))
 
 		_, _, errs := suite.repo.GetBackupDetails(ctx, string(bop.Results.BackupID))

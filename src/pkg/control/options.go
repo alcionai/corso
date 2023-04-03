@@ -8,18 +8,29 @@ import (
 type Options struct {
 	Collision            CollisionPolicy `json:"-"`
 	DisableMetrics       bool            `json:"disableMetrics"`
-	FailFast             bool            `json:"failFast"`
+	FailureHandling      FailureBehavior `json:"failureHandling"`
+	ItemFetchParallelism int             `json:"itemFetchParallelism"`
 	RestorePermissions   bool            `json:"restorePermissions"`
 	SkipReduce           bool            `json:"skipReduce"`
-	ItemFetchParallelism int             `json:"itemFetchParallelism"`
 	ToggleFeatures       Toggles         `json:"ToggleFeatures"`
 }
+
+type FailureBehavior string
+
+const (
+	// fails and exits the run immediately
+	FailFast FailureBehavior = "fail-fast"
+	// recovers whenever possible, reports non-zero recoveries as a failure
+	FailAfterRecovery FailureBehavior = "fail-after-recovery"
+	// recovers whenever possible, does not report recovery as failure
+	BestEffort FailureBehavior = "best-effort"
+)
 
 // Defaults provides an Options with the default values set.
 func Defaults() Options {
 	return Options{
-		FailFast:       true,
-		ToggleFeatures: Toggles{},
+		FailureHandling: FailAfterRecovery,
+		ToggleFeatures:  Toggles{},
 	}
 }
 
