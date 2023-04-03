@@ -28,6 +28,29 @@ func (q *queryFilters) populate(qf ...FilterOption) {
 	}
 }
 
+type (
+	BackupWrapper interface {
+		BackupGetterDeleter
+		GetBackups(
+			ctx context.Context,
+			filters ...FilterOption,
+		) ([]*backup.Backup, error)
+	}
+
+	BackupGetterDeleter interface {
+		BackupGetter
+		BackupDeleter
+	}
+
+	BackupGetter interface {
+		GetBackup(ctx context.Context, backupID model.StableID) (*backup.Backup, error)
+	}
+
+	BackupDeleter interface {
+		DeleteBackup(ctx context.Context, backupID model.StableID) error
+	}
+)
+
 // Service ensures the retrieved backups only match
 // the specified service.
 func Service(pst path.ServiceType) FilterOption {
