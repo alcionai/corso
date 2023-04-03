@@ -437,7 +437,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 			ro, err := NewRestoreOperation(
 				ctx,
-				control.Options{FailFast: true},
+				control.Options{FailureHandling: control.FailFast},
 				suite.kw,
 				suite.sw,
 				bup.gc,

@@ -419,7 +419,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		observe.PII(queuedPath),
+		// TODO(keepers): conceal compliance in path, drop Hide()
+		clues.Hide(queuedPath),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -517,7 +518,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
-						observe.PII(itemID+dataSuffix),
+						clues.Hide(itemID+dataSuffix),
 						itemSize)
 					go closer()
 
@@ -533,8 +534,11 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 				progReader, closer := observe.ItemProgress(
-					ctx, itemMeta, observe.ItemBackupMsg,
-					observe.PII(metaFileName+metaSuffix), int64(itemMetaSize))
+					ctx,
+					itemMeta,
+					observe.ItemBackupMsg,
+					clues.Hide(metaFileName+metaSuffix),
+					int64(itemMetaSize))
 				go closer()
 				return progReader, nil
 			})

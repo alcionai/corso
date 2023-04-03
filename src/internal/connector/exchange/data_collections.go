@@ -279,7 +279,7 @@ func createCollections(
 
 	foldersComplete, closer := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", observe.Safe(qp.Category.String())))
+		observe.Bulletf("%s", qp.Category))
 	defer closer()
 	defer close(foldersComplete)
 
