@@ -515,12 +515,11 @@ function Get-ItemsToPurge {
         | Select-Object -ExpandProperty Value
         | Get-Date
 
-        # can be improved to generalize the field to use as a name. Assume events if using subfolder and contacts otherwise
-        if (![String]::IsNullOrEmpty($SubFolderName)) {
-            $itemName = $item.Subject
-        }
-        else {
-            $itemName = $item.DisplayName
+        # can be improved to pass the field to use as a name as a parameter but this is good for now
+        switch -casesensitive ($WellKnownRoot) {
+            "calendar" { $itemName = $item.Subject }
+            "contacts" { $itemName = $item.DisplayName }
+            Default { $itemName = $item.DisplayName }
         }
 
         if ([String]::IsNullOrEmpty($itemId) -or [String]::IsNullOrEmpty($changeKey)) {
