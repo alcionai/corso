@@ -96,3 +96,8 @@ docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
 ## Using Beta API calls
 
 In order to use the Beta Graph API, use `./Auth-Graph.ps1 -UseBeta $true`
+
+## Graph Powershell reference
+
+To learn about specific commands, see the 
+[Graph Powershell Reference](https://learn.microsoft.com/en-us/powershell/microsoftgraph/get-started?view=graph-powershell-1.0)
