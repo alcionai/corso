@@ -154,6 +154,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
+	// TODO: discovery of sharepoint sites instead of early GC construction.
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), *acct, connector.Sites, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to Microsoft APIs"))
@@ -175,7 +176,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"SharePoint", "site",
 		selectorSet,
-	)
+		nil) // TODO: prepopulate ids,names
 }
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {

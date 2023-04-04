@@ -120,7 +120,7 @@ func runLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run(prefix+"_load_test_main", func(t *testing.T) {
-		b, err := r.NewBackup(ctx, bupSel)
+		b, err := r.NewBackup(ctx, bupSel, nil)
 		require.NoError(t, err, clues.ToCore(err))
 
 		runBackupLoadTest(t, ctx, &b, service, usersUnderTest)
@@ -447,8 +447,7 @@ func (suite *LoadExchangeSuite) TestExchange() {
 		"all_users", "exchange",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		true,
-	)
+		true)
 }
 
 // single user, lots of data
@@ -500,8 +499,7 @@ func (suite *IndividualLoadExchangeSuite) TestExchange() {
 		"single_user", "exchange",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		true,
-	)
+		true)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -553,8 +551,7 @@ func (suite *LoadOneDriveSuite) TestOneDrive() {
 		"all_users", "one_drive",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
 
 type IndividualLoadOneDriveSuite struct {
@@ -601,8 +598,7 @@ func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
 		"single_user", "one_drive",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -654,8 +650,7 @@ func (suite *LoadSharePointSuite) TestSharePoint() {
 		"all_sites", "share_point",
 		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
 
 type IndividualLoadSharePointSuite struct {
@@ -703,6 +698,5 @@ func (suite *IndividualLoadSharePointSuite) TestSharePoint() {
 		"single_site", "share_point",
 		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
