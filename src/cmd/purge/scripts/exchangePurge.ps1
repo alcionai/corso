@@ -233,7 +233,7 @@ function Get-FoldersToPurge {
             } 
 
             if ((IsNameMatch @IsNameMatchParams)) {
-                Write-Host "`nFound desired folder to purge: $folderName (Created: $folderCreateTime)"
+                Write-Host "• Found name match: $folderName ($folderCreateTime)"
                 $foldersToDelete += $folder
                 continue
             }
@@ -248,7 +248,7 @@ function Get-FoldersToPurge {
             }
 
             if ((IsPrefixAndAgeMatch @IsPrefixAndAgeMatchParams)) {
-                Write-Host "`nFound desired folder to purge: $folderName (Created: $folderCreateTime)"
+                Write-Host "• Found prefix match: $folderName ($folderCreateTime)" 
                 $foldersToDelete += $folder
             }
         }
@@ -283,7 +283,13 @@ function Empty-Folder {
     }
 
     if ($PSCmdlet.ShouldProcess("Emptying $foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)", "$foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)", "Empty folders")) {
-        Write-Host "`nEmptying $foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)"
+        Write-Host "`nEmptying $foldersToEmptyCount folders..."
+        foreach ($folder in $FolderNameList) {
+            Write-Host "• $folder"
+        }
+        foreach ($folder in $WellKnownRootList) {
+            Write-Host "• $folder"
+        }
 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
@@ -318,6 +324,9 @@ function Delete-Folder {
 
     if ($PSCmdlet.ShouldProcess("Removing $foldersToRemoveCount folders ($FolderNameList)", "$foldersToRemoveCount folders ($FolderNameList)", "Delete folders")) {
         Write-Host "`nRemoving $foldersToRemoveCount folders ($FolderNameList)"
+        foreach ($folder in $FolderNameList) {
+            Write-Host "• $folder"
+        }
 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
@@ -363,7 +372,10 @@ function Purge-Folders {
     }
 
     if ($FolderPrefixPurgeList.count -gt 0 -and $PurgeBeforeTimestamp -ne $null) {
-        Write-Host "Folders older than $PurgeBeforeTimestamp with prefix: $FolderPrefixPurgeList"
+        Write-Host "Folders older than $PurgeBeforeTimestamp with prefix:"
+        foreach ($folder in $FolderPrefixPurgeList) {
+            Write-Host "• $folder"
+        }
     }
 
     $foldersToDeleteParams = @{

@@ -293,7 +293,7 @@ func setupExchangeBackup(
 		gc,
 		acct,
 		bsel.Selector,
-		bsel.Selector.DiscreteOwner,
+		bsel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -350,7 +350,7 @@ func setupSharePointBackup(
 		gc,
 		acct,
 		spsel.Selector,
-		spsel.Selector.DiscreteOwner,
+		spsel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 

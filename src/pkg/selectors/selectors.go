@@ -112,6 +112,8 @@ type Selector struct {
 	// iterate over the results, where each one will populate this field
 	// with a different owner.
 	DiscreteOwner string `json:"discreteOwner,omitempty"`
+	// display name for the DiscreteOwner.
+	DiscreteOwnerName string `json:"discreteOwnerName,omitempty"`
 
 	// A slice of exclusion scopes.  Exclusions apply globally to all
 	// inclusions/filters, with any-match behavior.
@@ -144,6 +146,48 @@ func newSelector(s service, resourceOwners []string) Selector {
 // TODO(rkeepers): remove in favor of split and s.DiscreteOwner
 func (s Selector) DiscreteResourceOwners() []string {
 	return split(s.ResourceOwners.Target)
+}
+
+// SetDiscreteOwnerIDName ensures the selector has the correct discrete owner
+// id and name.  Assumes that these values are sourced using the current
+// s.DiscreteOwner as input.  The reason for taking in both the id and name, and
+// not just the name, is so that constructors can input owner aliases in place
+// of  ids, with the expectation that the two will get sorted and re-written
+// later on with this setter.
+//
+// If the id is empty, the original DiscreteOwner value is retained.
+// If the name is empty, the id is duplicated as the name.
+func (s Selector) SetDiscreteOwnerIDName(id, name string) Selector {
+	r := s
+
+	if len(id) == 0 {
+		// assume a the discreteOwner is already set, and don't replace anything.
+		id = s.DiscreteOwner
+	}
+
+	r.DiscreteOwner = id
+	r.DiscreteOwnerName = name
+
+	if len(name) == 0 {
+		r.DiscreteOwnerName = id
+	}
+
+	return r
+}
+
+// ID returns s.discreteOwner, which is assumed to be a stable ID.
+func (s Selector) ID() string {
+	return s.DiscreteOwner
+}
+
+// Name returns s.discreteOwnerName.  If that value is empty, it returns
+// s.DiscreteOwner instead.
+func (s Selector) Name() string {
+	if len(s.DiscreteOwnerName) == 0 {
+		return s.DiscreteOwner
+	}
+
+	return s.DiscreteOwnerName
 }
 
 // isAnyResourceOwner returns true if the selector includes all resource owners.
@@ -336,7 +380,7 @@ func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
 }
 
 // ---------------------------------------------------------------------------
-// scope helpers
+// scope constructors
 // ---------------------------------------------------------------------------
 
 type scopeConfig struct {
