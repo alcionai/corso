@@ -237,7 +237,6 @@ jobs:
           ./corso backup create onedrive \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --enable-permissions-backup \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
@@ -308,7 +307,6 @@ jobs:
           ./corso backup create onedrive \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --enable-permissions-backup \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
