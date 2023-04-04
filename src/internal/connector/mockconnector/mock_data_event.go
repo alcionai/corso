@@ -23,9 +23,6 @@ import (
 //nolint:lll
 const (
 	eventTmpl = `{
-		"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('meganb%4010rqc2.onmicrosoft.com')/calendars('%22AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAAAAAEGAAAIIdUNHtN_S4VM_c-xNtA2AAB-9bFGAAA%3D%22')/events",
-		"value": [
-			{
 				"@odata.etag": "W/\"CCHVDR7TfkuFTPnP8TbQNgAAmuaVUg==\"",
 				"id": "AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAB-9ZnLAAAIIdUNHtN_S4VM_c-xNtA2AACcDFMyAAA=",
 				"createdDateTime": "2023-04-02T19:19:04.4712065Z",
@@ -95,7 +92,6 @@ const (
 						"type": "noEnd",
 						"startDate": "2000-01-01",
 						"endDate": "0001-01-01",
-						"recurrenceTimeZone": "",
 						"numberOfOccurrences": 0
 					}
 				},
@@ -120,8 +116,6 @@ const (
 				"calendar@odata.associationLink": "https://graph.microsoft.com/v1.0/users('meganb@10rqc2.onmicrosoft.com')/calendars('AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAAAAAEGAAAIIdUNHtN_S4VM_c-xNtA2AAB-9bFGAAA=')/$ref",
 				"calendar@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('meganb@10rqc2.onmicrosoft.com')/calendars('AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAAAAAEGAAAIIdUNHtN_S4VM_c-xNtA2AAB-9bFGAAA=')"
 			}
-		],
-		"@odata.nextLink": "https://graph.microsoft.com/v1.0/users/meganb@10rqc2.onmicrosoft.com/calendars('%22AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAAAAAEGAAAIIdUNHtN_S4VM_c-xNtA2AAB-9bFGAAA=%22')/events?%24top=1&%24skip=1"
 	}`
 
 	defaultEventBody        = "This meeting is to review the latest Tailspin Toys project proposal.<br>\\r\\nBut why not eat some sushi while we’re at it? :)"
