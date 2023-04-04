@@ -82,6 +82,17 @@ docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
        pwsh -c "./Auth-Graph.ps1 && Get-MgUserMessage -UserId <userID or UPN> -MessageID <messageID>"
 ```
 
+## Debug output
+
+To see the requests and responses made by the specific Graph Powershell commands, add `-Debug` to you command, 
+similar to the example below. 
+
+```sh
+# This is the equivalent of GET https://graph.microsoft.com/v1.0/users
+docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
+       pwsh -c "./Auth-Graph.ps1 && Get-MgUser -All -Debug"
+```
+
 ## Using Beta API calls
 
 In order to use the Beta Graph API, use `./Auth-Graph.ps1 -UseBeta $true`
