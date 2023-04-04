@@ -430,7 +430,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service,
 				service.updateStatus,
 				control.Options{
-					ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures: control.Toggles{},
 				})
 
 			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))

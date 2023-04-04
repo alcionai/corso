@@ -302,18 +302,12 @@ func (op *BackupOperation) do(
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 	enabled := !opts.ToggleFeatures.DisableIncrementals
 
-	switch sel.Service {
-	case selectors.ServiceExchange:
+	if sel.Service == selectors.ServiceExchange ||
+		sel.Service == selectors.ServiceOneDrive {
 		return enabled
-
-	case selectors.ServiceOneDrive:
-		// TODO(ashmrtn): Remove the && part once we support permissions and
-		// incrementals.
-		return enabled && !opts.ToggleFeatures.EnablePermissionsBackup
-
-	default:
-		return false
 	}
+
+	return false
 }
 
 // ---------------------------------------------------------------------------

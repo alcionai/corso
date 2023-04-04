@@ -80,7 +80,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 }
@@ -201,7 +201,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 
