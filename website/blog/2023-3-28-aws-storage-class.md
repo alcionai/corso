@@ -24,8 +24,7 @@ that most objects that are written will never be read.
 
 Increasing age of an object increases the chances that it will never be read.
 
-And we can’t afford to lose anything! This isn't a store for ML inputs or other
-data where can afford to lose a percentage. One-zone options that carry a small
+And we can’t afford to lose anything! One-zone options that carry a small
 chance of data loss like OneZone_IA won't work.  
 
 Finally, there will be index data and metadata that may well be overwritten
