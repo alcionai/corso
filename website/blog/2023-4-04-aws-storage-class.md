@@ -1,9 +1,7 @@
 ---
 slug: aws-storage-class
 title: "Choosing the Best AWS S3 Storage Class for Corso Backups"
-description: "By watching my
-four short videos, you’ll be set up and on your way to backing up all your Microsoft 365
-data in less than 20 minutes. That’s shorter than most meetings!"
+description: "Recently when writing about the storage options for Corso, I found myself going pretty far in the weeds on storage classes in S3. I thought I’d make a list of all the storage options and why they might, or might not, work for backups."
 authors: nica
 tags: [corso, microsoft 365, AWS, backups]
 date: 2023-04-04
