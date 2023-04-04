@@ -6,7 +6,7 @@ four short videos, you’ll be set up and on your way to backing up all your Mic
 data in less than 20 minutes. That’s shorter than most meetings!"
 authors: nica
 tags: [corso, microsoft 365, AWS, backups]
-date: 2023-3-28
+date: 2023-04-04
 image: ./images/box_sizes.jpeg
 ---
 
