@@ -2,6 +2,7 @@ package m365
 
 import (
 	"context"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -75,8 +76,9 @@ func UsersMap(
 	)
 
 	for _, u := range users {
-		idToName[u.ID] = u.PrincipalName
-		nameToID[u.PrincipalName] = u.ID
+		id, name := strings.ToLower(u.ID), strings.ToLower(u.PrincipalName)
+		idToName[id] = name
+		nameToID[name] = id
 	}
 
 	ins := common.IDsNames{
