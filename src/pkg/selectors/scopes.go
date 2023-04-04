@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -163,7 +162,7 @@ type (
 // makeScope produces a well formatted, typed scope that ensures all base values are populated.
 func makeScope[T scopeT](
 	cat categorizer,
-	vs []string,
+	tgts []string,
 	opts ...option,
 ) T {
 	sc := &scopeConfig{}
@@ -172,7 +171,7 @@ func makeScope[T scopeT](
 	s := T{
 		scopeKeyCategory: filters.Identity(cat.String()),
 		scopeKeyDataType: filters.Identity(cat.leafCat().String()),
-		cat.String():     filterize(*sc, vs...),
+		cat.String():     filterFor(*sc, tgts...),
 	}
 
 	return s
@@ -182,14 +181,18 @@ func makeScope[T scopeT](
 // towards identifying filter-type scopes, that ensures all base values are populated.
 func makeInfoScope[T scopeT](
 	cat, infoCat categorizer,
-	vs []string,
-	f func([]string) filters.Filter,
+	tgts []string,
+	ff filterFunc,
+	opts ...option,
 ) T {
+	sc := &scopeConfig{}
+	sc.populate(opts...)
+
 	return T{
 		scopeKeyCategory:     filters.Identity(cat.String()),
 		scopeKeyDataType:     filters.Identity(cat.leafCat().String()),
 		scopeKeyInfoCategory: filters.Identity(infoCat.String()),
-		infoCat.String():     f(clean(vs)),
+		infoCat.String():     filterize(*sc, ff, tgts...),
 	}
 }
 
@@ -229,12 +232,12 @@ func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
 // getCategory returns the scope's category value.
 // if s is an info-type scope, returns the info category.
 func getCategory[T scopeT](s T) string {
-	return s[scopeKeyCategory].Target
+	return s[scopeKeyCategory].Identity
 }
 
 // getInfoCategory returns the scope's infoFilter category value.
 func getInfoCategory[T scopeT](s T) string {
-	return s[scopeKeyInfoCategory].Target
+	return s[scopeKeyInfoCategory].Identity
 }
 
 // getCatValue takes the value of s[cat], split it by the standard
@@ -250,7 +253,7 @@ func getCatValue[T scopeT](s T, cat categorizer) []string {
 		return filt.Targets
 	}
 
-	return split(filt.Target)
+	return filt.Targets
 }
 
 // set sets a value by category to the scope.  Only intended for internal
@@ -259,20 +262,9 @@ func set[T scopeT](s T, cat categorizer, v []string, opts ...option) T {
 	sc := &scopeConfig{}
 	sc.populate(opts...)
 
-	s[cat.String()] = filterize(*sc, v...)
+	s[cat.String()] = filterFor(*sc, v...)
 
 	return s
-}
-
-// discreteCopy makes a shallow clone of the scocpe, and sets the resource
-// owner filter target in the clone to the provided string.
-func discreteCopy[T scopeT](s T, resourceOwner string) T {
-	clone := maps.Clone(s)
-
-	return set(
-		clone,
-		clone.categorizer().rootCat(),
-		[]string{resourceOwner})
 }
 
 // returns true if the category is included in the scope's category type,
@@ -316,7 +308,7 @@ func reduce[T scopeT, C categoryT](
 	// if a DiscreteOwner is specified, only match details for that owner.
 	matchesResourceOwner := s.ResourceOwners
 	if len(s.DiscreteOwner) > 0 {
-		matchesResourceOwner = filterize(scopeConfig{}, s.DiscreteOwner)
+		matchesResourceOwner = filterFor(scopeConfig{}, s.DiscreteOwner)
 	}
 
 	// aggregate each scope type by category for easier isolation in future processing.

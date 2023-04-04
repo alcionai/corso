@@ -57,7 +57,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank value",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filters.Equal("")
+				stub[rootCatStub.String()] = filters.Equal([]string{""})
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -67,7 +67,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(scopeConfig{}, "fnords")
+				stub[rootCatStub.String()] = filterFor(scopeConfig{}, "fnords")
 				return stub
 			},
 			check:  "",
@@ -77,7 +77,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
+				stub[rootCatStub.String()] = filterFor(scopeConfig{}, rootCatStub.String())
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -87,7 +87,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "non-matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
+				stub[rootCatStub.String()] = filterFor(scopeConfig{}, rootCatStub.String())
 				return stub
 			},
 			check:  "smarf",
@@ -109,7 +109,7 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 	t := suite.T()
 
 	stub := stubScope("")
-	stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
+	stub[rootCatStub.String()] = filterFor(scopeConfig{}, rootCatStub.String())
 
 	assert.Equal(t,
 		[]string{rootCatStub.String()},
@@ -342,7 +342,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
 	s2 := stubScope("")
-	s2[scopeKeyCategory] = filterize(scopeConfig{}, unknownCatStub.String())
+	s2[scopeKeyCategory] = filterFor(scopeConfig{}, unknownCatStub.String())
 	result := scopesByCategory[mockScope](
 		[]scope{scope(s1), scope(s2)},
 		map[path.CategoryType]mockCategorizer{
@@ -449,8 +449,8 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 			pvs[leafCatStub] = append(pvs[leafCatStub], test.shortRef)
 
 			sc := stubScope("")
-			sc[rootCatStub.String()] = filterize(scopeConfig{}, test.rootVal)
-			sc[leafCatStub.String()] = filterize(scopeConfig{}, test.leafVal)
+			sc[rootCatStub.String()] = filterFor(scopeConfig{}, test.rootVal)
+			sc[leafCatStub.String()] = filterFor(scopeConfig{}, test.leafVal)
 
 			test.expect(t, matchesPathValues(sc, cat, pvs))
 		})
@@ -504,47 +504,6 @@ func (suite *SelectorScopesSuite) TestClean() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestWrapFilter() {
-	table := []struct {
-		name       string
-		filter     filterFunc
-		input      []string
-		comparator int
-		target     string
-	}{
-		{
-			name:       "any",
-			filter:     filters.Contains,
-			input:      Any(),
-			comparator: int(filters.Passes),
-			target:     AnyTgt,
-		},
-		{
-			name:       "none",
-			filter:     filters.Greater,
-			input:      None(),
-			comparator: int(filters.Fails),
-			target:     NoneTgt,
-		},
-		{
-			name:       "something",
-			filter:     filters.Equal,
-			input:      []string{"userid"},
-			comparator: int(filters.EqualTo),
-			target:     "userid",
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ff := wrapFilter(test.filter)(test.input)
-			assert.Equal(t, int(ff.Comparator), test.comparator)
-			assert.Equal(t, ff.Target, test.target)
-		})
-	}
-}
-
 func (suite *SelectorScopesSuite) TestScopeConfig() {
 	input := "input"
 
@@ -568,25 +527,8 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result := filterize(test.config, input)
+			result := filterFor(test.config, input)
 			assert.Equal(t, test.expect, int(result.Comparator))
 		})
-	}
-}
-
-func (suite *SelectorScopesSuite) TestDiscreteCopy() {
-	var (
-		t     = suite.T()
-		orig  = stubScope(AnyTgt)
-		clone = discreteCopy(orig, "fnords")
-	)
-
-	for k, v := range orig {
-		if k != rootCatStub.String() {
-			assert.Equal(t, v.Target, clone[k].Target)
-		} else {
-			assert.Equal(t, AnyTgt, v.Target)
-			assert.Equal(t, "fnords", clone[k].Target)
-		}
 	}
 }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -134,7 +134,7 @@ func newSelector(s service, resourceOwners []string) Selector {
 
 	return Selector{
 		Service:        s,
-		ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+		ResourceOwners: filterFor(scopeConfig{}, resourceOwners...),
 		DiscreteOwner:  owner,
 		Excludes:       []scope{},
 		Includes:       []scope{},
@@ -145,7 +145,7 @@ func newSelector(s service, resourceOwners []string) Selector {
 // in the selector.
 // TODO(rkeepers): remove in favor of split and s.DiscreteOwner
 func (s Selector) DiscreteResourceOwners() []string {
-	return split(s.ResourceOwners.Target)
+	return s.ResourceOwners.Targets
 }
 
 // SetDiscreteOwnerIDName ensures the selector has the correct discrete owner
@@ -220,7 +220,7 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 	targets := allOwners
 
 	if !isAnyResourceOwner(s) {
-		targets = split(s.ResourceOwners.Target)
+		targets = s.ResourceOwners.Targets
 	}
 
 	ss := make([]Selector, 0, len(targets))
@@ -339,7 +339,7 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 	rm := map[string]struct{}{}
 
 	for _, sc := range s {
-		for _, v := range split(sc[rootCat].Target) {
+		for _, v := range sc[rootCat].Targets {
 			rm[v] = struct{}{}
 		}
 	}
@@ -357,7 +357,7 @@ func resourceOwnersIn(s []scope, rootCat string) []string {
 
 // produces the discrete set of path categories in the slice of scopes.
 func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
-	rm := map[path.CategoryType]struct{}{}
+	m := map[path.CategoryType]struct{}{}
 
 	for _, s := range ss {
 		t := T(s)
@@ -367,16 +367,10 @@ func pathCategoriesIn[T scopeT, C categoryT](ss []scope) []path.CategoryType {
 			continue
 		}
 
-		rm[lc.PathType()] = struct{}{}
+		m[lc.PathType()] = struct{}{}
 	}
 
-	rs := []path.CategoryType{}
-
-	for k := range rm {
-		rs = append(rs, k)
-	}
-
-	return rs
+	return maps.Keys(m)
 }
 
 // ---------------------------------------------------------------------------
@@ -438,14 +432,6 @@ func badCastErr(cast, is service) error {
 	return clues.Stack(ErrorBadSelectorCast, clues.New(fmt.Sprintf("%s is not %s", cast, is)))
 }
 
-func join(s ...string) string {
-	return strings.Join(s, delimiter)
-}
-
-func split(s string) []string {
-	return strings.Split(s, delimiter)
-}
-
 // if the provided slice contains Any, returns [Any]
 // if the slice contains None, returns [None]
 // if the slice contains Any and None, returns the first
@@ -469,68 +455,80 @@ func clean(s []string) []string {
 	return s
 }
 
+type filterFunc func([]string) filters.Filter
+
 // filterize turns the slice into a filter.
 // if the input is Any(), returns a passAny filter.
 // if the input is None(), returns a failAny filter.
 // if the scopeConfig specifies a filter, use that filter.
 // if the input is len(1), returns an Equals filter.
 // otherwise returns a Contains filter.
-func filterize(sc scopeConfig, s ...string) filters.Filter {
-	s = clean(s)
+func filterFor(sc scopeConfig, targets ...string) filters.Filter {
+	return filterize(sc, nil, targets...)
+}
 
-	if len(s) == 0 || s[0] == NoneTgt {
+// filterize turns the slice into a filter.
+// if the input is Any(), returns a passAny filter.
+// if the input is None(), returns a failAny filter.
+// if the scopeConfig specifies a filter, use that filter.
+// if defaultFilter is non-nil, returns that filter.
+// if the input is len(1), returns an Equals filter.
+// otherwise returns a Contains filter.
+func filterize(
+	sc scopeConfig,
+	defaultFilter filterFunc,
+	targets ...string,
+) filters.Filter {
+	targets = clean(targets)
+
+	if len(targets) == 0 || targets[0] == NoneTgt {
 		return failAny
 	}
 
-	if s[0] == AnyTgt {
+	if targets[0] == AnyTgt {
 		return passAny
 	}
 
 	if sc.usePathFilter {
 		if sc.useEqualsFilter {
-			return filters.PathEquals(s)
+			return filters.PathEquals(targets)
 		}
 
 		if sc.usePrefixFilter {
-			return filters.PathPrefix(s)
+			return filters.PathPrefix(targets)
 		}
 
 		if sc.useSuffixFilter {
-			return filters.PathSuffix(s)
+			return filters.PathSuffix(targets)
 		}
 
-		return filters.PathContains(s)
+		return filters.PathContains(targets)
 	}
 
 	if sc.usePrefixFilter {
-		return filters.Prefix(join(s...))
+		return filters.Prefix(targets)
 	}
 
 	if sc.useSuffixFilter {
-		return filters.Suffix(join(s...))
+		return filters.Suffix(targets)
 	}
 
-	if len(s) == 1 {
-		return filters.Equal(s[0])
+	if defaultFilter != nil {
+		return defaultFilter(targets)
 	}
 
-	return filters.Contains(join(s...))
+	return filters.Contains(targets)
 }
-
-type (
-	filterFunc      func(string) filters.Filter
-	sliceFilterFunc func([]string) filters.Filter
-)
 
 // pathFilterFactory returns the appropriate path filter
 // (contains, prefix, or suffix) for the provided options.
 // If multiple options are flagged, Prefix takes priority.
 // If no options are provided, returns PathContains.
-func pathFilterFactory(opts ...option) sliceFilterFunc {
+func pathFilterFactory(opts ...option) filterFunc {
 	sc := &scopeConfig{}
 	sc.populate(opts...)
 
-	var ff sliceFilterFunc
+	var ff filterFunc
 
 	switch true {
 	case sc.usePrefixFilter:
@@ -546,7 +544,7 @@ func pathFilterFactory(opts ...option) sliceFilterFunc {
 	return wrapSliceFilter(ff)
 }
 
-func wrapSliceFilter(ff sliceFilterFunc) sliceFilterFunc {
+func wrapSliceFilter(ff filterFunc) filterFunc {
 	return func(s []string) filters.Filter {
 		s = clean(s)
 
@@ -563,7 +561,7 @@ func wrapSliceFilter(ff sliceFilterFunc) sliceFilterFunc {
 // - normalizes the cleaned input (returns anyFail if empty, allFail if *)
 // - joins the string
 // - and generates a filter with the joined input.
-func wrapFilter(ff filterFunc) sliceFilterFunc {
+func wrapFilter(ff filterFunc) filterFunc {
 	return func(s []string) filters.Filter {
 		s = clean(s)
 
@@ -571,7 +569,7 @@ func wrapFilter(ff filterFunc) sliceFilterFunc {
 			return f
 		}
 
-		return ff(join(s...))
+		return ff(s)
 	}
 }
 

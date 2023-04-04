@@ -18,9 +18,19 @@ func TestFiltersSuite(t *testing.T) {
 	suite.Run(t, &FiltersSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func sl(s ...string) []string {
+	return append([]string{}, s...)
+}
+
+var (
+	foo    = sl("foo")
+	five   = sl("5")
+	smurfs = sl("smurfs")
+)
+
 func (suite *FiltersSuite) TestEquals() {
-	f := filters.Equal("foo")
-	nf := filters.NotEqual("foo")
+	f := filters.Equal(foo)
+	nf := filters.NotEqual(foo)
 
 	table := []struct {
 		input    string
@@ -41,8 +51,8 @@ func (suite *FiltersSuite) TestEquals() {
 }
 
 func (suite *FiltersSuite) TestEquals_any() {
-	f := filters.Equal("foo")
-	nf := filters.NotEqual("foo")
+	f := filters.Equal(foo)
+	nf := filters.NotEqual(foo)
 
 	table := []struct {
 		name     string
@@ -64,8 +74,8 @@ func (suite *FiltersSuite) TestEquals_any() {
 }
 
 func (suite *FiltersSuite) TestGreater() {
-	f := filters.Greater("5")
-	nf := filters.NotGreater("5")
+	f := filters.Greater(five)
+	nf := filters.NotGreater(five)
 
 	table := []struct {
 		input    string
@@ -87,8 +97,8 @@ func (suite *FiltersSuite) TestGreater() {
 }
 
 func (suite *FiltersSuite) TestLess() {
-	f := filters.Less("5")
-	nf := filters.NotLess("5")
+	f := filters.Less(five)
+	nf := filters.NotLess(five)
 
 	table := []struct {
 		input    string
@@ -110,8 +120,8 @@ func (suite *FiltersSuite) TestLess() {
 }
 
 func (suite *FiltersSuite) TestContains() {
-	f := filters.Contains("smurfs")
-	nf := filters.NotContains("smurfs")
+	f := filters.Contains(smurfs)
+	nf := filters.NotContains(smurfs)
 
 	table := []struct {
 		input    string
@@ -131,32 +141,9 @@ func (suite *FiltersSuite) TestContains() {
 	}
 }
 
-func (suite *FiltersSuite) TestContains_Joined() {
-	f := filters.Contains("smarf,userid")
-	nf := filters.NotContains("smarf,userid")
-
-	table := []struct {
-		input    string
-		expectF  assert.BoolAssertionFunc
-		expectNF assert.BoolAssertionFunc
-	}{
-		{"userid", assert.True, assert.False},
-		{"f,userid", assert.True, assert.False},
-		{"fnords", assert.False, assert.True},
-	}
-	for _, test := range table {
-		suite.Run(test.input, func() {
-			t := suite.T()
-
-			test.expectF(t, f.Compare(test.input), "filter")
-			test.expectNF(t, nf.Compare(test.input), "negated filter")
-		})
-	}
-}
-
 func (suite *FiltersSuite) TestIn() {
-	f := filters.In([]string{"murf"})
-	nf := filters.NotIn([]string{"murf"})
+	f := filters.In(sl("murf"))
+	nf := filters.NotIn(sl("murf"))
 
 	table := []struct {
 		input    string
@@ -177,8 +164,8 @@ func (suite *FiltersSuite) TestIn() {
 }
 
 func (suite *FiltersSuite) TestIn_MultipleTargets() {
-	f := filters.In([]string{"murf", "foo"})
-	nf := filters.NotIn([]string{"murf", "foo"})
+	f := filters.In(sl("murf", "foo"))
+	nf := filters.NotIn(sl("murf", "foo"))
 
 	table := []struct {
 		input    string
@@ -201,8 +188,8 @@ func (suite *FiltersSuite) TestIn_MultipleTargets() {
 }
 
 func (suite *FiltersSuite) TestIn_MultipleTargets_Joined() {
-	f := filters.In([]string{"userid", "foo"})
-	nf := filters.NotIn([]string{"userid", "foo"})
+	f := filters.In(sl("userid", "foo"))
+	nf := filters.NotIn(sl("userid", "foo"))
 
 	table := []struct {
 		input    string
@@ -225,8 +212,8 @@ func (suite *FiltersSuite) TestIn_MultipleTargets_Joined() {
 }
 
 func (suite *FiltersSuite) TestIn_Joined() {
-	f := filters.In([]string{"userid"})
-	nf := filters.NotIn([]string{"userid"})
+	f := filters.In(sl("userid"))
+	nf := filters.NotIn(sl("userid"))
 
 	table := []struct {
 		input    string
@@ -247,7 +234,7 @@ func (suite *FiltersSuite) TestIn_Joined() {
 }
 
 func (suite *FiltersSuite) TestPrefixes() {
-	target := "folderA"
+	target := sl("folderA")
 	f := filters.Prefix(target)
 	nf := filters.NotPrefix(target)
 
@@ -274,7 +261,7 @@ func (suite *FiltersSuite) TestPrefixes() {
 }
 
 func (suite *FiltersSuite) TestSuffixes() {
-	target := "folderB"
+	target := sl("folderB")
 	f := filters.Suffix(target)
 	nf := filters.NotSuffix(target)
 

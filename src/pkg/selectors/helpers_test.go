@@ -96,7 +96,7 @@ type mockScope scope
 var _ scoper = &mockScope{}
 
 func (ms mockScope) categorizer() categorizer {
-	switch ms[scopeKeyCategory].Target {
+	switch ms[scopeKeyCategory].Identity {
 	case rootCatStub.String():
 		return rootCatStub
 	case leafCatStub.String():
@@ -155,7 +155,7 @@ type mockSel struct {
 func stubSelector(resourceOwners []string) mockSel {
 	return mockSel{
 		Selector: Selector{
-			ResourceOwners: filterize(scopeConfig{}, resourceOwners...),
+			ResourceOwners: filterFor(scopeConfig{}, resourceOwners...),
 			Service:        ServiceExchange,
 			Excludes:       []scope{scope(stubScope(""))},
 			Filters:        []scope{scope(stubScope(""))},
@@ -177,10 +177,10 @@ func setScopesToDefault[T scopeT](ts []T) []T {
 }
 
 // calls assert.Equal(t, v, getCatValue(sc, k)[0]) on each k:v pair in the map
-func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer]string) {
-	for k, v := range m {
+func scopeMustHave[T scopeT](t *testing.T, sc T, m map[categorizer][]string) {
+	for k, vs := range m {
 		t.Run(k.String(), func(t *testing.T) {
-			assert.Equal(t, split(v), getCatValue(sc, k), "Key: %s", k)
+			assert.Equal(t, vs, getCatValue(sc, k), "Key: %s", k)
 		})
 	}
 }

@@ -249,7 +249,7 @@ func (s *oneDrive) CreatedAfter(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -263,7 +263,7 @@ func (s *oneDrive) CreatedBefore(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -277,7 +277,7 @@ func (s *oneDrive) ModifiedAfter(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -291,7 +291,7 @@ func (s *oneDrive) ModifiedBefore(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -486,12 +486,6 @@ func (s OneDriveScope) setDefaults() {
 	case OneDriveFolder:
 		s[OneDriveItem.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a clone of the scope, then replaces the clone's user comparison
-// with only the provided user.
-func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
-	return discreteCopy(s, user)
 }
 
 // ---------------------------------------------------------------------------

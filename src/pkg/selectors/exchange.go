@@ -336,7 +336,7 @@ func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 			ExchangeContact,
 			ExchangeInfoContactName,
 			[]string{senderID},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -351,7 +351,7 @@ func (sr *ExchangeRestore) EventOrganizer(organizer string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeInfoEventOrganizer,
 			[]string{organizer},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -366,7 +366,7 @@ func (sr *ExchangeRestore) EventRecurs(recurs string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeInfoEventRecurs,
 			[]string{recurs},
-			wrapFilter(filters.Equal)),
+			filters.Equal),
 	}
 }
 
@@ -380,7 +380,7 @@ func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope 
 			ExchangeEvent,
 			ExchangeInfoEventStartsAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -394,7 +394,7 @@ func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope
 			ExchangeEvent,
 			ExchangeInfoEventStartsBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -409,7 +409,7 @@ func (sr *ExchangeRestore) EventSubject(subject string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeInfoEventSubject,
 			[]string{subject},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -423,7 +423,7 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope
 			ExchangeMail,
 			ExchangeInfoMailReceivedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -437,7 +437,7 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScop
 			ExchangeMail,
 			ExchangeInfoMailReceivedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -452,7 +452,7 @@ func (sr *ExchangeRestore) MailSender(sender string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeInfoMailSender,
 			[]string{sender},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -467,7 +467,7 @@ func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeInfoMailSubject,
 			[]string{subject},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
