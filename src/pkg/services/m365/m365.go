@@ -147,21 +147,21 @@ func SitesMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (map[string]string, map[string]string, error) {
+) (common.IDsNames, error) {
 	sites, err := Sites(ctx, acct, errs)
 	if err != nil {
-		return nil, nil, err
+		return common.IDsNames{}, err
 	}
 
-	var (
-		idToName = make(map[string]string, len(sites))
-		nameToID = make(map[string]string, len(sites))
-	)
+	ins := common.IDsNames{
+		IDToName: make(map[string]string, len(sites)),
+		NameToID: make(map[string]string, len(sites)),
+	}
 
 	for _, s := range sites {
-		idToName[s.ID] = s.WebURL
-		nameToID[s.WebURL] = s.ID
+		ins.IDToName[s.ID] = s.WebURL
+		ins.NameToID[s.WebURL] = s.ID
 	}
 
-	return idToName, nameToID, nil
+	return ins, nil
 }

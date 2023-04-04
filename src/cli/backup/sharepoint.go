@@ -7,12 +7,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -156,19 +156,19 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	idToURL, urlToID, err := m365.SitesMap(ctx, *acct, errs)
+	ins, err := m365.SitesMap(ctx, *acct, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 sites"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, urlToID, utils.SiteID, utils.WebURL, utils.CategoryData)
+	sel, err := sharePointBackupCreateSelectors(ctx, ins, utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(maps.Keys(idToURL)) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -203,7 +203,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 // TODO: users might specify a data type, this only supports AllData().
 func sharePointBackupCreateSelectors(
 	ctx context.Context,
-	urlToID map[string]string,
+	ins common.IDNameSwapper,
 	sites, weburls, cats []string,
 ) (*selectors.SharePointBackup, error) {
 	if len(sites) == 0 && len(weburls) == 0 {
@@ -211,11 +211,11 @@ func sharePointBackupCreateSelectors(
 	}
 
 	if filters.PathContains(sites).Compare(utils.Wildcard) {
-		return includeAllSitesWithCategories(urlToID, cats), nil
+		return includeAllSitesWithCategories(ins, cats), nil
 	}
 
 	if filters.PathContains(weburls).Compare(utils.Wildcard) {
-		return includeAllSitesWithCategories(urlToID, cats), nil
+		return includeAllSitesWithCategories(ins, cats), nil
 	}
 
 	sel := selectors.NewSharePointBackup(append(slices.Clone(sites), weburls...))
@@ -223,10 +223,8 @@ func sharePointBackupCreateSelectors(
 	return addCategories(sel, cats), nil
 }
 
-func includeAllSitesWithCategories(urlToID map[string]string, categories []string) *selectors.SharePointBackup {
-	return addCategories(
-		selectors.NewSharePointBackup(maps.Values(urlToID)),
-		categories)
+func includeAllSitesWithCategories(ins common.IDNameSwapper, categories []string) *selectors.SharePointBackup {
+	return addCategories(selectors.NewSharePointBackup(ins.IDs()), categories)
 }
 
 func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {

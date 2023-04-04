@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -115,8 +116,11 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 	)
 
 	var (
+		ins = common.IDsNames{
+			IDToName: map[string]string{id1: url1, id2: url2},
+			NameToID: map[string]string{url1: id1, url2: id2},
+		}
 		bothIDs = []string{id1, id2}
-		urlToID = map[string]string{url1: id1, url2: id2}
 	)
 
 	table := []struct {
@@ -204,7 +208,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 
 			t := suite.T()
 
-			sel, err := sharePointBackupCreateSelectors(ctx, urlToID, test.site, test.weburl, test.data)
+			sel, err := sharePointBackupCreateSelectors(ctx, ins, test.site, test.weburl, test.data)
 			require.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.expect, sel.DiscreteResourceOwners())
 		})

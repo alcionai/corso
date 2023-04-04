@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
@@ -48,7 +47,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, maps.Keys(gc.ResourceOwnerIDToName))
+	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
