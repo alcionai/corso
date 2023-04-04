@@ -155,7 +155,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		expectName string
 	}{
 		{
-			name:       "nil maps",
+			name:       "nil ins",
 			owner:      ownerID,
 			expectID:   ownerID,
 			expectName: ownerID,

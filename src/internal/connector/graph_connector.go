@@ -120,7 +120,7 @@ func NewGraphConnector(
 // the owner's name and ID from that value.  Returns an error if the owner is
 // not recognized by the current tenant.
 //
-// The id-name maps are optional.  Some processes will look up all owners in
+// The id-name swapper is optional.  Some processes will look up all owners in
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
 // maps get stored inside the gc instance for later re-use.
@@ -142,7 +142,7 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 
 	gc.IDNameLookup = ins
 
-	if len(ins.IDs()) == 0 && len(ins.Names()) == 0 {
+	if ins == nil || (len(ins.IDs()) == 0 && len(ins.Names()) == 0) {
 		gc.IDNameLookup = common.IDsNames{
 			IDToName: map[string]string{id: name},
 			NameToID: map[string]string{name: id},
@@ -156,6 +156,10 @@ func getOwnerIDAndNameFrom(
 	owner string,
 	ins common.IDNameSwapper,
 ) (string, string, error) {
+	if ins == nil {
+		return owner, owner, nil
+	}
+
 	if n, ok := ins.NameOf(owner); ok {
 		return owner, n, nil
 	} else if i, ok := ins.IDOf(owner); ok {
