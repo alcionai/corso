@@ -620,7 +620,7 @@ Purge-Folders @purgeFolderParams
 #purge older contacts 
 Purge-Items -ItemsFolder "contacts" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
 
-#purge older contact birthdays 
+#purge older contact birthday events
 Purge-Items -ItemsFolder "calendar" -ItemsSubFolder "Birthdays" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
 
 # Empty Deleted Items and then purge all recoverable items. Deletes the following
