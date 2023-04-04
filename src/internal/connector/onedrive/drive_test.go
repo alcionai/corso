@@ -317,7 +317,9 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	defer func() {
 		for _, id := range folderIDs {
-			err := DeleteItem(ctx, gs, driveID, id)
+			// deletes require unique http clients
+			// https://github.com/alcionai/corso/issues/2707
+			err := DeleteItem(ctx, loadTestService(t), driveID, id)
 			if err != nil {
 				logger.Ctx(ctx).Warnw("deleting folder", "id", id, "error", err)
 			}
@@ -428,7 +430,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 				service,
 				service.updateStatus,
 				control.Options{
-					ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures: control.Toggles{},
 				})
 
 			odcs, excludes, err := colls.Get(ctx, nil, fault.New(true))

@@ -115,13 +115,43 @@ function IsNameMatch {
     return ($FolderName -in $FolderNamePurgeList)
 }
 
+function Get-TimestampFromName {
+    param (
+        [Parameter(Mandatory = $True, HelpMessage = "name")]
+        [String]$name,
+
+        [Parameter(Mandatory = $True, HelpMessage = "Default timestamp if not found in name")]
+        [datetime]$defaultTimestamp
+    )
+
+    #fallback on folder create time 
+    [datetime]$timestamp = $defaultTimestamp
+
+    try {
+        # Assumes that the timestamp is at the end and starts with yyyy-mm-ddT and is ISO8601
+        if ($name -imatch "(\d{4}-\d{2}-\d{2}T[\S]*)") {
+            $timestamp = [System.Convert]::ToDatetime($Matches.0)
+        }
+
+        # Assumes that the timestamp is at the end and starts with dd-MMM-yyyy_HH-MM-SS
+        if ($name -imatch "(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2})") {
+            $timestamp = [datetime]::ParseExact($Matches.0, "dd-MMM-yyyy_HH-mm-ss", [CultureInfo]::InvariantCulture, "AssumeUniversal")
+        }
+    }
+    catch {}
+
+    Write-Verbose "Folder: $name, create timestamp: $timestamp"
+
+    return $timestamp
+}
+
 function IsPrefixAndAgeMatch {
     Param(
         [Parameter(Mandatory = $True, HelpMessage = "Folder name to evaluate for match against a list of targets")]
         [string]$FolderName,
 
         [Parameter(Mandatory = $True, HelpMessage = "Folder creation times")]
-        [string]$FolderCreateTime,
+        [datetime]$FolderCreateTime,
 
         [Parameter(Mandatory = $True, HelpMessage = "Folder name prefixes to evaluate for match")]
         [string[]]$FolderPrefixPurgeList,
@@ -129,8 +159,10 @@ function IsPrefixAndAgeMatch {
         [Parameter(Mandatory = $TRUE, HelpMessage = "Purge folders before this date time (UTC)")]
         [datetime]$PurgeBeforeTimestamp
     )
-
-    if ($PurgeBeforeTimestamp -gt $folderCreateTime ) {
+    
+    $folderTimestamp = Get-TimestampFromName -name $FolderName -defaultTimestamp $FolderCreateTime
+    
+    if ($PurgeBeforeTimestamp -gt $folderTimestamp ) {
         foreach ($prefix in $FolderPrefixPurgeList) {
             if ($FolderName -like "$prefix*") {
                 return $true
@@ -194,21 +226,31 @@ function Get-FoldersToPurge {
         | Select-Object -ExpandProperty Value
         | Get-Date
 
-        $IsNameMatchParams = @{
-            'FolderName'          = $folderName;
-            'FolderNamePurgeList' = $FolderNamePurgeList
-        } 
+        if ($FolderNamePurgeList.count -gt 0) {
+            $IsNameMatchParams = @{
+                'FolderName'          = $folderName;
+                'FolderNamePurgeList' = $FolderNamePurgeList
+            } 
 
-        $IsPrefixAndAgeMatchParams = @{
-            'FolderName'            = $folderName;
-            'FolderCreateTime'      = $folderCreateTime;
-            'FolderPrefixPurgeList' = $FolderPrefixPurgeList;
-            'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp;
+            if ((IsNameMatch @IsNameMatchParams)) {
+                Write-Host "• Found name match: $folderName ($folderCreateTime)"
+                $foldersToDelete += $folder
+                continue
+            }
         }
 
-        if ((IsNameMatch @IsNameMatchParams) -or (IsPrefixAndAgeMatch @IsPrefixAndAgeMatchParams)) {
-            Write-Host "`nFound desired folder to purge: $folderName ($folderCreateTime)"
-            $foldersToDelete += $folder
+        if ($FolderPrefixPurgeList.count -gt 0) {
+            $IsPrefixAndAgeMatchParams = @{
+                'FolderName'            = $folderName;
+                'FolderCreateTime'      = $folderCreateTime;
+                'FolderPrefixPurgeList' = $FolderPrefixPurgeList;
+                'PurgeBeforeTimestamp'  = $PurgeBeforeTimestamp;
+            }
+
+            if ((IsPrefixAndAgeMatch @IsPrefixAndAgeMatchParams)) {
+                Write-Host "• Found prefix match: $folderName ($folderCreateTime)" 
+                $foldersToDelete += $folder
+            }
         }
     }
 
@@ -241,7 +283,13 @@ function Empty-Folder {
     }
 
     if ($PSCmdlet.ShouldProcess("Emptying $foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)", "$foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)", "Empty folders")) {
-        Write-Host "`nEmptying $foldersToEmptyCount folders ($WellKnownRootList $FolderNameList)"
+        Write-Host "`nEmptying $foldersToEmptyCount folders..."
+        foreach ($folder in $FolderNameList) {
+            Write-Host "• $folder"
+        }
+        foreach ($folder in $WellKnownRootList) {
+            Write-Host "• $folder"
+        }
 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
@@ -276,6 +324,9 @@ function Delete-Folder {
 
     if ($PSCmdlet.ShouldProcess("Removing $foldersToRemoveCount folders ($FolderNameList)", "$foldersToRemoveCount folders ($FolderNameList)", "Delete folders")) {
         Write-Host "`nRemoving $foldersToRemoveCount folders ($FolderNameList)"
+        foreach ($folder in $FolderNameList) {
+            Write-Host "• $folder"
+        }
 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
@@ -321,7 +372,10 @@ function Purge-Folders {
     }
 
     if ($FolderPrefixPurgeList.count -gt 0 -and $PurgeBeforeTimestamp -ne $null) {
-        Write-Host "Folders older than $PurgeBeforeTimestamp with prefix: $FolderPrefixPurgeList"
+        Write-Host "Folders older than $PurgeBeforeTimestamp with prefix:"
+        foreach ($folder in $FolderPrefixPurgeList) {
+            Write-Host "• $folder"
+        }
     }
 
     $foldersToDeleteParams = @{
@@ -355,6 +409,8 @@ function Purge-Folders {
 }
 
 function Create-Contact {
+    [CmdletBinding(SupportsShouldProcess)]
+
     $now = (Get-Date (Get-Date).ToUniversalTime() -Format "o")
     #used to create a recent seed contact that will be shielded from cleanup. CI tests rely on this    
     $body = @"
@@ -375,14 +431,16 @@ function Create-Contact {
             </t:PhoneNumbers>
             <t:Birthday>2000-01-01T11:59:00Z</t:Birthday>
             <t:JobTitle>Tester</t:JobTitle>
-            <t:Surname>Plate</t:Surname>
         </t:Contact>
     </Items>
 </CreateItem>
 "@
 
-    $createContactMsg = Initialize-SOAPMessage -User $User -Body $body
-    $response = Invoke-SOAPRequest -Token $Token -Message $createContactMsg
+    if ($PSCmdlet.ShouldProcess("Creating seed contact...", "", "Create contact")) {
+        Write-Host "`nCreating seed contact..."
+        $createContactMsg = Initialize-SOAPMessage -User $User -Body $body
+        $response = Invoke-SOAPRequest -Token $Token -Message $createContactMsg
+    }
 }
 
 function Get-ItemsToPurge {
@@ -390,11 +448,33 @@ function Get-ItemsToPurge {
         [Parameter(Mandatory = $True, HelpMessage = "Folder under which to look for items matching removal criteria")]
         [String]$WellKnownRoot,
 
+        [Parameter(Mandatory = $False, HelpMessage = "Immediate subfolder within well known folder")]
+        [String]$SubFolderName = $null,
+
         [Parameter(Mandatory = $True, HelpMessage = "Purge items before this date time (UTC)")]
         [datetime]$PurgeBeforeTimestamp
     )
 
     $itemsToDelete = @()
+    $foldersToSearchBody = "<t:DistinguishedFolderId Id='$WellKnownRoot'/>"
+
+    if (![String]::IsNullOrEmpty($SubFolderName)) {
+        $subFolders, $moreToList = Get-FoldersToPurge -WellKnownRoot $WellKnownRoot -FolderNamePurgeList $SubFolderName -PurgeBeforeTimestamp $PurgeBeforeTimestamp
+
+        if ($subFolders.count -gt 0 ) {
+            $foldersToSearchBody = ""
+            foreach ($sub in $subFolders) {
+                $subName = $sub.DisplayName
+                $subId = $sub.FolderId.Id
+                Write-Host "Found subfolder from which to purge items: $subName"
+                $foldersToSearchBody = "<t:FolderId Id='$subId'/>`n"
+            }
+        }
+        else {
+            Write-Host "Requested subfolder $SubFolderName in folder $WellKnownRoot was not found"
+            return
+        }
+    }
 
     # SOAP message for getting the folder id
     $body = @"
@@ -406,12 +486,12 @@ function Get-ItemsToPurge {
         </t:AdditionalProperties>
     </ItemShape>
     <ParentFolderIds>
-        <t:DistinguishedFolderId Id="$WellKnownRoot"/>
+        $FoldersToSearchBody
     </ParentFolderIds>
 </FindItem>
 "@
 
-    Write-Host "`nLooking for items under well-known folder: $WellKnownRoot older than $PurgeBeforeTimestamp for user: $User"
+    Write-Host "`nLooking for items under well-known folder: $WellKnownRoot($SubFolderName) older than $PurgeBeforeTimestamp for user: $User"
     $getItemsMsg = Initialize-SOAPMessage -User $User -Body $body
     $response = Invoke-SOAPRequest -Token $Token -Message $getItemsMsg
 
@@ -424,20 +504,31 @@ function Get-ItemsToPurge {
     Select-Object -ExpandProperty Node
     $moreToList = ![System.Convert]::ToBoolean($rootFolder.IncludesLastItemInRange)
 
+    Write-Host "Total items under $WellKnownRoot/$SubFolderName"$rootFolder.TotalItemsInView
+
     foreach ($item in $items) {
         $itemId = $item.ItemId.Id
         $changeKey = $item.ItemId.Changekey
-        $itemName = $item.DisplayName
+        $itemName = ""
         $itemCreateTime = $item.ExtendedProperty
         | Where-Object { $_.ExtendedFieldURI.PropertyTag -eq "0x3007" }
         | Select-Object -ExpandProperty Value
         | Get-Date
 
+        # can be improved to pass the field to use as a name as a parameter but this is good for now
+        switch -casesensitive ($WellKnownRoot) {
+            "calendar" { $itemName = $item.Subject }
+            "contacts" { $itemName = $item.DisplayName }
+            Default { $itemName = $item.DisplayName }
+        }
+
         if ([String]::IsNullOrEmpty($itemId) -or [String]::IsNullOrEmpty($changeKey)) {
             continue
         }
 
-        if (![String]::IsNullOrEmpty($PurgeBeforeTimestamp) -and $itemCreateTime -gt $PurgeBeforeTimestamp) {
+        $itemTimestamp = Get-TimestampFromName -name $itemName -defaultTimestamp $itemCreateTime
+
+        if (![String]::IsNullOrEmpty($PurgeBeforeTimestamp) -and $itemTimestamp -gt $PurgeBeforeTimestamp) {
             continue
         }
 
@@ -445,33 +536,51 @@ function Get-ItemsToPurge {
         $itemsToDelete += $item
     }
 
+    if ($WhatIfPreference) {
+        # not actually deleting items so only do a single iteration
+        $moreToList = $false
+    }
+
     return $itemsToDelete, $moreToList
 }
 
-function Purge-Contacts {
+function Purge-Items {
     [CmdletBinding(SupportsShouldProcess)]
     Param(
         [Parameter(Mandatory = $True, HelpMessage = "Purge items before this date time (UTC)")]
-        [datetime]$PurgeBeforeTimestamp
+        [datetime]$PurgeBeforeTimestamp, 
+
+        [Parameter(Mandatory = $True, HelpMessage = "Items folder")]
+        [string]$ItemsFolder,
+
+        [Parameter(Mandatory = $False, HelpMessage = "Items sub-folder")]
+        [string]$ItemsSubFolder = $null
+
     )
 
-    Write-Host "`nCleaning up contacts older than $PurgeBeforeTimestamp" 
-    Write-Host "-------------------------------------------------------" 
+    $additionalAttributes = "SendMeetingCancellations='SendToNone'"
 
-    # Create one seed contact which will have recent create date and will not be sweapt
-    # This is needed since tests rely on some contact data being present
-    Write-Host "`nCreating seed contact" 
-    Create-Contact
+    Write-Host "`nCleaning up items from folder $ItemsFolder($ItemsSubFolder) older than $PurgeBeforeTimestamp" 
+    Write-Host "-----------------------------------------------------------------------------" 
+
+    if ($ItemsFolder -eq "contacts") {
+        $ItemsSubFolder = $null
+        $additionalAttributes = ""
+
+        # Create one seed contact which will have recent create date and will not be sweapt
+        # This is needed since tests rely on some contact data being present
+        Create-Contact
+    }
 
     $moreToList = $True
     # only get max of 1000 results so we may need to iterate over eligible contacts  
     while ($moreToList) {
-        $itemsToDelete, $moreToList = Get-ItemsToPurge -WellKnownRoot "contacts" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
+        $itemsToDelete, $moreToList = Get-ItemsToPurge -WellKnownRoot $ItemsFolder -SubFolderName $ItemsSubFolder -PurgeBeforeTimestamp $PurgeBeforeTimestamp
         $itemsToDeleteCount = $itemsToDelete.count
         $itemsToDeleteBody = ""
 
         if ($itemsToDeleteCount -eq 0) {
-            Write-Host "`nNo more contacts to delete matching criteria"
+            Write-Host "`nNo more items to delete matching criteria"
             break
         }
 
@@ -485,21 +594,23 @@ function Purge-Contacts {
         # Do the actual deletion in a batch request 
         # DeleteType = HardDelete, MoveToDeletedItems, or SoftDelete
         $body = @"
-<m:DeleteItem DeleteType="HardDelete">
+<m:DeleteItem DeleteType="HardDelete" $additionalAttributes>
     <m:ItemIds>
         $itemsToDeleteBody
     </m:ItemIds>
 </m:DeleteItem>
 "@
-        
+
         if ($PSCmdlet.ShouldProcess("Deleting $itemsToDeleteCount items...", "$itemsToDeleteCount items", "Delete items")) {
             Write-Host "`nDeleting $itemsToDeleteCount items..."
         
             $emptyFolderMsg = Initialize-SOAPMessage -User $User -Body $body
             $response = Invoke-SOAPRequest -Token $Token -Message $emptyFolderMsg
+
+            Write-Verbose "Delete response:`n"
+            Write-Verbose $response.OuterXml
         
             Write-Host "`nDeleted $itemsToDeleteCount items..."
-        
         }
     }
 }
@@ -518,7 +629,10 @@ $purgeFolderParams = @{
 Purge-Folders @purgeFolderParams
 
 #purge older contacts 
-Purge-Contacts -PurgeBeforeTimestamp $PurgeBeforeTimestamp
+Purge-Items -ItemsFolder "contacts" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
+
+#purge older contact birthday events
+Purge-Items -ItemsFolder "calendar" -ItemsSubFolder "Birthdays" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
 
 # Empty Deleted Items and then purge all recoverable items. Deletes the following
 # -/Recoverable Items/Audits

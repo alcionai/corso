@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 )
 
 type TimeFormat string
@@ -54,6 +53,7 @@ var (
 	dateOnlyRE              = regexp.MustCompile(`.*(\d{4}-\d{2}-\d{2}).*`)
 	legacyTimeRE            = regexp.MustCompile(
 		`.*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?([Zz]|[a-zA-Z]{2}|([\+|\-]([01]\d|2[0-3])))).*`)
+	simpleTimeTestingRE      = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}.\d{6}).*`)
 	simpleDateTimeRE         = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}:\d{2}:\d{2}).*`)
 	simpleDateTimeOneDriveRE = regexp.MustCompile(`.*(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2}).*`)
 	standardTimeRE           = regexp.MustCompile(
@@ -66,6 +66,7 @@ var (
 	// get eagerly chosen as the parsable format, slicing out some data.
 	formats = []TimeFormat{
 		StandardTime,
+		SimpleTimeTesting,
 		SimpleDateTime,
 		SimpleDateTimeOneDrive,
 		LegacyTime,
@@ -76,6 +77,7 @@ var (
 	}
 	regexes = []*regexp.Regexp{
 		standardTimeRE,
+		simpleTimeTestingRE,
 		simpleDateTimeRE,
 		simpleDateTimeOneDriveRE,
 		legacyTimeRE,
@@ -87,8 +89,8 @@ var (
 )
 
 var (
-	ErrNoTimeString        = errors.New("no substring contains a known time format")
-	errParsingStringToTime = errors.New("parsing string as time.Time")
+	ErrNoTimeString        = clues.New("no substring contains a known time format")
+	errParsingStringToTime = clues.New("parsing string as time.Time")
 )
 
 // Now produces the current time as a string in the standard format.
@@ -136,7 +138,7 @@ func FormatLegacyTime(t time.Time) string {
 // the provided string.  Always returns a UTC timezone value.
 func ParseTime(s string) (time.Time, error) {
 	if len(s) == 0 {
-		return time.Time{}, clues.Stack(errParsingStringToTime, errors.New("empty string"))
+		return time.Time{}, clues.Stack(errParsingStringToTime, clues.New("empty string"))
 	}
 
 	for _, form := range formats {
@@ -146,14 +148,14 @@ func ParseTime(s string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, clues.Stack(errParsingStringToTime, errors.New(s))
+	return time.Time{}, clues.Stack(errParsingStringToTime, clues.New(s))
 }
 
 // ExtractTime greedily retrieves a timestamp substring from the provided string.
 // returns ErrNoTimeString if no match is found.
 func ExtractTime(s string) (time.Time, error) {
 	if len(s) == 0 {
-		return time.Time{}, clues.Stack(errParsingStringToTime, errors.New("empty string"))
+		return time.Time{}, clues.Stack(errParsingStringToTime, clues.New("empty string"))
 	}
 
 	for _, re := range regexes {
@@ -163,5 +165,5 @@ func ExtractTime(s string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, clues.Stack(ErrNoTimeString, errors.New(s))
+	return time.Time{}, clues.Stack(ErrNoTimeString, clues.New(s))
 }

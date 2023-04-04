@@ -6,9 +6,8 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
+	"github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -55,7 +54,7 @@ func PagerForSource(
 	case SharePointSource:
 		return api.NewSiteDrivePager(servicer, resourceOwner, fields), nil
 	default:
-		return nil, errors.Errorf("unrecognized drive data source")
+		return nil, clues.New("unrecognized drive data source")
 	}
 }
 
@@ -208,7 +207,7 @@ func getFolder(
 	// https://learn.microsoft.com/en-us/graph/onedrive-addressing-driveitems#path-based-addressing
 	// - which allows us to lookup an item by its path relative to the parent ID
 	rawURL := fmt.Sprintf(itemByPathRawURLFmt, driveID, parentFolderID, folderName)
-	builder := msdrive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
+	builder := drive.NewItemsDriveItemItemRequestBuilder(rawURL, service.Adapter())
 
 	var (
 		foundItem models.DriveItemable
@@ -242,7 +241,7 @@ func CreateItem(
 	// Graph SDK doesn't yet provide a POST method for `/children` so we set the `rawUrl` ourselves as recommended
 	// here: https://github.com/microsoftgraph/msgraph-sdk-go/issues/155#issuecomment-1136254310
 	rawURL := fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-	builder := msdrive.NewItemsRequestBuilder(rawURL, service.Adapter())
+	builder := drive.NewItemsRequestBuilder(rawURL, service.Adapter())
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
@@ -286,7 +285,7 @@ func GetAllFolders(
 ) ([]*Displayable, error) {
 	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting OneDrive folders")
+		return nil, clues.Wrap(err, "getting OneDrive folders")
 	}
 
 	var (
@@ -304,7 +303,7 @@ func GetAllFolders(
 			name = ptr.Val(d.GetName())
 		)
 
-		ictx := clues.Add(ctx, "drive_id", id, "drive_name", name) // TODO: pii
+		ictx := clues.Add(ctx, "drive_id", id, "drive_name", clues.Hide(name))
 		collector := func(
 			_ context.Context,
 			_, _ string,
@@ -368,6 +367,8 @@ func GetAllFolders(
 	return res, el.Failure()
 }
 
+// deletes require unique http clients
+// https://github.com/alcionai/corso/issues/2707
 func DeleteItem(
 	ctx context.Context,
 	gs graph.Servicer,

@@ -3,11 +3,11 @@ package backup
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -23,11 +23,6 @@ import (
 // ------------------------------------------------------------------------------------------------
 // setup and globals
 // ------------------------------------------------------------------------------------------------
-
-// exchange bucket info from flags
-var (
-	exchangeData []string
-)
 
 const (
 	dataContacts = "contacts"
@@ -81,6 +76,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
+		fs.SortFlags = false
+
 		options.AddFeatureToggle(cmd, options.DisableIncrementals())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
@@ -89,11 +86,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		utils.AddUserFlag(c)
-
-		fs.StringSliceVar(
-			&exchangeData,
-			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
+		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		options.AddFetchParallelismFlag(c)
 		options.AddOperationFlags(c)
 
@@ -107,7 +100,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, _ = utils.AddCommand(cmd, exchangeDetailsCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
@@ -120,7 +114,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, _ = utils.AddCommand(cmd, exchangeDeleteCmd())
+		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
@@ -153,7 +148,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(utils.User, exchangeData); err != nil {
+	if err := validateExchangeBackupCreateFlags(utils.UserFV, utils.CategoryDataFV); err != nil {
 		return err
 	}
 
@@ -164,19 +159,19 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(utils.User, exchangeData)
+	sel := exchangeBackupCreateSelectors(utils.UserFV, utils.CategoryDataFV)
 
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, *acct, errs)
+	ins, err := m365.UsersMap(ctx, *acct, errs)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to retrieve M365 user(s)"))
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 user(s)"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(users) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -185,7 +180,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"Exchange", "user",
 		selectorSet,
-	)
+		ins)
 }
 
 func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {
@@ -213,12 +208,12 @@ func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBa
 
 func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
-		return errors.New("--user requires one or more email addresses or the wildcard '*'")
+		return clues.New("--user requires one or more email addresses or the wildcard '*'")
 	}
 
 	for _, d := range cats {
 		if d != dataContacts && d != dataEmail && d != dataEvents {
-			return errors.New(
+			return clues.New(
 				d + " is an unrecognized data type; must be one of " + dataContacts + ", " + dataEmail + ", or " + dataEvents)
 		}
 	}
@@ -242,7 +237,7 @@ func exchangeListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupID, path.ExchangeService, args)
+	return genericListCommand(cmd, utils.BackupIDFV, path.ExchangeService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -267,30 +262,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.ExchangeOpts{
-		Users: utils.User,
-
-		Contact:       utils.Contact,
-		ContactFolder: utils.ContactFolder,
-		ContactName:   utils.ContactName,
-
-		Email:               utils.Email,
-		EmailFolder:         utils.EmailFolder,
-		EmailReceivedAfter:  utils.EmailReceivedAfter,
-		EmailReceivedBefore: utils.EmailReceivedBefore,
-		EmailSender:         utils.EmailSender,
-		EmailSubject:        utils.EmailSubject,
-		EventOrganizer:      utils.EventOrganizer,
-
-		Event:             utils.Event,
-		EventCalendar:     utils.EventCalendar,
-		EventRecurs:       utils.EventRecurs,
-		EventStartsAfter:  utils.EventStartsAfter,
-		EventStartsBefore: utils.EventStartsBefore,
-		EventSubject:      utils.EventSubject,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.MakeExchangeOpts(cmd)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
@@ -301,7 +273,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -336,11 +308,13 @@ func runDetailsExchangeCmd(
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {
 		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, errors.Errorf("No backup exists with the id %s", backupID)
+			return nil, clues.New("No backup exists with the id " + backupID)
 		}
 
-		return nil, errors.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
+
+	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
 
 	if !skipReduce {
 		sel := utils.IncludeExchangeRestoreDataSelectors(opts)
@@ -367,5 +341,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupID, "Exchange", args)
+	return genericDeleteCommand(cmd, utils.BackupIDFV, "Exchange", args)
 }

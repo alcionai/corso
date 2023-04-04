@@ -2,11 +2,9 @@ package discovery
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -58,15 +56,15 @@ func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userabl
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			return nil, nil, fmt.Errorf("resource owner [%s] not found within tenant", userID)
+			return nil, nil, clues.New("resource owner not found within tenant").With("user_id", userID)
 		}
 
-		return nil, nil, errors.Wrap(err, "getting user")
+		return nil, nil, clues.Wrap(err, "getting user")
 	}
 
 	ui, err := gwi.GetInfo(ctx, userID)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "getting user info")
+		return nil, nil, clues.Wrap(err, "getting user info")
 	}
 
 	return u, ui, nil

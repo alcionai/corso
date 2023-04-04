@@ -3,9 +3,9 @@ package tester
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )

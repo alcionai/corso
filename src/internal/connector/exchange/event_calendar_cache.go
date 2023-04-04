@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -16,10 +15,9 @@ var _ graph.ContainerResolver = &eventCalendarCache{}
 
 type eventCalendarCache struct {
 	*containerResolver
-	enumer       containersEnumerator
-	getter       containerGetter
-	userID       string
-	newAdditions map[string]string
+	enumer containersEnumerator
+	getter containerGetter
+	userID string
 }
 
 // init ensures that the structure's fields are initialized.
@@ -44,7 +42,7 @@ func (ecc *eventCalendarCache) populateEventRoot(ctx context.Context) error {
 
 	f, err := ecc.getter.GetContainerByID(ctx, ecc.userID, container)
 	if err != nil {
-		return errors.Wrap(err, "fetching calendar")
+		return clues.Wrap(err, "fetching calendar")
 	}
 
 	temp := graph.NewCacheFolder(
@@ -68,7 +66,7 @@ func (ecc *eventCalendarCache) Populate(
 	baseContainerPath ...string,
 ) error {
 	if err := ecc.init(ctx); err != nil {
-		return errors.Wrap(err, "initializing")
+		return clues.Wrap(err, "initializing")
 	}
 
 	err := ecc.enumer.EnumerateContainers(
@@ -78,11 +76,11 @@ func (ecc *eventCalendarCache) Populate(
 		ecc.addFolder,
 		errs)
 	if err != nil {
-		return errors.Wrap(err, "enumerating containers")
+		return clues.Wrap(err, "enumerating containers")
 	}
 
-	if err := ecc.populatePaths(ctx, true, errs); err != nil {
-		return errors.Wrap(err, "establishing calendar paths")
+	if err := ecc.populatePaths(ctx, errs); err != nil {
+		return clues.Wrap(err, "establishing calendar paths")
 	}
 
 	return nil
@@ -90,7 +88,7 @@ func (ecc *eventCalendarCache) Populate(
 
 // AddToCache adds container to map in field 'cache'
 // @returns error iff the required values are not accessible.
-func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container, useIDInPath bool) error {
+func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkIDAndName(f); err != nil {
 		return clues.Wrap(err, "validating container").WithClues(ctx)
 	}
@@ -100,30 +98,16 @@ func (ecc *eventCalendarCache) AddToCache(ctx context.Context, f graph.Container
 		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
 		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 
-	if len(ecc.newAdditions) == 0 {
-		ecc.newAdditions = map[string]string{}
-	}
-
-	ecc.newAdditions[ptr.Val(f.GetDisplayName())] = ptr.Val(f.GetId())
-
 	if err := ecc.addFolder(temp); err != nil {
-		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
 		return clues.Wrap(err, "adding container").WithClues(ctx)
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
 	// when they're made.
-	_, _, err := ecc.IDToPath(ctx, ptr.Val(f.GetId()), true)
+	_, _, err := ecc.IDToPath(ctx, ptr.Val(f.GetId()))
 	if err != nil {
-		delete(ecc.newAdditions, ptr.Val(f.GetDisplayName()))
-		return errors.Wrap(err, "setting path to container id")
+		return clues.Wrap(err, "setting path to container id")
 	}
 
 	return nil
-}
-
-// DestinationNameToID returns an empty string.  This is only supported by exchange
-// calendars at this time.
-func (ecc *eventCalendarCache) DestinationNameToID(dest string) string {
-	return ecc.newAdditions[dest]
 }

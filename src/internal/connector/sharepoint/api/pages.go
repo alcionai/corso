@@ -6,34 +6,33 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
+	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
-	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
+	betamodels "github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
+	betasites "github.com/alcionai/corso/src/internal/connector/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	msmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
-	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
 )
 
 // GetSitePages retrieves a collection of Pages related to the give Site.
 // Returns error if error experienced during the call
 func GetSitePages(
 	ctx context.Context,
-	serv *discover.BetaService,
+	serv *dapi.BetaService,
 	siteID string,
 	pages []string,
 	errs *fault.Bus,
-) ([]models.SitePageable, error) {
+) ([]betamodels.SitePageable, error) {
 	var (
-		col         = make([]models.SitePageable, 0)
+		col         = make([]betamodels.SitePageable, 0)
 		semaphoreCh = make(chan struct{}, fetchChannelSize)
 		opts        = retrieveSitePageOptions()
 		el          = errs.Local()
@@ -43,7 +42,7 @@ func GetSitePages(
 
 	defer close(semaphoreCh)
 
-	updatePages := func(page models.SitePageable) {
+	updatePages := func(page betamodels.SitePageable) {
 		m.Lock()
 		defer m.Unlock()
 
@@ -64,7 +63,7 @@ func GetSitePages(
 			defer func() { <-semaphoreCh }()
 
 			var (
-				page models.SitePageable
+				page betamodels.SitePageable
 				err  error
 			)
 
@@ -84,10 +83,10 @@ func GetSitePages(
 }
 
 // GetSite returns a minimal Site with the SiteID and the WebURL
-func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (msmodels.Siteable, error) {
+func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (models.Siteable, error) {
 	// resp *sites.SiteItemRequestBuilderresp *sites.SiteItemRequestBuilde
-	options := &mssites.SiteItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &mssites.SiteItemRequestBuilderGetQueryParameters{
+	options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
 			Select: []string{"webUrl"},
 		},
 	}
@@ -101,12 +100,12 @@ func GetSite(ctx context.Context, gs graph.Servicer, siteID string) (msmodels.Si
 }
 
 // fetchPages utility function to return the tuple of item
-func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([]NameID, error) {
+func FetchPages(ctx context.Context, bs *dapi.BetaService, siteID string) ([]NameID, error) {
 	var (
 		builder = bs.Client().SitesById(siteID).Pages()
 		opts    = fetchPageOptions()
 		pages   = make([]NameID, 0)
-		resp    models.SitePageCollectionResponseable
+		resp    betamodels.SitePageCollectionResponseable
 		err     error
 	)
 
@@ -135,7 +134,7 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 			break
 		}
 
-		builder = sites.NewItemPagesRequestBuilder(link, bs.Client().Adapter())
+		builder = betasites.NewItemPagesRequestBuilder(link, bs.Client().Adapter())
 	}
 
 	return pages, nil
@@ -143,10 +142,10 @@ func FetchPages(ctx context.Context, bs *discover.BetaService, siteID string) ([
 
 // fetchPageOptions is used to return minimal information reltating to Site Pages
 // Pages API: https://learn.microsoft.com/en-us/graph/api/resources/sitepage?view=graph-rest-beta
-func fetchPageOptions() *sites.ItemPagesRequestBuilderGetRequestConfiguration {
+func fetchPageOptions() *betasites.ItemPagesRequestBuilderGetRequestConfiguration {
 	fields := []string{"id", "name"}
-	options := &sites.ItemPagesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.ItemPagesRequestBuilderGetQueryParameters{
+	options := &betasites.ItemPagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &betasites.ItemPagesRequestBuilderGetQueryParameters{
 			Select: fields,
 		},
 	}
@@ -156,9 +155,11 @@ func fetchPageOptions() *sites.ItemPagesRequestBuilderGetRequestConfiguration {
 
 // DeleteSitePage removes the selected page from the SharePoint Site
 // https://learn.microsoft.com/en-us/graph/api/sitepage-delete?view=graph-rest-beta
+// deletes require unique http clients
+// https://github.com/alcionai/corso/issues/2707
 func DeleteSitePage(
 	ctx context.Context,
-	serv *discover.BetaService,
+	serv *dapi.BetaService,
 	siteID, pageID string,
 ) error {
 	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
@@ -170,10 +171,10 @@ func DeleteSitePage(
 }
 
 // retrievePageOptions returns options to expand
-func retrieveSitePageOptions() *sites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration {
+func retrieveSitePageOptions() *betasites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration {
 	fields := []string{"canvasLayout"}
-	options := &sites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.ItemPagesSitePageItemRequestBuilderGetQueryParameters{
+	options := &betasites.ItemPagesSitePageItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &betasites.ItemPagesSitePageItemRequestBuilderGetQueryParameters{
 			Expand: fields,
 		},
 	}
@@ -183,11 +184,11 @@ func retrieveSitePageOptions() *sites.ItemPagesSitePageItemRequestBuilderGetRequ
 
 func RestoreSitePage(
 	ctx context.Context,
-	service *discover.BetaService,
+	service *dapi.BetaService,
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restorePage", D.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restorePage", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
 	var (
@@ -206,7 +207,7 @@ func RestoreSitePage(
 	// Hydrate Page
 	page, err := support.CreatePageFromBytes(byteArray)
 	if err != nil {
-		return dii, errors.Wrapf(err, "creating Page object %s", pageID)
+		return dii, clues.Wrap(err, "creating Page object").WithClues(ctx)
 	}
 
 	name, ok := ptr.ValOK(page.GetName())
@@ -255,7 +256,7 @@ func RestoreSitePage(
 // Helpers
 // ==============================
 // PageInfo extracts useful metadata into struct for book keeping
-func PageInfo(page models.SitePageable, size int64) *details.SharePointInfo {
+func PageInfo(page betamodels.SitePageable, size int64) *details.SharePointInfo {
 	var (
 		name     = ptr.Val(page.GetTitle())
 		webURL   = ptr.Val(page.GetWebUrl())

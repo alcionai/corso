@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -28,6 +28,29 @@ func (q *queryFilters) populate(qf ...FilterOption) {
 	}
 }
 
+type (
+	BackupWrapper interface {
+		BackupGetterDeleter
+		GetBackups(
+			ctx context.Context,
+			filters ...FilterOption,
+		) ([]*backup.Backup, error)
+	}
+
+	BackupGetterDeleter interface {
+		BackupGetter
+		BackupDeleter
+	}
+
+	BackupGetter interface {
+		GetBackup(ctx context.Context, backupID model.StableID) (*backup.Backup, error)
+	}
+
+	BackupDeleter interface {
+		DeleteBackup(ctx context.Context, backupID model.StableID) error
+	}
+)
+
 // Service ensures the retrieved backups only match
 // the specified service.
 func Service(pst path.ServiceType) FilterOption {
@@ -42,7 +65,7 @@ func (w Wrapper) GetBackup(ctx context.Context, backupID model.StableID) (*backu
 
 	err := w.Get(ctx, model.BackupSchema, backupID, &b)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting backup")
+		return nil, clues.Wrap(err, "getting backup")
 	}
 
 	return &b, nil

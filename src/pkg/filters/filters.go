@@ -444,7 +444,7 @@ func (f Filter) Compare(input string) bool {
 
 // true if t == i
 func equals(target, input string) bool {
-	return target == input
+	return strings.EqualFold(target, input)
 }
 
 // true if t > i
@@ -531,7 +531,7 @@ func pathSuffix(target, input string) bool {
 // The input is assumed to be the complete path that may
 // match the target.
 func pathEquals(target, input string) bool {
-	return normPathElem(input) == target
+	return strings.EqualFold(normPathElem(input), target)
 }
 
 // ----------------------------------------------------------------------------------------------------

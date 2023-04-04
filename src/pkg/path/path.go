@@ -57,7 +57,6 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -73,8 +72,8 @@ var charactersToEscape = map[rune]struct{}{
 }
 
 var (
-	errMissingSegment = errors.New("missing required path element")
-	errParsingPath    = errors.New("parsing resource path")
+	errMissingSegment = clues.New("missing required path element")
+	errParsingPath    = clues.New("parsing resource path")
 )
 
 // For now, adding generic functions to pull information from segments.
@@ -268,11 +267,11 @@ func (pb Builder) Elements() []string {
 
 func verifyInputValues(tenant, resourceOwner string) error {
 	if len(tenant) == 0 {
-		return clues.Stack(errMissingSegment, errors.New("tenant"))
+		return clues.Stack(errMissingSegment, clues.New("tenant"))
 	}
 
 	if len(resourceOwner) == 0 {
-		return clues.Stack(errMissingSegment, errors.New("resourceOwner"))
+		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
 	}
 
 	return nil
@@ -284,7 +283,7 @@ func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
 	}
 
 	if len(pb.elements) == 0 {
-		return errors.New("missing path beyond prefix")
+		return clues.New("missing path beyond prefix")
 	}
 
 	return nil
@@ -307,7 +306,7 @@ func (pb Builder) ToStreamStorePath(
 	}
 
 	if isItem && len(pb.elements) == 0 {
-		return nil, errors.New("missing path beyond prefix")
+		return nil, clues.New("missing path beyond prefix")
 	}
 
 	metadataService := UnknownService
@@ -348,7 +347,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	}
 
 	if isItem && len(pb.elements) == 0 {
-		return nil, errors.New("missing path beyond prefix")
+		return nil, clues.New("missing path beyond prefix")
 	}
 
 	metadataService := UnknownService
@@ -566,7 +565,7 @@ func validateEscapedElement(element string) error {
 	}
 
 	if prevWasEscape {
-		return errors.New("trailing escape character")
+		return clues.New("trailing escape character")
 	}
 
 	return nil

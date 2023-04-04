@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
 	"github.com/kopia/kopia/repo/manifest"
@@ -18,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -2374,7 +2374,7 @@ func (msw *mockMultiSnapshotWalker) SnapshotRoot(man *snapshot.Manifest) (fs.Ent
 		return snap, nil
 	}
 
-	return nil, errors.New("snapshot not found")
+	return nil, clues.New("snapshot not found")
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubtrees() {

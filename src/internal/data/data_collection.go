@@ -2,9 +2,10 @@ package data
 
 import (
 	"context"
-	"errors"
 	"io"
 	"time"
+
+	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -15,7 +16,7 @@ import (
 // standard ifaces
 // ------------------------------------------------------------------------------------------------
 
-var ErrNotFound = errors.New("not found")
+var ErrNotFound = clues.New("not found")
 
 type CollectionState int
 

@@ -100,44 +100,36 @@ jobs:
         id: environment
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=environment::Production"
-            echo "::set-output name=environment::Production"
+            echo "environment=Production" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=environment::Testing"
-            echo "::set-output name=environment::Testing"
+            echo "environment=Testing" | tee -a $GITHUB_OUTPUT
           fi
 
       - name: Get version string
         id: version
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
-            echo "::set-output name=version::$(git describe --exact-match --tags $(git rev-parse HEAD))"
+            echo "version=$(git describe --exact-match --tags $(git rev-parse HEAD))" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
-            echo "::set-output name=version::$(echo unreleased-$(git rev-parse --short HEAD))"
+            echo "version=$(echo unreleased-$(git rev-parse --short HEAD))" | tee -a $GITHUB_OUTPUT
           fi
 
       - name: Get bucket name for website
         id: website-bucket
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=website-bucket::corsobackup.io"
-            echo "::set-output name=website-bucket::corsobackup.io"
+            echo "website-bucket=corsobackup.io" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=website-bucket::test-corso-docs"
-            echo "::set-output name=website-bucket::test-corso-docs"
+            echo "website-bucket=test-corso-docs" | tee -a $GITHUB_OUTPUT
           fi
 
       - name: Get cfid for website
         id: website-cfid
         run: |
           if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "set-output name=website-cfid::E1W9NGI9YTVZ1A"
-            echo "::set-output name=website-cfid::E1W9NGI9YTVZ1A"
+            echo "website-cfid=E1W9NGI9YTVZ1A" | tee -a $GITHUB_OUTPUT
           else
-            echo "set-output name=website-cfid::ESFTEIYTIP7Y3"
-            echo "::set-output name=website-cfid::ESFTEIYTIP7Y3"
+            echo "website-cfid=ESFTEIYTIP7Y3" | tee -a $GITHUB_OUTPUT
           fi
 
 
@@ -218,6 +210,7 @@ jobs:
           -v            \
           -failfast     \
           -p 1          \
+          -timeout 15m  \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
@@ -226,6 +219,58 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+
+  Unit-Test-Suite:
+    needs: [Precheck, Checkout]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: needs.precheck.outputs.srcfileschanged == 'true'
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: mkdir testlog
+
+      # Install gotestfmt
+      - name: Set up gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # run the tests
+      - name: Unit Tests
+        env:
+          # Set these to a bad value so we don't accidentally fall back to
+          # something elsewhere.
+          CORSO_M365_TEST_USER_ID: 'foo'
+          CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
+          CORSO_LOG_FILE: ./src/testlog/testlogging.log
+          LOG_GRAPH_REQUESTS: true
+        run: |
+          set -euo pipefail
+          go test       \
+          -tags testing \
+          -json         \
+          -v            \
+          -failfast     \
+          -p 1          \
+          -timeout 15m  \
+          ./... 2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-log
           path: src/testlog/*
           if-no-files-found: error
           retention-days: 14
@@ -303,6 +348,7 @@ jobs:
           go test \
           -json   \
           -v      \
+          -timeout 15m  \
           ./... 2>&1 | tee ./testlog/gotest.log | gotestfmt -hide successful-tests
 
       # Upload the original go test log as an artifact for later review.
@@ -394,7 +440,7 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Publish-Binary:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -464,7 +510,7 @@ jobs:
           path: src/dist/corso_windows_amd64_v1/corso.exe
 
   Publish-Image:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -606,7 +652,7 @@ jobs:
           ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
 
   Publish-Website-Test:
-    needs: [Test-Suite-Trusted, Linting, Website-Linting, SetEnv]
+    needs: [Test-Suite-Trusted, Unit-Test-Suite, Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'

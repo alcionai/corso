@@ -3,7 +3,7 @@ package fault_test
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -37,7 +37,7 @@ func (m mockOper) Run() *fault.Bus { return m.Errors }
 type mockDepenedency struct{}
 
 func (md mockDepenedency) do() error {
-	return errors.New("caught one")
+	return clues.New("caught one")
 }
 
 var dependency = mockDepenedency{}
@@ -87,7 +87,7 @@ func ExampleBus_Fail() {
 	lowLevelCall := func() error {
 		if err := dependencyCall(); err != nil {
 			// wrap here, deeper into the stack
-			return errors.Wrap(err, "dependency")
+			return clues.Wrap(err, "dependency")
 		}
 
 		return nil
@@ -122,7 +122,7 @@ func ExampleBus_AddRecoverable() {
 			if err := getIthItem(i); err != nil {
 				// lower level calls don't AddRecoverable to the fault.Bus.
 				// they stick to normal golang error handling.
-				return errors.Wrap(err, "dependency")
+				return clues.Wrap(err, "dependency")
 			}
 
 			return nil
@@ -158,7 +158,7 @@ func ExampleBus_AddRecoverable() {
 // ExampleBus_Failure describes retrieving the non-recoverable error.
 func ExampleBus_Failure() {
 	errs := fault.New(false)
-	errs.Fail(errors.New("catastrophe"))
+	errs.Fail(clues.New("catastrophe"))
 
 	// Failure() returns the primary failure.
 	err := errs.Failure()
@@ -166,7 +166,7 @@ func ExampleBus_Failure() {
 
 	// if multiple Failures occur, each one after the first gets
 	// added to the Recoverable slice as an overflow measure.
-	errs.Fail(errors.New("another catastrophe"))
+	errs.Fail(clues.New("another catastrophe"))
 	errSl := errs.Recovered()
 
 	for _, e := range errSl {
@@ -181,7 +181,7 @@ func ExampleBus_Failure() {
 	// If failFast is set to true, then the first recoerable error Added gets
 	// promoted to the Err() position.
 	errs = fault.New(true)
-	errs.AddRecoverable(errors.New("not catastrophic, but still becomes the Failure()"))
+	errs.AddRecoverable(clues.New("not catastrophic, but still becomes the Failure()"))
 	err = errs.Failure()
 	fmt.Println(err)
 
@@ -194,8 +194,8 @@ func ExampleBus_Failure() {
 // recover from and continue.
 func ExampleErrors_Recovered() {
 	errs := fault.New(false)
-	errs.AddRecoverable(errors.New("not catastrophic"))
-	errs.AddRecoverable(errors.New("something unwanted"))
+	errs.AddRecoverable(clues.New("not catastrophic"))
+	errs.AddRecoverable(clues.New("something unwanted"))
 
 	// Recovered() gets the slice of all recoverable errors added during
 	// the run, but which did not cause a failure.
@@ -314,7 +314,7 @@ func Example_e2e() {
 				// we're not passing in or calling fault.Bus here,
 				// because this isn't the iteration handler, it's just
 				// a regular error.
-				return errors.Wrap(err, "dependency")
+				return clues.Wrap(err, "dependency")
 			}
 
 			return nil
@@ -364,7 +364,7 @@ func ExampleErrors_Failure_return() {
 	// handling whenever possible.
 	fn := func() error {
 		if err := dependency.do(); err != nil {
-			return errors.Wrap(err, "direct")
+			return clues.Wrap(err, "direct")
 		}
 
 		return nil
@@ -383,7 +383,7 @@ func ExampleErrors_Failure_return() {
 			}
 
 			if err := dependency.do(); err != nil {
-				errs.AddRecoverable(errors.Wrap(err, "recoverable"))
+				errs.AddRecoverable(clues.Wrap(err, "recoverable"))
 			}
 		}
 

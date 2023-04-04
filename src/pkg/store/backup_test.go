@@ -4,17 +4,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/store"
-	storeMock "github.com/alcionai/corso/src/pkg/store/mock"
+	"github.com/alcionai/corso/src/pkg/store/mock"
 )
 
 // ------------------------------------------------------------
@@ -48,17 +48,17 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 
 	table := []struct {
 		name   string
-		mock   *storeMock.MockModelStore
+		mock   *mock.ModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets backup",
-			mock:   storeMock.NewMock(&bu, nil),
+			mock:   mock.NewModelStoreMock(&bu, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
+			mock:   mock.NewModelStoreMock(&bu, assert.AnError),
 			expect: assert.Error,
 		},
 	}
@@ -85,17 +85,17 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 
 	table := []struct {
 		name   string
-		mock   *storeMock.MockModelStore
+		mock   *mock.ModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets backups",
-			mock:   storeMock.NewMock(&bu, nil),
+			mock:   mock.NewModelStoreMock(&bu, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
+			mock:   mock.NewModelStoreMock(&bu, assert.AnError),
 			expect: assert.Error,
 		},
 	}
@@ -123,17 +123,17 @@ func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
 
 	table := []struct {
 		name   string
-		mock   *storeMock.MockModelStore
+		mock   *mock.ModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "deletes backup",
-			mock:   storeMock.NewMock(&bu, nil),
+			mock:   mock.NewModelStoreMock(&bu, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
+			mock:   mock.NewModelStoreMock(&bu, assert.AnError),
 			expect: assert.Error,
 		},
 	}

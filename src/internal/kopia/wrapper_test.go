@@ -7,6 +7,7 @@ import (
 	stdpath "path"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
@@ -16,7 +17,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/data"
@@ -276,7 +276,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			stats, deets, _, err := suite.w.BackupCollections(
+			stats, deets, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -423,7 +423,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			t := suite.T()
 			collections := test.cols()
 
-			stats, deets, prevShortRefs, err := suite.w.BackupCollections(
+			stats, deets, prevShortRefs, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -525,7 +525,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
 	require.NoError(t, err, clues.ToCore(err))
 
-	stats, _, _, err := w.BackupCollections(
+	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
 		nil,
 		[]data.BackupCollection{dc1, dc2},
@@ -543,7 +543,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		fp2.String(): dc2.Data[0],
 	}
 
-	result, err := w.RestoreMultipleItems(
+	result, err := w.ProduceRestoreCollections(
 		ctx,
 		string(stats.SnapshotID),
 		[]path.Path{
@@ -644,7 +644,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	stats, deets, _, err := suite.w.BackupCollections(
+	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -666,7 +666,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	ic := i64counter{}
 
-	_, err = suite.w.RestoreMultipleItems(
+	_, err = suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(stats.SnapshotID),
 		[]path.Path{failedPath},
@@ -706,7 +706,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			s, d, _, err := suite.w.BackupCollections(
+			s, d, _, err := suite.w.ConsumeBackupCollections(
 				ctx,
 				nil,
 				test.collections,
@@ -866,7 +866,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		tags[k] = ""
 	}
 
-	stats, deets, _, err := suite.w.BackupCollections(
+	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -1018,7 +1018,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				}
 			}
 
-			stats, _, _, err := suite.w.BackupCollections(
+			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				[]IncrementalBase{
 					{
@@ -1045,7 +1045,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 
 			ic := i64counter{}
 
-			_, err = suite.w.RestoreMultipleItems(
+			_, err = suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(stats.SnapshotID),
 				[]path.Path{
@@ -1058,7 +1058,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 	}
 }
 
-func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 	doesntExist, err := path.Build(
 		testTenant,
 		testUser,
@@ -1148,7 +1148,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 
 			ic := i64counter{}
 
-			result, err := suite.w.RestoreMultipleItems(
+			result, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				string(suite.snapshotID),
 				test.inputPaths,
@@ -1167,7 +1167,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems() {
 	}
 }
 
-func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() {
+func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Errors() {
 	itemPath, err := suite.testPath1.Append(testFileName, true)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -1197,7 +1197,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestRestoreMultipleItems_Errors() 
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			c, err := suite.w.RestoreMultipleItems(
+			c, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
 				test.snapshotID,
 				test.paths,
@@ -1219,7 +1219,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestDeleteSnapshot() {
 	itemPath := suite.files[suite.testPath1.String()][0].itemPath
 	ic := i64counter{}
 
-	c, err := suite.w.RestoreMultipleItems(
+	c, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
 		string(suite.snapshotID),
 		[]path.Path{itemPath},

@@ -11,12 +11,14 @@ import (
 func Control() control.Options {
 	opt := control.Defaults()
 
-	opt.FailFast = fastFail
+	if fastFail {
+		opt.FailureHandling = control.FailFast
+	}
+
 	opt.DisableMetrics = noStats
 	opt.RestorePermissions = restorePermissions
 	opt.SkipReduce = skipReduce
 	opt.ToggleFeatures.DisableIncrementals = disableIncrementals
-	opt.ToggleFeatures.EnablePermissionsBackup = enablePermissionsBackup
 	opt.ItemFetchParallelism = fetchParallelism
 
 	return opt
@@ -52,8 +54,6 @@ func AddGlobalOperationFlags(cmd *cobra.Command) {
 func AddRestorePermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(&restorePermissions, "restore-permissions", false, "Restore permissions for files and folders")
-	// TODO: reveal this flag once backing up permissions becomes default
-	cobra.CheckErr(fs.MarkHidden("restore-permissions"))
 }
 
 // AddSkipReduceFlag adds a hidden flag that allows callers to skip the selector
@@ -78,10 +78,7 @@ func AddFetchParallelismFlag(cmd *cobra.Command) {
 // Feature Flags
 // ---------------------------------------------------------------------------
 
-var (
-	disableIncrementals     bool
-	enablePermissionsBackup bool
-)
+var disableIncrementals bool
 
 type exposeFeatureFlag func(*pflag.FlagSet)
 
@@ -104,18 +101,5 @@ func DisableIncrementals() func(*pflag.FlagSet) {
 			false,
 			"Disable incremental data retrieval in backups.")
 		cobra.CheckErr(fs.MarkHidden("disable-incrementals"))
-	}
-}
-
-// Adds the hidden '--enable-permissions-backup' cli flag which, when
-// set, enables backing up permissions.
-func EnablePermissionsBackup() func(*pflag.FlagSet) {
-	return func(fs *pflag.FlagSet) {
-		fs.BoolVar(
-			&enablePermissionsBackup,
-			"enable-permissions-backup",
-			false,
-			"Enable backing up item permissions for OneDrive")
-		cobra.CheckErr(fs.MarkHidden("enable-permissions-backup"))
 	}
 }

@@ -4,13 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
+
+	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -40,7 +39,7 @@ func DataCollections(
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
@@ -57,7 +56,7 @@ func DataCollections(
 
 		foldersComplete, closer := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", observe.Safe(scope.Category().PathType().String())))
+			observe.Bulletf("%s", scope.Category().PathType()))
 		defer closer()
 		defer close(foldersComplete)
 
@@ -244,9 +243,9 @@ func collectPages(
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
-	betaService := api.NewBetaService(adpt)
+	betaService := dapi.NewBetaService(adpt)
 
-	tuples, err := sapi.FetchPages(ctx, betaService, siteID)
+	tuples, err := api.FetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}

@@ -6,12 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -65,7 +64,7 @@ func NewTestViper() (*viper.Viper, error) {
 	// Or use a custom file location
 	ext := filepath.Ext(configFilePath)
 	if len(ext) == 0 {
-		return nil, errors.New("corso_test requires an extension")
+		return nil, clues.New("corso_test requires an extension")
 	}
 
 	vpr.SetConfigFile(configFilePath)
@@ -96,7 +95,7 @@ func readTestConfig() (map[string]string, error) {
 	if err = vpr.ReadInConfig(); err != nil {
 		_, ok := err.(viper.ConfigFileNotFoundError)
 		if !ok {
-			return nil, errors.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
+			return nil, clues.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
 		}
 	}
 

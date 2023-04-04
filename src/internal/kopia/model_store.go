@@ -22,16 +22,16 @@ const (
 )
 
 var (
-	errNoModelStoreID     = errors.New("model has no ModelStoreID")
-	errNoStableID         = errors.New("model has no StableID")
-	errBadTagKey          = errors.New("tag key overlaps with required key")
-	errModelTypeMismatch  = errors.New("model type doesn't match request")
-	errUnrecognizedSchema = errors.New("unrecognized model schema")
+	errNoModelStoreID     = clues.New("model has no ModelStoreID")
+	errNoStableID         = clues.New("model has no StableID")
+	errBadTagKey          = clues.New("tag key overlaps with required key")
+	errModelTypeMismatch  = clues.New("model type doesn't match request")
+	errUnrecognizedSchema = clues.New("unrecognized model schema")
 )
 
 func NewModelStore(c *conn) (*ModelStore, error) {
 	if err := c.wrap(); err != nil {
-		return nil, errors.Wrap(err, "creating ModelStore")
+		return nil, clues.Wrap(err, "creating ModelStore")
 	}
 
 	return &ModelStore{c: c, modelVersion: globalModelVersion}, nil
@@ -52,7 +52,11 @@ func (ms *ModelStore) Close(ctx context.Context) error {
 	err := ms.c.Close(ctx)
 	ms.c = nil
 
-	return errors.Wrap(err, "closing ModelStore")
+	if err != nil {
+		return clues.Wrap(err, "closing ModelStore")
+	}
+
+	return nil
 }
 
 // tagsForModel creates a copy of tags and adds a tag for the model schema to it.
@@ -192,7 +196,7 @@ func (ms ModelStore) populateBaseModelFromMetadata(
 
 	v, err := strconv.Atoi(m.Labels[modelVersionKey])
 	if err != nil {
-		return errors.Wrap(err, "parsing model version")
+		return clues.Wrap(err, "parsing model version")
 	}
 
 	if v != ms.modelVersion {

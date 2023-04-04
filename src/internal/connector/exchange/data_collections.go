@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -280,13 +279,13 @@ func createCollections(
 
 	foldersComplete, closer := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", observe.Safe(qp.Category.String())))
+		observe.Bulletf("%s", qp.Category))
 	defer closer()
 	defer close(foldersComplete)
 
 	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "populating container cache")
+		return nil, clues.Wrap(err, "populating container cache")
 	}
 
 	err = filterContainersAndFillCollections(
@@ -301,7 +300,7 @@ func createCollections(
 		ctrlOpts,
 		errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "filling collections")
+		return nil, clues.Wrap(err, "filling collections")
 	}
 
 	foldersComplete <- struct{}{}
