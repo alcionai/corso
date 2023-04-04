@@ -251,11 +251,10 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			item, info, err := getItemWithRetries(
+			item, info, err := col.items.GetItem(
 				ctx,
 				user,
 				id,
-				col.items,
 				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
@@ -298,21 +297,6 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	}
 
 	wg.Wait()
-}
-
-// get an item while handling retry and backoff.
-func getItemWithRetries(
-	ctx context.Context,
-	userID, itemID string,
-	items itemer,
-	errs *fault.Bus,
-) (serialization.Parsable, *details.ExchangeInfo, error) {
-	item, info, err := items.GetItem(ctx, userID, itemID, errs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return item, info, nil
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel
