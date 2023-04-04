@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
@@ -62,10 +63,10 @@ func UsersMap(
 	ctx context.Context,
 	acct account.Account,
 	errs *fault.Bus,
-) (map[string]string, map[string]string, error) {
+) (common.IDsNames, error) {
 	users, err := Users(ctx, acct, errs)
 	if err != nil {
-		return nil, nil, err
+		return common.IDsNames{}, err
 	}
 
 	var (
@@ -78,7 +79,12 @@ func UsersMap(
 		nameToID[u.PrincipalName] = u.ID
 	}
 
-	return idToName, nameToID, nil
+	ins := common.IDsNames{
+		IDToName: idToName,
+		NameToID: nameToID,
+	}
+
+	return ins, nil
 }
 
 type Site struct {

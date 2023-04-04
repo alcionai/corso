@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -54,11 +55,10 @@ type GraphConnector struct {
 	// TODO: remove in favor of the maps below.
 	Sites map[string]string // webURL -> siteID and siteID -> webURL
 
-	// maps of resource owner ids to names, and names to ids.
+	// lookup for resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
-	ResourceOwnerIDToName map[string]string
-	ResourceOwnerNameToID map[string]string
+	IDNameLookup common.IDNameSwapper
 
 	// wg is used to track completion of GC tasks
 	wg     *sync.WaitGroup
@@ -132,37 +132,33 @@ func NewGraphConnector(
 // and could store minimal map copies with that info instead of the whole tenant.
 func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	owner string, // input value, can be either id or name
-	idToName, nameToID map[string]string, // optionally pre-populated lookups
+	ins common.IDNameSwapper,
 ) (string, string, error) {
-	// ensure the maps exist, even if they aren't populated so that
-	// getOwnerIDAndNameFrom can populate any values it looks up.
-	if len(idToName) == 0 {
-		idToName = map[string]string{}
-	}
-
-	if len(nameToID) == 0 {
-		nameToID = map[string]string{}
-	}
-
 	// move this to GC method
-	id, name, err := getOwnerIDAndNameFrom(owner, idToName, nameToID)
+	id, name, err := getOwnerIDAndNameFrom(owner, ins)
 	if err != nil {
 		return "", "", errors.Wrap(err, "resolving resource owner details")
 	}
 
-	gc.ResourceOwnerIDToName = idToName
-	gc.ResourceOwnerNameToID = nameToID
+	gc.IDNameLookup = ins
+
+	if len(ins.IDs()) == 0 && len(ins.Names()) == 0 {
+		gc.IDNameLookup = common.IDsNames{
+			IDToName: map[string]string{id: name},
+			NameToID: map[string]string{name: id},
+		}
+	}
 
 	return id, name, nil
 }
 
 func getOwnerIDAndNameFrom(
 	owner string,
-	idToName, nameToID map[string]string,
+	ins common.IDNameSwapper,
 ) (string, string, error) {
-	if n, ok := idToName[owner]; ok {
+	if n, ok := ins.NameOf(owner); ok {
 		return owner, n, nil
-	} else if i, ok := nameToID[owner]; ok {
+	} else if i, ok := ins.IDOf(owner); ok {
 		return i, owner, nil
 	}
 

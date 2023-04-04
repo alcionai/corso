@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -78,6 +79,10 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		users    = []string{suite.m365UserID}
 		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
 		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+		ins      = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
 	)
 
 	// init the repo first
@@ -105,7 +110,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector, idToName, nameToID)
+		bop, err := suite.repo.NewBackup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)

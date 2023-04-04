@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
@@ -127,12 +126,12 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	errs := fault.New(false)
 	normUsers := map[string]struct{}{}
 
-	idToName, _, err := m365.UsersMap(ctx, acct, errs)
+	ins, err := m365.UsersMap(ctx, acct, errs)
 	if err != nil {
 		return nil, account.Account{}, clues.Wrap(err, "getting tenant users")
 	}
 
-	for _, k := range maps.Keys(idToName) {
+	for _, k := range ins.IDs() {
 		normUsers[strings.ToLower(k)] = struct{}{}
 	}
 

@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -149,14 +148,14 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	idToName, nameToID, err := m365.UsersMap(ctx, *acct, errs)
+	ins, err := m365.UsersMap(ctx, *acct, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(maps.Keys(idToName)) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -165,7 +164,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"OneDrive", "user",
 		selectorSet,
-		idToName, nameToID)
+		ins)
 }
 
 func validateOneDriveBackupCreateFlags(users []string) error {

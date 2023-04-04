@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -58,7 +59,7 @@ type Repository interface {
 	NewBackup(
 		ctx context.Context,
 		self selectors.Selector,
-		ownerIDToName, ownerNameToID map[string]string,
+		ins common.IDNameSwapper,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -293,14 +294,14 @@ func (r *repository) Close(ctx context.Context) error {
 func (r repository) NewBackup(
 	ctx context.Context,
 	sel selectors.Selector,
-	ownerIDToName, ownerNameToID map[string]string,
+	ins common.IDNameSwapper,
 ) (operations.BackupOperation, error) {
 	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ownerIDToName, ownerNameToID)
+	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
 	}

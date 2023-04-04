@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -194,8 +195,7 @@ func runBackups(
 	r repository.Repository,
 	serviceName, resourceOwnerType string,
 	selectorSet []selectors.Selector,
-	resourceOwnersIDToName map[string]string,
-	resourceOwnersNameToID map[string]string,
+	ins common.IDNameSwapper,
 ) error {
 	var (
 		bIDs []string
@@ -208,7 +208,7 @@ func runBackups(
 			ictx  = clues.Add(ctx, "resource_owner", owner)
 		)
 
-		bo, err := r.NewBackup(ictx, discSel, resourceOwnersIDToName, resourceOwnersNameToID)
+		bo, err := r.NewBackup(ictx, discSel, ins)
 		if err != nil {
 			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)

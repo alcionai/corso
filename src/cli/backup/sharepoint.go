@@ -176,7 +176,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"SharePoint", "site",
 		selectorSet,
-		nil, nil)
+		nil) // TODO: prepopulate ids,names
 }
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
