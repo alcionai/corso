@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -93,7 +94,10 @@ func createRestoreFoldersWithPermissions(
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolders []string,
+	folderPath path.Path,
 	folderMetadata Metadata,
+	folderMetas map[string]Metadata,
+	permissionIDMappings map[string]string,
 ) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
 	if err != nil {
@@ -111,7 +115,10 @@ func createRestoreFoldersWithPermissions(
 		service,
 		drivePath.DriveID,
 		id,
-		folderMetadata)
+		folderPath,
+		folderMetadata,
+		folderMetas,
+		permissionIDMappings)
 
 	return id, err
 }
@@ -126,6 +133,7 @@ func isSame(first, second []string) bool {
 
 func diffPermissions(
 	before, after []UserPermission,
+	permissionIDMappings map[string]string,
 ) ([]UserPermission, []UserPermission) {
 	var (
 		added   = []UserPermission{}
@@ -160,11 +168,49 @@ func diffPermissions(
 		}
 
 		if !found {
+			pp.ID = permissionIDMappings[pp.ID]
 			removed = append(removed, pp)
 		}
 	}
 
 	return added, removed
+}
+
+func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadata) (Metadata, error) {
+	var (
+		parent path.Path
+		meta   Metadata
+
+		err error
+		ok  bool
+	)
+
+	parent = itemPath
+
+	for {
+		parent, err = parent.Dir()
+		if err != nil {
+			return Metadata{}, clues.New("getting parent")
+		}
+
+		onedrivePath, err := path.ToOneDrivePath(parent)
+		if err != nil {
+			return Metadata{}, clues.New("get parent path")
+		}
+
+		if len(onedrivePath.Folders) == 0 {
+			return Metadata{}, nil
+		}
+
+		meta, ok = folderMetas[parent.String()]
+		if !ok {
+			return Metadata{}, clues.New("no parent meta")
+		}
+
+		if meta.SharingMode == SharingModeCustom {
+			return meta, nil
+		}
+	}
 }
 
 // RestorePermissions takes in the permissions that were added and the
@@ -176,7 +222,10 @@ func RestorePermissions(
 	service graph.Servicer,
 	driveID string,
 	itemID string,
+	itemPath path.Path,
 	meta Metadata,
+	folderMetas map[string]Metadata,
+	permissionIDMappings map[string]string,
 ) error {
 	if meta.SharingMode == SharingModeInherited {
 		return nil
@@ -184,13 +233,12 @@ func RestorePermissions(
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
-	// TODO(meain): Compute this from the data that we have instead of fetching from graph
-	currentPermissions, err := driveItemPermissionInfo(ctx, service, driveID, itemID)
+	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
 	if err != nil {
-		return graph.Wrap(ctx, err, "fetching current permissions")
+		return clues.Wrap(err, "parent permissions").WithClues(ctx)
 	}
 
-	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
+	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions, permissionIDMappings)
 
 	for _, p := range permRemoved {
 		// deletes require unique http clients
@@ -253,10 +301,12 @@ func RestorePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		_, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
+		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
+
+		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil
