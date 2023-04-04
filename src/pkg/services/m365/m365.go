@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -137,7 +138,7 @@ func SiteIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]stri
 func parseUser(item models.Userable) (*User, error) {
 	if item.GetUserPrincipalName() == nil {
 		return nil, clues.New("user missing principal name").
-			With("user_id", *item.GetId()) // TODO: pii
+			With("user_id", clues.Hide(ptr.Val(item.GetId())))
 	}
 
 	u := &User{PrincipalName: *item.GetUserPrincipalName(), ID: *item.GetId()}

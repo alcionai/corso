@@ -280,7 +280,7 @@ func (handler *LoggingMiddleware) Intercept(
 		ctx = clues.Add(
 			req.Context(),
 			"method", req.Method,
-			"url", req.URL, // TODO: pii
+			"url", req.URL, // TODO: pii, not hasing yet because we want debuggable urls
 			"request_len", req.ContentLength,
 		)
 		resp, err = pipeline.Next(req, middlewareIndex)

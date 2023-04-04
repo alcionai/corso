@@ -165,16 +165,15 @@ func identifySite(item any) (string, string, error) {
 	if m.GetName() == nil {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if ok && strings.HasSuffix(url, "/search") {
-			// TODO: pii siteID, on this and all following cases
-			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
+			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", clues.Hide(id))
 		}
 
-		return "", "", clues.New("site has no name").With("site_id", id)
+		return "", "", clues.New("site has no name").With("site_id", clues.Hide(id))
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	if ok && strings.Contains(url, personalSitePath) {
-		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
+		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", clues.Hide(id))
 	}
 
 	return url, id, nil
