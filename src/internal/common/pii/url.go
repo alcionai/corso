@@ -86,7 +86,7 @@ func (u SafeURL) Conceal() string {
 // Format ensures the safeURL will output the Conceal() version
 // even when used in a PrintF.
 func (u SafeURL) Format(fs fmt.State, _ rune) {
-	fmt.Fprintf(fs, u.Conceal())
+	fmt.Fprint(fs, u.Conceal())
 }
 
 // String complies with Stringer to ensure the Conceal() version
