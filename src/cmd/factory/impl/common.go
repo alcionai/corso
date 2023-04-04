@@ -126,12 +126,12 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 	errs := fault.New(false)
 	normUsers := map[string]struct{}{}
 
-	users, err := m365.UserPNs(ctx, acct, errs)
+	ins, err := m365.UsersMap(ctx, acct, errs)
 	if err != nil {
 		return nil, account.Account{}, clues.Wrap(err, "getting tenant users")
 	}
 
-	for _, k := range users {
+	for _, k := range ins.IDs() {
 		normUsers[strings.ToLower(k)] = struct{}{}
 	}
 
