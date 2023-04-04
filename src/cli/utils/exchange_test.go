@@ -3,10 +3,10 @@ package utils_test
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"

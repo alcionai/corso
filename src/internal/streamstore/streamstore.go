@@ -8,12 +8,11 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -83,7 +82,7 @@ func (ss *storeStreamer) Read(ctx context.Context, snapshotID string, col Collec
 func (ss *storeStreamer) Delete(ctx context.Context, detailsID string) error {
 	err := ss.kw.DeleteSnapshot(ctx, detailsID)
 	if err != nil {
-		return errors.Wrap(err, "deleting snapshot in stream store")
+		return clues.Wrap(err, "deleting snapshot in stream store")
 	}
 
 	return nil
@@ -222,26 +221,14 @@ func collect(
 	return &dc, nil
 }
 
-type backuper interface {
-	BackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.BackupCollection,
-		globalExcludeSet map[string]map[string]struct{},
-		tags map[string]string,
-		buildTreeWithBase bool,
-		errs *fault.Bus,
-	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
-}
-
 // write persists bytes to the store
 func write(
 	ctx context.Context,
-	bup backuper,
+	bup inject.BackupConsumer,
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
-	backupStats, _, _, err := bup.BackupCollections(
+	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,
 		dbcs,
@@ -250,20 +237,10 @@ func write(
 		false,
 		errs)
 	if err != nil {
-		return "", errors.Wrap(err, "storing marshalled bytes in repository")
+		return "", clues.Wrap(err, "storing marshalled bytes in repository")
 	}
 
 	return backupStats.SnapshotID, nil
-}
-
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-		errs *fault.Bus,
-	) ([]data.RestoreCollection, error)
 }
 
 // read retrieves an object from the store
@@ -273,7 +250,7 @@ func read(
 	tenantID string,
 	service path.ServiceType,
 	col Collectable,
-	rer restorer,
+	rer inject.RestoreProducer,
 	errs *fault.Bus,
 ) error {
 	// construct the path of the container
@@ -286,14 +263,14 @@ func read(
 
 	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
 
-	cs, err := rer.RestoreMultipleItems(
+	cs, err := rer.ProduceRestoreCollections(
 		ctx,
 		snapshotID,
 		[]path.Path{p},
 		&stats.ByteCounter{},
 		errs)
 	if err != nil {
-		return errors.Wrap(err, "retrieving data")
+		return clues.Wrap(err, "retrieving data")
 	}
 
 	// Expect only 1 data collection

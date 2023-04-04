@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
@@ -262,7 +263,7 @@ func buildOptions(fields []string, allowed map[string]struct{}) ([]string, error
 	for _, entry := range fields {
 		_, ok := allowed[entry]
 		if !ok {
-			return nil, fmt.Errorf("unsupported field: %v", entry)
+			return nil, clues.New("unsupported field: " + entry)
 		}
 	}
 

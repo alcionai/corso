@@ -2,18 +2,21 @@ package connector
 
 import (
 	"context"
+	"runtime/trace"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -121,16 +124,167 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
 			ctx, flush := tester.NewContext()
 			defer flush()
+
+			t := suite.T()
 
 			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.expect, result)
 		})
 	}
+}
+
+func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
+	const (
+		ownerID   = "owner-id"
+		ownerName = "owner-name"
+	)
+
+	var (
+		itn = map[string]string{ownerID: ownerName}
+		nti = map[string]string{ownerName: ownerID}
+	)
+
+	table := []struct {
+		name       string
+		owner      string
+		ins        common.IDsNames
+		expectID   string
+		expectName string
+	}{
+		{
+			name:       "nil ins",
+			owner:      ownerID,
+			expectID:   ownerID,
+			expectName: ownerID,
+		},
+		{
+			name:  "only id map with owner id",
+			owner: ownerID,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:  "only name map with owner id",
+			owner: ownerID,
+			ins: common.IDsNames{
+				IDToName: nil,
+				NameToID: nti,
+			},
+			expectID:   ownerID,
+			expectName: ownerID,
+		},
+		{
+			name:  "only id map with owner name",
+			owner: ownerName,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			expectID:   ownerName,
+			expectName: ownerName,
+		},
+		{
+			name:  "only name map with owner name",
+			owner: ownerName,
+			ins: common.IDsNames{
+				IDToName: nil,
+				NameToID: nti,
+			},
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:  "both maps with owner id",
+			owner: ownerID,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nti,
+			},
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:  "both maps with owner name",
+			owner: ownerName,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nti,
+			},
+			expectID:   ownerID,
+			expectName: ownerName,
+		},
+		{
+			name:  "non-matching maps with owner id",
+			owner: ownerID,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			expectID:   ownerID,
+			expectName: ownerID,
+		},
+		{
+			name:  "non-matching with owner name",
+			owner: ownerName,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			expectID:   ownerName,
+			expectName: ownerName,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t  = suite.T()
+				gc = &GraphConnector{}
+			)
+
+			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.ins)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expectID, id)
+			assert.Equal(t, test.expectName, name)
+		})
+	}
+}
+
+func (suite *GraphConnectorUnitSuite) TestGraphConnector_Wait() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t  = suite.T()
+		gc = &GraphConnector{
+			wg:     &sync.WaitGroup{},
+			region: &trace.Region{},
+		}
+		metrics = support.CollectionMetrics{
+			Objects:   2,
+			Successes: 3,
+			Bytes:     4,
+		}
+		status = support.CreateStatus(ctx, support.Backup, 1, metrics, "details")
+	)
+
+	gc.wg.Add(1)
+	gc.UpdateStatus(status)
+
+	result := gc.Wait()
+	require.NotNil(t, result)
+	assert.Nil(t, gc.region, "region")
+	assert.Empty(t, gc.status, "status")
+	assert.Equal(t, 1, result.Folders)
+	assert.Equal(t, 2, result.Objects)
+	assert.Equal(t, 3, result.Successes)
+	assert.Equal(t, int64(4), result.Bytes)
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +362,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		}
 	)
 
-	deets, err := suite.connector.RestoreDataCollections(
+	deets, err := suite.connector.ConsumeRestoreCollections(
 		ctx,
 		version.Backup,
 		acct,
@@ -216,17 +370,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
 		dest,
 		control.Options{
 			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures:     control.Toggles{},
 		},
 		nil,
 		fault.New(true))
 	assert.Error(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := suite.connector.AwaitStatus()
-	assert.Equal(t, 0, status.Metrics.Objects)
+	status := suite.connector.Wait()
+	assert.Equal(t, 0, status.Objects)
 	assert.Equal(t, 0, status.Folders)
-	assert.Equal(t, 0, status.Metrics.Successes)
+	assert.Equal(t, 0, status.Successes)
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
@@ -287,7 +441,7 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			deets, err := suite.connector.RestoreDataCollections(
+			deets, err := suite.connector.ConsumeRestoreCollections(
 				ctx,
 				version.Backup,
 				suite.acct,
@@ -295,17 +449,17 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 				dest,
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 				test.col,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.NotNil(t, deets)
 
-			stats := suite.connector.AwaitStatus()
-			assert.Zero(t, stats.Metrics.Objects)
+			stats := suite.connector.Wait()
+			assert.Zero(t, stats.Objects)
 			assert.Zero(t, stats.Folders)
-			assert.Zero(t, stats.Metrics.Successes)
+			assert.Zero(t, stats.Successes)
 		})
 	}
 }
@@ -313,27 +467,6 @@ func (suite *GraphConnectorIntegrationSuite) TestEmptyCollections() {
 //-------------------------------------------------------------
 // Exchange Functions
 //-------------------------------------------------------------
-
-//revive:disable:context-as-argument
-func mustGetDefaultDriveID(
-	t *testing.T,
-	ctx context.Context,
-	service graph.Servicer,
-	userID string,
-) string {
-	//revive:enable:context-as-argument
-	d, err := service.Client().UsersById(userID).Drive().Get(ctx, nil)
-	if err != nil {
-		err = graph.Wrap(ctx, err, "retrieving drive")
-	}
-
-	require.NoError(t, err, clues.ToCore(err))
-
-	id := ptr.Val(d.GetId())
-	require.NotEmpty(t, id)
-
-	return id
-}
 
 func getCollectionsAndExpected(
 	t *testing.T,
@@ -388,7 +521,7 @@ func runRestore(
 
 	restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
 	restoreSel := getSelectorWith(t, config.service, config.resourceOwners, true)
-	deets, err := restoreGC.RestoreDataCollections(
+	deets, err := restoreGC.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		config.acct,
@@ -400,11 +533,11 @@ func runRestore(
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := restoreGC.AwaitStatus()
+	status := restoreGC.Wait()
 	runTime := time.Since(start)
 
-	assert.Equal(t, numRestoreItems, status.Metrics.Objects, "restored status.Metrics.Objects")
-	assert.Equal(t, numRestoreItems, status.Metrics.Successes, "restored status.Metrics.Successes")
+	assert.Equal(t, numRestoreItems, status.Objects, "restored status.Objects")
+	assert.Equal(t, numRestoreItems, status.Successes, "restored status.Successes")
 	assert.Len(
 		t,
 		deets.Entries,
@@ -445,8 +578,9 @@ func runBackupAndCompare(
 	t.Logf("Selective backup of %s\n", backupSel)
 
 	start := time.Now()
-	dcs, excludes, err := backupGC.DataCollections(
+	dcs, excludes, err := backupGC.ProduceBackupCollections(
 		ctx,
+		backupSel,
 		backupSel,
 		nil,
 		config.opts,
@@ -468,12 +602,12 @@ func runBackupAndCompare(
 		config.dest,
 		config.opts.RestorePermissions)
 
-	status := backupGC.AwaitStatus()
+	status := backupGC.Wait()
 
-	assert.Equalf(t, totalItems+skipped, status.Metrics.Objects,
-		"backup status.Metrics.Objects; wanted %d items + %d skipped", totalItems, skipped)
-	assert.Equalf(t, totalItems+skipped, status.Metrics.Successes,
-		"backup status.Metrics.Successes; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Objects,
+		"backup status.Objects; wanted %d items + %d skipped", totalItems, skipped)
+	assert.Equalf(t, totalItems+skipped, status.Successes,
+		"backup status.Successes; wanted %d items + %d skipped", totalItems, skipped)
 }
 
 func runRestoreBackupTest(
@@ -838,7 +972,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 				[]string{suite.user},
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 			)
 		})
@@ -952,7 +1086,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				)
 
 				restoreGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), test.resource)
-				deets, err := restoreGC.RestoreDataCollections(
+				deets, err := restoreGC.ConsumeRestoreCollections(
 					ctx,
 					version.Backup,
 					suite.acct,
@@ -960,17 +1094,17 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					dest,
 					control.Options{
 						RestorePermissions: true,
-						ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+						ToggleFeatures:     control.Toggles{},
 					},
 					collections,
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
-				status := restoreGC.AwaitStatus()
+				status := restoreGC.Wait()
 				// Always just 1 because it's just 1 collection.
-				assert.Equal(t, totalItems, status.Metrics.Objects, "status.Metrics.Objects")
-				assert.Equal(t, totalItems, status.Metrics.Successes, "status.Metrics.Successes")
+				assert.Equal(t, totalItems, status.Objects, "status.Objects")
+				assert.Equal(t, totalItems, status.Successes, "status.Successes")
 				assert.Equal(
 					t, totalItems, len(deets.Entries),
 					"details entries contains same item count as total successful items restored")
@@ -984,13 +1118,14 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
-			dcs, excludes, err := backupGC.DataCollections(
+			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
+				backupSel,
 				backupSel,
 				nil,
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -1011,9 +1146,9 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 				control.RestoreDestination{},
 				true)
 
-			status := backupGC.AwaitStatus()
-			assert.Equal(t, allItems+skipped, status.Metrics.Objects, "status.Metrics.Objects")
-			assert.Equal(t, allItems+skipped, status.Metrics.Successes, "status.Metrics.Successes")
+			status := backupGC.Wait()
+			assert.Equal(t, allItems+skipped, status.Objects, "status.Objects")
+			assert.Equal(t, allItems+skipped, status.Successes, "status.Successes")
 		})
 	}
 }
@@ -1050,7 +1185,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 		[]string{suite.user},
 		control.Options{
 			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures:     control.Toggles{},
 		},
 	)
 }
@@ -1099,27 +1234,28 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				path.FilesCategory.String(),
 			},
 		},
-		// SharePoint lists and pages don't seem to check selectors as expected.
-		//{
-		//	name:     "SharePoint",
-		//	resource: Sites,
-		//	selectorFunc: func(t *testing.T) selectors.Selector {
-		//    sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
-		//    sel.Include(
-		//      sel.Pages([]string{selectors.NoneTgt}),
-		//      sel.Lists([]string{selectors.NoneTgt}),
-		//      sel.Libraries([]string{selectors.NoneTgt}),
-		//    )
+		{
+			name:     "SharePoint",
+			resource: Sites,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewSharePointBackup([]string{tester.M365SiteID(t)})
+				sel.Include(
+					sel.LibraryFolders([]string{selectors.NoneTgt}),
+					// not yet in use
+					//  sel.Pages([]string{selectors.NoneTgt}),
+					//  sel.Lists([]string{selectors.NoneTgt}),
+				)
 
-		//    return sel.Selector
-		//	},
-		//  service: path.SharePointService,
-		//	categories: []string{
-		//		path.PagesCategory.String(),
-		//		path.ListsCategory.String(),
-		//		path.LibrariesCategory.String(),
-		//	},
-		//},
+				return sel.Selector
+			},
+			service: path.SharePointService,
+			categories: []string{
+				path.LibrariesCategory.String(),
+				// not yet in use
+				// path.PagesCategory.String(),
+				// path.ListsCategory.String(),
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -1135,13 +1271,14 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				start     = time.Now()
 			)
 
-			dcs, excludes, err := backupGC.DataCollections(
+			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
+				backupSel,
 				backupSel,
 				nil,
 				control.Options{
 					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
+					ToggleFeatures:     control.Toggles{},
 				},
 				fault.New(true))
 			require.NoError(t, err)
@@ -1179,7 +1316,7 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 
 			assert.ElementsMatch(t, test.categories, foundCategories)
 
-			backupGC.AwaitStatus()
+			backupGC.Wait()
 
 			assert.NoError(t, errs.Failure())
 		})

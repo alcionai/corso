@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
@@ -83,7 +83,7 @@ func handleGetCommand(cmd *cobra.Command, args []string) error {
 
 	err = runDisplayM365JSON(ctx, creds, user, m365ID, fault.New(true))
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "unable to create mock from M365: %s", m365ID))
+		return Only(ctx, clues.Wrap(err, "Error displaying item: "+m365ID))
 	}
 
 	return nil
@@ -126,12 +126,12 @@ func runDisplayM365JSON(
 
 	err = sw.WriteStringValue("", &str)
 	if err != nil {
-		return errors.Wrapf(err, "unable to %s to string value", itemID)
+		return clues.Wrap(err, "Error writing string value: "+itemID)
 	}
 
 	array, err := sw.GetSerializedContent()
 	if err != nil {
-		return errors.Wrapf(err, "unable to serialize new value from M365:%s", itemID)
+		return clues.Wrap(err, "Error serializing item: "+itemID)
 	}
 
 	fmt.Println(string(array))
@@ -160,7 +160,7 @@ func getItem(
 ) ([]byte, error) {
 	sp, _, err := itm.GetItem(ctx, user, itemID, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting item")
+		return nil, clues.Wrap(err, "getting item")
 	}
 
 	return itm.Serialize(ctx, sp, user, itemID)
@@ -179,7 +179,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, account.M365Config, 
 
 	acct, err := account.NewAccount(account.ProviderM365, m365Cfg)
 	if err != nil {
-		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "finding m365 account details"))
+		return nil, m365Cfg, Only(ctx, clues.Wrap(err, "finding m365 account details"))
 	}
 
 	// TODO: log/print recoverable errors
@@ -187,7 +187,7 @@ func getGC(ctx context.Context) (*connector.GraphConnector, account.M365Config, 
 
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Users, errs)
 	if err != nil {
-		return nil, m365Cfg, Only(ctx, errors.Wrap(err, "connecting to graph API"))
+		return nil, m365Cfg, Only(ctx, clues.Wrap(err, "connecting to graph API"))
 	}
 
 	return gc, m365Cfg, nil

@@ -9,9 +9,8 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -52,7 +51,7 @@ func sharePointItemReader(
 ) (details.ItemInfo, io.ReadCloser, error) {
 	resp, err := downloadItem(ctx, hc, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+		return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
 	}
 
 	dii := details.ItemInfo{
@@ -67,9 +66,8 @@ func oneDriveItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
-	return baseItemMetaReader(ctx, service, driveID, item, fetchPermissions)
+	return baseItemMetaReader(ctx, service, driveID, item)
 }
 
 func sharePointItemMetaReader(
@@ -77,10 +75,9 @@ func sharePointItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
 	// TODO: include permissions
-	return baseItemMetaReader(ctx, service, driveID, item, false)
+	return baseItemMetaReader(ctx, service, driveID, item)
 }
 
 func baseItemMetaReader(
@@ -88,7 +85,6 @@ func baseItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
 	var (
 		perms []UserPermission
@@ -102,7 +98,7 @@ func baseItemMetaReader(
 		meta.SharingMode = SharingModeCustom
 	}
 
-	if meta.SharingMode == SharingModeCustom && fetchPermissions {
+	if meta.SharingMode == SharingModeCustom {
 		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
@@ -135,7 +131,7 @@ func oneDriveItemReader(
 	if isFile {
 		resp, err := downloadItem(ctx, hc, item)
 		if err != nil {
-			return details.ItemInfo{}, nil, errors.Wrap(err, "downloading item")
+			return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
 		}
 
 		rc = resp.Body
@@ -355,7 +351,7 @@ func driveItemWriter(
 	driveID, itemID string,
 	itemSize int64,
 ) (io.Writer, error) {
-	session := msdrives.NewItemItemsItemCreateUploadSessionPostRequestBody()
+	session := drives.NewItemItemsItemCreateUploadSessionPostRequestBody()
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
 	r, err := service.Client().DrivesById(driveID).ItemsById(itemID).CreateUploadSession().Post(ctx, session, nil)

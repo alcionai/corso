@@ -8,7 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kioser "github.com/microsoft/kiota-serialization-json-go"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
@@ -62,7 +62,14 @@ func (c Events) DeleteContainer(
 	ctx context.Context,
 	user, calendarID string,
 ) error {
-	err := c.stable.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := newService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.Client().UsersById(user).CalendarsById(calendarID).Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -314,14 +321,14 @@ func (c Events) Serialize(
 ) ([]byte, error) {
 	event, ok := item.(models.Eventable)
 	if !ok {
-		return nil, clues.Wrap(fmt.Errorf("parseable type: %T", item), "parsable is not an Eventable")
+		return nil, clues.New(fmt.Sprintf("item is not an Eventable: %T", item))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
 
 	var (
 		err    error
-		writer = kioser.NewJsonSerializationWriter()
+		writer = kjson.NewJsonSerializationWriter()
 	)
 
 	defer writer.Close()

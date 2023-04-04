@@ -1,6 +1,7 @@
 package restore
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -34,6 +35,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddBackupIDFlag(c, true)
 		utils.AddOneDriveDetailsAndRestoreFlags(c)
+
+		// restore permissions
+		options.AddRestorePermissionsFlag(c)
 
 		// others
 		options.AddOperationFlags(c)
@@ -80,19 +84,13 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.OneDriveOpts{
-		Users:              user,
-		FileNames:          utils.FileName,
-		FolderPaths:        utils.FolderPath,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
+	opts := utils.MakeOneDriveOpts(cmd)
 
-		Populated: utils.GetPopulatedFlags(cmd),
+	if utils.RunModeFV == utils.RunModeFlagTest {
+		return nil
 	}
 
-	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -103,7 +101,7 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
+		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -114,18 +112,18 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize OneDrive restore"))
+		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
 	}
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", utils.BackupID))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
 		}
 
-		return Only(ctx, errors.Wrap(err, "Failed to run OneDrive restore"))
+		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
 	}
 
 	ds.PrintEntries(ctx)

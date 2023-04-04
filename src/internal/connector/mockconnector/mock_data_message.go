@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	js "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 )
 
@@ -716,7 +715,7 @@ func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, 
 	message, err := hydrateMessage(base)
 	require.NoError(t, err, clues.ToCore(err))
 
-	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
+	parseNode, err := kjson.NewJsonParseNodeFactory().GetRootParseNode("application/json", nested)
 	require.NoError(t, err, clues.ToCore(err))
 
 	anObject, err := parseNode.GetObjectValue(models.CreateContactFromDiscriminatorValue)
@@ -734,8 +733,8 @@ func GetMockMessageWithNestedItemAttachmentContact(t *testing.T, nested []byte, 
 	return serialize(t, message)
 }
 
-func serialize(t *testing.T, item absser.Parsable) []byte {
-	wtr := js.NewJsonSerializationWriter()
+func serialize(t *testing.T, item serialization.Parsable) []byte {
+	wtr := kjson.NewJsonSerializationWriter()
 	err := wtr.WriteObjectValue("", item)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -746,14 +745,14 @@ func serialize(t *testing.T, item absser.Parsable) []byte {
 }
 
 func hydrateMessage(byteArray []byte) (models.Messageable, error) {
-	parseNode, err := js.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
+	parseNode, err := kjson.NewJsonParseNodeFactory().GetRootParseNode("application/json", byteArray)
 	if err != nil {
-		return nil, errors.Wrap(err, "deserializing bytes into base m365 object")
+		return nil, clues.Wrap(err, "deserializing bytes into base m365 object")
 	}
 
 	anObject, err := parseNode.GetObjectValue(models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing m365 object factory")
+		return nil, clues.Wrap(err, "parsing m365 object factory")
 	}
 
 	message := anObject.(models.Messageable)

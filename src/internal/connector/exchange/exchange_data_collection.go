@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -83,7 +82,6 @@ type Collection struct {
 
 	// LocationPath contains the path with human-readable display names.
 	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	// Currently only implemented for Exchange Calendars.
 	locationPath path.Path
 
 	state data.CollectionState
@@ -186,7 +184,8 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		colProgress, closer = observe.CollectionProgress(
 			ctx,
 			col.fullPath.Category().String(),
-			observe.PII(col.fullPath.Folder(false)))
+			// TODO(keepers): conceal compliance in path, drop Hide()
+			clues.Hide(col.fullPath.Folder(false)))
 
 		go closer()
 
@@ -252,11 +251,10 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			item, info, err := getItemWithRetries(
+			item, info, err := col.items.GetItem(
 				ctx,
 				user,
 				id,
-				col.items,
 				fault.New(true)) // temporary way to force a failFast error
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
@@ -280,7 +278,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			info.Size = int64(len(data))
-			info.ParentPath = strings.Join(col.fullPath.Folders(), "/")
+			info.ParentPath = col.locationPath.Folder(true)
 
 			col.data <- &Stream{
 				id:      id,
@@ -299,21 +297,6 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	}
 
 	wg.Wait()
-}
-
-// get an item while handling retry and backoff.
-func getItemWithRetries(
-	ctx context.Context,
-	userID, itemID string,
-	items itemer,
-	errs *fault.Bus,
-) (serialization.Parsable, *details.ExchangeInfo, error) {
-	item, info, err := items.GetItem(ctx, userID, itemID, errs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return item, info, nil
 }
 
 // terminatePopulateSequence is a utility function used to close a Collection's data channel

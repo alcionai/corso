@@ -4,11 +4,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -111,17 +111,16 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	go statusTestTask(&gc, 4, 1, 1)
 	go statusTestTask(&gc, 4, 1, 1)
 
-	gc.AwaitStatus()
-
+	stats := gc.Wait()
 	t := suite.T()
 
 	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	assert.Equal(t, 8, gc.Status().Metrics.Objects)
+	assert.Equal(t, 8, stats.Objects)
 	// Expect 2 success
-	assert.Equal(t, 2, gc.Status().Metrics.Successes)
+	assert.Equal(t, 2, stats.Successes)
 	// Expect 2 folders
-	assert.Equal(t, 2, gc.Status().Folders)
+	assert.Equal(t, 2, stats.Folders)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {

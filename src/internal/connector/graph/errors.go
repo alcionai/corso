@@ -9,12 +9,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"

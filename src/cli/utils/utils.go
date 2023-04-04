@@ -2,9 +2,9 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -26,7 +26,7 @@ const (
 func RequireProps(props map[string]string) error {
 	for name, val := range props {
 		if len(val) == 0 {
-			return errors.New(name + " is required to perform this command")
+			return clues.New(name + " is required to perform this command")
 		}
 	}
 
@@ -144,7 +144,7 @@ func SendStartCorsoEvent(
 ) {
 	bus, err := events.NewBus(ctx, s, tenID, opts)
 	if err != nil {
-		logger.Ctx(ctx).Infow("analytics event failure", "err", err)
+		logger.CtxErr(ctx, err).Info("sending start event")
 	}
 
 	bus.SetRepoID(repoID)

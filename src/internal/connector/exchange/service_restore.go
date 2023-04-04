@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -17,7 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -283,7 +282,7 @@ func SendMailToBackStore(
 				continue
 			}
 
-			el.AddRecoverable(errors.Wrap(err, "uploading mail attachment"))
+			el.AddRecoverable(clues.Wrap(err, "uploading mail attachment"))
 
 			break
 		}
@@ -315,7 +314,7 @@ func RestoreExchangeDataCollections(
 
 	if len(dcs) > 0 {
 		userID = dcs[0].FullPath().ResourceOwner()
-		ctx = clues.Add(ctx, "resource_owner", userID) // TODO: pii
+		ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
 	}
 
 	for _, dc := range dcs {
@@ -370,7 +369,7 @@ func restoreCollection(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, bool) {
-	ctx, end := D.Span(ctx, "gc:exchange:restoreCollection", D.Label("path", dc.FullPath()))
+	ctx, end := diagnostics.Span(ctx, "gc:exchange:restoreCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -391,7 +390,7 @@ func restoreCollection(
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		category.String(),
-		observe.PII(directory.Folder(false)))
+		clues.Hide(directory.Folder(false)))
 	defer closer()
 	defer close(colProgress)
 
@@ -556,11 +555,6 @@ func CreateContainerDestination(
 			caches[category] = ecc
 			newCache = true
 			directoryCache = ecc
-		} else if did := directoryCache.DestinationNameToID(dest); len(did) > 0 {
-			// calendars are cached by ID in the resolver, not name, so once we have
-			// created the destination calendar, we need to look up its id and use
-			// that for resolver lookups instead of the display name.
-			dest = did
 		}
 
 		folders := append([]string{dest}, directory.Folders()...)
@@ -575,7 +569,7 @@ func CreateContainerDestination(
 			errs)
 
 	default:
-		return "", clues.Wrap(fmt.Errorf("%T", category), "not support for exchange cache").WithClues(ctx)
+		return "", clues.New(fmt.Sprintf("type not supported: %T", category)).WithClues(ctx)
 	}
 }
 
@@ -603,7 +597,7 @@ func establishMailRestoreLocation(
 	for _, folder := range folders {
 		pb = *pb.Append(folder)
 
-		cached, ok := mfc.PathInCache(pb.String())
+		cached, ok := mfc.LocationInCache(pb.String())
 		if ok {
 			folderID = cached
 			continue
@@ -622,15 +616,15 @@ func establishMailRestoreLocation(
 		// call even if we make a new cache.
 		if isNewCache {
 			if err := mfc.Populate(ctx, errs, rootFolderAlias); err != nil {
-				return "", errors.Wrap(err, "populating folder cache")
+				return "", clues.Wrap(err, "populating folder cache")
 			}
 
 			isNewCache = false
 		}
 
 		// NOOP if the folder is already in the cache.
-		if err = mfc.AddToCache(ctx, temp, false); err != nil {
-			return "", errors.Wrap(err, "adding folder to cache")
+		if err = mfc.AddToCache(ctx, temp); err != nil {
+			return "", clues.Wrap(err, "adding folder to cache")
 		}
 	}
 
@@ -652,7 +646,7 @@ func establishContactsRestoreLocation(
 	isNewCache bool,
 	errs *fault.Bus,
 ) (string, error) {
-	cached, ok := cfc.PathInCache(folders[0])
+	cached, ok := cfc.LocationInCache(folders[0])
 	if ok {
 		return cached, nil
 	}
@@ -668,11 +662,11 @@ func establishContactsRestoreLocation(
 
 	if isNewCache {
 		if err := cfc.Populate(ctx, errs, folderID, folders[0]); err != nil {
-			return "", errors.Wrap(err, "populating contact cache")
+			return "", clues.Wrap(err, "populating contact cache")
 		}
 
-		if err = cfc.AddToCache(ctx, temp, false); err != nil {
-			return "", errors.Wrap(err, "adding contact folder to cache")
+		if err = cfc.AddToCache(ctx, temp); err != nil {
+			return "", clues.Wrap(err, "adding contact folder to cache")
 		}
 	}
 
@@ -689,7 +683,7 @@ func establishEventsRestoreLocation(
 	errs *fault.Bus,
 ) (string, error) {
 	// Need to prefix with the "Other Calendars" folder so lookup happens properly.
-	cached, ok := ecc.PathInCache(folders[0])
+	cached, ok := ecc.LocationInCache(folders[0])
 	if ok {
 		return cached, nil
 	}
@@ -705,12 +699,12 @@ func establishEventsRestoreLocation(
 
 	if isNewCache {
 		if err = ecc.Populate(ctx, errs, folderID, folders[0]); err != nil {
-			return "", errors.Wrap(err, "populating event cache")
+			return "", clues.Wrap(err, "populating event cache")
 		}
 
 		displayable := api.CalendarDisplayable{Calendarable: temp}
-		if err = ecc.AddToCache(ctx, displayable, true); err != nil {
-			return "", errors.Wrap(err, "adding new calendar to cache")
+		if err = ecc.AddToCache(ctx, displayable); err != nil {
+			return "", clues.Wrap(err, "adding new calendar to cache")
 		}
 	}
 

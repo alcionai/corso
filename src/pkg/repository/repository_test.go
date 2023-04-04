@@ -3,11 +3,11 @@ package repository_test
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -198,7 +198,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 	r, err := repository.Initialize(ctx, acct, st, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"})
+	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: "test"}, nil)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 }

@@ -4,11 +4,11 @@ import (
 	stdpath "path"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -96,14 +96,14 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			err = mfc.Populate(ctx, fault.New(true), test.root, test.path...)
 			require.NoError(t, err, clues.ToCore(err))
 
-			p, l, err := mfc.IDToPath(ctx, testFolderID, true)
+			p, l, err := mfc.IDToPath(ctx, testFolderID)
 			require.NoError(t, err, clues.ToCore(err))
 			t.Logf("Path: %s\n", p.String())
 			t.Logf("Location: %s\n", l.String())
 
 			expectedPath := stdpath.Join(append(test.path, expectedFolderPath)...)
 			assert.Equal(t, expectedPath, p.String())
-			identifier, ok := mfc.PathInCache(p.String())
+			identifier, ok := mfc.LocationInCache(p.String())
 			assert.True(t, ok)
 			assert.NotEmpty(t, identifier)
 		})

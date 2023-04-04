@@ -1,6 +1,7 @@
 package restore
 
 import (
+	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -13,30 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
-)
-
-// exchange bucket info from flags
-var (
-	user []string
-
-	contact       []string
-	contactFolder []string
-	contactName   string
-
-	email               []string
-	emailFolder         []string
-	emailReceivedAfter  string
-	emailReceivedBefore string
-	emailSender         string
-	emailSubject        string
-
-	event             []string
-	eventCalendar     []string
-	eventOrganizer    string
-	eventRecurs       string
-	eventStartsAfter  string
-	eventStartsBefore string
-	eventSubject      string
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -105,29 +82,13 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.ExchangeOpts{
-		Contact:             contact,
-		ContactFolder:       contactFolder,
-		Email:               email,
-		EmailFolder:         emailFolder,
-		Event:               event,
-		EventCalendar:       eventCalendar,
-		Users:               user,
-		ContactName:         contactName,
-		EmailReceivedAfter:  emailReceivedAfter,
-		EmailReceivedBefore: emailReceivedBefore,
-		EmailSender:         emailSender,
-		EmailSubject:        emailSubject,
-		EventOrganizer:      eventOrganizer,
-		EventRecurs:         eventRecurs,
-		EventStartsAfter:    eventStartsAfter,
-		EventStartsBefore:   eventStartsBefore,
-		EventSubject:        eventSubject,
+	opts := utils.MakeExchangeOpts(cmd)
 
-		Populated: utils.GetPopulatedFlags(cmd),
+	if utils.RunModeFV == utils.RunModeFlagTest {
+		return nil
 	}
 
-	if err := utils.ValidateExchangeRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateExchangeRestoreFlags(utils.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -138,7 +99,7 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return Only(ctx, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider))
+		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -149,18 +110,18 @@ func restoreExchangeCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to initialize Exchange restore"))
+		return Only(ctx, clues.Wrap(err, "Failed to initialize Exchange restore"))
 	}
 
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, errors.Errorf("Backup or backup details missing for id %s", utils.BackupID))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
 		}
 
-		return Only(ctx, errors.Wrap(err, "Failed to run Exchange restore"))
+		return Only(ctx, clues.Wrap(err, "Failed to run Exchange restore"))
 	}
 
 	ds.PrintEntries(ctx)
