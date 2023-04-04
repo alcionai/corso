@@ -3,42 +3,54 @@ package filters
 import (
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type comparator int
 
+//go:generate stringer -type=comparator -linecomment
 const (
-	UnknownComparator comparator = iota
+	UnknownComparator comparator = iota // UnknownComparison
 	// a == b
-	EqualTo
+	EqualTo // EQ
 	// a > b
-	GreaterThan
+	GreaterThan // GT
 	// a < b
-	LessThan
+	LessThan // LT
 	// "foo,bar,baz" contains "foo"
-	TargetContains
+	TargetContains // Cont
 	// "foo" is found in "foo,bar,baz"
-	TargetIn
+	TargetIn // IN
 	// always passes
-	Passes
+	Passes // Pass
 	// always fails
-	Fails
+	Fails // Fail
 	// passthrough for the target
-	IdentityValue
+	IdentityValue // Identity
 	// "foo" is a prefix of "foobarbaz"
-	TargetPrefixes
+	TargetPrefixes // Pfx
 	// "baz" is a suffix of "foobarbaz"
-	TargetSuffixes
+	TargetSuffixes // Sfx
 	// "foo" equals any complete element prefix of "foo/bar/baz"
-	TargetPathPrefix
+	TargetPathPrefix // PathPfx
 	// "foo" equals any complete element in "foo/bar/baz"
-	TargetPathContains
+	TargetPathContains // PathCont
 	// "baz" equals any complete element suffix of "foo/bar/baz"
-	TargetPathSuffix
+	TargetPathSuffix // PathSfx
 	// "foo/bar/baz" equals the complete path "foo/bar/baz"
-	TargetPathEquals
+	TargetPathEquals // PathEQ
 )
+
+func normAll(ss []string) []string {
+	r := slices.Clone(ss)
+	for i := range r {
+		r[i] = norm(r[i])
+	}
+
+	return r
+}
 
 func norm(s string) string {
 	return strings.ToLower(s)
@@ -69,213 +81,198 @@ func normPathElem(s string) string {
 // true if Filter.Comparer(filter.target, v) is true.
 type Filter struct {
 	Comparator        comparator `json:"comparator"`
-	Target            string     `json:"target"`            // the value to compare against
 	Targets           []string   `json:"targets"`           // the set of values to compare
 	NormalizedTargets []string   `json:"normalizedTargets"` // the set of comparable values post normalization
 	Negate            bool       `json:"negate"`            // when true, negate the comparator result
+
+	// only used when the filter's purpose is to hold a value without intent for comparison
+	Identity string `json:"identity"`
+
+	// deprecated, kept around for deserialization
+	Target string `json:"target"` // the value to compare against
 }
 
 // ----------------------------------------------------------------------------------------------------
 // Constructors
 // ----------------------------------------------------------------------------------------------------
 
-// Equal creates a filter where Compare(v) is true if
+// Identity creates a filter intended to hold values, rather than
+// compare them.  Comparatively, it'll behave the same as Equals.
+func Identity(id string) Filter {
+	return Filter{
+		Comparator:        IdentityValue,
+		Identity:          id,
+		Targets:           []string{id},
+		NormalizedTargets: normAll([]string{id}),
+	}
+}
+
+// Equal creates a filter where Compare(v) is true if, for any target string,
 // target == v
-func Equal(target string) Filter {
-	return newFilter(EqualTo, target, false)
+func Equal(target []string) Filter {
+	return newFilter(EqualTo, target, normAll(target), false)
 }
 
-// NotEqual creates a filter where Compare(v) is true if
+// NotEqual creates a filter where Compare(v) is true if, for any target string,
 // target != v
-func NotEqual(target string) Filter {
-	return newFilter(EqualTo, target, true)
+func NotEqual(target []string) Filter {
+	return newFilter(EqualTo, target, normAll(target), true)
 }
 
-// Greater creates a filter where Compare(v) is true if
+// Greater creates a filter where Compare(v) is true if, for any target string,
 // target > v
-func Greater(target string) Filter {
-	return newFilter(GreaterThan, target, false)
+func Greater(target []string) Filter {
+	return newFilter(GreaterThan, target, normAll(target), false)
 }
 
-// NotGreater creates a filter where Compare(v) is true if
+// NotGreater creates a filter where Compare(v) is true if, for any target string,
 // target <= v
-func NotGreater(target string) Filter {
-	return newFilter(GreaterThan, target, true)
+func NotGreater(target []string) Filter {
+	return newFilter(GreaterThan, target, normAll(target), true)
 }
 
-// Less creates a filter where Compare(v) is true if
+// Less creates a filter where Compare(v) is true if, for any target string,
 // target < v
-func Less(target string) Filter {
-	return newFilter(LessThan, target, false)
+func Less(target []string) Filter {
+	return newFilter(LessThan, target, normAll(target), false)
 }
 
-// NotLess creates a filter where Compare(v) is true if
+// NotLess creates a filter where Compare(v) is true if, for any target string,
 // target >= v
-func NotLess(target string) Filter {
-	return newFilter(LessThan, target, true)
+func NotLess(target []string) Filter {
+	return newFilter(LessThan, target, normAll(target), true)
 }
 
-// Contains creates a filter where Compare(v) is true if
+// Contains creates a filter where Compare(v) is true if, for any target string,
 // target.Contains(v)
-func Contains(target string) Filter {
-	return newFilter(TargetContains, target, false)
+func Contains(target []string) Filter {
+	return newFilter(TargetContains, target, normAll(target), false)
 }
 
-// NotContains creates a filter where Compare(v) is true if
+// NotContains creates a filter where Compare(v) is true if, for any target string,
 // !target.Contains(v)
-func NotContains(target string) Filter {
-	return newFilter(TargetContains, target, true)
+func NotContains(target []string) Filter {
+	return newFilter(TargetContains, target, normAll(target), true)
 }
 
-// In creates a filter where Compare(v) is true if
+// In creates a filter where Compare(v) is true if, for any target string,
 // v.Contains(target)
-func In(targets []string) Filter {
-	return newSliceFilter(TargetIn, targets, targets, false)
+func In(target []string) Filter {
+	return newFilter(TargetIn, target, normAll(target), false)
 }
 
-// NotIn creates a filter where Compare(v) is true if
+// NotIn creates a filter where Compare(v) is true if, for any target string,
 // !v.Contains(target)
-func NotIn(targets []string) Filter {
-	return newSliceFilter(TargetIn, targets, targets, true)
+func NotIn(target []string) Filter {
+	return newFilter(TargetIn, target, normAll(target), true)
 }
 
 // Pass creates a filter where Compare(v) always returns true
 func Pass() Filter {
-	return newFilter(Passes, "*", false)
+	return newFilter(Passes, []string{"*"}, nil, false)
 }
 
 // Fail creates a filter where Compare(v) always returns false
 func Fail() Filter {
-	return newFilter(Fails, "", false)
+	return newFilter(Fails, []string{""}, nil, false)
 }
 
-// Identity creates a filter intended to hold values, rather than
-// compare them.  Comparatively, it'll behave the same as Equals.
-func Identity(id string) Filter {
-	return newFilter(IdentityValue, id, false)
-}
-
-// Prefix creates a filter where Compare(v) is true if
+// Prefix creates a filter where Compare(v) is true if, for any target string,
 // target.Prefix(v)
-func Prefix(target string) Filter {
-	return newFilter(TargetPrefixes, target, false)
+func Prefix(target []string) Filter {
+	return newFilter(TargetPrefixes, target, normAll(target), false)
 }
 
-// NotPrefix creates a filter where Compare(v) is true if
+// NotPrefix creates a filter where Compare(v) is true if, for any target string,
 // !target.Prefix(v)
-func NotPrefix(target string) Filter {
-	return newFilter(TargetPrefixes, target, true)
+func NotPrefix(target []string) Filter {
+	return newFilter(TargetPrefixes, target, normAll(target), true)
 }
 
-// Suffix creates a filter where Compare(v) is true if
+// Suffix creates a filter where Compare(v) is true if, for any target string,
 // target.Suffix(v)
-func Suffix(target string) Filter {
-	return newFilter(TargetSuffixes, target, false)
+func Suffix(target []string) Filter {
+	return newFilter(TargetSuffixes, target, normAll(target), false)
 }
 
-// NotSuffix creates a filter where Compare(v) is true if
+// NotSuffix creates a filter where Compare(v) is true if, for any target string,
 // !target.Suffix(v)
-func NotSuffix(target string) Filter {
-	return newFilter(TargetSuffixes, target, true)
+func NotSuffix(target []string) Filter {
+	return newFilter(TargetSuffixes, target, normAll(target), true)
 }
 
-// PathPrefix creates a filter where Compare(v) is true if
+// PathPrefix creates a filter where Compare(v) is true if, for any target string,
 // target.Prefix(v) &&
 // split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
 // ex: target "/foo/bar" returns true for input "/foo/bar/baz",
 // but false for "/foo/barbaz"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func PathPrefix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathPrefix, targets, tgts, false)
+	return newFilter(TargetPathPrefix, targets, tgts, false)
 }
 
-// NotPathPrefix creates a filter where Compare(v) is true if
+// NotPathPrefix creates a filter where Compare(v) is true if, for any target string,
 // !target.Prefix(v) ||
 // !split(target)[i].Equals(split(v)[i]) for _any_ i in 0..len(target)-1
 // ex: target "/foo/bar" returns false for input "/foo/bar/baz",
 // but true for "/foo/barbaz"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func NotPathPrefix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathPrefix, targets, tgts, true)
+	return newFilter(TargetPathPrefix, targets, tgts, true)
 }
 
-// PathContains creates a filter where Compare(v) is true if
+// PathContains creates a filter where Compare(v) is true if, for any target string,
 // for _any_ elem e in split(v), target.Equals(e) ||
 // for _any_ sequence of elems in split(v), target.Equals(path.Join(e[n:m]))
 // ex: target "foo" returns true for input "/baz/foo/bar",
 // but false for "/baz/foobar"
 // ex: target "baz/foo" returns true for input "/baz/foo/bar",
 // but false for "/baz/foobar"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func PathContains(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathContains, targets, tgts, false)
+	return newFilter(TargetPathContains, targets, tgts, false)
 }
 
-// NotPathContains creates a filter where Compare(v) is true if
+// NotPathContains creates a filter where Compare(v) is true if, for any target string,
 // for _every_ elem e in split(v), !target.Equals(e) ||
 // for _every_ sequence of elems in split(v), !target.Equals(path.Join(e[n:m]))
 // ex: target "foo" returns false for input "/baz/foo/bar",
 // but true for "/baz/foobar"
 // ex: target "baz/foo" returns false for input "/baz/foo/bar",
 // but true for "/baz/foobar"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func NotPathContains(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathContains, targets, tgts, true)
+	return newFilter(TargetPathContains, targets, tgts, true)
 }
 
-// PathSuffix creates a filter where Compare(v) is true if
+// PathSuffix creates a filter where Compare(v) is true if, for any target string,
 // target.Suffix(v) &&
 // split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
 // ex: target "/bar/baz" returns true for input "/foo/bar/baz",
 // but false for "/foobar/baz"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func PathSuffix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathSuffix, targets, tgts, false)
+	return newFilter(TargetPathSuffix, targets, tgts, false)
 }
 
 // NotPathSuffix creates a filter where Compare(v) is true if
@@ -283,69 +280,45 @@ func PathSuffix(targets []string) Filter {
 // !split(target)[i].Equals(split(v)[i]) for _any_ i in 0..len(target)-1
 // ex: target "/bar/baz" returns false for input "/foo/bar/baz",
 // but true for "/foobar/baz"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func NotPathSuffix(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathSuffix, targets, tgts, true)
+	return newFilter(TargetPathSuffix, targets, tgts, true)
 }
 
-// PathEquals creates a filter where Compare(v) is true if
+// PathEquals creates a filter where Compare(v) is true if, for any target string,
 // target.Equals(v) &&
 // split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
 // ex: target "foo" returns true for inputs "/foo/", "/foo", and "foo/"
 // but false for "/foo/bar", "bar/foo/", and "/foobar/"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func PathEquals(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathEquals, targets, tgts, false)
+	return newFilter(TargetPathEquals, targets, tgts, false)
 }
 
-// NotPathEquals creates a filter where Compare(v) is true if
+// NotPathEquals creates a filter where Compare(v) is true if, for any target string,
 // !target.Equals(v) ||
 // !split(target)[i].Equals(split(v)[i]) for _all_ i in 0..len(target)-1
 // ex: target "foo" returns true "/foo/bar", "bar/foo/", and "/foobar/"
 // but false for for inputs "/foo/", "/foo", and "foo/"
-//
-// Unlike single-target filters, this filter accepts a
-// slice of targets, will compare an input against each target
-// independently, and returns true if one or more of the
-// comparisons succeed.
 func NotPathEquals(targets []string) Filter {
 	tgts := make([]string, len(targets))
 	for i := range targets {
 		tgts[i] = normPathElem(targets[i])
 	}
 
-	return newSliceFilter(TargetPathEquals, targets, tgts, true)
+	return newFilter(TargetPathEquals, targets, tgts, true)
 }
 
-// newFilter is the standard filter constructor.
-func newFilter(c comparator, target string, negate bool) Filter {
-	return Filter{
-		Comparator: c,
-		Target:     target,
-		Negate:     negate,
-	}
-}
-
-// newSliceFilter constructs filters that contain multiple targets
-func newSliceFilter(c comparator, targets, normTargets []string, negate bool) Filter {
+// newFilter constructs filters that contain multiple targets
+func newFilter(c comparator, targets, normTargets []string, negate bool) Filter {
 	return Filter{
 		Comparator:        c,
 		Targets:           targets,
@@ -378,10 +351,7 @@ func (f Filter) CompareAny(inputs ...string) bool {
 
 // Compare checks whether the input passes the filter.
 func (f Filter) Compare(input string) bool {
-	var (
-		cmp      func(string, string) bool
-		hasSlice bool
-	)
+	var cmp func(string, string) bool
 
 	switch f.Comparator {
 	case EqualTo, IdentityValue:
@@ -394,23 +364,18 @@ func (f Filter) Compare(input string) bool {
 		cmp = contains
 	case TargetIn:
 		cmp = in
-		hasSlice = true
 	case TargetPrefixes:
 		cmp = prefixed
 	case TargetSuffixes:
 		cmp = suffixed
 	case TargetPathPrefix:
 		cmp = pathPrefix
-		hasSlice = true
 	case TargetPathContains:
 		cmp = pathContains
-		hasSlice = true
 	case TargetPathSuffix:
 		cmp = pathSuffix
-		hasSlice = true
 	case TargetPathEquals:
 		cmp = pathEquals
-		hasSlice = true
 	case Passes:
 		return true
 	case Fails:
@@ -419,11 +384,11 @@ func (f Filter) Compare(input string) bool {
 
 	var (
 		res     bool
-		targets = []string{f.Target}
+		targets = f.NormalizedTargets
 	)
 
-	if hasSlice {
-		targets = f.NormalizedTargets
+	if len(targets) == 0 {
+		targets = f.Targets
 	}
 
 	for _, tgt := range targets {

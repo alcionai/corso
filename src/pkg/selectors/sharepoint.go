@@ -193,7 +193,10 @@ func (s *sharePoint) Scopes() []SharePointScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
 func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
-	scopes := []SharePointScope{}
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
 
 	scopes = append(
 		scopes,
@@ -201,17 +204,20 @@ func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []Share
 			SharePointLibraryItem,
 			SharePointWebURL,
 			urlSuffixes,
-			pathFilterFactory(opts...)),
+			filters.PathContains,
+			os...),
 		makeInfoScope[SharePointScope](
 			SharePointListItem,
 			SharePointWebURL,
 			urlSuffixes,
-			pathFilterFactory(opts...)),
+			filters.PathContains,
+			os...),
 		makeInfoScope[SharePointScope](
 			SharePointPage,
 			SharePointWebURL,
 			urlSuffixes,
-			pathFilterFactory(opts...)),
+			filters.PathContains,
+			os...),
 	)
 
 	return scopes
@@ -280,7 +286,7 @@ func (s *sharePoint) Library(library string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoLibraryDrive,
 			[]string{library},
-			wrapFilter(filters.Equal)),
+			filters.Equal),
 	}
 }
 
@@ -360,7 +366,7 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -370,7 +376,7 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -380,7 +386,7 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -390,7 +396,7 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -640,12 +646,6 @@ func (s SharePointScope) setDefaults() {
 	case SharePointPageFolder:
 		s[SharePointPage.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
-// site comparison with only the provided site.
-func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
-	return discreteCopy(s, site)
 }
 
 // ---------------------------------------------------------------------------

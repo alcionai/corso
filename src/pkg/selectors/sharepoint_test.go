@@ -79,18 +79,18 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 					scopeMustHave(
 						t,
 						spsc,
-						map[categorizer]string{
-							SharePointLibraryItem:   AnyTgt,
-							SharePointLibraryFolder: AnyTgt,
+						map[categorizer][]string{
+							SharePointLibraryItem:   Any(),
+							SharePointLibraryFolder: Any(),
 						},
 					)
 				case SharePointListItem:
 					scopeMustHave(
 						t,
 						spsc,
-						map[categorizer]string{
-							SharePointListItem: AnyTgt,
-							SharePointList:     AnyTgt,
+						map[categorizer][]string{
+							SharePointListItem: Any(),
+							SharePointList:     Any(),
 						},
 					)
 				}
@@ -107,8 +107,10 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 		s2 = "s2"
 	)
 
-	sel := NewSharePointRestore([]string{s1, s2})
-	sel.Include(sel.WebURL([]string{s1, s2}))
+	s12 := []string{s1, s2}
+
+	sel := NewSharePointRestore(s12)
+	sel.Include(sel.WebURL(s12))
 	scopes := sel.Includes
 	require.Len(t, scopes, 3)
 
@@ -116,7 +118,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 		scopeMustHave(
 			t,
 			SharePointScope(sc),
-			map[categorizer]string{SharePointWebURL: join(s1, s2)},
+			map[categorizer][]string{SharePointWebURL: s12},
 		)
 	}
 }
@@ -125,17 +127,17 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 	table := []struct {
 		name   string
 		in     []string
-		expect string
+		expect []string
 	}{
 		{
 			name:   "any",
 			in:     []string{AnyTgt},
-			expect: AnyTgt,
+			expect: Any(),
 		},
 		{
 			name:   "none",
 			in:     []string{NoneTgt},
-			expect: NoneTgt,
+			expect: None(),
 		},
 	}
 	for _, test := range table {
@@ -151,7 +153,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 				scopeMustHave(
 					t,
 					SharePointScope(sc),
-					map[categorizer]string{SharePointWebURL: test.expect},
+					map[categorizer][]string{SharePointWebURL: test.expect},
 				)
 			}
 		})
@@ -166,8 +168,10 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 		s2 = "s2"
 	)
 
-	sel := NewSharePointRestore([]string{s1, s2})
-	sel.Exclude(sel.WebURL([]string{s1, s2}))
+	s12 := []string{s1, s2}
+
+	sel := NewSharePointRestore(s12)
+	sel.Exclude(sel.WebURL(s12))
 	scopes := sel.Excludes
 	require.Len(t, scopes, 3)
 
@@ -175,7 +179,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 		scopeMustHave(
 			t,
 			SharePointScope(sc),
-			map[categorizer]string{SharePointWebURL: join(s1, s2)},
+			map[categorizer][]string{SharePointWebURL: s12},
 		)
 	}
 }

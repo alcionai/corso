@@ -57,35 +57,20 @@ func (suite *SelectorSuite) TestResourceOwnersIn() {
 			expect: []string{"foo"},
 		},
 		{
-			name:   "multiple values",
-			input:  []scope{{rootCat: filters.Identity(join("foo", "bar"))}},
-			expect: []string{"foo", "bar"},
-		},
-		{
-			name:   "with any",
-			input:  []scope{{rootCat: filters.Identity(join("foo", "bar", AnyTgt))}},
-			expect: []string{"foo", "bar"},
-		},
-		{
-			name:   "with none",
-			input:  []scope{{rootCat: filters.Identity(join("foo", "bar", NoneTgt))}},
-			expect: []string{"foo", "bar"},
-		},
-		{
 			name: "multiple scopes",
 			input: []scope{
-				{rootCat: filters.Identity(join("foo", "bar"))},
-				{rootCat: filters.Identity(join("baz"))},
+				{rootCat: filters.Identity("foo,bar")},
+				{rootCat: filters.Identity("baz")},
 			},
-			expect: []string{"foo", "bar", "baz"},
+			expect: []string{"foo,bar", "baz"},
 		},
 		{
 			name: "multiple scopes with duplicates",
 			input: []scope{
-				{rootCat: filters.Identity(join("foo", "bar"))},
-				{rootCat: filters.Identity(join("baz", "foo"))},
+				{rootCat: filters.Identity("foo")},
+				{rootCat: filters.Identity("foo")},
 			},
-			expect: []string{"foo", "bar", "baz"},
+			expect: []string{"foo"},
 		},
 	}
 	for _, test := range table {
@@ -138,9 +123,9 @@ func (suite *SelectorSuite) TestContains() {
 	key := rootCatStub
 	target := "fnords"
 	does := stubScope("")
-	does[key.String()] = filterize(scopeConfig{}, target)
+	does[key.String()] = filterFor(scopeConfig{}, target)
 	doesNot := stubScope("")
-	doesNot[key.String()] = filterize(scopeConfig{}, "smarf")
+	doesNot[key.String()] = filterFor(scopeConfig{}, "smarf")
 
 	assert.True(t, matches(does, key, target), "does contain")
 	assert.False(t, matches(doesNot, key, target), "does not contain")

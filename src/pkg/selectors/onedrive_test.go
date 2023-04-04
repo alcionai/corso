@@ -74,9 +74,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 				scopeMustHave(
 					t,
 					OneDriveScope(scope),
-					map[categorizer]string{
-						OneDriveItem:   AnyTgt,
-						OneDriveFolder: AnyTgt,
+					map[categorizer][]string{
+						OneDriveItem:   Any(),
+						OneDriveFolder: Any(),
 					},
 				)
 			}
@@ -106,9 +106,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_AllData() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{
-				OneDriveItem:   AnyTgt,
-				OneDriveFolder: AnyTgt,
+			map[categorizer][]string{
+				OneDriveItem:   Any(),
+				OneDriveFolder: Any(),
 			},
 		)
 	}
@@ -136,9 +136,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_AllData() {
 		scopeMustHave(
 			t,
 			OneDriveScope(sc),
-			map[categorizer]string{
-				OneDriveItem:   AnyTgt,
-				OneDriveFolder: AnyTgt,
+			map[categorizer][]string{
+				OneDriveItem:   Any(),
+				OneDriveFolder: Any(),
 			},
 		)
 	}
