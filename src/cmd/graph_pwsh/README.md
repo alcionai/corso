@@ -81,3 +81,7 @@ Another example to retrieve an email message for a given user by ID.
 docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
        pwsh -c "./Auth-Graph.ps1 && Get-MgUserMessage -UserId <userID or UPN> -MessageID <messageID>"
 ```
+
+## Using Beta API calls
+
+In order to use the Beta Graph API, use `./Auth-Graph.ps1 -UseBeta $true`

@@ -1,3 +1,11 @@
+[CmdletBinding()]
+
+Param (
+    [Parameter(Mandatory = $False, HelpMessage = "Use beta Graph API")]
+    [bool]$UseBeta
+
+)
+
 $tenantId = $ENV:AZURE_TENANT_ID
 $clientId = $ENV:AZURE_CLIENT_ID
 $clientSecret = $ENV:AZURE_CLIENT_SECRET
@@ -26,6 +34,11 @@ try {
 catch {
     Write-Host "Authentication failed..."
     Write-Output $_
+}
+
+if ($UseBeta) {
+    Write-Host "Switching to Beta Graph API..."
+    Select-MgProfile -Name "beta"
 }
 
 
