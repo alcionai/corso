@@ -105,7 +105,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
+          CORSO_M365_TEST_USER_ID: ${{ secrets.CORSO_M365_TEST_USER_ID }}
         run: |
           go run . exchange emails \
           --user ${{ env.CORSO_M365_TEST_USER_ID }} \
