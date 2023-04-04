@@ -459,7 +459,7 @@ function Get-ItemsToPurge {
     $foldersToSearchBody = "<t:DistinguishedFolderId Id='$WellKnownRoot'/>"
 
     if (![String]::IsNullOrEmpty($SubFolderName)) {
-        $subFolders, $moreToList = Get-FoldersToPurge -WellKnownRoot $WellKnownRoot -FolderNamePurgeList "Birthdays" -PurgeBeforeTimestamp $PurgeBeforeTimestamp
+        $subFolders, $moreToList = Get-FoldersToPurge -WellKnownRoot $WellKnownRoot -FolderNamePurgeList $SubFolderName -PurgeBeforeTimestamp $PurgeBeforeTimestamp
 
         if ($subFolders.count -gt 0 ) {
             $foldersToSearchBody = ""
