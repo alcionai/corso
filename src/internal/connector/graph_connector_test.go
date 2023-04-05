@@ -14,8 +14,9 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -39,19 +40,6 @@ func TestGraphConnectorUnitSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-var _ getIDAndNamer = &mockNameIDGetter{}
-
-type mockNameIDGetter struct {
-	id, name string
-}
-
-func (mnig mockNameIDGetter) GetIDAndName(
-	_ context.Context,
-	_ string,
-) (string, string, error) {
-	return mnig.id, mnig.name, nil
-}
-
 func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
 		id   = "owner-id"
@@ -63,9 +51,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		nti    = map[string]string{name: id}
 		lookup = &resourceClient{
 			enum:   Users,
-			getter: &mockNameIDGetter{id: id, name: name},
+			getter: &mock.IDNameGetter{ID: id, Name: name},
 		}
-		noLookup = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
+		noLookup = &resourceClient{enum: Users, getter: &mock.IDNameGetter{}}
 	)
 
 	table := []struct {
@@ -719,14 +707,14 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithDirectAttachment(
+							data: exchMock.MessageWithDirectAttachment(
 								subjectText + "-1",
 							),
 							lookupKey: subjectText + "-1",
 						},
 						{
 							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithTwoAttachments(
+							data: exchMock.MessageWithTwoAttachments(
 								subjectText + "-2",
 							),
 							lookupKey: subjectText + "-2",
@@ -746,7 +734,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name: "someencodeditemID",
-							data: mockconnector.GetMockMessageWithBodyBytes(
+							data: exchMock.MessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
 								bodyText+" 1.",
@@ -761,7 +749,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name: "someencodeditemID2",
-							data: mockconnector.GetMockMessageWithBodyBytes(
+							data: exchMock.MessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
 								bodyText+" 2.",
@@ -770,7 +758,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 						},
 						{
 							name: "someencodeditemID3",
-							data: mockconnector.GetMockMessageWithBodyBytes(
+							data: exchMock.MessageWithBodyBytes(
 								subjectText+"-3",
 								bodyText+" 3.",
 								bodyText+" 3.",
@@ -785,7 +773,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name: "someencodeditemID4",
-							data: mockconnector.GetMockMessageWithBodyBytes(
+							data: exchMock.MessageWithBodyBytes(
 								subjectText+"-4",
 								bodyText+" 4.",
 								bodyText+" 4.",
@@ -800,7 +788,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name: "someencodeditemID5",
-							data: mockconnector.GetMockMessageWithBodyBytes(
+							data: exchMock.MessageWithBodyBytes(
 								subjectText+"-5",
 								bodyText+" 5.",
 								bodyText+" 5.",
@@ -822,17 +810,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name:      "someencodeditemID",
-							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							data:      exchMock.ContactBytes("Ghimley"),
 							lookupKey: "Ghimley",
 						},
 						{
 							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockContactBytes("Irgot"),
+							data:      exchMock.ContactBytes("Irgot"),
 							lookupKey: "Irgot",
 						},
 						{
 							name:      "someencodeditemID3",
-							data:      mockconnector.GetMockContactBytes("Jannes"),
+							data:      exchMock.ContactBytes("Jannes"),
 							lookupKey: "Jannes",
 						},
 					},
@@ -850,17 +838,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name:      "someencodeditemID",
-							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							data:      exchMock.ContactBytes("Ghimley"),
 							lookupKey: "Ghimley",
 						},
 						{
 							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockContactBytes("Irgot"),
+							data:      exchMock.ContactBytes("Irgot"),
 							lookupKey: "Irgot",
 						},
 						{
 							name:      "someencodeditemID3",
-							data:      mockconnector.GetMockContactBytes("Jannes"),
+							data:      exchMock.ContactBytes("Jannes"),
 							lookupKey: "Jannes",
 						},
 					},
@@ -871,12 +859,12 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 					items: []itemInfo{
 						{
 							name:      "someencodeditemID4",
-							data:      mockconnector.GetMockContactBytes("Argon"),
+							data:      exchMock.ContactBytes("Argon"),
 							lookupKey: "Argon",
 						},
 						{
 							name:      "someencodeditemID5",
-							data:      mockconnector.GetMockContactBytes("Bernard"),
+							data:      exchMock.ContactBytes("Bernard"),
 							lookupKey: "Bernard",
 						},
 					},
@@ -893,17 +881,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			items: []itemInfo{
 		// 				{
 		// 					name:      "someencodeditemID",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
 		// 					lookupKey: "Ghimley",
 		// 				},
 		// 				{
 		// 					name:      "someencodeditemID2",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
 		// 					lookupKey: "Irgot",
 		// 				},
 		// 				{
 		// 					name:      "someencodeditemID3",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Jannes"),
+		// 					data:      exchMock.EventWithSubjectBytes("Jannes"),
 		// 					lookupKey: "Jannes",
 		// 				},
 		// 			},
@@ -920,17 +908,17 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			items: []itemInfo{
 		// 				{
 		// 					name:      "someencodeditemID",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
 		// 					lookupKey: "Ghimley",
 		// 				},
 		// 				{
 		// 					name:      "someencodeditemID2",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
 		// 					lookupKey: "Irgot",
 		// 				},
 		// 				{
 		// 					name:      "someencodeditemID3",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Jannes"),
+		// 					data:      exchMock.EventWithSubjectBytes("Jannes"),
 		// 					lookupKey: "Jannes",
 		// 				},
 		// 			},
@@ -941,12 +929,12 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup() {
 		// 			items: []itemInfo{
 		// 				{
 		// 					name:      "someencodeditemID4",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Argon"),
+		// 					data:      exchMock.EventWithSubjectBytes("Argon"),
 		// 					lookupKey: "Argon",
 		// 				},
 		// 				{
 		// 					name:      "someencodeditemID5",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Bernard"),
+		// 					data:      exchMock.EventWithSubjectBytes("Bernard"),
 		// 					lookupKey: "Bernard",
 		// 				},
 		// 			},
@@ -985,7 +973,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					items: []itemInfo{
 						{
 							name:      "someencodeditemID",
-							data:      mockconnector.GetMockContactBytes("Ghimley"),
+							data:      exchMock.ContactBytes("Ghimley"),
 							lookupKey: "Ghimley",
 						},
 					},
@@ -996,7 +984,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 					items: []itemInfo{
 						{
 							name:      "someencodeditemID2",
-							data:      mockconnector.GetMockContactBytes("Irgot"),
+							data:      exchMock.ContactBytes("Irgot"),
 							lookupKey: "Irgot",
 						},
 					},
@@ -1013,7 +1001,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		// 			items: []itemInfo{
 		// 				{
 		// 					name:      "someencodeditemID",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Ghimley"),
+		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
 		// 					lookupKey: "Ghimley",
 		// 				},
 		// 			},
@@ -1024,7 +1012,7 @@ func (suite *GraphConnectorIntegrationSuite) TestMultiFolderBackupDifferentNames
 		// 			items: []itemInfo{
 		// 				{
 		// 					name:      "someencodeditemID2",
-		// 					data:      mockconnector.GetMockEventWithSubjectBytes("Irgot"),
+		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
 		// 					lookupKey: "Irgot",
 		// 				},
 		// 			},
@@ -1162,7 +1150,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 				items: []itemInfo{
 					{
 						name:      "35mbAttachment",
-						data:      mockconnector.GetMockMessageWithSizedAttachment(subjectText, 35),
+						data:      exchMock.MessageWithSizedAttachment(subjectText, 35),
 						lookupKey: subjectText,
 					},
 				},

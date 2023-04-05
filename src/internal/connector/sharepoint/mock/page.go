@@ -1,8 +1,8 @@
-package mockconnector
+package mock
 
-// GetMockPage returns bytes for models.SitePageable object
+// Page returns bytes for models.SitePageable object
 // Title string changes of fields: name and title
-func GetMockPage(title string) []byte {
+func Page(title string) []byte {
 	fileName := title + ".aspx"
 
 	// Create Test Page
