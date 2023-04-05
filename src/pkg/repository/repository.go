@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -58,6 +59,7 @@ type Repository interface {
 	NewBackup(
 		ctx context.Context,
 		self selectors.Selector,
+		ins common.IDNameSwapper,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -105,7 +107,7 @@ func Initialize(
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
-		"acct_id", acct.ID(), // TODO: pii
+		"acct_id", clues.Hide(acct.ID()),
 		"storage_provider", s.Provider.String())
 
 	defer func() {
@@ -179,7 +181,7 @@ func Connect(
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
-		"acct_id", acct.ID(), // TODO: pii
+		"acct_id", clues.Hide(acct.ID()),
 		"storage_provider", s.Provider.String())
 
 	defer func() {
@@ -287,14 +289,25 @@ func (r *repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
+// ownerIDToName and ownerNameToID are optional populations, in case the caller has
+// already generated those values.
 func (r repository) NewBackup(
 	ctx context.Context,
 	sel selectors.Selector,
+	ins common.IDNameSwapper,
 ) (operations.BackupOperation, error) {
 	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
+
+	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ins)
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
+	}
+
+	// TODO: retrieve display name from gc
+	sel = sel.SetDiscreteOwnerIDName(ownerID, ownerName)
 
 	return operations.NewBackupOperation(
 		ctx,
@@ -304,7 +317,7 @@ func (r repository) NewBackup(
 		gc,
 		r.Account,
 		sel,
-		sel.DiscreteOwner,
+		sel,
 		r.Bus)
 }
 

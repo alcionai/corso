@@ -228,7 +228,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items, fault.New(true))
+			_, _, err := test.items.GetItem(ctx, "userID", "itemID", fault.New(true))
 			test.expectErr(suite.T(), err)
 		})
 	}

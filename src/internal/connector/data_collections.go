@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
@@ -34,7 +35,7 @@ import (
 // prior history (ie, incrementals) and run a full backup.
 func (gc *GraphConnector) ProduceBackupCollections(
 	ctx context.Context,
-	ownerID, ownerName string,
+	owner common.IDNamer,
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
@@ -46,7 +47,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetSiteIDs())
+	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -80,7 +81,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 }
@@ -201,18 +202,26 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
+			ToggleFeatures: control.Toggles{},
 		})
 	require.NoError(t, err, clues.ToCore(err))
 
-	m365UserID := tester.M365UserID(t)
-	users := []string{m365UserID}
+	var (
+		m365UserID = tester.M365UserID(t)
+		users      = []string{m365UserID}
+		idToName   = map[string]string{m365UserID: "todo-name-" + m365UserID}
+		nameToID   = map[string]string{"todo-name-" + m365UserID: m365UserID}
+		ins        = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
+	)
 
 	// some tests require an existing backup
 	sel := selectors.NewOneDriveBackup(users)
 	sel.Include(sel.Folders(selectors.Any()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)

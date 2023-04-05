@@ -43,3 +43,10 @@ func OrNow(t *time.Time) time.Time {
 
 	return *t
 }
+
+// To generates a pointer from any value.  Primarily useful
+// for generating pointers to strings and other primitives
+// without needing to store a second variable.
+func To[T any](t T) *T {
+	return &t
+}

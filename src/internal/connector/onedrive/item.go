@@ -66,9 +66,8 @@ func oneDriveItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
-	return baseItemMetaReader(ctx, service, driveID, item, fetchPermissions)
+	return baseItemMetaReader(ctx, service, driveID, item)
 }
 
 func sharePointItemMetaReader(
@@ -76,10 +75,9 @@ func sharePointItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
 	// TODO: include permissions
-	return baseItemMetaReader(ctx, service, driveID, item, false)
+	return baseItemMetaReader(ctx, service, driveID, item)
 }
 
 func baseItemMetaReader(
@@ -87,7 +85,6 @@ func baseItemMetaReader(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error) {
 	var (
 		perms []UserPermission
@@ -101,7 +98,7 @@ func baseItemMetaReader(
 		meta.SharingMode = SharingModeCustom
 	}
 
-	if meta.SharingMode == SharingModeCustom && fetchPermissions {
+	if meta.SharingMode == SharingModeCustom {
 		perms, err = driveItemPermissionInfo(ctx, service, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
@@ -283,7 +280,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			if gv2.GetDevice() != nil {
 				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
-			logm.Warn("untracked permission")
+			logm.Info("untracked permission")
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the
