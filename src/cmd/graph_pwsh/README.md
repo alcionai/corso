@@ -71,7 +71,7 @@ Here is a complete example to get all users
 ```sh
 # This is the equivalent of GET https://graph.microsoft.com/v1.0/users
 docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
-       pwsh -c "./Auth-Graph.ps1 && Get-MgUser -All"
+       pwsh -c "Get-MgUser -All"
 ```
 
 Another example to retrieve an email message for a given user by ID.
@@ -79,7 +79,7 @@ Another example to retrieve an email message for a given user by ID.
 ```sh
 # This is the equivalent of GET https://graph.microsoft.com/v1.0/<userID>/messages/<messageId>
 docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
-       pwsh -c "./Auth-Graph.ps1 && Get-MgUserMessage -UserId <userID or UPN> -MessageID <messageID>"
+       pwsh -c "Get-MgUserMessage -UserId <userID or UPN> -MessageID <messageID>"
 ```
 
 ## Debug output
@@ -90,12 +90,21 @@ similar to the example below.
 ```sh
 # This is the equivalent of GET https://graph.microsoft.com/v1.0/users
 docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
-       pwsh -c "./Auth-Graph.ps1 && Get-MgUser -All -Debug"
+       pwsh -c "Get-MgUser -All -Debug"
 ```
 
 ## Using Beta API calls
 
-In order to use the Beta Graph API, use `./Auth-Graph.ps1 -UseBeta $true`
+In order to use the Beta Graph API, make sure you have done `export MSGRAPH_USE_BETA=1`
+before running the container and pass the environment variable in.
+
+Alternatively you can do the following:
+
+```sh
+# This is the equivalent of GET https://graph.microsoft.com/v1.0/users
+docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
+       pwsh -c "Select-MgProfile -Name "beta" && Get-MgUser -All"
+```
 
 ## Graph Powershell reference
 

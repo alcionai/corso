@@ -1,14 +1,7 @@
-[CmdletBinding()]
-
-Param (
-    [Parameter(Mandatory = $False, HelpMessage = "Use beta Graph API")]
-    [bool]$UseBeta
-
-)
-
 $tenantId = $ENV:AZURE_TENANT_ID
 $clientId = $ENV:AZURE_CLIENT_ID
 $clientSecret = $ENV:AZURE_CLIENT_SECRET
+$useBeta = ($ENV:MSGRAPH_USE_BETA -eq 1) -or ($ENV:MSGRAPH_USE_BETA -eq "1") -or ($ENV:MSGRAPH_USE_BETA -eq "true")
 
 # This version of Graph Powershell does not support app secret auth yet so roll our own
 $body = @{
@@ -36,7 +29,7 @@ catch {
     Write-Output $_
 }
 
-if ($UseBeta) {
+if ($useBeta) {
     Write-Host "Switching to Beta Graph API..."
     Select-MgProfile -Name "beta"
 }
