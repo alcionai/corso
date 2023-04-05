@@ -78,10 +78,11 @@ func NewGraphConnector(
 	}
 
 	gc := GraphConnector{
-		itemClient:  itemClient,
-		tenant:      m365.AzureTenantID,
-		wg:          &sync.WaitGroup{},
-		credentials: m365,
+		itemClient:   itemClient,
+		tenant:       m365.AzureTenantID,
+		wg:           &sync.WaitGroup{},
+		credentials:  m365,
+		IDNameLookup: common.IDsNames{},
 	}
 
 	gc.Service, err = gc.createService()
