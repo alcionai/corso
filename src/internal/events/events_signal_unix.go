@@ -14,10 +14,6 @@ import (
 )
 
 func signalDump(ctx context.Context) {
-	if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
-		logger.CtxErr(ctx, err).Error("metrics interval signal")
-	}
-
 	if err := unix.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
 		logger.CtxErr(ctx, err).Error("metrics interval signal")
 	}

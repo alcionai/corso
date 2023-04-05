@@ -8,6 +8,8 @@ import (
 )
 
 func signalDump(ctx context.Context) {
-	//logger.Ctx(ctx).Warn("cannot send signal on Windows")
-	windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(syscall.Getpid()))
+	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(syscall.Getpid()))
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("metrics interval signal")
+	}
 }
