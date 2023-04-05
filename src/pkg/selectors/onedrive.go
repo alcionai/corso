@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -119,6 +120,15 @@ func (s oneDrive) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Includes),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s OneDriveScope) Conceal() string             { return conceal(s) }
+func (s OneDriveScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s OneDriveScope) String() string              { return conceal(s) }
+func (s OneDriveScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories

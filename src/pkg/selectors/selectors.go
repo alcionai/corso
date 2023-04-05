@@ -190,15 +190,6 @@ func splitByResourceOwner[T scopeT, C categoryT](s Selector, allOwners []string,
 	return ss
 }
 
-func (s Selector) String() string {
-	bs, err := json.Marshal(s)
-	if err != nil {
-		return "error"
-	}
-
-	return string(bs)
-}
-
 // appendScopes iterates through each scope in the list of scope slices,
 // calling setDefaults() to ensure it is completely populated, and appends
 // those scopes to the `to` slice.
@@ -283,6 +274,84 @@ func selectorAsIface[T any](s Selector) (T, error) {
 	}
 
 	return t, err
+}
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+var _ clues.PlainConcealer = &Selector{}
+
+type loggableSelector struct {
+	Service        service             `json:"service,omitempty"`
+	ResourceOwners string              `json:"resourceOwners,omitempty"`
+	DiscreteOwner  string              `json:"discreteOwner,omitempty"`
+	Excludes       []map[string]string `json:"exclusions,omitempty"`
+	Filters        []map[string]string `json:"filters,omitempty"`
+	Includes       []map[string]string `json:"includes,omitempty"`
+}
+
+func (s Selector) Conceal() string {
+	ls := loggableSelector{
+		Service:        s.Service,
+		ResourceOwners: s.ResourceOwners.Conceal(),
+		DiscreteOwner:  clues.Conceal(s.DiscreteOwner),
+		Excludes:       toMSS(s.Excludes, false),
+		Filters:        toMSS(s.Filters, false),
+		Includes:       toMSS(s.Includes, false),
+	}
+
+	return ls.marshal()
+}
+
+func (s Selector) Format(fs fmt.State, _ rune) {
+	fmt.Fprint(fs, s.Conceal())
+}
+
+func (s Selector) String() string {
+	return s.Conceal()
+}
+
+func (s Selector) PlainString() string {
+	ls := loggableSelector{
+		Service:        s.Service,
+		ResourceOwners: s.ResourceOwners.PlainString(),
+		DiscreteOwner:  s.DiscreteOwner,
+		Excludes:       toMSS(s.Excludes, true),
+		Filters:        toMSS(s.Filters, true),
+		Includes:       toMSS(s.Includes, true),
+	}
+
+	return ls.marshal()
+}
+
+func toMSS(scs []scope, plain bool) []map[string]string {
+	mss := make([]map[string]string, 0, len(scs))
+
+	for _, s := range scs {
+		m := map[string]string{}
+
+		for k, filt := range s {
+			if plain {
+				m[k] = filt.PlainString()
+			} else {
+				m[k] = filt.Conceal()
+			}
+		}
+
+		mss = append(mss, m)
+	}
+
+	return mss
+}
+
+func (ls loggableSelector) marshal() string {
+	bs, err := json.Marshal(ls)
+	if err != nil {
+		return "error-marshalling-selector"
+	}
+
+	return string(bs)
 }
 
 // ---------------------------------------------------------------------------

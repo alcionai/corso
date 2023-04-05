@@ -1,6 +1,9 @@
 package selectors
 
 import (
+	"fmt"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -529,6 +532,61 @@ func (suite *SelectorScopesSuite) TestScopeConfig() {
 
 			result := filterFor(test.config, input)
 			assert.Equal(t, test.expect, int(result.Comparator))
+		})
+	}
+}
+
+var _ fmt.State = &mockFMTState{}
+
+type mockFMTState struct {
+	w io.Writer
+}
+
+func (ms mockFMTState) Write(bs []byte) (int, error) { return ms.w.Write(bs) }
+func (ms mockFMTState) Width() (int, bool)           { return 0, false }
+func (ms mockFMTState) Precision() (int, bool)       { return 0, false }
+func (ms mockFMTState) Flag(int) bool                { return false }
+
+func (suite *SelectorSuite) TestScopesPII() {
+	table := []struct {
+		name        string
+		s           mockScope
+		expect      string
+		expectPlain string
+	}{
+		{
+			name:        "empty",
+			s:           mockScope{},
+			expect:      `{}`,
+			expectPlain: `{}`,
+		},
+		{
+			name: "multiple filters",
+			s: mockScope{
+				"pass": filterFor(scopeConfig{}, "*"),
+				"fail": filterFor(scopeConfig{}, ""),
+				"foo":  filterFor(scopeConfig{}, "bar"),
+				"qux":  filterFor(scopeConfig{}, "fnords", "smarf"),
+			},
+			expect:      `{"pass":"Pass","fail":"Fail","foo":"Cont:bar","qux":"Cont:fnords,smarf"}`,
+			expectPlain: `{"pass":"Pass","fail":"Fail","foo":"Cont:bar","qux":"Cont:fnords,smarf"}`,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := conceal(test.s)
+			assert.Equal(t, test.expect, result, "conceal")
+
+			result = plainString(test.s)
+			assert.Equal(t, test.expectPlain, result, "plainString")
+
+			var sb *strings.Builder
+			fs := mockFMTState{sb}
+
+			format(test.s, &fs, 0)
+			assert.Equal(t, test.expect, sb.String(), "fmt")
 		})
 	}
 }
