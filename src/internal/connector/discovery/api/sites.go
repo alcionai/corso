@@ -39,10 +39,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		return nil, err
 	}
 
-	var resp models.SiteCollectionResponseable
-
-	resp, err = service.Client().Sites().Get(ctx, nil)
-
+	resp, err := service.Client().Sites().Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting all sites")
 	}
@@ -114,23 +111,24 @@ func validateSite(item any) (models.Siteable, error) {
 		return nil, clues.New(fmt.Sprintf("unexpected model: %T", item))
 	}
 
-	id, ok := ptr.ValOK(m.GetId())
-	if !ok || len(id) == 0 {
+	id := ptr.Val(m.GetId())
+	if len(id) == 0 {
 		return nil, clues.New("missing ID")
 	}
 
-	url, ok := ptr.ValOK(m.GetWebUrl())
-	if !ok || len(url) == 0 {
+	url := ptr.Val(m.GetWebUrl())
+	if len(url) == 0 {
 		return nil, clues.New("missing webURL").With("site_id", id) // TODO: pii
 	}
 
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if ok && strings.Contains(url, personalSitePath) {
+	if strings.Contains(url, personalSitePath) {
 		return nil, clues.Stack(errKnownSkippableCase).
 			With("site_id", id, "site_url", url) // TODO: pii
 	}
 
-	if name, ok := ptr.ValOK(m.GetDisplayName()); !ok || len(name) == 0 {
+	name := ptr.Val(m.GetDisplayName())
+	if len(name) == 0 {
 		// the built-in site at "https://{tenant-domain}/search" never has a name.
 		if strings.HasSuffix(url, "/search") {
 			return nil, clues.Stack(errKnownSkippableCase).

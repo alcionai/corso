@@ -28,7 +28,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 	tests := []struct {
 		name           string
-		args           interface{}
+		args           any
 		want           models.Siteable
 		errCheck       assert.ErrorAssertionFunc
 		errIsSkippable bool
