@@ -1,8 +1,11 @@
 package filters_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -16,6 +19,16 @@ type FiltersSuite struct {
 
 func TestFiltersSuite(t *testing.T) {
 	suite.Run(t, &FiltersSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+// set the clues hashing to mask for the span of this suite
+func (suite *FiltersSuite) SetupSuite() {
+	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
+}
+
+// revert clues hashing to plaintext for all other tests
+func (suite *FiltersSuite) TeardownSuite() {
+	clues.SetHasher(clues.NoHash())
 }
 
 func sl(s ...string) []string {
@@ -593,6 +606,98 @@ func (suite *FiltersSuite) TestPathEquals_NormalizedTargets() {
 
 			f := filters.PathEquals(test.targets)
 			assert.Equal(t, test.expect, f.NormalizedTargets)
+		})
+	}
+}
+
+func (suite *FiltersSuite) TestFilter_pii() {
+	targets := []string{"fnords", "smarf", "*"}
+
+	table := []struct {
+		name string
+		f    filters.Filter
+	}{
+		{"equal", filters.Equal(targets)},
+		{"contains", filters.Contains(targets)},
+		{"greater", filters.Greater(targets)},
+		{"less", filters.Less(targets)},
+		{"prefix", filters.Prefix(targets)},
+		{"suffix", filters.Suffix(targets)},
+		{"pathprefix", filters.PathPrefix(targets)},
+		{"pathsuffix", filters.PathSuffix(targets)},
+		{"pathcontains", filters.PathContains(targets)},
+		{"pathequals", filters.PathEquals(targets)},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t           = suite.T()
+				expect      = test.f.Comparator.String() + ":***,***,*"
+				expectPlain = test.f.Comparator.String() + ":" + strings.Join(targets, ",")
+			)
+
+			result := test.f.Conceal()
+			assert.Equal(t, expect, result, "conceal")
+
+			result = test.f.String()
+			assert.Equal(t, expect, result, "string")
+
+			result = test.f.PlainString()
+			assert.Equal(t, expectPlain, result, "plainString")
+
+			result = fmt.Sprintf("%s", test.f)
+			assert.Equal(t, expect, result, "fmt %%s")
+
+			result = fmt.Sprintf("%v", test.f)
+			assert.Equal(t, expect, result, "fmt %%v")
+
+			result = fmt.Sprintf("%+v", test.f)
+			assert.Equal(t, expect, result, "fmt %%+v")
+		})
+	}
+
+	table2 := []struct {
+		name        string
+		f           filters.Filter
+		expect      string
+		expectPlain string
+	}{
+		{"pass", filters.Pass(), "Pass", "Pass"},
+		{"fail", filters.Fail(), "Fail", "Fail"},
+		{
+			"identity",
+			filters.Identity("id"),
+			filters.IdentityValue.String() + ":***",
+			filters.IdentityValue.String() + ":id",
+		},
+		{
+			"identity",
+			filters.Identity("*"),
+			filters.IdentityValue.String() + ":*",
+			filters.IdentityValue.String() + ":*",
+		},
+	}
+	for _, test := range table2 {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := test.f.Conceal()
+			assert.Equal(t, test.expect, result, "conceal")
+
+			result = test.f.String()
+			assert.Equal(t, test.expect, result, "string")
+
+			result = test.f.PlainString()
+			assert.Equal(t, test.expectPlain, result, "plainString")
+
+			result = fmt.Sprintf("%s", test.f)
+			assert.Equal(t, test.expect, result, "fmt %%s")
+
+			result = fmt.Sprintf("%v", test.f)
+			assert.Equal(t, test.expect, result, "fmt %%v")
+
+			result = fmt.Sprintf("%+v", test.f)
+			assert.Equal(t, test.expect, result, "fmt %%+v")
 		})
 	}
 }
