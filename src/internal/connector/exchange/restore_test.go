@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -49,7 +49,10 @@ func (suite *ExchangeRestoreSuite) SetupSuite() {
 	suite.ac, err = api.NewClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
-	adpt, err := graph.CreateAdapter(m365.AzureTenantID, m365.AzureClientID, m365.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		m365.AzureTenantID,
+		m365.AzureClientID,
+		m365.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.gs = graph.NewService(adpt)

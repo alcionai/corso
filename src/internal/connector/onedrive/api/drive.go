@@ -4,17 +4,19 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
-	msdrives "github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	mssites "github.com/microsoftgraph/msgraph-sdk-go/sites"
-	msusers "github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 func getValues[T any](l api.PageLinker) ([]T, error) {
@@ -32,8 +34,8 @@ const pageSize = int32(999)
 type driveItemPager struct {
 	gs      graph.Servicer
 	driveID string
-	builder *msdrives.ItemRootDeltaRequestBuilder
-	options *msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration
+	builder *drives.ItemRootDeltaRequestBuilder
+	options *drives.ItemRootDeltaRequestBuilderGetRequestConfiguration
 }
 
 func NewItemPager(
@@ -52,9 +54,9 @@ func NewItemPager(
 	}
 	headers.Add("Prefer", strings.Join(preferHeaderItems, ","))
 
-	requestConfig := &msdrives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
+	requestConfig := &drives.ItemRootDeltaRequestBuilderGetRequestConfiguration{
 		Headers: headers,
-		QueryParameters: &msdrives.ItemRootDeltaRequestBuilderGetQueryParameters{
+		QueryParameters: &drives.ItemRootDeltaRequestBuilderGetQueryParameters{
 			Top:    &pageCount,
 			Select: fields,
 		},
@@ -68,7 +70,7 @@ func NewItemPager(
 	}
 
 	if len(link) > 0 {
-		res.builder = msdrives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
+		res.builder = drives.NewItemRootDeltaRequestBuilder(link, gs.Adapter())
 	}
 
 	return res
@@ -89,7 +91,7 @@ func (p *driveItemPager) GetPage(ctx context.Context) (api.DeltaPageLinker, erro
 }
 
 func (p *driveItemPager) SetNext(link string) {
-	p.builder = msdrives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
+	p.builder = drives.NewItemRootDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *driveItemPager) Reset() {
@@ -102,8 +104,8 @@ func (p *driveItemPager) ValuesIn(l api.DeltaPageLinker) ([]models.DriveItemable
 
 type userDrivePager struct {
 	gs      graph.Servicer
-	builder *msusers.ItemDrivesRequestBuilder
-	options *msusers.ItemDrivesRequestBuilderGetRequestConfiguration
+	builder *users.ItemDrivesRequestBuilder
+	options *users.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
 func NewUserDrivePager(
@@ -111,8 +113,8 @@ func NewUserDrivePager(
 	userID string,
 	fields []string,
 ) *userDrivePager {
-	requestConfig := &msusers.ItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msusers.ItemDrivesRequestBuilderGetQueryParameters{
+	requestConfig := &users.ItemDrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemDrivesRequestBuilderGetQueryParameters{
 			Select: fields,
 		},
 	}
@@ -141,7 +143,7 @@ func (p *userDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 }
 
 func (p *userDrivePager) SetNext(link string) {
-	p.builder = msusers.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+	p.builder = users.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
@@ -150,8 +152,8 @@ func (p *userDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) 
 
 type siteDrivePager struct {
 	gs      graph.Servicer
-	builder *mssites.ItemDrivesRequestBuilder
-	options *mssites.ItemDrivesRequestBuilderGetRequestConfiguration
+	builder *sites.ItemDrivesRequestBuilder
+	options *sites.ItemDrivesRequestBuilderGetRequestConfiguration
 }
 
 // NewSiteDrivePager is a constructor for creating a siteDrivePager
@@ -164,8 +166,8 @@ func NewSiteDrivePager(
 	siteID string,
 	fields []string,
 ) *siteDrivePager {
-	requestConfig := &mssites.ItemDrivesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &mssites.ItemDrivesRequestBuilderGetQueryParameters{
+	requestConfig := &sites.ItemDrivesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.ItemDrivesRequestBuilderGetQueryParameters{
 			Select: fields,
 		},
 	}
@@ -194,78 +196,82 @@ func (p *siteDrivePager) GetPage(ctx context.Context) (api.PageLinker, error) {
 }
 
 func (p *siteDrivePager) SetNext(link string) {
-	p.builder = mssites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+	p.builder = sites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) {
 	return getValues[models.Driveable](l)
 }
 
-// GetDriveIDByName is a helper function to retrieve the M365ID of a site drive.
-// Returns "" if the folder is not within the drive.
-// Dependency: Requires "name" and "id" to be part of the given options
-func (p *siteDrivePager) GetDriveIDByName(ctx context.Context, driveName string) (string, error) {
-	var empty string
+// ---------------------------------------------------------------------------
+// Drive Paging
+// ---------------------------------------------------------------------------
 
-	for {
-		resp, err := p.builder.Get(ctx, p.options)
-		if err != nil {
-			return empty, graph.Stack(ctx, err)
-		}
-
-		for _, entry := range resp.GetValue() {
-			if ptr.Val(entry.GetName()) == driveName {
-				return ptr.Val(entry.GetId()), nil
-			}
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		p.builder = mssites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
-	}
-
-	return empty, nil
+// DrivePager pages through different types of drive owners
+type DrivePager interface {
+	GetPage(context.Context) (api.PageLinker, error)
+	SetNext(nextLink string)
+	ValuesIn(api.PageLinker) ([]models.Driveable, error)
 }
 
-// GetFolderIDByName is a helper function to retrieve the M365ID of a folder within a site document library.
-// Returns "" if the folder is not within the drive
-func (p *siteDrivePager) GetFolderIDByName(ctx context.Context, driveID, folderName string) (string, error) {
-	var empty string
+// GetAllDrives fetches all drives for the given pager
+func GetAllDrives(
+	ctx context.Context,
+	pager DrivePager,
+	retry bool,
+	maxRetryCount int,
+) ([]models.Driveable, error) {
+	ds := []models.Driveable{}
 
-	// *msdrives.ItemRootChildrenRequestBuilder
-	builder := p.gs.Client().DrivesById(driveID).Root().Children()
-	option := &msdrives.ItemRootChildrenRequestBuilderGetRequestConfiguration{
-		QueryParameters: &msdrives.ItemRootChildrenRequestBuilderGetQueryParameters{
-			Select: []string{"id", "name", "folder"},
-		},
+	if !retry {
+		maxRetryCount = 0
 	}
 
+	// Loop through all pages returned by Graph API.
 	for {
-		resp, err := builder.Get(ctx, option)
-		if err != nil {
-			return empty, graph.Stack(ctx, err)
-		}
+		var (
+			err  error
+			page api.PageLinker
+		)
 
-		for _, entry := range resp.GetValue() {
-			if entry.GetFolder() == nil {
-				continue
+		// Retry Loop for Drive retrieval. Request can timeout
+		for i := 0; i <= maxRetryCount; i++ {
+			page, err = pager.GetPage(ctx)
+			if err != nil {
+				if clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+					logger.Ctx(ctx).Infof("resource owner does not have a drive")
+					return make([]models.Driveable, 0), nil // no license or drives.
+				}
+
+				if graph.IsErrTimeout(err) && i < maxRetryCount {
+					time.Sleep(time.Duration(3*(i+1)) * time.Second)
+					continue
+				}
+
+				return nil, graph.Wrap(ctx, err, "retrieving drives")
 			}
 
-			if ptr.Val(entry.GetName()) == folderName {
-				return ptr.Val(entry.GetId()), nil
-			}
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
+			// No error encountered, break the retry loop so we can extract results
+			// and see if there's another page to fetch.
 			break
 		}
 
-		builder = msdrives.NewItemRootChildrenRequestBuilder(link, p.gs.Adapter())
+		tmp, err := pager.ValuesIn(page)
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "extracting drives from response")
+		}
+
+		ds = append(ds, tmp...)
+
+		nextLink := ptr.Val(page.GetOdataNextLink())
+		if len(nextLink) == 0 {
+			break
+		}
+
+		pager.SetNext(nextLink)
 	}
 
-	return empty, nil
+	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(ds))
+
+	return ds, nil
 }

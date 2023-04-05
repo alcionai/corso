@@ -5,11 +5,11 @@ import (
 	"io"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -117,9 +118,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 			}
 
 			// Categories with delta endpoints will produce a collection for metadata
-			// as well as the actual data pulled.
+			// as well as the actual data pulled, and the "temp" root collection.
 			assert.GreaterOrEqual(t, len(collections), 1, "expected 1 <= num collections <= 2")
-			assert.GreaterOrEqual(t, 2, len(collections), "expected 1 <= num collections <= 2")
+			assert.GreaterOrEqual(t, 3, len(collections), "expected 1 <= num collections <= 3")
 
 			for _, col := range collections {
 				for object := range col.Items(ctx, fault.New(true)) {
@@ -129,8 +130,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 				}
 			}
 
-			status := connector.AwaitStatus()
-			assert.NotZero(t, status.Metrics.Successes)
+			status := connector.Wait()
+			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -168,7 +169,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 			name: "Invalid sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(sel.LibraryFolders(selectors.Any()))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -194,7 +195,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 			name: "missing sharepoint backup site",
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup(owners)
-				sel.Include(sel.LibraryFolders(selectors.Any()))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				sel.DiscreteOwner = ""
 				return sel.Selector
 			},
@@ -205,8 +206,9 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			collections, excludes, err := connector.DataCollections(
+			collections, excludes, err := connector.ProduceBackupCollections(
 				ctx,
+				test.getSelector(t),
 				test.getSelector(t),
 				nil,
 				control.Options{},
@@ -237,7 +239,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 			name: "Libraries",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(sel.LibraryFolders(selectors.Any()))
+				sel.Include(testdata.SharePointBackupFolderScope(sel))
 				return sel.Selector
 			},
 		},
@@ -286,8 +288,8 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 				}
 			}
 
-			status := connector.AwaitStatus()
-			assert.NotZero(t, status.Metrics.Successes)
+			status := connector.Wait()
+			assert.NotZero(t, status.Successes)
 			t.Log(status.String())
 		})
 	}
@@ -336,24 +338,29 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
 
-	cols, excludes, err := gc.DataCollections(
+	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
+		sel.Selector,
 		sel.Selector,
 		nil,
 		control.Options{},
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Len(t, cols, 1)
+	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
 	assert.Empty(t, excludes)
 
-	for _, collection := range cols {
-		t.Logf("Path: %s\n", collection.FullPath().String())
-		assert.Equal(
-			t,
-			path.SharePointMetadataService.String(),
-			collection.FullPath().Service().String())
-	}
+	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
+	assert.Equal(
+		t,
+		path.SharePointMetadataService.String(),
+		cols[0].FullPath().Service().String())
+
+	t.Logf("cols[1] Path: %s\n", cols[1].FullPath().String())
+	assert.Equal(
+		t,
+		path.SharePointService.String(),
+		cols[1].FullPath().Service().String())
 }
 
 func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection_Lists() {
@@ -368,10 +375,11 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 	)
 
 	sel := selectors.NewSharePointBackup(siteIDs)
-	sel.Include(sel.Lists(selectors.Any(), selectors.PrefixMatch()))
+	sel.Include(sel.Lists(selectors.Any()))
 
-	cols, excludes, err := gc.DataCollections(
+	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
+		sel.Selector,
 		sel.Selector,
 		nil,
 		control.Options{},

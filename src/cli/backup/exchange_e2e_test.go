@@ -5,17 +5,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -184,7 +185,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
 				"backup", "create", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+utils.UserFN, suite.m365UserID,
-				"--"+utils.DataFN, set.String())
+				"--"+utils.CategoryDataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
 			cmd.SetOut(&recorder)
@@ -221,7 +222,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
 				"backup", "create", "exchange",
 				"--config-file", suite.cfgFP,
 				"--"+utils.UserFN, "foo@nothere.com",
-				"--"+utils.DataFN, set.String())
+				"--"+utils.CategoryDataFN, set.String())
 			cli.BuildCommandTree(cmd)
 
 			cmd.SetOut(&recorder)
@@ -300,7 +301,15 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	suite.backupOps = make(map[path.CategoryType]string)
 
-	users := []string{suite.m365UserID}
+	var (
+		users    = []string{suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
+		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+		ins      = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
+	)
 
 	for _, set := range backupDataSets {
 		var (
@@ -321,7 +330,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -330,7 +339,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		bIDs := string(bop.Results.BackupID)
 
 		// sanity check, ensure we can find the backup and its details immediately
-		b, err := suite.repo.Backup(ctx, bop.Results.BackupID)
+		b, err := suite.repo.Backup(ctx, string(bop.Results.BackupID))
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
 		_, b, errs := suite.repo.GetBackupDetails(ctx, bIDs)
@@ -546,7 +555,7 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)

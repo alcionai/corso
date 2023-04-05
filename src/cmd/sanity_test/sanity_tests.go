@@ -2,100 +2,112 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"reflect"
+	"path"
 	"strings"
 	"time"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/clues"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"golang.org/x/exp/slices"
+
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-func main() {
-	adapter, err := graph.CreateAdapter(
-		os.Getenv("AZURE_TENANT_ID"),
-		os.Getenv("AZURE_CLIENT_ID"),
-		os.Getenv("AZURE_CLIENT_SECRET"),
-	)
-	if err != nil {
-		fmt.Println("error while creating adapter: ", err)
-		os.Exit(1)
+type permissionInfo struct {
+	entityID string
+	roles    []string
+}
 
-		return
+func main() {
+	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
+	defer func() {
+		_ = log.Sync() // flush all logs in the buffer
+	}()
+
+	adapter, err := graph.CreateAdapter(
+		tester.GetM365TenantID(ctx),
+		os.Getenv("AZURE_CLIENT_ID"),
+		os.Getenv("AZURE_CLIENT_SECRET"))
+	if err != nil {
+		fatal(ctx, "creating adapter", err)
 	}
 
-	testUser := os.Getenv("CORSO_M365_TEST_USER_ID")
-	folder := strings.TrimSpace(os.Getenv("RESTORE_FOLDER"))
+	var (
+		client           = msgraphsdk.NewGraphServiceClient(adapter)
+		testUser         = tester.GetM365UserID(ctx)
+		testService      = os.Getenv("SANITY_RESTORE_SERVICE")
+		folder           = strings.TrimSpace(os.Getenv("SANITY_RESTORE_FOLDER"))
+		startTime, _     = mustGetTimeFromName(ctx, folder)
+		dataFolder       = os.Getenv("TEST_DATA")
+		baseBackupFolder = os.Getenv("BASE_BACKUP")
+	)
 
-	restoreStartTime := strings.SplitAfter(folder, "Corso_Restore_")[1]
-	startTime, _ := time.Parse(time.RFC822, restoreStartTime)
+	ctx = clues.Add(
+		ctx,
+		"resource_owner", testUser,
+		"service", testService,
+		"sanity_restore_folder", folder,
+		"start_time", startTime.Format(time.RFC3339Nano))
 
-	fmt.Println("Restore folder: ", folder)
+	logger.Ctx(ctx).Info("starting sanity test check")
 
-	client := msgraphsdk.NewGraphServiceClient(adapter)
-
-	switch service := os.Getenv("RESTORE_SERVICE"); service {
+	switch testService {
 	case "exchange":
-		checkEmailRestoration(client, testUser, folder, startTime)
+		checkEmailRestoration(ctx, client, testUser, folder, dataFolder, baseBackupFolder, startTime)
+	case "onedrive":
+		checkOnedriveRestoration(ctx, client, testUser, folder, startTime)
 	default:
-		checkOnedriveRestoration(client, testUser, folder, startTime)
+		fatal(ctx, "no service specified", nil)
 	}
 }
 
 // checkEmailRestoration verifies that the emails count in restored folder is equivalent to
 // emails in actual m365 account
 func checkEmailRestoration(
+	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	testUser,
-	folderName string,
+	testUser, folderName, dataFolder, baseBackupFolder string,
 	startTime time.Time,
 ) {
 	var (
-		messageCount  = make(map[string]int32)
-		restoreFolder models.MailFolderable
+		restoreFolder    models.MailFolderable
+		itemCount        = make(map[string]int32)
+		restoreItemCount = make(map[string]int32)
+		builder          = client.UsersById(testUser).MailFolders()
 	)
 
-	user := client.UsersById(testUser)
-	builder := user.MailFolders()
-
 	for {
-		result, err := builder.Get(context.Background(), nil)
+		result, err := builder.Get(ctx, nil)
 		if err != nil {
-			fmt.Printf("Error getting the drive: %v\n", err)
-			os.Exit(1)
+			fatal(ctx, "getting mail folders", err)
 		}
 
-		res := result.GetValue()
+		values := result.GetValue()
 
-		for _, r := range res {
-			name, ok := ptr.ValOK(r.GetDisplayName())
-			if !ok {
+		for _, v := range values {
+			itemName := ptr.Val(v.GetDisplayName())
+
+			if itemName == folderName {
+				restoreFolder = v
 				continue
 			}
 
-			var rStartTime time.Time
+			if itemName == dataFolder || itemName == baseBackupFolder {
+				// otherwise, recursively aggregate all child folders.
+				getAllSubFolder(ctx, client, testUser, v, itemName, dataFolder, itemCount)
 
-			restoreStartTime := strings.SplitAfter(name, "Corso_Restore_")
-			if len(restoreStartTime) > 1 {
-				rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-				if startTime.Before(rStartTime) {
-					fmt.Printf("The restore folder %s was created after %s. Will skip check.", name, folderName)
-					continue
-				}
+				itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
 			}
-
-			if name == folderName {
-				restoreFolder = r
-				continue
-			}
-
-			getAllSubFolder(client, testUser, r, name, messageCount)
-
-			messageCount[name], _ = ptr.ValOK(r.GetTotalItemCount())
 		}
 
 		link, ok := ptr.ValOK(result.GetOdataNextLink())
@@ -106,78 +118,104 @@ func checkEmailRestoration(
 		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
 	}
 
-	folderID, ok := ptr.ValOK(restoreFolder.GetId())
-	if !ok {
-		fmt.Printf("can't find ID of restore folder")
-		os.Exit(1)
-	}
+	folderID := ptr.Val(restoreFolder.GetId())
+	folderName = ptr.Val(restoreFolder.GetDisplayName())
+	ctx = clues.Add(
+		ctx,
+		"restore_folder_id", folderID,
+		"restore_folder_name", folderName)
 
-	folder := user.MailFoldersById(folderID)
-
-	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	childFolder, err := client.
+		UsersById(testUser).
+		MailFoldersById(folderID).
+		ChildFolders().
+		Get(ctx, nil)
 	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting restore folder child folders", err)
 	}
 
-	for _, restore := range childFolder.GetValue() {
-		restoreDisplayName, ok := ptr.ValOK(restore.GetDisplayName())
-		if !ok {
-			continue
+	for _, fld := range childFolder.GetValue() {
+		restoreDisplayName := ptr.Val(fld.GetDisplayName())
+
+		// check if folder is the data folder we loaded or the base backup to verify
+		// the incremental backup worked fine
+		if strings.EqualFold(restoreDisplayName, dataFolder) || strings.EqualFold(restoreDisplayName, baseBackupFolder) {
+			count, _ := ptr.ValOK(fld.GetTotalItemCount())
+
+			restoreItemCount[restoreDisplayName] = count
+			checkAllSubFolder(ctx, client, fld, testUser, restoreDisplayName, dataFolder, restoreItemCount)
 		}
+	}
 
-		restoreItemCount, _ := ptr.ValOK(restore.GetTotalItemCount())
+	verifyEmailData(ctx, restoreItemCount, itemCount)
+}
 
-		if messageCount[restoreDisplayName] != restoreItemCount {
-			fmt.Println("Restore was not succesfull for: ", restoreDisplayName,
-				"Folder count: ", messageCount[restoreDisplayName],
-				"Restore count: ", restoreItemCount)
+func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
+	for fldName, emailCount := range messageCount {
+		if restoreMessageCount[fldName] != emailCount {
+			logger.Ctx(ctx).Errorw(
+				"test failure: Restore item counts do not match",
+				"expected:", emailCount,
+				"actual:", restoreMessageCount[fldName])
+
+			fmt.Println(
+				"test failure: Restore item counts do not match",
+				"* expected:", emailCount,
+				"* actual:", restoreMessageCount[fldName])
+
 			os.Exit(1)
 		}
-
-		checkAllSubFolder(client, testUser, restore, restoreDisplayName, messageCount)
 	}
 }
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
 // email count.
 func getAllSubFolder(
+	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
 	r models.MailFolderable,
-	parentFolder string,
+	parentFolder,
+	dataFolder string,
 	messageCount map[string]int32,
 ) {
-	folderID, ok := ptr.ValOK(r.GetId())
+	var (
+		folderID       = ptr.Val(r.GetId())
+		count    int32 = 99
+		options        = &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Top: &count,
+			},
+		}
+	)
 
-	if !ok {
-		fmt.Println("unable to get sub folder ID")
-		return
-	}
+	ctx = clues.Add(ctx, "parent_folder_id", folderID)
 
-	user := client.UsersById(testUser)
-	folder := user.MailFoldersById(folderID)
-
-	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	childFolder, err := client.
+		UsersById(testUser).
+		MailFoldersById(folderID).
+		ChildFolders().
+		Get(ctx, options)
 	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting mail subfolders", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
-		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
+		var (
+			childDisplayName = ptr.Val(child.GetDisplayName())
+			childFolderCount = ptr.Val(child.GetChildFolderCount())
+			//nolint:forbidigo
+			fullFolderName = path.Join(parentFolder, childDisplayName)
+		)
 
-		fullFolderName := parentFolder + "/" + childDisplayName
+		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
+			messageCount[fullFolderName] = ptr.Val(child.GetTotalItemCount())
+			// recursively check for subfolders
+			if childFolderCount > 0 {
+				parentFolder := fullFolderName
 
-		messageCount[fullFolderName], _ = ptr.ValOK(child.GetTotalItemCount())
-
-		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
-
-		// recursively check for subfolders
-		if childFolderCount > 0 {
-			parentFolder := fullFolderName
-
-			getAllSubFolder(client, testUser, child, parentFolder, messageCount)
+				getAllSubFolder(ctx, client, testUser, child, parentFolder, dataFolder, messageCount)
+			}
 		}
 	}
 }
@@ -185,163 +223,356 @@ func getAllSubFolder(
 // checkAllSubFolder will recursively traverse inside the restore folder and
 // verify that data matched in all subfolders
 func checkAllSubFolder(
+	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	testUser string,
 	r models.MailFolderable,
-	parentFolder string,
-	messageCount map[string]int32,
+	testUser,
+	parentFolder,
+	dataFolder string,
+	restoreMessageCount map[string]int32,
 ) {
-	folderID, ok := ptr.ValOK(r.GetId())
+	var (
+		folderID       = ptr.Val(r.GetId())
+		count    int32 = 99
+		options        = &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
+				Top: &count,
+			},
+		}
+	)
 
-	if !ok {
-		fmt.Println("unable to get sub folder ID")
-		return
-	}
-
-	user := client.UsersById(testUser)
-	folder := user.MailFoldersById(folderID)
-
-	childFolder, err := folder.ChildFolders().Get(context.Background(), nil)
+	childFolder, err := client.
+		UsersById(testUser).
+		MailFoldersById(folderID).
+		ChildFolders().
+		Get(ctx, options)
 	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting mail subfolders", err)
 	}
 
 	for _, child := range childFolder.GetValue() {
-		childDisplayName, _ := ptr.ValOK(child.GetDisplayName())
+		var (
+			childDisplayName = ptr.Val(child.GetDisplayName())
+			//nolint:forbidigo
+			fullFolderName = path.Join(parentFolder, childDisplayName)
+		)
 
-		fullFolderName := parentFolder + "/" + childDisplayName
-
-		childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
-
-		if messageCount[fullFolderName] != childTotalCount {
-			fmt.Println("Restore was not succesfull for: ", fullFolderName,
-				"Folder count: ", messageCount[fullFolderName],
-				"Restore count: ", childTotalCount)
-			os.Exit(1)
+		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
+			childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
+			restoreMessageCount[fullFolderName] = childTotalCount
 		}
 
-		childFolderCount, _ := ptr.ValOK(child.GetChildFolderCount())
+		childFolderCount := ptr.Val(child.GetChildFolderCount())
 
 		if childFolderCount > 0 {
 			parentFolder := fullFolderName
-
-			checkAllSubFolder(client, testUser, child, parentFolder, messageCount)
+			checkAllSubFolder(ctx, client, child, testUser, parentFolder, dataFolder, restoreMessageCount)
 		}
 	}
 }
 
-func checkOnedriveRestoration(client *msgraphsdk.GraphServiceClient, testUser, folderName string, startTime time.Time) {
-	file := make(map[string]int64)
-	folderPermission := make(map[string][]string)
-	restoreFolderID := ""
+func checkOnedriveRestoration(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	testUser,
+	folderName string,
+	startTime time.Time,
+) {
+	var (
+		// map itemID -> item size
+		fileSizes = make(map[string]int64)
+		// map itemID -> permission id -> []permission roles
+		folderPermission        = make(map[string][]permissionInfo)
+		restoreFile             = make(map[string]int64)
+		restoreFolderPermission = make(map[string][]permissionInfo)
+	)
 
-	drive, err := client.UsersById(testUser).Drive().Get(context.Background(), nil)
+	drive, err := client.
+		UsersById(testUser).
+		Drive().
+		Get(ctx, nil)
 	if err != nil {
-		fmt.Printf("Error getting the drive: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting the drive:", err)
 	}
 
-	response, err := client.DrivesById(*drive.GetId()).Root().Children().Get(context.Background(), nil)
+	var (
+		driveID         = ptr.Val(drive.GetId())
+		driveName       = ptr.Val(drive.GetName())
+		restoreFolderID string
+	)
+
+	ctx = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
+
+	response, err := client.
+		DrivesById(driveID).
+		Root().
+		Children().
+		Get(ctx, nil)
 	if err != nil {
-		fmt.Printf("Error getting drive by id: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting drive by id", err)
 	}
 
 	for _, driveItem := range response.GetValue() {
-		if *driveItem.GetName() == folderName {
-			restoreFolderID = *driveItem.GetId()
+		var (
+			itemID   = ptr.Val(driveItem.GetId())
+			itemName = ptr.Val(driveItem.GetName())
+			ictx     = clues.Add(ctx, "item_id", itemID, "item_name", itemName)
+		)
+
+		if itemName == folderName {
+			restoreFolderID = itemID
 			continue
 		}
 
-		var rStartTime time.Time
-
-		restoreStartTime := strings.SplitAfter(*driveItem.GetName(), "Corso_Restore_")
-		if len(restoreStartTime) > 1 {
-			rStartTime, _ = time.Parse(time.RFC822, restoreStartTime[1])
-			if startTime.Before(rStartTime) {
-				fmt.Printf("The restore folder %s was created after %s. Will skip check.", *driveItem.GetName(), folderName)
-				continue
-			}
+		folderTime, hasTime := mustGetTimeFromName(ictx, itemName)
+		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+			continue
 		}
 
 		// if it's a file check the size
 		if driveItem.GetFile() != nil {
-			file[*driveItem.GetName()] = *driveItem.GetSize()
+			fileSizes[itemName] = ptr.Val(driveItem.GetSize())
 		}
 
-		if driveItem.GetFolder() != nil {
-			permission, err := client.
-				DrivesById(*drive.GetId()).
-				ItemsById(*driveItem.GetId()).
-				Permissions().
-				Get(context.TODO(), nil)
-			if err != nil {
-				fmt.Printf("Error getting item by id: %v\n", err)
-				os.Exit(1)
-			}
+		if driveItem.GetFolder() == nil && driveItem.GetPackage() == nil {
+			continue
+		}
 
-			// check if permission are correct on folder
-			for _, permission := range permission.GetValue() {
-				folderPermission[*driveItem.GetName()] = permission.GetRoles()
-			}
+		// currently we don't restore blank folders.
+		// skip permission check for empty folders
+		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
+			logger.Ctx(ctx).Info("skipped empty folder: ", itemName)
+			fmt.Println("skipped empty folder: ", itemName)
 
 			continue
 		}
+
+		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
 	}
 
-	checkFileData(client, *drive.GetId(), restoreFolderID, file, folderPermission)
+	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
+
+	for folderName, permissions := range folderPermission {
+		logger.Ctx(ctx).Info("checking for folder: %s \n", folderName)
+		fmt.Printf("checking for folder: %s \n", folderName)
+
+		restoreFolderPerm := restoreFolderPermission[folderName]
+
+		if len(permissions) < 1 {
+			logger.Ctx(ctx).Info("no permissions found for folder :", folderName)
+			fmt.Println("no permissions found for folder :", folderName)
+
+			continue
+		}
+
+		if len(restoreFolderPerm) < 1 {
+			logger.Ctx(ctx).Info("permission roles are not equal for :",
+				"Item:", folderName,
+				"* Permission found: ", permissions,
+				"* blank permission found in restore.")
+
+			fmt.Println("permission roles are not equal for:")
+			fmt.Println("Item:", folderName)
+			fmt.Println("* Permission found: ", permissions)
+			fmt.Println("blank permission found in restore.")
+
+			os.Exit(1)
+		}
+
+		for i, orginalPerm := range permissions {
+			restorePerm := restoreFolderPerm[i]
+
+			if !(orginalPerm.entityID != restorePerm.entityID) &&
+				!slices.Equal(orginalPerm.roles, restorePerm.roles) {
+				logger.Ctx(ctx).Info("permission roles are not equal for :",
+					"Item:", folderName,
+					"* Original permission: ", orginalPerm.entityID,
+					"* Restored permission: ", restorePerm.entityID)
+
+				fmt.Println("permission roles are not equal for:")
+				fmt.Println("Item:", folderName)
+				fmt.Println("* Original permission: ", orginalPerm.entityID)
+				fmt.Println("* Restored permission: ", restorePerm.entityID)
+				os.Exit(1)
+			}
+		}
+	}
+
+	for fileName, fileSize := range fileSizes {
+		if fileSize != restoreFile[fileName] {
+			logger.Ctx(ctx).Info("File size does not match for:",
+				"Item:", fileName,
+				"*  expected:", fileSize,
+				"*  actual:", restoreFile[fileName])
+
+			fmt.Println("File size does not match for:")
+			fmt.Println("item:", fileName)
+			fmt.Println("*  expected:", fileSize)
+			fmt.Println("*  actual:", restoreFile[fileName])
+			os.Exit(1)
+		}
+	}
 
 	fmt.Println("Success")
 }
 
-func checkFileData(
+func getOneDriveChildFolder(
+	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
-	driveID,
-	restoreFolderID string,
-	file map[string]int64,
-	folderPermission map[string][]string,
+	driveID, itemID, parentName string,
+	fileSizes map[string]int64,
+	folderPermission map[string][]permissionInfo,
+	startTime time.Time,
 ) {
-	itemBuilder := client.DrivesById(driveID).ItemsById(restoreFolderID)
-
-	restoreResponses, err := itemBuilder.Children().Get(context.Background(), nil)
+	response, err := client.DrivesById(driveID).ItemsById(itemID).Children().Get(ctx, nil)
 	if err != nil {
-		fmt.Printf("Error getting child folder: %v\n", err)
-		os.Exit(1)
+		fatal(ctx, "getting child folder", err)
 	}
 
-	for _, restoreData := range restoreResponses.GetValue() {
-		restoreName := *restoreData.GetName()
+	for _, driveItem := range response.GetValue() {
+		var (
+			itemID   = ptr.Val(driveItem.GetId())
+			itemName = ptr.Val(driveItem.GetName())
+			fullName = parentName + "/" + itemName
+		)
 
-		if restoreData.GetFile() != nil {
-			if *restoreData.GetSize() != file[restoreName] {
-				fmt.Printf("Size of file %s is different in drive %d and restored file: %d ",
-					restoreName,
-					file[restoreName],
-					*restoreData.GetSize())
-				os.Exit(1)
-			}
+		folderTime, hasTime := mustGetTimeFromName(ctx, itemName)
+		if !isWithinTimeBound(ctx, startTime, folderTime, hasTime) {
+			continue
+		}
+
+		// if it's a file check the size
+		if driveItem.GetFile() != nil {
+			fileSizes[fullName] = ptr.Val(driveItem.GetSize())
+		}
+
+		if driveItem.GetFolder() == nil && driveItem.GetPackage() == nil {
+			continue
+		}
+
+		// currently we don't restore blank folders.
+		// skip permission check for empty folders
+		if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
+			logger.Ctx(ctx).Info("skipped empty folder: ", fullName)
+			fmt.Println("skipped empty folder: ", fullName)
 
 			continue
 		}
 
-		itemBuilder := client.DrivesById(driveID).ItemsById(*restoreData.GetId())
+		permissionIn(ctx, client, driveID, itemID, fullName, folderPermission)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, fullName, fileSizes, folderPermission, startTime)
+	}
+}
 
-		permissionColl, err := itemBuilder.Permissions().Get(context.TODO(), nil)
-		if err != nil {
-			fmt.Printf("Error getting permission: %v\n", err)
-			os.Exit(1)
+func permissionIn(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	driveID, itemID, folderName string,
+	permMap map[string][]permissionInfo,
+) {
+	permMap[folderName] = []permissionInfo{}
+
+	pcr, err := client.
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Permissions().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting permission", err)
+	}
+
+	for _, perm := range pcr.GetValue() {
+		if perm.GetGrantedToV2() == nil {
+			continue
 		}
 
-		userPermission := []string{}
+		var (
+			gv2     = perm.GetGrantedToV2()
+			perInfo = permissionInfo{}
+		)
 
-		for _, perm := range permissionColl.GetValue() {
-			userPermission = perm.GetRoles()
+		if gv2.GetUser() != nil {
+			perInfo.entityID = ptr.Val(gv2.GetUser().GetId())
+		} else if gv2.GetGroup() != nil {
+			perInfo.entityID = ptr.Val(gv2.GetGroup().GetId())
 		}
 
-		if !reflect.DeepEqual(folderPermission[restoreName], userPermission) {
-			fmt.Printf("Permission mismatch for %s.", restoreName)
-			os.Exit(1)
+		perInfo.roles = perm.GetRoles()
+
+		slices.Sort(perInfo.roles)
+
+		permMap[folderName] = append(permMap[folderName], perInfo)
+	}
+}
+
+func getRestoreData(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	driveID, restoreFolderID string,
+	restoreFile map[string]int64,
+	restoreFolder map[string][]permissionInfo,
+	startTime time.Time,
+) {
+	restored, err := client.
+		DrivesById(driveID).
+		ItemsById(restoreFolderID).
+		Children().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting child folder", err)
+	}
+
+	for _, item := range restored.GetValue() {
+		var (
+			itemID   = ptr.Val(item.GetId())
+			itemName = ptr.Val(item.GetName())
+			itemSize = ptr.Val(item.GetSize())
+		)
+
+		if item.GetFile() != nil {
+			restoreFile[itemName] = itemSize
+			continue
+		}
+
+		if item.GetFolder() == nil && item.GetPackage() == nil {
+			continue
+		}
+
+		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
+		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder, startTime)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func fatal(ctx context.Context, msg string, err error) {
+	logger.CtxErr(ctx, err).Error("test failure: " + msg)
+	fmt.Println(msg+": ", err)
+	os.Exit(1)
+}
+
+func mustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
+	t, err := common.ExtractTime(name)
+	if err != nil && !errors.Is(err, common.ErrNoTimeString) {
+		fatal(ctx, "extracting time from name: "+name, err)
+	}
+
+	return t, !errors.Is(err, common.ErrNoTimeString)
+}
+
+func isWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool) bool {
+	if hasTime {
+		if bound.Before(check) {
+			logger.Ctx(ctx).
+				With("boundary_time", bound, "check_time", check).
+				Info("skipping restore folder: not older than time bound")
+
+			return false
 		}
 	}
+
+	return true
 }

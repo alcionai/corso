@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
@@ -14,9 +15,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	gapi "github.com/alcionai/corso/src/internal/connector/graph/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api/mock"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -784,7 +786,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				testFolderMatcher{tt.scope},
 				&MockGraphService{},
 				nil,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}})
+				control.Options{ToggleFeatures: control.Toggles{}})
 
 			c.CollectionMap[driveID] = map[string]*Collection{}
 
@@ -2208,11 +2210,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				servicer graph.Servicer,
 				resourceOwner string,
 				fields []string,
-			) (drivePager, error) {
-				return &mockDrivePager{
-					toReturn: []pagerResult{
+			) (api.DrivePager, error) {
+				return &mock.DrivePager{
+					ToReturn: []mock.PagerResult{
 						{
-							drives: test.drives,
+							Drives: test.drives,
 						},
 					},
 				}, nil
@@ -2235,7 +2237,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				testFolderMatcher{anyFolder},
 				&MockGraphService{},
 				func(*support.ConnectorOperationStatus) {},
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				control.Options{ToggleFeatures: control.Toggles{}},
 			)
 			c.drivePagerFunc = drivePagerFunc
 			c.itemPagerFunc = itemPagerFunc

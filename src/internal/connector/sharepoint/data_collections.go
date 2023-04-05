@@ -4,13 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pkg/errors"
-
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
+
+	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	sapi "github.com/alcionai/corso/src/internal/connector/sharepoint/api"
+	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -40,13 +39,14 @@ func DataCollections(
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
 	b, err := selector.ToSharePointBackup()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "sharePointDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "sharePointDataCollection: parsing selector")
 	}
 
 	var (
 		el          = errs.Local()
 		site        = b.DiscreteOwner
 		collections = []data.BackupCollection{}
+		categories  = map[path.CategoryType]struct{}{}
 	)
 
 	for _, scope := range b.Scopes() {
@@ -56,7 +56,7 @@ func DataCollections(
 
 		foldersComplete, closer := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", observe.Safe(scope.Category().PathType().String())))
+			observe.Bulletf("%s", scope.Category().PathType()))
 		defer closer()
 		defer close(foldersComplete)
 
@@ -110,6 +110,24 @@ func DataCollections(
 
 		collections = append(collections, spcs...)
 		foldersComplete <- struct{}{}
+
+		categories[scope.Category().PathType()] = struct{}{}
+	}
+
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			creds.AzureTenantID,
+			site,
+			path.SharePointService,
+			categories,
+			su.UpdateStatus,
+			errs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		collections = append(collections, baseCols...)
 	}
 
 	return collections, nil, el.Failure()
@@ -217,14 +235,17 @@ func collectPages(
 
 	// make the betaClient
 	// Need to receive From DataCollection Call
-	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
 
-	betaService := api.NewBetaService(adpt)
+	betaService := dapi.NewBetaService(adpt)
 
-	tuples, err := sapi.FetchPages(ctx, betaService, siteID)
+	tuples, err := api.FetchPages(ctx, betaService, siteID)
 	if err != nil {
 		return nil, err
 	}

@@ -8,8 +8,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/connector"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -28,13 +32,16 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-var ErrorRepoAlreadyExists = errors.New("a repository was already initialized with that configuration")
+var (
+	ErrorRepoAlreadyExists = clues.New("a repository was already initialized with that configuration")
+	ErrorBackupNotFound    = clues.New("no backup exists with that id")
+)
 
 // BackupGetter deals with retrieving metadata about backups from the
 // repository.
 type BackupGetter interface {
-	Backup(ctx context.Context, id model.StableID) (*backup.Backup, error)
-	Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus)
+	Backup(ctx context.Context, id string) (*backup.Backup, error)
+	Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus)
 	BackupsByTag(ctx context.Context, fs ...store.FilterOption) ([]*backup.Backup, error)
 	GetBackupDetails(
 		ctx context.Context,
@@ -52,6 +59,7 @@ type Repository interface {
 	NewBackup(
 		ctx context.Context,
 		self selectors.Selector,
+		ins common.IDNameSwapper,
 	) (operations.BackupOperation, error)
 	NewRestore(
 		ctx context.Context,
@@ -59,7 +67,7 @@ type Repository interface {
 		sel selectors.Selector,
 		dest control.RestoreDestination,
 	) (operations.RestoreOperation, error)
-	DeleteBackup(ctx context.Context, id model.StableID) error
+	DeleteBackup(ctx context.Context, id string) error
 	BackupGetter
 }
 
@@ -99,7 +107,7 @@ func Initialize(
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
-		"acct_id", acct.ID(), // TODO: pii
+		"acct_id", clues.Hide(acct.ID()),
 		"storage_provider", s.Provider.String())
 
 	defer func() {
@@ -115,7 +123,7 @@ func Initialize(
 			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
-		return nil, errors.Wrap(err, "initializing kopia")
+		return nil, clues.Wrap(err, "initializing kopia")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
@@ -133,7 +141,7 @@ func Initialize(
 
 	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "constructing event bus")
+		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
 	repoID := newRepoID(s)
@@ -173,7 +181,7 @@ func Connect(
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
-		"acct_id", acct.ID(), // TODO: pii
+		"acct_id", clues.Hide(acct.ID()),
 		"storage_provider", s.Provider.String())
 
 	defer func() {
@@ -186,13 +194,13 @@ func Connect(
 	// their output getting clobbered (#1720)
 	defer observe.Complete()
 
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to repository"))
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer closer()
 	defer close(complete)
 
 	kopiaRef := kopia.NewConn(s)
 	if err := kopiaRef.Connect(ctx); err != nil {
-		return nil, errors.Wrap(err, "connecting kopia client")
+		return nil, clues.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
@@ -210,7 +218,7 @@ func Connect(
 
 	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "constructing event bus")
+		return nil, clues.Wrap(err, "constructing event bus")
 	}
 
 	rm := &repositoryModel{}
@@ -219,7 +227,7 @@ func Connect(
 	if !opts.DisableMetrics {
 		rm, err = getRepoModel(ctx, ms)
 		if err != nil {
-			return nil, errors.New("retrieving repo info")
+			return nil, clues.New("retrieving repo info")
 		}
 
 		bus.SetRepoID(string(rm.ID))
@@ -281,17 +289,35 @@ func (r *repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
+// ownerIDToName and ownerNameToID are optional populations, in case the caller has
+// already generated those values.
 func (r repository) NewBackup(
 	ctx context.Context,
-	selector selectors.Selector,
+	sel selectors.Selector,
+	ins common.IDNameSwapper,
 ) (operations.BackupOperation, error) {
+	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
+	}
+
+	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ins)
+	if err != nil {
+		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
+	}
+
+	// TODO: retrieve display name from gc
+	sel = sel.SetDiscreteOwnerIDName(ownerID, ownerName)
+
 	return operations.NewBackupOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
+		gc,
 		r.Account,
-		selector,
+		sel,
+		sel,
 		r.Bus)
 }
 
@@ -302,11 +328,17 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	dest control.RestoreDestination,
 ) (operations.RestoreOperation, error) {
+	gc, err := connectToM365(ctx, sel, r.Account, fault.New(true))
+	if err != nil {
+		return operations.RestoreOperation{}, errors.Wrap(err, "connecting to m365")
+	}
+
 	return operations.NewRestoreOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewKopiaStore(r.modelStore),
+		gc,
 		r.Account,
 		model.StableID(backupID),
 		sel,
@@ -314,15 +346,28 @@ func (r repository) NewRestore(
 		r.Bus)
 }
 
-// backups lists a backup by id
-func (r repository) Backup(ctx context.Context, id model.StableID) (*backup.Backup, error) {
-	sw := store.NewKopiaStore(r.modelStore)
-	return sw.GetBackup(ctx, id)
+// Backup retrieves a backup by id.
+func (r repository) Backup(ctx context.Context, id string) (*backup.Backup, error) {
+	return getBackup(ctx, id, store.NewKopiaStore(r.modelStore))
+}
+
+// getBackup handles the processing for Backup.
+func getBackup(
+	ctx context.Context,
+	id string,
+	sw store.BackupGetter,
+) (*backup.Backup, error) {
+	b, err := sw.GetBackup(ctx, model.StableID(id))
+	if err != nil {
+		return nil, errWrapper(err)
+	}
+
+	return b, nil
 }
 
 // BackupsByID lists backups by ID. Returns as many backups as possible with
 // errors for the backups it was unable to retrieve.
-func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backup.Backup, *fault.Bus) {
+func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus) {
 	var (
 		bups []*backup.Backup
 		errs = fault.New(false)
@@ -330,9 +375,11 @@ func (r repository) Backups(ctx context.Context, ids []model.StableID) ([]*backu
 	)
 
 	for _, id := range ids {
-		b, err := sw.GetBackup(ctx, id)
+		ictx := clues.Add(ctx, "backup_id", id)
+
+		b, err := sw.GetBackup(ictx, model.StableID(id))
 		if err != nil {
-			errs.AddRecoverable(clues.Stack(err).With("backup_id", id))
+			errs.AddRecoverable(errWrapper(err))
 		}
 
 		bups = append(bups, b)
@@ -370,12 +417,12 @@ func getBackupDetails(
 	ctx context.Context,
 	backupID, tenantID string,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupGetter,
 	errs *fault.Bus,
 ) (*details.Details, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errWrapper(err)
 	}
 
 	ssid := b.StreamStoreID
@@ -440,12 +487,12 @@ func getBackupErrors(
 	ctx context.Context,
 	backupID, tenantID string,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupGetter,
 	errs *fault.Bus,
 ) (*fault.Errors, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errWrapper(err)
 	}
 
 	ssid := b.StreamStoreID
@@ -470,32 +517,44 @@ func getBackupErrors(
 	return &fe, b, nil
 }
 
+type snapshotDeleter interface {
+	DeleteSnapshot(ctx context.Context, snapshotID string) error
+}
+
 // DeleteBackup removes the backup from both the model store and the backup storage.
-func (r repository) DeleteBackup(ctx context.Context, id model.StableID) error {
-	bu, err := r.Backup(ctx, id)
+func (r repository) DeleteBackup(ctx context.Context, id string) error {
+	return deleteBackup(ctx, id, r.dataLayer, store.NewKopiaStore(r.modelStore))
+}
+
+// deleteBackup handles the processing for Backup.
+func deleteBackup(
+	ctx context.Context,
+	id string,
+	kw snapshotDeleter,
+	sw store.BackupGetterDeleter,
+) error {
+	b, err := sw.GetBackup(ctx, model.StableID(id))
 	if err != nil {
+		return errWrapper(err)
+	}
+
+	if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
 		return err
 	}
 
-	if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
-		return err
-	}
-
-	if len(bu.SnapshotID) > 0 {
-		if err := r.dataLayer.DeleteSnapshot(ctx, bu.SnapshotID); err != nil {
+	if len(b.SnapshotID) > 0 {
+		if err := kw.DeleteSnapshot(ctx, b.SnapshotID); err != nil {
 			return err
 		}
 	}
 
-	if len(bu.DetailsID) > 0 {
-		if err := r.dataLayer.DeleteSnapshot(ctx, bu.DetailsID); err != nil {
+	if len(b.DetailsID) > 0 {
+		if err := kw.DeleteSnapshot(ctx, b.DetailsID); err != nil {
 			return err
 		}
 	}
 
-	sw := store.NewKopiaStore(r.modelStore)
-
-	return sw.DeleteBackup(ctx, id)
+	return sw.DeleteBackup(ctx, model.StableID(id))
 }
 
 // ---------------------------------------------------------------------------
@@ -540,4 +599,44 @@ func getRepoModel(ctx context.Context, ms *kopia.ModelStore) (*repositoryModel, 
 // and must be stored after that.
 func newRepoID(s storage.Storage) string {
 	return uuid.NewString()
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+// produces a graph connector.
+func connectToM365(
+	ctx context.Context,
+	sel selectors.Selector,
+	acct account.Account,
+	errs *fault.Bus,
+) (*connector.GraphConnector, error) {
+	complete, closer := observe.MessageWithCompletion(ctx, "Connecting to M365")
+	defer func() {
+		complete <- struct{}{}
+		close(complete)
+		closer()
+	}()
+
+	// retrieve data from the producer
+	resource := connector.Users
+	if sel.Service == selectors.ServiceSharePoint {
+		resource = connector.Sites
+	}
+
+	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	return gc, nil
+}
+
+func errWrapper(err error) error {
+	if errors.Is(err, data.ErrNotFound) {
+		return clues.Stack(ErrorBackupNotFound, err)
+	}
+
+	return err
 }

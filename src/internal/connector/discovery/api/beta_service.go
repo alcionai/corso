@@ -1,9 +1,9 @@
 package api
 
 import (
-	absser "github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/pkg/errors"
+	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk"
 )
@@ -19,7 +19,7 @@ func (s BetaService) Client() *betasdk.BetaClient {
 	return s.client
 }
 
-func NewBetaService(adpt *msgraphsdk.GraphRequestAdapter) *BetaService {
+func NewBetaService(adpt *msgraphsdkgo.GraphRequestAdapter) *BetaService {
 	return &BetaService{
 		client: betasdk.NewBetaClient(adpt),
 	}
@@ -27,17 +27,17 @@ func NewBetaService(adpt *msgraphsdk.GraphRequestAdapter) *BetaService {
 
 // Seraialize writes an M365 parsable object into a byte array using the built-in
 // application/json writer within the adapter.
-func (s BetaService) Serialize(object absser.Parsable) ([]byte, error) {
+func (s BetaService) Serialize(object serialization.Parsable) ([]byte, error) {
 	writer, err := s.client.Adapter().
 		GetSerializationWriterFactory().
 		GetSerializationWriter("application/json")
 	if err != nil || writer == nil {
-		return nil, errors.Wrap(err, "creating json serialization writer")
+		return nil, clues.Wrap(err, "creating json serialization writer")
 	}
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "writeObjecValue serialization")
+		return nil, clues.Wrap(err, "writeObjecValue serialization")
 	}
 
 	return writer.GetSerializedContent()

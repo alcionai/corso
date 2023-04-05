@@ -10,13 +10,13 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	discover "github.com/alcionai/corso/src/internal/connector/discovery/api"
+	dapi "github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -61,14 +61,15 @@ func RestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"destination", dest.ContainerName, // TODO: pii
-				"resource_owner", dc.FullPath().ResourceOwner()) // TODO: pii
+				"destination", clues.Hide(dest.ContainerName),
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
 		)
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, _, _, err = onedrive.RestoreCollection(
+			metrics, _, err = onedrive.RestoreCollection(
 				ictx,
+				creds,
 				backupVersion,
 				service,
 				dc,
@@ -76,7 +77,6 @@ func RestoreCollections(
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,
-				map[string]string{},
 				false,
 				errs)
 		case path.ListsCategory:
@@ -143,7 +143,7 @@ func restoreListItem(
 	itemData data.Stream,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restoreList", D.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
 	ctx = clues.Add(ctx, "list_item_id", itemData.UUID())
@@ -215,7 +215,7 @@ func RestoreListCollection(
 	deets *details.Builder,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
-	ctx, end := D.Span(ctx, "gc:sharepoint:restoreListCollection", D.Label("path", dc.FullPath()))
+	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 
 	var (
@@ -300,18 +300,21 @@ func RestorePageCollection(
 	)
 
 	trace.Log(ctx, "gc:sharepoint:restorePageCollection", directory.String())
-	ctx, end := D.Span(ctx, "gc:sharepoint:restorePageCollection", D.Label("path", dc.FullPath()))
+	ctx, end := diagnostics.Span(ctx, "gc:sharepoint:restorePageCollection", diagnostics.Label("path", dc.FullPath()))
 
 	defer end()
 
-	adpt, err := graph.CreateAdapter(creds.AzureTenantID, creds.AzureClientID, creds.AzureClientSecret)
+	adpt, err := graph.CreateAdapter(
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return metrics, clues.Wrap(err, "constructing graph client")
 	}
 
 	var (
 		el      = errs.Local()
-		service = discover.NewBetaService(adpt)
+		service = dapi.NewBetaService(adpt)
 		items   = dc.Items(ctx, errs)
 	)
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -30,6 +31,20 @@ const (
 	unknownDriveSource driveSource = iota
 	OneDriveSource
 	SharePointSource
+)
+
+type collectionScope int
+
+const (
+	// CollectionScopeUnknown is used when we don't know and don't need
+	// to know the kind, like in the case of deletes
+	CollectionScopeUnknown collectionScope = iota
+
+	// CollectionScopeFolder is used for regular folder collections
+	CollectionScopeFolder
+
+	// CollectionScopePackage is used to represent OneNote items
+	CollectionScopePackage
 )
 
 const (
@@ -80,7 +95,7 @@ type Collections struct {
 		servicer graph.Servicer,
 		resourceOwner string,
 		fields []string,
-	) (drivePager, error)
+	) (api.DrivePager, error)
 	itemPagerFunc func(
 		servicer graph.Servicer,
 		driveID, link string,
@@ -230,7 +245,7 @@ func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 	tmp := map[string]T{}
 
 	if err := json.NewDecoder(reader).Decode(&tmp); err != nil {
-		return errors.Wrap(err, "deserializing file contents")
+		return clues.Wrap(err, "deserializing file contents")
 	}
 
 	var duplicate bool
@@ -273,7 +288,7 @@ func (c *Collections) Get(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	drives, err := drives(ctx, pager, true)
+	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -410,13 +425,14 @@ func (c *Collections) Get(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
+				CollectionScopeUnknown,
 				true)
 
 			c.CollectionMap[driveID][fldID] = col
 		}
 	}
 
-	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items to backup", c.NumItems)))
+	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
 	// Add an extra for the metadata collection.
 	collections := []data.BackupCollection{}
@@ -571,6 +587,7 @@ func (c *Collections) handleDelete(
 		c.statusUpdater,
 		c.source,
 		c.ctrl,
+		CollectionScopeUnknown,
 		// DoNotMerge is not checked for deleted items.
 		false)
 
@@ -743,6 +760,11 @@ func (c *Collections) UpdateCollections(
 				continue
 			}
 
+			colScope := CollectionScopeFolder
+			if item.GetPackage() != nil {
+				colScope = CollectionScopePackage
+			}
+
 			col := NewCollection(
 				c.itemClient,
 				collectionPath,
@@ -752,6 +774,7 @@ func (c *Collections) UpdateCollections(
 				c.statusUpdater,
 				c.source,
 				c.ctrl,
+				colScope,
 				invalidPrevDelta,
 			)
 			col.driveName = driveName
@@ -852,7 +875,7 @@ func GetCanonicalPath(p, tenant, resourceOwner string, source driveSource) (path
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "converting to canonical path")
+		return nil, clues.Wrap(err, "converting to canonical path")
 	}
 
 	return result, nil

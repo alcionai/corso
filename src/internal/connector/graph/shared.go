@@ -4,8 +4,9 @@ package graph
 // Microsoft Graph Applications.
 
 import (
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 func UnwrapEmailAddress(contact models.Recipientable) string {

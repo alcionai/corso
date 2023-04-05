@@ -15,9 +15,10 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	D "github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -33,6 +34,7 @@ const copyBufferSize = 5 * 1024 * 1024
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
+	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
 	dest control.RestoreDestination,
@@ -45,10 +47,6 @@ func RestoreCollections(
 		restoreMetrics support.CollectionMetrics
 		metrics        support.CollectionMetrics
 		folderMetas    map[string]Metadata
-
-		// permissionIDMappings is used to map between old and new id
-		// of permissions as we restore them
-		permissionIDMappings = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -77,13 +75,14 @@ func RestoreCollections(
 			err  error
 			ictx = clues.Add(
 				ctx,
-				"resource_owner", dc.FullPath().ResourceOwner(), // TODO: pii
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"category", dc.FullPath().Category(),
-				"path", dc.FullPath()) // TODO: pii
+				"path", dc.FullPath()) // TODO: pii, path needs concealer compliance
 		)
 
-		metrics, folderMetas, permissionIDMappings, err = RestoreCollection(
+		metrics, folderMetas, err = RestoreCollection(
 			ictx,
+			creds,
 			backupVersion,
 			service,
 			dc,
@@ -91,7 +90,6 @@ func RestoreCollections(
 			OneDriveSource,
 			dest.ContainerName,
 			deets,
-			permissionIDMappings,
 			opts.RestorePermissions,
 			errs)
 		if err != nil {
@@ -122,9 +120,11 @@ func RestoreCollections(
 // RestoreCollection handles restoration of an individual collection.
 // returns:
 // - the collection's item and byte count metrics
-// - the context cancellation state (true if the context is canceled)
+// - the updated metadata map that include metadata for folders in this collection
+// - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
+	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
 	dc data.RestoreCollection,
@@ -132,24 +132,23 @@ func RestoreCollection(
 	source driveSource,
 	restoreContainerName string,
 	deets *details.Builder,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	errs *fault.Bus,
-) (support.CollectionMetrics, map[string]Metadata, map[string]string, error) {
+) (support.CollectionMetrics, map[string]Metadata, error) {
 	var (
 		metrics     = support.CollectionMetrics{}
 		copyBuffer  = make([]byte, copyBufferSize)
 		directory   = dc.FullPath()
-		itemInfo    details.ItemInfo
 		folderMetas = map[string]Metadata{}
+		el          = errs.Local()
 	)
 
-	ctx, end := D.Span(ctx, "gc:oneDrive:restoreCollection", D.Label("path", directory))
+	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreCollection", diagnostics.Label("path", directory))
 	defer end()
 
 	drivePath, err := path.ToOneDrivePath(directory)
 	if err != nil {
-		return metrics, folderMetas, permissionIDMappings, clues.Wrap(err, "creating drive path").WithClues(ctx)
+		return metrics, folderMetas, clues.Wrap(err, "creating drive path").WithClues(ctx)
 	}
 
 	// Assemble folder hierarchy we're going to restore into (we recreate the folder hierarchy
@@ -176,26 +175,22 @@ func RestoreCollection(
 		backupVersion,
 		restorePerms)
 	if err != nil {
-		return metrics, folderMetas, permissionIDMappings, clues.Wrap(err, "getting permissions").WithClues(ctx)
+		return metrics, folderMetas, clues.Wrap(err, "getting permissions").WithClues(ctx)
 	}
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := createRestoreFoldersWithPermissions(
 		ctx,
+		creds,
 		service,
 		drivePath,
 		restoreFolderElements,
-		colMeta,
-		permissionIDMappings,
-	)
+		colMeta)
 	if err != nil {
-		return metrics, folderMetas, permissionIDMappings, clues.Wrap(err, "creating folders for restore")
+		return metrics, folderMetas, clues.Wrap(err, "creating folders for restore")
 	}
 
-	var (
-		el    = errs.Local()
-		items = dc.Items(ctx, errs)
-	)
+	items := dc.Items(ctx, errs)
 
 	for {
 		if el.Failure() != nil {
@@ -204,11 +199,11 @@ func RestoreCollection(
 
 		select {
 		case <-ctx.Done():
-			return metrics, folderMetas, permissionIDMappings, err
+			return metrics, folderMetas, err
 
 		case itemData, ok := <-items:
 			if !ok {
-				return metrics, folderMetas, permissionIDMappings, nil
+				return metrics, folderMetas, nil
 			}
 
 			itemPath, err := dc.FullPath().Append(itemData.UUID(), true)
@@ -217,127 +212,186 @@ func RestoreCollection(
 				continue
 			}
 
-			if backupVersion >= version.OneDrive1DataAndMetaFiles {
-				name := itemData.UUID()
+			itemInfo, skipped, err := restoreItem(
+				ctx,
+				creds,
+				dc,
+				backupVersion,
+				source,
+				service,
+				drivePath,
+				restoreFolderID,
+				copyBuffer,
+				folderMetas,
+				restorePerms,
+				itemData,
+				itemPath)
 
-				if strings.HasSuffix(name, DataFileSuffix) {
-					metrics.Objects++
-					metrics.Bytes += int64(len(copyBuffer))
-
-					var (
-						itemInfo details.ItemInfo
-						err      error
-					)
-
-					if backupVersion < version.OneDrive6NameInMeta {
-						itemInfo, err = restoreV1File(
-							ctx,
-							source,
-							service,
-							drivePath,
-							dc,
-							restoreFolderID,
-							copyBuffer,
-							permissionIDMappings,
-							restorePerms,
-							itemData,
-						)
-					} else {
-						itemInfo, err = restoreV2File(
-							ctx,
-							source,
-							service,
-							drivePath,
-							dc,
-							restoreFolderID,
-							copyBuffer,
-							permissionIDMappings,
-							restorePerms,
-							itemData,
-						)
-					}
-
-					if err != nil {
-						el.AddRecoverable(err)
-						continue
-					}
-
-					err = deets.Add(
-						itemPath.String(),
-						itemPath.ShortRef(),
-						"",
-						"", // TODO: implement locationRef
-						true,
-						itemInfo)
-					if err != nil {
-						// Not critical enough to need to stop restore operation.
-						logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
-					}
-
-					metrics.Successes++
-				} else if strings.HasSuffix(name, MetaFileSuffix) {
-					// Just skip this for the moment since we moved the code to the above
-					// item restore path. We haven't yet stopped fetching these items in
-					// RestoreOp, so we still need to handle them in some way.
-					continue
-				} else if strings.HasSuffix(name, DirMetaFileSuffix) {
-					// Only the version.OneDrive1DataAndMetaFiles needed to deserialize the
-					// permission for child folders here. Later versions can request
-					// permissions inline when processing the collection.
-					if !restorePerms || backupVersion >= version.OneDrive4DirIncludesPermissions {
-						continue
-					}
-
-					metaReader := itemData.ToReader()
-					defer metaReader.Close()
-
-					meta, err := getMetadata(metaReader)
-					if err != nil {
-						el.AddRecoverable(clues.Wrap(err, "getting directory metadata").WithClues(ctx))
-						continue
-					}
-
-					trimmedPath := strings.TrimSuffix(itemPath.String(), DirMetaFileSuffix)
-					folderMetas[trimmedPath] = meta
-
-				}
-			} else {
+			// skipped items don't get counted, but they can error
+			if !skipped {
 				metrics.Objects++
 				metrics.Bytes += int64(len(copyBuffer))
-
-				// No permissions stored at the moment for SharePoint
-				_, itemInfo, err = restoreData(
-					ctx,
-					service,
-					itemData.UUID(),
-					itemData,
-					drivePath.DriveID,
-					restoreFolderID,
-					copyBuffer,
-					source)
-				if err != nil {
-					el.AddRecoverable(err)
-					continue
-				}
-
-				err = deets.Add(
-					itemPath.String(),
-					itemPath.ShortRef(),
-					"",
-					"", // TODO: implement locationRef
-					true,
-					itemInfo)
-				if err != nil {
-					// Not critical enough to need to stop restore operation.
-					logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
-				}
-
-				metrics.Successes++
 			}
+
+			if err != nil {
+				el.AddRecoverable(clues.Wrap(err, "restoring item"))
+				continue
+			}
+
+			if skipped {
+				logger.Ctx(ctx).With("item_path", itemPath).Debug("did not restore item")
+				continue
+			}
+
+			err = deets.Add(
+				itemPath.String(),
+				itemPath.ShortRef(),
+				"",
+				"", // TODO: implement locationRef
+				true,
+				itemInfo)
+			if err != nil {
+				// Not critical enough to need to stop restore operation.
+				logger.CtxErr(ctx, err).Infow("adding restored item to details")
+			}
+
+			metrics.Successes++
 		}
 	}
 
-	return metrics, folderMetas, permissionIDMappings, el.Failure()
+	return metrics, folderMetas, el.Failure()
+}
+
+// restores an item, according to correct backup version behavior.
+// returns the item info, a bool (true = restore was skipped), and an error
+func restoreItem(
+	ctx context.Context,
+	creds account.M365Config,
+	dc data.RestoreCollection,
+	backupVersion int,
+	source driveSource,
+	service graph.Servicer,
+	drivePath *path.DrivePath,
+	restoreFolderID string,
+	copyBuffer []byte,
+	folderMetas map[string]Metadata,
+	restorePerms bool,
+	itemData data.Stream,
+	itemPath path.Path,
+) (details.ItemInfo, bool, error) {
+	itemUUID := itemData.UUID()
+
+	if backupVersion < version.OneDrive1DataAndMetaFiles {
+		itemInfo, err := restoreV0File(
+			ctx,
+			source,
+			service,
+			drivePath,
+			restoreFolderID,
+			copyBuffer,
+			itemData)
+		if err != nil {
+			return details.ItemInfo{}, false, clues.Wrap(err, "v0 restore")
+		}
+
+		return itemInfo, false, nil
+	}
+
+	// only v1+ backups from this point on
+
+	if strings.HasSuffix(itemUUID, MetaFileSuffix) {
+		// Just skip this for the moment since we moved the code to the above
+		// item restore path. We haven't yet stopped fetching these items in
+		// RestoreOp, so we still need to handle them in some way.
+		return details.ItemInfo{}, true, nil
+	}
+
+	if strings.HasSuffix(itemUUID, DirMetaFileSuffix) {
+		// Only the version.OneDrive1DataAndMetaFiles needed to deserialize the
+		// permission for child folders here. Later versions can request
+		// permissions inline when processing the collection.
+		if !restorePerms || backupVersion >= version.OneDrive4DirIncludesPermissions {
+			return details.ItemInfo{}, true, nil
+		}
+
+		metaReader := itemData.ToReader()
+		defer metaReader.Close()
+
+		meta, err := getMetadata(metaReader)
+		if err != nil {
+			return details.ItemInfo{}, true, clues.Wrap(err, "getting directory metadata").WithClues(ctx)
+		}
+
+		trimmedPath := strings.TrimSuffix(itemPath.String(), DirMetaFileSuffix)
+		folderMetas[trimmedPath] = meta
+
+		return details.ItemInfo{}, true, nil
+	}
+
+	// only items with DataFileSuffix from this point on
+
+	if backupVersion < version.OneDrive6NameInMeta {
+		itemInfo, err := restoreV1File(
+			ctx,
+			source,
+			creds,
+			service,
+			drivePath,
+			dc,
+			restoreFolderID,
+			copyBuffer,
+			restorePerms,
+			itemData)
+		if err != nil {
+			return details.ItemInfo{}, false, clues.Wrap(err, "v1 restore")
+		}
+
+		return itemInfo, false, nil
+	}
+
+	// only v6+ backups from this point on
+
+	itemInfo, err := restoreV6File(
+		ctx,
+		source,
+		creds,
+		service,
+		drivePath,
+		dc,
+		restoreFolderID,
+		copyBuffer,
+		restorePerms,
+		itemData)
+	if err != nil {
+		return details.ItemInfo{}, false, clues.Wrap(err, "v6 restore")
+	}
+
+	return itemInfo, false, nil
+}
+
+func restoreV0File(
+	ctx context.Context,
+	source driveSource,
+	service graph.Servicer,
+	drivePath *path.DrivePath,
+	restoreFolderID string,
+	copyBuffer []byte,
+	itemData data.Stream,
+) (details.ItemInfo, error) {
+	_, itemInfo, err := restoreData(
+		ctx,
+		service,
+		itemData.UUID(),
+		itemData,
+		drivePath.DriveID,
+		restoreFolderID,
+		copyBuffer,
+		source)
+	if err != nil {
+		return itemInfo, clues.Wrap(err, "restoring file")
+	}
+
+	return itemInfo, nil
 }
 
 type fileFetcher interface {
@@ -347,12 +401,12 @@ type fileFetcher interface {
 func restoreV1File(
 	ctx context.Context,
 	source driveSource,
+	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
 	copyBuffer []byte,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
@@ -385,14 +439,13 @@ func restoreV1File(
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
-	err = restorePermissions(
+	err = RestorePermissions(
 		ctx,
+		creds,
 		service,
 		drivePath.DriveID,
 		itemID,
-		meta,
-		permissionIDMappings,
-	)
+		meta)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -400,15 +453,15 @@ func restoreV1File(
 	return itemInfo, nil
 }
 
-func restoreV2File(
+func restoreV6File(
 	ctx context.Context,
 	source driveSource,
+	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
 	restoreFolderID string,
 	copyBuffer []byte,
-	permissionIDMappings map[string]string,
 	restorePerms bool,
 	itemData data.Stream,
 ) (details.ItemInfo, error) {
@@ -452,14 +505,13 @@ func restoreV2File(
 		return itemInfo, nil
 	}
 
-	err = restorePermissions(
+	err = RestorePermissions(
 		ctx,
+		creds,
 		service,
 		drivePath.DriveID,
 		itemID,
-		meta,
-		permissionIDMappings,
-	)
+		meta)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -519,7 +571,7 @@ func restoreData(
 	copyBuffer []byte,
 	source driveSource,
 ) (string, details.ItemInfo, error) {
-	ctx, end := D.Span(ctx, "gc:oneDrive:restoreItem", D.Label("item_uuid", itemData.UUID()))
+	ctx, end := diagnostics.Span(ctx, "gc:oneDrive:restoreItem", diagnostics.Label("item_uuid", itemData.UUID()))
 	defer end()
 
 	ctx = clues.Add(ctx, "item_name", itemData.UUID())
@@ -546,7 +598,12 @@ func restoreData(
 	}
 
 	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(ctx, iReader, observe.ItemRestoreMsg, observe.PII(itemName), ss.Size())
+	progReader, closer := observe.ItemProgress(
+		ctx,
+		iReader,
+		observe.ItemRestoreMsg,
+		clues.Hide(itemName),
+		ss.Size())
 
 	go closer()
 

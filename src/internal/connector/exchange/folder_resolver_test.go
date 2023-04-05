@@ -3,12 +3,11 @@ package exchange
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -47,9 +46,6 @@ func (suite *CacheResolverSuite) TestPopulate() {
 	ac, err := api.NewClient(suite.credentials)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
-	cal, err := ac.Events().GetContainerByID(ctx, tester.M365UserID(suite.T()), DefaultCalendar)
-	require.NoError(suite.T(), err, clues.ToCore(err))
-
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventCalendarCache{
 			userID: tester.M365UserID(t),
@@ -72,8 +68,9 @@ func (suite *CacheResolverSuite) TestPopulate() {
 		canFind                             assert.BoolAssertionFunc
 	}{
 		{
-			name:          "Default Event Cache",
-			folderInCache: ptr.Val(cal.GetId()),
+			name: "Default Event Cache",
+			// Fine as long as this isn't running against a migrated Exchange server.
+			folderInCache: DefaultCalendar,
 			root:          DefaultCalendar,
 			basePath:      DefaultCalendar,
 			resolverFunc:  eventFunc,
@@ -124,8 +121,8 @@ func (suite *CacheResolverSuite) TestPopulate() {
 			err := resolver.Populate(ctx, fault.New(true), test.root, test.basePath)
 			require.NoError(t, err, clues.ToCore(err))
 
-			_, isFound := resolver.PathInCache(test.folderInCache)
-			test.canFind(t, isFound)
+			_, isFound := resolver.LocationInCache(test.folderInCache)
+			test.canFind(t, isFound, "folder path", test.folderInCache)
 		})
 	}
 }

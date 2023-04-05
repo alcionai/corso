@@ -6,12 +6,15 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -19,8 +22,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 // ---------------------------------------------------------------------------
@@ -58,13 +59,6 @@ func AddCommands(cmd *cobra.Command) {
 // ---------------------------------------------------------------------------
 // common flags and flag attachers for commands
 // ---------------------------------------------------------------------------
-
-var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
 
 // list output filter flags
 var (
@@ -201,41 +195,42 @@ func runBackups(
 	r repository.Repository,
 	serviceName, resourceOwnerType string,
 	selectorSet []selectors.Selector,
+	ins common.IDNameSwapper,
 ) error {
 	var (
-		bIDs []model.StableID
+		bIDs []string
 		errs = []error{}
 	)
 
 	for _, discSel := range selectorSet {
 		var (
 			owner = discSel.DiscreteOwner
-			bctx  = clues.Add(ctx, "resource_owner", owner)
+			ictx  = clues.Add(ctx, "resource_owner", owner)
 		)
 
-		bo, err := r.NewBackup(bctx, discSel)
+		bo, err := r.NewBackup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
-			Errf(bctx, "%v\n", err)
+			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			Errf(ictx, "%v\n", err)
 
 			continue
 		}
 
-		err = bo.Run(bctx)
+		err = bo.Run(ictx)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
-			Errf(bctx, "%v\n", err)
+			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			Errf(ictx, "%v\n", err)
 
 			continue
 		}
 
-		bIDs = append(bIDs, bo.Results.BackupID)
+		bIDs = append(bIDs, string(bo.Results.BackupID))
 		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
 	}
 
 	bups, berrs := r.Backups(ctx, bIDs)
 	if berrs.Failure() != nil {
-		return Only(ctx, errors.Wrap(berrs.Failure(), "Unable to retrieve backup results from storage"))
+		return Only(ctx, clues.Wrap(berrs.Failure(), "Unable to retrieve backup results from storage"))
 	}
 
 	Info(ctx, "Completed Backups:")
@@ -258,7 +253,7 @@ func runBackups(
 // genericDeleteCommand is a helper function that all services can use
 // for the removal of an entry from the repository
 func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []string) error {
-	ctx := cmd.Context()
+	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
@@ -271,8 +266,8 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 	defer utils.CloseRepo(ctx, r)
 
-	if err := r.DeleteBackup(ctx, model.StableID(bID)); err != nil {
-		return Only(ctx, errors.Wrapf(err, "Deleting backup %s", bID))
+	if err := r.DeleteBackup(ctx, bID); err != nil {
+		return Only(ctx, clues.Wrap(err, "Deleting backup "+bID))
 	}
 
 	Infof(ctx, "Deleted %s backup %s", designation, bID)
@@ -296,10 +291,10 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 		fe, b, errs := r.GetBackupErrors(ctx, bID)
 		if errs.Failure() != nil {
 			if errors.Is(errs.Failure(), data.ErrNotFound) {
-				return Only(ctx, errors.Errorf("No backup exists with the id %s", bID))
+				return Only(ctx, clues.New("No backup exists with the id "+bID))
 			}
 
-			return Only(ctx, errors.Wrap(err, "Failed to find backup "+bID))
+			return Only(ctx, clues.Wrap(err, "Failed to find backup "+bID))
 		}
 
 		b.Print(ctx)
@@ -310,7 +305,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 
 	bs, err := r.BackupsByTag(ctx, store.Service(service))
 	if err != nil {
-		return Only(ctx, errors.Wrap(err, "Failed to list backups in the repository"))
+		return Only(ctx, clues.Wrap(err, "Failed to list backups in the repository"))
 	}
 
 	backup.PrintAll(ctx, bs)
@@ -326,7 +321,7 @@ func getAccountAndConnect(ctx context.Context) (repository.Repository, *account.
 
 	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to connect to the %s repository", cfg.Storage.Provider)
+		return nil, nil, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
 	return r, &cfg.Account, nil

@@ -3,11 +3,11 @@ package betasdk
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -38,8 +38,7 @@ func (suite *BetaClientSuite) TestCreateBetaClient() {
 	adpt, err := graph.CreateAdapter(
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
-	)
+		suite.credentials.AzureClientSecret)
 
 	require.NoError(t, err, clues.ToCore(err))
 

@@ -2,19 +2,19 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	stdpath "path"
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -37,7 +37,7 @@ import (
 
 // ----- restore producer
 
-type mockRestorer struct {
+type mockRestoreProducer struct {
 	gotPaths  []path.Path
 	colls     []data.RestoreCollection
 	collsByID map[string][]data.RestoreCollection // snapshotID: []RestoreCollection
@@ -47,7 +47,7 @@ type mockRestorer struct {
 
 type restoreFunc func(id string, ps []path.Path) ([]data.RestoreCollection, error)
 
-func (mr *mockRestorer) buildRestoreFunc(
+func (mr *mockRestoreProducer) buildRestoreFunc(
 	t *testing.T,
 	oid string,
 	ops []path.Path,
@@ -60,7 +60,7 @@ func (mr *mockRestorer) buildRestoreFunc(
 	}
 }
 
-func (mr *mockRestorer) RestoreMultipleItems(
+func (mr *mockRestoreProducer) ProduceRestoreCollections(
 	ctx context.Context,
 	snapshotID string,
 	paths []path.Path,
@@ -84,9 +84,9 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 	assert.ElementsMatch(t, expected, got)
 }
 
-// ----- backup producer
+// ----- backup consumer
 
-type mockBackuper struct {
+type mockBackupConsumer struct {
 	checkFunc func(
 		bases []kopia.IncrementalBase,
 		cs []data.BackupCollection,
@@ -94,7 +94,7 @@ type mockBackuper struct {
 		buildTreeWithBase bool)
 }
 
-func (mbu mockBackuper) BackupCollections(
+func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	bases []kopia.IncrementalBase,
 	cs []data.BackupCollection,
@@ -123,18 +123,24 @@ func (mbs mockBackupStorer) Get(
 	id model.StableID,
 	toPopulate model.Model,
 ) error {
+	ctx = clues.Add(
+		ctx,
+		"model_schema", s,
+		"model_id", id,
+		"model_type", fmt.Sprintf("%T", toPopulate))
+
 	if s != model.BackupSchema {
-		return errors.Errorf("unexpected schema %s", s)
+		return clues.New("unexpected schema").WithClues(ctx)
 	}
 
 	r, ok := mbs.entries[id]
 	if !ok {
-		return errors.Errorf("model with id %s not found", id)
+		return clues.New("model not found").WithClues(ctx)
 	}
 
 	bu, ok := toPopulate.(*backup.Backup)
 	if !ok {
-		return errors.Errorf("bad input type %T", toPopulate)
+		return clues.New("bad population type").WithClues(ctx)
 	}
 
 	*bu = r
@@ -143,11 +149,11 @@ func (mbs mockBackupStorer) Get(
 }
 
 func (mbs mockBackupStorer) Delete(context.Context, model.Schema, model.StableID) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) DeleteWithModelStoreID(context.Context, manifest.ID) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) GetIDsForType(
@@ -155,7 +161,7 @@ func (mbs mockBackupStorer) GetIDsForType(
 	model.Schema,
 	map[string]string,
 ) ([]*model.BaseModel, error) {
-	return nil, errors.New("not implemented")
+	return nil, clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) GetWithModelStoreID(
@@ -164,15 +170,15 @@ func (mbs mockBackupStorer) GetWithModelStoreID(
 	manifest.ID,
 	model.Model,
 ) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) Put(context.Context, model.Schema, model.Model) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) error {
-	return errors.New("not implemented")
+	return clues.New("not implemented")
 }
 
 // ---------------------------------------------------------------------------
@@ -290,8 +296,9 @@ func makeDetailsEntry(
 		}
 
 		res.Exchange = &details.ExchangeInfo{
-			ItemType: details.ExchangeMail,
-			Size:     int64(size),
+			ItemType:   details.ExchangeMail,
+			Size:       int64(size),
+			ParentPath: l.Folder(false),
 		}
 
 	case path.OneDriveService:
@@ -352,6 +359,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
+		gc   = &mockconnector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 	)
@@ -372,9 +380,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 					TotalHashedBytes:   1,
 					TotalUploadedBytes: 1,
 				},
-				gc: &support.ConnectorOperationStatus{
-					Metrics: support.CollectionMetrics{Successes: 1},
-				},
+				gc: &data.CollectionStats{Successes: 1},
 			},
 		},
 		{
@@ -383,7 +389,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: &support.ConnectorOperationStatus{},
+				gc: &data.CollectionStats{},
 			},
 		},
 		{
@@ -391,7 +397,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			expectErr:    assert.NoError,
 			stats: backupStats{
 				k:  &kopia.BackupStats{},
-				gc: &support.ConnectorOperationStatus{},
+				gc: &data.CollectionStats{},
 			},
 		},
 	}
@@ -406,7 +412,9 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				control.Options{},
 				kw,
 				sw,
+				gc,
 				acct,
+				sel,
 				sel,
 				evmock.NewBus())
 			require.NoError(t, err, clues.ToCore(err))
@@ -416,7 +424,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			test.expectErr(t, op.persistResults(now, &test.stats))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsRead, "items read")
+			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsRead, "items read")
 			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
 			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
@@ -553,7 +561,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			mbu := &mockBackuper{
+			mbu := &mockBackupConsumer{
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
 					cs []data.BackupCollection,
@@ -565,7 +573,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			}
 
 			//nolint:errcheck
-			consumeBackupDataCollections(
+			consumeBackupCollections(
 				ctx,
 				mbu,
 				tenant,

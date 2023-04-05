@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
-	absser "github.com/microsoft/kiota-abstractions-go"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -72,7 +72,7 @@ var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
 var t = true
 
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
-	headers := absser.NewRequestHeaders()
+	headers := abstractions.NewRequestHeaders()
 	headers.Add("ConsistencyLevel", "eventual")
 
 	return &users.UsersRequestBuilderGetRequestConfiguration{
@@ -182,7 +182,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 func validateUser(item any) (models.Userable, error) {
 	m, ok := item.(models.Userable)
 	if !ok {
-		return nil, clues.Stack(clues.New("unexpected model"), errors.Errorf("%T", item))
+		return nil, clues.New(fmt.Sprintf("unexpected model: %T", item))
 	}
 
 	if m.GetId() == nil {

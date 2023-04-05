@@ -3,11 +3,11 @@ package api
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -30,8 +30,7 @@ func (suite *BetaUnitSuite) TestBetaService_Adapter() {
 	adpt, err := graph.CreateAdapter(
 		m365.AzureTenantID,
 		m365.AzureClientID,
-		m365.AzureClientSecret,
-	)
+		m365.AzureClientSecret)
 	require.NoError(t, err, clues.ToCore(err))
 
 	service := NewBetaService(adpt)

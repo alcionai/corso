@@ -10,15 +10,17 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	ka "github.com/microsoft/kiota-authentication-azure-go"
+	kauth "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/pkg/errors"
+	"golang.org/x/time/rate"
 
-	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/common/pii"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -56,22 +58,22 @@ type QueryParams struct {
 var _ Servicer = &Service{}
 
 type Service struct {
-	adapter *msgraphsdk.GraphRequestAdapter
-	client  *msgraphsdk.GraphServiceClient
+	adapter *msgraphsdkgo.GraphRequestAdapter
+	client  *msgraphsdkgo.GraphServiceClient
 }
 
-func NewService(adapter *msgraphsdk.GraphRequestAdapter) *Service {
+func NewService(adapter *msgraphsdkgo.GraphRequestAdapter) *Service {
 	return &Service{
 		adapter: adapter,
-		client:  msgraphsdk.NewGraphServiceClient(adapter),
+		client:  msgraphsdkgo.NewGraphServiceClient(adapter),
 	}
 }
 
-func (s Service) Adapter() *msgraphsdk.GraphRequestAdapter {
+func (s Service) Adapter() *msgraphsdkgo.GraphRequestAdapter {
 	return s.adapter
 }
 
-func (s Service) Client() *msgraphsdk.GraphServiceClient {
+func (s Service) Client() *msgraphsdkgo.GraphServiceClient {
 	return s.client
 }
 
@@ -80,12 +82,12 @@ func (s Service) Client() *msgraphsdk.GraphServiceClient {
 func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 	writer, err := s.adapter.GetSerializationWriterFactory().GetSerializationWriter("application/json")
 	if err != nil || writer == nil {
-		return nil, errors.Wrap(err, "creating json serialization writer")
+		return nil, clues.Wrap(err, "creating json serialization writer")
 	}
 
 	err = writer.WriteObjectValue("", object)
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing object")
+		return nil, clues.Wrap(err, "serializing object")
 	}
 
 	return writer.GetSerializedContent()
@@ -167,24 +169,27 @@ func MinimumBackoff(dur time.Duration) option {
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
 // to create  *msgraphsdk.GraphServiceClient
-func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.GraphRequestAdapter, error) {
+func CreateAdapter(
+	tenant, client, secret string,
+	opts ...option,
+) (*msgraphsdkgo.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating m365 client identity")
+		return nil, clues.Wrap(err, "creating m365 client identity")
 	}
 
-	auth, err := ka.NewAzureIdentityAuthenticationProviderWithScopes(
+	auth, err := kauth.NewAzureIdentityAuthenticationProviderWithScopes(
 		cred,
 		[]string{"https://graph.microsoft.com/.default"},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating azure authentication")
+		return nil, clues.Wrap(err, "creating azure authentication")
 	}
 
 	httpClient := HTTPClient(opts...)
 
-	return msgraphsdk.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
 		nil, nil,
 		httpClient)
@@ -197,7 +202,7 @@ func CreateAdapter(tenant, client, secret string, opts ...option) (*msgraphsdk.G
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
 func HTTPClient(opts ...option) *http.Client {
-	clientOptions := msgraphsdk.GetDefaultClientOptions()
+	clientOptions := msgraphsdkgo.GetDefaultClientOptions()
 	clientconfig := (&clientConfig{}).populate(opts...)
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
 	middlewares := GetKiotaMiddlewares(&clientOptions, noOfRetries, minRetryDelay)
@@ -224,12 +229,16 @@ func GetMiddlewares(maxRetry int, delay time.Duration) []khttp.Middleware {
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
+		&ThrottleControlMiddleware{},
+		&MetricsMiddleware{},
 	}
 }
 
 // GetKiotaMiddlewares creates a default slice of middleware for the Graph Client.
-func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
-	maxRetry int, minDelay time.Duration,
+func GetKiotaMiddlewares(
+	options *msgraphgocore.GraphClientOptions,
+	maxRetry int,
+	minDelay time.Duration,
 ) []khttp.Middleware {
 	kiotaMiddlewares := GetMiddlewares(maxRetry, minDelay)
 	graphMiddlewares := []khttp.Middleware{
@@ -250,10 +259,10 @@ func GetKiotaMiddlewares(options *msgraphgocore.GraphClientOptions,
 type Servicer interface {
 	// Client() returns msgraph Service client that can be used to process and execute
 	// the majority of the queries to the M365 Backstore
-	Client() *msgraphsdk.GraphServiceClient
+	Client() *msgraphsdkgo.GraphServiceClient
 	// Adapter() returns GraphRequest adapter used to process large requests, create batches
 	// and page iterators
-	Adapter() *msgraphsdk.GraphRequestAdapter
+	Adapter() *msgraphsdkgo.GraphRequestAdapter
 }
 
 // ---------------------------------------------------------------------------
@@ -263,20 +272,86 @@ type Servicer interface {
 // LoggingMiddleware can be used to log the http request sent by the graph client
 type LoggingMiddleware struct{}
 
+// well-known path names used by graph api calls
+// used to un-hide path elements in a pii.SafeURL
+var safePathParams = pii.MapWithPlurals(
+	//nolint:misspell
+	"alltime",
+	"analytics",
+	"archive",
+	"beta",
+	"calendargroup",
+	"calendar",
+	"calendarview",
+	"channel",
+	"childfolder",
+	"children",
+	"clone",
+	"column",
+	"contactfolder",
+	"contact",
+	"contenttype",
+	"delta",
+	"drive",
+	"event",
+	"group",
+	"inbox",
+	"instance",
+	"invitation",
+	"item",
+	"joinedteam",
+	"label",
+	"list",
+	"mailfolder",
+	"member",
+	"message",
+	"notification",
+	"page",
+	"primarychannel",
+	"root",
+	"security",
+	"site",
+	"subscription",
+	"team",
+	"unarchive",
+	"user",
+	"v1.0")
+
+//	well-known safe query parameters used by graph api calls
+//
+// used to un-hide query params in a pii.SafeURL
+var safeQueryParams = map[string]struct{}{
+	"deltatoken":    {},
+	"startdatetime": {},
+	"enddatetime":   {},
+	"$count":        {},
+	"$expand":       {},
+	"$filter":       {},
+	"$select":       {},
+	"$top":          {},
+}
+
+func LoggableURL(url string) pii.SafeURL {
+	return pii.SafeURL{
+		URL:           url,
+		SafePathElems: safePathParams,
+		SafeQueryKeys: safeQueryParams,
+	}
+}
+
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	var (
-		ctx = clues.Add(
-			req.Context(),
-			"method", req.Method,
-			"url", req.URL, // TODO: pii
-			"request_len", req.ContentLength,
-		)
-		resp, err = pipeline.Next(req, middlewareIndex)
-	)
+	ctx := clues.Add(
+		req.Context(),
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()),
+		"request_len", req.ContentLength)
+
+	// call the next middleware
+	resp, err := pipeline.Next(req, middlewareIndex)
 
 	if strings.Contains(req.URL.String(), "users//") {
 		logger.Ctx(ctx).Error("malformed request url: missing resource")
@@ -311,13 +386,13 @@ func (handler *LoggingMiddleware) Intercept(
 	msg := fmt.Sprintf("graph api error: %s", resp.Status)
 
 	// special case for supportability: log all throttling cases.
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+	if resp.StatusCode == http.StatusTooManyRequests {
 		log = log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
-	} else if resp.StatusCode/100 == 4 {
+	} else if resp.StatusCode/100 == 4 || resp.StatusCode == http.StatusServiceUnavailable {
 		log = log.With("response", getRespDump(ctx, resp, true))
 	}
 
@@ -367,4 +442,70 @@ func (middleware RetryHandler) Intercept(
 	}
 
 	return response, nil
+}
+
+// We're trying to keep calls below the 10k-per-10-minute threshold.
+// 15 tokens every second nets 900 per minute.  That's 9000 every 10 minutes,
+// which is a bit below the mark.
+// But suppose we have a minute-long dry spell followed by a 10 minute tsunami.
+// We'll have built up 900 tokens in reserve, so the first 900 calls go through
+// immediately.  Over the next 10 minutes, we'll partition out the other calls
+// at a rate of 900-per-minute, ending at a total of 9900.  Theoretically, if
+// the volume keeps up after that, we'll always stay between 9000 and 9900 out
+// of 10k.
+const (
+	perSecond = 15
+	maxCap    = 900
+)
+
+// Single, global rate limiter at this time.  Refinements for method (creates,
+// versus reads) or service can come later.
+var limiter = rate.NewLimiter(perSecond, maxCap)
+
+// QueueRequest will allow the request to occur immediately if we're under the
+// 1k-calls-per-minute rate.  Otherwise, the call will wait in a queue until
+// the next token set is available.
+func QueueRequest(ctx context.Context) {
+	if err := limiter.Wait(ctx); err != nil {
+		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	}
+}
+
+// ThrottleControlMiddleware is used to ensure we don't overstep 10k-per-10-min
+// request limits.
+type ThrottleControlMiddleware struct{}
+
+func (handler *ThrottleControlMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	QueueRequest(req.Context())
+	return pipeline.Next(req, middlewareIndex)
+}
+
+// MetricsMiddleware aggregates per-request metrics on the events bus
+type MetricsMiddleware struct{}
+
+func (handler *MetricsMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	var (
+		start     = time.Now()
+		resp, err = pipeline.Next(req, middlewareIndex)
+		status    = "nil-resp"
+	)
+
+	if resp != nil {
+		status = resp.Status
+	}
+
+	events.Inc(events.APICall)
+	events.Inc(events.APICall, status)
+	events.Since(start, events.APICall)
+	events.Since(start, events.APICall, status)
+
+	return resp, err
 }

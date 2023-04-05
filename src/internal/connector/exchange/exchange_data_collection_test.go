@@ -5,12 +5,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -228,7 +228,7 @@ func (suite *ExchangeDataCollectionSuite) TestGetItemWithRetries() {
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := getItemWithRetries(ctx, "userID", "itemID", test.items, fault.New(true))
+			_, _, err := test.items.GetItem(ctx, "userID", "itemID", fault.New(true))
 			test.expectErr(suite.T(), err)
 		})
 	}

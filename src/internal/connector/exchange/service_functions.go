@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
@@ -15,16 +14,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-var ErrFolderNotFound = errors.New("folder not found")
+var ErrFolderNotFound = clues.New("folder not found")
 
 func createService(credentials account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret,
-	)
+		credentials.AzureClientSecret)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating microsoft graph service for exchange")
+		return nil, clues.Wrap(err, "creating microsoft graph service for exchange")
 	}
 
 	return graph.NewService(adapter), nil
@@ -108,11 +106,7 @@ func includeContainer(
 
 	// Clause ensures that DefaultContactFolder is inspected properly
 	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == DefaultContactFolder {
-		pb = pb.Append(DefaultContactFolder)
-
-		if loc != nil {
-			loc = loc.Append(DefaultContactFolder)
-		}
+		loc = loc.Append(DefaultContactFolder)
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
@@ -141,18 +135,24 @@ func includeContainer(
 		directory = locPath.Folder(false)
 	}
 
-	var ok bool
+	var (
+		ok      bool
+		pathRes path.Path
+	)
 
 	switch category {
 	case path.EmailCategory:
 		ok = scope.Matches(selectors.ExchangeMailFolder, directory)
+		pathRes = locPath
 	case path.ContactsCategory:
 		ok = scope.Matches(selectors.ExchangeContactFolder, directory)
+		pathRes = locPath
 	case path.EventsCategory:
 		ok = scope.Matches(selectors.ExchangeEventCalendar, directory)
+		pathRes = dirPath
 	default:
 		return nil, nil, false
 	}
 
-	return dirPath, locPath, ok
+	return pathRes, locPath, ok
 }

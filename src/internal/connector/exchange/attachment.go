@@ -5,10 +5,11 @@ import (
 	"context"
 	"io"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -52,7 +53,7 @@ func uploadAttachment(
 		ctx,
 		"attachment_size", ptr.Val(attachment.GetSize()),
 		"attachment_id", ptr.Val(attachment.GetId()),
-		"attachment_name", ptr.Val(attachment.GetName()), // TODO: pii
+		"attachment_name", clues.Hide(ptr.Val(attachment.GetName())),
 		"attachment_type", attachmentType,
 		"internal_item_type", getItemAttachmentItemType(attachment),
 		"uploader_item_id", uploader.getItemID())
@@ -104,7 +105,7 @@ func uploadLargeAttachment(
 
 	url := ptr.Val(session.GetUploadUrl())
 	aw := uploadsession.NewWriter(uploader.getItemID(), url, size)
-	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", url) // TODO: url pii
+	logger.Ctx(ctx).Debugw("uploading large attachment", "attachment_url", graph.LoggableURL(url))
 
 	// Upload the stream data
 	copyBuffer := make([]byte, attachmentChunkSize)

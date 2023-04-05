@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -179,6 +178,7 @@ func DataCollections(
 		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
+		categories  = map[path.CategoryType]struct{}{}
 	)
 
 	cdps, err := parseMetadataCollections(ctx, metadata, errs)
@@ -205,7 +205,25 @@ func DataCollections(
 			continue
 		}
 
+		categories[scope.Category().PathType()] = struct{}{}
+
 		collections = append(collections, dcs...)
+	}
+
+	if len(collections) > 0 {
+		baseCols, err := graph.BaseCollections(
+			ctx,
+			acct.AzureTenantID,
+			user,
+			path.ExchangeService,
+			categories,
+			su,
+			errs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		collections = append(collections, baseCols...)
 	}
 
 	return collections, nil, el.Failure()
@@ -261,13 +279,13 @@ func createCollections(
 
 	foldersComplete, closer := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", observe.Safe(qp.Category.String())))
+		observe.Bulletf("%s", qp.Category))
 	defer closer()
 	defer close(foldersComplete)
 
 	resolver, err := PopulateExchangeContainerResolver(ctx, qp, errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "populating container cache")
+		return nil, clues.Wrap(err, "populating container cache")
 	}
 
 	err = filterContainersAndFillCollections(
@@ -282,7 +300,7 @@ func createCollections(
 		ctrlOpts,
 		errs)
 	if err != nil {
-		return nil, errors.Wrap(err, "filling collections")
+		return nil, clues.Wrap(err, "filling collections")
 	}
 
 	foldersComplete <- struct{}{}

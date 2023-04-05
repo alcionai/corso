@@ -4,11 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -20,7 +22,171 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/alcionai/corso/src/pkg/store/mock"
 )
+
+// ---------------------------------------------------------------------------
+// Unit
+// ---------------------------------------------------------------------------
+
+type RepositoryBackupsUnitSuite struct {
+	tester.Suite
+}
+
+func TestRepositoryBackupsUnitSuite(t *testing.T) {
+	suite.Run(t, &RepositoryBackupsUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *RepositoryBackupsUnitSuite) TestGetBackup() {
+	bup := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+		},
+	}
+
+	table := []struct {
+		name      string
+		sw        mock.BackupWrapper
+		expectErr func(t *testing.T, result error)
+		expectID  model.StableID
+	}{
+		{
+			name: "no error",
+			sw: mock.BackupWrapper{
+				Backup:    bup,
+				GetErr:    nil,
+				DeleteErr: nil,
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+			expectID: bup.ID,
+		},
+		{
+			name: "get error",
+			sw: mock.BackupWrapper{
+				Backup:    bup,
+				GetErr:    data.ErrNotFound,
+				DeleteErr: nil,
+			},
+			expectErr: func(t *testing.T, result error) {
+				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
+				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
+			},
+			expectID: bup.ID,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			b, err := getBackup(ctx, string(bup.ID), test.sw)
+			test.expectErr(t, err)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expectID, b.ID)
+		})
+	}
+}
+
+type mockSSDeleter struct {
+	err error
+}
+
+func (sd mockSSDeleter) DeleteSnapshot(_ context.Context, _ string) error {
+	return sd.err
+}
+
+func (suite *RepositoryBackupsUnitSuite) TestDeleteBackup() {
+	bup := &backup.Backup{
+		BaseModel: model.BaseModel{
+			ID: model.StableID(uuid.NewString()),
+		},
+	}
+
+	table := []struct {
+		name      string
+		sw        mock.BackupWrapper
+		kw        mockSSDeleter
+		expectErr func(t *testing.T, result error)
+		expectID  model.StableID
+	}{
+		{
+			name: "no error",
+			sw: mock.BackupWrapper{
+				Backup:    bup,
+				GetErr:    nil,
+				DeleteErr: nil,
+			},
+			kw: mockSSDeleter{},
+			expectErr: func(t *testing.T, result error) {
+				assert.NoError(t, result, clues.ToCore(result))
+			},
+			expectID: bup.ID,
+		},
+		{
+			name: "get error",
+			sw: mock.BackupWrapper{
+				Backup:    bup,
+				GetErr:    data.ErrNotFound,
+				DeleteErr: nil,
+			},
+			kw: mockSSDeleter{},
+			expectErr: func(t *testing.T, result error) {
+				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
+				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
+			},
+			expectID: bup.ID,
+		},
+		{
+			name: "delete error",
+			sw: mock.BackupWrapper{
+				Backup:    bup,
+				GetErr:    nil,
+				DeleteErr: assert.AnError,
+			},
+			kw: mockSSDeleter{},
+			expectErr: func(t *testing.T, result error) {
+				assert.ErrorIs(t, result, assert.AnError, clues.ToCore(result))
+			},
+			expectID: bup.ID,
+		},
+		{
+			name: "snapshot delete error",
+			sw: mock.BackupWrapper{
+				Backup:    bup,
+				GetErr:    nil,
+				DeleteErr: nil,
+			},
+			kw: mockSSDeleter{assert.AnError},
+			expectErr: func(t *testing.T, result error) {
+				assert.ErrorIs(t, result, assert.AnError, clues.ToCore(result))
+			},
+			expectID: bup.ID,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			err := deleteBackup(ctx, string(bup.ID), test.kw, test.sw)
+			test.expectErr(t, err)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// integration
+// ---------------------------------------------------------------------------
 
 type RepositoryModelIntgSuite struct {
 	tester.Suite
@@ -127,6 +293,7 @@ func writeBackup(
 	sw *store.Wrapper,
 	tID, snapID, backupID string,
 	sel selectors.Selector,
+	ownerID, ownerName string,
 	deets *details.Details,
 	fe *fault.Errors,
 	errs *fault.Bus,
@@ -150,6 +317,7 @@ func writeBackup(
 		operations.Completed.String(),
 		model.StableID(backupID),
 		sel,
+		ownerID, ownerName,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
 		fe)
@@ -161,7 +329,10 @@ func writeBackup(
 }
 
 func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
-	const tenantID = "tenant"
+	const (
+		brunhilda = "brunhilda"
+		tenantID  = "tenant"
+	)
 
 	info := details.ItemInfo{
 		Folder: &details.FolderInfo{
@@ -207,7 +378,8 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 					suite.kw,
 					suite.sw,
 					tenantID, "snapID", test.writeBupID,
-					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
+					selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+					brunhilda, brunhilda,
 					test.deets,
 					&fault.Errors{},
 					fault.New(true))
@@ -228,8 +400,9 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 
 func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 	const (
-		tenantID = "tenant"
-		failFast = true
+		tenantID  = "tenant"
+		failFast  = true
+		brunhilda = "brunhilda"
 	)
 
 	var (
@@ -309,7 +482,8 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 					suite.kw,
 					suite.sw,
 					tenantID, "snapID", test.writeBupID,
-					selectors.NewExchangeBackup([]string{"brunhilda"}).Selector,
+					selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+					brunhilda, brunhilda,
 					test.deets,
 					test.errors,
 					fault.New(failFast))

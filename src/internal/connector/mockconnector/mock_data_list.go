@@ -6,11 +6,11 @@ import (
 	"io"
 	"testing"
 
-	kw "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/alcionai/clues"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -145,7 +145,7 @@ func GetMockListDefault(title string) models.Listable {
 func GetMockListBytes(title string) ([]byte, error) {
 	list := GetMockListDefault(title)
 
-	objectWriter := kw.NewJsonSerializationWriter()
+	objectWriter := kjson.NewJsonSerializationWriter()
 	defer objectWriter.Close()
 
 	err := objectWriter.WriteObjectValue("", list)
