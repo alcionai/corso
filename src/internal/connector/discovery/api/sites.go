@@ -79,7 +79,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, graph.Wrap(ctx, err, "iterating all sites")
+		return nil, graph.Wrap(ctx, err, "enumerating sites")
 	}
 
 	return us, el.Failure()

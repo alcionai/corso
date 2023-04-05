@@ -160,8 +160,8 @@ func (suite *DiscoveryIntegrationSuite) TestSites_InvalidCredentials() {
 				errs = fault.New(true)
 			)
 
-			users, err := discovery.Users(ctx, a, errs)
-			assert.Empty(t, users, "returned some users")
+			sites, err := discovery.Sites(ctx, a, errs)
+			assert.Empty(t, sites, "returned some sites")
 			assert.NotNil(t, err)
 		})
 	}

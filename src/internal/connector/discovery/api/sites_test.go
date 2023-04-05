@@ -6,10 +6,13 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type SitesUnitSuite struct {
@@ -104,5 +107,49 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 			assert.Equal(t, test.want, got)
 		})
+	}
+}
+
+type SitesIntgSuite struct {
+	tester.Suite
+
+	creds account.M365Config
+}
+
+func TestSitesIntgSuite(t *testing.T) {
+	suite.Run(t, &SitesIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs, tester.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *SitesIntgSuite) SetupSuite() {
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+	)
+
+	m365, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.creds = m365
+}
+
+func (suite *SitesIntgSuite) TestGetAll() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+
+	cli, err := NewClient(suite.creds)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sites, err := cli.Sites().GetAll(ctx, fault.New(true))
+	require.NoError(t, err)
+	require.NotZero(t, len(sites), "must have at least one site")
+
+	for _, site := range sites {
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), personalSitePath, "must not return onedrive sites")
 	}
 }
