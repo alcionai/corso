@@ -131,10 +131,7 @@ func isSame(first, second []string) bool {
 	return slices.Equal(first, second)
 }
 
-func diffPermissions(
-	before, after []UserPermission,
-	permissionIDMappings map[string]string,
-) ([]UserPermission, []UserPermission) {
+func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
 	var (
 		added   = []UserPermission{}
 		removed = []UserPermission{}
@@ -168,7 +165,6 @@ func diffPermissions(
 		}
 
 		if !found {
-			pp.ID = permissionIDMappings[pp.ID]
 			removed = append(removed, pp)
 		}
 	}
@@ -213,32 +209,17 @@ func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadat
 	}
 }
 
-// RestorePermissions takes in the permissions that were added and the
-// removed(ones present in parent but not in child) and adds/removes
-// the necessary permissions on onedrive objects.
-func RestorePermissions(
+func updatePermissions(
 	ctx context.Context,
 	creds account.M365Config,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-	itemPath path.Path,
-	meta Metadata,
-	folderMetas map[string]Metadata,
+	permAdded, permRemoved []UserPermission,
+	usePermissionIDMappings bool,
 	permissionIDMappings map[string]string,
 ) error {
-	if meta.SharingMode == SharingModeInherited {
-		return nil
-	}
-
-	ctx = clues.Add(ctx, "permission_item_id", itemID)
-
-	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
-	if err != nil {
-		return clues.Wrap(err, "parent permissions").WithClues(ctx)
-	}
-
-	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions, permissionIDMappings)
+	var ok bool
 
 	for _, p := range permRemoved {
 		// deletes require unique http clients
@@ -250,11 +231,19 @@ func RestorePermissions(
 			return graph.Wrap(ctx, err, "creating delete client")
 		}
 
+		pid := p.ID
+		if usePermissionIDMappings {
+			pid, ok = permissionIDMappings[p.ID]
+			if !ok {
+				return clues.New("no new permission id").WithClues(ctx)
+			}
+		}
+
 		err = graph.NewService(a).
 			Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
-			PermissionsById(p.ID).
+			PermissionsById(pid).
 			Delete(ctx, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "removing permissions")
@@ -306,8 +295,69 @@ func RestorePermissions(
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
-		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
+		if usePermissionIDMappings {
+			permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
+		}
 	}
 
 	return nil
+}
+
+// RestorePermissions takes in the permissions that were added and the
+// removed(ones present in parent but not in child) and adds/removes
+// the necessary permissions on onedrive objects.
+func RestorePermissions(
+	ctx context.Context,
+	creds account.M365Config,
+	service graph.Servicer,
+	driveID string,
+	itemID string,
+	itemPath path.Path,
+	meta Metadata,
+	folderMetas map[string]Metadata,
+	permissionIDMappings map[string]string,
+) error {
+	if meta.SharingMode == SharingModeInherited {
+		return nil
+	}
+
+	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
+	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
+	if err != nil {
+		return clues.Wrap(err, "parent permissions").WithClues(ctx)
+	}
+
+	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions)
+
+	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, true, permissionIDMappings)
+}
+
+// SetPermissions is similar to RestorePermissions, but fetches the
+// current permissions from graph inorder to update the permissions on
+// an item. This is necessary in tests(any currently only used in
+// tests) as we have to delete permissions of items that we have
+// created.
+func SetPermissions(
+	ctx context.Context,
+	creds account.M365Config,
+	service graph.Servicer,
+	driveID string,
+	itemID string,
+	meta Metadata,
+) error {
+	if meta.SharingMode == SharingModeInherited {
+		return nil
+	}
+
+	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
+	currentPermissions, err := driveItemPermissionInfo(ctx, service, driveID, itemID)
+	if err != nil {
+		return graph.Wrap(ctx, err, "fetching current permissions")
+	}
+
+	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
+
+	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, false, nil)
 }

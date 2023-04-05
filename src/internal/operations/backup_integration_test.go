@@ -1307,7 +1307,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.SetPermissions(
 					ctx,
 					creds,
 					gc.Service,
@@ -1333,7 +1333,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.SetPermissions(
 					ctx,
 					creds,
 					gc.Service,
@@ -1355,7 +1355,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.SetPermissions(
 					ctx,
 					creds,
 					gc.Service,
@@ -1382,7 +1382,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.SetPermissions(
 					ctx,
 					creds,
 					gc.Service,
