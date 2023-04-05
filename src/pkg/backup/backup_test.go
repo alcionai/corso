@@ -24,7 +24,7 @@ func TestBackupUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func stubBackup(t time.Time) backup.Backup {
+func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 	sel := selectors.NewExchangeBackup([]string{"test"})
 	sel.Include(sel.AllData())
 
@@ -63,7 +63,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 	var (
 		t        = suite.T()
 		now      = time.Now()
-		b        = stubBackup(now)
+		b        = stubBackup(now, "id", "name")
 		expectHs = []string{
 			"Started At",
 			"ID",
@@ -190,7 +190,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	t := suite.T()
 	now := time.Now()
-	b := stubBackup(now)
+	b := stubBackup(now, "id", "name")
 
 	resultIface := b.MinimumPrintable()
 	result, ok := resultIface.(backup.Printable)

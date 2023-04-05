@@ -40,8 +40,9 @@ func NewWriter(id, url string, size int64) *writer {
 // https://docs.microsoft.com/en-us/graph/api/driveitem-createuploadsession
 func (iw *writer) Write(p []byte) (int, error) {
 	rangeLength := len(p)
-	logger.Ctx(context.Background()).Debugf("WRITE for %s. Size:%d, Offset: %d, TotalSize: %d",
-		iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
+	logger.Ctx(context.Background()).
+		Debugf("WRITE for %s. Size:%d, Offset: %d, TotalSize: %d",
+			iw.id, rangeLength, iw.lastWrittenOffset, iw.contentLength)
 
 	endOffset := iw.lastWrittenOffset + int64(rangeLength)
 
@@ -49,13 +50,15 @@ func (iw *writer) Write(p []byte) (int, error) {
 	// data in the current request
 	_, err := iw.client.R().
 		SetHeaders(map[string]string{
-			contentRangeHeaderKey: fmt.Sprintf(contentRangeHeaderValueFmt,
+			contentRangeHeaderKey: fmt.Sprintf(
+				contentRangeHeaderValueFmt,
 				iw.lastWrittenOffset,
 				endOffset-1,
 				iw.contentLength),
 			contentLengthHeaderKey: fmt.Sprintf("%d", rangeLength),
 		}).
-		SetBody(bytes.NewReader(p)).Put(iw.url)
+		SetBody(bytes.NewReader(p)).
+		Put(iw.url)
 	if err != nil {
 		return 0, clues.Wrap(err, "uploading item").With(
 			"upload_id", iw.id,
