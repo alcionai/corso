@@ -173,7 +173,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	sel := selectors.NewSharePointBackup(sites)
 	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, ins)
+	suite.backupOp, err = suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)
