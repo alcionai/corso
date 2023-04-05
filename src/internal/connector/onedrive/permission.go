@@ -98,6 +98,7 @@ func createRestoreFoldersWithPermissions(
 	folderMetadata Metadata,
 	folderMetas map[string]Metadata,
 	permissionIDMappings map[string]string,
+	restorePerms bool,
 ) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
 	if err != nil {
@@ -106,6 +107,10 @@ func createRestoreFoldersWithPermissions(
 
 	if len(drivePath.Folders) == 0 {
 		// No permissions for root folder
+		return id, nil
+	}
+
+	if !restorePerms {
 		return id, nil
 	}
 

@@ -186,7 +186,8 @@ func RestoreCollection(
 		dc.FullPath(),
 		colMeta,
 		folderMetas,
-		permissionIDMappings)
+		permissionIDMappings,
+		restorePerms)
 	if err != nil {
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
