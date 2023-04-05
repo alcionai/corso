@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -27,7 +26,7 @@ func main() {
 	onedrive.AddCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		Err(ctx, err)
 		os.Exit(1)
 	}
 }

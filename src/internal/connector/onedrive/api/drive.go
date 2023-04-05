@@ -203,10 +203,6 @@ func (p *siteDrivePager) ValuesIn(l api.PageLinker) ([]models.Driveable, error) 
 	return getValues[models.Driveable](l)
 }
 
-// ---------------------------------------------------------------------------
-// Drive Paging
-// ---------------------------------------------------------------------------
-
 // DrivePager pages through different types of drive owners
 type DrivePager interface {
 	GetPage(context.Context) (api.PageLinker, error)
@@ -282,7 +278,10 @@ func GetDriveItem(
 	srv graph.Servicer,
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
-	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	di, err := srv.Client().
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting item")
 	}
@@ -306,4 +305,21 @@ func GetItemPermission(
 	}
 
 	return perm, nil
+}
+
+func GetDriveByID(
+	ctx context.Context,
+	srv graph.Servicer,
+	userID string,
+) (models.Driveable, error) {
+	//revive:enable:context-as-argument
+	d, err := srv.Client().
+		UsersById(userID).
+		Drive().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting drive")
+	}
+
+	return d, nil
 }

@@ -7,18 +7,19 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/utils"
-	gutils "github.com/alcionai/corso/src/cmd/getM365/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -31,41 +32,47 @@ var (
 func AddCommands(parent *cobra.Command) {
 	exCmd := &cobra.Command{
 		Use:   "exchange",
-		Short: "Get a M365ID item JSON",
+		Short: "Get an M365ID item JSON",
 		RunE:  handleExchangeCmd,
 	}
 
 	fs := exCmd.PersistentFlags()
-	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object")
+	fs.StringVar(&m365ID, "id", "", "m365 identifier for object")
 	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events)")
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
 	fs.StringVar(&tenant, "tenant", "", "m365 identifier for the tenant")
 
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("user"))
-	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("m365ID"))
+	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("id"))
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("category"))
 
 	parent.AddCommand(exCmd)
 }
 
 func handleExchangeCmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
 
-	_, creds, err := gutils.GetGC(ctx, tenant)
-	if err != nil {
-		return err
+	tid := common.First(tenant, os.Getenv(account.AzureTenantID))
+
+	ctx := clues.Add(
+		cmd.Context(),
+		"item_id", m365ID,
+		"resource_owner", user,
+		"tenant", tid)
+
+	creds := account.M365Config{
+		M365:          credentials.GetM365(),
+		AzureTenantID: tid,
 	}
 
-	err = runDisplayM365JSON(ctx, creds, user, m365ID, fault.New(true))
+	err := runDisplayM365JSON(ctx, creds, user, m365ID, fault.New(true))
 	if err != nil {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 
-		return errors.Wrapf(err, "unable to get from M365: %s", m365ID)
+		return clues.Wrap(err, "getting item")
 	}
 
 	return nil
