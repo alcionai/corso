@@ -13,8 +13,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/connector/mock"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -50,7 +51,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &mockconnector.GraphConnector{}
+		gc   = &mock.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination()
@@ -72,7 +73,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 				},
 				cs: []data.RestoreCollection{
 					data.NotFoundRestoreCollection{
-						Collection: &mockconnector.MockExchangeDataCollection{},
+						Collection: &exchMock.DataCollection{},
 					},
 				},
 				gc: &data.CollectionStats{
@@ -215,7 +216,7 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &mockconnector.GraphConnector{}
+	gc := &mock.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 	dest := tester.DefaultTestRestoreDestination()
 
