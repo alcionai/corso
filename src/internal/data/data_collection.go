@@ -101,7 +101,7 @@ type Stream interface {
 // LocationPather provides a LocationPath describing the path with Display Names
 // instead of canonical IDs
 type LocationPather interface {
-	LocationPath() path.Path
+	LocationPath() *path.Builder
 }
 
 // StreamInfo is used to provide service specific

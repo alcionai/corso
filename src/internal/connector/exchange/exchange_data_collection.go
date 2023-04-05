@@ -82,7 +82,7 @@ type Collection struct {
 
 	// LocationPath contains the path with human-readable display names.
 	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	locationPath path.Path
+	locationPath *path.Builder
 
 	state data.CollectionState
 
@@ -98,7 +98,8 @@ type Collection struct {
 // or notMoved (if they match).
 func NewCollection(
 	user string,
-	curr, prev, location path.Path,
+	curr, prev path.Path,
+	location *path.Builder,
 	category path.CategoryType,
 	items itemer,
 	statusUpdater support.StatusUpdater,
@@ -138,7 +139,7 @@ func (col *Collection) FullPath() path.Path {
 
 // LocationPath produces the Collection's full path, but with display names
 // instead of IDs in the folders.  Only populated for Calendars.
-func (col *Collection) LocationPath() path.Path {
+func (col *Collection) LocationPath() *path.Builder {
 	return col.locationPath
 }
 
@@ -279,7 +280,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			}
 
 			info.Size = int64(len(data))
-			info.ParentPath = col.locationPath.Folder(true)
+			info.ParentPath = col.locationPath.String()
 
 			col.data <- &Stream{
 				id:      id,
