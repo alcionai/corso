@@ -16,13 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
-var (
-	listItems   []string
-	listPaths   []string
-	pageFolders []string
-	pages       []string
-)
-
 // called by restore.go to map subcommands to provider-specific handling.
 func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 	var (
@@ -90,24 +83,13 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.SharePointOpts{
-		FileName:           utils.FileName,
-		FolderPath:         utils.FolderPath,
-		Library:            utils.Library,
-		ListItem:           listItems,
-		ListPath:           listPaths,
-		PageFolder:         pageFolders,
-		Page:               pages,
-		SiteID:             utils.SiteID,
-		WebURL:             utils.WebURL,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
-		Populated:          utils.GetPopulatedFlags(cmd),
+	opts := utils.MakeSharePointOpts(cmd)
+
+	if utils.RunModeFV == utils.RunModeFlagTest {
+		return nil
 	}
 
-	if err := utils.ValidateSharePointRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateSharePointRestoreFlags(utils.BackupIDFV, opts); err != nil {
 		return err
 	}
 
@@ -129,7 +111,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
+	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to initialize SharePoint restore"))
 	}
@@ -137,7 +119,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	ds, err := ro.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupID))
+			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupIDFV))
 		}
 
 		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint restore"))

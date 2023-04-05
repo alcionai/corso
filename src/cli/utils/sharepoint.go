@@ -8,38 +8,62 @@ import (
 )
 
 const (
+	ListFolderFN = "list"
 	ListItemFN   = "list-item"
-	ListFN       = "list"
 	PageFolderFN = "page-folder"
-	PagesFN      = "page"
+	PageFN       = "page"
 )
 
 // flag population variables
 var (
+	ListFolder []string
+	ListItem   []string
 	PageFolder []string
 	Page       []string
 )
 
 type SharePointOpts struct {
-	Library    string
-	FileName   []string // for libraries, to duplicate onedrive interface
-	FolderPath []string // for libraries, to duplicate onedrive interface
-
-	ListItem []string
-	ListPath []string
-
-	PageFolder []string
-	Page       []string
-
 	SiteID []string
 	WebURL []string
 
+	Library            string
+	FileName           []string // for libraries, to duplicate onedrive interface
+	FolderPath         []string // for libraries, to duplicate onedrive interface
 	FileCreatedAfter   string
 	FileCreatedBefore  string
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
+	ListFolder []string
+	ListItem   []string
+
+	PageFolder []string
+	Page       []string
+
 	Populated PopulatedFlags
+}
+
+func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
+	return SharePointOpts{
+		SiteID: SiteIDFV,
+		WebURL: WebURLFV,
+
+		Library:            LibraryFV,
+		FileName:           FileNameFV,
+		FolderPath:         FolderPathFV,
+		FileCreatedAfter:   FileCreatedAfterFV,
+		FileCreatedBefore:  FileCreatedBeforeFV,
+		FileModifiedAfter:  FileModifiedAfterFV,
+		FileModifiedBefore: FileModifiedBeforeFV,
+
+		ListFolder: ListFolder,
+		ListItem:   ListItem,
+
+		Page:       Page,
+		PageFolder: PageFolder,
+
+		Populated: GetPopulatedFlags(cmd),
+	}
 }
 
 // AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
@@ -47,51 +71,62 @@ type SharePointOpts struct {
 func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 
+	// libraries
+
 	fs.StringVar(
-		&Library,
+		&LibraryFV,
 		LibraryFN, "",
 		"Select only this library; defaults to all libraries.")
-
 	fs.StringSliceVar(
-		&FolderPath,
+		&FolderPathFV,
 		FolderFN, nil,
 		"Select by folder; defaults to root.")
-
 	fs.StringSliceVar(
-		&FileName,
+		&FileNameFV,
 		FileFN, nil,
 		"Select by file name.")
+	fs.StringVar(
+		&FileCreatedAfterFV,
+		FileCreatedAfterFN, "",
+		"Select files created after this datetime.")
+	fs.StringVar(
+		&FileCreatedBeforeFV,
+		FileCreatedBeforeFN, "",
+		"Select files created before this datetime.")
+	fs.StringVar(
+		&FileModifiedAfterFV,
+		FileModifiedAfterFN, "",
+		"Select files modified after this datetime.")
+	fs.StringVar(
+		&FileModifiedBeforeFV,
+		FileModifiedBeforeFN, "",
+		"Select files modified before this datetime.")
+
+	// lists
+
+	fs.StringSliceVar(
+		&ListFolder,
+		ListFolderFN, nil,
+		"Select lists by name; accepts '"+Wildcard+"' to select all lists.")
+	cobra.CheckErr(fs.MarkHidden(ListFolderFN))
+	fs.StringSliceVar(
+		&ListItem,
+		ListItemFN, nil,
+		"Select lists by item name; accepts '"+Wildcard+"' to select all lists.")
+	cobra.CheckErr(fs.MarkHidden(ListItemFN))
+
+	// pages
 
 	fs.StringSliceVar(
 		&PageFolder,
 		PageFolderFN, nil,
-		"Select pages by folder name; accepts '"+Wildcard+"' to select all folders.")
+		"Select pages by folder name; accepts '"+Wildcard+"' to select all pages.")
 	cobra.CheckErr(fs.MarkHidden(PageFolderFN))
-
 	fs.StringSliceVar(
 		&Page,
-		PagesFN, nil,
-		"Select pages by item name; accepts '"+Wildcard+"' to select all pages within the site.")
-	cobra.CheckErr(fs.MarkHidden(PagesFN))
-
-	fs.StringVar(
-		&FileCreatedAfter,
-		FileCreatedAfterFN, "",
-		"Select files created after this datetime.")
-
-	fs.StringVar(
-		&FileCreatedBefore,
-		FileCreatedBeforeFN, "",
-		"Select files created before this datetime.")
-
-	fs.StringVar(
-		&FileModifiedAfter,
-		FileModifiedAfterFN, "",
-		"Select files modified after this datetime.")
-	fs.StringVar(
-		&FileModifiedBefore,
-		FileModifiedBeforeFN, "",
-		"Select files modified before this datetime.")
+		PageFN, nil,
+		"Select pages by item name; accepts '"+Wildcard+"' to select all pages.")
+	cobra.CheckErr(fs.MarkHidden(PageFN))
 }
 
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
@@ -140,7 +175,7 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 
 	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
 	ls, lwu := len(opts.SiteID), len(opts.WebURL)
-	slp, sli := len(opts.ListPath), len(opts.ListItem)
+	slp, sli := len(opts.ListFolder), len(opts.ListItem)
 	pf, pi := len(opts.PageFolder), len(opts.Page)
 
 	if ls == 0 {
@@ -176,8 +211,8 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 			opts.ListItem = selectors.Any()
 		}
 
-		opts.ListPath = trimFolderSlash(opts.ListPath)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListPath)
+		opts.ListFolder = trimFolderSlash(opts.ListFolder)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
 
 		if len(containsFolders) > 0 {
 			sel.Include(sel.ListItems(containsFolders, opts.ListItem))

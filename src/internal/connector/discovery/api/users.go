@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
-	absser "github.com/microsoft/kiota-abstractions-go"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
@@ -72,7 +72,7 @@ var userFilterNoGuests = "onPremisesSyncEnabled eq true OR userType ne 'Guest'"
 var t = true
 
 func userOptions(fs *string) *users.UsersRequestBuilderGetRequestConfiguration {
-	headers := absser.NewRequestHeaders()
+	headers := abstractions.NewRequestHeaders()
 	headers.Add("ConsistencyLevel", "eventual")
 
 	return &users.UsersRequestBuilderGetRequestConfiguration{

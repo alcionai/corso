@@ -29,8 +29,8 @@ jobs:
         with:
           user: ${{ secrets[matrix.user] }}
           site: ${{ secrets.CORSO_M365_TEST_SITE_URL}}
-          folder-prefix: "Corso_Restore_, TestRestore, testfolder, incrementals_ci_, Alcion_Restore_"
-          libraries: ${{ env.CORSO_M365_TEST_SITE_LIBRARIES }}
+          folder-prefix: ${{ vars.CORSO_M365_TEST_PREFIXES }} 
+          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.HALF_HOUR_AGO }}
           azure-client-id: ${{ secrets.CLIENT_ID }}
           azure-client-secret: ${{ secrets.CLIENT_SECRET }}

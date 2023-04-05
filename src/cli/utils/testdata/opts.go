@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -352,28 +351,28 @@ var (
 			Name:     "AllFiles",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				FolderPaths: selectors.Any(),
+				FolderPath: selectors.Any(),
 			},
 		},
 		{
 			Name:     "FolderPrefixMatch",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				FolderPaths: []string{testdata.OneDriveFolderFolder},
+				FolderPath: []string{testdata.OneDriveFolderFolder},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				FolderPaths: []string{testdata.OneDriveFolderFolder + "/"},
+				FolderPath: []string{testdata.OneDriveFolderFolder + "/"},
 			},
 		},
 		{
 			Name:     "FolderPrefixMatchTrailingSlash",
 			Expected: testdata.OneDriveItems,
 			Opts: utils.OneDriveOpts{
-				FolderPaths: []string{testdata.OneDriveFolderFolder + "/"},
+				FolderPath: []string{testdata.OneDriveFolderFolder + "/"},
 			},
 		},
 		{
@@ -383,7 +382,7 @@ var (
 				testdata.OneDriveItems[1],
 			},
 			Opts: utils.OneDriveOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.OneDriveItems[0].ShortRef,
 					testdata.OneDriveItems[1].ShortRef,
 				},
@@ -393,7 +392,7 @@ var (
 			Name:     "SingleItem",
 			Expected: []details.DetailsEntry{testdata.OneDriveItems[0]},
 			Opts: utils.OneDriveOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.OneDriveItems[0].OneDrive.ItemName,
 				},
 			},
@@ -405,7 +404,7 @@ var (
 				testdata.OneDriveItems[1],
 			},
 			Opts: utils.OneDriveOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.OneDriveItems[0].OneDrive.ItemName,
 					testdata.OneDriveItems[1].OneDrive.ItemName,
 				},
@@ -415,7 +414,7 @@ var (
 			Name:     "NoSelectRepoItemName",
 			Expected: []details.DetailsEntry{},
 			Opts: utils.OneDriveOpts{
-				FileNames: []string{
+				FileName: []string{
 					testdata.OneDriveItemPath1.Item(),
 				},
 			},
@@ -559,14 +558,14 @@ type MockBackupGetter struct {
 
 func (MockBackupGetter) Backup(
 	context.Context,
-	model.StableID,
+	string,
 ) (*backup.Backup, error) {
 	return nil, clues.New("unexpected call to mock")
 }
 
 func (MockBackupGetter) Backups(
 	context.Context,
-	[]model.StableID,
+	[]string,
 ) ([]*backup.Backup, *fault.Bus) {
 	return nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
 }

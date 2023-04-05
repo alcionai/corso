@@ -25,9 +25,6 @@ import (
 // setup and globals
 // ------------------------------------------------------------------------------------------------
 
-// sharePoint bucket info from flags
-var sharepointData []string
-
 const (
 	dataLibraries = "libraries"
 	dataPages     = "pages"
@@ -76,18 +73,14 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, sharePointCreateCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
 		utils.AddSiteFlag(c)
 		utils.AddSiteIDFlag(c)
-
-		fs.StringSliceVar(
-			&sharepointData,
-			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataLibraries+" or "+dataPages+".")
-		cobra.CheckErr(fs.MarkHidden(utils.DataFN))
+		utils.AddDataFlag(c, []string{dataLibraries}, true)
 
 		options.AddOperationFlags(c)
 
@@ -101,7 +94,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, _ = utils.AddCommand(cmd, sharePointDetailsCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -111,7 +105,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, _ = utils.AddCommand(cmd, sharePointDeleteCmd())
+		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
+		fs.SortFlags = false
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
@@ -145,7 +140,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateSharePointBackupCreateFlags(utils.SiteID, utils.WebURL, sharepointData); err != nil {
+	if err := validateSharePointBackupCreateFlags(utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV); err != nil {
 		return err
 	}
 
@@ -159,12 +154,13 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
+	// TODO: discovery of sharepoint sites instead of early GC construction.
 	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), *acct, connector.Sites, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to Microsoft APIs"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteID, utils.WebURL, sharepointData, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV, gc)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
@@ -180,7 +176,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"SharePoint", "site",
 		selectorSet,
-	)
+		nil) // TODO: prepopulate ids,names
 }
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
@@ -280,7 +276,7 @@ func sharePointListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupID, path.SharePointService, args)
+	return genericListCommand(cmd, utils.BackupIDFV, path.SharePointService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -300,7 +296,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupID, "SharePoint", args)
+	return genericDeleteCommand(cmd, utils.BackupIDFV, "SharePoint", args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -325,19 +321,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	opts := utils.SharePointOpts{
-		FolderPath:         utils.FolderPath,
-		FileName:           utils.FileName,
-		Library:            utils.Library,
-		SiteID:             utils.SiteID,
-		WebURL:             utils.WebURL,
-		FileCreatedAfter:   fileCreatedAfter,
-		FileCreatedBefore:  fileCreatedBefore,
-		FileModifiedAfter:  fileModifiedAfter,
-		FileModifiedBefore: fileModifiedBefore,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
+	opts := utils.MakeSharePointOpts(cmd)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {
@@ -348,7 +332,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	ctrlOpts := options.Control()
 
-	ds, err := runDetailsSharePointCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsSharePointCmd(ctx, r, utils.BackupIDFV, opts, ctrlOpts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

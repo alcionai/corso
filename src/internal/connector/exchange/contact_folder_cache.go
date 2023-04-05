@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,7 +32,7 @@ func (cfc *contactFolderCache) populateContactRoot(
 
 	temp := graph.NewCacheFolder(
 		f,
-		path.Builder{}.Append(baseContainerPath...), // storage path
+		path.Builder{}.Append(ptr.Val(f.GetId())),   // path of IDs
 		path.Builder{}.Append(baseContainerPath...)) // display location
 	if err := cfc.addFolder(temp); err != nil {
 		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
@@ -59,7 +60,7 @@ func (cfc *contactFolderCache) Populate(
 		return clues.Wrap(err, "enumerating containers")
 	}
 
-	if err := cfc.populatePaths(ctx, false, errs); err != nil {
+	if err := cfc.populatePaths(ctx, errs); err != nil {
 		return clues.Wrap(err, "populating paths")
 	}
 

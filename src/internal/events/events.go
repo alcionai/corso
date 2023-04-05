@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -139,7 +138,7 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 				Set(tenantID, b.tenant),
 		})
 		if err != nil {
-			logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
+			logger.CtxErr(ctx, err).Debug("analytics event failure: repo identity")
 		}
 	}
 
@@ -150,7 +149,7 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		Properties: props,
 	})
 	if err != nil {
-		logger.Ctx(ctx).Info("analytics event failure", "err", err)
+		logger.CtxErr(ctx, err).Info("analytics event failure: tracking event")
 	}
 }
 
@@ -231,12 +230,6 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 		case <-stop:
 			return
 		}
-	}
-}
-
-func signalDump(ctx context.Context) {
-	if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
-		logger.CtxErr(ctx, err).Error("metrics interval signal")
 	}
 }
 

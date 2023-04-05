@@ -13,8 +13,8 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -59,13 +59,6 @@ func AddCommands(cmd *cobra.Command) {
 // ---------------------------------------------------------------------------
 // common flags and flag attachers for commands
 // ---------------------------------------------------------------------------
-
-var (
-	fileCreatedAfter   string
-	fileCreatedBefore  string
-	fileModifiedAfter  string
-	fileModifiedBefore string
-)
 
 // list output filter flags
 var (
@@ -202,35 +195,36 @@ func runBackups(
 	r repository.Repository,
 	serviceName, resourceOwnerType string,
 	selectorSet []selectors.Selector,
+	ins common.IDNameSwapper,
 ) error {
 	var (
-		bIDs []model.StableID
+		bIDs []string
 		errs = []error{}
 	)
 
 	for _, discSel := range selectorSet {
 		var (
 			owner = discSel.DiscreteOwner
-			bctx  = clues.Add(ctx, "resource_owner", owner)
+			ictx  = clues.Add(ctx, "resource_owner", owner)
 		)
 
-		bo, err := r.NewBackup(bctx, discSel)
+		bo, err := r.NewBackup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
-			Errf(bctx, "%v\n", err)
+			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			Errf(ictx, "%v\n", err)
 
 			continue
 		}
 
-		err = bo.Run(bctx)
+		err = bo.Run(ictx)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
-			Errf(bctx, "%v\n", err)
+			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			Errf(ictx, "%v\n", err)
 
 			continue
 		}
 
-		bIDs = append(bIDs, bo.Results.BackupID)
+		bIDs = append(bIDs, string(bo.Results.BackupID))
 		Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
 	}
 
@@ -272,7 +266,7 @@ func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []st
 
 	defer utils.CloseRepo(ctx, r)
 
-	if err := r.DeleteBackup(ctx, model.StableID(bID)); err != nil {
+	if err := r.DeleteBackup(ctx, bID); err != nil {
 		return Only(ctx, clues.Wrap(err, "Deleting backup "+bID))
 	}
 

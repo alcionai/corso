@@ -1,25 +1,29 @@
 package restore
 
 import (
+	"bytes"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type OneDriveSuite struct {
+type OneDriveUnitSuite struct {
 	tester.Suite
 }
 
-func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{Suite: tester.NewUnitSuite(t)})
+func TestOneDriveUnitSuite(t *testing.T) {
+	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OneDriveSuite) TestAddOneDriveCommands() {
+func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 	expectUse := oneDriveServiceCommand + " " + oneDriveServiceCommandUseSuffix
 
 	table := []struct {
@@ -37,6 +41,10 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 
 			cmd := &cobra.Command{Use: test.use}
 
+			// normally a persisten flag from the root.
+			// required to ensure a dry run.
+			utils.AddRunModeFlag(cmd, true)
+
 			c := addOneDriveCommands(cmd)
 			require.NotNil(t, c)
 
@@ -47,6 +55,34 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+
+			cmd.SetArgs([]string{
+				"onedrive",
+				"--" + utils.RunModeFN, utils.RunModeFlagTest,
+				"--" + utils.BackupFN, testdata.BackupInput,
+
+				"--" + utils.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + utils.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + utils.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + utils.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + utils.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + utils.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+			})
+
+			cmd.SetOut(new(bytes.Buffer)) // drop output
+			cmd.SetErr(new(bytes.Buffer)) // drop output
+			err := cmd.Execute()
+			assert.NoError(t, err, clues.ToCore(err))
+
+			opts := utils.MakeOneDriveOpts(cmd)
+			assert.Equal(t, testdata.BackupInput, utils.BackupIDFV)
+
+			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
+			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
+			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
+			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
+			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
+			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
 		})
 	}
 }

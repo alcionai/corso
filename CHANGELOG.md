@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Permissions backup for OneDrive is now out of experimental (By default, only newly backed up items will have their permissions backed up. You will have to run a full backup to ensure all items have their permissions backed up.)
+
 ### Fixed
 - Fixed permissions restore in latest backup version.
 - Incremental OneDrive backups could panic if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
@@ -15,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Items not being deleted if they were created and deleted during item enumeration of a OneDrive backup.
 - Enable compression for all data uploaded by kopia.
 - SharePoint --folder selectors correctly return items.
+- Fix Exchange cli args for filtering items
+- Skip OneNote items bigger than 2GB (Graph API prevents us from downloading them)
+- ParentPath of json output for Exchange calendar now shows names instead of IDs.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
