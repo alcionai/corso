@@ -275,3 +275,35 @@ func GetAllDrives(
 
 	return ds, nil
 }
+
+// generic drive item getter
+func GetDriveItem(
+	ctx context.Context,
+	srv graph.Servicer,
+	driveID, itemID string,
+) (models.DriveItemable, error) {
+	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting item")
+	}
+
+	return di, nil
+}
+
+func GetItemPermission(
+	ctx context.Context,
+	service graph.Servicer,
+	driveID, itemID string,
+) (models.PermissionCollectionResponseable, error) {
+	perm, err := service.
+		Client().
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Permissions().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
+	}
+
+	return perm, nil
+}

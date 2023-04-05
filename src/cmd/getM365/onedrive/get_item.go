@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
@@ -97,14 +98,14 @@ func runDisplayM365JSON(
 
 	it := item{}
 
-	item, err := getDriveItem(ctx, gc.Service, driveID, itemID)
+	item, err := api.GetDriveItem(ctx, gc.Service, driveID, itemID)
 	if err != nil {
 		return err
 	}
 
 	it.Info = item
 
-	perms, err := getItemPermission(ctx, gc.Service, driveID, itemID)
+	perms, err := api.GetItemPermission(ctx, gc.Service, driveID, itemID)
 	if err != nil {
 		return err
 	}
@@ -188,40 +189,6 @@ func getDriveID(
 
 	id := ptr.Val(d.GetId())
 	return id, nil
-}
-
-// Copied from onedrive/item.go
-func getDriveItem(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID, itemID string,
-) (models.DriveItemable, error) {
-	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item")
-	}
-
-	return di, nil
-}
-
-// Copied from onedrive/item.go
-func getItemPermission(
-	ctx context.Context,
-	service graph.Servicer,
-	driveID string,
-	itemID string,
-) (models.PermissionCollectionResponseable, error) {
-	perm, err := service.
-		Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Permissions().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item metadata").With("item_id", itemID)
-	}
-
-	return perm, nil
 }
 
 func getDriveItemContent(item models.DriveItemable) ([]byte, error) {
