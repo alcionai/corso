@@ -312,7 +312,7 @@ jobs:
           ./sanityCheck
 
       # test onedrive incremental
-      - name: Backup onedrive test
+      - name: Backup onedrive incremental
         id: onedrive-incremental-test
         run: |
           set -euo pipefail
