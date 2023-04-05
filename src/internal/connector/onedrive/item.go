@@ -280,7 +280,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			if gv2.GetDevice() != nil {
 				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
-			logm.Warn("untracked permission")
+			logm.Info("untracked permission")
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the

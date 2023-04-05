@@ -299,11 +299,13 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	t := suite.T()
-	folderIDs := []string{}
-	folderName1 := "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
-	folderElements := []string{folderName1}
-	gs := loadTestService(t)
+	var (
+		t              = suite.T()
+		folderIDs      = []string{}
+		folderName1    = "Corso_Folder_Test_" + common.FormatNow(common.SimpleTimeTesting)
+		folderElements = []string{folderName1}
+		gs             = loadTestService(t)
+	)
 
 	pager, err := PagerForSource(OneDriveSource, gs, suite.userID, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -317,11 +319,13 @@ func (suite *OneDriveSuite) TestCreateGetDeleteFolder() {
 
 	defer func() {
 		for _, id := range folderIDs {
+			ictx := clues.Add(ctx, "folder_id", id)
+
 			// deletes require unique http clients
 			// https://github.com/alcionai/corso/issues/2707
-			err := DeleteItem(ctx, loadTestService(t), driveID, id)
+			err := DeleteItem(ictx, loadTestService(t), driveID, id)
 			if err != nil {
-				logger.Ctx(ctx).Warnw("deleting folder", "id", id, "error", err)
+				logger.CtxErr(ictx, err).Errorw("deleting folder")
 			}
 		}
 	}()
