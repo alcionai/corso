@@ -66,6 +66,7 @@ func (suite *M365IntegrationSuite) TestSites() {
 			t := suite.T()
 			assert.NotEmpty(t, s.WebURL)
 			assert.NotEmpty(t, s.ID)
+			assert.NotEmpty(t, s.DisplayName)
 		})
 	}
 }
