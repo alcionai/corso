@@ -54,16 +54,16 @@ func (mnig mockNameIDGetter) GetIDAndName(
 
 func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
-		ownerID   = "owner-id"
-		ownerName = "owner-name"
+		id   = "owner-id"
+		name = "owner-name"
 	)
 
 	var (
-		itn    = map[string]string{ownerID: ownerName}
-		nti    = map[string]string{ownerName: ownerID}
+		itn    = map[string]string{id: name}
+		nti    = map[string]string{name: id}
 		lookup = &resourceClient{
 			enum:   Users,
-			getter: &mockNameIDGetter{id: ownerID, name: ownerName},
+			getter: &mockNameIDGetter{id: id, name: name},
 		}
 		noLookup = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
 	)
@@ -79,15 +79,15 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	}{
 		{
 			name:       "nil ins",
-			owner:      ownerID,
+			owner:      id,
 			rc:         lookup,
-			expectID:   ownerID,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:       "nil ins no lookup",
-			owner:      ownerID,
+			owner:      id,
 			rc:         noLookup,
 			expectID:   "",
 			expectName: "",
@@ -95,79 +95,115 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		},
 		{
 			name:  "only id map with owner id",
-			owner: ownerID,
+			owner: id,
 			ins: common.IDsNames{
 				IDToName: itn,
 				NameToID: nil,
 			},
 			rc:         noLookup,
-			expectID:   ownerID,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:  "only name map with owner id",
-			owner: ownerID,
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: nil,
+				NameToID: nti,
+			},
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
+		},
+		{
+			name:  "only name map with owner id and lookup",
+			owner: id,
 			ins: common.IDsNames{
 				IDToName: nil,
 				NameToID: nti,
 			},
 			rc:         lookup,
-			expectID:   ownerID,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:  "only id map with owner name",
-			owner: ownerName,
+			owner: name,
 			ins: common.IDsNames{
 				IDToName: itn,
 				NameToID: nil,
 			},
-			expectID:   ownerName,
 			rc:         lookup,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:  "only name map with owner name",
-			owner: ownerName,
+			owner: name,
 			ins: common.IDsNames{
 				IDToName: nil,
 				NameToID: nti,
 			},
+			rc:         noLookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
+		},
+		{
+			name:  "only id map with owner name",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
+		},
+		{
+			name:  "only id map with owner name and lookup",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
 			rc:         lookup,
-			expectID:   ownerID,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:  "both maps with owner id",
-			owner: ownerID,
+			owner: id,
 			ins: common.IDsNames{
 				IDToName: itn,
 				NameToID: nti,
 			},
 			rc:         noLookup,
-			expectID:   ownerID,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:  "both maps with owner name",
-			owner: ownerName,
+			owner: name,
 			ins: common.IDsNames{
 				IDToName: itn,
 				NameToID: nti,
 			},
 			rc:         noLookup,
-			expectID:   ownerID,
-			expectName: ownerName,
+			expectID:   id,
+			expectName: name,
 			expectErr:  require.NoError,
 		},
 		{
 			name:  "non-matching maps with owner id",
-			owner: ownerID,
+			owner: id,
 			ins: common.IDsNames{
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
@@ -179,7 +215,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		},
 		{
 			name:  "non-matching with owner name",
-			owner: ownerName,
+			owner: name,
 			ins: common.IDsNames{
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
@@ -188,6 +224,30 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
+		},
+		{
+			name:  "non-matching maps with owner id and lookup",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
+		},
+		{
+			name:  "non-matching with owner name and lookup",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 	}
 	for _, test := range table {
@@ -200,10 +260,10 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				gc = &GraphConnector{ownerLookup: test.rc}
 			)
 
-			id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
+			rID, rName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expectID, id, "id")
-			assert.Equal(t, test.expectName, name, "name")
+			assert.Equal(t, test.expectID, rID, "id")
+			assert.Equal(t, test.expectName, rName, "name")
 		})
 	}
 }

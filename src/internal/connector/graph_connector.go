@@ -239,7 +239,7 @@ func (gc *GraphConnector) incrementMessagesBy(num int) {
 }
 
 // ---------------------------------------------------------------------------
-// Resource Handling
+// Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
 type resource int
@@ -282,7 +282,7 @@ type getOwnerIDAndNamer interface {
 		ctx context.Context,
 		discovery api.Client,
 		owner string,
-		idToName, nameToID map[string]string,
+		ins common.IDNameSwapper,
 	) (
 		ownerID string,
 		ownerName string,
@@ -304,12 +304,14 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
 	discovery api.Client,
 	owner string,
-	idToName, nameToID map[string]string,
+	ins common.IDNameSwapper,
 ) (string, string, error) {
-	if n, ok := idToName[owner]; ok {
-		return owner, n, nil
-	} else if i, ok := nameToID[owner]; ok {
-		return i, owner, nil
+	if ins != nil {
+		if n, ok := ins.NameOf(owner); ok {
+			return owner, n, nil
+		} else if i, ok := ins.IDOf(owner); ok {
+			return i, owner, nil
+		}
 	}
 
 	ctx = clues.Add(ctx, "owner_identifier", owner)
@@ -332,8 +334,42 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 		return "", "", clues.Stack(ErrResourceOwnerNotFound)
 	}
 
-	idToName[id] = name
-	nameToID[name] = id
+	return id, name, nil
+}
+
+// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// the owner's name and ID from that value.  Returns an error if the owner is
+// not recognized by the current tenant.
+//
+// The id-name swapper is optional.  Some processes will look up all owners in
+// the tenant before reaching this step.  In that case, the data gets handed
+// down for this func to consume instead of performing further queries.  The
+// maps get stored inside the gc instance for later re-use.
+//
+// TODO: If the maps are nil or empty, this func will perform a lookup on the given
+// owner, and populate each map with that owner's id and name for downstream
+// guarantees about that data being present.  Optional performance enhancement
+// idea: downstream from here, we should _only_ need the given user's id and name,
+// and could store minimal map copies with that info instead of the whole tenant.
+func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+	ctx context.Context,
+	owner string, // input value, can be either id or name
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	// move this to GC method
+	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
+	if err != nil {
+		return "", "", errors.Wrap(err, "resolving resource owner identifiers")
+	}
+
+	gc.IDNameLookup = ins
+
+	if ins == nil || (len(ins.IDs()) == 0 && len(ins.Names()) == 0) {
+		gc.IDNameLookup = common.IDsNames{
+			IDToName: map[string]string{id: name},
+			NameToID: map[string]string{name: id},
+		}
+	}
 
 	return id, name, nil
 }
