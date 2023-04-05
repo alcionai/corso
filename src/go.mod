@@ -6,7 +6,7 @@ replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.2023040317
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0
-	github.com/alcionai/clues v0.0.0-20230330224331-77c1b3be97e0
+	github.com/alcionai/clues v0.0.0-20230331202049-339059c90c6e
 	github.com/armon/go-metrics v0.4.0
 	github.com/aws/aws-sdk-go v1.44.233
 	github.com/aws/aws-xray-sdk-go v1.8.1
@@ -117,7 +117,7 @@ require (
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/sys v0.7.0
 	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/genproto v0.0.0-20230320184635-7606e756e683 // indirect
 	google.golang.org/grpc v1.54.0 // indirect
