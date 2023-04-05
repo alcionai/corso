@@ -110,6 +110,11 @@ type Site struct {
 	// ID is of the format: <site collection hostname>.<site collection unique id>.<site unique id>
 	// for example: contoso.sharepoint.com,abcdeab3-0ccc-4ce1-80ae-b32912c9468d,xyzud296-9f7c-44e1-af81-3c06d0d43007
 	ID string
+
+	// DisplayName is the human-readable name of the site.  Normally the plaintext name that the
+	// user provided when they created the site, though it can be changed across time.
+	// Ex: webUrl: https://host.com/sites/TestingSite, displayName: "Testing Site"
+	DisplayName string
 }
 
 // Sites returns a list of Sites in a specified M365 tenant
@@ -136,8 +141,9 @@ func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site,
 // parseSite extracts the information from `models.Siteable` we care about
 func parseSite(item models.Siteable) (*Site, error) {
 	s := &Site{
-		ID:     ptr.Val(item.GetId()),
-		WebURL: ptr.Val(item.GetWebUrl()),
+		ID:          ptr.Val(item.GetId()),
+		WebURL:      ptr.Val(item.GetWebUrl()),
+		DisplayName: ptr.Val(item.GetDisplayName()),
 	}
 
 	return s, nil
