@@ -438,16 +438,26 @@ func runBackupAndCompare(
 		cats[c.category] = struct{}{}
 	}
 
-	expectedDests := make([]destAndCats, 0, len(config.resourceOwners))
+	var (
+		expectedDests = make([]destAndCats, 0, len(config.resourceOwners))
+		idToName      = map[string]string{}
+		nameToID      = map[string]string{}
+	)
+
 	for _, ro := range config.resourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
 			dest:          config.dest.ContainerName,
 			cats:          cats,
 		})
+
+		idToName[ro] = ro
+		nameToID[ro] = ro
 	}
 
 	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	backupGC.IDNameLookup = common.IDsNames{IDToName: idToName, NameToID: nameToID}
+
 	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
@@ -1144,6 +1154,11 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				errs      = fault.New(true)
 				start     = time.Now()
 			)
+
+			id, name, err := backupGC.PopulateOwnerIDAndNamesFrom(backupSel.DiscreteOwner, nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			backupSel.SetDiscreteOwnerIDName(id, name)
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,
