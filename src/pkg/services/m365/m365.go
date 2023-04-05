@@ -9,9 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/connector"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -58,6 +56,22 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 	return ret, nil
 }
 
+// parseUser extracts information from `models.Userable` we care about
+func parseUser(item models.Userable) (*User, error) {
+	if item.GetUserPrincipalName() == nil {
+		return nil, clues.New("user missing principal name").
+			With("user_id", *item.GetId()) // TODO: pii
+	}
+
+	u := &User{
+		PrincipalName: ptr.Val(item.GetUserPrincipalName()),
+		ID:            ptr.Val(item.GetId()),
+		Name:          ptr.Val(item.GetDisplayName()),
+	}
+
+	return u, nil
+}
+
 // UsersMap retrieves all users in the tenant, and returns two maps: one id-to-principalName,
 // and one principalName-to-id.
 func UsersMap(
@@ -96,59 +110,66 @@ type Site struct {
 	// ID is of the format: <site collection hostname>.<site collection unique id>.<site unique id>
 	// for example: contoso.sharepoint.com,abcdeab3-0ccc-4ce1-80ae-b32912c9468d,xyzud296-9f7c-44e1-af81-3c06d0d43007
 	ID string
+
+	// DisplayName is the human-readable name of the site.  Normally the plaintext name that the
+	// user provided when they created the site, though it can be changed across time.
+	// Ex: webUrl: https://host.com/sites/TestingSite, displayName: "Testing Site"
+	DisplayName string
 }
 
 // Sites returns a list of Sites in a specified M365 tenant
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
+	sites, err := discovery.Sites(ctx, acct, errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "initializing M365 graph connection")
 	}
 
-	// gc.Sites is a map with keys: SiteURL, values: ID
-	ret := make([]*Site, 0, len(gc.Sites))
-	for k, v := range gc.Sites {
-		ret = append(ret, &Site{
-			WebURL: k,
-			ID:     v,
-		})
+	ret := make([]*Site, 0, len(sites))
+
+	for _, s := range sites {
+		ps, err := parseSite(s)
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing siteable")
+		}
+
+		ret = append(ret, ps)
 	}
 
 	return ret, nil
 }
 
-// SiteURLs returns a list of SharePoint site WebURLs in the specified M365 tenant
-func SiteURLs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
-	if err != nil {
-		return nil, clues.Wrap(err, "initializing M365 graph connection")
+// parseSite extracts the information from `models.Siteable` we care about
+func parseSite(item models.Siteable) (*Site, error) {
+	s := &Site{
+		ID:          ptr.Val(item.GetId()),
+		WebURL:      ptr.Val(item.GetWebUrl()),
+		DisplayName: ptr.Val(item.GetDisplayName()),
 	}
 
-	return gc.GetSiteWebURLs(), nil
+	return s, nil
 }
 
-// SiteIDs returns a list of SharePoint sites IDs in the specified M365 tenant
-func SiteIDs(ctx context.Context, acct account.Account, errs *fault.Bus) ([]string, error) {
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, connector.Sites, errs)
+// SitesMap retrieves all sites in the tenant, and returns two maps: one id-to-webURL,
+// and one webURL-to-id.
+func SitesMap(
+	ctx context.Context,
+	acct account.Account,
+	errs *fault.Bus,
+) (common.IDsNames, error) {
+	sites, err := Sites(ctx, acct, errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing graph connection")
+		return common.IDsNames{}, err
 	}
 
-	return gc.GetSiteIDs(), nil
-}
-
-// parseUser extracts information from `models.Userable` we care about
-func parseUser(item models.Userable) (*User, error) {
-	if item.GetUserPrincipalName() == nil {
-		return nil, clues.New("user missing principal name").
-			With("user_id", clues.Hide(ptr.Val(item.GetId())))
+	ins := common.IDsNames{
+		IDToName: make(map[string]string, len(sites)),
+		NameToID: make(map[string]string, len(sites)),
 	}
 
-	u := &User{PrincipalName: *item.GetUserPrincipalName(), ID: *item.GetId()}
-
-	if item.GetDisplayName() != nil {
-		u.Name = *item.GetDisplayName()
+	for _, s := range sites {
+		ins.IDToName[s.ID] = s.WebURL
+		ins.NameToID[s.WebURL] = s.ID
 	}
 
-	return u, nil
+	return ins, nil
 }

@@ -6,15 +6,10 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -31,57 +26,6 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 	}
 
 	suite.Run(t, s)
-}
-
-func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	table := []struct {
-		name string
-		acct func(t *testing.T) account.Account
-	}{
-		{
-			name: "Invalid Credentials",
-			acct: func(t *testing.T) account.Account {
-				a, err := account.NewAccount(
-					account.ProviderM365,
-					account.M365Config{
-						M365: credentials.M365{
-							AzureClientID:     "Test",
-							AzureClientSecret: "without",
-						},
-						AzureTenantID: "data",
-					},
-				)
-				require.NoError(t, err, clues.ToCore(err))
-				return a
-			},
-		},
-		{
-			name: "Empty Credentials",
-			acct: func(t *testing.T) account.Account {
-				// intentionally swallowing the error here
-				a, _ := account.NewAccount(account.ProviderM365)
-				return a
-			},
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			gc, err := NewGraphConnector(
-				ctx,
-				graph.HTTPClient(graph.NoTimeout()),
-				test.acct(t),
-				Sites,
-				fault.New(true))
-			assert.Nil(t, gc, test.name+" failed")
-			assert.NotNil(t, err, test.name+" failed")
-		})
-	}
 }
 
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {
