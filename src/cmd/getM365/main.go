@@ -13,8 +13,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var user, tenant string
-
 var rootCmd = &cobra.Command{
 	Use: "getM365",
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/pkg/errors"
+
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
@@ -11,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/pkg/errors"
 )
 
 func GetGC(ctx context.Context, tenant string) (*connector.GraphConnector, account.M365Config, error) {

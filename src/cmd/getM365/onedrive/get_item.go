@@ -11,13 +11,13 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cli/utils"
 	gutils "github.com/alcionai/corso/src/cmd/getM365/utils"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -31,7 +31,7 @@ const downloadURLKey = "@microsoft.graph.downloadUrl"
 
 // Required inputs from user for command execution
 var (
-	user, tenant, m365ID, category string
+	user, tenant, m365ID string
 )
 
 func AddCommands(parent *cobra.Command) {
@@ -44,7 +44,7 @@ func AddCommands(parent *cobra.Command) {
 	fs := exCmd.PersistentFlags()
 	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object")
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
-	fs.StringVar(&tenant, "tenant", "", "m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
+	fs.StringVar(&tenant, "tenant", "", "m365 identifier for the tenant")
 
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("user"))
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("tenant"))
@@ -69,6 +69,7 @@ func handleOneDriveCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
+
 		return errors.Wrapf(err, "unable to fetch from M365: %s", m365ID)
 	}
 
@@ -162,6 +163,7 @@ func serialize(data item) (string, error) {
 
 func serializeObject(data serialization.Parsable) (string, error) {
 	sw := kw.NewJsonSerializationWriter()
+
 	err := sw.WriteObjectValue("", data)
 	if err != nil {
 		return "", clues.Wrap(err, "writing serializing info")
@@ -188,6 +190,7 @@ func getDriveID(
 	}
 
 	id := ptr.Val(d.GetId())
+
 	return id, nil
 }
 
@@ -203,6 +206,7 @@ func getDriveItemContent(item models.DriveItemable) ([]byte, error) {
 	}
 
 	hc := graph.HTTPClient(graph.NoTimeout())
+
 	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, clues.New("download item").With("error", err)

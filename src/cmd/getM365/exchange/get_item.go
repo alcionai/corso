@@ -39,7 +39,7 @@ func AddCommands(parent *cobra.Command) {
 	fs.StringVar(&m365ID, "m365ID", "", "m365 identifier for object")
 	fs.StringVar(&category, "category", "", "type of M365 data (contacts, email, events)")
 	fs.StringVar(&user, "user", "", "m365 user id of M365 user")
-	fs.StringVar(&tenant, "tenant", "", "m365 Tenant: m365 identifier for the tenant, not required if active in OS Environment")
+	fs.StringVar(&tenant, "tenant", "", "m365 identifier for the tenant")
 
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("user"))
 	cobra.CheckErr(exCmd.MarkPersistentFlagRequired("m365ID"))
@@ -64,6 +64,7 @@ func handleExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
+
 		return errors.Wrapf(err, "unable to get from M365: %s", m365ID)
 	}
 
