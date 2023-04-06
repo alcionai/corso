@@ -12,7 +12,7 @@ image: ./images/incremental-scale.png
 ![diagram of an incremental scale encoder By Lambtron - Own work, CC BY-SA 4.0, https://commons.wikimedia.org/w/index.php?curid=81494644](./images/incremental-scale.png)
 <!-- vale Vale.Spelling = YES -->
 
-In [part 1](../incremental-backups-pt1) we discussed how there’s more than
+In [part 1](../../incremental-backups-pt1) we discussed how there’s more than
 one way to run backups, and how full and incremental backups differ.
 
 With all the background information out of the way, it’s time to see how
