@@ -34,9 +34,9 @@ in the root folder:
 - folder3 (directory, ID: 6)
   - static file.docx (file, ID: 7)
 - folder4 (directory, ID: 8)
-	- plain file.txt (file, ID: 9)
-	- folder5 (directory, ID: 10)
-		- update.log (file, ID: 11)
+  - plain file.txt (file, ID: 9)
+  - folder5 (directory, ID: 10)
+    - update.log (file, ID: 11)
 ```
 
 The corresponding Corso backup would have the following items in the kopia item
@@ -45,18 +45,18 @@ directly for clarity):
 
 ```JSON
 - onedrive
-	- root
-	  - folder1
-	    - super secret file1.txt
-	    - temp.log
-	  - folder2
-	    - secret file.docx
-		- folder3
-			- static file.docx
-		- folder4
-			- plain file.txt
-			- folder5
-				- update.log
+  - root
+    - folder1
+      - super secret file1.txt
+      - temp.log
+    - folder2
+      - secret file.docx
+    - folder3
+      - static file.docx
+    - folder4
+      - plain file.txt
+      - folder5
+        - update.log
 - onedriveMetadata
   - folderMap.json (provides mapping of folder IDs to paths)
   - delta.json (provides delta tokens for endpoints)
@@ -80,10 +80,10 @@ After the above commands are run, the layout in OneDrive looks like (again, list
 ```JSON
 - folder1 (directory, ID: 1)
   - super secret file1.txt (file, ID: 2)
-	- folder4 (directory, ID: 8)
-		- plain file.txt (file, ID: 9)
-		- folder5 (directory, ID: 10)
-			- test.log (file, ID: 11)
+  - folder4 (directory, ID: 8)
+    - plain file.txt (file, ID: 9)
+    - folder5 (directory, ID: 10)
+      - test.log (file, ID: 11)
 - folder2 (directory, ID: 12)
   - new secret file.docx (file, ID: 13)
 - folder3 (directory, ID: 6)
@@ -121,56 +121,56 @@ like the following:
 
 ```JSON
 {
-	{
-		id: 3,
-		deleted: true,
-		parentPath: "/root",
-	},
-	{
-		id: 4,
-		deleted: true,
-		type: folder,
-		parentPath: "/root",
-	},
-	{
-		id: 5,
-		deleted: true,
-		type: file,
-		parentPath: "/root",
-	},
-	{
-		id: 1,
-		name: "folder1",
-		type: folder,
-		parentPath: "/root",
-	},
-	{
-		id: 2,
-		name: "super secret file1.txt",
-		type: file,
-		parentPath: "/root/folder1",
-		parentID: 1
-	},
-	{
-		id: 8,
-		name: "folder4",
-		type: folder,
-		parentPath: "/root/folder1",
-		parentID: 1
-	},
-	{
-		id: 12,
-		name: "folder2",
-		type: folder,
-		parentPath: "/root",
-	},
-	{
-		id: 13,
-		name: "new secret file.txt",
-		type: file,
-		parentPath: "/root/folder2",
-		parentID: 12,
-	},
+  {
+    id: 3,
+    deleted: true,
+    parentPath: "/root",
+  },
+  {
+    id: 4,
+    deleted: true,
+    type: folder,
+    parentPath: "/root",
+  },
+  {
+    id: 5,
+    deleted: true,
+    type: file,
+    parentPath: "/root",
+  },
+  {
+    id: 1,
+    name: "folder1",
+    type: folder,
+    parentPath: "/root",
+  },
+  {
+    id: 2,
+    name: "super secret file1.txt",
+    type: file,
+    parentPath: "/root/folder1",
+    parentID: 1
+  },
+  {
+    id: 8,
+    name: "folder4",
+    type: folder,
+    parentPath: "/root/folder1",
+    parentID: 1
+  },
+  {
+    id: 12,
+    name: "folder2",
+    type: folder,
+    parentPath: "/root",
+  },
+  {
+    id: 13,
+    name: "new secret file.txt",
+    type: file,
+    parentPath: "/root/folder2",
+    parentID: 12,
+  },
 }
 ```
 
@@ -268,26 +268,26 @@ will create the following Collections:
 
 ```JSON
 collections: [
-	{
-		currentPath: "",
-		previousPath: "/root/folder2",
-		itemIDs: [],
-	},
-	{
-		currentPath: "/root/folder1",
-		previousPath: "root/folder1",
-		itemIDs: [super secret file1.txt (ID: 2)],
-	},
-	{
-		currentPath: "/root/folder2",
-		previousPath: "",
-		itemIDs: [new secret file.txt (ID: 13)],
-	},
-	{
-		currentPath: "/root/folder1/folder4",
-		previousPath: "/root/folder4",
-		itemIDs: [],
-	},
+  {
+    currentPath: "",
+    previousPath: "/root/folder2",
+    itemIDs: [],
+  },
+  {
+    currentPath: "/root/folder1",
+    previousPath: "root/folder1",
+    itemIDs: [super secret file1.txt (ID: 2)],
+  },
+  {
+    currentPath: "/root/folder2",
+    previousPath: "",
+    itemIDs: [new secret file.txt (ID: 13)],
+  },
+  {
+    currentPath: "/root/folder1/folder4",
+    previousPath: "/root/folder4",
+    itemIDs: [],
+  },
 ]
 
 excludeItemIDs: [2, 3, 5, 13]
@@ -332,15 +332,15 @@ in-memory.
 ```JSON
 tree representation:
 - root (no Collection)
-	- folder1 (Collection)
-		- folder4 (Collection)
-	- folder2 (Collection)
+  - folder1 (Collection)
+    - folder4 (Collection)
+  - folder2 (Collection)
 
 extra metadata about changed paths, maps from old path
 to new where "" means deleted:
 {
-	"/root/folder2": "",
-	"/root/folder4": "/root/folder1/folder4",
+  "/root/folder2": "",
+  "/root/folder4": "/root/folder1/folder4",
 }
 ```
 
@@ -353,18 +353,18 @@ folder moved). Recall that the base backup had the following layout in kopia:
 
 ```JSON
 - onedrive
-	- root
-	  - folder1
-	    - super secret file1.txt
-	    - temp.log
-	  - folder2
-	    - secret file.docx
-		- folder3
-			- static file.docx
-		- folder4
-			- plain file.txt
-			- folder5
-				- update.log
+  - root
+    - folder1
+      - super secret file1.txt
+      - temp.log
+    - folder2
+      - secret file.docx
+    - folder3
+      - static file.docx
+    - folder4
+      - plain file.txt
+      - folder5
+        - update.log
 - onedriveMetadata
   - folderMap.json (provides mapping of folder IDs to paths)
   - delta.json (provides delta tokens for endpoints)
@@ -427,11 +427,11 @@ step of merging can be discarded as it’s no longer needed.
 ```JSON
 tree representation:
 - root (no Collection, base backup directory)
-	- folder1 (Collection, base backup directory)
-		- folder4 (Collection, base backup directory)
-			- folder5 (base backup directory)
-	- folder2 (Collection)
-	- folder3 (base backup directory)
+  - folder1 (Collection, base backup directory)
+    - folder4 (Collection, base backup directory)
+      - folder5 (base backup directory)
+  - folder2 (Collection)
+  - folder3 (base backup directory)
 ```
 
 ## Part 5: Merging items in folders and uploading data
@@ -468,10 +468,10 @@ Going back to our running example, the folder merge operation for `folder1` woul
 ```JSON
 // starting state
 global exclude items: [
-	super secret file1.txt (ID: 2),
-	tmp.log (ID: 3),
-	secret file.docx (ID: 5),
-	new secret file.docx (ID 13),
+  super secret file1.txt (ID: 2),
+  tmp.log (ID: 3),
+  secret file.docx (ID: 5),
+  new secret file.docx (ID 13),
 ]
 local exclude items: []
 
@@ -480,10 +480,10 @@ super secret file1.txt (ID: 2) // uploaded, add to local exclude items
 
 // new state
 global exclude list: [
-	super secret file1.txt (ID: 2),
-	tmp.log (ID: 3),
-	secret file.docx (ID: 5),
-	new secret file.docx (ID 13),
+  super secret file1.txt (ID: 2),
+  tmp.log (ID: 3),
+  secret file.docx (ID: 5),
+  new secret file.docx (ID 13),
 ]
 local exclude items: [super secret file1.txt (ID: 2)]
 
@@ -498,9 +498,9 @@ the old location of the item to the new one as shown below.
 
 ```JSON
 items from base backup: [
-	/root/folder3/static file.docx => /root/folder3/static file.docx
-	/root/folder4/plain file.txt => /root/folder1/folder4/plain file.txt
-	/root/folder4/folder5/update.log => /root/folder1/folder4/folder5/update.log
+  /root/folder3/static file.docx => /root/folder3/static file.docx
+  /root/folder4/plain file.txt => /root/folder1/folder4/plain file.txt
+  /root/folder4/folder5/update.log => /root/folder1/folder4/folder5/update.log
 ]
 ```
 
