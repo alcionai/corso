@@ -303,8 +303,8 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	var (
 		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
-		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
+		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
 		ins      = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,
