@@ -9,7 +9,7 @@ implementing backups in this manner required us to play a few tricks with the
 Corso implementation, so we thought we’d share them here."
 authors: amartinez
 tags: [corso, microsoft 365, backups]
-date: 2023-4-1
+date: 2023-04-09
 image: ./images/incremental-encoder.jpg
 ---
 <!-- vale Vale.Spelling = NO -->
@@ -129,7 +129,7 @@ items. What this really means is each Corso backup has a complete set of
 completed backups to have independent indexing information and life cycles from
 each other while still minimizing the amount of item data stored.
 
-> 💡 In part 2 of our series, we’ll cover Incremental backups in action.
+> 💡 In [part 2 of our series, we’ll cover Incremental backups in action](../incremental-backups-pt2).
 
 ---
 
