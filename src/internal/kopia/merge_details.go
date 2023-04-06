@@ -22,7 +22,7 @@ type DetailsMergeInfoer interface {
 
 type mergeDetails struct {
 	repoRefs  map[string]path.Path
-	locations *LocationPrefixMatcher
+	locations *locationPrefixMatcher
 }
 
 func (m *mergeDetails) Count() int {
@@ -48,25 +48,25 @@ func (m *mergeDetails) GetNewRepoRef(oldRef *path.Builder) path.Path {
 }
 
 func (m *mergeDetails) addLocation(oldRef, newLoc *path.Builder) error {
-	return m.locations.Add(oldRef, newLoc)
+	return m.locations.add(oldRef, newLoc)
 }
 
 func (m *mergeDetails) GetNewLocation(oldRef *path.Builder) *path.Builder {
-	return m.locations.LongestPrefix(oldRef.String())
+	return m.locations.longestPrefix(oldRef.String())
 }
 
 func newMergeDetails() *mergeDetails {
 	return &mergeDetails{
 		repoRefs:  map[string]path.Path{},
-		locations: NewLocationPrefixMatcher(),
+		locations: newLocationPrefixMatcher(),
 	}
 }
 
-type LocationPrefixMatcher struct {
+type locationPrefixMatcher struct {
 	m prefixmatcher.Matcher[*path.Builder]
 }
 
-func (m *LocationPrefixMatcher) Add(oldRef path.Path, newLoc *path.Builder) error {
+func (m *locationPrefixMatcher) add(oldRef, newLoc *path.Builder) error {
 	if _, ok := m.m.Get(oldRef.String()); ok {
 		return clues.New("RepoRef already in matcher").With("repo_ref", oldRef)
 	}
@@ -76,7 +76,7 @@ func (m *LocationPrefixMatcher) Add(oldRef path.Path, newLoc *path.Builder) erro
 	return nil
 }
 
-func (m *LocationPrefixMatcher) LongestPrefix(oldRef string) *path.Builder {
+func (m *locationPrefixMatcher) longestPrefix(oldRef string) *path.Builder {
 	if m == nil {
 		return nil
 	}
@@ -91,6 +91,6 @@ func (m *LocationPrefixMatcher) LongestPrefix(oldRef string) *path.Builder {
 	return v
 }
 
-func NewLocationPrefixMatcher() *LocationPrefixMatcher {
-	return &LocationPrefixMatcher{m: prefixmatcher.NewMatcher[*path.Builder]()}
+func newLocationPrefixMatcher() *locationPrefixMatcher {
+	return &locationPrefixMatcher{m: prefixmatcher.NewMatcher[*path.Builder]()}
 }

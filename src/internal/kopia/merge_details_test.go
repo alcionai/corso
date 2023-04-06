@@ -86,12 +86,12 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 	loc1 := path.Builder{}.Append("folder1")
 	loc2 := path.Builder{}.Append("folder2")
 
-	lpm := kopia.NewLocationPrefixMatcher()
+	lpm := newLocationPrefixMatcher()
 
-	err := lpm.Add(p, loc1)
+	err := lpm.add(p, loc1)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = lpm.Add(p, loc2)
+	err = lpm.add(p, loc2)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -168,14 +168,14 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			lpm := kopia.NewLocationPrefixMatcher()
+			lpm := newLocationPrefixMatcher()
 
 			for _, input := range test.inputs {
-				err := lpm.Add(input.repoRef, input.locRef)
+				err := lpm.add(input.repoRef.ToBuilder(), input.locRef)
 				require.NoError(t, err, clues.ToCore(err))
 			}
 
-			loc := lpm.LongestPrefix(test.searchKey)
+			loc := lpm.longestPrefix(test.searchKey)
 			test.check(t, loc)
 
 			if loc == nil {
