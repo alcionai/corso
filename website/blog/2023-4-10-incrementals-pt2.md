@@ -311,7 +311,9 @@ getting Collections and folders in the correct locations, and assumes that items
 will land in the right place as long as the containing Collection or folder
 does.
 
-Merging hierarchies is done in two steps: first Corso builds an in-memory tree of the non-deleted Collections created from Graph API results and then Corso walks the base backup and adds folders from there to the in-memory tree.
+Merging hierarchies is done in two steps: first Corso builds an in-memory tree
+of the non-deleted Collections created from Graph API results and then Corso
+walks the base backup and adds folders from there to the in-memory tree.
 
 ### Collections
 
