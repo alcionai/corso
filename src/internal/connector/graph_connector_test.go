@@ -56,12 +56,14 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		ins        common.IDsNames
 		expectID   string
 		expectName string
+		expectErr  require.ErrorAssertionFunc
 	}{
 		{
 			name:       "nil ins",
 			owner:      ownerID,
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "only id map with owner id",
@@ -72,6 +74,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "only name map with owner id",
@@ -80,8 +83,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: nil,
 				NameToID: nti,
 			},
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "only id map with owner name",
@@ -90,8 +94,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: itn,
 				NameToID: nil,
 			},
-			expectID:   ownerName,
-			expectName: ownerName,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "only name map with owner name",
@@ -102,6 +107,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "both maps with owner id",
@@ -112,6 +118,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "both maps with owner name",
@@ -122,6 +129,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "non-matching maps with owner id",
@@ -130,8 +138,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "non-matching with owner name",
@@ -140,8 +149,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
-			expectID:   ownerName,
-			expectName: ownerName,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 	}
 	for _, test := range table {
@@ -152,7 +162,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			)
 
 			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.ins)
-			require.NoError(t, err, clues.ToCore(err))
+			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectID, id)
 			assert.Equal(t, test.expectName, name)
 		})
