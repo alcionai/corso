@@ -180,7 +180,7 @@ Some high-level things to note about the returned results are:
 - a new version of “folder2” was created. It has the same name and `parentPath` as the previous version but a different ID
 - both folders and files are returned in the same request
 - Graph API always returns all returns ancestor folders for an item before the
-  item itself. Folders are returned in the order of the hierarchy (i.e.
+  item itself. Folders are returned in the order of the hierarchy (
   `[root, folder1, ...]`)
 - items in a deleted folder are also returned as deleted
 - `folder3` and its items isn’t returned because nothing in that subtree was
