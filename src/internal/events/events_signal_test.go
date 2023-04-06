@@ -36,7 +36,7 @@ func (suite *EventsSignalUnitSuite) TestSignalDump() {
 
 	select {
 	case sig := <-sigCh:
-		assert.Equal(t, metrics.DefaultSignal, sig, "received wrong signal")
+		assert.Equal(t, sentSignal, sig, "received wrong signal")
 
 	case <-time.After(1 * time.Second):
 		assert.Fail(t, "timeout waiting for signal")

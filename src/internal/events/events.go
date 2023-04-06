@@ -186,7 +186,7 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 		// logging rates; that's handled by dumpMetrics().
 		sink = metrics.NewInmemSink(reportInterval, retentionDuration)
 		cfg  = metrics.DefaultConfig("corso")
-		sig  = metrics.NewInmemSignal(sink, metrics.DefaultSignal, w)
+		sig  = metrics.NewInmemSignal(sink, sentSignal, w)
 	)
 
 	cfg.EnableHostname = false
