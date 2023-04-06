@@ -110,6 +110,9 @@ func New(
 			},
 		},
 
+		ResourceOwnerID:   ownerID,
+		ResourceOwnerName: ownerName,
+
 		Version:       version.Backup,
 		SnapshotID:    snapshotID,
 		StreamStoreID: streamStoreID,
@@ -242,10 +245,20 @@ func (b Backup) Values() []string {
 		status += (")")
 	}
 
+	name := b.ResourceOwnerName
+
+	if len(name) == 0 {
+		name = b.ResourceOwnerID
+	}
+
+	if len(name) == 0 {
+		name = b.Selector.DiscreteOwner
+	}
+
 	return []string{
 		common.FormatTabularDisplayTime(b.StartedAt),
 		string(b.ID),
 		status,
-		b.Selector.DiscreteOwner,
+		name,
 	}
 }

@@ -133,34 +133,34 @@ func (suite *ExchangeDataCollectionSuite) TestNewCollection_state() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
 	require.NoError(suite.T(), err, clues.ToCore(err))
-	locP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "human-readable")
-	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	locPB := path.Builder{}.Append("human-readable")
 
 	table := []struct {
 		name   string
 		prev   path.Path
 		curr   path.Path
-		loc    path.Path
+		loc    *path.Builder
 		expect data.CollectionState
 	}{
 		{
 			name:   "new",
 			curr:   fooP,
-			loc:    locP,
+			loc:    locPB,
 			expect: data.NewState,
 		},
 		{
 			name:   "not moved",
 			prev:   fooP,
 			curr:   fooP,
-			loc:    locP,
+			loc:    locPB,
 			expect: data.NotMovedState,
 		},
 		{
 			name:   "moved",
 			prev:   fooP,
 			curr:   barP,
-			loc:    locP,
+			loc:    locPB,
 			expect: data.MovedState,
 		},
 		{
