@@ -177,7 +177,7 @@ like the following:
 Some high-level things to note about the returned results are:
 
 - deleted OneDrive items don’t show the path they used to reside at but do show if something was a folder or a file
-- a new version of “folder2” was created. It has the same name and parentPath as the previous version but a different ID
+- a new version of “folder2” was created. It has the same name and `parentPath` as the previous version but a different ID
 - both folders and files are returned in the same request
 - Graph API always returns all returns ancestor folders for an item before the
   item itself. Folders are returned in the order of the hierarchy (i.e.
@@ -206,7 +206,7 @@ been deleted have their current path set to an empty value.
 The previous path is found by looking up the folder’s ID in the `folderMap.json`
 data from the previous backup. Since that map is indexed by ID, it can still
 find folders that have been deleted or folders that have been renamed. Folders
-that were not in the previous backup (i.e. created between when the last backup
+that weren't in the previous backup (created between when the last backup
 completed and this backup started) have their previous path set to an empty
 value.
 
@@ -248,14 +248,14 @@ take the appropriate action for each.
 
 Every file in the results is added to the Collection representing the folder
 containing the item. Which Collection to add the item to can be discovered with
-the `parentID` field that is set on every item in the result (root’s ID not show
+the `parentID` field that's set on every item in the result (root’s ID not show
 in the example). Fetching the actual item data is done later when Corso actually
 uploads with to kopia.
 
 Since deleted and moved files don’t denote where they used to reside, every item
 is also added to a list of item names to “exclude” from the previous backup
 later on. Tracking this list ensures Corso doesn’t duplicate items or create
-*zombie items* — items that stick around in the backup even after the user
+*zombie items:* items that stick around in the backup even after the user
 deletes them in M365. If the old location of the item is known, then Corso can
 just add an entry in the corresponding Collection saying the item was deleted
 (this is how Exchange works as it has a delta endpoint per folder).
@@ -297,7 +297,7 @@ excludeItemIDs: [2, 3, 5, 13]
 
 Graph API can give Corso the changes since the last backup, but there’s still a
 problem: kopia requires that all items that should appear in a snapshot be given
-to kopia at the time the snapshot is created. In essence, kopia will not
+to kopia at the time the snapshot is created. In essence, kopia won't
 automatically merge data from previous snapshots into the current snapshot. This
 is problematic because if Corso passed only the set of changed items the Graph
 API returned it would create a snapshot representing only those changes and a
@@ -389,7 +389,7 @@ there’s a metadata map entry for the folder’s base backup path. The second a
 third checks use dynamically generated expected paths to implement operations
 that act on subtrees of the hierarchy instead of individual folders. Moving
 `folder4` to be a subfolder of `folder1` (and `folder5` to be a subsubfolder of
-`folder1` ) is and example where these subtree operations are needed.
+`folder1` ) is an example where these subtree operations are needed.
 
 The order Corso processes these checks is important. For example, reversing the
 first and second check will result in mistakenly deleting folders that were
@@ -398,7 +398,7 @@ moved prior to deleting the parent of the folder (e.x.
 folder is a descendent of something that was deleted and think it should be
 deleted as well.
 
-When augmenting the in-memory tree folders that are marked as deleted do not
+When augmenting the in-memory tree, folders that are marked as deleted don't
 have their reference added to a tree node. Folders that were moved or renamed
 have their reference added to the tree node where the folder resides in the
 currently running backup.
@@ -515,7 +515,7 @@ information.
 To merge indexing information, Corso first loads the indexing information from
 the base backup. Then, it compares the entries in the base backup’s index with
 the set of references collected in the previous part. Entries that match are
-updated if needed (i.e. the item’s location in OneDrive may have changed) and
+updated if needed (the item’s location in OneDrive may have changed) and
 added to the new set of indexing information for the current backup.
 
 Once the indexing information has been merged all data for the backup is
@@ -532,5 +532,5 @@ can be used for future restores.
 
 Corso implements compression, deduplication *and* incremental backups to give
 you the best backup performance. Check
-[our quickstart guide](https://corsobackup.io/docs/quickstart/) to see how easy
-it is to get started.
+[our quickstart guide](https://corsobackup.io/docs/quickstart/) to see how
+quickly you can get started.
