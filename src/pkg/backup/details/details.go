@@ -457,7 +457,7 @@ func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		return de.ItemInfo.uniqueLocation(baseLoc)
 	}
 
-	if backupVersion >= version.OneDriveXLocationRef ||
+	if backupVersion >= version.OneDrive7LocationRef ||
 		(de.ItemInfo.infoType() != OneDriveItem &&
 			de.ItemInfo.infoType() != SharePointLibrary) {
 		return nil, clues.New("no previous location for entry")
