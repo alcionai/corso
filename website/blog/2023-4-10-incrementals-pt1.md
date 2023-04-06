@@ -129,7 +129,7 @@ items. What this really means is each Corso backup has a complete set of
 completed backups to have independent indexing information and life cycles from
 each other while still minimizing the amount of item data stored.
 
-> 💡 In [part 2 of our series, we’ll cover Incremental backups in action](../../incremental-backups-pt2).
+> 💡 In [part 2 of our series, we’ll cover Incremental backups in action](https://corsobackup.io/blog/incremental-backups-pt2/).
 
 ---
 
