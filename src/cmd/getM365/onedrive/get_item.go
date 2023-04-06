@@ -6,6 +6,7 @@ package onedrive
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -92,9 +93,9 @@ type itemData struct {
 }
 
 type itemPrintable struct {
-	Info        string   `json:"info"`
-	Permissions string   `json:"permissions"`
-	Data        itemData `json:"data"`
+	Info        json.RawMessage `json:"info"`
+	Permissions json.RawMessage `json:"permissions"`
+	Data        itemData        `json:"data"`
 }
 
 func (i itemPrintable) MinimumPrintable() any {
@@ -138,7 +139,10 @@ func runDisplayM365JSON(
 		return err
 	}
 
-	it.Info = sInfo
+	err = json.Unmarshal([]byte(sInfo), &it.Info)
+	if err != nil {
+		return err
+	}
 
 	perms, err := api.GetItemPermission(ctx, srv, driveID, itemID)
 	if err != nil {
@@ -150,7 +154,10 @@ func runDisplayM365JSON(
 		return err
 	}
 
-	it.Permissions = sPerms
+	err = json.Unmarshal([]byte(sPerms), &it.Permissions)
+	if err != nil {
+		return err
+	}
 
 	PrettyJSON(ctx, it)
 
