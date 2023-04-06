@@ -293,13 +293,11 @@ type getOwnerIDAndNamer interface {
 var ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 
 // getOwnerIDAndNameFrom looks up the owner's canonical id and display name.
-// if idToName and nameToID are populated, and the owner is a key of one of
-// those maps, then those values are returned.  As a fallback, the resource
-// calls the discovery api to fetch the user or site using the owner value.
-// This fallback assumes that the owner is a well formed ID or display name
-// of appropriate design (PrincipalName for users, WebURL for sites).
-// If the fallback lookup is used, the maps are populated to contain the
-// id and name references.
+// If the owner is present in the idNameSwapper, then that interface's id and
+// name values are returned.  As a fallback, the resource calls the discovery
+// api to fetch the user or site using the owner value. This fallback assumes
+// that the owner is a well formed ID or display name of appropriate design
+// (PrincipalName for users, WebURL for sites).
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
 	discovery api.Client,
@@ -344,13 +342,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 // The id-name swapper is optional.  Some processes will look up all owners in
 // the tenant before reaching this step.  In that case, the data gets handed
 // down for this func to consume instead of performing further queries.  The
-// maps get stored inside the gc instance for later re-use.
-//
-// TODO: If the maps are nil or empty, this func will perform a lookup on the given
-// owner, and populate each map with that owner's id and name for downstream
-// guarantees about that data being present.  Optional performance enhancement
-// idea: downstream from here, we should _only_ need the given user's id and name,
-// and could store minimal map copies with that info instead of the whole tenant.
+// data gets stored inside the gc instance for later re-use.
 func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	ctx context.Context,
 	owner string, // input value, can be either id or name
@@ -362,13 +354,8 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 		return "", "", errors.Wrap(err, "resolving resource owner identifiers")
 	}
 
-	gc.IDNameLookup = ins
-
-	if ins == nil || (len(ins.IDs()) == 0 && len(ins.Names()) == 0) {
-		gc.IDNameLookup = common.IDsNames{
-			IDToName: map[string]string{id: name},
-			NameToID: map[string]string{name: id},
-		}
+	if gc.IDNameLookup == nil && ins != nil {
+		gc.IDNameLookup = ins
 	}
 
 	return id, name, nil
