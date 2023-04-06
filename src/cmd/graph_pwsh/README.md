@@ -17,11 +17,13 @@ Before using the tool you want to build the container that packages it.
 docker build -t corso/graph_pwsh:latest .
 ```
 
+A prebuilt image is also available currently available as `gmatev/graph_pwsh`.
+
 ## Prerequisites
 
 ### Docker
 
-You need to have Docker installed on your sustem. 
+You need to have Docker installed on your system.
 
 ### Azure AD app credentials
 
@@ -80,6 +82,21 @@ Another example to retrieve an email message for a given user by ID.
 # This is the equivalent of GET https://graph.microsoft.com/v1.0/<userID>/messages/<messageId>
 docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
        pwsh -c "Get-MgUserMessage -UserId <userID or UPN> -MessageID <messageID>"
+```
+
+### Running a remote script
+
+In some cases it may be prudent to run a more complex Powershell script that strings
+a number of commands together. While it is possible to compact the sctipt to a single line,
+that is quite inconvenient.
+
+Instead, it is possible to stash the desired script somewhere publically accessible (e.g. Gist)
+and execute the container which will pull it and then execute it. This can be done using the
+`Execute-Script.ps1` command as follows.
+
+```sh
+docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
+       pwsh -c "Execute-Script.ps1 -ScriptUrl <script download URL>"
 ```
 
 ## Debug output
