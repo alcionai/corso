@@ -63,7 +63,7 @@ before the actual command you want to run.
 
 ```sh
 docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
-       pwsh -c "./Auth-Graph.ps1 && <your Graph command"
+       pwsh -c "<your Graph command>"
 ```
 
 Here is a complete example to get all users
