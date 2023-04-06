@@ -22,19 +22,30 @@ func TestPermissionsUnitTestSuite(t *testing.T) {
 }
 
 func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
-	fullPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/level0/level1/level2/entry"
+	entryPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/level0/level1/level2/entry"
+	rootEntryPath := fmt.Sprintf(rootDrivePattern, "drive-id") + "/entry"
 
-	pth, err := path.Build(
+	entry, err := path.Build(
 		"tenant",
 		"user",
 		path.OneDriveService,
 		path.FilesCategory,
 		false,
-		strings.Split(fullPath, "/")...,
+		strings.Split(entryPath, "/")...,
 	)
 	require.NoError(suite.T(), err, "creating path")
 
-	level2, err := pth.Dir()
+	rootEntry, err := path.Build(
+		"tenant",
+		"user",
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		strings.Split(rootEntryPath, "/")...,
+	)
+	require.NoError(suite.T(), err, "creating path")
+
+	level2, err := entry.Dir()
 	require.NoError(suite.T(), err, "level2 path")
 
 	level1, err := level2.Dir()
@@ -70,42 +81,59 @@ func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
 
 	table := []struct {
 		name        string
-		parentPerms map[string]Metadata
+		item        path.Path
 		meta        Metadata
+		parentPerms map[string]Metadata
 	}{
 		{
+			name:        "root level entry",
+			item:        rootEntry,
+			meta:        Metadata{},
+			parentPerms: map[string]Metadata{},
+		},
+		{
+			name:        "root level directory",
+			item:        level0,
+			meta:        Metadata{},
+			parentPerms: map[string]Metadata{},
+		},
+		{
 			name: "direct parent perms",
+			item: entry,
+			meta: metadata,
 			parentPerms: map[string]Metadata{
 				level2.String(): metadata,
 			},
-			meta: metadata,
 		},
 		{
 			name: "top level parent perms",
+			item: entry,
+			meta: metadata,
 			parentPerms: map[string]Metadata{
 				level2.String(): inherited,
 				level1.String(): inherited,
 				level0.String(): metadata,
 			},
-			meta: metadata,
 		},
 		{
 			name: "all inherited",
+			item: entry,
+			meta: Metadata{},
 			parentPerms: map[string]Metadata{
 				level2.String(): inherited,
 				level1.String(): inherited,
 				level0.String(): inherited,
 			},
-			meta: Metadata{},
 		},
 		{
 			name: "multiple custom permission",
+			item: entry,
+			meta: metadata,
 			parentPerms: map[string]Metadata{
 				level2.String(): inherited,
 				level1.String(): metadata,
 				level0.String(): metadata2,
 			},
-			meta: metadata,
 		},
 	}
 
@@ -116,7 +144,7 @@ func (suite *PermissionsUnitTestSuite) TestComputeParentPermissions() {
 
 			t := suite.T()
 
-			m, err := computeParentPermissions(pth, test.parentPerms)
+			m, err := computeParentPermissions(test.item, test.parentPerms)
 			require.NoError(t, err, "compute permissions")
 
 			assert.Equal(t, m, test.meta)
