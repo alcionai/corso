@@ -1176,7 +1176,7 @@ func (suite *GraphConnectorIntegrationSuite) TestRestoreAndBackup_largeMailAttac
 func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 	table := []struct {
 		name         string
-		resource     resource
+		resource     Resource
 		selectorFunc func(t *testing.T) selectors.Selector
 		service      path.ServiceType
 		categories   []string

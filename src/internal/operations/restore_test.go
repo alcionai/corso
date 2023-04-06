@@ -27,7 +27,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -271,16 +270,6 @@ func setupExchangeBackup(
 		bsel  = selectors.NewExchangeBackup(users)
 	)
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Users,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
 	bsel.DiscreteOwner = owner
 	bsel.Include(
 		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
@@ -288,7 +277,7 @@ func setupExchangeBackup(
 		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
 	)
 
-	bsel.SetDiscreteOwnerIDName(id, name)
+	gc := GCWithSelector(t, ctx, acct, connector.Sites, bsel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -332,24 +321,14 @@ func setupSharePointBackup(
 		spsel = selectors.NewSharePointBackup(sites)
 	)
 
-	gc, err := connector.NewGraphConnector(
-		ctx,
-		acct,
-		connector.Sites,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
-	require.NoError(t, err, clues.ToCore(err))
-
-	spsel.DiscreteOwner = owner
 	// assume a folder name "test" exists in the drive.
 	// this is brittle, and requires us to backfill anytime
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
 	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+	spsel.DiscreteOwner = owner
 
-	spsel.SetDiscreteOwnerIDName(id, name)
+	gc := GCWithSelector(t, ctx, acct, connector.Sites, spsel.Selector, nil, nil)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -492,8 +471,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoResults() {
 	gc, err := connector.NewGraphConnector(
 		ctx,
 		suite.acct,
-		connector.Users,
-		fault.New(true))
+		connector.Users)
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

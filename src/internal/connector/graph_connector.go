@@ -15,8 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	m365api "github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -34,7 +33,7 @@ var (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	Service    graph.Servicer
-	Discovery  api.Client
+	Discovery  m365api.Client
 	itemClient graph.Requester // configured to handle large item downloads
 
 	tenant      string
@@ -58,8 +57,7 @@ type GraphConnector struct {
 func NewGraphConnector(
 	ctx context.Context,
 	acct account.Account,
-	r resource,
-	errs *fault.Bus,
+	r Resource,
 ) (*GraphConnector, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
@@ -71,18 +69,18 @@ func NewGraphConnector(
 		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
-	discovery, err := api.NewClient(creds)
+	ac, err := m365api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
-	rc, err := r.resourceClient(discovery)
+	rc, err := r.resourceClient(ac)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
 	}
 
 	gc := GraphConnector{
-		Discovery:    discovery,
+		Discovery:    ac,
 		IDNameLookup: common.IDsNames{},
 		Service:      service,
 
@@ -177,28 +175,28 @@ func (gc *GraphConnector) incrementMessagesBy(num int) {
 // Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
-type resource int
+type Resource int
 
 const (
-	UnknownResource resource = iota
+	UnknownResource Resource = iota
 	AllResources             // unused
 	Users
 	Sites
 )
 
-func (r resource) resourceClient(discovery api.Client) (*resourceClient, error) {
+func (r Resource) resourceClient(ac m365api.Client) (*resourceClient, error) {
 	switch r {
 	case Users:
-		return &resourceClient{enum: r, getter: discovery.Users()}, nil
+		return &resourceClient{enum: r, getter: ac.Users()}, nil
 	case Sites:
-		return &resourceClient{enum: r, getter: discovery.Sites()}, nil
+		return &resourceClient{enum: r, getter: ac.Sites()}, nil
 	default:
 		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", r)
 	}
 }
 
 type resourceClient struct {
-	enum   resource
+	enum   Resource
 	getter getIDAndNamer
 }
 
@@ -215,7 +213,7 @@ var _ getOwnerIDAndNamer = &resourceClient{}
 type getOwnerIDAndNamer interface {
 	getOwnerIDAndNameFrom(
 		ctx context.Context,
-		discovery api.Client,
+		discovery m365api.Client,
 		owner string,
 		ins common.IDNameSwapper,
 	) (
@@ -233,7 +231,7 @@ type getOwnerIDAndNamer interface {
 // (PrincipalName for users, WebURL for sites).
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
-	discovery api.Client,
+	discovery m365api.Client,
 	owner string,
 	ins common.IDNameSwapper,
 ) (string, string, error) {
