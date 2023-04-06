@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -194,6 +195,7 @@ func runBackups(
 	r repository.Repository,
 	serviceName, resourceOwnerType string,
 	selectorSet []selectors.Selector,
+	ins common.IDNameSwapper,
 ) error {
 	var (
 		bIDs []string
@@ -203,21 +205,21 @@ func runBackups(
 	for _, discSel := range selectorSet {
 		var (
 			owner = discSel.DiscreteOwner
-			bctx  = clues.Add(ctx, "resource_owner", owner)
+			ictx  = clues.Add(ctx, "resource_owner", owner)
 		)
 
-		bo, err := r.NewBackup(bctx, discSel)
+		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
-			Errf(bctx, "%v\n", err)
+			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			Errf(ictx, "%v\n", err)
 
 			continue
 		}
 
-		err = bo.Run(bctx)
+		err = bo.Run(ictx)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(bctx))
-			Errf(bctx, "%v\n", err)
+			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			Errf(ictx, "%v\n", err)
 
 			continue
 		}
