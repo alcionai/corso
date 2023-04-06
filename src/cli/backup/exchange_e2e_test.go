@@ -267,7 +267,6 @@ func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
 		t,
 		[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
 		tester.CorsoCITests,
-		"floob",
 	)})
 }
 
