@@ -76,7 +76,7 @@ func Only(ctx context.Context, e error) error {
 // if s is nil, prints nothing.
 // Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).ErrOrStderr())
+	out(getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)

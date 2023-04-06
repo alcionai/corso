@@ -208,7 +208,7 @@ func runBackups(
 			ictx  = clues.Add(ctx, "resource_owner", owner)
 		)
 
-		bo, err := r.NewBackup(ictx, discSel, ins)
+		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
 			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)

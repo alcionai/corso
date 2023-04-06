@@ -221,7 +221,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	sel := selectors.NewOneDriveBackup(users)
 	sel.Include(sel.Folders(selectors.Any()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, ins)
+	suite.backupOp, err = suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)
