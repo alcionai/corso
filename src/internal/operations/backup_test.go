@@ -102,12 +102,12 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, *kopia.LocationPrefixMatcher, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
 	}
 
-	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
+	return &kopia.BackupStats{}, &details.Builder{}, nil, nil, nil
 }
 
 // ----- model store for backups
@@ -674,6 +674,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		populatedDetails             map[string]*details.Details
 		inputMans                    []*kopia.ManifestEntry
 		inputShortRefsFromPrevBackup map[string]kopia.PrevRefs
+		prefixMatcher                *kopia.LocationPrefixMatcher
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.DetailsEntry
@@ -699,6 +700,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), "foo", ""),
@@ -717,6 +726,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+				err := p.Add(itemPath1, locationPath1)
+
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -747,6 +764,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath2,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(itemPath2, locationPath2)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -777,6 +805,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -813,6 +849,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath2,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath2)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -872,6 +916,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					),
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -902,6 +950,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -934,6 +990,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Repo: itemPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -967,6 +1027,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1000,6 +1068,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1034,6 +1110,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath2,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath2)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1071,6 +1155,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath3,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(itemPath3, locationPath3)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1122,6 +1217,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				err := p.Add(itemPath1, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1181,6 +1284,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				mds,
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
+				test.prefixMatcher,
 				&deets,
 				fault.New(true))
 			test.errCheck(t, err, clues.ToCore(err))
@@ -1255,6 +1359,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		// later    = now.Add(42 * time.Minute)
 	)
 
+	prefixMatcher := kopia.NewLocationPrefixMatcher()
+	err := prefixMatcher.Add(itemPath1, locPath1)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
 	itemDetails := makeDetailsEntry(t, itemPath1, locPath1, itemSize, false)
 	// itemDetails.Exchange.Modified = now
 
@@ -1288,12 +1396,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		deets = details.Builder{}
 	)
 
-	err := mergeDetails(
+	err = mergeDetails(
 		ctx,
 		w,
 		mds,
 		inputMans,
 		inputToMerge,
+		prefixMatcher,
 		&deets,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
