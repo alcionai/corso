@@ -30,6 +30,24 @@ type getWithInfoer interface {
 }
 
 // ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func apiClient(ctx context.Context, acct account.Account) (api.Client, error) {
+	m365, err := acct.M365Config()
+	if err != nil {
+		return api.Client{}, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
+	}
+
+	client, err := api.NewClient(m365)
+	if err != nil {
+		return api.Client{}, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	return client, nil
+}
+
+// ---------------------------------------------------------------------------
 // api
 // ---------------------------------------------------------------------------
 
@@ -39,19 +57,15 @@ func Users(
 	acct account.Account,
 	errs *fault.Bus,
 ) ([]models.Userable, error) {
-	m365, err := acct.M365Config()
+	client, err := apiClient(ctx, acct)
 	if err != nil {
-		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
-	}
-
-	client, err := api.NewClient(m365)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+		return nil, err
 	}
 
 	return client.Users().GetAll(ctx, errs)
 }
 
+// User fetches a single user's data.
 func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userable, *api.UserInfo, error) {
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
@@ -68,4 +82,18 @@ func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userabl
 	}
 
 	return u, ui, nil
+}
+
+// Sites fetches all sharepoint sites in the tenant
+func Sites(
+	ctx context.Context,
+	acct account.Account,
+	errs *fault.Bus,
+) ([]models.Siteable, error) {
+	client, err := apiClient(ctx, acct)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Sites().GetAll(ctx, errs)
 }
