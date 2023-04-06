@@ -88,7 +88,7 @@ func handleOneDriveCmd(cmd *cobra.Command, args []string) error {
 }
 
 type itemData struct {
-	Size int64 `json:"size"`
+	Size int `json:"size"`
 }
 
 type itemPrintable struct {
@@ -121,7 +121,17 @@ func runDisplayM365JSON(
 		return err
 	}
 
-	it.Data.Size = ptr.Val(item.GetSize())
+	if item != nil {
+		content, err := getDriveItemContent(item)
+		if err != nil {
+			return err
+		}
+
+		// We could get size from item.GetSize(), but the
+		// getDriveItemContent call is to ensure that we are able to
+		// download the file.
+		it.Data.Size = len(content)
+	}
 
 	sInfo, err := serializeObject(item)
 	if err != nil {
