@@ -228,7 +228,7 @@ func write(
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
-	backupStats, _, _, _, err := bup.ConsumeBackupCollections(
+	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,
 		dbcs,

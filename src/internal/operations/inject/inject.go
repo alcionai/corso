@@ -37,7 +37,7 @@ type (
 			tags map[string]string,
 			buildTreeWithBase bool,
 			errs *fault.Bus,
-		) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, *kopia.LocationPrefixMatcher, error)
+		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
 	}
 
 	RestoreProducer interface {
