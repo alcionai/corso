@@ -532,7 +532,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
-		toMerge:        map[string]PrevRefs{},
+		toMerge:        newMergeDetails(),
 		errs:           fault.New(true),
 	}
 
@@ -542,7 +542,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 
 	cp.FinishedFile(suite.targetFileName, nil)
 
-	assert.Empty(t, cp.toMerge)
+	assert.Equal(t, 0, cp.toMerge.Count())
 
 	// Gather information about the current state.
 	var (
@@ -587,6 +587,11 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
+	type expectedRef struct {
+		oldRef *path.Builder
+		newRef path.Path
+	}
+
 	t := suite.T()
 
 	prevPath := makePath(
@@ -595,10 +600,11 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		true,
 	)
 
-	expectedToMerge := map[string]PrevRefs{
-		prevPath.ShortRef(): {
-			Repo:     suite.targetFilePath,
-			Location: suite.targetFileLoc,
+	// Location is sourced from collections now so we don't need to check it here.
+	expectedToMerge := []expectedRef{
+		{
+			oldRef: prevPath.ToBuilder(),
+			newRef: suite.targetFilePath,
 		},
 	}
 
@@ -608,7 +614,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          db,
 		pending:        map[string]*itemDetails{},
-		toMerge:        map[string]PrevRefs{},
+		toMerge:        newMergeDetails(),
 		errs:           fault.New(true),
 	}
 
@@ -623,8 +629,16 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	require.Len(t, cp.pending, 1)
 
 	cp.FinishedFile(suite.targetFileName, nil)
-	assert.Equal(t, expectedToMerge, cp.toMerge)
 	assert.Empty(t, cp.deets)
+
+	for _, expected := range expectedToMerge {
+		gotRef := cp.toMerge.GetNewRepoRef(expected.oldRef)
+		if !assert.NotNil(t, gotRef) {
+			continue
+		}
+
+		assert.Equal(t, expected.newRef.String(), gotRef.String())
+	}
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
@@ -710,36 +724,41 @@ func (suite *HierarchyBuilderUnitSuite) TestPopulatesPrefixMatcher() {
 
 	cols := []data.BackupCollection{c1, c2, c3}
 
-	_, locPaths, err := inflateDirTree(ctx, nil, nil, cols, nil, nil)
+	cp := corsoProgress{
+		toMerge: newMergeDetails(),
+		errs:    fault.New(true),
+	}
+
+	_, err := inflateDirTree(ctx, nil, nil, cols, nil, &cp)
 	require.NoError(t, err)
 
 	table := []struct {
-		inputPath   string
+		inputPath   *path.Builder
 		check       require.ValueAssertionFunc
 		expectedLoc *path.Builder
 	}{
 		{
-			inputPath:   p1.String(),
+			inputPath:   p1.ToBuilder(),
 			check:       require.NotNil,
 			expectedLoc: path.Builder{}.Append(p1.Folders()...),
 		},
 		{
-			inputPath:   p3.String(),
+			inputPath:   p3.ToBuilder(),
 			check:       require.NotNil,
 			expectedLoc: path.Builder{}.Append(p2.Folders()...),
 		},
 		{
-			inputPath:   p4.String(),
+			inputPath:   p4.ToBuilder(),
 			check:       require.Nil,
 			expectedLoc: nil,
 		},
 	}
 
 	for _, test := range table {
-		suite.Run(test.inputPath, func() {
+		suite.Run(test.inputPath.String(), func() {
 			t := suite.T()
 
-			loc := locPaths.LongestPrefix(test.inputPath)
+			loc := cp.toMerge.GetNewLocation(test.inputPath)
 			test.check(t, loc)
 
 			if loc == nil {
@@ -776,6 +795,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 
@@ -801,7 +821,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	//       - emails
 	//         - Inbox
 	//           - 42 separate files
-	dirTree, _, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
+	dirTree, err := inflateDirTree(ctx, nil, nil, collections, nil, progress)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -894,10 +914,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 
-			dirTree, _, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
+			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, encodeAsPath(testTenant), dirTree.Name())
@@ -998,7 +1019,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			_, _, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
+			progress := &corsoProgress{
+				toMerge: newMergeDetails(),
+				errs:    fault.New(true),
+			}
+
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
 			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -1088,6 +1114,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 
@@ -1110,7 +1137,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 				cols = append(cols, mc)
 			}
 
-			_, _, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
+			_, err := inflateDirTree(ctx, nil, nil, cols, nil, progress)
 			require.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -1379,13 +1406,14 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 			msw := &mockSnapshotWalker{
 				snapshotRoot: getBaseSnapshot(),
 			}
 
-			dirTree, _, err := inflateDirTree(
+			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
 				[]IncrementalBase{
@@ -2158,13 +2186,14 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 			msw := &mockSnapshotWalker{
 				snapshotRoot: getBaseSnapshot(),
 			}
 
-			dirTree, _, err := inflateDirTree(
+			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
 				[]IncrementalBase{
@@ -2306,6 +2335,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 	mc := mockconnector.NewMockExchangeCollection(suite.testStoragePath, suite.testStoragePath, 1)
@@ -2327,7 +2357,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	//             - file3
 	//           - work
 	//             - file4
-	dirTree, _, err := inflateDirTree(
+	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
 		[]IncrementalBase{
@@ -2407,6 +2437,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 	mc := mockconnector.NewMockExchangeCollection(archiveStorePath, archiveLocPath, 1)
@@ -2431,7 +2462,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	//       - emails
 	//         - Archive
 	//           - file2
-	dirTree, _, err := inflateDirTree(
+	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
 		[]IncrementalBase{
@@ -2662,6 +2693,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 
@@ -2680,7 +2712,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 
 	collections := []data.BackupCollection{mc}
 
-	dirTree, _, err := inflateDirTree(
+	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
 		[]IncrementalBase{
