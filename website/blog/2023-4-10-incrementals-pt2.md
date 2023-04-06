@@ -66,7 +66,7 @@ Since this post is all about fetching only the changes since the last backup,
 let’s also assume that between the time of the last backup and now the user has
 done the equivalent to the following commands in their OneDrive:
 
-```
+```bash
 rm -rf root/folder2 (directory subtree deletion)
 mkdir root/folder2 (directory creation)
 touch root/folder2/new secret file.txt (file creation)
