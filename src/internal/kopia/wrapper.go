@@ -128,7 +128,7 @@ type IncrementalBase struct {
 // that need to be merged in from prior snapshots.
 type PrevRefs struct {
 	Repo     path.Path
-	Location path.Path
+	Location *path.Builder
 }
 
 // ConsumeBackupCollections takes a set of collections and creates a kopia snapshot

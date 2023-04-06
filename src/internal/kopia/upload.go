@@ -127,7 +127,7 @@ type itemDetails struct {
 	info         *details.ItemInfo
 	repoPath     path.Path
 	prevPath     path.Path
-	locationPath path.Path
+	locationPath *path.Builder
 	cached       bool
 }
 
@@ -205,20 +205,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	var (
 		locationFolders string
-		locPB           *path.Builder
 		parent          = d.repoPath.ToBuilder().Dir()
 	)
 
 	if d.locationPath != nil {
-		locationFolders = d.locationPath.Folder(true)
-
-		locPB = d.locationPath.ToBuilder()
-
-		// folderEntriesForPath assumes the location will
-		// not have an item element appended
-		if len(d.locationPath.Item()) > 0 {
-			locPB = locPB.Dir()
-		}
+		locationFolders = d.locationPath.String()
 	}
 
 	err = cp.deets.Add(
@@ -239,7 +230,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	folders := details.FolderEntriesForPath(parent, locPB)
+	folders := details.FolderEntriesForPath(parent, d.locationPath)
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
@@ -328,7 +319,7 @@ func collectionEntries(
 	}
 
 	var (
-		locationPath path.Path
+		locationPath *path.Builder
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
@@ -431,7 +422,7 @@ func streamBaseEntries(
 	cb func(context.Context, fs.Entry) error,
 	curPath path.Path,
 	prevPath path.Path,
-	locationPath path.Path,
+	locationPath *path.Builder,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
 	globalExcludeSet map[string]map[string]struct{},
@@ -556,7 +547,7 @@ func getStreamItemFunc(
 			}
 		}
 
-		var locationPath path.Path
+		var locationPath *path.Builder
 
 		if lp, ok := streamedEnts.(data.LocationPather); ok {
 			locationPath = lp.LocationPath()

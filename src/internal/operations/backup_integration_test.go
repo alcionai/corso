@@ -123,6 +123,11 @@ func prepNewTestBackupOp(
 		t.FailNow()
 	}
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sel.SetDiscreteOwnerIDName(id, name)
+
 	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, gc, closer

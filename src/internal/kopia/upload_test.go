@@ -345,6 +345,7 @@ func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
 type CorsoProgressUnitSuite struct {
 	tester.Suite
 	targetFilePath path.Path
+	targetFileLoc  *path.Builder
 	targetFileName string
 }
 
@@ -363,6 +364,7 @@ func (suite *CorsoProgressUnitSuite) SetupSuite() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.targetFilePath = p
+	suite.targetFileLoc = path.Builder{}.Append(testInboxDir)
 	suite.targetFileName = suite.targetFilePath.ToBuilder().Dir().String()
 }
 
@@ -596,7 +598,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	expectedToMerge := map[string]PrevRefs{
 		prevPath.ShortRef(): {
 			Repo:     suite.targetFilePath,
-			Location: suite.targetFilePath,
+			Location: suite.targetFileLoc,
 		},
 	}
 
@@ -614,7 +616,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		info:         nil,
 		repoPath:     suite.targetFilePath,
 		prevPath:     prevPath,
-		locationPath: suite.targetFilePath,
+		locationPath: suite.targetFileLoc,
 	}
 
 	cp.put(suite.targetFileName, deets)

@@ -335,8 +335,13 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(siteID, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
+
+	sel.SetDiscreteOwnerIDName(id, name)
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
@@ -374,8 +379,13 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(siteID, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any()))
+
+	sel.SetDiscreteOwnerIDName(id, name)
 
 	cols, excludes, err := gc.ProduceBackupCollections(
 		ctx,
