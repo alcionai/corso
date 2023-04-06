@@ -261,7 +261,7 @@ func (op *BackupOperation) do(
 
 	ctx = clues.Add(ctx, "coll_count", len(cs))
 
-	writeStats, deets, toMerge, err := consumeBackupCollections(
+	writeStats, deets, toMerge, updatedLocs, err := consumeBackupCollections(
 		ctx,
 		op.kopia,
 		op.account.ID(),
@@ -284,6 +284,7 @@ func (op *BackupOperation) do(
 		detailsStore,
 		mans,
 		toMerge,
+		updatedLocs,
 		deets,
 		op.Errors)
 	if err != nil {
@@ -394,7 +395,7 @@ func consumeBackupCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, *kopia.LocationPrefixMatcher, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
@@ -423,7 +424,7 @@ func consumeBackupCollections(
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(ctx, tenantID, reason)
 			if err != nil {
-				return nil, nil, nil, clues.Wrap(err, "getting subtree paths for bases")
+				return nil, nil, nil, nil, clues.Wrap(err, "getting subtree paths for bases")
 			}
 
 			paths = append(paths, pb)
@@ -459,7 +460,7 @@ func consumeBackupCollections(
 			"base_backup_id", mbID)
 	}
 
-	kopiaStats, deets, itemsSourcedFromBase, err := bc.ConsumeBackupCollections(
+	kopiaStats, deets, itemsSourcedFromBase, updatedLocs, err := bc.ConsumeBackupCollections(
 		ctx,
 		bases,
 		cs,
@@ -469,10 +470,10 @@ func consumeBackupCollections(
 		errs)
 	if err != nil {
 		if kopiaStats == nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
-		return nil, nil, nil, clues.Stack(err).With(
+		return nil, nil, nil, nil, clues.Stack(err).With(
 			"kopia_errors", kopiaStats.ErrorCount,
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
@@ -484,7 +485,7 @@ func consumeBackupCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	return kopiaStats, deets, itemsSourcedFromBase, err
+	return kopiaStats, deets, itemsSourcedFromBase, updatedLocs, err
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
@@ -505,6 +506,7 @@ func mergeDetails(
 	detailsStore streamstore.Streamer,
 	mans []*kopia.ManifestEntry,
 	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
+	updatedLocs *kopia.LocationPrefixMatcher,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) error {
@@ -570,7 +572,7 @@ func mergeDetails(
 			}
 
 			newPath := prev.Repo
-			newLoc := prev.Location
+			newLoc := updatedLocs.LongestPrefix(entry.RepoRef)
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo

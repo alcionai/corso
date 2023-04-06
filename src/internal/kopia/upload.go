@@ -711,7 +711,7 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.BackupCollection,
-) (map[string]*treeMap, map[string]path.Path, error) {
+) (map[string]*treeMap, map[string]path.Path, *LocationPrefixMatcher, error) {
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that have been moved or renamed.
 	// Allows resolving what the new path should be when walking the base
@@ -720,18 +720,28 @@ func inflateCollectionTree(
 	// Temporary variable just to track the things that have been marked as
 	// changed while keeping a reference to their path.
 	changedPaths := []path.Path{}
+	// updatedLocations holds the location path of all moved collections. New
+	// collections aren't tracked because we will have their location explicitly.
+	// This is used by the backup details merge code to update locations for items
+	// in nested folders that got moved when the top-level folder got moved. The
+	// nested folder may not generate a delta result but will need the location
+	// updated.
+	//
+	// This could probably use a path.Builder as the value instead of a string if
+	// we wanted.
+	updatedLocations := NewLocationPrefixMatcher()
 
 	for _, s := range collections {
 		switch s.State() {
 		case data.DeletedState:
 			if s.PreviousPath() == nil {
-				return nil, nil, clues.New("nil previous path on deleted collection")
+				return nil, nil, nil, clues.New("nil previous path on deleted collection")
 			}
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
+				return nil, nil, nil, clues.New("multiple previous state changes to collection").
 					With("collection_previous_path", s.PreviousPath())
 			}
 
@@ -743,26 +753,35 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
+				return nil, nil, nil, clues.New("multiple previous state changes to collection").
 					With("collection_previous_path", s.PreviousPath())
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
 		}
 
+		// TODO(ashmrtn): Get old location ref and add it to the prefix matcher.
+		lp, ok := s.(data.LocationPather)
+		if ok && s.PreviousPath() != nil {
+			if err := updatedLocations.Add(s.PreviousPath(), lp.LocationPath()); err != nil {
+				return nil, nil, nil, clues.Wrap(err, "building updated location set").
+					With("collection_location", lp.LocationPath())
+			}
+		}
+
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, clues.New("no identifier for collection")
+			return nil, nil, nil, clues.New("no identifier for collection")
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, clues.New("getting tree node").With("collection_full_path", s.FullPath())
+			return nil, nil, nil, clues.New("getting tree node").With("collection_full_path", s.FullPath())
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").With("collection_full_path", s.FullPath())
+			return nil, nil, nil, clues.New("multiple instances of collection").With("collection_full_path", s.FullPath())
 		}
 
 		node.collection = s
@@ -780,11 +799,11 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			return nil, nil, clues.New("conflicting states for collection").With("changed_path", p)
+			return nil, nil, nil, clues.New("conflicting states for collection").With("changed_path", p)
 		}
 	}
 
-	return roots, updatedPaths, nil
+	return roots, updatedPaths, updatedLocations, nil
 }
 
 // traverseBaseDir is an unoptimized function that reads items in a directory
@@ -1015,10 +1034,10 @@ func inflateDirTree(
 	collections []data.BackupCollection,
 	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
-) (fs.Directory, error) {
-	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
+) (fs.Directory, *LocationPrefixMatcher, error) {
+	roots, updatedPaths, updatedLocations, err := inflateCollectionTree(ctx, collections)
 	if err != nil {
-		return nil, clues.Wrap(err, "inflating collection tree")
+		return nil, nil, clues.Wrap(err, "inflating collection tree")
 	}
 
 	baseIDs := make([]manifest.ID, 0, len(baseSnaps))
@@ -1036,12 +1055,12 @@ func inflateDirTree(
 
 	for _, snap := range baseSnaps {
 		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
-			return nil, clues.Wrap(err, "inflating base snapshot tree(s)")
+			return nil, nil, clues.Wrap(err, "inflating base snapshot tree(s)")
 		}
 	}
 
 	if len(roots) > 1 {
-		return nil, clues.New("multiple root directories")
+		return nil, nil, clues.New("multiple root directories")
 	}
 
 	var res fs.Directory
@@ -1049,11 +1068,11 @@ func inflateDirTree(
 	for dirName, dir := range roots {
 		tmp, err := buildKopiaDirs(dirName, dir, globalExcludeSet, progress)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		res = tmp
 	}
 
-	return res, nil
+	return res, updatedLocations, nil
 }
