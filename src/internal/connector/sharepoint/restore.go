@@ -61,8 +61,8 @@ func RestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"destination", dest.ContainerName, // TODO: pii
-				"resource_owner", dc.FullPath().ResourceOwner()) // TODO: pii
+				"destination", clues.Hide(dest.ContainerName),
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
 		)
 
 		switch dc.FullPath().Category() {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -559,14 +558,14 @@ type MockBackupGetter struct {
 
 func (MockBackupGetter) Backup(
 	context.Context,
-	model.StableID,
+	string,
 ) (*backup.Backup, error) {
 	return nil, clues.New("unexpected call to mock")
 }
 
 func (MockBackupGetter) Backups(
 	context.Context,
-	[]model.StableID,
+	[]string,
 ) ([]*backup.Backup, *fault.Bus) {
 	return nil, fault.New(false).Fail(clues.New("unexpected call to mock"))
 }

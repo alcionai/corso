@@ -6,15 +6,10 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -31,57 +26,6 @@ func TestDisconnectedGraphSuite(t *testing.T) {
 	}
 
 	suite.Run(t, s)
-}
-
-func (suite *DisconnectedGraphConnectorSuite) TestBadConnection() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	table := []struct {
-		name string
-		acct func(t *testing.T) account.Account
-	}{
-		{
-			name: "Invalid Credentials",
-			acct: func(t *testing.T) account.Account {
-				a, err := account.NewAccount(
-					account.ProviderM365,
-					account.M365Config{
-						M365: credentials.M365{
-							AzureClientID:     "Test",
-							AzureClientSecret: "without",
-						},
-						AzureTenantID: "data",
-					},
-				)
-				require.NoError(t, err, clues.ToCore(err))
-				return a
-			},
-		},
-		{
-			name: "Empty Credentials",
-			acct: func(t *testing.T) account.Account {
-				// intentionally swallowing the error here
-				a, _ := account.NewAccount(account.ProviderM365)
-				return a
-			},
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			gc, err := NewGraphConnector(
-				ctx,
-				graph.HTTPClient(graph.NoTimeout()),
-				test.acct(t),
-				Sites,
-				fault.New(true))
-			assert.Nil(t, gc, test.name+" failed")
-			assert.NotNil(t, err, test.name+" failed")
-		})
-	}
 }
 
 func statusTestTask(gc *GraphConnector, objects, success, folder int) {
@@ -111,17 +55,16 @@ func (suite *DisconnectedGraphConnectorSuite) TestGraphConnector_Status() {
 	go statusTestTask(&gc, 4, 1, 1)
 	go statusTestTask(&gc, 4, 1, 1)
 
-	status := gc.AwaitStatus()
-
+	stats := gc.Wait()
 	t := suite.T()
 
 	assert.NotEmpty(t, gc.PrintableStatus())
 	// Expect 8 objects
-	assert.Equal(t, 8, status.Metrics.Objects)
+	assert.Equal(t, 8, stats.Objects)
 	// Expect 2 success
-	assert.Equal(t, 2, status.Metrics.Successes)
+	assert.Equal(t, 2, stats.Successes)
 	// Expect 2 folders
-	assert.Equal(t, 2, status.Folders)
+	assert.Equal(t, 2, stats.Folders)
 }
 
 func (suite *DisconnectedGraphConnectorSuite) TestVerifyBackupInputs_allServices() {

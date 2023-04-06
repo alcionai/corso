@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -300,7 +301,15 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	suite.backupOps = make(map[path.CategoryType]string)
 
-	users := []string{suite.m365UserID}
+	var (
+		users    = []string{suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
+		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+		ins      = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
+	)
 
 	for _, set := range backupDataSets {
 		var (
@@ -321,7 +330,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -330,7 +339,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		bIDs := string(bop.Results.BackupID)
 
 		// sanity check, ensure we can find the backup and its details immediately
-		b, err := suite.repo.Backup(ctx, bop.Results.BackupID)
+		b, err := suite.repo.Backup(ctx, string(bop.Results.BackupID))
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
 		_, b, errs := suite.repo.GetBackupDetails(ctx, bIDs)

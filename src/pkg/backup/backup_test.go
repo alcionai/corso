@@ -24,7 +24,7 @@ func TestBackupUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func stubBackup(t time.Time) backup.Backup {
+func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 	sel := selectors.NewExchangeBackup([]string{"test"})
 	sel.Include(sel.AllData())
 
@@ -63,7 +63,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 	var (
 		t        = suite.T()
 		now      = time.Now()
-		b        = stubBackup(now)
+		b        = stubBackup(now, "id", "name")
 		expectHs = []string{
 			"Started At",
 			"ID",
@@ -153,17 +153,30 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 			expect: "test (42 errors, 1 skipped: 1 not found)",
 		},
 		{
-			name: "errors, malware, notFound",
+			name: "errors and invalid OneNote",
 			bup: backup.Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
-					TotalSkippedItems: 1,
-					SkippedMalware:    1,
-					SkippedNotFound:   1,
+					TotalSkippedItems:         1,
+					SkippedInvalidOneNoteFile: 1,
 				},
 			},
-			expect: "test (42 errors, 1 skipped: 1 malware, 1 not found)",
+			expect: "test (42 errors, 1 skipped: 1 invalid OneNote file)",
+		},
+		{
+			name: "errors, malware, notFound, invalid OneNote",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+				SkippedCounts: stats.SkippedCounts{
+					TotalSkippedItems:         1,
+					SkippedMalware:            1,
+					SkippedNotFound:           1,
+					SkippedInvalidOneNoteFile: 1,
+				},
+			},
+			expect: "test (42 errors, 1 skipped: 1 malware, 1 not found, 1 invalid OneNote file)",
 		},
 	}
 	for _, test := range table {
@@ -177,7 +190,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	t := suite.T()
 	now := time.Now()
-	b := stubBackup(now)
+	b := stubBackup(now, "id", "name")
 
 	resultIface := b.MinimumPrintable()
 	result, ok := resultIface.(backup.Printable)

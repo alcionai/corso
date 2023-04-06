@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -41,6 +42,9 @@ const (
 	MetaFileSuffix    = ".meta"
 	DirMetaFileSuffix = ".dirmeta"
 	DataFileSuffix    = ".data"
+
+	// Used to compare in case of OneNote files
+	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
 
 func IsMetaFile(name string) bool {
@@ -96,6 +100,14 @@ type Collection struct {
 	// Specifies if it new, moved/rename or deleted
 	state data.CollectionState
 
+	// scope specifies what scope the items in a collection belongs
+	// to. This is primarily useful when dealing with a "package",
+	// like in the case of a OneNote file. A OneNote file is a
+	// collection with a package scope and multiple files in it. Most
+	// other collections have a scope of folder to indicate that the
+	// files within them belong to a folder.
+	scope collectionScope
+
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
 }
@@ -121,7 +133,6 @@ type itemMetaReaderFunc func(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
@@ -134,6 +145,7 @@ func NewCollection(
 	statusUpdater support.StatusUpdater,
 	source driveSource,
 	ctrlOpts control.Options,
+	colScope collectionScope,
 	doNotMergeItems bool,
 ) *Collection {
 	c := &Collection{
@@ -148,17 +160,18 @@ func NewCollection(
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, folderPath),
+		scope:           colScope,
 		doNotMergeItems: doNotMergeItems,
 	}
 
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		c.itemGetter = getDriveItem
+		c.itemGetter = api.GetDriveItem
 		c.itemReader = sharePointItemReader
 		c.itemMetaReader = sharePointItemMetaReader
 	default:
-		c.itemGetter = getDriveItem
+		c.itemGetter = api.GetDriveItem
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
@@ -345,8 +358,23 @@ func (oc *Collection) getDriveItemContent(
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
-			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Error("item not found")
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
 			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
+
+			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+		}
+
+		// Skip big OneNote files as they can't be downloaded
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
+			oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
+			// FIXME: It is possible that in case of a OneNote file we
+			// will end up just backing up the `onetoc2` file without
+			// the one file which is the important part of the OneNote
+			// "item". This will have to be handled during the
+			// restore, or we have to handle it separately by somehow
+			// deleting the entire collection.
+			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
+			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
 
 			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
 		}
@@ -391,7 +419,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		observe.PII(queuedPath),
+		// TODO(keepers): conceal compliance in path, drop Hide()
+		clues.Hide(queuedPath),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -452,8 +481,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				ctx,
 				oc.service,
 				oc.driveID,
-				item,
-				oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
+				item)
 
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
@@ -489,7 +517,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
-						observe.PII(itemID+dataSuffix),
+						clues.Hide(itemID+dataSuffix),
 						itemSize)
 					go closer()
 
@@ -505,15 +533,20 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 				progReader, closer := observe.ItemProgress(
-					ctx, itemMeta, observe.ItemBackupMsg,
-					observe.PII(metaFileName+metaSuffix), int64(itemMetaSize))
+					ctx,
+					itemMeta,
+					observe.ItemBackupMsg,
+					clues.Hide(metaFileName+metaSuffix),
+					int64(itemMetaSize))
 				go closer()
 				return progReader, nil
 			})
 
 			oc.data <- &MetadataItem{
-				id:      metaFileName + metaSuffix,
-				data:    metaReader,
+				id:   metaFileName + metaSuffix,
+				data: metaReader,
+				// Metadata file should always use the latest time as
+				// permissions change does not update mod time.
 				modTime: time.Now(),
 			}
 

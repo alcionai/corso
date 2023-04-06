@@ -7,5 +7,5 @@ import (
 )
 
 func signalDump(ctx context.Context) {
-	logger.Ctx(ctx).Warn("cannot send signal on Windows")
+	logger.Ctx(ctx).Error("cannot send signal on Windows")
 }
