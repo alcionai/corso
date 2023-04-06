@@ -8,8 +8,15 @@ import (
 )
 
 type DetailsMergeInfoer interface {
+	// Count returns the number of items that need to be merged.
 	Count() int
+	// GetNewRepoRef takes the path of the old location of the item and returns
+	// its new RepoRef if the item needs merged. If the item doesn't need merged
+	// returns nil.
 	GetNewRepoRef(oldRef *path.Builder) path.Path
+	// GetNewLocation takes the path of the folder containing the item and returns
+	// the location of the folder containing the item if it was updated. Otherwise
+	// returns nil.
 	GetNewLocation(oldRef *path.Builder) *path.Builder
 }
 
