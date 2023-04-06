@@ -7,6 +7,54 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+type DetailsMergeInfoer interface {
+	Count() int
+	GetNewRepoRef(oldRef *path.Builder) path.Path
+	GetNewLocation(oldRef *path.Builder) *path.Builder
+}
+
+type mergeDetails struct {
+	repoRefs  map[string]path.Path
+	locations *LocationPrefixMatcher
+}
+
+func (m *mergeDetails) Count() int {
+	if m == nil {
+		return 0
+	}
+
+	return len(m.repoRefs)
+}
+
+func (m *mergeDetails) addRepoRef(oldRef *path.Builder, newRef path.Path) error {
+	if _, ok := m.repoRefs[oldRef.ShortRef()]; ok {
+		return clues.New("duplicate RepoRef").With("repo_ref", oldRef.String())
+	}
+
+	m.repoRefs[oldRef.ShortRef()] = newRef
+
+	return nil
+}
+
+func (m *mergeDetails) GetNewRepoRef(oldRef *path.Builder) path.Path {
+	return m.repoRefs[oldRef.ShortRef()]
+}
+
+func (m *mergeDetails) addLocation(oldRef, newLoc *path.Builder) error {
+	return m.locations.Add(oldRef, newLoc)
+}
+
+func (m *mergeDetails) GetNewLocation(oldRef *path.Builder) *path.Builder {
+	return m.locations.LongestPrefix(oldRef.String())
+}
+
+func newMergeDetails() *mergeDetails {
+	return &mergeDetails{
+		repoRefs:  map[string]path.Path{},
+		locations: NewLocationPrefixMatcher(),
+	}
+}
+
 type LocationPrefixMatcher struct {
 	m prefixmatcher.Matcher[*path.Builder]
 }
