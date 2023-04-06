@@ -227,11 +227,8 @@ func updatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []UserPermission,
-	usePermissionIDMappings bool,
 	permissionIDMappings map[string]string,
 ) error {
-	var ok bool
-
 	for _, p := range permRemoved {
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707
@@ -242,12 +239,9 @@ func updatePermissions(
 			return graph.Wrap(ctx, err, "creating delete client")
 		}
 
-		pid := p.ID
-		if usePermissionIDMappings {
-			pid, ok = permissionIDMappings[p.ID]
-			if !ok {
-				return clues.New("no new permission id").WithClues(ctx)
-			}
+		pid, ok := permissionIDMappings[p.ID]
+		if !ok {
+			return clues.New("no new permission id").WithClues(ctx)
 		}
 
 		err = graph.NewService(a).
@@ -306,9 +300,7 @@ func updatePermissions(
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
 
-		if usePermissionIDMappings {
-			permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
-		}
+		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil
@@ -342,14 +334,14 @@ func RestorePermissions(
 
 	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions)
 
-	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, true, permissionIDMappings)
+	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }
 
 // SetPermissions is similar to RestorePermissions, but fetches the
 // current permissions from graph inorder to update the permissions on
-// an item. This is necessary in tests (and currently only used in
-// tests) as we have to delete permissions of items that we have
-// created.
+// an item. This is necessary in tests as we have to delete
+// permissions of items that we have created.
+// NOTE: This function is currently only used in tests.
 func SetPermissions(
 	ctx context.Context,
 	creds account.M365Config,
@@ -371,5 +363,11 @@ func SetPermissions(
 
 	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
 
-	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, false, nil)
+	// Compute permissions id mappings as if we get from and backup metadata
+	permissionIDMappings := map[string]string{}
+	for _, perm := range permRemoved {
+		permissionIDMappings[perm.ID] = perm.ID
+	}
+
+	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }
