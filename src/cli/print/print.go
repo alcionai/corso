@@ -62,7 +62,7 @@ func StderrWriter(ctx context.Context) io.Writer {
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// Helper funcs
+// Exported interface
 // ---------------------------------------------------------------------------------------------------------
 
 // Only tells the CLI to only display this error, preventing the usage
@@ -110,6 +110,15 @@ func Infof(ctx context.Context, t string, s ...any) {
 	outf(getRootCmd(ctx).ErrOrStderr(), t, s...)
 }
 
+// PrettyJSON prettifies and prints the value.
+func PrettyJSON(ctx context.Context, p minimumPrintabler) {
+	if p == nil {
+		Err(ctx, "<nil>")
+	}
+
+	outputJSON(getRootCmd(ctx).ErrOrStderr(), p, outputAsJSONDebug)
+}
+
 // out is the testable core of exported print funcs
 func out(w io.Writer, s ...any) {
 	if len(s) == 0 {
@@ -135,14 +144,18 @@ func outf(w io.Writer, t string, s ...any) {
 // ---------------------------------------------------------------------------------------------------------
 
 type Printable interface {
-	// reduces the struct to a minimized format for easier human consumption
-	MinimumPrintable() any
+	minimumPrintabler
 	// should list the property names of the values surfaced in Values()
 	Headers() []string
 	// list of values for tabular or csv formatting
 	// if the backing data is nil or otherwise missing,
 	// values should provide an empty string as opposed to skipping entries
 	Values() []string
+}
+
+type minimumPrintabler interface {
+	// reduces the struct to a minimized format for easier human consumption
+	MinimumPrintable() any
 }
 
 // Item prints the printable, according to the caller's requested format.
@@ -216,13 +229,17 @@ func outputTable(w io.Writer, ps []Printable) {
 // JSON
 // ------------------------------------------------------------------------------------------
 
-func outputJSON(w io.Writer, p Printable, debug bool) {
+func outputJSON(w io.Writer, p minimumPrintabler, debug bool) {
 	if debug {
 		printJSON(w, p)
 		return
 	}
 
-	printJSON(w, p.MinimumPrintable())
+	if debug {
+		printJSON(w, p)
+	} else {
+		printJSON(w, p.MinimumPrintable())
+	}
 }
 
 func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
