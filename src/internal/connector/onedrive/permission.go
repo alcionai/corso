@@ -177,6 +177,10 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 	return added, removed
 }
 
+// computeParentPermissions computes the parent permissions by
+// traversing folderMetas and finding the first item with custom
+// permissions. folderMetas is expected to have all the parent
+// directory metas for this to work.
 func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadata) (Metadata, error) {
 	var (
 		parent path.Path
@@ -214,6 +218,8 @@ func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadat
 	}
 }
 
+// updatePermissions takes in the set of permission to be added and
+// removed from an item to bring it to the desired state.
 func updatePermissions(
 	ctx context.Context,
 	creds account.M365Config,
@@ -308,9 +314,10 @@ func updatePermissions(
 	return nil
 }
 
-// RestorePermissions takes in the permissions that were added and the
-// removed(ones present in parent but not in child) and adds/removes
-// the necessary permissions on onedrive objects.
+// RestorePermissions takes in the permissions of an item, computes
+// what permissions need to added and removed based on the parent
+// folder metas and uses that to add/remove the necessary permissions
+// on onedrive items.
 func RestorePermissions(
 	ctx context.Context,
 	creds account.M365Config,
@@ -340,7 +347,7 @@ func RestorePermissions(
 
 // SetPermissions is similar to RestorePermissions, but fetches the
 // current permissions from graph inorder to update the permissions on
-// an item. This is necessary in tests(any currently only used in
+// an item. This is necessary in tests (and currently only used in
 // tests) as we have to delete permissions of items that we have
 // created.
 func SetPermissions(
