@@ -144,7 +144,7 @@ func SendStartCorsoEvent(
 ) {
 	bus, err := events.NewBus(ctx, s, tenID, opts)
 	if err != nil {
-		logger.Ctx(ctx).Infow("analytics event failure", "err", err)
+		logger.CtxErr(ctx, err).Info("sending start event")
 	}
 
 	bus.SetRepoID(repoID)

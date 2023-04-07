@@ -248,6 +248,49 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 	}
 }
 
+func (suite *SelectorSuite) TestIDName() {
+	table := []struct {
+		title                string
+		id, name             string
+		expectID, expectName string
+	}{
+		{"empty", "", "", "", ""},
+		{"only id", "id", "", "id", "id"},
+		{"only name", "", "name", "", "name"},
+		{"both", "id", "name", "id", "name"},
+	}
+	for _, test := range table {
+		suite.Run(test.title, func() {
+			sel := Selector{DiscreteOwner: test.id, DiscreteOwnerName: test.name}
+			assert.Equal(suite.T(), test.expectID, sel.ID())
+			assert.Equal(suite.T(), test.expectName, sel.Name())
+		})
+	}
+}
+
+func (suite *SelectorSuite) TestSetDiscreteOwnerIDName() {
+	table := []struct {
+		title                string
+		initID, initName     string
+		id, name             string
+		expectID, expectName string
+	}{
+		{"empty", "", "", "", "", "", ""},
+		{"only id", "", "", "id", "", "id", "id"},
+		{"only name", "", "", "", "", "", ""},
+		{"both", "", "", "id", "name", "id", "name"},
+		{"both", "init-id", "", "", "name", "init-id", "name"},
+	}
+	for _, test := range table {
+		suite.Run(test.title, func() {
+			sel := Selector{DiscreteOwner: test.initID, DiscreteOwnerName: test.initName}
+			sel = sel.SetDiscreteOwnerIDName(test.id, test.name)
+			assert.Equal(suite.T(), test.expectID, sel.ID())
+			assert.Equal(suite.T(), test.expectName, sel.Name())
+		})
+	}
+}
+
 // TestPathCategories verifies that no scope produces a `path.UnknownCategory`
 func (suite *SelectorSuite) TestPathCategories_includes() {
 	users := []string{"someuser@onmicrosoft.com"}

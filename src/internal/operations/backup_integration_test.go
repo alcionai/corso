@@ -30,6 +30,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -39,6 +40,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -121,6 +123,11 @@ func prepNewTestBackupOp(
 		t.FailNow()
 	}
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sel.SetDiscreteOwnerIDName(id, name)
+
 	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, gc, closer
@@ -152,7 +159,7 @@ func newTestBackupOp(
 
 	opts.ToggleFeatures = featureToggles
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel.DiscreteOwner, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -288,7 +295,7 @@ func checkMetadataFilesExist(
 				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
 			}
 
-			cols, err := kw.RestoreMultipleItems(ctx, bup.SnapshotID, paths, nil, fault.New(true))
+			cols, err := kw.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, nil, fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
 			for _, col := range cols {
@@ -383,7 +390,7 @@ func generateContainerOfItems(
 		dest,
 		collections)
 
-	deets, err := gc.RestoreDataCollections(
+	deets, err := gc.ConsumeRestoreCollections(
 		ctx,
 		backupVersion,
 		acct,
@@ -394,7 +401,9 @@ func generateContainerOfItems(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	gc.AwaitStatus()
+	// have to wait here, both to ensure the process
+	// finishes, and also to clean up the gc status
+	gc.Wait()
 
 	return deets
 }
@@ -539,7 +548,7 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &connector.GraphConnector{}
+	gc := &mockconnector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 
 	table := []struct {
@@ -547,7 +556,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
-		gc       *connector.GraphConnector
+		bp       inject.BackupProducer
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
@@ -555,22 +564,24 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
 		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
 		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing graphconnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"missing backup producer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			sel := selectors.Selector{DiscreteOwner: "test"}
+
 			_, err := NewBackupOperation(
 				ctx,
 				test.opts,
 				test.kw,
 				test.sw,
-				test.gc,
+				test.bp,
 				test.acct,
-				selectors.Selector{DiscreteOwner: "test"},
-				"test-name",
+				sel,
+				sel,
 				evmock.NewBus())
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
@@ -1095,7 +1106,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			fmt.Printf("\n-----\ntest %+v\n-----\n", test.name)
 			var (
 				t     = suite.T()
 				incMB = evmock.NewBus()
@@ -1150,7 +1160,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1606,7 +1616,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_sharePoint() {
 		sel = selectors.NewSharePointBackup([]string{suite.site})
 	)
 
-	sel.Include(sel.LibraryFolders(selectors.Any()))
+	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
 	bo, _, kw, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()

@@ -6,9 +6,10 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -18,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -27,22 +27,26 @@ import (
 // Data Collections
 // ---------------------------------------------------------------------------
 
-// DataCollections utility function to launch backup operations for exchange and
-// onedrive. metadataCols contains any collections with metadata files that may
-// be useful for the current backup. Metadata can include things like delta
-// tokens or the previous backup's folder hierarchy. The absence of metadataCols
-// results in all data being pulled.
-func (gc *GraphConnector) DataCollections(
+// ProduceBackupCollections generates a slice of data.BackupCollections for the service
+// specified in the selectors.
+// The metadata field can include things like delta tokens or the previous backup's
+// folder hierarchy. The absence of metadata causes the collection creation to ignore
+// prior history (ie, incrementals) and run a full backup.
+func (gc *GraphConnector) ProduceBackupCollections(
 	ctx context.Context,
+	owner common.IDNamer,
 	sels selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]map[string]struct{}, error) {
-	ctx, end := diagnostics.Span(ctx, "gc:dataCollections", diagnostics.Index("service", sels.Service.String()))
+	ctx, end := diagnostics.Span(
+		ctx,
+		"gc:produceBackupCollections",
+		diagnostics.Index("service", sels.Service.String()))
 	defer end()
 
-	err := verifyBackupInputs(sels, gc.GetSiteIDs())
+	err := verifyBackupInputs(sels, gc.IDNameLookup.IDs())
 	if err != nil {
 		return nil, nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -166,7 +170,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 
 func checkServiceEnabled(
 	ctx context.Context,
-	au api.Users,
+	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
 ) (bool, error) {
@@ -175,23 +179,22 @@ func checkServiceEnabled(
 		return true, nil
 	}
 
-	_, info, err := discovery.User(ctx, au, resource)
+	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
 		return false, err
 	}
 
-	if _, ok := info.DiscoveredServices[service]; !ok {
-		logger.Ctx(ctx).Error("service not enabled")
-		return false, nil
+	if !info.ServiceEnabled(service) {
+		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
 	return true, nil
 }
 
-// RestoreDataCollections restores data from the specified collections
+// ConsumeRestoreCollections restores data from the specified collections
 // into M365 using the GraphAPI.
 // SideEffect: gc.status is updated at the completion of operation
-func (gc *GraphConnector) RestoreDataCollections(
+func (gc *GraphConnector) ConsumeRestoreCollections(
 	ctx context.Context,
 	backupVersion int,
 	acct account.Account,

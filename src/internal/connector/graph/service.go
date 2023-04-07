@@ -19,6 +19,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -28,6 +29,7 @@ import (
 const (
 	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
 	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
+	log2xxGraphResponseEnvKey = "LOG_2XX_GRAPH_RESPONSES"
 	retryAttemptHeader        = "Retry-Attempt"
 	retryAfterHeader          = "Retry-After"
 	defaultMaxRetries         = 3
@@ -271,20 +273,86 @@ type Servicer interface {
 // LoggingMiddleware can be used to log the http request sent by the graph client
 type LoggingMiddleware struct{}
 
+// well-known path names used by graph api calls
+// used to un-hide path elements in a pii.SafeURL
+var safePathParams = pii.MapWithPlurals(
+	//nolint:misspell
+	"alltime",
+	"analytics",
+	"archive",
+	"beta",
+	"calendargroup",
+	"calendar",
+	"calendarview",
+	"channel",
+	"childfolder",
+	"children",
+	"clone",
+	"column",
+	"contactfolder",
+	"contact",
+	"contenttype",
+	"delta",
+	"drive",
+	"event",
+	"group",
+	"inbox",
+	"instance",
+	"invitation",
+	"item",
+	"joinedteam",
+	"label",
+	"list",
+	"mailfolder",
+	"member",
+	"message",
+	"notification",
+	"page",
+	"primarychannel",
+	"root",
+	"security",
+	"site",
+	"subscription",
+	"team",
+	"unarchive",
+	"user",
+	"v1.0")
+
+//	well-known safe query parameters used by graph api calls
+//
+// used to un-hide query params in a pii.SafeURL
+var safeQueryParams = map[string]struct{}{
+	"deltatoken":    {},
+	"startdatetime": {},
+	"enddatetime":   {},
+	"$count":        {},
+	"$expand":       {},
+	"$filter":       {},
+	"$select":       {},
+	"$top":          {},
+}
+
+func LoggableURL(url string) pii.SafeURL {
+	return pii.SafeURL{
+		URL:           url,
+		SafePathElems: safePathParams,
+		SafeQueryKeys: safeQueryParams,
+	}
+}
+
 func (handler *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	var (
-		ctx = clues.Add(
-			req.Context(),
-			"method", req.Method,
-			"url", req.URL, // TODO: pii
-			"request_len", req.ContentLength,
-		)
-		resp, err = pipeline.Next(req, middlewareIndex)
-	)
+	ctx := clues.Add(
+		req.Context(),
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()),
+		"request_len", req.ContentLength)
+
+	// call the next middleware
+	resp, err := pipeline.Next(req, middlewareIndex)
 
 	if strings.Contains(req.URL.String(), "users//") {
 		logger.Ctx(ctx).Error("malformed request url: missing resource")
@@ -301,7 +369,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
 		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, false))
+			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
 		}
 
 		return resp, err
@@ -319,13 +387,13 @@ func (handler *LoggingMiddleware) Intercept(
 	msg := fmt.Sprintf("graph api error: %s", resp.Status)
 
 	// special case for supportability: log all throttling cases.
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+	if resp.StatusCode == http.StatusTooManyRequests {
 		log = log.With(
 			"limit", resp.Header.Get(rateLimitHeader),
 			"remaining", resp.Header.Get(rateRemainingHeader),
 			"reset", resp.Header.Get(rateResetHeader),
 			"retry-after", resp.Header.Get(retryAfterHeader))
-	} else if resp.StatusCode/100 == 4 {
+	} else if resp.StatusCode/100 == 4 || resp.StatusCode == http.StatusServiceUnavailable {
 		log = log.With("response", getRespDump(ctx, resp, true))
 	}
 

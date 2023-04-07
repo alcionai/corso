@@ -20,39 +20,60 @@ type getter interface {
 	GetByID(context.Context, string) (models.Userable, error)
 }
 
-type getInfoer interface {
+type GetInfoer interface {
 	GetInfo(context.Context, string) (*api.UserInfo, error)
 }
 
 type getWithInfoer interface {
 	getter
-	getInfoer
+	GetInfoer
+}
+
+type getAller interface {
+	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, error)
 }
 
 // ---------------------------------------------------------------------------
-// api
+// helpers
+// ---------------------------------------------------------------------------
+
+func apiClient(ctx context.Context, acct account.Account) (api.Client, error) {
+	m365, err := acct.M365Config()
+	if err != nil {
+		return api.Client{}, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
+	}
+
+	client, err := api.NewClient(m365)
+	if err != nil {
+		return api.Client{}, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	return client, nil
+}
+
+// ---------------------------------------------------------------------------
+// users
 // ---------------------------------------------------------------------------
 
 // Users fetches all users in the tenant.
 func Users(
 	ctx context.Context,
-	acct account.Account,
+	ga getAller,
 	errs *fault.Bus,
 ) ([]models.Userable, error) {
-	m365, err := acct.M365Config()
+	users, err := ga.GetAll(ctx, errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
+		return nil, clues.Wrap(err, "getting all users")
 	}
 
-	client, err := api.NewClient(m365)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
-	}
-
-	return client.Users().GetAll(ctx, errs)
+	return users, nil
 }
 
-func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userable, *api.UserInfo, error) {
+func User(
+	ctx context.Context,
+	gwi getWithInfoer,
+	userID string,
+) (models.Userable, *api.UserInfo, error) {
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
@@ -68,4 +89,37 @@ func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userabl
 	}
 
 	return u, ui, nil
+}
+
+// UserInfo produces extensible user info: metadata that is relevant
+// or identified in Corso, but not in m365.
+func UserInfo(
+	ctx context.Context,
+	gi GetInfoer,
+	userID string,
+) (*api.UserInfo, error) {
+	ui, err := gi.GetInfo(ctx, userID)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting user info")
+	}
+
+	return ui, nil
+}
+
+// ---------------------------------------------------------------------------
+// sites
+// ---------------------------------------------------------------------------
+
+// Sites fetches all sharepoint sites in the tenant
+func Sites(
+	ctx context.Context,
+	acct account.Account,
+	errs *fault.Bus,
+) ([]models.Siteable, error) {
+	client, err := apiClient(ctx, acct)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Sites().GetAll(ctx, errs)
 }

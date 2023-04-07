@@ -16,12 +16,14 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -156,14 +158,22 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	m365SiteID := tester.M365SiteID(t)
-	sites := []string{m365SiteID}
+	var (
+		m365SiteID = strings.ToLower(tester.M365SiteID(t))
+		sites      = []string{m365SiteID}
+		idToName   = map[string]string{m365SiteID: m365SiteID}
+		nameToID   = map[string]string{m365SiteID: m365SiteID}
+		ins        = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
+	)
 
 	// some tests require an existing backup
 	sel := selectors.NewSharePointBackup(sites)
-	sel.Include(sel.LibraryFolders(selectors.Any()))
+	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	suite.backupOp, err = suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)
