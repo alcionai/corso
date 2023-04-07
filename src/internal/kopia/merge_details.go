@@ -8,20 +8,25 @@ import (
 )
 
 type DetailsMergeInfoer interface {
-	// Count returns the number of items that need to be merged.
+	// ItemsToMerge returns the number of items that need to be merged.
 	ItemsToMerge() int
-	// GetNewRepoRef takes the path of the old location of the item and returns
-	// its new RepoRef if the item needs merged. If the item doesn't need merged
-	// returns nil.
-	GetNewRepoRef(oldRef *path.Builder) path.Path
-	// GetNewLocation takes the path of the folder containing the item and returns
-	// the location of the folder containing the item if it was updated. Otherwise
-	// returns nil.
-	GetNewLocation(oldRef *path.Builder) *path.Builder
+	// GetNewPathRefs takes the old RepoRef and old LocationRef of an item and
+	// returns the new RepoRef, a prefix of the old LocationRef to replace, and
+	// the new LocationRefPrefix of the item if the item should be merged. If the
+	// item shouldn't be merged nils are returned.
+	//
+	// If the returned old LocationRef prefix is equal to the old LocationRef then
+	// the entire LocationRef should be replaced with the returned value.
+	GetNewPathRefs(oldRef, oldLoc *path.Builder) (path.Path, *path.Builder, *path.Builder)
+}
+
+type prevRef struct {
+	repoRef path.Path
+	locRef  *path.Builder
 }
 
 type mergeDetails struct {
-	repoRefs  map[string]path.Path
+	repoRefs  map[string]prevRef
 	locations *locationPrefixMatcher
 }
 
@@ -33,64 +38,86 @@ func (m *mergeDetails) ItemsToMerge() int {
 	return len(m.repoRefs)
 }
 
-func (m *mergeDetails) addRepoRef(oldRef *path.Builder, newRef path.Path) error {
+func (m *mergeDetails) addRepoRef(
+	oldRef *path.Builder,
+	newRef path.Path,
+	newLocRef *path.Builder,
+) error {
+	if newRef == nil {
+		return clues.New("nil RepoRef")
+	}
+
 	if _, ok := m.repoRefs[oldRef.ShortRef()]; ok {
 		return clues.New("duplicate RepoRef").With("repo_ref", oldRef.String())
 	}
 
-	m.repoRefs[oldRef.ShortRef()] = newRef
+	pr := prevRef{
+		repoRef: newRef,
+		locRef:  newLocRef,
+	}
+
+	m.repoRefs[oldRef.ShortRef()] = pr
 
 	return nil
 }
 
-func (m *mergeDetails) GetNewRepoRef(oldRef *path.Builder) path.Path {
-	return m.repoRefs[oldRef.ShortRef()]
+func (m *mergeDetails) GetNewPathRefs(oldRef, oldLoc *path.Builder) (path.Path, *path.Builder, *path.Builder) {
+	pr, ok := m.repoRefs[oldRef.ShortRef()]
+	if !ok {
+		return nil, nil, nil
+	}
+
+	// This was a location specified directly by a collection. Say the prefix is
+	// the whole oldLoc so other code will replace everything.
+	if pr.locRef != nil {
+		return pr.repoRef, oldLoc, pr.locRef
+	}
+
+	// This is a location that we need to do prefix matching on because we didn't
+	// see the new location of it in a collection. For example, it's a subfolder
+	// whose parent folder was moved.
+	prefix, newPrefix := m.locations.longestPrefix(oldLoc)
+
+	return pr.repoRef, prefix, newPrefix
 }
 
 func (m *mergeDetails) addLocation(oldRef, newLoc *path.Builder) error {
 	return m.locations.add(oldRef, newLoc)
 }
 
-func (m *mergeDetails) GetNewLocation(oldRef *path.Builder) *path.Builder {
-	return m.locations.longestPrefix(oldRef.String())
-}
-
 func newMergeDetails() *mergeDetails {
 	return &mergeDetails{
-		repoRefs:  map[string]path.Path{},
+		repoRefs:  map[string]prevRef{},
 		locations: newLocationPrefixMatcher(),
 	}
 }
 
+type locRefs struct {
+	oldLoc *path.Builder
+	newLoc *path.Builder
+}
+
 type locationPrefixMatcher struct {
-	m prefixmatcher.Matcher[*path.Builder]
+	m common.PrefixMatcher[locRefs]
 }
 
 func (m *locationPrefixMatcher) add(oldRef, newLoc *path.Builder) error {
-	if _, ok := m.m.Get(oldRef.String()); ok {
+	key := oldRef.String()
+
+	if _, ok := m.m.Get(key); ok {
 		return clues.New("RepoRef already in matcher").With("repo_ref", oldRef)
 	}
 
-	m.m.Add(oldRef.String(), newLoc)
-
-	return nil
+	return m.m.Add(key, locRefs{oldLoc: oldRef, newLoc: newLoc})
 }
 
-func (m *locationPrefixMatcher) longestPrefix(oldRef string) *path.Builder {
-	if m == nil {
-		return nil
-	}
-
-	k, v, _ := m.m.LongestPrefix(oldRef)
-	if k != oldRef {
-		// For now we only want to allow exact matches because this is only enabled
-		// for Exchange at the moment.
-		return nil
-	}
-
-	return v
+func (m *locationPrefixMatcher) longestPrefix(
+	oldRef *path.Builder,
+) (*path.Builder, *path.Builder) {
+	_, v, _ := m.m.LongestPrefix(oldRef.String())
+	return v.oldLoc, v.newLoc
 }
 
 func newLocationPrefixMatcher() *locationPrefixMatcher {
-	return &locationPrefixMatcher{m: prefixmatcher.NewMatcher[*path.Builder]()}
+	return &locationPrefixMatcher{m: prefixmatcher.NewMatcher[locRefs]()}
 }

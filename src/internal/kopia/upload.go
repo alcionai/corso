@@ -195,7 +195,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath)
+		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath, d.locationPath)
 		if err != nil {
 			cp.errs.AddRecoverable(clues.Wrap(err, "adding item to merge list").
 				With(
@@ -754,14 +754,31 @@ func inflateCollectionTree(
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
-		}
 
-		// TODO(ashmrtn): Get old location ref and add it to the prefix matcher.
-		lp, ok := s.(data.LocationPather)
-		if ok && s.PreviousPath() != nil {
-			if err := toMerge.addLocation(s.PreviousPath().ToBuilder(), lp.LocationPath()); err != nil {
-				return nil, nil, clues.Wrap(err, "building updated location set").
-					With("collection_location", lp.LocationPath())
+			// Safe to do only for moved collections as we really only need prefix
+			// matching if a nested folder changed in some way that didn't generate a
+			// collection. For that to the be case, the nested folder's path must have
+			// changed via one of the ancestor folders being moved. This catches the
+			// ancestor folder move.
+			lp, ok := s.(data.PreviousLocationPather)
+			if ok {
+				prevLoc := lp.PreviousLocationPath()
+				newLoc := lp.LocationPath()
+
+				if prevLoc == nil {
+					return nil, nil, clues.New("moved collection with nil previous location").
+						With("collection_full_path", s.FullPath())
+				} else if newLoc == nil {
+					return nil, nil, clues.New("moved collection with nil location").
+						With("collection_full_path", s.FullPath())
+				}
+
+				if err := toMerge.addLocation(prevLoc, newLoc); err != nil {
+					return nil, nil, clues.Wrap(err, "building updated location set").
+						With(
+							"collection_location", lp.LocationPath(),
+							"collection_full_path", s.FullPath())
+				}
 			}
 		}
 
@@ -769,15 +786,17 @@ func inflateCollectionTree(
 			return nil, nil, clues.New("no identifier for collection")
 		}
 
+		ctx = clues.Add("collection_full_path", s.FullPath())
+
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, clues.New("getting tree node").With("collection_full_path", s.FullPath())
+			return nil, nil, clues.New("getting tree node").WithClues(ctx)
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").With("collection_full_path", s.FullPath())
+			return nil, nil, clues.New("multiple instances of collection").WithClues(ctx)
 		}
 
 		node.collection = s
