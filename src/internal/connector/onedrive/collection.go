@@ -97,6 +97,12 @@ type Collection struct {
 	// moved.  It will be empty on its first retrieval.
 	prevPath path.Path
 
+	// locPath represents the human-readable location of this collection.
+	locPath *path.Builder
+	// prevLocPath represents the human-readable location of this collection in
+	// the previous backup.
+	prevLocPath *path.Builder
+
 	// Specifies if it new, moved/rename or deleted
 	state data.CollectionState
 
@@ -135,6 +141,19 @@ type itemMetaReaderFunc func(
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error)
 
+func pathToLocation(p path.Path) (*path.Builder, error) {
+	if p == nil {
+		return nil, nil
+	}
+
+	odp, err := path.ToOneDrivePath(p)
+	if err != nil {
+		return nil, err
+	}
+
+	return path.Builder{}.Append(odp.Root).Append(odp.Folders...), nil
+}
+
 // NewCollection creates a Collection
 func NewCollection(
 	itemClient *http.Client,
@@ -147,11 +166,27 @@ func NewCollection(
 	ctrlOpts control.Options,
 	colScope collectionScope,
 	doNotMergeItems bool,
-) *Collection {
+) (*Collection, error) {
+	// TODO(ashmrtn): If OneDrive switches to using folder IDs then this will need
+	// to be changed as we won't be able to extract path information from the
+	// storage path. In that case, we'll need to start storing the location paths
+	// like we do the previous path.
+	locPath, err := pathToLocation(folderPath)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting location").With("folder_path", folderPath.String())
+	}
+
+	prevLocPath, err := pathToLocation(prevPath)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting previous location").With("prev_path", prevPath.String())
+	}
+
 	c := &Collection{
 		itemClient:      itemClient,
 		folderPath:      folderPath,
 		prevPath:        prevPath,
+		locPath:         locPath,
+		prevLocPath:     prevLocPath,
 		driveItems:      map[string]models.DriveItemable{},
 		driveID:         driveID,
 		source:          source,
@@ -176,7 +211,7 @@ func NewCollection(
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
 
-	return c
+	return c, nil
 }
 
 // Adds an itemID to the collection.  This will make it eligible to be
@@ -227,6 +262,24 @@ func (oc Collection) PreviousPath() path.Path {
 func (oc *Collection) SetFullPath(curPath path.Path) {
 	oc.folderPath = curPath
 	oc.state = data.StateOf(oc.prevPath, curPath)
+}
+
+func (oc Collection) LocationPath() *path.Builder {
+	return oc.locPath
+}
+
+func (oc Collection) PreviousLocationPath() details.LocationIDer {
+	switch oc.source {
+	case OneDriveSource:
+		return details.NewOneDriveLocationIDer(
+			oc.driveID,
+			oc.prevLocPath.Elements()...)
+
+	default:
+		return details.NewSharePointLocationIDer(
+			oc.driveID,
+			oc.prevLocPath.Elements()...)
+	}
 }
 
 func (oc Collection) State() data.CollectionState {
