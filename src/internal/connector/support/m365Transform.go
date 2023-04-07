@@ -88,9 +88,12 @@ func ToEventSimplified(orig models.Eventable) models.Eventable {
 	orig.SetICalUId(nil)
 	orig.SetId(nil)
 
-	recurrenceTimezone := orig.GetRecurrence().GetRange().GetRecurrenceTimeZone()
-	if recurrenceTimezone != nil && len(*recurrenceTimezone) == 0 {
-		orig.GetRecurrence().GetRange().SetRecurrenceTimeZone(nil)
+	// Sanitize recurrence timezone.
+	if orig.GetRecurrence() != nil {
+		recurrenceTimezone := orig.GetRecurrence().GetRange().GetRecurrenceTimeZone()
+		if recurrenceTimezone != nil && len(*recurrenceTimezone) == 0 {
+			orig.GetRecurrence().GetRange().SetRecurrenceTimeZone(nil)
+		}
 	}
 
 	return orig

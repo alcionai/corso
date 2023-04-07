@@ -125,6 +125,41 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
+
+	// Recurrence testing
+	// 1. Event doesn't have recurrence timezone specified
+	info, err = RestoreExchangeEvent(ctx,
+		mockconnector.GetMockEventWithRecurrenceBytes(name, false, ""),
+		suite.gs,
+		control.Copy,
+		calendarID,
+		userID,
+		fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
+
+	// 2. Event has recurrence timezone specified as ""
+	info, err = RestoreExchangeEvent(ctx,
+		mockconnector.GetMockEventWithRecurrenceBytes(name, true, ""),
+		suite.gs,
+		control.Copy,
+		calendarID,
+		userID,
+		fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
+
+	// 3. Valid recurrence timezone field i.e. it is not the same timezone as
+	// start or end timezones
+	info, err = RestoreExchangeEvent(ctx,
+		mockconnector.GetMockEventWithRecurrenceBytes(name, true, "Pacific Standard Time"),
+		suite.gs,
+		control.Copy,
+		calendarID,
+		userID,
+		fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotNil(t, info, "event item info")
 }
 
 type containerDeleter interface {
