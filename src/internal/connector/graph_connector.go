@@ -4,31 +4,21 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"runtime/trace"
-	"strings"
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -52,10 +42,7 @@ type GraphConnector struct {
 	tenant      string
 	credentials account.M365Config
 
-	// TODO: remove in favor of the maps below.
-	Sites map[string]string // webURL -> siteID and siteID -> webURL
-
-	// lookup for resource owner ids to names, and names to ids.
+	// maps of resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
 	IDNameLookup common.IDNameSwapper
@@ -91,10 +78,11 @@ func NewGraphConnector(
 	}
 
 	gc := GraphConnector{
-		itemClient:  itemClient,
-		tenant:      m365.AzureTenantID,
-		wg:          &sync.WaitGroup{},
-		credentials: m365,
+		itemClient:   itemClient,
+		tenant:       m365.AzureTenantID,
+		wg:           &sync.WaitGroup{},
+		credentials:  m365,
+		IDNameLookup: common.IDsNames{},
 	}
 
 	gc.Service, err = gc.createService()
@@ -105,12 +93,6 @@ func NewGraphConnector(
 	gc.Owners, err = api.NewClient(m365)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
-	}
-
-	if r == AllResources || r == Sites {
-		if err = gc.setTenantSites(ctx, errs); err != nil {
-			return nil, clues.Wrap(err, "retrieveing tenant site list")
-		}
 	}
 
 	return &gc, nil
@@ -170,7 +152,7 @@ func getOwnerIDAndNameFrom(
 	// and populate with maps as a result.  Only
 	// return owner, owner as a very last resort.
 
-	return owner, owner, nil
+	return "", "", clues.New("not found within tenant")
 }
 
 // createService constructor for graphService component
@@ -184,114 +166,6 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	}
 
 	return graph.NewService(adapter), nil
-}
-
-// setTenantSites queries the M365 to identify the sites in the
-// workspace. The sites field is updated during this method
-// iff the returned error is nil.
-func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) error {
-	gc.Sites = map[string]string{}
-
-	ctx, end := diagnostics.Span(ctx, "gc:setTenantSites")
-	defer end()
-
-	sites, err := getResources(
-		ctx,
-		gc.Service,
-		gc.tenant,
-		sharepoint.GetAllSitesForTenant,
-		models.CreateSiteCollectionResponseFromDiscriminatorValue,
-		identifySite,
-		errs)
-	if err != nil {
-		return err
-	}
-
-	gc.Sites = sites
-
-	return nil
-}
-
-var errKnownSkippableCase = clues.New("case is known and skippable")
-
-const personalSitePath = "sharepoint.com/personal/"
-
-// Transforms an interface{} into a key,value pair representing
-// siteName:siteID.
-func identifySite(item any) (string, string, error) {
-	m, ok := item.(models.Siteable)
-	if !ok {
-		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
-	}
-
-	id := ptr.Val(m.GetId())
-	url, ok := ptr.ValOK(m.GetWebUrl())
-
-	if m.GetName() == nil {
-		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if ok && strings.HasSuffix(url, "/search") {
-			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", clues.Hide(id))
-		}
-
-		return "", "", clues.New("site has no name").With("site_id", clues.Hide(id))
-	}
-
-	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if ok && strings.Contains(url, personalSitePath) {
-		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", clues.Hide(id))
-	}
-
-	return url, id, nil
-}
-
-// GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.
-func (gc *GraphConnector) GetSiteWebURLs() []string {
-	return maps.Keys(gc.Sites)
-}
-
-// GetSiteIds returns the canonical site IDs in the tenant
-func (gc *GraphConnector) GetSiteIDs() []string {
-	return maps.Values(gc.Sites)
-}
-
-// UnionSiteIDsAndWebURLs reduces the id and url slices into a single slice of site IDs.
-// WebURLs will run as a path-suffix style matcher.  Callers may provide partial urls, though
-// each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
-// but not match "www.ex.com/foobar".
-// The returned IDs are reduced to a set of unique values.
-func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
-	ctx context.Context,
-	ids, urls []string,
-	errs *fault.Bus,
-) ([]string, error) {
-	if len(gc.Sites) == 0 {
-		if err := gc.setTenantSites(ctx, errs); err != nil {
-			return nil, err
-		}
-	}
-
-	idm := map[string]struct{}{}
-
-	for _, id := range ids {
-		idm[id] = struct{}{}
-	}
-
-	match := filters.PathSuffix(urls)
-
-	for url, id := range gc.Sites {
-		if !match.Compare(url) {
-			continue
-		}
-
-		idm[id] = struct{}{}
-	}
-
-	idsl := make([]string, 0, len(idm))
-	for id := range idm {
-		idsl = append(idsl, id)
-	}
-
-	return idsl, nil
 }
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
@@ -348,60 +222,4 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func (gc *GraphConnector) incrementMessagesBy(num int) {
 	gc.wg.Add(num)
-}
-
-// ---------------------------------------------------------------------------
-// Helper Funcs
-// ---------------------------------------------------------------------------
-
-func getResources(
-	ctx context.Context,
-	gs graph.Servicer,
-	tenantID string,
-	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
-	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
-	identify func(any) (string, string, error),
-	errs *fault.Bus,
-) (map[string]string, error) {
-	resources := map[string]string{}
-
-	response, err := query(ctx, gs)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "retrieving tenant's resources")
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	el := errs.Local()
-
-	callbackFunc := func(item any) bool {
-		if el.Failure() != nil {
-			return false
-		}
-
-		k, v, err := identify(item)
-		if err != nil {
-			if !errors.Is(err, errKnownSkippableCase) {
-				el.AddRecoverable(clues.Stack(err).
-					WithClues(ctx).
-					With("query_url", gs.Adapter().GetBaseUrl()))
-			}
-
-			return true
-		}
-
-		resources[k] = v
-		resources[v] = k
-
-		return true
-	}
-
-	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resources, el.Failure()
 }

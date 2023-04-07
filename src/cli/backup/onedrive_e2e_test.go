@@ -207,10 +207,10 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		m365UserID = tester.M365UserID(t)
+		m365UserID = strings.ToLower(tester.M365UserID(t))
 		users      = []string{m365UserID}
-		idToName   = map[string]string{m365UserID: "todo-name-" + m365UserID}
-		nameToID   = map[string]string{"todo-name-" + m365UserID: m365UserID}
+		idToName   = map[string]string{m365UserID: m365UserID}
+		nameToID   = map[string]string{m365UserID: m365UserID}
 		ins        = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,
@@ -221,7 +221,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	sel := selectors.NewOneDriveBackup(users)
 	sel.Include(sel.Folders(selectors.Any()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector, ins)
+	suite.backupOp, err = suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = suite.backupOp.Run(ctx)

@@ -80,3 +80,6 @@ load-test:
 	-trace=trace.out \
 	-outputdir=test_results \
 	./pkg/repository/loadtest/repository_load_test.go
+
+getM365:
+	go build -o getM365 cmd/getM365/main.go

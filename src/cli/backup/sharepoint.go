@@ -7,18 +7,20 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/options"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -81,8 +83,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddSiteFlag(c)
 		utils.AddSiteIDFlag(c)
 		utils.AddDataFlag(c, []string{dataLibraries}, true)
-
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
@@ -154,20 +155,19 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	// TODO: discovery of sharepoint sites instead of early GC construction.
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), *acct, connector.Sites, errs)
+	ins, err := m365.SitesMap(ctx, *acct, errs)
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to Microsoft APIs"))
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 sites"))
 	}
 
-	sel, err := sharePointBackupCreateSelectors(ctx, utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV, gc)
+	sel, err := sharePointBackupCreateSelectors(ctx, ins, utils.SiteIDFV, utils.WebURLFV, utils.CategoryDataFV)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving up sharepoint sites by ID and URL"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(gc.GetSiteIDs()) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -176,7 +176,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"SharePoint", "site",
 		selectorSet,
-		nil) // TODO: prepopulate ids,names
+		ins)
 }
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
@@ -202,44 +202,28 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 // TODO: users might specify a data type, this only supports AllData().
 func sharePointBackupCreateSelectors(
 	ctx context.Context,
+	ins common.IDNameSwapper,
 	sites, weburls, cats []string,
-	gc *connector.GraphConnector,
 ) (*selectors.SharePointBackup, error) {
 	if len(sites) == 0 && len(weburls) == 0 {
 		return selectors.NewSharePointBackup(selectors.None()), nil
 	}
 
-	for _, site := range sites {
-		if site == utils.Wildcard {
-			return includeAllSitesWithCategories(cats), nil
-		}
+	if filters.PathContains(sites).Compare(utils.Wildcard) {
+		return includeAllSitesWithCategories(ins, cats), nil
 	}
 
-	for _, wURL := range weburls {
-		if wURL == utils.Wildcard {
-			return includeAllSitesWithCategories(cats), nil
-		}
+	if filters.PathContains(weburls).Compare(utils.Wildcard) {
+		return includeAllSitesWithCategories(ins, cats), nil
 	}
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	union, err := gc.UnionSiteIDsAndWebURLs(ctx, sites, weburls, errs)
-	if err != nil {
-		return nil, err
-	}
-
-	sel := selectors.NewSharePointBackup(union)
+	sel := selectors.NewSharePointBackup(append(slices.Clone(sites), weburls...))
 
 	return addCategories(sel, cats), nil
 }
 
-func includeAllSitesWithCategories(categories []string) *selectors.SharePointBackup {
-	sel := addCategories(
-		selectors.NewSharePointBackup(selectors.Any()),
-		categories)
-
-	return sel
+func includeAllSitesWithCategories(ins common.IDNameSwapper, categories []string) *selectors.SharePointBackup {
+	return addCategories(selectors.NewSharePointBackup(ins.IDs()), categories)
 }
 
 func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {

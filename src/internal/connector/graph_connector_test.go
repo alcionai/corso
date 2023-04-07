@@ -39,103 +39,6 @@ func TestGraphConnectorUnitSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
-	const (
-		url1  = "www.foo.com/bar"
-		url2  = "www.fnords.com/smarf"
-		path1 = "bar"
-		path2 = "/smarf"
-		id1   = "site-id-1"
-		id2   = "site-id-2"
-	)
-
-	gc := &GraphConnector{
-		// must be populated, else the func will try to make a graph call
-		// to retrieve site data.
-		Sites: map[string]string{
-			url1: id1,
-			url2: id2,
-		},
-	}
-
-	table := []struct {
-		name   string
-		ids    []string
-		urls   []string
-		expect []string
-	}{
-		{
-			name: "nil",
-		},
-		{
-			name:   "empty",
-			ids:    []string{},
-			urls:   []string{},
-			expect: []string{},
-		},
-		{
-			name:   "ids only",
-			ids:    []string{id1, id2},
-			urls:   []string{},
-			expect: []string{id1, id2},
-		},
-		{
-			name:   "urls only",
-			ids:    []string{},
-			urls:   []string{url1, url2},
-			expect: []string{id1, id2},
-		},
-		{
-			name:   "url suffix only",
-			ids:    []string{},
-			urls:   []string{path1, path2},
-			expect: []string{id1, id2},
-		},
-		{
-			name:   "url and suffix overlap",
-			ids:    []string{},
-			urls:   []string{url1, url2, path1, path2},
-			expect: []string{id1, id2},
-		},
-		{
-			name:   "ids and urls, no overlap",
-			ids:    []string{id1},
-			urls:   []string{url2},
-			expect: []string{id1, id2},
-		},
-		{
-			name:   "ids and urls, overlap",
-			ids:    []string{id1, id2},
-			urls:   []string{url1, url2},
-			expect: []string{id1, id2},
-		},
-		{
-			name:   "partial non-match on path",
-			ids:    []string{},
-			urls:   []string{path1[2:], path2[2:]},
-			expect: []string{},
-		},
-		{
-			name:   "partial non-match on url",
-			ids:    []string{},
-			urls:   []string{url1[5:], url2[5:]},
-			expect: []string{},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			t := suite.T()
-
-			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
-			assert.NoError(t, err, clues.ToCore(err))
-			assert.ElementsMatch(t, test.expect, result)
-		})
-	}
-}
-
 func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
 		ownerID   = "owner-id"
@@ -153,12 +56,14 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		ins        common.IDsNames
 		expectID   string
 		expectName string
+		expectErr  require.ErrorAssertionFunc
 	}{
 		{
 			name:       "nil ins",
 			owner:      ownerID,
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "only id map with owner id",
@@ -169,6 +74,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "only name map with owner id",
@@ -177,8 +83,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: nil,
 				NameToID: nti,
 			},
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "only id map with owner name",
@@ -187,8 +94,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: itn,
 				NameToID: nil,
 			},
-			expectID:   ownerName,
-			expectName: ownerName,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "only name map with owner name",
@@ -199,6 +107,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "both maps with owner id",
@@ -209,6 +118,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "both maps with owner name",
@@ -219,6 +129,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			},
 			expectID:   ownerID,
 			expectName: ownerName,
+			expectErr:  require.NoError,
 		},
 		{
 			name:  "non-matching maps with owner id",
@@ -227,8 +138,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
-			expectID:   ownerID,
-			expectName: ownerID,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
 			name:  "non-matching with owner name",
@@ -237,8 +149,9 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 				IDToName: map[string]string{"foo": "bar"},
 				NameToID: map[string]string{"fnords": "smarf"},
 			},
-			expectID:   ownerName,
-			expectName: ownerName,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 	}
 	for _, test := range table {
@@ -249,7 +162,7 @@ func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			)
 
 			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.ins)
-			require.NoError(t, err, clues.ToCore(err))
+			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectID, id)
 			assert.Equal(t, test.expectName, name)
 		})
@@ -318,35 +231,6 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	suite.acct = tester.NewM365Account(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
-}
-
-// TestSetTenantSites verifies GraphConnector's ability to query
-// the sites associated with the credentials
-func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
-	newConnector := GraphConnector{
-		tenant:      "test_tenant",
-		Sites:       make(map[string]string, 0),
-		credentials: suite.connector.credentials,
-	}
-
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-
-	service, err := newConnector.createService()
-	require.NoError(t, err, clues.ToCore(err))
-
-	newConnector.Service = service
-	assert.Equal(t, 0, len(newConnector.Sites))
-
-	err = newConnector.setTenantSites(ctx, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.Less(t, 0, len(newConnector.Sites))
-
-	for _, site := range newConnector.Sites {
-		assert.NotContains(t, "sharepoint.com/personal/", site)
-	}
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
@@ -564,16 +448,26 @@ func runBackupAndCompare(
 		cats[c.category] = struct{}{}
 	}
 
-	expectedDests := make([]destAndCats, 0, len(config.resourceOwners))
+	var (
+		expectedDests = make([]destAndCats, 0, len(config.resourceOwners))
+		idToName      = map[string]string{}
+		nameToID      = map[string]string{}
+	)
+
 	for _, ro := range config.resourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
 			dest:          config.dest.ContainerName,
 			cats:          cats,
 		})
+
+		idToName[ro] = ro
+		nameToID[ro] = ro
 	}
 
 	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	backupGC.IDNameLookup = common.IDsNames{IDToName: idToName, NameToID: nameToID}
+
 	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
@@ -1270,6 +1164,11 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				errs      = fault.New(true)
 				start     = time.Now()
 			)
+
+			id, name, err := backupGC.PopulateOwnerIDAndNamesFrom(backupSel.DiscreteOwner, nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			backupSel.SetDiscreteOwnerIDName(id, name)
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,

@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -57,6 +58,10 @@ type Repository interface {
 	GetID() string
 	Close(context.Context) error
 	NewBackup(
+		ctx context.Context,
+		self selectors.Selector,
+	) (operations.BackupOperation, error)
+	NewBackupWithLookup(
 		ctx context.Context,
 		self selectors.Selector,
 		ins common.IDNameSwapper,
@@ -289,9 +294,17 @@ func (r *repository) Close(ctx context.Context) error {
 }
 
 // NewBackup generates a BackupOperation runner.
+func (r repository) NewBackup(
+	ctx context.Context,
+	sel selectors.Selector,
+) (operations.BackupOperation, error) {
+	return r.NewBackupWithLookup(ctx, sel, nil)
+}
+
+// NewBackupWithLookup generates a BackupOperation runner.
 // ownerIDToName and ownerNameToID are optional populations, in case the caller has
 // already generated those values.
-func (r repository) NewBackup(
+func (r repository) NewBackupWithLookup(
 	ctx context.Context,
 	sel selectors.Selector,
 	ins common.IDNameSwapper,
@@ -304,6 +317,11 @@ func (r repository) NewBackup(
 	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
+	}
+
+	// Exchange and OneDrive need to maintain the user PN as the ID until we're ready to migrate
+	if sel.PathService() != path.SharePointService {
+		ownerID = ownerName
 	}
 
 	// TODO: retrieve display name from gc

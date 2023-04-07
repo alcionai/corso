@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -25,20 +26,6 @@ const (
 	// DriveItem response
 	downloadURLKey = "@microsoft.graph.downloadUrl"
 )
-
-// generic drive item getter
-func getDriveItem(
-	ctx context.Context,
-	srv graph.Servicer,
-	driveID, itemID string,
-) (models.DriveItemable, error) {
-	di, err := srv.Client().DrivesById(driveID).ItemsById(itemID).Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item")
-	}
-
-	return di, nil
-}
 
 // sharePointItemReader will return a io.ReadCloser for the specified item
 // It crafts this by querying M365 for a download URL for the item
@@ -229,14 +216,9 @@ func driveItemPermissionInfo(
 	driveID string,
 	itemID string,
 ) ([]UserPermission, error) {
-	perm, err := service.
-		Client().
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Permissions().
-		Get(ctx, nil)
+	perm, err := api.GetItemPermission(ctx, service, driveID, itemID)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "fetching item permissions").With("item_id", itemID)
+		return nil, err
 	}
 
 	uperms := filterUserPermissions(ctx, perm.GetValue())
@@ -280,7 +262,7 @@ func filterUserPermissions(ctx context.Context, perms []models.Permissionable) [
 			if gv2.GetDevice() != nil {
 				logm.With("application_id", ptr.Val(gv2.GetDevice().GetId()))
 			}
-			logm.Warn("untracked permission")
+			logm.Info("untracked permission")
 		}
 
 		// Technically GrantedToV2 can also contain devices, but the

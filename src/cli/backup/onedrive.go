@@ -68,13 +68,11 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
 		fs.SortFlags = false
 
-		options.AddFeatureToggle(cmd)
-
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
 		utils.AddUserFlag(c)
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
