@@ -171,7 +171,7 @@ func (b *Builder) Details() *Details {
 // AddFoldersForItem, and unexport AddFoldersForItem.
 func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	folders := []folderEntry{}
-	lfs := locationRefOf(location)
+	lfs := location
 
 	for len(parent.Elements()) > 0 {
 		var (
@@ -211,21 +211,6 @@ func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	}
 
 	return folders
-}
-
-// assumes the pb contains a path like:
-// <tenant>/<service>/<owner>/<category>/<logical_containers>...
-// and returns a string with only <logical_containers>/...
-func locationRefOf(pb *path.Builder) *path.Builder {
-	if pb == nil {
-		return nil
-	}
-
-	for i := 0; i < 4; i++ {
-		pb = pb.PopFront()
-	}
-
-	return pb
 }
 
 // AddFoldersForItem adds entries for the given folders. It skips adding entries that
