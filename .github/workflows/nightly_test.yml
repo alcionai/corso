@@ -10,9 +10,6 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
 
-  repository_dispatch:
-    types: [ok-to-test-command]
-
 permissions:
   # required to retrieve AWS credentials
   id-token: write
@@ -22,18 +19,18 @@ permissions:
 
 # cancel currently running jobs if a new version of the branch is pushed
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ----------------------------------------------------------------------------------------------------
   # --- Prechecks and Checkouts ------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
-  Precheck:
-    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
+  # Precheck:
+  #   uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
 
   Checkout:
-    needs: [Precheck]
+    # needs: [Precheck]
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
@@ -46,7 +43,7 @@ jobs:
       # the results will cascade onto both testing and linting.
       - name: Setup Golang with cache
         uses: ./.github/actions/go-setup-cache
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.websitefileschanged == 'true'
+        # if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.websitefileschanged == 'true'
         with:
           go-version-file: src/go.mod
 
@@ -99,11 +96,7 @@ jobs:
       - name: Figure out environment
         id: environment
         run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "environment=Production" | tee -a $GITHUB_OUTPUT
-          else
             echo "environment=Testing" | tee -a $GITHUB_OUTPUT
-          fi
 
       - name: Get version string
         id: version
@@ -123,24 +116,15 @@ jobs:
             echo "website-bucket=test-corso-docs" | tee -a $GITHUB_OUTPUT
           fi
 
-      - name: Get cfid for website
-        id: website-cfid
-        run: |
-          if ${{ startsWith(github.ref, 'refs/tags/') }}; then
-            echo "website-cfid=E1W9NGI9YTVZ1A" | tee -a $GITHUB_OUTPUT
-          else
-            echo "website-cfid=ESFTEIYTIP7Y3" | tee -a $GITHUB_OUTPUT
-          fi
-
   # ----------------------------------------------------------------------------------------------------
   # --- Nightly Testing -------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
 
   Test-Suite-Trusted:
-    needs: [Precheck, Checkout, SetM365App]
+    needs: [ Checkout, SetM365App] # Precheck,
     environment: Testing
     runs-on: ubuntu-latest
-    if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
+    # if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
     defaults:
       run:
         working-directory: src
