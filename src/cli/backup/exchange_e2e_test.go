@@ -1,12 +1,14 @@
 package backup_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -33,8 +34,6 @@ var (
 	contacts = path.ContactsCategory
 	events   = path.EventsCategory
 )
-
-var backupDataSets = []path.CategoryType{email, contacts, events}
 
 // ---------------------------------------------------------------------------
 // tests with no backups
@@ -60,33 +59,19 @@ func TestNoBackupExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
-	t := suite.T()
 	ctx, flush := tester.NewContext()
-
 	defer flush()
 
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
-	suite.recorder = strings.Builder{}
+	t := suite.T()
+	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
-	ctx = config.SetViper(ctx, suite.vpr)
+	suite.acct = acct
+	suite.st = st
+	suite.repo = repo
+	suite.vpr = vpr
+	suite.recorder = recorder
+	suite.cfgFP = cfgFilePath
 	suite.m365UserID = tester.M365UserID(t)
-
-	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_empty() {
@@ -140,110 +125,94 @@ func TestBackupExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupExchangeE2ESuite) SetupSuite() {
-	t := suite.T()
 	ctx, flush := tester.NewContext()
+	defer flush()
+
+	t := suite.T()
+	acct, st, repo, vpr, _, cfgFilePath := prepM365Test(t, ctx)
+
+	suite.acct = acct
+	suite.st = st
+	suite.repo = repo
+	suite.vpr = vpr
+	suite.cfgFP = cfgFilePath
+	suite.m365UserID = tester.M365UserID(t)
+}
+
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_email() {
+	runExchangeBackupCategoryTest(suite, "email")
+}
+
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_contacts() {
+	runExchangeBackupCategoryTest(suite, "contacts")
+}
+
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_events() {
+	runExchangeBackupCategoryTest(suite, "events")
+}
+
+func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category string) {
+	recorder := strings.Builder{}
+	recorder.Reset()
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
 
 	defer flush()
 
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
+	cmd, ctx := buildExchangeBackupCmd(ctx, suite.cfgFP, suite.m365UserID, category, &recorder)
 
-	cfg, err := suite.st.S3Config()
+	// run the command
+	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
+	result := recorder.String()
+	t.Log("backup results", result)
 
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
+	// as an offhand check: the result should contain the m365 user id
+	assert.Contains(t, result, suite.m365UserID)
+}
 
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_email() {
+	runExchangeBackupCategoryTest(suite, "email")
+}
+
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_contacts() {
+	runExchangeBackupCategoryTest(suite, "contacts")
+}
+
+func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_events() {
+	runExchangeBackupCategoryTest(suite, "events")
+}
+
+func runExchangeBackupUserNotFoundTest(suite *BackupExchangeE2ESuite, category string) {
+	recorder := strings.Builder{}
+	recorder.Reset()
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
 	ctx = config.SetViper(ctx, suite.vpr)
-	suite.m365UserID = tester.M365UserID(t)
 
-	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err, clues.ToCore(err))
-}
+	defer flush()
 
-func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd() {
-	recorder := strings.Builder{}
+	cmd, ctx := buildExchangeBackupCmd(ctx, suite.cfgFP, "foo@not-there.com", category, &recorder)
 
-	for _, set := range backupDataSets {
-		recorder.Reset()
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+	assert.Contains(
+		t,
+		err.Error(),
+		"not found in tenant", "error missing user not found")
+	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
-		suite.Run(set.String(), func() {
-			t := suite.T()
+	t.Logf("backup error message: %s", err.Error())
 
-			ctx, flush := tester.NewContext()
-			ctx = config.SetViper(ctx, suite.vpr)
-			defer flush()
-
-			cmd := tester.StubRootCmd(
-				"backup", "create", "exchange",
-				"--config-file", suite.cfgFP,
-				"--"+utils.UserFN, suite.m365UserID,
-				"--"+utils.CategoryDataFN, set.String())
-			cli.BuildCommandTree(cmd)
-
-			cmd.SetOut(&recorder)
-
-			ctx = print.SetRootCmd(ctx, cmd)
-
-			// run the command
-			err := cmd.ExecuteContext(ctx)
-			require.NoError(t, err, clues.ToCore(err))
-
-			result := recorder.String()
-			t.Log("backup results", result)
-
-			// as an offhand check: the result should contain the m365 user id
-			assert.Contains(t, result, suite.m365UserID)
-		})
-	}
-}
-
-func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
-	recorder := strings.Builder{}
-
-	for _, set := range backupDataSets {
-		recorder.Reset()
-
-		suite.Run(set.String(), func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext()
-			ctx = config.SetViper(ctx, suite.vpr)
-			defer flush()
-
-			cmd := tester.StubRootCmd(
-				"backup", "create", "exchange",
-				"--config-file", suite.cfgFP,
-				"--"+utils.UserFN, "foo@nothere.com",
-				"--"+utils.CategoryDataFN, set.String())
-			cli.BuildCommandTree(cmd)
-
-			cmd.SetOut(&recorder)
-
-			ctx = print.SetRootCmd(ctx, cmd)
-
-			// run the command
-			err := cmd.ExecuteContext(ctx)
-			require.Error(t, err, clues.ToCore(err))
-			assert.Contains(
-				t,
-				err.Error(),
-				"not found in tenant", "error missing user not found")
-			assert.NotContains(t, err.Error(), "runtime error", "panic happened")
-
-			t.Logf("backup error message: %s", err.Error())
-
-			result := recorder.String()
-			t.Log("backup results", result)
-		})
-	}
+	result := recorder.String()
+	t.Log("backup results", result)
 }
 
 // ---------------------------------------------------------------------------
@@ -271,34 +240,19 @@ func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
-	t := suite.T()
-
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
-	suite.recorder = strings.Builder{}
-
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
 	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
-
 	defer flush()
 
-	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
+	t := suite.T()
+	acct, st, repo, vpr, recorder, cfgFilePath := prepM365Test(t, ctx)
 
-	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err, clues.ToCore(err))
-
+	suite.acct = acct
+	suite.st = st
+	suite.repo = repo
+	suite.vpr = vpr
+	suite.recorder = recorder
+	suite.cfgFP = cfgFilePath
+	suite.m365UserID = tester.M365UserID(t)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
@@ -311,7 +265,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		}
 	)
 
-	for _, set := range backupDataSets {
+	for _, set := range []path.CategoryType{email, contacts, events} {
 		var (
 			sel    = selectors.NewExchangeBackup(users)
 			scopes []selectors.ExchangeScope
@@ -342,6 +296,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 		b, err := suite.repo.Backup(ctx, string(bop.Results.BackupID))
 		require.NoError(t, err, "retrieving recent backup by ID")
 		require.Equal(t, bIDs, string(b.ID), "repo backup matches results id")
+
 		_, b, errs := suite.repo.GetBackupDetails(ctx, bIDs)
 		require.NoError(t, errs.Failure(), "retrieving recent backup details by ID")
 		require.Empty(t, errs.Recovered(), "retrieving recent backup details by ID")
@@ -351,151 +306,173 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	}
 }
 
-func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd() {
-	for _, set := range backupDataSets {
-		suite.recorder.Reset()
-
-		suite.Run(set.String(), func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext()
-			ctx = config.SetViper(ctx, suite.vpr)
-			defer flush()
-
-			cmd := tester.StubRootCmd(
-				"backup", "list", "exchange",
-				"--config-file", suite.cfgFP)
-			cli.BuildCommandTree(cmd)
-
-			cmd.SetOut(&suite.recorder)
-
-			ctx = print.SetRootCmd(ctx, cmd)
-
-			// run the command
-			err := cmd.ExecuteContext(ctx)
-			require.NoError(t, err, clues.ToCore(err))
-
-			// compare the output
-			result := suite.recorder.String()
-			assert.Contains(t, result, suite.backupOps[set])
-		})
-	}
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_email() {
+	runExchangeListCmdTest(suite, email)
 }
 
-func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_singleID() {
-	for _, set := range backupDataSets {
-		suite.recorder.Reset()
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_contacts() {
+	runExchangeListCmdTest(suite, contacts)
+}
 
-		suite.Run(set.String(), func() {
-			t := suite.T()
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_events() {
+	runExchangeListCmdTest(suite, events)
+}
 
-			ctx, flush := tester.NewContext()
-			ctx = config.SetViper(ctx, suite.vpr)
-			defer flush()
+func runExchangeListCmdTest(suite *PreparedBackupExchangeE2ESuite, category path.CategoryType) {
+	suite.recorder.Reset()
 
-			bID := suite.backupOps[set]
+	t := suite.T()
 
-			cmd := tester.StubRootCmd(
-				"backup", "list", "exchange",
-				"--config-file", suite.cfgFP,
-				"--backup", string(bID))
-			cli.BuildCommandTree(cmd)
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
 
-			cmd.SetOut(&suite.recorder)
+	defer flush()
 
-			ctx = print.SetRootCmd(ctx, cmd)
+	cmd := tester.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.cfgFP)
+	cli.BuildCommandTree(cmd)
+	cmd.SetOut(&suite.recorder)
 
-			// run the command
-			err := cmd.ExecuteContext(ctx)
-			require.NoError(t, err, clues.ToCore(err))
+	ctx = print.SetRootCmd(ctx, cmd)
 
-			// compare the output
-			result := suite.recorder.String()
-			assert.Contains(t, result, bID)
-		})
-	}
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// compare the output
+	result := suite.recorder.String()
+	assert.Contains(t, result, suite.backupOps[category])
+}
+
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_singleID_email() {
+	runExchangeListSingleCmdTest(suite, email)
+}
+
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_singleID_contacts() {
+	runExchangeListSingleCmdTest(suite, contacts)
+}
+
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_singleID_events() {
+	runExchangeListSingleCmdTest(suite, events)
+}
+
+func runExchangeListSingleCmdTest(suite *PreparedBackupExchangeE2ESuite, category path.CategoryType) {
+	suite.recorder.Reset()
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
+
+	defer flush()
+
+	bID := suite.backupOps[category]
+
+	cmd := tester.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.cfgFP,
+		"--backup", string(bID))
+	cli.BuildCommandTree(cmd)
+
+	cmd.SetOut(&suite.recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// compare the output
+	result := suite.recorder.String()
+	assert.Contains(t, result, bID)
 }
 
 func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_badID() {
-	for _, set := range backupDataSets {
-		suite.Run(set.String(), func() {
-			t := suite.T()
+	t := suite.T()
 
-			ctx, flush := tester.NewContext()
-			ctx = config.SetViper(ctx, suite.vpr)
-			defer flush()
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
 
-			cmd := tester.StubRootCmd(
-				"backup", "list", "exchange",
-				"--config-file", suite.cfgFP,
-				"--backup", "smarfs")
-			cli.BuildCommandTree(cmd)
+	defer flush()
 
-			ctx = print.SetRootCmd(ctx, cmd)
+	cmd := tester.StubRootCmd(
+		"backup", "list", "exchange",
+		"--config-file", suite.cfgFP,
+		"--backup", "smarfs")
+	cli.BuildCommandTree(cmd)
 
-			// run the command
-			err := cmd.ExecuteContext(ctx)
-			require.Error(t, err, clues.ToCore(err))
-		})
-	}
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
 }
 
-func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd() {
-	for _, set := range backupDataSets {
-		suite.recorder.Reset()
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd_email() {
+	runExchangeDetailsCmdTest(suite, email)
+}
 
-		suite.Run(set.String(), func() {
-			t := suite.T()
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd_contacts() {
+	runExchangeDetailsCmdTest(suite, contacts)
+}
 
-			ctx, flush := tester.NewContext()
-			ctx = config.SetViper(ctx, suite.vpr)
-			defer flush()
+func (suite *PreparedBackupExchangeE2ESuite) TestExchangeDetailsCmd_events() {
+	runExchangeDetailsCmdTest(suite, events)
+}
 
-			bID := suite.backupOps[set]
+func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category path.CategoryType) {
+	suite.recorder.Reset()
 
-			// fetch the details from the repo first
-			deets, _, errs := suite.repo.GetBackupDetails(ctx, string(bID))
-			require.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
-			require.Empty(t, errs.Recovered())
+	t := suite.T()
 
-			cmd := tester.StubRootCmd(
-				"backup", "details", "exchange",
-				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(bID))
-			cli.BuildCommandTree(cmd)
+	ctx, flush := tester.NewContext()
+	ctx = config.SetViper(ctx, suite.vpr)
 
-			cmd.SetOut(&suite.recorder)
+	defer flush()
 
-			ctx = print.SetRootCmd(ctx, cmd)
+	bID := suite.backupOps[category]
 
-			// run the command
-			err := cmd.ExecuteContext(ctx)
-			require.NoError(t, err, clues.ToCore(err))
+	// fetch the details from the repo first
+	deets, _, errs := suite.repo.GetBackupDetails(ctx, string(bID))
+	require.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+	require.Empty(t, errs.Recovered())
 
-			// compare the output
-			result := suite.recorder.String()
+	cmd := tester.StubRootCmd(
+		"backup", "details", "exchange",
+		"--config-file", suite.cfgFP,
+		"--"+utils.BackupFN, string(bID))
+	cli.BuildCommandTree(cmd)
+	cmd.SetOut(&suite.recorder)
 
-			i := 0
-			foundFolders := 0
+	ctx = print.SetRootCmd(ctx, cmd)
 
-			for _, ent := range deets.Entries {
-				// Skip folders as they don't mean anything to the end user.
-				if ent.Folder != nil {
-					foundFolders++
-					continue
-				}
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 
-				suite.Run(fmt.Sprintf("detail %d", i), func() {
-					assert.Contains(suite.T(), result, ent.ShortRef)
-				})
+	// compare the output
+	result := suite.recorder.String()
 
-				i++
-			}
+	i := 0
+	foundFolders := 0
 
-			// At least the prefix of the path should be encoded as folders.
-			assert.Greater(t, foundFolders, 4)
+	for _, ent := range deets.Entries {
+		// Skip folders as they don't mean anything to the end user.
+		if ent.Folder != nil {
+			foundFolders++
+			continue
+		}
+
+		suite.Run(fmt.Sprintf("detail %d", i), func() {
+			assert.Contains(suite.T(), result, ent.ShortRef)
 		})
+
+		i++
 	}
+
+	// At least the prefix of the path should be encoded as folders.
+	assert.Greater(t, foundFolders, 4)
 }
 
 // ---------------------------------------------------------------------------
@@ -523,30 +500,17 @@ func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
 }
 
 func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
-	t := suite.T()
-
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
-
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
 	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
-
 	defer flush()
 
-	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
-	require.NoError(t, err, clues.ToCore(err))
+	t := suite.T()
+	acct, st, repo, vpr, _, cfgFilePath := prepM365Test(t, ctx)
+
+	suite.acct = acct
+	suite.st = st
+	suite.repo = repo
+	suite.vpr = vpr
+	suite.cfgFP = cfgFilePath
 
 	m365UserID := tester.M365UserID(t)
 	users := []string{m365UserID}
@@ -555,8 +519,10 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
+	backupOp, err := suite.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, err, clues.ToCore(err))
+
+	suite.backupOp = backupOp
 
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -606,4 +572,24 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID
 	// unknown backupIDs should error since the modelStore can't find the backup
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func buildExchangeBackupCmd(
+	ctx context.Context,
+	configFile, user, category string,
+	recorder *strings.Builder,
+) (*cobra.Command, context.Context) {
+	cmd := tester.StubRootCmd(
+		"backup", "create", "exchange",
+		"--config-file", configFile,
+		"--"+utils.UserFN, user,
+		"--"+utils.CategoryDataFN, category)
+	cli.BuildCommandTree(cmd)
+	cmd.SetOut(recorder)
+
+	return cmd, print.SetRootCmd(ctx, cmd)
 }
