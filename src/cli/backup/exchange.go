@@ -78,8 +78,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
 		fs.SortFlags = false
 
-		options.AddFeatureToggle(cmd, options.DisableIncrementals())
-
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
 
@@ -88,7 +86,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddUserFlag(c)
 		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		options.AddFetchParallelismFlag(c)
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
+		options.AddDisableIncrementalsFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
