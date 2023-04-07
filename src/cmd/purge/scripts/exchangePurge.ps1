@@ -112,7 +112,7 @@ function IsNameMatch {
         [string[]]$FolderNamePurgeList = @()
     )
 
-    return ($FolderName -in $FolderNamePurgeList)
+    return ($FolderName -in $FolderNamePurgeList.Split(","))
 }
 
 function Get-TimestampFromName {
@@ -163,7 +163,7 @@ function IsPrefixAndAgeMatch {
     $folderTimestamp = Get-TimestampFromName -name $FolderName -defaultTimestamp $FolderCreateTime
     
     if ($PurgeBeforeTimestamp -gt $folderTimestamp ) {
-        foreach ($prefix in $FolderPrefixPurgeList) {
+        foreach ($prefix in $FolderPrefixPurgeList.Split(',')) {
             if ($FolderName -like "$prefix*") {
                 return $true
             }
@@ -373,7 +373,7 @@ function Purge-Folders {
 
     if ($FolderPrefixPurgeList.count -gt 0 -and $PurgeBeforeTimestamp -ne $null) {
         Write-Host "Folders older than $PurgeBeforeTimestamp with prefix:"
-        foreach ($folder in $FolderPrefixPurgeList) {
+        foreach ($folder in $FolderPrefixPurgeList.Split(",")) {
             Write-Host "• $folder"
         }
     }
