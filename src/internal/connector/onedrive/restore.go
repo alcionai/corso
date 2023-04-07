@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -33,6 +34,7 @@ const copyBufferSize = 5 * 1024 * 1024
 // RestoreCollections will restore the specified data collections into OneDrive
 func RestoreCollections(
 	ctx context.Context,
+	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
 	dest control.RestoreDestination,
@@ -80,6 +82,7 @@ func RestoreCollections(
 
 		metrics, folderMetas, err = RestoreCollection(
 			ictx,
+			creds,
 			backupVersion,
 			service,
 			dc,
@@ -121,6 +124,7 @@ func RestoreCollections(
 // - error, if any besides recoverable
 func RestoreCollection(
 	ctx context.Context,
+	creds account.M365Config,
 	backupVersion int,
 	service graph.Servicer,
 	dc data.RestoreCollection,
@@ -177,6 +181,7 @@ func RestoreCollection(
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
 	restoreFolderID, err := createRestoreFoldersWithPermissions(
 		ctx,
+		creds,
 		service,
 		drivePath,
 		restoreFolderElements,
@@ -209,6 +214,7 @@ func RestoreCollection(
 
 			itemInfo, skipped, err := restoreItem(
 				ctx,
+				creds,
 				dc,
 				backupVersion,
 				source,
@@ -260,6 +266,7 @@ func RestoreCollection(
 // returns the item info, a bool (true = restore was skipped), and an error
 func restoreItem(
 	ctx context.Context,
+	creds account.M365Config,
 	dc data.RestoreCollection,
 	backupVersion int,
 	source driveSource,
@@ -327,6 +334,7 @@ func restoreItem(
 		itemInfo, err := restoreV1File(
 			ctx,
 			source,
+			creds,
 			service,
 			drivePath,
 			dc,
@@ -346,6 +354,7 @@ func restoreItem(
 	itemInfo, err := restoreV6File(
 		ctx,
 		source,
+		creds,
 		service,
 		drivePath,
 		dc,
@@ -392,6 +401,7 @@ type fileFetcher interface {
 func restoreV1File(
 	ctx context.Context,
 	source driveSource,
+	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
@@ -431,6 +441,7 @@ func restoreV1File(
 
 	err = RestorePermissions(
 		ctx,
+		creds,
 		service,
 		drivePath.DriveID,
 		itemID,
@@ -445,6 +456,7 @@ func restoreV1File(
 func restoreV6File(
 	ctx context.Context,
 	source driveSource,
+	creds account.M365Config,
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	fetcher fileFetcher,
@@ -495,11 +507,11 @@ func restoreV6File(
 
 	err = RestorePermissions(
 		ctx,
+		creds,
 		service,
 		drivePath.DriveID,
 		itemID,
-		meta,
-	)
+		meta)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}

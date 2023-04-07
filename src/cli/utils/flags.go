@@ -12,33 +12,33 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// common flag vars
+// common flag vars (eg: FV)
 var (
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
-	RunMode string
+	RunModeFV string
 
-	BackupID string
+	BackupIDFV string
 
-	FolderPath []string
-	FileName   []string
+	FolderPathFV []string
+	FileNameFV   []string
 
-	FileCreatedAfter   string
-	FileCreatedBefore  string
-	FileModifiedAfter  string
-	FileModifiedBefore string
+	FileCreatedAfterFV   string
+	FileCreatedBeforeFV  string
+	FileModifiedAfterFV  string
+	FileModifiedBeforeFV string
 
-	Library string
-	SiteID  []string
-	WebURL  []string
+	LibraryFV string
+	SiteIDFV  []string
+	WebURLFV  []string
 
-	User []string
+	UserFV []string
 
 	// for selection of data by category.  eg: `--data email,contacts`
-	CategoryData []string
+	CategoryDataFV []string
 )
 
-// common flag names
+// common flag names (eg: FN)
 const (
 	RunModeFN = "run-mode"
 
@@ -67,7 +67,7 @@ const (
 
 // AddBackupIDFlag adds the --backup flag.
 func AddBackupIDFlag(cmd *cobra.Command, require bool) {
-	cmd.Flags().StringVar(&BackupID, BackupFN, "", "ID of the backup to retrieve.")
+	cmd.Flags().StringVar(&BackupIDFV, BackupFN, "", "ID of the backup to retrieve.")
 
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))
@@ -95,7 +95,7 @@ func AddDataFlag(cmd *cobra.Command, allowed []string, hide bool) {
 	}
 
 	fs.StringSliceVar(
-		&CategoryData,
+		&CategoryDataFV,
 		CategoryDataFN, nil,
 		"Select one or more types of data to backup: "+allowedMsg+".")
 
@@ -111,14 +111,14 @@ func AddRunModeFlag(cmd *cobra.Command, persistent bool) {
 		fs = cmd.PersistentFlags()
 	}
 
-	fs.StringVar(&RunMode, RunModeFN, "run", "What mode to run: dry, test, run.  Defaults to run.")
+	fs.StringVar(&RunModeFV, RunModeFN, "run", "What mode to run: dry, test, run.  Defaults to run.")
 	cobra.CheckErr(fs.MarkHidden(RunModeFN))
 }
 
 // AddUserFlag adds the --user flag.
 func AddUserFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(
-		&User,
+		&UserFV,
 		UserFN, nil,
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
 	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
@@ -134,7 +134,7 @@ func AddSiteIDFlag(cmd *cobra.Command) {
 	// duplicate values within a flag declaration.  ie: --site-id a,b,c does not
 	// work.  Users must call --site-id a --site-id b --site-id c.
 	fs.StringArrayVar(
-		&SiteID,
+		&SiteIDFV,
 		SiteIDFN, nil,
 		//nolint:lll
 		"Backup data by site ID; accepts '"+Wildcard+"' to select all sites.  Args cannot be comma-delimited and must use multiple flags.")
@@ -144,7 +144,7 @@ func AddSiteIDFlag(cmd *cobra.Command) {
 // AddSiteFlag adds the --site flag, which accepts webURL values.
 func AddSiteFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(
-		&WebURL,
+		&WebURLFV,
 		SiteFN, nil,
 		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
 }

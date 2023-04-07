@@ -2,45 +2,45 @@ package testdata
 
 import "strings"
 
-func FlgInpts(in []string) string { return strings.Join(in, ",") }
+func FlgInputs(in []string) string { return strings.Join(in, ",") }
 
 var (
-	BackupInpt = "backup-id"
+	BackupInput = "backup-id"
 
-	UsersInpt  = []string{"users1", "users2"}
-	SiteIDInpt = []string{"siteID1", "siteID2"}
-	WebURLInpt = []string{"webURL1", "webURL2"}
+	UsersInput  = []string{"users1", "users2"}
+	SiteIDInput = []string{"siteID1", "siteID2"}
+	WebURLInput = []string{"webURL1", "webURL2"}
 
-	ContactInpt     = []string{"contact1", "contact2"}
-	ContactFldInpt  = []string{"contactFld1", "contactFld2"}
-	ContactNameInpt = "contactName"
+	ContactInput     = []string{"contact1", "contact2"}
+	ContactFldInput  = []string{"contactFld1", "contactFld2"}
+	ContactNameInput = "contactName"
 
-	EmailInpt               = []string{"mail1", "mail2"}
-	EmailFldInpt            = []string{"mailFld1", "mailFld2"}
-	EmailReceivedAfterInpt  = "mailReceivedAfter"
-	EmailReceivedBeforeInpt = "mailReceivedBefore"
-	EmailSenderInpt         = "mailSender"
-	EmailSubjectInpt        = "mailSubjet"
+	EmailInput               = []string{"mail1", "mail2"}
+	EmailFldInput            = []string{"mailFld1", "mailFld2"}
+	EmailReceivedAfterInput  = "mailReceivedAfter"
+	EmailReceivedBeforeInput = "mailReceivedBefore"
+	EmailSenderInput         = "mailSender"
+	EmailSubjectInput        = "mailSubjet"
 
-	EventInpt             = []string{"event1", "event2"}
-	EventCalInpt          = []string{"eventCal1", "eventCal2"}
-	EventOrganizerInpt    = "eventOrganizer"
-	EventRecursInpt       = "eventRecurs"
-	EventStartsAfterInpt  = "eventStartsAfter"
-	EventStartsBeforeInpt = "eventStartsBefore"
-	EventSubjectInpt      = "eventSubject"
+	EventInput             = []string{"event1", "event2"}
+	EventCalInput          = []string{"eventCal1", "eventCal2"}
+	EventOrganizerInput    = "eventOrganizer"
+	EventRecursInput       = "eventRecurs"
+	EventStartsAfterInput  = "eventStartsAfter"
+	EventStartsBeforeInput = "eventStartsBefore"
+	EventSubjectInput      = "eventSubject"
 
-	LibraryInpt            = "library"
-	FileNamesInpt          = []string{"fileName1", "fileName2"}
-	FolderPathsInpt        = []string{"folderPath1", "folderPath2"}
-	FileCreatedAfterInpt   = "fileCreatedAfter"
-	FileCreatedBeforeInpt  = "fileCreatedBefore"
-	FileModifiedAfterInpt  = "fileModifiedAfter"
-	FileModifiedBeforeInpt = "fileModifiedBefore"
+	LibraryInput            = "library"
+	FileNameInput           = []string{"fileName1", "fileName2"}
+	FolderPathInput         = []string{"folderPath1", "folderPath2"}
+	FileCreatedAfterInput   = "fileCreatedAfter"
+	FileCreatedBeforeInput  = "fileCreatedBefore"
+	FileModifiedAfterInput  = "fileModifiedAfter"
+	FileModifiedBeforeInput = "fileModifiedBefore"
 
-	ListFolderInpt = []string{"listFolder1", "listFolder2"}
-	ListItemInpt   = []string{"listItem1", "listItem2"}
+	ListFolderInput = []string{"listFolder1", "listFolder2"}
+	ListItemInput   = []string{"listItem1", "listItem2"}
 
-	PageFolderInpt = []string{"pageFolder1", "pageFolder2"}
-	PageInpt       = []string{"page1", "page2"}
+	PageFolderInput = []string{"pageFolder1", "pageFolder2"}
+	PageInput       = []string{"page1", "page2"}
 )

@@ -4,7 +4,9 @@ env:
 on:
   workflow_dispatch:
 
-  pull_request:
+  schedule:
+    # Run every day at 0 minutes and 0 hours (midnight GMT)
+    - cron: "0 0 * * *"
 
   push:
     branches: [main]
@@ -24,13 +26,10 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------------------------------------------------------
-  # --- Prechecks and Checkouts ------------------------------------------------------------------------
+  # --- Checkouts ------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
-  # Precheck:
-  #   uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
 
   Checkout:
-    # needs: [Precheck]
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
@@ -43,7 +42,6 @@ jobs:
       # the results will cascade onto both testing and linting.
       - name: Setup Golang with cache
         uses: ./.github/actions/go-setup-cache
-        # if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || needs.precheck.outputs.websitefileschanged == 'true'
         with:
           go-version-file: src/go.mod
 
@@ -121,10 +119,9 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Test-Suite-Trusted:
-    needs: [ Checkout, SetM365App] # Precheck,
+    needs: [ Checkout, SetM365App] 
     environment: Testing
     runs-on: ubuntu-latest
-    # if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
     defaults:
       run:
         working-directory: src
