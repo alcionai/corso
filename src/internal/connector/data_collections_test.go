@@ -25,27 +25,21 @@ import (
 // DataCollection tests
 // ---------------------------------------------------------------------------
 
-type ConnectorDataCollectionIntegrationSuite struct {
+type DataCollectionIntgSuite struct {
 	tester.Suite
-	connector *GraphConnector
-	user      string
-	site      string
+	user string
+	site string
 }
 
-func TestConnectorDataCollectionIntegrationSuite(t *testing.T) {
-	suite.Run(t, &ConnectorDataCollectionIntegrationSuite{
+func TestDataCollectionIntgSuite(t *testing.T) {
+	suite.Run(t, &DataCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{tester.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	suite.connector = loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), AllResources)
+func (suite *DataCollectionIntgSuite) SetupSuite() {
 	suite.user = tester.M365UserID(suite.T())
 	suite.site = tester.M365SiteID(suite.T())
 
@@ -58,7 +52,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) SetupSuite() {
 // - mail
 // - contacts
 // - events
-func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection() {
+func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -138,7 +132,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestExchangeDataCollection
 }
 
 // TestInvalidUserForDataCollections ensures verification process for users
-func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invalidResourceOwner() {
+func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -223,7 +217,7 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestDataCollections_invali
 // TestSharePointDataCollection verifies interface between operation and
 // GraphConnector remains stable to receive a non-zero amount of Collections
 // for the SharePoint Package.
-func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollection() {
+func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -299,14 +293,14 @@ func (suite *ConnectorDataCollectionIntegrationSuite) TestSharePointDataCollecti
 // CreateSharePointCollection tests
 // ---------------------------------------------------------------------------
 
-type ConnectorCreateSharePointCollectionIntegrationSuite struct {
+type SPCollectionIntgSuite struct {
 	tester.Suite
 	connector *GraphConnector
 	user      string
 }
 
-func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
-	suite.Run(t, &ConnectorCreateSharePointCollectionIntegrationSuite{
+func TestSPCollectionIntgSuite(t *testing.T) {
+	suite.Run(t, &SPCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tester.M365AcctCredEnvs},
@@ -314,7 +308,7 @@ func TestConnectorCreateSharePointCollectionIntegrationSuite(t *testing.T) {
 	})
 }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
+func (suite *SPCollectionIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -324,7 +318,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) SetupSuite() {
 	tester.LogTimeOfTest(suite.T())
 }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection_Libraries() {
+func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -335,7 +329,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(siteID, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
@@ -368,7 +362,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		cols[1].FullPath().Service().String())
 }
 
-func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateSharePointCollection_Lists() {
+func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -379,7 +373,7 @@ func (suite *ConnectorCreateSharePointCollectionIntegrationSuite) TestCreateShar
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(siteID, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
