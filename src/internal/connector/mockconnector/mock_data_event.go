@@ -300,6 +300,7 @@ func GetMockEventWithRecurrenceBytes(
 	if hasRecurrenceTimeZone {
 		event += ",\"recurrenceTimeZone\":\"" + recurrenceTimeZone + "\""
 	}
+
 	event += "}}}"
 
 	return []byte(event)
