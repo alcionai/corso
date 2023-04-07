@@ -61,6 +61,10 @@ var (
 	// https://learn.microsoft.com/en-us/graph/errors#code-property
 	ErrInvalidDelta = clues.New("invalid delta token")
 
+	// ErrServiceNotEnabled identifies that a resource owner does not have
+	// access to a given service.
+	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
+
 	// Timeout errors are identified for tracking the need to retry calls.
 	// Other delay errors, like throttling, are already handled by the
 	// graph client's built-in retries.

@@ -152,7 +152,7 @@ func getOwnerIDAndNameFrom(
 	// and populate with maps as a result.  Only
 	// return owner, owner as a very last resort.
 
-	return owner, owner, nil
+	return "", "", clues.New("not found within tenant")
 }
 
 // createService constructor for graphService component
