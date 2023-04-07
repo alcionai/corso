@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -169,8 +168,6 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
-
-	fmt.Printf("\n-----\nINS %+v\n-----\n", ins)
 
 	selectorSet := []selectors.Selector{}
 
