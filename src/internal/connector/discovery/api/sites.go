@@ -88,12 +88,12 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 	return us, el.Failure()
 }
 
-const uuidRE = "[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}"
+const uuidRE = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 
 // matches a site ID, with or without a doman name.  Ex, either one of:
 // 10rqc2.sharepoint.com,deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
 // deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
-var siteIDRE = regexp.MustCompile("(.+,)?" + uuidRE + "," + uuidRE)
+var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRE + "," + uuidRE)
 
 const webURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s"
 
@@ -117,12 +117,22 @@ func (c Sites) GetByID(ctx context.Context, id string) (models.Siteable, error) 
 		return resp, err
 	}
 
+	// if the id is not a standard sharepoint ID, assume it's a url.
+	// if it has a leading slash, assume it's only a path.  If it doesn't,
+	// ensure it has a prefix https://
+	if !strings.HasPrefix(id, "/") {
+		id = strings.TrimPrefix(id, "https://")
+		id = "https://" + id
+	}
+
 	u, err := url.Parse(id)
 	if err != nil {
 		return nil, clues.Wrap(err, "site is not parseable as a url")
 	}
 
-	rawURL := fmt.Sprintf(webURLGetTemplate, u.Host, u.Path)
+	// don't construct a path with double leading slashes
+	path := strings.TrimPrefix(u.Path, "/")
+	rawURL := fmt.Sprintf(webURLGetTemplate, u.Host, path)
 
 	resp, err = sites.
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.stable.Adapter()).

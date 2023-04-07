@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -228,8 +227,6 @@ type getOwnerIDAndNamer interface {
 	)
 }
 
-var ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
-
 // getOwnerIDAndNameFrom looks up the owner's canonical id and display name.
 // If the owner is present in the idNameSwapper, then that interface's id and
 // name values are returned.  As a fallback, the resource calls the discovery
@@ -263,11 +260,15 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 
 	id, name, err = r.getter.GetIDAndName(ctx, owner)
 	if err != nil {
+		if graph.IsErrUserNotFound(err) {
+			return "", "", clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
 		return "", "", err
 	}
 
 	if len(id) == 0 || len(name) == 0 {
-		return "", "", clues.Stack(ErrResourceOwnerNotFound)
+		return "", "", clues.Stack(graph.ErrResourceOwnerNotFound)
 	}
 
 	return id, name, nil
@@ -289,11 +290,12 @@ func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
 	// move this to GC method
 	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
 	if err != nil {
-		return "", "", errors.Wrap(err, "resolving resource owner identifiers")
+		return "", "", clues.Wrap(err, "identifying resource owner")
 	}
 
-	if gc.IDNameLookup == nil && ins != nil {
-		gc.IDNameLookup = ins
+	gc.IDNameLookup = common.IDsNames{
+		IDToName: map[string]string{id: name},
+		NameToID: map[string]string{name: id},
 	}
 
 	return id, name, nil

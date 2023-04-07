@@ -162,7 +162,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	}
 
 	if !found {
-		return clues.New("resource owner not found within tenant").With("missing_resource_owner", sels.DiscreteOwner)
+		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_resource_owner", sels.DiscreteOwner)
 	}
 
 	return nil

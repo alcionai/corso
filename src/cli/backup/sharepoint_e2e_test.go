@@ -113,13 +113,14 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 
 type BackupDeleteSharePointE2ESuite struct {
 	tester.Suite
-	acct     account.Account
-	st       storage.Storage
-	vpr      *viper.Viper
-	cfgFP    string
-	repo     repository.Repository
-	backupOp operations.BackupOperation
-	recorder strings.Builder
+	acct          account.Account
+	st            storage.Storage
+	vpr           *viper.Viper
+	cfgFP         string
+	resourceOwner string
+	repo          repository.Repository
+	backupOp      operations.BackupOperation
+	recorder      strings.Builder
 }
 
 func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
