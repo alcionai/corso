@@ -2,6 +2,7 @@ package restore_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -73,7 +74,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	var (
 		users    = []string{suite.m365UserID}

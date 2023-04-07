@@ -293,7 +293,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	defer flush()
 
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
