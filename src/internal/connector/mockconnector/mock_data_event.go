@@ -23,100 +23,77 @@ import (
 //nolint:lll
 const (
 	eventTmpl = `{
-				"@odata.etag": "W/\"CCHVDR7TfkuFTPnP8TbQNgAAmuaVUg==\"",
-				"id": "AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAB-9ZnLAAAIIdUNHtN_S4VM_c-xNtA2AACcDFMyAAA=",
-				"createdDateTime": "2023-04-02T19:19:04.4712065Z",
-				"lastModifiedDateTime": "2023-04-02T19:19:04.5014333Z",
-				"changeKey": "CCHVDR7TfkuFTPnP8TbQNgAAmuaVUg==",
-				"categories": [],
-				"transactionId": null,
-				"originalStartTimeZone": "UTC",
-				"originalEndTimeZone": "UTC",
-				"iCalUId": "040000008200E00074C5B7101A82E00800000000127015FD9765D9010000000000000000100000001CDF9E77F1589A4FABA98478EBB92B92",
-				"reminderMinutesBeforeStart": 1080,
-				"isReminderOn": true,
-				"hasAttachments": false,
-				"subject": "Sanitago TestContact - 2023-04-02T18:04:41.9607783Z birthday",
-				"bodyPreview": "",
-				"importance": "normal",
-				"sensitivity": "normal",
-				"isAllDay": true,
-				"isCancelled": false,
-				"isOrganizer": true,
-				"responseRequested": true,
-				"seriesMasterId": null,
-				"showAs": "free",
-				"type": "seriesMaster",
-				"webLink": "https://outlook.office365.com/owa/?itemid=AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS%2FGSJ8XtIFVFUHmBwAIIdUNHtN%2BS4VM%2Bc%2FxNtA2AAB%2F9ZnLAAAIIdUNHtN%2BS4VM%2Bc%2FxNtA2AACcDFMyAAA%3D&exvsurl=1&path=/calendar/item",
-				"onlineMeetingUrl": null,
-				"isOnlineMeeting": false,
-				"onlineMeetingProvider": "unknown",
-				"allowNewTimeProposals": true,
-				"occurrenceId": null,
-				"isDraft": false,
-				"hideAttendees": false,
-				"responseStatus": {
-					"response": "organizer",
-					"time": "0001-01-01T00:00:00Z"
-		},
-				"body": {
-					"contentType": "html",
-					"content": "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\r\n<meta name=\"Generator\" content=\"Microsoft Exchange Server\">\r\n<!-- converted from text -->\r\n<style><!-- .EmailQuote { margin-left: 1pt; padding-left: 4pt; border-left: #800000 2px solid; } --></style></head>\r\n<body>\r\n<font size=\"2\"><span style=\"font-size:11pt;\"><div class=\"PlainText\">&nbsp;</div></span></font>\r\n</body>\r\n</html>\r\n"
-		},
-				"start": {
-					"dateTime": "2000-01-01T00:00:00.0000000",
-					"timeZone": "UTC"
-		},
-				"end": {
-					"dateTime": "2000-01-02T00:00:00.0000000",
-					"timeZone": "UTC"
-				},
-				"location": {
-					"displayName": "",
-					"locationType": "default",
-					"uniqueIdType": "unknown",
-					"address": {},
-					"coordinates": {}
-				},
-				"locations": [],
-				"recurrence": {
-					"pattern": {
-						"type": "absoluteYearly",
-						"interval": 1,
-						"month": 1,
-						"dayOfMonth": 1,
-						"firstDayOfWeek": "sunday",
-						"index": "first"
-					},
-					"range": {
-						"type": "noEnd",
-						"startDate": "2000-01-01",
-						"endDate": "0001-01-01",
-						"numberOfOccurrences": 0
-			}
-		},
-				"attendees": [{
-					"emailAddress": {
-						"address":"george.martinez@8qzvrj.onmicrosoft.com",
-						"name": "George Martinez"
-		},
-					"type": "required",
-					"status": {
-						"response": "none",
-						"time": "0001-01-01T00:00:00Z"
-					}
-				}],
-				"organizer": {
-					"emailAddress": {
-						"name": "Megan Bowen",
-						"address": "MeganB@10rqc2.onmicrosoft.com"
-					}
-		},
-				"onlineMeeting": null,
-				"calendar@odata.associationLink": "https://graph.microsoft.com/v1.0/users('meganb@10rqc2.onmicrosoft.com')/calendars('AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAAAAAEGAAAIIdUNHtN_S4VM_c-xNtA2AAB-9bFGAAA=')/$ref",
-				"calendar@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('meganb@10rqc2.onmicrosoft.com')/calendars('AAMkAGZkMjczMTljLWY5YTItNDEzMy05MTViLWJmNjgyNjRmNmZjYgBGAAAAAAD9c6q6JS-GSJ8XtIFVFUHmBwAIIdUNHtN_S4VM_c-xNtA2AAAAAAEGAAAIIdUNHtN_S4VM_c-xNtA2AAB-9bFGAAA=')"
-			}
-	}`
+	"id":"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA=",
+	"calendar@odata.navigationLink":"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')",
+	"calendar@odata.associationLink":"https://graph.microsoft.com/v1.0/users('foobar@8qzvrj.onmicrosoft.com')/calendars('AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwAuAAAAAADCNgjhM9QmQYWNcI7hCpPrAQDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAAA=')/$ref",
+	"@odata.etag":"W/\"0hATW1CAfUS+njw3hdxSGAAAJIxNug==\"",
+	"@odata.context":"https://graph.microsoft.com/v1.0/$metadata#users('foobar%%408qzvrj.onmicrosoft.com')/events/$entity",
+	"categories":[],
+	"changeKey":"0hATW1CAfUS+njw3hdxSGAAAJIxNug==",
+	"createdDateTime":"2022-03-28T03:42:03Z",
+	"lastModifiedDateTime":"2022-05-26T19:25:58Z",
+	"allowNewTimeProposals":true,
+	"attendees":[],
+	"body":{
+		"content":"<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"></head><body>` +
+		`<p>%s</p></body></html>",
+		"contentType":"html"
+	},
+	"bodyPreview":"%s",
+	"end":{
+		"dateTime":"%s",
+		"timeZone":"UTC"
+	},
+	"hideAttendees":false,
+	"iCalUId":"040000008200E00074C5B7101A82E0080000000035723BC75542D801000000000000000010000000E1E7C8F785242E4894DA13AEFB947B85",
+	"importance":"normal",
+	"isAllDay":false,
+	"isCancelled":false,
+	"isDraft":false,
+	"isOnlineMeeting":false,
+	"isOrganizer":false,
+	"isReminderOn":true,
+	"location":{
+		"displayName":"Umi Sake House (2230 1st Ave, Seattle, WA 98121 US)",
+		"locationType":"default",
+		"uniqueId":"Umi Sake House (2230 1st Ave, Seattle, WA 98121 US)",
+		"uniqueIdType":"private"
+	},
+	"locations":[
+		{
+			"displayName":"Umi Sake House (2230 1st Ave, Seattle, WA 98121 US)",
+			"locationType":"default",
+			"uniqueId":"",
+			"uniqueIdType":"unknown"
+		}
+	],
+	"onlineMeetingProvider":"unknown",
+	"organizer":{
+		"emailAddress":{
+			"address":"%s",
+			"name":"Anu Pierson"
+		}
+	},
+	"originalEndTimeZone":"UTC",
+	"originalStartTimeZone":"UTC",
+	"reminderMinutesBeforeStart":15,
+	"responseRequested":true,
+	"responseStatus":{
+		"response":"notResponded",
+		"time":"0001-01-01T00:00:00Z"
+	},
+	"sensitivity":"normal",
+	"showAs":"tentative",
+	"start":{
+		"dateTime":"%s",
+		"timeZone":"UTC"
+	},
+	"subject":"%s",
+	"type":"singleInstance",
+	"hasAttachments":%v,
+	%s
+	"webLink":"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%%3D&exvsurl=1&path=/calendar/item"
+}`
 
 	defaultEventBody        = "This meeting is to review the latest Tailspin Toys project proposal.<br>\\r\\nBut why not eat some sushi while we’re at it? :)"
 	defaultEventBodyPreview = "This meeting is to review the latest Tailspin Toys project proposal.\\r\\nBut why not eat some sushi while we’re at it? :)"
