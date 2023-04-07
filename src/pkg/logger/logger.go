@@ -47,7 +47,7 @@ var (
 	logFileFV       = ""
 	LogLevelFV      = "info"
 	ReadableLogsFV  bool
-	SensitiveInfoFV = PIIHash
+	SensitiveInfoFV = PIIPlainText
 
 	LogFile string // logFileFV after processing
 )
@@ -109,7 +109,7 @@ func addFlags(fs *pflag.FlagSet, defaultFile string) {
 	fs.StringVar(
 		&SensitiveInfoFV,
 		SensitiveInfoFN,
-		PIIHash,
+		PIIPlainText,
 		fmt.Sprintf("set the format for sensitive info in logs to %s|%s|%s", PIIHash, PIIMask, PIIPlainText))
 }
 
