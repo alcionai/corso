@@ -458,6 +458,12 @@ type DetailsEntry struct {
 	// Currently only implemented for Exchange Calendars.
 	LocationRef string `json:"locationRef,omitempty"`
 
+	// ItemRef contains the stable id of the item itself.  ItemRef is not
+	// guaranteed to be unique within a repository.  Uniqueness guarantees
+	// maximally inherit from the source item. Eg: Entries for m365 mail items
+	// are only as unique as m365 mail item IDs themselves.
+	ItemRef string `json:"itemRef,omitempty"`
+
 	// Indicates the item was added or updated in this backup
 	// Always `true` for full backups
 	Updated bool `json:"updated"`

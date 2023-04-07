@@ -48,6 +48,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			expectHs: []string{"ID"},
 			expectVs: []string{"deadbeef"},
@@ -58,6 +59,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:    ExchangeEvent,
@@ -78,6 +80,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:    ExchangeContact,
@@ -94,6 +97,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					Exchange: &ExchangeInfo{
 						ItemType:   ExchangeMail,
@@ -114,6 +118,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemName:   "itemName",
@@ -145,6 +150,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{
 						ItemName:   "itemName",
@@ -734,6 +740,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 		},
 		expectRepoRefs:     []string{"abcde"},
@@ -745,10 +752,12 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			{
 				RepoRef:     "12345",
 				LocationRef: "locationref2",
+				ItemRef:     "itemref2",
 			},
 		},
 		expectRepoRefs:     []string{"abcde", "12345"},
@@ -760,10 +769,12 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			{
 				RepoRef:     "12345",
 				LocationRef: "locationref2",
+				ItemRef:     "itemref2",
 			},
 			{
 				RepoRef:     "deadbeef",
@@ -788,6 +799,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "foo.meta",
 				LocationRef: "locationref.dirmeta",
+				ItemRef:     "itemref.meta",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: false},
 				},
@@ -795,6 +807,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "is-meta-file",
 				LocationRef: "locationref-meta-file",
+				ItemRef:     "itemref-meta-file",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: true},
 				},
@@ -809,14 +822,17 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "abcde",
 				LocationRef: "locationref",
+				ItemRef:     "itemref",
 			},
 			{
 				RepoRef:     "12345",
 				LocationRef: "locationref2",
+				ItemRef:     "itemref2",
 			},
 			{
 				RepoRef:     "foo.meta",
 				LocationRef: "locationref.dirmeta",
+				ItemRef:     "itemref.dirmeta",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: false},
 				},
@@ -824,6 +840,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "is-meta-file",
 				LocationRef: "locationref-meta-file",
+				ItemRef:     "itemref-meta-file",
 				ItemInfo: ItemInfo{
 					OneDrive: &OneDriveInfo{IsMeta: true},
 				},
@@ -831,6 +848,7 @@ var pathItemsTable = []struct {
 			{
 				RepoRef:     "deadbeef",
 				LocationRef: "locationref3",
+				ItemRef:     "itemref3",
 				ItemInfo: ItemInfo{
 					Folder: &FolderInfo{
 						DisplayName: "test folder",
@@ -937,8 +955,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 			"root:",
 			"folder",
 			name + "-id",
-		},
-	)
+		})
 
 	otherItemPath := makeItemPath(
 		t,
@@ -952,8 +969,7 @@ func (suite *DetailsUnitSuite) TestDetails_Add_ShortRefs_Unique_From_Folder() {
 			"folder",
 			name + "-id",
 			name,
-		},
-	)
+		})
 
 	err := b.Add(
 		itemPath,

@@ -60,6 +60,7 @@ var (
 			RepoRef:   ExchangeEmailItemPath1.String(),
 			ShortRef:  ExchangeEmailItemPath1.ShortRef(),
 			ParentRef: ExchangeEmailItemPath1.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath1.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType: details.ExchangeMail,
@@ -73,6 +74,7 @@ var (
 			RepoRef:   ExchangeEmailItemPath2.String(),
 			ShortRef:  ExchangeEmailItemPath2.ShortRef(),
 			ParentRef: ExchangeEmailItemPath2.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath2.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType: details.ExchangeMail,
@@ -86,6 +88,7 @@ var (
 			RepoRef:   ExchangeEmailItemPath3.String(),
 			ShortRef:  ExchangeEmailItemPath3.ShortRef(),
 			ParentRef: ExchangeEmailItemPath3.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath3.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType: details.ExchangeMail,
@@ -108,6 +111,7 @@ var (
 			RepoRef:   ExchangeContactsItemPath1.String(),
 			ShortRef:  ExchangeContactsItemPath1.ShortRef(),
 			ParentRef: ExchangeContactsItemPath1.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath1.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
@@ -119,6 +123,7 @@ var (
 			RepoRef:   ExchangeContactsItemPath2.String(),
 			ShortRef:  ExchangeContactsItemPath2.ShortRef(),
 			ParentRef: ExchangeContactsItemPath2.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath2.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
@@ -139,6 +144,7 @@ var (
 			RepoRef:   ExchangeEventsItemPath1.String(),
 			ShortRef:  ExchangeEventsItemPath1.ShortRef(),
 			ParentRef: ExchangeEventsItemPath1.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath2.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeEvent,
@@ -153,6 +159,7 @@ var (
 			RepoRef:   ExchangeEventsItemPath2.String(),
 			ShortRef:  ExchangeEventsItemPath2.ShortRef(),
 			ParentRef: ExchangeEventsItemPath2.ToBuilder().Dir().ShortRef(),
+			ItemRef:   ExchangeEmailItemPath2.Item(),
 			ItemInfo: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{
 					ItemType:    details.ExchangeEvent,
@@ -183,6 +190,7 @@ var (
 			RepoRef:   OneDriveItemPath1.String(),
 			ShortRef:  OneDriveItemPath1.ShortRef(),
 			ParentRef: OneDriveItemPath1.ToBuilder().Dir().ShortRef(),
+			ItemRef:   OneDriveItemPath1.Item(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
 					ItemType:   details.OneDriveItem,
@@ -199,6 +207,7 @@ var (
 			RepoRef:   OneDriveItemPath2.String(),
 			ShortRef:  OneDriveItemPath2.ShortRef(),
 			ParentRef: OneDriveItemPath2.ToBuilder().Dir().ShortRef(),
+			ItemRef:   OneDriveItemPath2.Item(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
 					ItemType:   details.OneDriveItem,
@@ -215,6 +224,7 @@ var (
 			RepoRef:   OneDriveItemPath3.String(),
 			ShortRef:  OneDriveItemPath3.ShortRef(),
 			ParentRef: OneDriveItemPath3.ToBuilder().Dir().ShortRef(),
+			ItemRef:   OneDriveItemPath3.Item(),
 			ItemInfo: details.ItemInfo{
 				OneDrive: &details.OneDriveInfo{
 					ItemType:   details.OneDriveItem,
@@ -247,6 +257,7 @@ var (
 			RepoRef:   SharePointLibraryItemPath1.String(),
 			ShortRef:  SharePointLibraryItemPath1.ShortRef(),
 			ParentRef: SharePointLibraryItemPath1.ToBuilder().Dir().ShortRef(),
+			ItemRef:   SharePointItemPath1.Item(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType:   details.SharePointLibrary,
@@ -263,6 +274,7 @@ var (
 			RepoRef:   SharePointLibraryItemPath2.String(),
 			ShortRef:  SharePointLibraryItemPath2.ShortRef(),
 			ParentRef: SharePointLibraryItemPath2.ToBuilder().Dir().ShortRef(),
+			ItemRef:   SharePointItemPath2.Item(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType:   details.SharePointLibrary,
@@ -279,6 +291,7 @@ var (
 			RepoRef:   SharePointLibraryItemPath3.String(),
 			ShortRef:  SharePointLibraryItemPath3.ShortRef(),
 			ParentRef: SharePointLibraryItemPath3.ToBuilder().Dir().ShortRef(),
+			ItemRef:   SharePointItemPath3.Item(),
 			ItemInfo: details.ItemInfo{
 				SharePoint: &details.SharePointInfo{
 					ItemType:   details.SharePointLibrary,

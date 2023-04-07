@@ -728,6 +728,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeScope_MatchesPath() {
 		ent   = details.DetailsEntry{
 			RepoRef:     repo.String(),
 			ShortRef:    short,
+			ItemRef:     mail,
 			LocationRef: loc,
 		}
 	)
@@ -1312,13 +1313,17 @@ func (suite *ExchangeSelectorSuite) TestScopesByCategory() {
 }
 
 func (suite *ExchangeSelectorSuite) TestPasses() {
-	short := "thisisahashofsomekind"
-	entry := details.DetailsEntry{ShortRef: short}
 
 	const (
 		mid = "mailID"
 		cat = ExchangeMail
 	)
+
+	short := "thisisahashofsomekind"
+	entry := details.DetailsEntry{
+		ShortRef: short,
+		ItemRef:  mid,
+	}
 
 	var (
 		es        = NewExchangeRestore(Any())
@@ -1493,6 +1498,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeCategory_PathValues() {
 			ent := details.DetailsEntry{
 				RepoRef:  test.path.String(),
 				ShortRef: "short",
+				ItemRef:  test.path.Item(),
 			}
 
 			pvs, err := test.cat.pathValues(test.path, ent)
