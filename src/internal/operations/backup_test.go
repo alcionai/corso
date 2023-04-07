@@ -183,28 +183,35 @@ func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) e
 
 // ----- model store for backups
 
-type mockDetailsMergeInfoer struct {
-	repoRefs map[string]path.Path
-	locs     map[string]*path.Builder
+type locPair struct {
+	old  *path.Builder
+	newL *path.Builder
 }
 
-func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, newLoc *path.Builder) {
+type mockDetailsMergeInfoer struct {
+	repoRefs map[string]path.Path
+	locs     map[string]locPair
+}
+
+func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, oldPrefix, newLoc *path.Builder) {
 	oldPB := oldRef.ToBuilder()
 	// Items are indexed individually.
 	m.repoRefs[oldPB.ShortRef()] = newRef
 
 	if newLoc != nil {
 		// Locations are indexed by directory.
-		m.locs[oldPB.Dir().ShortRef()] = newLoc
+		m.locs[oldPB.ShortRef()] = locPair{
+			old:  oldPrefix,
+			newL: newLoc,
+		}
 	}
 }
 
-func (m *mockDetailsMergeInfoer) GetNewRepoRef(oldRef *path.Builder) path.Path {
-	return m.repoRefs[oldRef.ShortRef()]
-}
-
-func (m *mockDetailsMergeInfoer) GetNewLocation(oldRef *path.Builder) *path.Builder {
-	return m.locs[oldRef.ShortRef()]
+func (m *mockDetailsMergeInfoer) GetNewPathRefs(
+	oldRef, oldLoc *path.Builder,
+) (path.Path, *path.Builder, *path.Builder) {
+	locs := m.locs[oldRef.ShortRef()]
+	return m.repoRefs[oldRef.ShortRef()], locs.old, locs.newL
 }
 
 func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
@@ -218,7 +225,7 @@ func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
 func newMockDetailsMergeInfoer() *mockDetailsMergeInfoer {
 	return &mockDetailsMergeInfoer{
 		repoRefs: map[string]path.Path{},
-		locs:     map[string]*path.Builder{},
+		locs:     map[string]locPair{},
 	}
 }
 
@@ -343,9 +350,8 @@ func makeDetailsEntry(
 		}
 
 	case path.OneDriveService:
-		parent, err := path.GetDriveFolderPath(p)
-		require.NoError(t, err, clues.ToCore(err))
-
+		require.NotNil(t, l)
+		parent := l.PopFront().String()
 		res.OneDrive = &details.OneDriveInfo{
 			ItemType:   details.OneDriveItem,
 			ParentPath: parent,
@@ -736,7 +742,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "BackupIDNotFound",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -754,7 +760,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "DetailsIDNotFound",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -780,8 +786,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "BaseMissingItems",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
-				res.add(itemPath2, itemPath2, locationPath2)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+				res.add(itemPath2, itemPath2, locationPath2, locationPath2)
 
 				return res
 			}(),
@@ -811,7 +817,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "TooManyItems",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -847,7 +853,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "BadBaseRepoRef",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath2, locationPath2)
+				res.add(itemPath1, itemPath2, locationPath1, locationPath2)
 
 				return res
 			}(),
@@ -909,7 +915,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					true,
 				)
 
-				res.add(itemPath1, p, nil)
+				res.add(itemPath1, p, locationPath1, nil)
 
 				return res
 			}(),
@@ -939,7 +945,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "ItemMerged",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -969,43 +975,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 		},
 		{
-			name: "ItemMergedNoLocation",
-			mdm: func() *mockDetailsMergeInfoer {
-				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, nil)
-
-				return res
-			}(),
-			inputMans: []*kopia.ManifestEntry{
-				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-			},
-		},
-		{
 			name: "ItemMergedSameLocation",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -1038,7 +1011,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "ItemMergedExtraItemsInBase",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -1072,7 +1045,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "ItemMoved",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath2, locationPath2)
+				res.add(itemPath1, itemPath2, locationPath1, locationPath2)
 
 				return res
 			}(),
@@ -1105,8 +1078,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "MultipleBases",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
-				res.add(itemPath3, itemPath3, locationPath3)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+				res.add(itemPath3, itemPath3, locationPath3, locationPath3)
 
 				return res
 			}(),
@@ -1157,7 +1130,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			name: "SomeBasesIncomplete",
 			mdm: func() *mockDetailsMergeInfoer {
 				res := newMockDetailsMergeInfoer()
-				res.add(itemPath1, itemPath1, locationPath1)
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
 
 				return res
 			}(),
@@ -1288,7 +1261,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	)
 
 	mdm := newMockDetailsMergeInfoer()
-	mdm.add(itemPath1, itemPath1, locPath1)
+	mdm.add(itemPath1, itemPath1, locPath1, locPath1)
 
 	itemDetails := makeDetailsEntry(t, itemPath1, locPath1, itemSize, false)
 	// itemDetails.Exchange.Modified = now
