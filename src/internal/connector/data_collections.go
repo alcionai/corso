@@ -8,8 +8,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -171,7 +170,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 
 func checkServiceEnabled(
 	ctx context.Context,
-	au api.Users,
+	gi discovery.GetInfoer,
 	service path.ServiceType,
 	resource string,
 ) (bool, error) {
@@ -180,14 +179,13 @@ func checkServiceEnabled(
 		return true, nil
 	}
 
-	_, info, err := discovery.User(ctx, au, resource)
+	info, err := gi.GetInfo(ctx, resource)
 	if err != nil {
 		return false, err
 	}
 
-	if _, ok := info.DiscoveredServices[service]; !ok {
-		logger.Ctx(ctx).Error("service not enabled")
-		return false, nil
+	if !info.ServiceEnabled(service) {
+		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
 	}
 
 	return true, nil
