@@ -104,6 +104,17 @@ type LocationPather interface {
 	LocationPath() *path.Builder
 }
 
+// PreviousLocationPather provides both the current location of the collection
+// as well as the location of the item in the previous backup.
+//
+// TODO(ashmrtn): If we guarantee that we persist the location of collections in
+// addition to the path of the item then we could just have a single
+// *LocationPather interface with current and previous location functions.
+type PreviousLocationPather interface {
+	LocationPather
+	PreviousLocationPath() *path.Builder
+}
+
 // StreamInfo is used to provide service specific
 // information about the Stream
 type StreamInfo interface {
