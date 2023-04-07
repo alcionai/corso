@@ -81,7 +81,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
 				require.NoError(t, deetsBuilder.Add(
-					"rr", "sr", "pr", "lr",
+					"rr", "sr", "pr", "lr", "ir",
 					true,
 					details.ItemInfo{
 						Exchange: &details.ExchangeInfo{Subject: "hello world"},
@@ -112,7 +112,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
 				require.NoError(t, deetsBuilder.Add(
-					"rr", "sr", "pr", "lr",
+					"rr", "sr", "pr", "lr", "ir",
 					true,
 					details.ItemInfo{
 						Exchange: &details.ExchangeInfo{Subject: "hello world"},
@@ -179,6 +179,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				assert.Equal(t, deets.Entries[0].ShortRef, readDeets.Entries[0].ShortRef)
 				assert.Equal(t, deets.Entries[0].RepoRef, readDeets.Entries[0].RepoRef)
 				assert.Equal(t, deets.Entries[0].LocationRef, readDeets.Entries[0].LocationRef)
+				assert.Equal(t, deets.Entries[0].ItemRef, readDeets.Entries[0].ItemRef)
 				assert.Equal(t, deets.Entries[0].Updated, readDeets.Entries[0].Updated)
 				assert.NotNil(t, readDeets.Entries[0].Exchange)
 				assert.Equal(t, *deets.Entries[0].Exchange, *readDeets.Entries[0].Exchange)

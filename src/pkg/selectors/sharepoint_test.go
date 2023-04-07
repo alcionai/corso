@@ -377,6 +377,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			ent := details.DetailsEntry{
 				RepoRef:  itemPath.String(),
 				ShortRef: shortRef,
+				ItemRef:  itemPath.Item(),
 				ItemInfo: details.ItemInfo{
 					SharePoint: &details.SharePointInfo{
 						ItemName: itemName,

@@ -267,6 +267,7 @@ func RestoreListCollection(
 				itemPath.ShortRef(),
 				"",
 				"", // TODO: implement locationRef
+				itemPath.Item(),
 				true,
 				itemInfo)
 			if err != nil {
@@ -357,6 +358,7 @@ func RestorePageCollection(
 				itemPath.ShortRef(),
 				"",
 				"", // TODO: implement locationRef
+				itemPath.Item(),
 				true,
 				itemInfo)
 			if err != nil {

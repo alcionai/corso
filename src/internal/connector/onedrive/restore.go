@@ -248,6 +248,7 @@ func RestoreCollection(
 				itemPath.ShortRef(),
 				"",
 				"", // TODO: implement locationRef
+				itemPath.Item(),
 				true,
 				itemInfo)
 			if err != nil {

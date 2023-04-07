@@ -595,6 +595,7 @@ func mergeDetails(
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
 				newLocStr,
+				newPath.Item(),
 				itemUpdated,
 				item)
 			if err != nil {

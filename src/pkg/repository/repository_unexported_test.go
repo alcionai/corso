@@ -341,7 +341,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 	}
 
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", false, info))
+	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", "iref", false, info))
 
 	table := []struct {
 		name       string
@@ -419,7 +419,7 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 
 	builder := &details.Builder{}
 
-	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", false, info))
+	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", "iref", false, info))
 
 	table := []struct {
 		name         string

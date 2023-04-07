@@ -262,8 +262,9 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	t := suite.T()
 
 	fileName := "file"
+	fileID := fileName + "-id"
 	shortRef := "short"
-	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileName + "-id"}
+	elems := []string{"drive", "driveID", "root:", "dir1", "dir2", fileID}
 
 	filePath, err := path.Build("tenant", "user", path.OneDriveService, path.FilesCategory, true, elems...)
 	require.NoError(t, err, clues.ToCore(err))
@@ -276,6 +277,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveCategory_PathValues() {
 	ent := details.DetailsEntry{
 		RepoRef:  filePath.String(),
 		ShortRef: shortRef,
+		ItemRef:  fileID,
 		ItemInfo: details.ItemInfo{
 			OneDrive: &details.OneDriveInfo{
 				ItemName: fileName,

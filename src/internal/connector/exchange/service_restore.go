@@ -452,6 +452,7 @@ func restoreCollection(
 				itemPath.ShortRef(),
 				"",
 				locationRef,
+				itemPath.Item(),
 				true,
 				details.ItemInfo{
 					Exchange: info,

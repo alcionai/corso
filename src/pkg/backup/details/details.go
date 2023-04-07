@@ -21,6 +21,7 @@ type folderEntry struct {
 	ShortRef    string
 	ParentRef   string
 	LocationRef string
+	ItemRef     string
 	Updated     bool
 	Info        ItemInfo
 }
@@ -144,7 +145,7 @@ type Builder struct {
 }
 
 func (b *Builder) Add(
-	repoRef, shortRef, parentRef, locationRef string,
+	repoRef, shortRef, parentRef, locationRef, itemRef string,
 	updated bool,
 	info ItemInfo,
 ) error {
@@ -355,6 +356,12 @@ type DetailsEntry struct {
 	// repoRef.
 	// Currently only implemented for Exchange Calendars.
 	LocationRef string `json:"locationRef,omitempty"`
+
+	// ItemRef contains the stable id of the item itself.  ItemRef is not
+	// guaranteed to be unique within a repository.  Uniqueness guarantees
+	// maximally inherit from the source item. Eg: Entries for m365 mail items
+	// are only as unique as m365 mail item IDs themselves.
+	ItemRef string `json:"itemRef,omitempty"`
 
 	// Indicates the item was added or updated in this backup
 	// Always `true` for full backups
