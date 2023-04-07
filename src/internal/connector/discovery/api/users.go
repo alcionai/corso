@@ -148,13 +148,15 @@ func (c Users) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, 
 	return us, el.Failure()
 }
 
-func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, error) {
+// GetByID looks up the user matching the given identifier.  The identifier can be either a
+// canonical user id or a princpalName.
+func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
 	)
 
-	resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
+	resp, err = c.stable.Client().UsersById(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
