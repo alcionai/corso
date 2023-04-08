@@ -100,12 +100,12 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	defer flush()
 
 	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
+		t       = suite.T()
+		userID  = tester.M365UserID(t)
+		subject = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	)
 
-	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, name)
+	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, subject)
 	require.NoError(t, err, clues.ToCore(err))
 
 	calendarID := ptr.Val(calendar.GetId())
@@ -116,50 +116,39 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	info, err := RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithAttendeesBytes(name),
-		suite.gs,
-		control.Copy,
-		calendarID,
-		userID,
-		fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotNil(t, info, "event item info")
+	tests := []struct {
+		name  string
+		bytes []byte
+	}{
+		{
+			name:  "Test Event With Attendees",
+			bytes: mockconnector.GetMockEventWithAttendeesBytes(subject),
+		},
+		{
+			name:  "Test recurrenceTimeZone: Empty",
+			bytes: mockconnector.GetMockEventWithRecurrenceBytes(subject, `""`),
+		},
+	}
 
-	// Recurrence testing
-	// 1. Event doesn't have recurrence timezone specified
-	info, err = RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithRecurrenceBytes(name, false, ""),
-		suite.gs,
-		control.Copy,
-		calendarID,
-		userID,
-		fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotNil(t, info, "event item info")
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	// 2. Event has recurrence timezone specified as ""
-	info, err = RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithRecurrenceBytes(name, true, ""),
-		suite.gs,
-		control.Copy,
-		calendarID,
-		userID,
-		fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotNil(t, info, "event item info")
+			ctx, flush := tester.NewContext()
+			defer flush()
 
-	// 3. Valid recurrence timezone field i.e. it is not the same timezone as
-	// start or end timezones
-	info, err = RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithRecurrenceBytes(name, true, "Pacific Standard Time"),
-		suite.gs,
-		control.Copy,
-		calendarID,
-		userID,
-		fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotNil(t, info, "event item info")
+			info, err := RestoreExchangeEvent(
+				ctx,
+				test.bytes,
+				suite.gs,
+				control.Copy,
+				calendarID,
+				userID,
+				fault.New(true))
+			assert.NoError(t, err, clues.ToCore(err))
+			assert.NotNil(t, info, "event item info")
+		})
+	}
 }
 
 type containerDeleter interface {
