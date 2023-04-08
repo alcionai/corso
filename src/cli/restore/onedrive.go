@@ -38,9 +38,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		// restore permissions
 		options.AddRestorePermissionsFlag(c)
-
-		// others
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 	}
 
 	return c

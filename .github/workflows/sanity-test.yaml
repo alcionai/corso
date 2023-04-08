@@ -70,6 +70,7 @@ jobs:
           prefix=`date +"%Y-%m-%d-%T"`
 
           ./corso repo init s3 \
+          --no-stats \
           --hide-progress \
           --prefix $prefix \
           --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
@@ -87,6 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso repo connect s3 \
+          --no-stats \
           --hide-progress \
           --prefix ${{ steps.repo-init.outputs.result }} \
           --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
@@ -118,6 +120,7 @@ jobs:
         id: exchange-test
         run: |
           ./corso backup create exchange \
+          --no-stats \
           --user "${CORSO_M365_TEST_USER_ID}" \
            --hide-progress \
            --data 'email' \
@@ -139,6 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup list exchange \
+          --no-stats \
           --hide-progress \
           2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
 
@@ -153,6 +157,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup list exchange \
+          --no-stats \
           --hide-progress \
           --backup "${{ steps.exchange-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/backup_exchange_list_single.txt
@@ -169,6 +174,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore exchange \
+          --no-stats \
           --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --hide-progress \
           --backup "${{ steps.exchange-test.outputs.result }}" \
@@ -190,6 +196,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create exchange \
+          --no-stats \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
           --json \
@@ -210,6 +217,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore exchange \
+          --no-stats \
           --hide-progress \
           --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
           --email-folder Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
@@ -235,9 +243,9 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
+          --no-stats \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --enable-permissions-backup \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
@@ -256,6 +264,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup list onedrive \
+          --no-stats \
           --hide-progress \
           2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
 
@@ -270,6 +279,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso backup list onedrive \
+          --no-stats \
           --hide-progress \
           --backup "${{ steps.onedrive-test.outputs.result }}" \
           2>&1 | tee $TEST_RESULT/backup_onedrive_list_single.txt
@@ -286,6 +296,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore onedrive \
+          --no-stats \
           --restore-permissions \
           --hide-progress \
           --backup "${{ steps.onedrive-test.outputs.result }}" \
@@ -301,14 +312,14 @@ jobs:
           ./sanityCheck
 
       # test onedrive incremental
-      - name: Backup onedrive test
+      - name: Backup onedrive incremental
         id: onedrive-incremental-test
         run: |
           set -euo pipefail
           ./corso backup create onedrive \
+          --no-stats \
           --hide-progress \
           --user "${CORSO_M365_TEST_USER_ID}" \
-          --enable-permissions-backup \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
@@ -328,6 +339,7 @@ jobs:
         run: |
           set -euo pipefail
           ./corso restore onedrive \
+          --no-stats \
           --restore-permissions \
           --hide-progress \
           --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \

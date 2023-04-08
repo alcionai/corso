@@ -29,7 +29,7 @@ linters-settings:
     forbid:
       # Don't allow creating contexts without logging in tests. Use an ignore
       # lower down to ensure usages of this outside of tests aren't reported.
-      - 'context\.(Background|TODO)(# tests should use tester\.NewContext )?'
+      - 'context\.(Background|TODO)(# tests should use tester\.NewContext)?'
       # Don't allow use of path as it hardcodes separator to `/`.
       # Use filepath instead.
       - '\bpath\.(Ext|Base|Dir|Join)'
@@ -38,10 +38,12 @@ linters-settings:
       # Don't allow use of testify suite directly. Use one of the wrappers from
       # tester/suite.go instead. Use an ignore lower down to exclude packages
       # that result in import cycles if they try to use the wrapper.
-      - 'suite\.Suite(# tests should use one of the Suite wrappers in tester package )?'
+      - 'suite\.Suite(# tests should use one of the Suite wrappers in tester package)?'
       # All errors should be constructed and wrapped with the clues package.
       # String formatting should be avoided in favor of structured errors (ie: err.With(k, v)).
       - '(errors|fmt)\.(New|Stack|Wrap|Error)f?\((# error handling should use clues pkg)?'
+      # Avoid Warn-level logging in favor of Info or Error.
+      - 'Warn[wf]?\((# logging should use Info or Error)?'
   lll:
     line-length: 120
   revive:

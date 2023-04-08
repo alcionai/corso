@@ -278,12 +278,17 @@ func setupExchangeBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
 	bsel.DiscreteOwner = owner
 	bsel.Include(
 		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
 		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
 		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
 	)
+
+	bsel.SetDiscreteOwnerIDName(id, name)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -293,7 +298,7 @@ func setupExchangeBackup(
 		gc,
 		acct,
 		bsel.Selector,
-		bsel.Selector.DiscreteOwner,
+		bsel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -335,12 +340,17 @@ func setupSharePointBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
 	spsel.DiscreteOwner = owner
 	// assume a folder name "test" exists in the drive.
 	// this is brittle, and requires us to backfill anytime
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
 	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+
+	spsel.SetDiscreteOwnerIDName(id, name)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -350,7 +360,7 @@ func setupSharePointBackup(
 		gc,
 		acct,
 		spsel.Selector,
-		spsel.Selector.DiscreteOwner,
+		spsel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 

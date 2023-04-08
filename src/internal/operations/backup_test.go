@@ -265,7 +265,7 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 func makeDetailsEntry(
 	t *testing.T,
 	p path.Path,
-	l path.Path,
+	l *path.Builder,
 	size int,
 	updated bool,
 ) *details.DetailsEntry {
@@ -273,7 +273,7 @@ func makeDetailsEntry(
 
 	var lr string
 	if l != nil {
-		lr = l.PopFront().PopFront().PopFront().PopFront().Dir().String()
+		lr = l.String()
 	}
 
 	res := &details.DetailsEntry{
@@ -298,7 +298,7 @@ func makeDetailsEntry(
 		res.Exchange = &details.ExchangeInfo{
 			ItemType:   details.ExchangeMail,
 			Size:       int64(size),
-			ParentPath: l.Folder(false),
+			ParentPath: l.String(),
 		}
 
 	case path.OneDriveService:
@@ -415,7 +415,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				gc,
 				acct,
 				sel,
-				sel.DiscreteOwner,
+				sel,
 				evmock.NewBus())
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -608,22 +608,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true,
 		)
-		locationPath1 = makePath(
-			suite.T(),
-			[]string{
-				tenant,
-				path.OneDriveService.String(),
-				ro,
-				path.FilesCategory.String(),
-				"drives",
-				"drive-id",
-				"root:",
-				"work-display-name",
-				"item1",
-			},
-			true,
-		)
-		itemPath2 = makePath(
+		locationPath1 = path.Builder{}.Append("root:", "work-display-name")
+		itemPath2     = makePath(
 			suite.T(),
 			[]string{
 				tenant,
@@ -638,22 +624,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true,
 		)
-		locationPath2 = makePath(
-			suite.T(),
-			[]string{
-				tenant,
-				path.OneDriveService.String(),
-				ro,
-				path.FilesCategory.String(),
-				"drives",
-				"drive-id",
-				"root:",
-				"personal-display-name",
-				"item2",
-			},
-			true,
-		)
-		itemPath3 = makePath(
+		locationPath2 = path.Builder{}.Append("root:", "personal-display-name")
+		itemPath3     = makePath(
 			suite.T(),
 			[]string{
 				tenant,
@@ -665,18 +637,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true,
 		)
-		locationPath3 = makePath(
-			suite.T(),
-			[]string{
-				tenant,
-				path.ExchangeService.String(),
-				ro,
-				path.EmailCategory.String(),
-				"personal-display-name",
-				"item3",
-			},
-			true,
-		)
+		locationPath3 = path.Builder{}.Append("personal-display-name")
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -801,7 +762,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -837,7 +798,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -926,7 +887,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -1003,7 +964,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
 			inputMans: []*kopia.ManifestEntry{
@@ -1021,14 +982,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
 		{
@@ -1254,10 +1215,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			pathElems,
 			true)
 
-		locPath1 = makePath(
-			t,
-			pathElems[:len(pathElems)-1],
-			false)
+		locPath1 = path.Builder{}.Append(pathElems[:len(pathElems)-1]...)
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -1297,7 +1255,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		// later    = now.Add(42 * time.Minute)
 	)
 
-	itemDetails := makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
+	itemDetails := makeDetailsEntry(t, itemPath1, locPath1, itemSize, false)
 	// itemDetails.Exchange.Modified = now
 
 	populatedDetails := map[string]*details.Details{

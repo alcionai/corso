@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -234,7 +235,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
 			assert.Contains(
 				t,
 				err.Error(),
-				"not found within tenant", "error missing user not found")
+				"not found in tenant", "error missing user not found")
 			assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 			t.Logf("backup error message: %s", err.Error())
@@ -292,7 +293,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	defer flush()
 
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
@@ -300,7 +301,15 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	suite.backupOps = make(map[path.CategoryType]string)
 
-	users := []string{suite.m365UserID}
+	var (
+		users    = []string{suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
+		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
+		ins      = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
+	)
 
 	for _, set := range backupDataSets {
 		var (
@@ -321,7 +330,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)

@@ -292,11 +292,10 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, nil)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
+			logger.CtxErr(ctx, err).Error("getting builder info")
 		} else {
 			logger.Ctx(ctx).
-				With("user", user, "container", calendarID).
-				Warnw("builder path-parameters", "path_parameters", gri.PathParameters)
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
 		}
 	}
 

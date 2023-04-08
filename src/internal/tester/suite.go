@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
@@ -44,6 +45,9 @@ func NewIntegrationSuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *integrationSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
@@ -70,6 +74,9 @@ func NewE2ESuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *e2eSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
@@ -96,6 +103,9 @@ func NewLoadSuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *loadSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
@@ -122,6 +132,9 @@ func NewNightlySuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *nightlySuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(

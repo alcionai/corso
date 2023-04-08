@@ -213,7 +213,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
 			require.NotNil(t, coll)
@@ -237,7 +237,6 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
-				_ bool,
 			) (io.ReadCloser, int, error) {
 				metaJSON, err := json.Marshal(testItemMeta)
 				if err != nil {
@@ -353,7 +352,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
 
@@ -378,7 +377,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
-				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
@@ -443,7 +441,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
 
@@ -484,7 +482,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
-				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 2, nil
 			}
@@ -504,7 +501,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 	}
 }
 
-// TODO(meain): Remove this test once we start always backing up permissions
+// Ensure metadata file always uses latest time for mod time
 func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTime() {
 	table := []struct {
 		name   string
@@ -543,7 +540,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				suite,
 				suite.testStatusUpdater(&wg, &collStatus),
 				test.source,
-				control.Options{ToggleFeatures: control.Toggles{EnablePermissionsBackup: true}},
+				control.Options{ToggleFeatures: control.Toggles{}},
 				CollectionScopeFolder,
 				true)
 
@@ -571,7 +568,6 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 				_ graph.Servicer,
 				_ string,
 				_ models.DriveItemable,
-				_ bool,
 			) (io.ReadCloser, int, error) {
 				return io.NopCloser(strings.NewReader(`{}`)), 16, nil
 			}

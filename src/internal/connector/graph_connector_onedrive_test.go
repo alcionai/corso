@@ -452,11 +452,11 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 
 	si.resourceOwner = tester.M365SiteID(suite.T())
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -499,11 +499,11 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) SetupSuite() {
 
 	si.resourceOwner = si.user
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -524,143 +524,6 @@ func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsBackupAndNoR
 
 func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
 	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
-}
-
-// TestPermissionsRestoreAndNoBackup checks that even if permissions exist
-// not setting EnablePermissionsBackup results in empty permissions. This test
-// only needs to run on the current version.Backup because it's about backup
-// behavior not restore behavior (restore behavior is checked in other tests).
-func (suite *GraphConnectorOneDriveIntegrationSuite) TestPermissionsRestoreAndNoBackup() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-
-	secondaryUserName, secondaryUserID := suite.SecondaryUser()
-
-	driveID := mustGetDefaultDriveID(
-		t,
-		ctx,
-		suite.BackupService(),
-		suite.Service(),
-		suite.BackupResourceOwner(),
-	)
-
-	secondaryUserRead := permData{
-		user:     secondaryUserName,
-		entityID: secondaryUserID,
-		roles:    readPerm,
-	}
-
-	secondaryUserWrite := permData{
-		user:     secondaryUserName,
-		entityID: secondaryUserID,
-		roles:    writePerm,
-	}
-
-	test := restoreBackupInfoMultiVersion{
-		service:       suite.BackupService(),
-		resource:      suite.Resource(),
-		backupVersion: version.Backup,
-		collectionsPrevious: []colInfo{
-			newOneDriveCollection(
-				suite.T(),
-				suite.BackupService(),
-				[]string{
-					"drives",
-					driveID,
-					"root:",
-				},
-				version.Backup,
-			).
-				withFile(
-					fileName,
-					fileAData,
-					secondaryUserWrite,
-				).
-				withFolder(
-					folderBName,
-					secondaryUserRead,
-				).
-				collection(),
-			newOneDriveCollection(
-				suite.T(),
-				suite.BackupService(),
-				[]string{
-					"drives",
-					driveID,
-					"root:",
-					folderBName,
-				},
-				version.Backup,
-			).
-				withFile(
-					fileName,
-					fileEData,
-					secondaryUserRead,
-				).
-				withPermissions(
-					secondaryUserRead,
-				).
-				collection(),
-		},
-		collectionsLatest: []colInfo{
-			newOneDriveCollection(
-				suite.T(),
-				suite.BackupService(),
-				[]string{
-					"drives",
-					driveID,
-					"root:",
-				},
-				version.Backup,
-			).
-				withFile(
-					fileName,
-					fileAData,
-					permData{},
-				).
-				withFolder(
-					folderBName,
-					permData{},
-				).
-				collection(),
-			newOneDriveCollection(
-				suite.T(),
-				suite.BackupService(),
-				[]string{
-					"drives",
-					driveID,
-					"root:",
-					folderBName,
-				},
-				version.Backup,
-			).
-				withFile(
-					fileName,
-					fileEData,
-					permData{},
-				).
-				// Call this to generate a meta file with the folder name that we can
-				// check.
-				withPermissions(
-					permData{},
-				).
-				collection(),
-		},
-	}
-
-	runRestoreBackupTestVersions(
-		t,
-		suite.Account(),
-		test,
-		suite.Tenant(),
-		[]string{suite.BackupResourceOwner()},
-		control.Options{
-			RestorePermissions: true,
-			ToggleFeatures:     control.Toggles{EnablePermissionsBackup: false},
-		},
-	)
 }
 
 // ---------------------------------------------------------------------------
@@ -695,11 +558,11 @@ func (suite *GraphConnectorOneDriveNightlySuite) SetupSuite() {
 
 	si.resourceOwner = si.user
 
-	user, err := si.connector.Owners.Users().GetByID(ctx, si.user)
+	user, err := si.connector.Discovery.Users().GetByID(ctx, si.user)
 	require.NoError(suite.T(), err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.connector.Owners.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
@@ -862,7 +725,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 			)
 		})
@@ -1073,7 +936,7 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 			)
 		})
@@ -1156,7 +1019,7 @@ func testPermissionsBackupAndNoRestore(suite oneDriveSuite, startVersion int) {
 				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: false,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 			)
 		})
@@ -1308,7 +1171,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				[]string{suite.BackupResourceOwner()},
 				control.Options{
 					RestorePermissions: true,
-					ToggleFeatures:     control.Toggles{EnablePermissionsBackup: true},
+					ToggleFeatures:     control.Toggles{},
 				},
 			)
 		})

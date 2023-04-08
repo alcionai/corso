@@ -123,6 +123,11 @@ func prepNewTestBackupOp(
 		t.FailNow()
 	}
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sel.SetDiscreteOwnerIDName(id, name)
+
 	bo := newTestBackupOp(t, ctx, kw, ms, gc, acct, sel, bus, featureToggles, closer)
 
 	return bo, acct, kw, ms, gc, closer
@@ -154,7 +159,7 @@ func newTestBackupOp(
 
 	opts.ToggleFeatures = featureToggles
 
-	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel.DiscreteOwner, bus)
+	bo, err := NewBackupOperation(ctx, opts, kw, sw, gc, acct, sel, sel, bus)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		closer()
 		t.FailNow()
@@ -566,6 +571,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			sel := selectors.Selector{DiscreteOwner: "test"}
+
 			_, err := NewBackupOperation(
 				ctx,
 				test.opts,
@@ -573,8 +580,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.sw,
 				test.bp,
 				test.acct,
-				selectors.Selector{DiscreteOwner: "test"},
-				"test-name",
+				sel,
+				sel,
 				evmock.NewBus())
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
@@ -1153,7 +1160,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDrive() {
 
 	sel.Include(sel.AllData())
 
-	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{EnablePermissionsBackup: true})
+	bo, _, _, _, _, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, control.Toggles{})
 	defer closer()
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
