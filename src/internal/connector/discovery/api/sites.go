@@ -117,14 +117,6 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 		return resp, err
 	}
 
-	// if the id is not a standard sharepoint ID, assume it's a url.
-	// if it has a leading slash, assume it's only a path.  If it doesn't,
-	// ensure it has a prefix https://
-	if !strings.HasPrefix(identifier, "/") {
-		identifier = strings.TrimPrefix(identifier, "https://")
-		identifier = "https://" + identifier
-	}
-
 	u, err := url.Parse(identifier)
 	if err != nil {
 		return nil, clues.Wrap(err, "site is not parseable as a url")
