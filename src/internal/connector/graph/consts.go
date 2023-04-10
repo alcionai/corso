@@ -45,6 +45,10 @@ type parallelism struct {
 }
 
 func (p parallelism) CollectionBufferSize() int {
+	if p.collectionBuffer == 0 {
+		return 1
+	}
+
 	return p.collectionBuffer
 }
 
@@ -75,6 +79,10 @@ func (p parallelism) ItemOverride(ctx context.Context, override int) int {
 }
 
 func (p parallelism) Item() int {
+	if p.item == 0 {
+		return 1
+	}
+
 	return p.item
 }
 
