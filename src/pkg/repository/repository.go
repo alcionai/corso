@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -313,9 +314,14 @@ func (r repository) NewBackupWithLookup(
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ins)
+	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
+	}
+
+	// Exchange and OneDrive need to maintain the user PN as the ID until we're ready to migrate
+	if sel.PathService() != path.SharePointService {
+		ownerID = ownerName
 	}
 
 	// TODO: retrieve display name from gc
