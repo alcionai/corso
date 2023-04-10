@@ -65,6 +65,21 @@ func Users(
 	return client.Users().GetAll(ctx, errs)
 }
 
+// UsersDetails fetches detailed info like - userPurpose for all users in the tenant.
+func UsersDetails(
+	ctx context.Context,
+	acct account.Account,
+	userID string,
+	errs *fault.Bus,
+) (models.MailboxSettingsable, error) {
+	client, err := apiClient(ctx, acct)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Users().GetMailSetting(ctx, userID)
+}
+
 // User fetches a single user's data.
 func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userable, *api.UserInfo, error) {
 	u, err := gwi.GetByID(ctx, userID)

@@ -18,6 +18,7 @@ type User struct {
 	PrincipalName string
 	ID            string
 	Name          string
+	userPurpose   string
 }
 
 // UsersCompat returns a list of users in the specified M365 tenant.
@@ -50,6 +51,13 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "parsing userable")
 		}
 
+		mailBoxSetting, err := discovery.UsersDetails(ctx, acct, pu.ID, errs)
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing userable")
+		}
+
+		userPurpose := mailBoxSetting.GetUserPurpose()
+		pu.userPurpose = userPurpose.String()
 		ret = append(ret, pu)
 	}
 

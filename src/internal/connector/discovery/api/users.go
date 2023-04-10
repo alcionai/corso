@@ -150,6 +150,22 @@ func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, err
 	return resp, err
 }
 
+func (c Users) GetMailSetting(ctx context.Context, userID string) (models.MailboxSettingsable, error) {
+	var (
+		resp models.Userable
+		err  error
+	)
+
+	resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting user")
+	}
+
+	userResponse := resp.GetMailboxSettings()
+
+	return userResponse, nil
+}
+
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	// Assume all services are enabled
 	// then filter down to only services the user has enabled
