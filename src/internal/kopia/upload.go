@@ -720,12 +720,12 @@ func inflateCollectionTree(
 	// Temporary variable just to track the things that have been marked as
 	// changed while keeping a reference to their path.
 	changedPaths := []path.Path{}
-	// updatedLocations holds the location path of all moved collections. New
-	// collections aren't tracked because we will have their location explicitly.
-	// This is used by the backup details merge code to update locations for items
-	// in nested folders that got moved when the top-level folder got moved. The
-	// nested folder may not generate a delta result but will need the location
-	// updated.
+	// updatedLocations maps from the collections RepoRef to the updated location
+	// path for all moved collections. New collections aren't tracked because we
+	// will have their location explicitly. This is used by the backup details
+	// merge code to update locations for items in nested folders that got moved
+	// when the top-level folder got moved. The nested folder may not generate a
+	// delta result but will need the location updated.
 	//
 	// This could probably use a path.Builder as the value instead of a string if
 	// we wanted.
