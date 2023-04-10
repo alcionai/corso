@@ -52,7 +52,6 @@ func produceManifestsAndMetadata(
 		tags          = map[string]string{kopia.TagBackupCategory: ""}
 		metadataFiles = graph.AllMetadataFileNames()
 		collections   []data.RestoreCollection
-		fbms          []*kopia.ManifestEntry
 	)
 
 	ms, err := mr.FetchPrevSnapshotManifests(ctx, reasons, tags)
@@ -60,11 +59,9 @@ func produceManifestsAndMetadata(
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots")
 	}
 
-	if len(fallbackReasons) > 0 {
-		fbms, err = mr.FetchPrevSnapshotManifests(ctx, fallbackReasons, tags)
-		if err != nil {
-			return nil, nil, false, clues.Wrap(err, "looking up prior snapshots under alternate id")
-		}
+	fbms, err := mr.FetchPrevSnapshotManifests(ctx, fallbackReasons, tags)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots under alternate id")
 	}
 
 	// one of three cases can occur when retrieving backups across reason migrations:
@@ -154,6 +151,8 @@ func produceManifestsAndMetadata(
 // unionManifests reduces the two manifest slices into a single slice.
 // Assumes fallback represents a prior manifest version (across some migration
 // that disrupts manifest lookup), and that mans contains the current version.
+// Also assumes the mans slice will have, at most, one complete and one incomplete
+// manifest per service+category tuple.
 //
 // Selection priority, for each reason, follows these rules:
 // 1. If the mans manifest is complete, ignore fallback manifests for that reason.
@@ -210,7 +209,7 @@ func unionManifests(
 
 			if t.complete != nil {
 				// assume fallbacks contains prior manifest versions.
-				// we dont want to stack a prior version incomplete onto
+				// we don't want to stack a prior version incomplete onto
 				// a current version's complete snapshot.
 				continue
 			}
