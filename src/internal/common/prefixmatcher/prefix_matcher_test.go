@@ -1,14 +1,12 @@
-package common_test
+package prefixmatcher_test
 
 import (
 	"testing"
 
-	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -21,24 +19,13 @@ func TestPrefixMatcherUnitSuite(t *testing.T) {
 }
 
 func (suite *PrefixMatcherUnitSuite) TestEmpty() {
-	pm := common.NewPrefixMatcher[string]()
+	pm := prefixmatcher.NewMatcher[string]()
 	assert.True(suite.T(), pm.Empty())
 }
 
-func (suite *PrefixMatcherUnitSuite) TestAddExisting() {
+func (suite *PrefixMatcherUnitSuite) TestAdd_Get() {
 	t := suite.T()
-	pm := common.NewPrefixMatcher[string]()
-
-	err := pm.Add("key", "value")
-	require.NoError(t, err, clues.ToCore(err))
-
-	err = pm.Add("key", "value")
-	require.Error(t, err, clues.ToCore(err))
-}
-
-func (suite *PrefixMatcherUnitSuite) TestAdd_Get_Map() {
-	t := suite.T()
-	pm := common.NewPrefixMatcher[string]()
+	pm := prefixmatcher.NewMatcher[string]()
 	kvs := map[string]string{
 		"hello": "world",
 		"hola":  "mundo",
@@ -46,8 +33,7 @@ func (suite *PrefixMatcherUnitSuite) TestAdd_Get_Map() {
 	}
 
 	for k, v := range kvs {
-		err := pm.Add(k, v)
-		require.NoError(t, err, clues.ToCore(err))
+		pm.Add(k, v)
 	}
 
 	for k, v := range kvs {
@@ -55,8 +41,6 @@ func (suite *PrefixMatcherUnitSuite) TestAdd_Get_Map() {
 		assert.True(t, ok, "searching for key", k)
 		assert.Equal(t, v, val, "returned value")
 	}
-
-	assert.Equal(t, kvs, pm.Map())
 }
 
 func (suite *PrefixMatcherUnitSuite) TestLongestPrefix() {
@@ -128,11 +112,10 @@ func (suite *PrefixMatcherUnitSuite) TestLongestPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			pm := common.NewPrefixMatcher[string]()
+			pm := prefixmatcher.NewMatcher[string]()
 
 			for k, v := range test.inputKVs {
-				err := pm.Add(k, v)
-				require.NoError(t, err, clues.ToCore(err))
+				pm.Add(k, v)
 			}
 
 			k, v, ok := pm.LongestPrefix(test.searchKey)

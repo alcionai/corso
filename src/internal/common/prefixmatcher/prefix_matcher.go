@@ -1,31 +1,27 @@
-package common
+package prefixmatcher
 
 import (
 	"strings"
-
-	"github.com/alcionai/clues"
 )
 
-type PrefixMatcher[T any] interface {
-	Add(key string, value T) error
+type View[T any] interface {
 	Get(key string) (T, bool)
 	LongestPrefix(key string) (string, T, bool)
-	Map() map[string]T
 	Empty() bool
+}
+
+type Matcher[T any] interface {
+	// Add adds or updates the item with key to have value value.
+	Add(key string, value T)
+	View[T]
 }
 
 type prefixMatcher[T any] struct {
 	data map[string]T
 }
 
-func (m *prefixMatcher[T]) Add(key string, value T) error {
-	if _, ok := m.data[key]; ok {
-		return clues.New("entry already exists").With("key", key)
-	}
-
+func (m *prefixMatcher[T]) Add(key string, value T) {
 	m.data[key] = value
-
-	return nil
 }
 
 func (m *prefixMatcher[T]) Get(key string) (T, bool) {
@@ -34,6 +30,7 @@ func (m *prefixMatcher[T]) Get(key string) (T, bool) {
 	}
 
 	res, ok := m.data[key]
+
 	return res, ok
 }
 
@@ -62,14 +59,10 @@ func (m *prefixMatcher[T]) LongestPrefix(key string) (string, T, bool) {
 	return rk, rv, found
 }
 
-func (m prefixMatcher[T]) Map() map[string]T {
-	return m.data
-}
-
 func (m prefixMatcher[T]) Empty() bool {
 	return len(m.data) == 0
 }
 
-func NewPrefixMatcher[T any]() PrefixMatcher[T] {
+func NewMatcher[T any]() Matcher[T] {
 	return &prefixMatcher[T]{data: map[string]T{}}
 }
