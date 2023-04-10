@@ -572,7 +572,9 @@ func mergeDetails(
 			}
 
 			newPath := prev.Repo
-			newLoc := updatedLocs.LongestPrefix(entry.RepoRef)
+			// Locations are done by collection RepoRef so remove the item from the
+			// input.
+			newLoc := updatedLocs.LongestPrefix(rr.ToBuilder().Dir().String())
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
