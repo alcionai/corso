@@ -151,7 +151,7 @@ const (
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}],"
 
-	noRecurrence   = `null`
+	NoRecurrence   = `null`
 	recurrenceTmpl = `{
 		"pattern": {
 			"type": "absoluteYearly",
@@ -170,7 +170,7 @@ const (
 		}
 	}`
 
-	noAttendees   = `[]`
+	NoAttendees   = `[]`
 	attendeesTmpl = `[{
 		"emailAddress": {
 			"address": "george.martinez@8qzvrj.onmicrosoft.com",
@@ -227,7 +227,7 @@ func GetMockEventWithSubjectBytes(subject string) []byte {
 	return GetMockEventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, endTime, noRecurrence, noAttendees, false,
+		atTime, endTime, NoRecurrence, NoAttendees, false,
 	)
 }
 
@@ -239,7 +239,7 @@ func GetMockEventWithAttachment(subject string) []byte {
 	return GetMockEventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, noRecurrence, noAttendees, true,
+		atTime, atTime, NoRecurrence, NoAttendees, true,
 	)
 }
 
@@ -270,7 +270,7 @@ func GetMockEventWithAttendeesBytes(subject string) []byte {
 	return GetMockEventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
-		atTime, atTime, noRecurrence, attendeesTmpl, true,
+		atTime, atTime, NoRecurrence, attendeesTmpl, true,
 	)
 }
 

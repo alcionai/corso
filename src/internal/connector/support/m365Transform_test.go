@@ -37,7 +37,7 @@ func (suite *SupportTestSuite) TestToMessage() {
 	assert.NotEqual(t, message.GetId(), clone.GetId())
 }
 
-func (suite *SupportTestSuite) TestToEventSimplifiedAttendees() {
+func (suite *SupportTestSuite) TestToEventSimplified_attendees() {
 	t := suite.T()
 	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
 	event, err := CreateEventFromBytes(bytes)
@@ -57,7 +57,7 @@ func (suite *SupportTestSuite) TestToEventSimplifiedAttendees() {
 	}
 }
 
-func (suite *SupportTestSuite) TestToEventSimplifiedRecurrence() {
+func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
 	var (
 		t       = suite.T()
 		subject = "M365 Event Support Test"
@@ -68,6 +68,19 @@ func (suite *SupportTestSuite) TestToEventSimplifiedRecurrence() {
 		event          func() models.Eventable
 		validateOutput func(e models.Eventable) bool
 	}{
+		{
+			name: "Test recurrence: Unspecified",
+			event: func() models.Eventable {
+				bytes := mockconnector.GetMockEventWithSubjectBytes(subject)
+				e, err := CreateEventFromBytes(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return e
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetRecurrence() == nil
+			},
+		},
 		{
 			name: "Test recurrenceTimeZone: Unspecified",
 			event: func() models.Eventable {
