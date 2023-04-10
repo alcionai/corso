@@ -257,7 +257,7 @@ func (suite *PathUnitSuite) TestEscapedFailure() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Errorf(t, err, "path with unescaped %s did not error", string(c))
+			assert.Errorf(suite.T(), err, "path with unescaped %s did not error", string(c))
 		})
 	}
 }
