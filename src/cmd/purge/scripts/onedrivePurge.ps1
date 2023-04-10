@@ -112,6 +112,10 @@ function Purge-Library {
 
 ######## MAIN #########
 
+# ensure that there are no unexpanded entries in the list of parameters
+$LibraryNameList = $LibraryNameList | ForEach-Object { @($_.Split(',').Trim()) }
+$FolderPrefixPurgeList = $FolderPrefixPurgeList | ForEach-Object { @($_.Split(',').Trim()) }
+
 # Setup SharePointPnP
 if (-not (Get-Module -ListAvailable -Name PnP.PowerShell)) {
     $ProgressPreference = 'SilentlyContinue'
