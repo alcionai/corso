@@ -38,77 +38,66 @@ const (
 // ---------------------------------------------------------------------------
 
 type parallelism struct {
-	collectionPool int
-	itemFetch      int
-	prefetchPool   int
+	// sets the collection buffer size before blocking.
+	collectionBuffer int
+	// sets the parallelism of item population within a collection.
+	item int
 }
 
-func (p parallelism) CollectionPoolSize() int {
-	return p.collectionPool
+func (p parallelism) CollectionBufferSize() int {
+	return p.collectionBuffer
 }
 
-func (p parallelism) CollectionPoolOverride(ctx context.Context, override int) int {
+func (p parallelism) CollectionBufferOverride(ctx context.Context, override int) int {
 	logger.Ctx(ctx).Infow(
-		"collection pool parallelism",
-		"default_parallelism", p.itemFetch,
+		"collection buffer parallelism",
+		"default_parallelism", p.collectionBuffer,
 		"requested_paralellism", override)
 
-	if override < 1 || (p.collectionPool > 0 && override > p.collectionPool) {
-		return p.collectionPool
+	if !isWithin(1, p.collectionBuffer, override) {
+		return p.collectionBuffer
 	}
 
 	return override
 }
 
-func (p parallelism) ItemFetchOverride(ctx context.Context, override int) int {
+func (p parallelism) ItemOverride(ctx context.Context, override int) int {
 	logger.Ctx(ctx).Infow(
-		"item fetch parallelism",
-		"default_parallelism", p.itemFetch,
+		"item-level parallelism",
+		"default_parallelism", p.item,
 		"requested_paralellism", override)
 
-	if override < 1 || (p.itemFetch > 0 && override > p.itemFetch) {
-		return p.itemFetch
+	if !isWithin(1, p.item, override) {
+		return p.item
 	}
 
 	return override
 }
 
-func (p parallelism) ItemFetchSize() int {
-	return p.itemFetch
+func (p parallelism) Item() int {
+	return p.item
 }
 
-func (p parallelism) PrefetchPoolOverride(ctx context.Context, override int) int {
-	logger.Ctx(ctx).Infow(
-		"item fetch parallelism",
-		"default_parallelism", p.itemFetch,
-		"requested_paralellism", override)
-
-	if override < 1 || (p.prefetchPool > 0 && override > p.prefetchPool) {
-		return p.prefetchPool
-	}
-
-	return override
-}
-
-func (p parallelism) PrefetchPoolSize() int {
-	return p.prefetchPool
+// returns low <= v <= high
+// if high < low, returns low <= v
+func isWithin(low, high, v int) bool {
+	return v >= low && (high < low || v <= high)
 }
 
 var sp = map[path.ServiceType]parallelism{
 	path.ExchangeService: {
-		collectionPool: 4,
-		itemFetch:      4,
-		prefetchPool:   4,
+		collectionBuffer: 4,
+		item:             4,
 	},
 	path.OneDriveService: {
-		collectionPool: 5,
-		itemFetch:      4,
-		prefetchPool:   5,
+		collectionBuffer: 5,
+		item:             4,
 	},
+	// sharepoint libraries are considered "onedrive" parallelism.
+	// this only controls lists/pages.
 	path.SharePointService: {
-		collectionPool: 5,
-		itemFetch:      4,
-		prefetchPool:   5,
+		collectionBuffer: 5,
+		item:             4,
 	},
 }
 

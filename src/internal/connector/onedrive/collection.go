@@ -172,7 +172,7 @@ func NewCollection(
 		driveID:         driveID,
 		source:          source,
 		service:         service,
-		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionPoolSize()),
+		data:            make(chan data.Stream, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
 		statusUpdater:   statusUpdater,
 		ctrl:            ctrlOpts,
 		state:           data.StateOf(prevPath, folderPath),
@@ -482,7 +482,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	defer colCloser()
 	defer close(folderProgress)
 
-	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).PrefetchPoolSize())
+	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
 
 	for _, item := range oc.driveItems {
