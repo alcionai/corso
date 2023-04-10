@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
@@ -36,12 +35,13 @@ var (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	Service    graph.Servicer
-	Owners     api.Client
+	Discovery  api.Client
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
 	credentials account.M365Config
 
+	ownerLookup getOwnerIDAndNamer
 	// maps of resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
@@ -56,15 +56,6 @@ type GraphConnector struct {
 	status support.ConnectorOperationStatus // contains the status of the last run status
 }
 
-type resource int
-
-const (
-	UnknownResource resource = iota
-	AllResources
-	Users
-	Sites
-)
-
 func NewGraphConnector(
 	ctx context.Context,
 	itemClient *http.Client,
@@ -72,101 +63,61 @@ func NewGraphConnector(
 	r resource,
 	errs *fault.Bus,
 ) (*GraphConnector, error) {
-	m365, err := acct.M365Config()
+	creds, err := acct.M365Config()
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	gc := GraphConnector{
-		itemClient:   itemClient,
-		tenant:       m365.AzureTenantID,
-		wg:           &sync.WaitGroup{},
-		credentials:  m365,
-		IDNameLookup: common.IDsNames{},
-	}
-
-	gc.Service, err = gc.createService()
+	service, err := createService(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
-	gc.Owners, err = api.NewClient(m365)
+	discovery, err := api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	rc, err := r.resourceClient(discovery)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
+	}
+
+	gc := GraphConnector{
+		Discovery:    discovery,
+		IDNameLookup: common.IDsNames{},
+		Service:      service,
+
+		credentials: creds,
+		itemClient:  itemClient,
+		ownerLookup: rc,
+		tenant:      acct.ID(),
+		wg:          &sync.WaitGroup{},
 	}
 
 	return &gc, nil
 }
 
-// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
-// the owner's name and ID from that value.  Returns an error if the owner is
-// not recognized by the current tenant.
-//
-// The id-name swapper is optional.  Some processes will look up all owners in
-// the tenant before reaching this step.  In that case, the data gets handed
-// down for this func to consume instead of performing further queries.  The
-// maps get stored inside the gc instance for later re-use.
-//
-// TODO: If the maps are nil or empty, this func will perform a lookup on the given
-// owner, and populate each map with that owner's id and name for downstream
-// guarantees about that data being present.  Optional performance enhancement
-// idea: downstream from here, we should _only_ need the given user's id and name,
-// and could store minimal map copies with that info instead of the whole tenant.
-func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
-	owner string, // input value, can be either id or name
-	ins common.IDNameSwapper,
-) (string, string, error) {
-	// move this to GC method
-	id, name, err := getOwnerIDAndNameFrom(owner, ins)
-	if err != nil {
-		return "", "", errors.Wrap(err, "resolving resource owner details")
-	}
-
-	gc.IDNameLookup = ins
-
-	if ins == nil || (len(ins.IDs()) == 0 && len(ins.Names()) == 0) {
-		gc.IDNameLookup = common.IDsNames{
-			IDToName: map[string]string{id: name},
-			NameToID: map[string]string{name: id},
-		}
-	}
-
-	return id, name, nil
-}
-
-func getOwnerIDAndNameFrom(
-	owner string,
-	ins common.IDNameSwapper,
-) (string, string, error) {
-	if ins == nil {
-		return owner, owner, nil
-	}
-
-	if n, ok := ins.NameOf(owner); ok {
-		return owner, n, nil
-	} else if i, ok := ins.IDOf(owner); ok {
-		return i, owner, nil
-	}
-
-	// TODO: look-up user by owner, either id or name,
-	// and populate with maps as a result.  Only
-	// return owner, owner as a very last resort.
-
-	return "", "", clues.New("not found within tenant")
-}
+// ---------------------------------------------------------------------------
+// Service Client
+// ---------------------------------------------------------------------------
 
 // createService constructor for graphService component
-func (gc *GraphConnector) createService() (*graph.Service, error) {
+func createService(creds account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
-		gc.credentials.AzureTenantID,
-		gc.credentials.AzureClientID,
-		gc.credentials.AzureClientSecret)
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return &graph.Service{}, err
 	}
 
 	return graph.NewService(adapter), nil
 }
+
+// ---------------------------------------------------------------------------
+// Processing Status
+// ---------------------------------------------------------------------------
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
 func (gc *GraphConnector) Wait() *data.CollectionStats {
@@ -222,4 +173,130 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func (gc *GraphConnector) incrementMessagesBy(num int) {
 	gc.wg.Add(num)
+}
+
+// ---------------------------------------------------------------------------
+// Resource Lookup Handling
+// ---------------------------------------------------------------------------
+
+type resource int
+
+const (
+	UnknownResource resource = iota
+	AllResources             // unused
+	Users
+	Sites
+)
+
+func (r resource) resourceClient(discovery api.Client) (*resourceClient, error) {
+	switch r {
+	case Users:
+		return &resourceClient{enum: r, getter: discovery.Users()}, nil
+	case Sites:
+		return &resourceClient{enum: r, getter: discovery.Sites()}, nil
+	default:
+		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", r)
+	}
+}
+
+type resourceClient struct {
+	enum   resource
+	getter getIDAndNamer
+}
+
+type getIDAndNamer interface {
+	GetIDAndName(ctx context.Context, owner string) (
+		ownerID string,
+		ownerName string,
+		err error,
+	)
+}
+
+var _ getOwnerIDAndNamer = &resourceClient{}
+
+type getOwnerIDAndNamer interface {
+	getOwnerIDAndNameFrom(
+		ctx context.Context,
+		discovery api.Client,
+		owner string,
+		ins common.IDNameSwapper,
+	) (
+		ownerID string,
+		ownerName string,
+		err error,
+	)
+}
+
+// getOwnerIDAndNameFrom looks up the owner's canonical id and display name.
+// If the owner is present in the idNameSwapper, then that interface's id and
+// name values are returned.  As a fallback, the resource calls the discovery
+// api to fetch the user or site using the owner value. This fallback assumes
+// that the owner is a well formed ID or display name of appropriate design
+// (PrincipalName for users, WebURL for sites).
+func (r resourceClient) getOwnerIDAndNameFrom(
+	ctx context.Context,
+	discovery api.Client,
+	owner string,
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	if ins != nil {
+		if n, ok := ins.NameOf(owner); ok {
+			return owner, n, nil
+		} else if i, ok := ins.IDOf(owner); ok {
+			return i, owner, nil
+		}
+	}
+
+	ctx = clues.Add(ctx, "owner_identifier", owner)
+
+	var (
+		id, name string
+		err      error
+	)
+
+	// if r.enum == Sites {
+	// TODO: check all suffixes in nameToID
+	// }
+
+	id, name, err = r.getter.GetIDAndName(ctx, owner)
+	if err != nil {
+		if graph.IsErrUserNotFound(err) {
+			return "", "", clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		}
+
+		return "", "", err
+	}
+
+	if len(id) == 0 || len(name) == 0 {
+		return "", "", clues.Stack(graph.ErrResourceOwnerNotFound)
+	}
+
+	return id, name, nil
+}
+
+// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// the owner's name and ID from that value.  Returns an error if the owner is
+// not recognized by the current tenant.
+//
+// The id-name swapper is optional.  Some processes will look up all owners in
+// the tenant before reaching this step.  In that case, the data gets handed
+// down for this func to consume instead of performing further queries.  The
+// data gets stored inside the gc instance for later re-use.
+func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+	ctx context.Context,
+	owner string, // input value, can be either id or name
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	// move this to GC method
+	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
+	if err != nil {
+		return "", "", clues.Wrap(err, "identifying resource owner")
+	}
+
+	gc.IDNameLookup = common.IDsNames{
+		IDToName: map[string]string{id: name},
+		NameToID: map[string]string{name: id},
+	}
+
+	return id, name, nil
 }

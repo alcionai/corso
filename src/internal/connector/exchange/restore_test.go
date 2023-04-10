@@ -100,12 +100,12 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 	defer flush()
 
 	var (
-		t      = suite.T()
-		userID = tester.M365UserID(t)
-		name   = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
+		t       = suite.T()
+		userID  = tester.M365UserID(t)
+		subject = "TestRestoreEvent: " + common.FormatSimpleDateTime(time.Now())
 	)
 
-	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, name)
+	calendar, err := suite.ac.Events().CreateCalendar(ctx, userID, subject)
 	require.NoError(t, err, clues.ToCore(err))
 
 	calendarID := ptr.Val(calendar.GetId())
@@ -116,15 +116,39 @@ func (suite *ExchangeRestoreSuite) TestRestoreEvent() {
 		assert.NoError(t, err, clues.ToCore(err))
 	}()
 
-	info, err := RestoreExchangeEvent(ctx,
-		mockconnector.GetMockEventWithAttendeesBytes(name),
-		suite.gs,
-		control.Copy,
-		calendarID,
-		userID,
-		fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotNil(t, info, "event item info")
+	tests := []struct {
+		name  string
+		bytes []byte
+	}{
+		{
+			name:  "Test Event With Attendees",
+			bytes: mockconnector.GetMockEventWithAttendeesBytes(subject),
+		},
+		{
+			name:  "Test recurrenceTimeZone: Empty",
+			bytes: mockconnector.GetMockEventWithRecurrenceBytes(subject, `""`),
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			info, err := RestoreExchangeEvent(
+				ctx,
+				test.bytes,
+				suite.gs,
+				control.Copy,
+				calendarID,
+				userID,
+				fault.New(true))
+			assert.NoError(t, err, clues.ToCore(err))
+			assert.NotNil(t, info, "event item info")
+		})
+	}
 }
 
 type containerDeleter interface {

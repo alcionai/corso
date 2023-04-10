@@ -235,7 +235,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
 			assert.Contains(
 				t,
 				err.Error(),
-				"not found within tenant", "error missing user not found")
+				"not found in tenant", "error missing user not found")
 			assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 			t.Logf("backup error message: %s", err.Error())

@@ -24,6 +24,7 @@ const (
 	// M365 config
 	TestCfgAzureTenantID    = "azure_tenantid"
 	TestCfgSiteID           = "m365siteid"
+	TestCfgSiteURL          = "m365siteurl"
 	TestCfgUserID           = "m365userid"
 	TestCfgSecondaryUserID  = "secondarym365userid"
 	TestCfgLoadTestUserID   = "loadtestm365userid"
@@ -34,6 +35,7 @@ const (
 // test specific env vars
 const (
 	EnvCorsoM365TestSiteID          = "CORSO_M365_TEST_SITE_ID"
+	EnvCorsoM365TestSiteURL         = "CORSO_M365_TEST_SITE_URL"
 	EnvCorsoM365TestUserID          = "CORSO_M365_TEST_USER_ID"
 	EnvCorsoSecondaryM365TestUserID = "CORSO_SECONDARY_M365_TEST_USER_ID"
 	EnvCorsoM365LoadTestUserID      = "CORSO_M365_LOAD_TEST_USER_ID"
@@ -136,6 +138,12 @@ func readTestConfig() (map[string]string, error) {
 		os.Getenv(EnvCorsoM365TestSiteID),
 		vpr.GetString(TestCfgSiteID),
 		"10rqc2.sharepoint.com,4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
+	fallbackTo(
+		testEnv,
+		TestCfgSiteURL,
+		os.Getenv(EnvCorsoM365TestSiteURL),
+		vpr.GetString(TestCfgSiteURL),
+		"https://10rqc2.sharepoint.com/sites/CorsoCI")
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 	testConfig = testEnv
