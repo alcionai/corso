@@ -360,22 +360,21 @@ func newSliceFilter(c comparator, targets, normTargets []string, negate bool) Fi
 
 // CompareAny checks whether any one of all the provided
 // inputs passes the filter.  If one passes, that value is
-// returned, as well as its index in the input range.
-// If nothing matches, returns ("", -1, false)
+// returned.  If nothing matches, returns ("", false)
 //
 // Note that, as a gotcha, CompareAny can resolve truthily
 // for both the standard and negated versions of a filter.
 // Ex: consider the input CompareAny(true, false), which
 // will return true for both Equals(true) and NotEquals(true),
 // because at least one element matches for both filters.
-func (f Filter) CompareAny(inputs ...string) (string, int, bool) {
-	for i, in := range inputs {
+func (f Filter) CompareAny(inputs ...string) (string, bool) {
+	for _, in := range inputs {
 		if f.Compare(in) {
-			return in, i, true
+			return in, true
 		}
 	}
 
-	return "", -1, false
+	return "", false
 }
 
 // Compare checks whether the input passes the filter.

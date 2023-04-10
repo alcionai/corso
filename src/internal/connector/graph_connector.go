@@ -236,8 +236,10 @@ type getOwnerIDAndNamer interface {
 // (PrincipalName for users, WebURL for sites).
 //
 // Consumers are allowed to pass in a path suffix (eg: /sites/foo) as a site
-// owner, but only if they also pass in a nameToID map.  A nil map will cascade
-// to the fallback, which will fail for having a malformed id value.
+// owner, but only if they also pass in a nameToID map.  A nil map will fallback
+// to a lookup by id using the suffix, which will fail for being malformed.
+// Suffix matching follows filter PathSuffix rules: only complete elements match,
+// case-independant, leading/tailing slashes are optional.
 func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
 	discovery api.Client,
@@ -261,7 +263,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 
 	// check if the provided owner is a suffix of a weburl in the lookup map
 	if r.enum == Sites {
-		url, _, ok := filters.PathSuffix([]string{owner}).CompareAny(ins.Names()...)
+		url, ok := filters.PathSuffix([]string{owner}).CompareAny(ins.Names()...)
 		if ok {
 			id, _ := ins.IDOf(url)
 			return id, url, nil

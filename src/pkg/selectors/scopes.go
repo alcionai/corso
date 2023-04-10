@@ -223,7 +223,7 @@ func matchesAny[T scopeT, C categoryT](s T, cat C, inpts []string) bool {
 		return false
 	}
 
-	_, _, pass := s[cat.String()].CompareAny(inpts...)
+	_, pass := s[cat.String()].CompareAny(inpts...)
 
 	return pass
 }

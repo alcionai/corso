@@ -79,14 +79,12 @@ func (suite *FiltersSuite) TestEquals_any() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			v, i, b := f.CompareAny(test.input...)
+			v, b := f.CompareAny(test.input...)
 			test.expectF(t, b, "filter")
-			assert.Equal(t, test.expectFIdx, i, "index")
 			assert.Equal(t, test.expectFVal, v, "value")
 
-			v, i, b = nf.CompareAny(test.input...)
+			v, b = nf.CompareAny(test.input...)
 			test.expectNF(t, b, "neg-filter")
-			assert.Equal(t, test.expectNFIdx, i, "neg-index")
 			assert.Equal(t, test.expectNFVal, v, "neg-value")
 		})
 	}
