@@ -80,7 +80,7 @@ function Purge-Library {
         $createTime = Get-TimestampFromName -Folder $f
 
         if ($PurgeBeforeTimestamp -gt $createTime) {
-            foreach ($p in $FolderPrefixPurgeList.Split(",")) {
+            foreach ($p in $FolderPrefixPurgeList) {
                 if ($folderName -like "$p*") {
                     $foldersToPurge += $f
                 }
@@ -169,6 +169,6 @@ Write-Host "`nAuthenticating and connecting to $SiteUrl"
 Connect-PnPOnline -Url $siteUrl -Credential $cred
 Write-Host "Connected to $siteUrl`n"
 
-foreach ($library in $LibraryNameList.Split(",")) {
+foreach ($library in $LibraryNameList) {
     Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSiffix
 }
