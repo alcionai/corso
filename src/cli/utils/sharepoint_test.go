@@ -194,8 +194,6 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 	}
 }
 
-// Tests selector build for SharePoint properly
-// differentiates between the 3 categories: Pages, Libraries and Lists CLI
 func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors_normalizedWebURLs() {
 	table := []struct {
 		name   string
@@ -205,22 +203,32 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors_nor
 		{
 			name:   "blank",
 			weburl: "",
+			expect: []string{""},
+		},
+		{
+			name:   "wildcard",
+			weburl: "*",
 			expect: []string{"*"},
 		},
 		{
 			name:   "no scheme",
 			weburl: "www.corsobackup.io/path",
-			expect: []string{"www.corsobackup.io/path"},
+			expect: []string{"https://www.corsobackup.io/path"},
 		},
 		{
 			name:   "no path",
 			weburl: "https://www.corsobackup.io",
-			expect: []string{"www.corsobackup.io"},
+			expect: []string{"https://www.corsobackup.io"},
 		},
 		{
 			name:   "http",
 			weburl: "http://www.corsobackup.io/path",
-			expect: []string{"www.corsobackup.io/path"},
+			expect: []string{"https://www.corsobackup.io/path"},
+		},
+		{
+			name:   "https",
+			weburl: "https://www.corsobackup.io/path",
+			expect: []string{"https://www.corsobackup.io/path"},
 		},
 		{
 			name:   "path only",
@@ -230,7 +238,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors_nor
 		{
 			name:   "host only",
 			weburl: "www.corsobackup.io",
-			expect: []string{"www.corsobackup.io"},
+			expect: []string{"https://www.corsobackup.io"},
 		},
 	}
 	for _, test := range table {
@@ -244,7 +252,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors_nor
 			)
 
 			for _, scope := range sel.Scopes() {
-				if scope.Category() != selectors.SharePointWebURL {
+				if scope.InfoCategory() != selectors.SharePointWebURL {
 					continue
 				}
 

@@ -255,9 +255,18 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 	}
 
 	if lwu > 0 {
-		urls := make([]string, len(opts.WebURL))
+		urls := make([]string, 0, len(opts.WebURL))
 
 		for _, wu := range opts.WebURL {
+			// for normalization, ensure the site has a https:// prefix.
+			wu = strings.TrimPrefix(wu, "https://")
+			wu = strings.TrimPrefix(wu, "http://")
+
+			// don't add a prefix to path-only values
+			if len(wu) > 0 && wu != "*" && !strings.HasPrefix(wu, "/") {
+				wu = "https://" + wu
+			}
+
 			u, err := url.Parse(wu)
 			if err != nil {
 				// shouldn't be possible to err, if we called validation first.
@@ -265,8 +274,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 				continue
 			}
 
-			// for normalization, remove the scheme
-			urls = append(urls, strings.TrimPrefix(u.Scheme, u.String()))
+			urls = append(urls, u.String())
 		}
 
 		sel.Include(sel.WebURL(urls))
