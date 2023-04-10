@@ -235,7 +235,7 @@ func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_UserNotInTenant() {
 			assert.Contains(
 				t,
 				err.Error(),
-				"not found within tenant", "error missing user not found")
+				"not found in tenant", "error missing user not found")
 			assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 			t.Logf("backup error message: %s", err.Error())
@@ -293,7 +293,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	defer flush()
 
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
@@ -303,8 +303,8 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 	var (
 		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
-		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
+		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
 		ins      = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,

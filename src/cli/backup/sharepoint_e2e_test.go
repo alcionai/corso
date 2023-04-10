@@ -159,10 +159,10 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		m365SiteID = tester.M365SiteID(t)
+		m365SiteID = strings.ToLower(tester.M365SiteID(t))
 		sites      = []string{m365SiteID}
-		idToName   = map[string]string{m365SiteID: "todo-name-" + m365SiteID}
-		nameToID   = map[string]string{"todo-name-" + m365SiteID: m365SiteID}
+		idToName   = map[string]string{m365SiteID: m365SiteID}
+		nameToID   = map[string]string{m365SiteID: m365SiteID}
 		ins        = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,

@@ -20,13 +20,17 @@ type getter interface {
 	GetByID(context.Context, string) (models.Userable, error)
 }
 
-type getInfoer interface {
+type GetInfoer interface {
 	GetInfo(context.Context, string) (*api.UserInfo, error)
 }
 
 type getWithInfoer interface {
 	getter
-	getInfoer
+	GetInfoer
+}
+
+type getAller interface {
+	GetAll(ctx context.Context, errs *fault.Bus) ([]models.Userable, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -48,29 +52,32 @@ func apiClient(ctx context.Context, acct account.Account) (api.Client, error) {
 }
 
 // ---------------------------------------------------------------------------
-// api
+// users
 // ---------------------------------------------------------------------------
 
 // Users fetches all users in the tenant.
 func Users(
 	ctx context.Context,
-	acct account.Account,
+	ga getAller,
 	errs *fault.Bus,
 ) ([]models.Userable, error) {
-	client, err := apiClient(ctx, acct)
+	users, err := ga.GetAll(ctx, errs)
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "getting all users")
 	}
 
-	return client.Users().GetAll(ctx, errs)
+	return users, nil
 }
 
-// User fetches a single user's data.
-func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userable, *api.UserInfo, error) {
+func User(
+	ctx context.Context,
+	gwi getWithInfoer,
+	userID string,
+) (models.Userable, *api.UserInfo, error) {
 	u, err := gwi.GetByID(ctx, userID)
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			return nil, nil, clues.New("resource owner not found within tenant").With("user_id", userID)
+			return nil, nil, clues.Stack(graph.ErrResourceOwnerNotFound).With("user_id", userID)
 		}
 
 		return nil, nil, clues.Wrap(err, "getting user")
@@ -83,6 +90,25 @@ func User(ctx context.Context, gwi getWithInfoer, userID string) (models.Userabl
 
 	return u, ui, nil
 }
+
+// UserInfo produces extensible user info: metadata that is relevant
+// or identified in Corso, but not in m365.
+func UserInfo(
+	ctx context.Context,
+	gi GetInfoer,
+	userID string,
+) (*api.UserInfo, error) {
+	ui, err := gi.GetInfo(ctx, userID)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting user info")
+	}
+
+	return ui, nil
+}
+
+// ---------------------------------------------------------------------------
+// sites
+// ---------------------------------------------------------------------------
 
 // Sites fetches all sharepoint sites in the tenant
 func Sites(

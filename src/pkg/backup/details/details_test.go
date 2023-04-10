@@ -1139,12 +1139,6 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 			expect: baseFolderEnts,
 		},
 		{
-			name:     "base path with location",
-			parent:   basePath,
-			location: basePath,
-			expect:   baseFolderEnts,
-		},
-		{
 			name:   "single depth parent only",
 			parent: basePath.Append(fnords...),
 			expect: folderEntriesFor(fnords, nil),
@@ -1152,7 +1146,7 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		{
 			name:     "single depth with location",
 			parent:   basePath.Append(fnords...),
-			location: basePath.Append(beau...),
+			location: path.Builder{}.Append(beau...),
 			expect:   folderEntriesFor(fnords, beau),
 		},
 		{
@@ -1163,13 +1157,13 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		{
 			name:     "two depth with location",
 			parent:   basePath.Append(smarf...),
-			location: basePath.Append(regard...),
+			location: path.Builder{}.Append(regard...),
 			expect:   folderEntriesFor(smarf, regard),
 		},
 		{
 			name:     "mismatched depth, parent longer",
 			parent:   basePath.Append(smarf...),
-			location: basePath.Append(beau...),
+			location: path.Builder{}.Append(beau...),
 			expect:   folderEntriesFor(smarf, beau),
 		},
 		// We can't handle this right now.  But we don't have any cases

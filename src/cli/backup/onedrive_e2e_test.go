@@ -140,7 +140,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 	assert.Contains(
 		t,
 		err.Error(),
-		"not found within tenant", "error missing user not found")
+		"not found in tenant", "error missing user not found")
 	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 	t.Logf("backup error message: %s", err.Error())
@@ -207,10 +207,10 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		m365UserID = tester.M365UserID(t)
+		m365UserID = strings.ToLower(tester.M365UserID(t))
 		users      = []string{m365UserID}
-		idToName   = map[string]string{m365UserID: "todo-name-" + m365UserID}
-		nameToID   = map[string]string{"todo-name-" + m365UserID: m365UserID}
+		idToName   = map[string]string{m365UserID: m365UserID}
+		nameToID   = map[string]string{m365UserID: m365UserID}
 		ins        = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,
