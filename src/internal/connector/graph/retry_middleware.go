@@ -48,7 +48,7 @@ func (middleware RetryHandler) retryRequest(
 		case <-ctx.Done():
 			// Don't retry if the context is marked as done, it will just error out
 			// when we attempt to send the retry anyway.
-			return nil, ctx.Err()
+			return resp, ctx.Err()
 
 		// Will exit switch-block so the remainder of the code doesn't need to be
 		// indented.
