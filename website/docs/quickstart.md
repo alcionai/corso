@@ -125,7 +125,7 @@ you initialized the Corso repository, you might need to [connect to it again](..
 
   ```powershell
   # Backup your inbox
-  .\corso backup create exchange --user <your exchange email address>
+  .\corso backup create exchange --mailbox <your exchange email address>
   ```
 
 </TabItem>
@@ -133,7 +133,7 @@ you initialized the Corso repository, you might need to [connect to it again](..
 
   ```bash
   # Backup your inbox
-  ./corso backup create exchange --user <your exchange email address>
+  ./corso backup create exchange --mailbox <your exchange email address>
   ```
 
 </TabItem>
@@ -143,7 +143,7 @@ you initialized the Corso repository, you might need to [connect to it again](..
 `# Backup your inbox
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  backup create exchange --user <your exchange email address>`
+  backup create exchange --mailbox <your exchange email address>`
 }</CodeBlock>
 
 </TabItem>

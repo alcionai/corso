@@ -110,7 +110,7 @@ jobs:
           CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
         run: |
           go run . exchange emails \
-          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
+          --mailbox ${{ env.CORSO_M365_TEST_USER_ID }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --count 4
@@ -121,7 +121,7 @@ jobs:
         run: |
           ./corso backup create exchange \
           --no-stats \
-          --user "${CORSO_M365_TEST_USER_ID}" \
+          --mailbox "${CORSO_M365_TEST_USER_ID}" \
            --hide-progress \
            --data 'email' \
             --json \
@@ -198,7 +198,7 @@ jobs:
           ./corso backup create exchange \
           --no-stats \
           --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
+          --mailbox "${CORSO_M365_TEST_USER_ID}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
 
@@ -245,7 +245,7 @@ jobs:
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
+          --mailbox "${CORSO_M365_TEST_USER_ID}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
@@ -319,7 +319,7 @@ jobs:
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
+          --mailbox "${CORSO_M365_TEST_USER_ID}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           

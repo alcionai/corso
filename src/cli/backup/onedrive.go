@@ -26,34 +26,34 @@ import (
 
 const (
 	oneDriveServiceCommand                 = "onedrive"
-	oneDriveServiceCommandCreateUseSuffix  = "--user <email> | '" + utils.Wildcard + "'"
+	oneDriveServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + utils.Wildcard + "'"
 	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
 	oneDriveServiceCommandCreateExamples = `# Backup OneDrive data for Alice
-corso backup create onedrive --user alice@example.com
+corso backup create onedrive --mailbox alice@example.com
 
 # Backup OneDrive for Alice and Bob
-corso backup create onedrive --user alice@example.com,bob@example.com
+corso backup create onedrive --mailbox alice@example.com,bob@example.com
 
 # Backup all OneDrive data for all M365 users 
-corso backup create onedrive --user '*'`
+corso backup create onedrive --mailbox '*'`
 
 	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
 	oneDriveServiceCommandDetailsExamples = `# Explore Alice's files from backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --mailbox alice@example.com
 
 # Explore Alice or Bob's files with name containing "Fiscal 22" in folder "Reports"
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
+    --mailbox alice@example.com,bob@example.com  --file-name "Fiscal 22" --folder "Reports"
 
 # Explore Alice's files created before end of 2015 from a specific backup
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --file-created-before 2015-01-01T00:00:00`
+    --mailbox alice@example.com --file-created-before 2015-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -167,7 +167,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 
 func validateOneDriveBackupCreateFlags(users []string) error {
 	if len(users) == 0 {
-		return clues.New("requires one or more --user ids or the wildcard --user *")
+		return clues.New("requires one or more --backup/--mailbox ids or the wildcard --backup/--mailbox *")
 	}
 
 	return nil

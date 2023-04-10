@@ -45,9 +45,10 @@ const (
 	BackupFN       = "backup"
 	CategoryDataFN = "data"
 
-	SiteFN   = "site"    // site only accepts WebURL values
-	SiteIDFN = "site-id" // site-id accepts actual site ids
-	UserFN   = "user"
+	SiteFN    = "site"    // site only accepts WebURL values
+	SiteIDFN  = "site-id" // site-id accepts actual site ids
+	UserFN    = "user"
+	MailBoxFN = "mailbox"
 
 	LibraryFN = "library"
 	FileFN    = "file"
@@ -115,13 +116,28 @@ func AddRunModeFlag(cmd *cobra.Command, persistent bool) {
 	cobra.CheckErr(fs.MarkHidden(RunModeFN))
 }
 
-// AddUserFlag adds the --user flag.
+// AddUserFlag adds the --user and --mailbox flag.
 func AddUserFlag(cmd *cobra.Command) {
-	cmd.Flags().StringSliceVar(
+	flags := cmd.Flags()
+
+	flags.StringSliceVar(
 		&UserFV,
 		UserFN, nil,
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
-	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
+
+	cobra.CheckErr(flags.MarkDeprecated(UserFN, fmt.Sprintf("user flag is deprecated. Use - %s", MailBoxFN)))
+
+	flags.StringSliceVar(
+		&UserFV,
+		MailBoxFN, nil,
+		"Backup a specific mailbox's data; accepts '"+Wildcard+"' to select all mailbox.")
+
+	// if we are marking the user flag as deprecated,
+	// we can not keep it required. Because it could confuse the
+	// users. On other hand, it will be an issue for existing users
+	// if we completely remove the user flag. So for meanwhile adding mutually
+	// exclusive check
+	cmd.MarkFlagsMutuallyExclusive(MailBoxFN, UserFN)
 }
 
 // AddSiteIDFlag adds the --site-id flag, which accepts site ID values.
