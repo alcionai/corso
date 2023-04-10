@@ -46,7 +46,7 @@ linters-settings:
       - 'Warn[wf]?\((# logging should use Info or Error)?'
       # Prefer suite.Run(name, func() {}) for subtests as testify has it instead
       # of suite.T().Run(name, func(t *testing.T) {}).
-      - 'T\(\)\.Run(# prefer testify subtest Run(name, func()) function )?'
+      - '(T\(\)|\st[a-zA-Z0-9]*)\.Run(# prefer testify suite.Run(name, func()) )?'
   lll:
     line-length: 120
   revive:
