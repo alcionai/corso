@@ -1,16 +1,24 @@
 package kopia
 
 import (
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type LocationPrefixMatcher struct {
-	m common.PrefixMatcher[*path.Builder]
+	m prefixmatcher.Matcher[*path.Builder]
 }
 
 func (m *LocationPrefixMatcher) Add(oldRef path.Path, newLoc *path.Builder) error {
-	return m.m.Add(oldRef.String(), newLoc)
+	if _, ok := m.m.Get(oldRef.String()); ok {
+		return clues.New("RepoRef already in matcher").With("repo_ref", oldRef)
+	}
+
+	m.m.Add(oldRef.String(), newLoc)
+
+	return nil
 }
 
 func (m *LocationPrefixMatcher) LongestPrefix(oldRef string) *path.Builder {
@@ -29,5 +37,5 @@ func (m *LocationPrefixMatcher) LongestPrefix(oldRef string) *path.Builder {
 }
 
 func NewLocationPrefixMatcher() *LocationPrefixMatcher {
-	return &LocationPrefixMatcher{m: common.NewPrefixMatcher[*path.Builder]()}
+	return &LocationPrefixMatcher{m: prefixmatcher.NewMatcher[*path.Builder]()}
 }
