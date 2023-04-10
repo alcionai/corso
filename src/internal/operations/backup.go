@@ -526,7 +526,7 @@ func mergeDetails(
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.
-	if dataFromBackup.Count() == 0 {
+	if dataFromBackup.ItemsToMerge() == 0 {
 		return nil
 	}
 
@@ -634,10 +634,12 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	if addedEntries != dataFromBackup.Count() {
+	if addedEntries != dataFromBackup.ItemsToMerge() {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
-			With("item_count", addedEntries, "expected_item_count", dataFromBackup.Count())
+			With(
+				"item_count", addedEntries,
+				"expected_item_count", dataFromBackup.ItemsToMerge())
 	}
 
 	return nil

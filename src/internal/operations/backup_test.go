@@ -207,7 +207,7 @@ func (m *mockDetailsMergeInfoer) GetNewLocation(oldRef *path.Builder) *path.Buil
 	return m.locs[oldRef.ShortRef()]
 }
 
-func (m *mockDetailsMergeInfoer) Count() int {
+func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
 	if m == nil {
 		return 0
 	}

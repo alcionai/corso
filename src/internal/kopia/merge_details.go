@@ -9,7 +9,7 @@ import (
 
 type DetailsMergeInfoer interface {
 	// Count returns the number of items that need to be merged.
-	Count() int
+	ItemsToMerge() int
 	// GetNewRepoRef takes the path of the old location of the item and returns
 	// its new RepoRef if the item needs merged. If the item doesn't need merged
 	// returns nil.
@@ -25,7 +25,7 @@ type mergeDetails struct {
 	locations *locationPrefixMatcher
 }
 
-func (m *mergeDetails) Count() int {
+func (m *mergeDetails) ItemsToMerge() int {
 	if m == nil {
 		return 0
 	}

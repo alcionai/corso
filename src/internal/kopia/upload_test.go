@@ -542,7 +542,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 
 	cp.FinishedFile(suite.targetFileName, nil)
 
-	assert.Equal(t, 0, cp.toMerge.Count())
+	assert.Equal(t, 0, cp.toMerge.ItemsToMerge())
 
 	// Gather information about the current state.
 	var (

@@ -461,7 +461,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 
 			// Shouldn't have any items to merge because the cached files are metadata
 			// files.
-			assert.Equal(t, 0, prevShortRefs.Count())
+			assert.Equal(t, 0, prevShortRefs.ItemsToMerge())
 
 			checkSnapshotTags(
 				t,
