@@ -59,9 +59,26 @@ func produceManifestsAndMetadata(
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots")
 	}
 
+	// We only need to check that we have 1:1 reason:base if we're doing an
+	// incremental with associated metadata. This ensures that we're only sourcing
+	// data from a single Point-In-Time (base) for each incremental backup.
+	//
+	// TODO(ashmrtn): This may need updating if we start sourcing item backup
+	// details from previous snapshots when using kopia-assisted incrementals.
+	if err := verifyDistinctBases(ctx, ms); err != nil {
+		logger.CtxErr(ctx, err).Info("base snapshot collision, falling back to full backup")
+		return ms, nil, false, nil
+	}
+
 	fbms, err := mr.FetchPrevSnapshotManifests(ctx, fallbackReasons, tags)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "looking up prior snapshots under alternate id")
+	}
+
+	// Also check distinct bases for the fallback set.
+	if err := verifyDistinctBases(ctx, fbms); err != nil {
+		logger.CtxErr(ctx, err).Info("base snapshot collision, falling back to full backup")
+		return ms, nil, false, nil
 	}
 
 	// one of three cases can occur when retrieving backups across reason migrations:
