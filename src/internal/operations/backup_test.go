@@ -703,7 +703,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -728,8 +731,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
-				err := p.Add(itemPath1, locationPath1)
 
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -767,10 +773,16 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
-				err = p.Add(itemPath2, locationPath2)
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				rr, err = itemPath2.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath2)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -808,7 +820,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -852,7 +867,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath2)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath2)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -953,7 +971,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -1030,7 +1051,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -1071,7 +1095,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -1113,7 +1140,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath2)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath2)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -1158,10 +1188,16 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
-				err = p.Add(itemPath3, locationPath3)
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				rr, err = itemPath3.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath3)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -1220,7 +1256,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			prefixMatcher: func() *kopia.LocationPrefixMatcher {
 				p := kopia.NewLocationPrefixMatcher()
 
-				err := p.Add(itemPath1, locationPath1)
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
 				require.NoError(suite.T(), err, clues.ToCore(err))
 
 				return p
@@ -1359,8 +1398,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		// later    = now.Add(42 * time.Minute)
 	)
 
+	itemDir, err := itemPath1.Dir()
+	require.NoError(t, err, clues.ToCore(err))
+
 	prefixMatcher := kopia.NewLocationPrefixMatcher()
-	err := prefixMatcher.Add(itemPath1, locPath1)
+	err = prefixMatcher.Add(itemDir, locPath1)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	itemDetails := makeDetailsEntry(t, itemPath1, locPath1, itemSize, false)
