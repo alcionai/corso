@@ -159,15 +159,14 @@ func produceManifestsAndMetadata(
 		fb := fault.New(true)
 
 		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, fb)
+		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+
 		if err != nil && !errors.Is(err, data.ErrNotFound) {
-			LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.
 			return nil, nil, false, err
 		}
-
-		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
 
 		collections = append(collections, colls...)
 	}
