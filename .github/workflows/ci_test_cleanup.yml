@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         user: [ CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID, '' ]
+        site: [ CORSO_M365_TEST_SITE_URL, EXT_SDK_TEST_SITE_URL ]
 
     steps:
       - uses: actions/checkout@v3
@@ -28,7 +29,7 @@ jobs:
         uses: ./.github/actions/purge-m365-user-data
         with:
           user: ${{ secrets[matrix.user] }}
-          site: ${{ secrets.CORSO_M365_TEST_SITE_URL}}
+          site: ${{ secrets[matrix.site] }}
           folder-prefix: ${{ vars.CORSO_M365_TEST_PREFIXES }} 
           libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.HALF_HOUR_AGO }}
