@@ -16,6 +16,72 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// UniqueLocationer provides access to location information but guarantees that
+// it can also generate a unique location (among items in the same service but
+// possibly across data types within the service) that can be used as a key in
+// maps and other structures. The unique location may be different than
+// DetailsLocation, the location used in backup details.
+type UniqueLocationer interface {
+	UniqueLocation() *path.Builder
+	DetailsLocation() *path.Builder
+}
+
+type uniqueLoc struct {
+	pb          *path.Builder
+	prefixElems int
+}
+
+func (ul uniqueLoc) UniqueLocation() *path.Builder {
+	return ul.pb
+}
+
+func (ul uniqueLoc) DetailsLocation() *path.Builder {
+	return path.Builder{}.Append(ul.pb.Elements()[ul.prefixElems:]...)
+}
+
+// Having service-specific constructors can be kind of clunky, but in this case
+// I think they'd be useful to ensure the proper args are used since this
+// path.Builder is used as a key in some maps.
+func NewExchangeUniqueLocation(
+	category path.CategoryType,
+	escapedFolders ...string,
+) UniqueLocationer {
+	pb := path.Builder{}.Append(category.String()).Append(escapedFolders...)
+
+	return &uniqueLoc{
+		pb:          pb,
+		prefixElems: 1,
+	}
+}
+
+func NewOneDriveUniqueLocation(
+	driveID string,
+	escapedFolders ...string,
+) UniqueLocationer {
+	pb := path.Builder{}.
+		Append(path.FilesCategory.String(), driveID).
+		Append(escapedFolders...)
+
+	return &uniqueLoc{
+		pb:          pb,
+		prefixElems: 2,
+	}
+}
+
+func NewSharePointUniqueLocation(
+	driveID string,
+	escapedFolders ...string,
+) UniqueLocationer {
+	pb := path.Builder{}.
+		Append(path.LibrariesCategory.String(), driveID).
+		Append(escapedFolders...)
+
+	return &uniqueLoc{
+		pb:          pb,
+		prefixElems: 2,
+	}
+}
+
 type folderEntry struct {
 	RepoRef     string
 	ShortRef    string
