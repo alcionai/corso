@@ -539,12 +539,32 @@ func getNewPathRefs(
 		return nil, nil, false, nil
 	}
 
-	// OneDrive doesn't return prefixes yet.
-	if newLocPrefix == nil {
-		newLocPrefix = &path.Builder{}
+	// Exact match for this location, no need to pull in data from the entry.
+	if newLocPrefix != nil {
+		return newPath, newLocPrefix, newLocPrefix.String() != entry.LocationRef, nil
 	}
 
-	return newPath, newLocPrefix, newLocPrefix.String() != entry.LocationRef, nil
+	// We didn't have an exact entry, so retry with a location.
+	locRef, err := entry.ToLocationIDer(backupVersion)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting previous item location")
+	}
+
+	if locRef == nil {
+		return nil, nil, false, clues.New("entry with empty LocationRef")
+	}
+
+	newPath, oldPrefix, newLocPrefix := dataFromBackup.GetNewPathRefs(repoRefPB, locRef)
+
+	// This entry wasn't moved.
+	if oldPrefix == nil || newLocPrefix == nil {
+		return newPath, locRef.InDetails(), false, nil
+	}
+
+	newLoc := locRef.InDetails()
+	newLoc.UpdateParent(oldPrefix, newLocPrefix)
+
+	return newPath, newLoc, newLoc.String() != entry.LocationRef, nil
 }
 
 func mergeDetails(
@@ -627,9 +647,7 @@ func mergeDetails(
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
-				return clues.Wrap(err, "updating merged item info").WithClues(mctx)
-			}
+			details.UpdateItem(&item, newLoc)
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
