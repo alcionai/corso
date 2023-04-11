@@ -12,8 +12,8 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -183,7 +183,7 @@ func buildCollections(
 			return nil, err
 		}
 
-		mc := mockconnector.NewMockExchangeCollection(pth, pth, len(c.items))
+		mc := exchMock.NewCollection(pth, pth, len(c.items))
 
 		for i := 0; i < len(c.items); i++ {
 			mc.Names[i] = c.items[i].name

@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -717,11 +717,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 	}
 
 	collections := []data.BackupCollection{
-		mockconnector.NewMockExchangeCollection(
+		exchMock.NewCollection(
 			suite.testStoragePath,
 			suite.testLocationPath,
 			expectedFileCount[user1Encoded]),
-		mockconnector.NewMockExchangeCollection(
+		exchMock.NewCollection(
 			storeP2,
 			locP2,
 			expectedFileCount[user2Encoded]),
@@ -800,11 +800,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		{
 			name: "SubdirFirst",
 			layout: []data.BackupCollection{
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					storeP2,
 					locP2,
 					5),
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					suite.testStoragePath,
 					suite.testLocationPath,
 					42),
@@ -813,11 +813,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 		{
 			name: "SubdirLast",
 			layout: []data.BackupCollection{
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					suite.testStoragePath,
 					suite.testLocationPath,
 					42),
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					storeP2,
 					locP2,
 					5),
@@ -908,11 +908,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 			//         - Inbox
 			//           - 42 separate files
 			[]data.BackupCollection{
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					suite.testStoragePath,
 					suite.testLocationPath,
 					5),
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					storeP2,
 					locP2,
 					42),
@@ -921,7 +921,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		{
 			"NoCollectionPath",
 			[]data.BackupCollection{
-				mockconnector.NewMockExchangeCollection(
+				exchMock.NewCollection(
 					nil,
 					nil,
 					5),
@@ -1047,7 +1047,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 					nowPath = storePath2
 				}
 
-				mc := mockconnector.NewMockExchangeCollection(nowPath, locPath, 0)
+				mc := exchMock.NewCollection(nowPath, locPath, 0)
 				mc.ColState = s
 				mc.PrevPath = prevPath
 
@@ -1113,7 +1113,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		{
 			name: "SkipsDeletedItems",
 			inputCollections: func() []data.BackupCollection {
-				mc := mockconnector.NewMockExchangeCollection(storePath, locPath, 1)
+				mc := exchMock.NewCollection(storePath, locPath, 1)
 				mc.Names[0] = testFileName
 				mc.DeletedItems[0] = true
 
@@ -1137,7 +1137,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		{
 			name: "AddsNewItems",
 			inputCollections: func() []data.BackupCollection {
-				mc := mockconnector.NewMockExchangeCollection(storePath, locPath, 1)
+				mc := exchMock.NewCollection(storePath, locPath, 1)
 				mc.Names[0] = testFileName2
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
@@ -1172,7 +1172,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		{
 			name: "SkipsUpdatedItems",
 			inputCollections: func() []data.BackupCollection {
-				mc := mockconnector.NewMockExchangeCollection(storePath, locPath, 1)
+				mc := exchMock.NewCollection(storePath, locPath, 1)
 				mc.Names[0] = testFileName
 				mc.Data[0] = testFileData2
 				mc.ColState = data.NotMovedState
@@ -1203,11 +1203,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		{
 			name: "DeleteAndNew",
 			inputCollections: func() []data.BackupCollection {
-				mc1 := mockconnector.NewMockExchangeCollection(storePath, locPath, 0)
+				mc1 := exchMock.NewCollection(storePath, locPath, 0)
 				mc1.ColState = data.DeletedState
 				mc1.PrevPath = storePath
 
-				mc2 := mockconnector.NewMockExchangeCollection(storePath, locPath, 1)
+				mc2 := exchMock.NewCollection(storePath, locPath, 1)
 				mc2.ColState = data.NewState
 				mc2.Names[0] = testFileName2
 				mc2.Data[0] = testFileData2
@@ -1238,11 +1238,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		{
 			name: "MovedAndNew",
 			inputCollections: func() []data.BackupCollection {
-				mc1 := mockconnector.NewMockExchangeCollection(storePath2, locPath2, 0)
+				mc1 := exchMock.NewCollection(storePath2, locPath2, 0)
 				mc1.ColState = data.MovedState
 				mc1.PrevPath = storePath
 
-				mc2 := mockconnector.NewMockExchangeCollection(storePath, locPath, 1)
+				mc2 := exchMock.NewCollection(storePath, locPath, 1)
 				mc2.ColState = data.NewState
 				mc2.Names[0] = testFileName2
 				mc2.Data[0] = testFileData2
@@ -1282,7 +1282,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 		{
 			name: "NewDoesntMerge",
 			inputCollections: func() []data.BackupCollection {
-				mc1 := mockconnector.NewMockExchangeCollection(storePath, locPath, 1)
+				mc1 := exchMock.NewCollection(storePath, locPath, 1)
 				mc1.ColState = data.NewState
 				mc1.Names[0] = testFileName2
 				mc1.Data[0] = testFileData2
@@ -1517,7 +1517,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					[]string{testTenant, service, testUser, category, testInboxDir + "2"},
 					false)
 
-				mc := mockconnector.NewMockExchangeCollection(newStorePath, newLocPath, 0)
+				mc := exchMock.NewCollection(newStorePath, newLocPath, 0)
 				mc.PrevPath = inboxStorePath
 				mc.ColState = data.MovedState
 
@@ -1585,11 +1585,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					[]string{testTenant, service, testUser, category, workID},
 					false)
 
-				inbox := mockconnector.NewMockExchangeCollection(newInboxStorePath, newInboxLocPath, 0)
+				inbox := exchMock.NewCollection(newInboxStorePath, newInboxLocPath, 0)
 				inbox.PrevPath = inboxStorePath
 				inbox.ColState = data.MovedState
 
-				work := mockconnector.NewMockExchangeCollection(newWorkStorePath, newWorkLocPath, 0)
+				work := exchMock.NewCollection(newWorkStorePath, newWorkLocPath, 0)
 				work.PrevPath = workStorePath
 				work.ColState = data.MovedState
 
@@ -1649,11 +1649,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					[]string{testTenant, service, testUser, category, workDir},
 					false)
 
-				inbox := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 0)
+				inbox := exchMock.NewCollection(inboxStorePath, inboxLocPath, 0)
 				inbox.PrevPath = inboxStorePath
 				inbox.ColState = data.DeletedState
 
-				work := mockconnector.NewMockExchangeCollection(newWorkStorePath, newWorkLocPath, 0)
+				work := exchMock.NewCollection(newWorkStorePath, newWorkLocPath, 0)
 				work.PrevPath = workStorePath
 				work.ColState = data.MovedState
 
@@ -1682,11 +1682,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		{
 			name: "ReplaceDeletedDirectory",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				personal := mockconnector.NewMockExchangeCollection(personalStorePath, personalLocPath, 0)
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
 				personal.PrevPath = personalStorePath
 				personal.ColState = data.DeletedState
 
-				work := mockconnector.NewMockExchangeCollection(personalStorePath, personalLocPath, 0)
+				work := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
 				work.PrevPath = workStorePath
 				work.ColState = data.MovedState
 
@@ -1723,11 +1723,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		{
 			name: "ReplaceDeletedDirectoryWithNew",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				personal := mockconnector.NewMockExchangeCollection(personalStorePath, personalLocPath, 0)
+				personal := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
 				personal.PrevPath = personalStorePath
 				personal.ColState = data.DeletedState
 
-				newCol := mockconnector.NewMockExchangeCollection(personalStorePath, personalLocPath, 1)
+				newCol := exchMock.NewCollection(personalStorePath, personalLocPath, 1)
 				newCol.ColState = data.NewState
 				newCol.Names[0] = workFileName2
 				newCol.Data[0] = workFileData2
@@ -1774,11 +1774,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		{
 			name: "ReplaceDeletedSubtreeWithNew",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				oldInbox := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 0)
+				oldInbox := exchMock.NewCollection(inboxStorePath, inboxLocPath, 0)
 				oldInbox.PrevPath = inboxStorePath
 				oldInbox.ColState = data.DeletedState
 
-				newCol := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 1)
+				newCol := exchMock.NewCollection(inboxStorePath, inboxLocPath, 1)
 				newCol.ColState = data.NewState
 				newCol.Names[0] = workFileName2
 				newCol.Data[0] = workFileData2
@@ -1817,11 +1817,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					[]string{testTenant, service, testUser, category, personalDir},
 					false)
 
-				personal := mockconnector.NewMockExchangeCollection(newPersonalStorePath, newPersonalLocPath, 0)
+				personal := exchMock.NewCollection(newPersonalStorePath, newPersonalLocPath, 0)
 				personal.PrevPath = personalStorePath
 				personal.ColState = data.MovedState
 
-				work := mockconnector.NewMockExchangeCollection(personalStorePath, personalLocPath, 0)
+				work := exchMock.NewCollection(personalStorePath, personalLocPath, 0)
 				work.PrevPath = workStorePath
 				work.ColState = data.MovedState
 
@@ -1878,7 +1878,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					[]string{testTenant, service, testUser, category, workDir},
 					false)
 
-				personal := mockconnector.NewMockExchangeCollection(newPersonalStorePath, newPersonalLocPath, 2)
+				personal := exchMock.NewCollection(newPersonalStorePath, newPersonalLocPath, 2)
 				personal.PrevPath = personalStorePath
 				personal.ColState = data.MovedState
 				personal.Names[0] = personalFileName2
@@ -1957,7 +1957,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 					[]string{testTenant, service, testUser, category, personalDir, workDir},
 					false)
 
-				inbox := mockconnector.NewMockExchangeCollection(newInboxStorePath, newInboxLocPath, 1)
+				inbox := exchMock.NewCollection(newInboxStorePath, newInboxLocPath, 1)
 				inbox.PrevPath = inboxStorePath
 				inbox.ColState = data.MovedState
 				inbox.DoNotMerge = true
@@ -1966,7 +1966,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				inbox.Names[0] = inboxFileName2
 				inbox.Data[0] = inboxFileData2
 
-				work := mockconnector.NewMockExchangeCollection(newWorkStorePath, newWorkLocPath, 1)
+				work := exchMock.NewCollection(newWorkStorePath, newWorkLocPath, 1)
 				work.PrevPath = workStorePath
 				work.ColState = data.MovedState
 				work.Names[0] = testFileName6
@@ -2025,7 +2025,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 		{
 			name: "NoMoveParentDeleteFileNoMergeSubtreeMerge",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				inbox := mockconnector.NewMockExchangeCollection(inboxStorePath, inboxLocPath, 1)
+				inbox := exchMock.NewCollection(inboxStorePath, inboxLocPath, 1)
 				inbox.PrevPath = inboxStorePath
 				inbox.ColState = data.NotMovedState
 				inbox.DoNotMerge = true
@@ -2034,7 +2034,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				inbox.Names[0] = inboxFileName2
 				inbox.Data[0] = inboxFileData2
 
-				work := mockconnector.NewMockExchangeCollection(workStorePath, workLocPath, 1)
+				work := exchMock.NewCollection(workStorePath, workLocPath, 1)
 				work.PrevPath = workStorePath
 				work.ColState = data.NotMovedState
 				work.Names[0] = testFileName6
@@ -2255,7 +2255,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
-	mc := mockconnector.NewMockExchangeCollection(suite.testStoragePath, suite.testStoragePath, 1)
+	mc := exchMock.NewCollection(suite.testStoragePath, suite.testStoragePath, 1)
 	mc.PrevPath = mc.FullPath()
 	mc.ColState = data.DeletedState
 	msw := &mockSnapshotWalker{
@@ -2357,7 +2357,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
-	mc := mockconnector.NewMockExchangeCollection(archiveStorePath, archiveLocPath, 1)
+	mc := exchMock.NewCollection(archiveStorePath, archiveLocPath, 1)
 	mc.ColState = data.NewState
 	mc.Names[0] = testFileName2
 	mc.Data[0] = testFileData2
@@ -2614,7 +2614,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 		errs:    fault.New(true),
 	}
 
-	mc := mockconnector.NewMockExchangeCollection(inboxPath, inboxPath, 1)
+	mc := exchMock.NewCollection(inboxPath, inboxPath, 1)
 	mc.PrevPath = mc.FullPath()
 	mc.ColState = data.NotMovedState
 	mc.Names[0] = inboxFileName2

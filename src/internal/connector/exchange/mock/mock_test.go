@@ -178,14 +178,6 @@ func (suite *MockExchangeDataSuite) TestMockByteHydration() {
 				return err
 			},
 		},
-		{
-			name: "Event w/ Attendees Bytes",
-			transformation: func(t *testing.T) error {
-				bytes := EventWithAttendeesBytes(subject)
-				_, err := support.CreateEventFromBytes(bytes)
-				return err
-			},
-		},
 	}
 
 	for _, test := range tests {

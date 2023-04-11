@@ -275,7 +275,7 @@ func MessageWithLargeAttachment(subject string) []byte {
 
 // GetMessageWithOneDriveAttachment returns a message with an OneDrive attachment represented in bytes
 // Serialized with: kiota-serialization-json-go v0.7.1
-func GetMessageWithOneDriveAttachment(subject string) []byte {
+func MessageWithOneDriveAttachment(subject string) []byte {
 	//nolint:lll
 	message := "{\"id\":\"AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB4moqfAAA=\"," +
 		"\"@odata.type\":\"#microsoft.graph.message\",\"@odata.etag\":\"W/\\\"CQAAABYAAADSEBNbUIB9RL6ePDeF3FIYAAB3maFw\\\"\",\"@odata.context\":\"https://graph.microsoft.com/v1.0/$metadata#users('a4a472f8-ccb0-43ec-bf52-3697a91b926c')/messages/$entity\",\"categories\":[]," +
