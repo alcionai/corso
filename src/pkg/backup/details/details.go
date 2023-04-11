@@ -429,6 +429,52 @@ type DetailsEntry struct {
 	ItemInfo
 }
 
+// UniqueLocation takes a backup version and produces the unique location for
+// this entry if possible. Reasons it may not be possible to produce the unique
+// location include an unsupported backup version or missing information.
+func (de DetailsEntry) UniqueLocation(backupVersion int) (UniqueLocationer, error) {
+	if len(de.LocationRef) > 0 {
+		baseLoc, err := path.Builder{}.SplitUnescapeAppend(de.LocationRef)
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing base location info").
+				With("location_ref", de.LocationRef)
+		}
+
+		// Individual services may add additional info to the base and return that.
+		return de.ItemInfo.uniqueLocation(baseLoc)
+	}
+
+	if backupVersion >= version.OneDrive7LocationRef ||
+		(de.ItemInfo.infoType() != OneDriveItem &&
+			de.ItemInfo.infoType() != SharePointLibrary) {
+		return nil, clues.New("no previous location for entry")
+	}
+
+	// This is a little hacky, but we only want to try to extract the old
+	// location if it's OneDrive or SharePoint libraries and it's known to
+	// be an older backup version.
+	//
+	// TODO(ashmrtn): Remove this code once OneDrive/SharePoint libraries
+	// LocationRef code has been out long enough that all delta tokens for
+	// previous backup versions will have expired. At that point, either
+	// we'll do a full backup (token expired, no newer backups) or have a
+	// backup of a higher version with the information we need.
+	rr, err := path.FromDataLayerPath(de.RepoRef, true)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting item RepoRef")
+	}
+
+	p, err := path.ToOneDrivePath(rr)
+	if err != nil {
+		return nil, clues.New("converting RepoRef to OneDrive path")
+	}
+
+	baseLoc := path.Builder{}.Append(p.Root).Append(p.Folders...)
+
+	// Individual services may add additional info to the base and return that.
+	return de.ItemInfo.uniqueLocation(baseLoc)
+}
+
 // --------------------------------------------------------------------------------
 // CLI Output
 // --------------------------------------------------------------------------------
@@ -607,6 +653,22 @@ func (i ItemInfo) Modified() time.Time {
 	return time.Time{}
 }
 
+func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.uniqueLocation(baseLoc)
+
+	case i.OneDrive != nil:
+		return i.OneDrive.uniqueLocation(baseLoc)
+
+	case i.SharePoint != nil:
+		return i.SharePoint.uniqueLocation(baseLoc)
+
+	default:
+		return nil, clues.New("unsupported type")
+	}
+}
+
 type FolderInfo struct {
 	ItemType    ItemType  `json:"itemType,omitempty"`
 	DisplayName string    `json:"displayName"`
@@ -694,6 +756,21 @@ func (i *ExchangeInfo) UpdateParentPath(_ path.Path, locPath *path.Builder) erro
 	return nil
 }
 
+func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+	var category path.CategoryType
+
+	switch i.ItemType {
+	case ExchangeEvent:
+		category = path.EventsCategory
+	case ExchangeContact:
+		category = path.ContactsCategory
+	case ExchangeMail:
+		category = path.EmailCategory
+	}
+
+	return NewExchangeUniqueLocation(category, baseLoc.Elements()...), nil
+}
+
 // SharePointInfo describes a sharepoint item
 type SharePointInfo struct {
 	Created    time.Time `json:"created,omitempty"`
@@ -739,6 +816,14 @@ func (i *SharePointInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) er
 	return nil
 }
 
+func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+	if len(i.DriveID) == 0 {
+		return nil, clues.New("empty drive ID")
+	}
+
+	return NewSharePointUniqueLocation(i.DriveID, baseLoc.Elements()...), nil
+}
+
 // OneDriveInfo describes a oneDrive item
 type OneDriveInfo struct {
 	Created    time.Time `json:"created,omitempty"`
@@ -781,4 +866,12 @@ func (i *OneDriveInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) erro
 	i.ParentPath = newParent
 
 	return nil
+}
+
+func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+	if len(i.DriveID) == 0 {
+		return nil, clues.New("empty drive ID")
+	}
+
+	return NewSharePointUniqueLocation(i.DriveID, baseLoc.Elements()...), nil
 }

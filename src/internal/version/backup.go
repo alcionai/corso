@@ -1,5 +1,7 @@
 package version
 
+// TODO(ashmrtn): If bumping this adjust OneDriveXLocRef. It's not used in prod
+// yet but does gate some tests.
 const Backup = 6
 
 // Various labels to refer to important version changes.
@@ -13,6 +15,9 @@ const (
 	// in which we split from storing just the data to storing both
 	// the data and metadata in two files.
 	OneDrive1DataAndMetaFiles = 1
+
+	// Version 2 switched Exchange calendars from using folder display names to
+	// folder IDs in their RepoRef.
 
 	// OneDrive3IsMetaMarker is a small improvement on
 	// VersionWithDataAndMetaFiles, but has a marker IsMeta which
@@ -32,4 +37,8 @@ const (
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
 	OneDrive6NameInMeta = 6
+
+	// OneDriveXLocationRef provides LocationRef information for Exchange,
+	// OneDrive, and SharePoint libraries.
+	OneDriveXLocationRef = 7
 )
