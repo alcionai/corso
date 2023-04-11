@@ -101,8 +101,16 @@ func NewMockContactCollection(pathRepresentation path.Path, numMessagesToReturn 
 	return c
 }
 
-func (medc MockExchangeDataCollection) FullPath() path.Path         { return medc.fullPath }
-func (medc MockExchangeDataCollection) LocationPath() path.Path     { return medc.LocPath }
+func (medc MockExchangeDataCollection) FullPath() path.Path { return medc.fullPath }
+
+func (medc MockExchangeDataCollection) LocationPath() *path.Builder {
+	if medc.LocPath == nil {
+		return nil
+	}
+
+	return path.Builder{}.Append(medc.LocPath.Folders()...)
+}
+
 func (medc MockExchangeDataCollection) PreviousPath() path.Path     { return medc.PrevPath }
 func (medc MockExchangeDataCollection) State() data.CollectionState { return medc.ColState }
 func (medc MockExchangeDataCollection) DoNotMergeItems() bool       { return medc.DoNotMerge }
