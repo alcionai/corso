@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -444,7 +445,7 @@ func (de DetailsEntry) UniqueLocation(backupVersion int) (UniqueLocationer, erro
 		return de.ItemInfo.uniqueLocation(baseLoc)
 	}
 
-	if backupVersion >= version.OneDrive7LocationRef ||
+	if backupVersion >= version.OneDriveXLocationRef ||
 		(de.ItemInfo.infoType() != OneDriveItem &&
 			de.ItemInfo.infoType() != SharePointLibrary) {
 		return nil, clues.New("no previous location for entry")
@@ -873,5 +874,5 @@ func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, 
 		return nil, clues.New("empty drive ID")
 	}
 
-	return NewSharePointUniqueLocation(i.DriveID, baseLoc.Elements()...), nil
+	return NewOneDriveUniqueLocation(i.DriveID, baseLoc.Elements()...), nil
 }
