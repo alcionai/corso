@@ -687,7 +687,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			if test.expectNilMans {
 				expectMans = nil
 			}
-			assert.Equal(t, expectMans, mans)
+
+			assert.ElementsMatch(t, expectMans, mans)
 
 			expect, got := []string{}, []string{}
 

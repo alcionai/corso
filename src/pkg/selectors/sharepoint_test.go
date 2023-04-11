@@ -73,7 +73,9 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 				cat  = spsc.Category()
 			)
 
-			suite.T().Run(test.name+"-"+cat.String(), func(t *testing.T) {
+			suite.Run(test.name+"-"+cat.String(), func() {
+				t := suite.T()
+
 				switch cat {
 				case SharePointLibraryItem:
 					scopeMustHave(
@@ -471,8 +473,8 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		{SharePointList, path.ListsCategory},
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, test.pathType, test.cat.PathType())
+		suite.Run(test.cat.String(), func() {
+			assert.Equal(suite.T(), test.pathType, test.cat.PathType())
 		})
 	}
 }
