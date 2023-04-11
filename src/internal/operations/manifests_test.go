@@ -678,8 +678,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				&test.gb,
 				test.reasons, nil,
 				tid,
-				test.getMeta,
-				fault.New(true))
+				test.getMeta)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
@@ -844,8 +843,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 				[]kopia.Reason{manReason},
 				[]kopia.Reason{fbReason},
 				"tid",
-				false,
-				fault.New(true))
+				false)
 			require.NoError(t, err, clues.ToCore(err))
 			assert.False(t, b, "no-metadata is forced for this test")
 

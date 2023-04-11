@@ -46,7 +46,6 @@ func produceManifestsAndMetadata(
 	reasons, fallbackReasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
-	errs *fault.Bus,
 ) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
 		tags          = map[string]string{kopia.TagBackupCategory: ""}
@@ -151,18 +150,33 @@ func produceManifestsAndMetadata(
 			return ms, nil, false, nil
 		}
 
-		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, errs)
+		// a local fault.Bus intance is used to collect metadata files here.
+		// we avoid the global fault.Bus because all failures here are ignorable,
+		// and cascading errors up to the operation can cause a conflict that forces
+		// the operation into a failure state unnecessarily.
+		// TODO(keepers): this is not a pattern we want to
+		// spread around.  Need to find more idiomatic handling.
+		fb := fault.New(true)
+
+		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, fb)
 		if err != nil && !errors.Is(err, data.ErrNotFound) {
+			LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.
 			return nil, nil, false, err
 		}
 
+		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+
 		collections = append(collections, colls...)
 	}
 
-	return ms, collections, true, err
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	return ms, collections, true, nil
 }
 
 // unionManifests reduces the two manifest slices into a single slice.
