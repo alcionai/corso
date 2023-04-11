@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -79,12 +80,16 @@ func filterContainersAndFillCollections(
 		var (
 			dp          = dps[cID]
 			prevDelta   = dp.delta
-			prevPathStr = dp.path // do not log: pii
+			prevPathStr = dp.path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
 				"container_id", cID,
-				"previous_delta", prevDelta)
+				"previous_delta", pii.SafeURL{
+					URL:           prevDelta,
+					SafePathElems: graph.SafeURLPathParams,
+					SafeQueryKeys: graph.SafeURLQueryParams,
+				})
 		)
 
 		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
