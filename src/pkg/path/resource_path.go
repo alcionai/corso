@@ -218,7 +218,7 @@ func (rp dataLayerResourcePath) Folder(escape bool) string {
 
 // Folders returns the individual folder elements embedded in the
 // dataLayerResourcePath.
-func (rp dataLayerResourcePath) Folders() []string {
+func (rp dataLayerResourcePath) Folders() Elements {
 	endIdx := rp.lastFolderIdx()
 	if endIdx == 4 {
 		return nil
@@ -239,7 +239,7 @@ func (rp dataLayerResourcePath) Item() string {
 
 func (rp dataLayerResourcePath) Dir() (Path, error) {
 	if len(rp.elements) <= 4 {
-		return nil, clues.New("unable to shorten path").With("path", fmt.Sprintf("%q", rp))
+		return nil, clues.New("unable to shorten path").With("path", rp)
 	}
 
 	return &dataLayerResourcePath{

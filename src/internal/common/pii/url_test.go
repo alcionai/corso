@@ -30,7 +30,7 @@ func (suite *URLUnitSuite) TeardownSuite() {
 	clues.SetHasher(clues.NoHash())
 }
 
-func (suite *URLUnitSuite) TestDoesThings() {
+func (suite *URLUnitSuite) TestSafeURL() {
 	stubURL := "https://host.com/foo/bar/baz/qux?fnords=smarfs&fnords=brunhilda&beaux=regard"
 
 	table := []struct {
