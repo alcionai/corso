@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
-	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -517,6 +516,58 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 	return false
 }
 
+// getNewPathRefs returns
+//  1. the new RepoRef for the item if it needs merged
+//  2. the new locationPath
+//  3. if the location was likely updated
+//  4. any errors encountered
+func getNewPathRefs(
+	dataFromBackup kopia.DetailsMergeInfoer,
+	entry *details.DetailsEntry,
+	repoRefPB *path.Builder,
+	backupVersion int,
+) (path.Path, *path.Builder, bool, error) {
+	// Right now we can't guarantee that we have an old location in the
+	// previous details entry so first try a lookup without a location to see
+	// if it matches so we don't need to try parsing from the old entry.
+	//
+	// TODO(ashmrtn): In the future we can remove this first check as we'll be
+	// able to assume we always have the location in the previous entry. We'll end
+	// up doing some extra parsing, but it will simplify this code.
+	newPath, _, newPrefix := dataFromBackup.GetNewPathRefs(repoRefPB, nil)
+	if newPath == nil {
+		// This entry doesn't need merging.
+		return nil, nil, false, nil
+	}
+
+	// Exact match for this location, no need to pull in data from the entry.
+	if newPrefix != nil {
+		return newPath, newPrefix, newPrefix.String() != entry.LocationRef, nil
+	}
+
+	// We didn't have an exact entry, so retry with a location.
+	locRef, err := entry.UniqueLocation(backupVersion)
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting previous item location")
+	}
+
+	if locRef == nil {
+		return nil, nil, false, clues.New("entry with empty LocationRef")
+	}
+
+	newPath, oldPrefix, newPrefix := dataFromBackup.GetNewPathRefs(repoRefPB, locRef)
+
+	// This entry wasn't moved.
+	if oldPrefix == nil || newPrefix == nil {
+		return newPath, locRef.DetailsLocation(), false, nil
+	}
+
+	newLoc := locRef.DetailsLocation()
+	newLoc.UpdateParent(oldPrefix, newPrefix)
+
+	return newPath, newLoc, newLoc.String() != entry.LocationRef, nil
+}
+
 func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
@@ -580,63 +631,21 @@ func mergeDetails(
 				continue
 			}
 
-			var (
-				locRef *path.Builder
-				pb     = rr.ToBuilder()
-				mctx   = clues.Add(mctx, "repo_ref", entry.RepoRef)
-			)
+			mctx = clues.Add(mctx, "repo_ref", entry.RepoRef)
 
-			if len(entry.LocationRef) > 0 {
-				locRef, err = path.Builder{}.SplitUnescapeAppend(entry.LocationRef)
-				if err != nil {
-					return clues.New("parsing item location").
-						WithClues(mctx).
-						With("location_path", entry.LocationRef)
-				}
-			} else if baseBackup.Version < version.OneDrive7LocationRef &&
-				(rr.Service() == path.OneDriveService ||
-					(rr.Service() == path.SharePointService && rr.Category() == path.LibrariesCategory)) {
-				// This is a little hacky, but we only want to try to extract the old
-				// location if it's OneDrive or SharePoint libraries and it's known to
-				// be an older backup version.
-				//
-				// TODO(ashmrtn): Remove this code once OneDrive/SharePoint libraries
-				// LocationRef code has been out long enough that all delta tokens for
-				// previous backup versions will have expired. At that point, either
-				// we'll do a full backup (token expired, no newer backups) or have a
-				// backup of a higher version with the information we need.
-				p, err := path.ToOneDrivePath(rr)
-				if err != nil {
-					return clues.New("extracting location").WithClues(mctx)
-				}
-
-				locRef = path.Builder{}.Append(p.Root).Append(p.Folders...)
+			newPath, newLoc, locUpdated, err := getNewPathRefs(
+				dataFromBackup,
+				entry,
+				rr.ToBuilder(),
+				baseBackup.Version)
+			if err != nil {
+				return clues.Wrap(err, "getting updated info for entry").With(mctx)
 			}
 
-			// TODO(ashmrtn): Once the above else-if is removed this can be swapped
-			// with the original if-block to just exit early if
-			// len(entry.LocationRef) == 0.
-			if locRef == nil {
-				return clues.New("entry with empty LocationRef").WithClues(mctx)
-			}
-
-			newPath, oldPrefix, newPrefix := dataFromBackup.GetNewPathRefs(pb, locRef)
+			// This entry isn't merged.
 			if newPath == nil {
-				// This entry was not sourced from a base snapshot or cached from a
-				// previous backup, skip it.
 				continue
 			}
-
-			// TODO(ashmrtn): This is a little over-restrictive, but we don't have
-			// another way to say "only allow an empty prefix if the item wasn't
-			// changed."
-			if newPath.String() != rr.String() && (oldPrefix == nil || newPrefix == nil) {
-				return clues.New("unable to find location for entry").WithClues(mctx)
-			}
-
-			// Yay, need a copy of locRef.
-			newLoc := &(*locRef)
-			newLoc.UpdateParent(oldPrefix, newPrefix)
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
@@ -646,7 +655,7 @@ func mergeDetails(
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
-			itemUpdated := newPath.String() != rr.String() || newLoc.String() != locRef.String()
+			itemUpdated := newPath.String() != rr.String() || locUpdated
 
 			err = deets.Add(
 				newPath.String(),
