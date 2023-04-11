@@ -186,8 +186,7 @@ func (sc *Collection) runPopulate(ctx context.Context, errs *fault.Bus) (support
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		sc.fullPath.Category().String(),
-		// TODO(keepers): conceal compliance in path, drop Hide()
-		clues.Hide(sc.fullPath.Folder(false)))
+		sc.fullPath.Folders())
 	go closer()
 
 	defer func() {

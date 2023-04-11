@@ -10,7 +10,7 @@ import "github.com/alcionai/clues"
 // folders[] is []{"Folder1", "Folder2"}
 type DrivePath struct {
 	DriveID string
-	Folders []string
+	Folders Elements
 }
 
 func ToOneDrivePath(p Path) (*DrivePath, error) {
