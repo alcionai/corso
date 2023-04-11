@@ -577,7 +577,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 				ctx,
 				mbu,
 				tenant,
-				nil,
+				nil, nil,
 				test.inputMan,
 				nil,
 				nil,

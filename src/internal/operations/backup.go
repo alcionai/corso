@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -269,7 +270,7 @@ func (op *BackupOperation) do(
 		ctx,
 		op.kopia,
 		op.account.ID(),
-		reasons,
+		reasons, fallbackReasons,
 		mans,
 		cs,
 		excludes,
@@ -405,7 +406,7 @@ func consumeBackupCollections(
 	ctx context.Context,
 	bc inject.BackupConsumer,
 	tenantID string,
-	reasons []kopia.Reason,
+	reasons, fallbackReasons []kopia.Reason,
 	mans []*kopia.ManifestEntry,
 	cs []data.BackupCollection,
 	excludes map[string]map[string]struct{},
@@ -425,7 +426,8 @@ func consumeBackupCollections(
 		kopia.TagBackupCategory: "",
 	}
 
-	for _, reason := range reasons {
+	reunion := append(slices.Clone(reasons), fallbackReasons...)
+	for _, reason := range reunion {
 		for _, k := range reason.TagKeys() {
 			tags[k] = ""
 		}
