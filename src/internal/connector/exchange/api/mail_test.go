@@ -1,15 +1,23 @@
 package api
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
+	"github.com/h2non/gock"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type MailAPIUnitSuite struct {
@@ -142,6 +150,205 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
 			assert.Equal(suite.T(), expected, MailInfo(msg))
+		})
+	}
+}
+
+type MailAPIE2ESuite struct {
+	tester.Suite
+	credentials account.M365Config
+	ac          Client
+	user        string
+}
+
+// We do end up mocking the actual request, but creating the rest
+// similar to E2E suite
+func TestMailAPIE2ESuite(t *testing.T) {
+	suite.Run(t, &MailAPIE2ESuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tester.M365AcctCredEnvs},
+		),
+	})
+}
+
+func (suite *MailAPIE2ESuite) SetupSuite() {
+	t := suite.T()
+
+	a := tester.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.credentials = m365
+	suite.ac, err = NewClient(m365)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.user = tester.M365UserID(suite.T())
+}
+
+func getJSONObject(t *testing.T, thing serialization.Parsable) map[string]interface{} {
+	sw := kjson.NewJsonSerializationWriter()
+
+	err := sw.WriteObjectValue("", thing)
+	require.NoError(t, err, "serialize")
+
+	content, err := sw.GetSerializedContent()
+	require.NoError(t, err, "serialize")
+
+	var out map[string]interface{}
+	err = json.Unmarshal([]byte(content), &out)
+	require.NoError(t, err, "unmarshall")
+
+	return out
+}
+
+func (suite *MailAPIE2ESuite) TestHugeAttachmentListDownload() {
+	mid := "fake-message-id"
+	aid := "fake-attachment-id"
+
+	tests := []struct {
+		name            string
+		setupf          func()
+		attachmentCount int
+		expect          assert.ErrorAssertionFunc
+	}{
+		{
+			name: "simple fetch",
+			setupf: func() {
+				mitem := models.NewMessage()
+				mitem.SetId(&mid)
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid).
+					Reply(200).
+					JSON(getJSONObject(suite.T(), mitem))
+			},
+			expect: assert.NoError,
+		},
+		{
+			name: "fetch with attachment",
+			setupf: func() {
+				truthy := true
+				mitem := models.NewMessage()
+				mitem.SetId(&mid)
+				mitem.SetHasAttachments(&truthy)
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid).
+					Reply(200).
+					JSON(getJSONObject(suite.T(), mitem))
+
+				atts := models.NewAttachmentCollectionResponse()
+				aitem := models.NewAttachment()
+				atts.SetValue([]models.Attachmentable{aitem})
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+					Reply(200).
+					JSON(getJSONObject(suite.T(), atts))
+			},
+			attachmentCount: 1,
+			expect:          assert.NoError,
+		},
+		{
+			name: "fetch individual attachment",
+			setupf: func() {
+				truthy := true
+				mitem := models.NewMessage()
+				mitem.SetId(&mid)
+				mitem.SetHasAttachments(&truthy)
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid).
+					Reply(200).
+					JSON(getJSONObject(suite.T(), mitem))
+
+				atts := models.NewAttachmentCollectionResponse()
+				aitem := models.NewAttachment()
+				aitem.SetId(&aid)
+
+				asize := int32(200)
+				aitem.SetSize(&asize)
+
+				atts.SetValue([]models.Attachmentable{aitem})
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+					Reply(503)
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+					Reply(200).
+					JSON(getJSONObject(suite.T(), atts))
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid + "/attachments/" + aid).
+					Reply(200).
+					JSON(getJSONObject(suite.T(), aitem))
+			},
+			attachmentCount: 1,
+			expect:          assert.NoError,
+		},
+		{
+			name: "fetch multiple individual attachments",
+			setupf: func() {
+				truthy := true
+				mitem := models.NewMessage()
+				mitem.SetId(&mid)
+				mitem.SetHasAttachments(&truthy)
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid).
+					Reply(200).
+					JSON(getJSONObject(suite.T(), mitem))
+
+				atts := models.NewAttachmentCollectionResponse()
+				aitem := models.NewAttachment()
+				aitem.SetId(&aid)
+
+				asize := int32(200)
+				aitem.SetSize(&asize)
+
+				atts.SetValue([]models.Attachmentable{aitem, aitem, aitem, aitem, aitem})
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+					Reply(503)
+
+				gock.New("https://graph.microsoft.com").
+					Get("/v1.0/users/user/messages/" + mid + "/attachments").
+					Reply(200).
+					JSON(getJSONObject(suite.T(), atts))
+
+				for i := 0; i < 5; i++ {
+					gock.New("https://graph.microsoft.com").
+						Get("/v1.0/users/user/messages/" + mid + "/attachments/" + aid).
+						Reply(200).
+						JSON(getJSONObject(suite.T(), aitem))
+				}
+			},
+			attachmentCount: 5,
+			expect:          assert.NoError,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			defer gock.Off()
+			tt.setupf()
+
+			item, _, err := suite.ac.Mail().GetItem(ctx, "user", mid, fault.New(true))
+			tt.expect(suite.T(), err)
+
+			it, ok := item.(models.Messageable)
+			require.True(suite.T(), ok, "convert to messageable")
+
+			assert.Equal(suite.T(), *it.GetId(), mid)
+			assert.Equal(suite.T(), tt.attachmentCount, len(it.GetAttachments()), "attachment count")
+			assert.True(suite.T(), gock.IsDone(), "made all requests")
 		})
 	}
 }

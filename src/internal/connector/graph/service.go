@@ -12,6 +12,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/h2non/gock"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kauth "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -211,6 +212,10 @@ func HTTPClient(opts ...option) *http.Client {
 	httpClient.Timeout = defaultHTTPClientTimeout
 
 	clientconfig.apply(httpClient)
+
+	// This makes sure that we are able to intercept any requests via
+	// gock. Only necessary for testing.
+	gock.InterceptClient(httpClient)
 
 	return httpClient
 }

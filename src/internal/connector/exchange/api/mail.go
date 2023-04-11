@@ -176,22 +176,29 @@ func (c Mail) GetItem(
 			}
 
 			for _, a := range attachments.GetValue() {
-				// TODO(meain): Do we need microsoft.graph.itemattachment/item here?
+				options := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
+					QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
+						Expand: []string{"microsoft.graph.itemattachment/item"},
+					},
+				}
+
 				att, err := c.stable.
 					Client().
 					UsersById(user).
 					MessagesById(itemID).
 					AttachmentsById(*a.GetId()).
-					Get(ctx, nil)
+					Get(ctx, options)
 				if err != nil {
-					return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").With("attachment_id", *a.GetId(), "attachment_size", *a.GetSize())
+					return nil, nil,
+						graph.Wrap(ctx, err, "getting mail attachment").
+							With("attachment_id", *a.GetId(), "attachment_size", *a.GetSize())
 				}
 
-				attached.SetValue(append(attached.GetValue(), att))
+				mail.SetAttachments(append(mail.GetAttachments(), att))
 			}
+		} else {
+			mail.SetAttachments(attached.GetValue())
 		}
-
-		mail.SetAttachments(attached.GetValue())
 	}
 
 	return mail, MailInfo(mail), nil
