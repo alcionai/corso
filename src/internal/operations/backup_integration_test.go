@@ -790,7 +790,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return mockconnector.GetMockEventWith(
 			suite.user, subject, body, body,
-			now, now, false)
+			now, now, mockconnector.NoRecurrence, mockconnector.NoAttendees, false)
 	}
 
 	// test data set
