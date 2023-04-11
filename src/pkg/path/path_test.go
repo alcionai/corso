@@ -223,6 +223,16 @@ func TestPathUnitSuite(t *testing.T) {
 	suite.Run(t, &PathUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+// set the clues hashing to mask for the span of this suite
+func (suite *PathUnitSuite) SetupSuite() {
+	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
+}
+
+// revert clues hashing to plaintext for all other tests
+func (suite *PathUnitSuite) TeardownSuite() {
+	clues.SetHasher(clues.NoHash())
+}
+
 func (suite *PathUnitSuite) TestAppend() {
 	table := append(append([]testData{}, genericCases...), basicUnescapedInputs...)
 	for _, test := range table {
@@ -338,7 +348,7 @@ func (suite *PathUnitSuite) TestElements() {
 			p, err := test.pathFunc(test.input)
 			require.NoError(t, err, clues.ToCore(err))
 
-			assert.Equal(t, test.output, p.Elements())
+			assert.Equal(t, Elements(test.output), p.Elements())
 		})
 	}
 }
@@ -707,5 +717,35 @@ func (suite *PathUnitSuite) TestFromString() {
 				})
 			}
 		}
+	}
+}
+
+func (suite *PathUnitSuite) TestPath_piiHandling() {
+	p, err := Build("t", "ro", ExchangeService, EventsCategory, true, "dir", "item")
+	require.NoError(suite.T(), err)
+
+	table := []struct {
+		name        string
+		p           Path
+		expect      string
+		expectPlain string
+	}{
+		{
+			name:        "standard path",
+			p:           p,
+			expect:      "***/exchange/***/events/***/***",
+			expectPlain: "t/exchange/ro/events/dir/item",
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			assert.Equal(t, test.expect, test.p.Conceal(), "conceal")
+			assert.Equal(t, test.expectPlain, test.p.String(), "string")
+			assert.Equal(t, test.expect, fmt.Sprintf("%s", test.p), "fmt %%s")
+			assert.Equal(t, test.expect, fmt.Sprintf("%+v", test.p), "fmt %%+v")
+			assert.Equal(t, test.expectPlain, test.p.PlainString(), "plain")
+		})
 	}
 }
