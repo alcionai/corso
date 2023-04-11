@@ -786,7 +786,7 @@ func inflateCollectionTree(
 			return nil, nil, clues.New("no identifier for collection")
 		}
 
-		ctx = clues.Add("collection_full_path", s.FullPath())
+		ctx = clues.Add(ctx, "collection_full_path", s.FullPath())
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
