@@ -515,7 +515,7 @@ func getBackupErrors(
 
 	ssid := b.StreamStoreID
 	if len(ssid) == 0 {
-		return nil, b, clues.New("no errors in backup").WithClues(ctx)
+		return nil, b, nil // Draft. Just to show the origin of the bug
 	}
 
 	var (
