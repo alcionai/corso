@@ -537,6 +537,8 @@ func pathFilterFactory(opts ...option) sliceFilterFunc {
 		ff = filters.PathPrefix
 	case sc.useSuffixFilter:
 		ff = filters.PathSuffix
+	case sc.useEqualsFilter:
+		ff = filters.PathEquals
 	default:
 		ff = filters.PathContains
 	}
