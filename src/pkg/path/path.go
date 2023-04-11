@@ -245,7 +245,7 @@ func (pb Builder) LastElem() string {
 // nothing and returns false. If either prev or cur is nil does nothing and
 // returns false.
 func (pb *Builder) UpdateParent(prev, cur *Builder) bool {
-	if prev == cur || len(prev.Elements()) > len(pb.Elements()) {
+	if prev == cur || prev == nil || cur == nil || len(prev.Elements()) > len(pb.Elements()) {
 		return false
 	}
 
