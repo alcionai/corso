@@ -2,6 +2,7 @@ package restore_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -73,12 +74,12 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
-	suite.m365UserID = tester.M365UserID(t)
+	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
 
 	var (
 		users    = []string{suite.m365UserID}
-		idToName = map[string]string{suite.m365UserID: "todo-name-" + suite.m365UserID}
-		nameToID = map[string]string{"todo-name-" + suite.m365UserID: suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
+		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
 		ins      = common.IDsNames{
 			IDToName: idToName,
 			NameToID: nameToID,
@@ -110,7 +111,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector, ins)
+		bop, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)

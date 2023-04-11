@@ -880,17 +880,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			item,
 		},
 	)
-	newExchangePath := makeItemPath(
-		suite.T(),
-		path.ExchangeService,
-		path.EmailCategory,
-		tenant,
-		resourceOwner,
-		[]string{
-			folder3,
-			item,
-		},
-	)
+	newExchangePB := path.Builder{}.Append(folder3)
 	badOneDrivePath := makeItemPath(
 		suite.T(),
 		path.OneDriveService,
@@ -904,7 +894,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 		name         string
 		input        ItemInfo
 		repoPath     path.Path
-		locPath      path.Path
+		locPath      *path.Builder
 		errCheck     assert.ErrorAssertionFunc
 		expectedItem ItemInfo
 	}{
@@ -917,7 +907,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -935,7 +925,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -953,7 +943,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -971,7 +961,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				OneDrive: &OneDriveInfo{
@@ -989,7 +979,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
@@ -1007,7 +997,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: badOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.Error,
 		},
 		{
@@ -1019,7 +1009,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: badOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.Error,
 		},
 	}
@@ -1149,12 +1139,6 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 			expect: baseFolderEnts,
 		},
 		{
-			name:     "base path with location",
-			parent:   basePath,
-			location: basePath,
-			expect:   baseFolderEnts,
-		},
-		{
 			name:   "single depth parent only",
 			parent: basePath.Append(fnords...),
 			expect: folderEntriesFor(fnords, nil),
@@ -1162,7 +1146,7 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		{
 			name:     "single depth with location",
 			parent:   basePath.Append(fnords...),
-			location: basePath.Append(beau...),
+			location: path.Builder{}.Append(beau...),
 			expect:   folderEntriesFor(fnords, beau),
 		},
 		{
@@ -1173,13 +1157,13 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		{
 			name:     "two depth with location",
 			parent:   basePath.Append(smarf...),
-			location: basePath.Append(regard...),
+			location: path.Builder{}.Append(regard...),
 			expect:   folderEntriesFor(smarf, regard),
 		},
 		{
 			name:     "mismatched depth, parent longer",
 			parent:   basePath.Append(smarf...),
-			location: basePath.Append(beau...),
+			location: path.Builder{}.Append(beau...),
 			expect:   folderEntriesFor(smarf, beau),
 		},
 		// We can't handle this right now.  But we don't have any cases

@@ -39,87 +39,215 @@ func TestGraphConnectorUnitSuite(t *testing.T) {
 	suite.Run(t, &GraphConnectorUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
+var _ getIDAndNamer = &mockNameIDGetter{}
+
+type mockNameIDGetter struct {
+	id, name string
+}
+
+func (mnig mockNameIDGetter) GetIDAndName(
+	_ context.Context,
+	_ string,
+) (string, string, error) {
+	return mnig.id, mnig.name, nil
+}
+
+func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	const (
-		url1  = "www.foo.com/bar"
-		url2  = "www.fnords.com/smarf"
-		path1 = "bar"
-		path2 = "/smarf"
-		id1   = "site-id-1"
-		id2   = "site-id-2"
+		id   = "owner-id"
+		name = "owner-name"
 	)
 
-	gc := &GraphConnector{
-		// must be populated, else the func will try to make a graph call
-		// to retrieve site data.
-		Sites: map[string]string{
-			url1: id1,
-			url2: id2,
-		},
-	}
+	var (
+		itn    = map[string]string{id: name}
+		nti    = map[string]string{name: id}
+		lookup = &resourceClient{
+			enum:   Users,
+			getter: &mockNameIDGetter{id: id, name: name},
+		}
+		noLookup = &resourceClient{enum: Users, getter: &mockNameIDGetter{}}
+	)
 
 	table := []struct {
-		name   string
-		ids    []string
-		urls   []string
-		expect []string
+		name       string
+		owner      string
+		ins        common.IDsNames
+		rc         *resourceClient
+		expectID   string
+		expectName string
+		expectErr  require.ErrorAssertionFunc
 	}{
 		{
-			name: "nil",
+			name:       "nil ins",
+			owner:      id,
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 		{
-			name:   "empty",
-			ids:    []string{},
-			urls:   []string{},
-			expect: []string{},
+			name:       "nil ins no lookup",
+			owner:      id,
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
-			name:   "ids only",
-			ids:    []string{id1, id2},
-			urls:   []string{},
-			expect: []string{id1, id2},
+			name:  "only id map with owner id",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			rc:         noLookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 		{
-			name:   "urls only",
-			ids:    []string{},
-			urls:   []string{url1, url2},
-			expect: []string{id1, id2},
+			name:  "only name map with owner id",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: nil,
+				NameToID: nti,
+			},
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
-			name:   "url suffix only",
-			ids:    []string{},
-			urls:   []string{path1, path2},
-			expect: []string{id1, id2},
+			name:  "only name map with owner id and lookup",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: nil,
+				NameToID: nti,
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 		{
-			name:   "url and suffix overlap",
-			ids:    []string{},
-			urls:   []string{url1, url2, path1, path2},
-			expect: []string{id1, id2},
+			name:  "only id map with owner name",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 		{
-			name:   "ids and urls, no overlap",
-			ids:    []string{id1},
-			urls:   []string{url2},
-			expect: []string{id1, id2},
+			name:  "only name map with owner name",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: nil,
+				NameToID: nti,
+			},
+			rc:         noLookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 		{
-			name:   "ids and urls, overlap",
-			ids:    []string{id1, id2},
-			urls:   []string{url1, url2},
-			expect: []string{id1, id2},
+			name:  "only id map with owner name",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
 		},
 		{
-			name:   "partial non-match on path",
-			ids:    []string{},
-			urls:   []string{path1[2:], path2[2:]},
-			expect: []string{},
+			name:  "only id map with owner name and lookup",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nil,
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 		{
-			name:   "partial non-match on url",
-			ids:    []string{},
-			urls:   []string{url1[5:], url2[5:]},
-			expect: []string{},
+			name:  "both maps with owner id",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nti,
+			},
+			rc:         noLookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
+		},
+		{
+			name:  "both maps with owner name",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: itn,
+				NameToID: nti,
+			},
+			rc:         noLookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
+		},
+		{
+			name:  "non-matching maps with owner id",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
+		},
+		{
+			name:  "non-matching with owner name",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			rc:         noLookup,
+			expectID:   "",
+			expectName: "",
+			expectErr:  require.Error,
+		},
+		{
+			name:  "non-matching maps with owner id and lookup",
+			owner: id,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
+		},
+		{
+			name:  "non-matching with owner name and lookup",
+			owner: name,
+			ins: common.IDsNames{
+				IDToName: map[string]string{"foo": "bar"},
+				NameToID: map[string]string{"fnords": "smarf"},
+			},
+			rc:         lookup,
+			expectID:   id,
+			expectName: name,
+			expectErr:  require.NoError,
 		},
 	}
 	for _, test := range table {
@@ -127,131 +255,15 @@ func (suite *GraphConnectorUnitSuite) TestUnionSiteIDsAndWebURLs() {
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			t := suite.T()
-
-			result, err := gc.UnionSiteIDsAndWebURLs(ctx, test.ids, test.urls, fault.New(true))
-			assert.NoError(t, err, clues.ToCore(err))
-			assert.ElementsMatch(t, test.expect, result)
-		})
-	}
-}
-
-func (suite *GraphConnectorUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
-	const (
-		ownerID   = "owner-id"
-		ownerName = "owner-name"
-	)
-
-	var (
-		itn = map[string]string{ownerID: ownerName}
-		nti = map[string]string{ownerName: ownerID}
-	)
-
-	table := []struct {
-		name       string
-		owner      string
-		ins        common.IDsNames
-		expectID   string
-		expectName string
-	}{
-		{
-			name:       "nil ins",
-			owner:      ownerID,
-			expectID:   ownerID,
-			expectName: ownerID,
-		},
-		{
-			name:  "only id map with owner id",
-			owner: ownerID,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nil,
-			},
-			expectID:   ownerID,
-			expectName: ownerName,
-		},
-		{
-			name:  "only name map with owner id",
-			owner: ownerID,
-			ins: common.IDsNames{
-				IDToName: nil,
-				NameToID: nti,
-			},
-			expectID:   ownerID,
-			expectName: ownerID,
-		},
-		{
-			name:  "only id map with owner name",
-			owner: ownerName,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nil,
-			},
-			expectID:   ownerName,
-			expectName: ownerName,
-		},
-		{
-			name:  "only name map with owner name",
-			owner: ownerName,
-			ins: common.IDsNames{
-				IDToName: nil,
-				NameToID: nti,
-			},
-			expectID:   ownerID,
-			expectName: ownerName,
-		},
-		{
-			name:  "both maps with owner id",
-			owner: ownerID,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nti,
-			},
-			expectID:   ownerID,
-			expectName: ownerName,
-		},
-		{
-			name:  "both maps with owner name",
-			owner: ownerName,
-			ins: common.IDsNames{
-				IDToName: itn,
-				NameToID: nti,
-			},
-			expectID:   ownerID,
-			expectName: ownerName,
-		},
-		{
-			name:  "non-matching maps with owner id",
-			owner: ownerID,
-			ins: common.IDsNames{
-				IDToName: map[string]string{"foo": "bar"},
-				NameToID: map[string]string{"fnords": "smarf"},
-			},
-			expectID:   ownerID,
-			expectName: ownerID,
-		},
-		{
-			name:  "non-matching with owner name",
-			owner: ownerName,
-			ins: common.IDsNames{
-				IDToName: map[string]string{"foo": "bar"},
-				NameToID: map[string]string{"fnords": "smarf"},
-			},
-			expectID:   ownerName,
-			expectName: ownerName,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
 			var (
 				t  = suite.T()
-				gc = &GraphConnector{}
+				gc = &GraphConnector{ownerLookup: test.rc}
 			)
 
-			id, name, err := gc.PopulateOwnerIDAndNamesFrom(test.owner, test.ins)
-			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expectID, id)
-			assert.Equal(t, test.expectName, name)
+			rID, rName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, test.owner, test.ins)
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expectID, rID, "id")
+			assert.Equal(t, test.expectName, rName, "name")
 		})
 	}
 }
@@ -318,35 +330,6 @@ func (suite *GraphConnectorIntegrationSuite) SetupSuite() {
 	suite.acct = tester.NewM365Account(suite.T())
 
 	tester.LogTimeOfTest(suite.T())
-}
-
-// TestSetTenantSites verifies GraphConnector's ability to query
-// the sites associated with the credentials
-func (suite *GraphConnectorIntegrationSuite) TestSetTenantSites() {
-	newConnector := GraphConnector{
-		tenant:      "test_tenant",
-		Sites:       make(map[string]string, 0),
-		credentials: suite.connector.credentials,
-	}
-
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-
-	service, err := newConnector.createService()
-	require.NoError(t, err, clues.ToCore(err))
-
-	newConnector.Service = service
-	assert.Equal(t, 0, len(newConnector.Sites))
-
-	err = newConnector.setTenantSites(ctx, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.Less(t, 0, len(newConnector.Sites))
-
-	for _, site := range newConnector.Sites {
-		assert.NotContains(t, "sharepoint.com/personal/", site)
-	}
 }
 
 func (suite *GraphConnectorIntegrationSuite) TestRestoreFailsBadService() {
@@ -564,16 +547,26 @@ func runBackupAndCompare(
 		cats[c.category] = struct{}{}
 	}
 
-	expectedDests := make([]destAndCats, 0, len(config.resourceOwners))
+	var (
+		expectedDests = make([]destAndCats, 0, len(config.resourceOwners))
+		idToName      = map[string]string{}
+		nameToID      = map[string]string{}
+	)
+
 	for _, ro := range config.resourceOwners {
 		expectedDests = append(expectedDests, destAndCats{
 			resourceOwner: ro,
 			dest:          config.dest.ContainerName,
 			cats:          cats,
 		})
+
+		idToName[ro] = ro
+		nameToID[ro] = ro
 	}
 
 	backupGC := loadConnector(ctx, t, graph.HTTPClient(graph.NoTimeout()), config.resource)
+	backupGC.IDNameLookup = common.IDsNames{IDToName: idToName, NameToID: nameToID}
+
 	backupSel := backupSelectorForExpected(t, config.service, expectedDests)
 	t.Logf("Selective backup of %s\n", backupSel)
 
@@ -1270,6 +1263,11 @@ func (suite *GraphConnectorIntegrationSuite) TestBackup_CreatesPrefixCollections
 				errs      = fault.New(true)
 				start     = time.Now()
 			)
+
+			id, name, err := backupGC.PopulateOwnerIDAndNamesFrom(ctx, backupSel.DiscreteOwner, nil)
+			require.NoError(t, err, clues.ToCore(err))
+
+			backupSel.SetDiscreteOwnerIDName(id, name)
 
 			dcs, excludes, err := backupGC.ProduceBackupCollections(
 				ctx,

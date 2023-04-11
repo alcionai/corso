@@ -29,6 +29,7 @@ import (
 const (
 	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
 	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
+	log2xxGraphResponseEnvKey = "LOG_2XX_GRAPH_RESPONSES"
 	retryAttemptHeader        = "Retry-Attempt"
 	retryAfterHeader          = "Retry-After"
 	defaultMaxRetries         = 3
@@ -368,7 +369,7 @@ func (handler *LoggingMiddleware) Intercept(
 	// If api logging is toggled, log a body-less dump of the request/resp.
 	if (resp.StatusCode / 100) == 2 {
 		if logger.DebugAPI || os.Getenv(log2xxGraphRequestsEnvKey) != "" {
-			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, false))
+			log.Debugw("2xx graph api resp", "response", getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != ""))
 		}
 
 		return resp, err

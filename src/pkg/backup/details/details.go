@@ -171,7 +171,7 @@ func (b *Builder) Details() *Details {
 // AddFoldersForItem, and unexport AddFoldersForItem.
 func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	folders := []folderEntry{}
-	lfs := locationRefOf(location)
+	lfs := location
 
 	for len(parent.Elements()) > 0 {
 		var (
@@ -211,21 +211,6 @@ func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
 	}
 
 	return folders
-}
-
-// assumes the pb contains a path like:
-// <tenant>/<service>/<owner>/<category>/<logical_containers>...
-// and returns a string with only <logical_containers>/...
-func locationRefOf(pb *path.Builder) *path.Builder {
-	if pb == nil {
-		return nil
-	}
-
-	for i := 0; i < 4; i++ {
-		pb = pb.PopFront()
-	}
-
-	return pb
 }
 
 // AddFoldersForItem adds entries for the given folders. It skips adding entries that
@@ -468,10 +453,10 @@ const (
 	FolderItem ItemType = 306
 )
 
-func UpdateItem(item *ItemInfo, repoPath, locPath path.Path) error {
+func UpdateItem(item *ItemInfo, repoPath path.Path, locPath *path.Builder) error {
 	// Only OneDrive and SharePoint have information about parent folders
 	// contained in them.
-	var updatePath func(repo path.Path, location path.Path) error
+	var updatePath func(repo path.Path, location *path.Builder) error
 
 	switch item.infoType() {
 	case ExchangeContact, ExchangeEvent, ExchangeMail:
@@ -632,13 +617,13 @@ func (i ExchangeInfo) Values() []string {
 	return []string{}
 }
 
-func (i *ExchangeInfo) UpdateParentPath(_, locPath path.Path) error {
+func (i *ExchangeInfo) UpdateParentPath(_ path.Path, locPath *path.Builder) error {
 	// Not all data types have this set yet.
 	if locPath == nil {
 		return nil
 	}
 
-	i.ParentPath = locPath.Folder(true)
+	i.ParentPath = locPath.String()
 
 	return nil
 }
@@ -677,7 +662,7 @@ func (i SharePointInfo) Values() []string {
 	}
 }
 
-func (i *SharePointInfo) UpdateParentPath(newPath, _ path.Path) error {
+func (i *SharePointInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) error {
 	newParent, err := path.GetDriveFolderPath(newPath)
 	if err != nil {
 		return clues.Wrap(err, "making sharePoint path").With("path", newPath)
@@ -721,7 +706,7 @@ func (i OneDriveInfo) Values() []string {
 	}
 }
 
-func (i *OneDriveInfo) UpdateParentPath(newPath, _ path.Path) error {
+func (i *OneDriveInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) error {
 	newParent, err := path.GetDriveFolderPath(newPath)
 	if err != nil {
 		return clues.Wrap(err, "making oneDrive path").With("path", newPath)

@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -166,11 +167,11 @@ func NewCollection(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		c.itemGetter = getDriveItem
+		c.itemGetter = api.GetDriveItem
 		c.itemReader = sharePointItemReader
 		c.itemMetaReader = sharePointItemMetaReader
 	default:
-		c.itemGetter = getDriveItem
+		c.itemGetter = api.GetDriveItem
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
 	}

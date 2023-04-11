@@ -229,7 +229,11 @@ func (op *BackupOperation) do(
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
-	reasons := selectorToReasons(op.Selectors)
+	var (
+		reasons         = selectorToReasons(op.Selectors, false)
+		fallbackReasons = makeFallbackReasons(op.Selectors)
+	)
+
 	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
@@ -239,7 +243,7 @@ func (op *BackupOperation) do(
 		ctx,
 		op.kopia,
 		op.store,
-		reasons,
+		reasons, fallbackReasons,
 		op.account.ID(),
 		op.incremental,
 		op.Errors)
@@ -261,7 +265,7 @@ func (op *BackupOperation) do(
 
 	ctx = clues.Add(ctx, "coll_count", len(cs))
 
-	writeStats, deets, toMerge, err := consumeBackupCollections(
+	writeStats, deets, toMerge, updatedLocs, err := consumeBackupCollections(
 		ctx,
 		op.kopia,
 		op.account.ID(),
@@ -284,6 +288,7 @@ func (op *BackupOperation) do(
 		detailsStore,
 		mans,
 		toMerge,
+		updatedLocs,
 		deets,
 		op.Errors)
 	if err != nil {
@@ -295,6 +300,14 @@ func (op *BackupOperation) do(
 	logger.Ctx(ctx).Debug(opStats.gc)
 
 	return deets, nil
+}
+
+func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
+	if sel.PathService() != path.SharePointService {
+		return selectorToReasons(sel, true)
+	}
+
+	return nil
 }
 
 // checker to see if conditions are correct for incremental backup behavior such as
@@ -338,7 +351,7 @@ func produceBackupDataCollections(
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(sel selectors.Selector) []kopia.Reason {
+func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
 
@@ -349,10 +362,15 @@ func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 		return nil
 	}
 
+	owner := sel.DiscreteOwner
+	if useOwnerNameForID {
+		owner = sel.DiscreteOwnerName
+	}
+
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
 			reasons = append(reasons, kopia.Reason{
-				ResourceOwner: sel.DiscreteOwner,
+				ResourceOwner: owner,
 				Service:       service,
 				Category:      cat,
 			})
@@ -394,7 +412,7 @@ func consumeBackupCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, *kopia.LocationPrefixMatcher, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
@@ -423,7 +441,7 @@ func consumeBackupCollections(
 		for _, reason := range m.Reasons {
 			pb, err := builderFromReason(ctx, tenantID, reason)
 			if err != nil {
-				return nil, nil, nil, clues.Wrap(err, "getting subtree paths for bases")
+				return nil, nil, nil, nil, clues.Wrap(err, "getting subtree paths for bases")
 			}
 
 			paths = append(paths, pb)
@@ -459,7 +477,7 @@ func consumeBackupCollections(
 			"base_backup_id", mbID)
 	}
 
-	kopiaStats, deets, itemsSourcedFromBase, err := bc.ConsumeBackupCollections(
+	kopiaStats, deets, itemsSourcedFromBase, updatedLocs, err := bc.ConsumeBackupCollections(
 		ctx,
 		bases,
 		cs,
@@ -469,10 +487,10 @@ func consumeBackupCollections(
 		errs)
 	if err != nil {
 		if kopiaStats == nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
-		return nil, nil, nil, clues.Stack(err).With(
+		return nil, nil, nil, nil, clues.Stack(err).With(
 			"kopia_errors", kopiaStats.ErrorCount,
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
@@ -484,7 +502,7 @@ func consumeBackupCollections(
 			"kopia_ignored_errors", kopiaStats.IgnoredErrorCount)
 	}
 
-	return kopiaStats, deets, itemsSourcedFromBase, err
+	return kopiaStats, deets, itemsSourcedFromBase, updatedLocs, err
 }
 
 func matchesReason(reasons []kopia.Reason, p path.Path) bool {
@@ -505,6 +523,7 @@ func mergeDetails(
 	detailsStore streamstore.Streamer,
 	mans []*kopia.ManifestEntry,
 	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
+	updatedLocs *kopia.LocationPrefixMatcher,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) error {
@@ -570,7 +589,9 @@ func mergeDetails(
 			}
 
 			newPath := prev.Repo
-			newLoc := prev.Location
+			// Locations are done by collection RepoRef so remove the item from the
+			// input.
+			newLoc := updatedLocs.LongestPrefix(rr.ToBuilder().Dir().String())
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
@@ -583,12 +604,10 @@ func mergeDetails(
 			var (
 				itemUpdated = newPath.String() != rr.String()
 				newLocStr   string
-				locBuilder  *path.Builder
 			)
 
 			if newLoc != nil {
-				locBuilder = newLoc.ToBuilder()
-				newLocStr = newLoc.Folder(true)
+				newLocStr = newLoc.String()
 				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
 			}
 
@@ -603,7 +622,7 @@ func mergeDetails(
 				return clues.Wrap(err, "adding item to details")
 			}
 
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), locBuilder)
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), newLoc)
 			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when

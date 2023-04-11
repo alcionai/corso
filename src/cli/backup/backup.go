@@ -208,7 +208,7 @@ func runBackups(
 			ictx  = clues.Add(ctx, "resource_owner", owner)
 		)
 
-		bo, err := r.NewBackup(ictx, discSel, ins)
+		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
 			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)
@@ -253,11 +253,11 @@ func runBackups(
 // genericDeleteCommand is a helper function that all services can use
 // for the removal of an entry from the repository
 func genericDeleteCommand(cmd *cobra.Command, bID, designation string, args []string) error {
-	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
-
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
 	}
+
+	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
 	r, _, err := getAccountAndConnect(ctx)
 	if err != nil {

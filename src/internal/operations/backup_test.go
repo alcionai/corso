@@ -102,12 +102,12 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, *kopia.LocationPrefixMatcher, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
 	}
 
-	return &kopia.BackupStats{}, &details.Builder{}, nil, nil
+	return &kopia.BackupStats{}, &details.Builder{}, nil, nil, nil
 }
 
 // ----- model store for backups
@@ -265,7 +265,7 @@ func makePath(t *testing.T, elements []string, isItem bool) path.Path {
 func makeDetailsEntry(
 	t *testing.T,
 	p path.Path,
-	l path.Path,
+	l *path.Builder,
 	size int,
 	updated bool,
 ) *details.DetailsEntry {
@@ -273,7 +273,7 @@ func makeDetailsEntry(
 
 	var lr string
 	if l != nil {
-		lr = l.PopFront().PopFront().PopFront().PopFront().Dir().String()
+		lr = l.String()
 	}
 
 	res := &details.DetailsEntry{
@@ -298,7 +298,7 @@ func makeDetailsEntry(
 		res.Exchange = &details.ExchangeInfo{
 			ItemType:   details.ExchangeMail,
 			Size:       int64(size),
-			ParentPath: l.Folder(false),
+			ParentPath: l.String(),
 		}
 
 	case path.OneDriveService:
@@ -608,22 +608,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true,
 		)
-		locationPath1 = makePath(
-			suite.T(),
-			[]string{
-				tenant,
-				path.OneDriveService.String(),
-				ro,
-				path.FilesCategory.String(),
-				"drives",
-				"drive-id",
-				"root:",
-				"work-display-name",
-				"item1",
-			},
-			true,
-		)
-		itemPath2 = makePath(
+		locationPath1 = path.Builder{}.Append("root:", "work-display-name")
+		itemPath2     = makePath(
 			suite.T(),
 			[]string{
 				tenant,
@@ -638,22 +624,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true,
 		)
-		locationPath2 = makePath(
-			suite.T(),
-			[]string{
-				tenant,
-				path.OneDriveService.String(),
-				ro,
-				path.FilesCategory.String(),
-				"drives",
-				"drive-id",
-				"root:",
-				"personal-display-name",
-				"item2",
-			},
-			true,
-		)
-		itemPath3 = makePath(
+		locationPath2 = path.Builder{}.Append("root:", "personal-display-name")
+		itemPath3     = makePath(
 			suite.T(),
 			[]string{
 				tenant,
@@ -665,18 +637,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true,
 		)
-		locationPath3 = makePath(
-			suite.T(),
-			[]string{
-				tenant,
-				path.ExchangeService.String(),
-				ro,
-				path.EmailCategory.String(),
-				"personal-display-name",
-				"item3",
-			},
-			true,
-		)
+		locationPath3 = path.Builder{}.Append("personal-display-name")
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -713,6 +674,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		populatedDetails             map[string]*details.Details
 		inputMans                    []*kopia.ManifestEntry
 		inputShortRefsFromPrevBackup map[string]kopia.PrevRefs
+		prefixMatcher                *kopia.LocationPrefixMatcher
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.DetailsEntry
@@ -738,6 +700,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), "foo", ""),
@@ -756,6 +729,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -786,6 +770,23 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath2,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				rr, err = itemPath2.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath2)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -801,7 +802,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -816,6 +817,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -837,7 +849,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -852,6 +864,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath2,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath2)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -911,6 +934,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					),
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -926,7 +953,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
@@ -941,6 +968,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -973,6 +1011,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Repo: itemPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1003,9 +1045,20 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
 				itemPath1.ShortRef(): {
 					Repo:     itemPath1,
-					Location: itemPath1,
+					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1021,14 +1074,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				backup1.DetailsID: {
 					DetailsModel: details.DetailsModel{
 						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+							*makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 						},
 					},
 				},
 			},
 			errCheck: assert.NoError,
 			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, itemPath1, 42, false),
+				makeDetailsEntry(suite.T(), itemPath1, locationPath1, 42, false),
 			},
 		},
 		{
@@ -1039,6 +1092,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1073,6 +1137,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath2,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath2)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1110,6 +1185,23 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath3,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				rr, err = itemPath3.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath3)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1161,6 +1253,17 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					Location: locationPath1,
 				},
 			},
+			prefixMatcher: func() *kopia.LocationPrefixMatcher {
+				p := kopia.NewLocationPrefixMatcher()
+
+				rr, err := itemPath1.Dir()
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				err = p.Add(rr, locationPath1)
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				return p
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1220,6 +1323,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				mds,
 				test.inputMans,
 				test.inputShortRefsFromPrevBackup,
+				test.prefixMatcher,
 				&deets,
 				fault.New(true))
 			test.errCheck(t, err, clues.ToCore(err))
@@ -1254,10 +1358,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			pathElems,
 			true)
 
-		locPath1 = makePath(
-			t,
-			pathElems[:len(pathElems)-1],
-			false)
+		locPath1 = path.Builder{}.Append(pathElems[:len(pathElems)-1]...)
 
 		backup1 = backup.Backup{
 			BaseModel: model.BaseModel{
@@ -1297,7 +1398,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		// later    = now.Add(42 * time.Minute)
 	)
 
-	itemDetails := makeDetailsEntry(t, itemPath1, itemPath1, itemSize, false)
+	itemDir, err := itemPath1.Dir()
+	require.NoError(t, err, clues.ToCore(err))
+
+	prefixMatcher := kopia.NewLocationPrefixMatcher()
+	err = prefixMatcher.Add(itemDir, locPath1)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	itemDetails := makeDetailsEntry(t, itemPath1, locPath1, itemSize, false)
 	// itemDetails.Exchange.Modified = now
 
 	populatedDetails := map[string]*details.Details{
@@ -1330,12 +1438,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		deets = details.Builder{}
 	)
 
-	err := mergeDetails(
+	err = mergeDetails(
 		ctx,
 		w,
 		mds,
 		inputMans,
 		inputToMerge,
+		prefixMatcher,
 		&deets,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
