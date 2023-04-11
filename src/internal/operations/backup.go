@@ -229,7 +229,11 @@ func (op *BackupOperation) do(
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
-	reasons := selectorToReasons(op.Selectors)
+	var (
+		reasons         = selectorToReasons(op.Selectors, false)
+		fallbackReasons = makeFallbackReasons(op.Selectors)
+	)
+
 	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
@@ -239,7 +243,7 @@ func (op *BackupOperation) do(
 		ctx,
 		op.kopia,
 		op.store,
-		reasons,
+		reasons, fallbackReasons,
 		op.account.ID(),
 		op.incremental,
 		op.Errors)
@@ -298,6 +302,14 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
+func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
+	if sel.PathService() != path.SharePointService {
+		return selectorToReasons(sel, true)
+	}
+
+	return nil
+}
+
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
@@ -339,7 +351,7 @@ func produceBackupDataCollections(
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(sel selectors.Selector) []kopia.Reason {
+func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
 
@@ -350,10 +362,15 @@ func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 		return nil
 	}
 
+	owner := sel.DiscreteOwner
+	if useOwnerNameForID {
+		owner = sel.DiscreteOwnerName
+	}
+
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
 			reasons = append(reasons, kopia.Reason{
-				ResourceOwner: sel.DiscreteOwner,
+				ResourceOwner: owner,
 				Service:       service,
 				Category:      cat,
 			})
