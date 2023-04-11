@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         user: [ CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, EXT_SDK_TEST_USER_ID, '' ]
-        site: [ CORSO_M365_TEST_SITE_URL, EXT_SDK_TEST_SITE_URL ] 
 
     steps:
       - uses: actions/checkout@v3
