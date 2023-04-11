@@ -360,7 +360,7 @@ func runDetailsSharePointCmd(
 	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
 
 	if !skipReduce {
-		sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+		sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}

@@ -122,6 +122,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	// ensure it has a prefix https://
 	if !strings.HasPrefix(identifier, "/") {
 		identifier = strings.TrimPrefix(identifier, "https://")
+		identifier = strings.TrimPrefix(identifier, "http://")
 		identifier = "https://" + identifier
 	}
 

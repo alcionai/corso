@@ -189,29 +189,35 @@ func (s *sharePoint) Scopes() []SharePointScope {
 
 // Produces one or more SharePoint webURL scopes.
 // One scope is created per webURL entry.
+// Defaults to equals check, on the assumption we identify fully qualified
+// urls, and do not want to default to contains.  ie: https://host/sites/foo
+// should not match https://host/sites/foo/bar.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
-	scopes := []SharePointScope{}
+func (s *SharePointRestore) WebURL(urls []string, opts ...option) []SharePointScope {
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{ExactMatch()}, opts...)
+	)
 
 	scopes = append(
 		scopes,
 		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
 			SharePointWebURL,
-			urlSuffixes,
-			pathFilterFactory(opts...)),
+			urls,
+			pathFilterFactory(os...)),
 		makeInfoScope[SharePointScope](
 			SharePointListItem,
 			SharePointWebURL,
-			urlSuffixes,
-			pathFilterFactory(opts...)),
+			urls,
+			pathFilterFactory(os...)),
 		makeInfoScope[SharePointScope](
 			SharePointPage,
 			SharePointWebURL,
-			urlSuffixes,
-			pathFilterFactory(opts...)),
+			urls,
+			pathFilterFactory(os...)),
 	)
 
 	return scopes

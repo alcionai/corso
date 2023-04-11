@@ -191,7 +191,9 @@ func (suite *FiltersSuite) TestIn_MultipleTargets() {
 		{"oof", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
@@ -213,7 +215,9 @@ func (suite *FiltersSuite) TestIn_MultipleTargets_Joined() {
 		{"arf,oof", assert.False, assert.True},
 	}
 	for _, test := range table {
-		suite.T().Run(test.input, func(t *testing.T) {
+		suite.Run(test.input, func() {
+			t := suite.T()
+
 			test.expectF(t, f.Compare(test.input), "filter")
 			test.expectNF(t, nf.Compare(test.input), "negated filter")
 		})
