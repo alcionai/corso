@@ -263,11 +263,11 @@ func (suite *PathUnitSuite) TestEscapedFailure() {
 	target := "i_s"
 
 	for c := range charactersToEscape {
-		suite.T().Run(fmt.Sprintf("Unescaped-%c", c), func(t *testing.T) {
+		suite.Run(fmt.Sprintf("Unescaped-%c", c), func() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Errorf(t, err, "path with unescaped %s did not error", string(c))
+			assert.Errorf(suite.T(), err, "path with unescaped %s did not error", string(c))
 		})
 	}
 }
@@ -277,12 +277,12 @@ func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
 	notEscapes := []rune{'a', 'b', '#', '%'}
 
 	for _, c := range notEscapes {
-		suite.T().Run(fmt.Sprintf("Escaped-%c", c), func(t *testing.T) {
+		suite.Run(fmt.Sprintf("Escaped-%c", c), func() {
 			tmp := strings.ReplaceAll(target, "_", string(c))
 
 			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
 			assert.Errorf(
-				t,
+				suite.T(),
 				err,
 				"path with bad escape sequence %c%c did not error",
 				escapeCharacter,
@@ -295,14 +295,14 @@ func (suite *PathUnitSuite) TestTrailingEscapeChar() {
 	base := []string{"this", "is", "a", "path"}
 
 	for i := 0; i < len(base); i++ {
-		suite.T().Run(fmt.Sprintf("Element%v", i), func(t *testing.T) {
+		suite.Run(fmt.Sprintf("Element%v", i), func() {
 			path := make([]string, len(base))
 			copy(path, base)
 			path[i] = path[i] + string(escapeCharacter)
 
 			_, err := Builder{}.UnescapeAndAppend(path...)
 			assert.Error(
-				t,
+				suite.T(),
 				err,
 				"path with trailing escape character did not error")
 		})
@@ -683,9 +683,10 @@ func (suite *PathUnitSuite) TestFromString() {
 	for service, cats := range serviceCategories {
 		for cat := range cats {
 			for _, item := range isItem {
-				suite.T().Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func(t1 *testing.T) {
+				suite.Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func() {
 					for _, test := range table {
-						t1.Run(test.name, func(t *testing.T) {
+						suite.Run(test.name, func() {
+							t := suite.T()
 							testPath := fmt.Sprintf(test.unescapedPath, service, cat)
 
 							p, err := FromDataLayerPath(testPath, item.isItem)

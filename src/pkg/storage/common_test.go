@@ -37,8 +37,8 @@ func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 		{"common_corsoPassphrase", cfg.CorsoPassphrase},
 	}
 	for _, test := range table {
-		suite.T().Run(test.key, func(t *testing.T) {
-			assert.Equal(t, test.expect, c[test.key])
+		suite.Run(test.key, func() {
+			assert.Equal(suite.T(), test.expect, c[test.key])
 		})
 	}
 }
@@ -64,9 +64,9 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
 		{"missing passphrase", storage.CommonConfig{}},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			_, err := storage.NewStorage(storage.ProviderUnknown, test.cfg)
-			assert.Error(t, err)
+			assert.Error(suite.T(), err)
 		})
 	}
 
@@ -83,7 +83,9 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
 		},
 	}
 	for _, test := range table2 {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			st, err := storage.NewStorage(storage.ProviderUnknown, goodCommonConfig)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)

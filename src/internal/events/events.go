@@ -3,8 +3,10 @@ package events
 import (
 	"context"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -20,9 +22,10 @@ import (
 
 // keys for ease of use
 const (
-	corsoVersion = "corso_version"
-	repoID       = "repo_id"
-	tenantID     = "m365_tenant_hash"
+	corsoVersion       = "corso_version"
+	repoID             = "repo_id"
+	tenantID           = "m365_tenant_hash"
+	tenantIDDeprecated = "m365_tenant_hash_deprecated"
 
 	// Event Keys
 	CorsoStart   = "Corso Start"
@@ -49,6 +52,11 @@ const (
 	Status           = "status"
 )
 
+const (
+	sha256OutputLength  = 64
+	truncatedHashLength = 32
+)
+
 type Eventer interface {
 	Event(context.Context, string, map[string]any)
 	Close() error
@@ -58,9 +66,10 @@ type Eventer interface {
 type Bus struct {
 	client analytics.Client
 
-	repoID  string // one-way hash that uniquely identifies the repo.
-	tenant  string // one-way hash that uniquely identifies the tenant.
-	version string // the Corso release version
+	repoID           string // one-way hash that uniquely identifies the repo.
+	tenant           string // one-way hash that uniquely identifies the tenant.
+	tenantDeprecated string // one-way hash that uniquely identified the tenand (old hashing algo for continuity).
+	version          string // the Corso release version
 }
 
 var (
@@ -100,9 +109,10 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 	}
 
 	return Bus{
-		client:  client,
-		tenant:  tenantHash(tenID),
-		version: version.Version,
+		client:           client,
+		tenant:           sha256Truncated(tenID),
+		tenantDeprecated: tenantHash(tenID),
+		version:          version.Version,
 	}, nil
 }
 
@@ -123,19 +133,22 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		NewProperties().
 		Set(repoID, b.repoID).
 		Set(tenantID, b.tenant).
+		Set(tenantIDDeprecated, b.tenantDeprecated).
 		Set(corsoVersion, b.version)
 
 	for k, v := range data {
 		props.Set(k, v)
 	}
 
-	// need to setup identity when initializing a new repo
-	if key == RepoInit {
+	// need to setup identity when initializing or connecting to a repo
+	if key == RepoInit || key == RepoConnect {
 		err := b.client.Enqueue(analytics.Identify{
-			UserId: b.repoID,
+			UserId: b.tenant,
 			Traits: analytics.NewTraits().
 				SetName(b.tenant).
-				Set(tenantID, b.tenant),
+				Set(tenantID, b.tenant).
+				Set(tenantIDDeprecated, b.tenantDeprecated).
+				Set(repoID, b.repoID),
 		})
 		if err != nil {
 			logger.CtxErr(ctx, err).Debug("analytics event failure: repo identity")
@@ -144,7 +157,7 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 
 	err := b.client.Enqueue(analytics.Track{
 		Event:      key,
-		UserId:     b.repoID,
+		UserId:     b.tenant,
 		Timestamp:  time.Now().UTC(),
 		Properties: props,
 	})
@@ -155,6 +168,15 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 
 func (b *Bus) SetRepoID(hash string) {
 	b.repoID = hash
+}
+
+func sha256Truncated(tenID string) string {
+	outputLength := int(math.Min(truncatedHashLength, sha256OutputLength))
+
+	hash := sha256.Sum256([]byte(tenID))
+	hexHash := fmt.Sprintf("%x", hash)
+
+	return hexHash[0:outputLength]
 }
 
 func tenantHash(tenID string) string {

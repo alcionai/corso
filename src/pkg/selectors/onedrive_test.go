@@ -354,8 +354,8 @@ func (suite *OneDriveSelectorSuite) TestCategory_PathType() {
 		{FileInfoModifiedBefore, path.FilesCategory},
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, test.pathType, test.cat.PathType())
+		suite.Run(test.cat.String(), func() {
+			assert.Equal(suite.T(), test.pathType, test.cat.PathType())
 		})
 	}
 }
