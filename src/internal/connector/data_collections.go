@@ -53,7 +53,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 
 	serviceEnabled, err := checkServiceEnabled(
 		ctx,
-		gc.Owners.Users(),
+		gc.Discovery.Users(),
 		path.ServiceType(sels.Service),
 		sels.DiscreteOwner)
 	if err != nil {
@@ -162,7 +162,7 @@ func verifyBackupInputs(sels selectors.Selector, siteIDs []string) error {
 	}
 
 	if !found {
-		return clues.New("resource owner not found within tenant").With("missing_resource_owner", sels.DiscreteOwner)
+		return clues.Stack(graph.ErrResourceOwnerNotFound).With("missing_resource_owner", sels.DiscreteOwner)
 	}
 
 	return nil

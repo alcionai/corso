@@ -123,7 +123,7 @@ func prepNewTestBackupOp(
 		t.FailNow()
 	}
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel.SetDiscreteOwnerIDName(id, name)
@@ -790,7 +790,7 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return mockconnector.GetMockEventWith(
 			suite.user, subject, body, body,
-			now, now, false)
+			now, now, mockconnector.NoRecurrence, mockconnector.NoAttendees, false)
 	}
 
 	// test data set

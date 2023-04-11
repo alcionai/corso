@@ -618,6 +618,10 @@ function Purge-Items {
 Write-Host 'Authenticating with Exchange Web Services ...'
 $global:Token = Get-AccessToken | ConvertTo-SecureString -AsPlainText -Force 
 
+# ensure that there are no unexpanded entries in the list of parameters
+$FolderNamePurgeList = $FolderNamePurgeList | ForEach-Object { @($_.Split(',').Trim()) }
+$FolderPrefixPurgeList = $FolderPrefixPurgeList | ForEach-Object { @($_.Split(',').Trim()) }
+
 $purgeFolderParams = @{
     'WellKnownRoot'         = "root";
     'FolderNamePurgeList'   = $FolderNamePurgeList;
