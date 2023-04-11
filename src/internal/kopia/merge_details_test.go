@@ -12,6 +12,18 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+type fakeUniqueLocation struct {
+	pb *path.Builder
+}
+
+func (ul fakeUniqueLocation) UniqueLocation() *path.Builder {
+	return ul.pb
+}
+
+func (ul fakeUniqueLocation) DetailsLocation() *path.Builder {
+	return ul.pb
+}
+
 type DetailsMergeInfoerUnitSuite struct {
 	tester.Suite
 }
@@ -92,6 +104,9 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	oldLoc1 := path.Builder{}.Append(oldRef1.Folders()...)
 	oldLoc2 := path.Builder{}.Append(oldRef2.Folders()...)
 
+	searchLoc1 := fakeUniqueLocation{oldLoc1}
+	searchLoc2 := fakeUniqueLocation{oldLoc2}
+
 	dm := newMergeDetails()
 
 	err := dm.addRepoRef(oldRef1.ToBuilder(), newRef1, newLoc1)
@@ -101,13 +116,13 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Add prefix matcher entry.
-	err = dm.addLocation(oldLoc1, newLoc1)
+	err = dm.addLocation(searchLoc1, newLoc1)
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
 		name              string
 		searchRef         *path.Builder
-		searchLoc         *path.Builder
+		searchLoc         fakeUniqueLocation
 		expectedRef       path.Path
 		prefixFound       bool
 		expectedOldPrefix *path.Builder
@@ -115,7 +130,7 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 		{
 			name:              "Exact Match With Loc",
 			searchRef:         oldRef1.ToBuilder(),
-			searchLoc:         oldLoc1,
+			searchLoc:         searchLoc1,
 			expectedRef:       newRef1,
 			prefixFound:       true,
 			expectedOldPrefix: oldLoc1,
@@ -130,7 +145,7 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 		{
 			name:              "Prefix Match",
 			searchRef:         oldRef2.ToBuilder(),
-			searchLoc:         oldLoc2,
+			searchLoc:         searchLoc2,
 			expectedRef:       newRef2,
 			prefixFound:       true,
 			expectedOldPrefix: oldLoc1,
@@ -143,13 +158,13 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 		{
 			name:        "Not Found With Loc",
 			searchRef:   newRef1.ToBuilder(),
-			searchLoc:   oldLoc1,
+			searchLoc:   searchLoc1,
 			expectedRef: nil,
 		},
 		{
 			name:        "Ref Found Loc Not",
 			searchRef:   oldRef2.ToBuilder(),
-			searchLoc:   path.Builder{}.Append("foo"),
+			searchLoc:   fakeUniqueLocation{path.Builder{}.Append("foo")},
 			expectedRef: newRef2,
 		},
 	}
