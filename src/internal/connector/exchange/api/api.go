@@ -80,6 +80,23 @@ func NewClient(creds account.M365Config) (Client, error) {
 	return Client{creds, s, li}, nil
 }
 
+// NewMockableClient produces a new exchange api client that can be
+// mocked using gock.  Must be used in place of creating an ad-hoc
+// client struct.
+func NewMockableClient(creds account.M365Config) (Client, error) {
+	s, err := newService(creds, graph.Mockable())
+	if err != nil {
+		return Client{}, err
+	}
+
+	li, err := newService(creds, graph.NoTimeout(), graph.Mockable())
+	if err != nil {
+		return Client{}, err
+	}
+
+	return Client{creds, s, li}, nil
+}
+
 // service generates a new service.  Used for paged and other long-running
 // requests instead of the client's stable service, so that in-flight state
 // within the adapter doesn't get clobbered
@@ -88,29 +105,26 @@ func (c Client) service() (*graph.Service, error) {
 	return s, err
 }
 
-func newService(creds account.M365Config) (*graph.Service, error) {
+func newService(creds account.M365Config, opts ...graph.Option) (*graph.Service, error) {
 	a, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
-		creds.AzureClientSecret)
+		creds.AzureClientSecret,
+		opts...)
 	if err != nil {
-		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
+		return nil, clues.Wrap(err, "generating graph adapter")
 	}
 
 	return graph.NewService(a), nil
 }
 
 func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
-	a, err := graph.CreateAdapter(
-		creds.AzureTenantID,
-		creds.AzureClientID,
-		creds.AzureClientSecret,
-		graph.NoTimeout())
+	a, err := newService(creds, graph.NoTimeout())
 	if err != nil {
 		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
 	}
 
-	return graph.NewService(a), nil
+	return a, nil
 }
 
 // ---------------------------------------------------------------------------

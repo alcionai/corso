@@ -180,7 +180,7 @@ func (suite *MailAPIE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
-	suite.ac, err = NewClient(m365)
+	suite.ac, err = NewMockableClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.user = tester.M365UserID(suite.T())

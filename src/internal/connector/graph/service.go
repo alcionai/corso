@@ -106,12 +106,15 @@ type clientConfig struct {
 	// The minimum delay in seconds between retries
 	minDelay           time.Duration
 	overrideRetryCount bool
+
+	// mockable adds option for gock to intercept requests
+	mockable bool
 }
 
-type option func(*clientConfig)
+type Option func(*clientConfig)
 
 // populate constructs a clientConfig according to the provided options.
-func (c *clientConfig) populate(opts ...option) *clientConfig {
+func (c *clientConfig) populate(opts ...Option) *clientConfig {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -143,28 +146,40 @@ func (c *clientConfig) apply(hc *http.Client) {
 		// https://github.com/microsoft/kiota-http-go/pull/71
 		hc.Timeout = 48 * time.Hour
 	}
+
+	if c.mockable {
+		// This makes sure that we are able to intercept any requests via
+		// gock. Only necessary for testing.
+		gock.InterceptClient(hc)
+	}
 }
 
 // NoTimeout sets the httpClient.Timeout to 0 (unlimited).
 // The resulting client isn't suitable for most queries, due to the
 // capacity for a call to persist forever.  This configuration should
 // only be used when downloading very large files.
-func NoTimeout() option {
+func NoTimeout() Option {
 	return func(c *clientConfig) {
 		c.noTimeout = true
 	}
 }
 
-func MaxRetries(max int) option {
+func MaxRetries(max int) Option {
 	return func(c *clientConfig) {
 		c.overrideRetryCount = true
 		c.maxRetries = max
 	}
 }
 
-func MinimumBackoff(dur time.Duration) option {
+func MinimumBackoff(dur time.Duration) Option {
 	return func(c *clientConfig) {
 		c.minDelay = dur
+	}
+}
+
+func Mockable() Option {
+	return func(c *clientConfig) {
+		c.mockable = true
 	}
 }
 
@@ -173,7 +188,7 @@ func MinimumBackoff(dur time.Duration) option {
 // to create  *msgraphsdk.GraphServiceClient
 func CreateAdapter(
 	tenant, client, secret string,
-	opts ...option,
+	opts ...Option,
 ) (*msgraphsdkgo.GraphRequestAdapter, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
@@ -203,7 +218,7 @@ func CreateAdapter(
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func HTTPClient(opts ...option) *http.Client {
+func HTTPClient(opts ...Option) *http.Client {
 	clientOptions := msgraphsdkgo.GetDefaultClientOptions()
 	clientconfig := (&clientConfig{}).populate(opts...)
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
@@ -212,10 +227,6 @@ func HTTPClient(opts ...option) *http.Client {
 	httpClient.Timeout = defaultHTTPClientTimeout
 
 	clientconfig.apply(httpClient)
-
-	// This makes sure that we are able to intercept any requests via
-	// gock. Only necessary for testing.
-	gock.InterceptClient(httpClient)
 
 	return httpClient
 }
