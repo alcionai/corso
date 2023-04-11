@@ -48,6 +48,7 @@ func filterContainersAndFillCollections(
 		// copy of previousPaths.  any folder found in the resolver get
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
+		category   = qp.Category
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
@@ -60,7 +61,7 @@ func filterContainersAndFillCollections(
 		return err
 	}
 
-	ibt, err := itemerByType(ac, scope.Category().PathType())
+	ibt, err := itemerByType(ac, category)
 	if err != nil {
 		return err
 	}
@@ -75,28 +76,34 @@ func filterContainersAndFillCollections(
 		cID := ptr.Val(c.GetId())
 		delete(tombstones, cID)
 
-		currPath, locPath, ok := includeContainer(qp, c, scope)
+		var (
+			dp          = dps[cID]
+			prevDelta   = dp.delta
+			prevPathStr = dp.path // do not log: pii
+			prevPath    path.Path
+			ictx        = clues.Add(
+				ctx,
+				"container_id", cID,
+				"previous_delta", prevDelta)
+		)
+
+		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		// Only create a collection if the path matches the scope.
 		if !ok {
 			continue
 		}
 
-		var (
-			dp          = dps[cID]
-			prevDelta   = dp.delta
-			prevPathStr = dp.path
-			prevPath    path.Path
-		)
-
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
-				logger.CtxErr(ctx, err).Error("parsing prev path")
+				logger.CtxErr(ictx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
 			}
 		}
 
-		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ctx, qp.ResourceOwner, cID, prevDelta)
+		ictx = clues.Add(ictx, "previous_path", prevPath)
+
+		added, removed, newDelta, err := getter.GetAddedAndRemovedItemIDs(ictx, qp.ResourceOwner, cID, prevDelta)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -113,6 +120,8 @@ func filterContainersAndFillCollections(
 
 		if len(newDelta.URL) > 0 {
 			deltaURLs[cID] = newDelta.URL
+		} else if !newDelta.Reset {
+			logger.Ctx(ictx).Info("missing delta url")
 		}
 
 		edc := NewCollection(
@@ -120,7 +129,7 @@ func filterContainersAndFillCollections(
 			currPath,
 			prevPath,
 			locPath,
-			scope.Category().PathType(),
+			category,
 			ibt,
 			statusUpdater,
 			ctrlOpts,
@@ -154,8 +163,10 @@ func filterContainersAndFillCollections(
 			return el.Failure()
 		}
 
+		ictx := clues.Add(ctx, "tombstone_id", id)
+
 		if collections[id] != nil {
-			el.AddRecoverable(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ctx))
+			el.AddRecoverable(clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
 			continue
 		}
 
@@ -168,7 +179,7 @@ func filterContainersAndFillCollections(
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
 			// technically shouldn't ever happen.  But just in case...
-			logger.CtxErr(ctx, err).Error("parsing tombstone prev path")
+			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
 			continue
 		}
 
@@ -177,7 +188,7 @@ func filterContainersAndFillCollections(
 			nil, // marks the collection as deleted
 			prevPath,
 			nil, // tombstones don't need a location
-			scope.Category().PathType(),
+			category,
 			ibt,
 			statusUpdater,
 			ctrlOpts,
@@ -185,25 +196,20 @@ func filterContainersAndFillCollections(
 		collections[id] = &edc
 	}
 
-	entries := []graph.MetadataCollectionEntry{
-		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
-	}
-
 	logger.Ctx(ctx).Infow(
 		"adding metadata collection entries",
 		"num_paths_entries", len(currPaths),
 		"num_deltas_entries", len(deltaURLs))
-
-	if len(deltaURLs) > 0 {
-		entries = append(entries, graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs))
-	}
 
 	col, err := graph.MakeMetadataCollection(
 		qp.Credentials.AzureTenantID,
 		qp.ResourceOwner,
 		path.ExchangeService,
 		qp.Category,
-		entries,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
+			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+		},
 		statusUpdater)
 	if err != nil {
 		return clues.Wrap(err, "making metadata collection")
