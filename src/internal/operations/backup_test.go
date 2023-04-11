@@ -561,6 +561,15 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			expectTags := map[string]string{
+				"backup-id":        "",
+				"bob":              "",
+				"bobby":            "",
+				"exchangecontacts": "",
+				"exchangeemail":    "",
+				"is-canon-backup":  "",
+			}
+
 			mbu := &mockBackupConsumer{
 				checkFunc: func(
 					bases []kopia.IncrementalBase,
@@ -568,7 +577,34 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 					tags map[string]string,
 					buildTreeWithBase bool,
 				) {
+					assert.Equal(t, expectTags, tags)
 					assert.ElementsMatch(t, test.expected, bases)
+				},
+			}
+
+			reasons := []kopia.Reason{
+				{
+					ResourceOwner: "bob",
+					Service:       path.ExchangeService,
+					Category:      path.EmailCategory,
+				},
+				{
+					ResourceOwner: "bobby",
+					Service:       path.ExchangeService,
+					Category:      path.EmailCategory,
+				},
+			}
+
+			fallbackReasons := []kopia.Reason{
+				{
+					ResourceOwner: "bob",
+					Service:       path.ExchangeService,
+					Category:      path.EmailCategory,
+				},
+				{
+					ResourceOwner: "bob",
+					Service:       path.ExchangeService,
+					Category:      path.ContactsCategory,
 				},
 			}
 
@@ -577,7 +613,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 				ctx,
 				mbu,
 				tenant,
-				nil, nil,
+				reasons, fallbackReasons,
 				test.inputMan,
 				nil,
 				nil,
