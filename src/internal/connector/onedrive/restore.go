@@ -77,7 +77,7 @@ func RestoreCollections(
 				ctx,
 				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"category", dc.FullPath().Category(),
-				"path", dc.FullPath()) // TODO: pii, path needs concealer compliance
+				"path", dc.FullPath())
 		)
 
 		metrics, folderMetas, err = RestoreCollection(
