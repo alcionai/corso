@@ -76,6 +76,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 			return true
 		}
 
+		s = normalizeSiteableID(s)
 		us = append(us, s)
 
 		return true
@@ -109,12 +110,16 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	ctx = clues.Add(ctx, "given_site_id", identifier)
 
 	if siteIDRE.MatchString(identifier) {
+		identifier = normalizeID(identifier)
+
 		resp, err = c.stable.Client().SitesById(identifier).Get(ctx, nil)
 		if err != nil {
 			return nil, graph.Wrap(ctx, err, "getting site by id")
 		}
 
-		return resp, err
+		resp = normalizeSiteableID(resp)
+
+		return resp, nil
 	}
 
 	// if the id is not a standard sharepoint ID, assume it's a url.
@@ -142,7 +147,9 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 		return nil, graph.Wrap(ctx, err, "getting site by weburl")
 	}
 
-	return resp, err
+	resp = normalizeSiteableID(resp)
+
+	return resp, nil
 }
 
 // GetIDAndName looks up the site matching the given ID, and returns
@@ -154,7 +161,7 @@ func (c Sites) GetIDAndName(ctx context.Context, siteID string) (string, string,
 		return "", "", err
 	}
 
-	return ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()), nil
+	return ptr.Val(normalizeSiteableID(s).GetId()), ptr.Val(s.GetWebUrl()), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -202,4 +209,26 @@ func validateSite(item any) (models.Siteable, error) {
 	}
 
 	return m, nil
+}
+
+// sets the siteable's id to the normalizedID.
+func normalizeSiteableID(s models.Siteable) models.Siteable {
+	id := ptr.Val(s.GetId())
+	id = normalizeID(id)
+	s.SetId(ptr.To(id))
+
+	return s
+}
+
+// the standard sharepoint id is a combination of `{hostname},{spsite-id},{spweb-id}`
+// the hostname is subject to change, making this id non-stable.  Lucky for us, the
+// latter two parts (`{spsite-id},{spweb-id}`) can be used as the site ID on their own.
+func normalizeID(id string) string {
+	if !siteIDRE.MatchString(id) {
+		// do nothing if the site is already not in a
+		// {hostname},{uuid},{uuid} format
+		return id
+	}
+
+	return strings.Join(strings.Split(id, ",")[1:], ",")
 }

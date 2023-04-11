@@ -81,7 +81,15 @@ func LoadTestM365SiteID(t *testing.T) string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving load test m365 site id from test configuration", clues.ToCore(err))
 
-	return cfg[TestCfgSiteID]
+	id := cfg[TestCfgSiteID]
+	parts := strings.Split(id, ",")
+
+	if len(parts) < 3 {
+		return id
+	}
+
+	// normalize the site url to match the same expectations as the API
+	return strings.Join(parts[1:], ",")
 }
 
 // LoadTestM365UserID returns an userID string representing the m365UserID
@@ -113,7 +121,15 @@ func LoadTestM365OrgSites(t *testing.T) []string {
 
 	// return strings.Split(sites, ",")
 
-	return []string{cfg[TestCfgSiteID]}
+	id := cfg[TestCfgSiteID]
+	parts := strings.Split(id, ",")
+
+	if len(parts) < 3 {
+		return []string{id}
+	}
+
+	// normalize the site url to match the same expectations as the API
+	return []string{strings.Join(parts[1:], ",")}
 }
 
 // expects cfg value to be a string representing an array such as:
@@ -159,7 +175,15 @@ func M365SiteID(t *testing.T) string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving m365 site id from test configuration", clues.ToCore(err))
 
-	return cfg[TestCfgSiteID]
+	id := cfg[TestCfgSiteID]
+	parts := strings.Split(id, ",")
+
+	if len(parts) < 3 {
+		return id
+	}
+
+	// normalize the site url to match the same expectations as the API
+	return strings.Join(parts[1:], ",")
 }
 
 // M365SiteURL returns a site webURL string representing the m365SiteURL described
