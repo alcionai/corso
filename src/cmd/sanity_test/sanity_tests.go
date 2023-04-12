@@ -354,7 +354,7 @@ func checkOnedriveRestoration(
 	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
-		logger.Ctx(ctx).Info("checking for folder: %s \n", folderName)
+		logger.Ctx(ctx).Info("checking for folder: ", folderName, "\n")
 		fmt.Printf("checking for folder: %s \n", folderName)
 
 		restoreFolderPerm := restoreFolderPermission[folderName]
@@ -488,17 +488,24 @@ func permissionIn(
 		}
 
 		var (
-			gv2     = perm.GetGrantedToV2()
-			perInfo = permissionInfo{}
+			gv2      = perm.GetGrantedToV2()
+			perInfo  = permissionInfo{}
+			entityID string
 		)
 
 		if gv2.GetUser() != nil {
-			perInfo.entityID = ptr.Val(gv2.GetUser().GetId())
+			entityID = ptr.Val(gv2.GetUser().GetId())
 		} else if gv2.GetGroup() != nil {
-			perInfo.entityID = ptr.Val(gv2.GetGroup().GetId())
+			entityID = ptr.Val(gv2.GetGroup().GetId())
 		}
 
-		perInfo.roles = perm.GetRoles()
+		roles := perm.GetRoles()
+		for _, role := range roles {
+			if role != "owner" {
+				perInfo.entityID = entityID
+				perInfo.roles = append(perInfo.roles, role)
+			}
+		}
 
 		slices.Sort(perInfo.roles)
 
