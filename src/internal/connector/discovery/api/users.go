@@ -163,6 +163,29 @@ func (c Users) GetMailSetting(ctx context.Context, userID string) (models.Mailbo
 
 	userResponse := resp.GetMailboxSettings()
 
+	//TODO: work on this
+	// rawURL := "https://graph.microsoft.com/v1.0/users/" + userID + "/mailboxSettings" //fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
+	// apadtor := c.stable.Adapter()
+	// // builder := users.NewDeltaRequestBuilder(rawURL, apadtor)
+	// // users.ItemSettingsRequestBuilder(rawURL, apadtor)
+	// builder := users.NewUserItemRequestBuilder(rawURL, apadtor)
+
+	// // builder := users.NewCollectionsRequestBuilder(rawURL, apadtor)
+	// newItem, err := builder.Get(ctx, nil)
+	// if err != nil {
+	// 	fmt.Println("Error: ", err)
+	// 	return nil, graph.Wrap(ctx, err, "creating item")
+	// }
+	// fmt.Println("NewItem: ", newItem.GetAdditionalData())
+	// data := newItem.GetMailboxSettings()
+	// // data := newItem.GetAdditionalData()
+	// // address := data["userPurpose"].(*string)
+	// // address1 := data["userPurpose"].(*models.MailboxSettingsable)
+	// fmt.Println("*******newItem: ", data) // ["userPurpose"], &address, address, address1
+
+	// // userable := newItem.GetValue()
+	// // fmt.Println("*******newItem userable: ", userable)
+
 	return userResponse, nil
 }
 
