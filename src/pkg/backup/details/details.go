@@ -50,10 +50,10 @@ func (ul uniqueLoc) InDetails() *path.Builder {
 func NewExchangeLocationIDer(
 	category path.CategoryType,
 	escapedFolders ...string,
-) LocationIDer {
+) uniqueLoc {
 	pb := path.Builder{}.Append(category.String()).Append(escapedFolders...)
 
-	return &uniqueLoc{
+	return uniqueLoc{
 		pb:          pb,
 		prefixElems: 1,
 	}
@@ -64,12 +64,12 @@ func NewExchangeLocationIDer(
 func NewOneDriveLocationIDer(
 	driveID string,
 	escapedFolders ...string,
-) LocationIDer {
+) uniqueLoc {
 	pb := path.Builder{}.
 		Append(path.FilesCategory.String(), driveID).
 		Append(escapedFolders...)
 
-	return &uniqueLoc{
+	return uniqueLoc{
 		pb:          pb,
 		prefixElems: 2,
 	}
@@ -80,12 +80,12 @@ func NewOneDriveLocationIDer(
 func NewSharePointLocationIDer(
 	driveID string,
 	escapedFolders ...string,
-) LocationIDer {
+) uniqueLoc {
 	pb := path.Builder{}.
 		Append(path.LibrariesCategory.String(), driveID).
 		Append(escapedFolders...)
 
-	return &uniqueLoc{
+	return uniqueLoc{
 		pb:          pb,
 		prefixElems: 2,
 	}
