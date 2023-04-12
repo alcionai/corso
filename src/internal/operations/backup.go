@@ -302,7 +302,8 @@ func (op *BackupOperation) do(
 }
 
 func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
-	if sel.PathService() != path.SharePointService {
+	if sel.PathService() != path.SharePointService &&
+		sel.DiscreteOwner != sel.DiscreteOwnerName {
 		return selectorToReasons(sel, true)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
@@ -76,7 +77,7 @@ func produceManifestsAndMetadata(
 
 	// Also check distinct bases for the fallback set.
 	if err := verifyDistinctBases(ctx, fbms); err != nil {
-		logger.CtxErr(ctx, err).Info("base snapshot collision, falling back to full backup")
+		logger.CtxErr(ctx, err).Info("fallback snapshot collision, falling back to full backup")
 		return ms, nil, false, nil
 	}
 
@@ -100,7 +101,7 @@ func produceManifestsAndMetadata(
 	// details from previous snapshots when using kopia-assisted incrementals.
 	if err := verifyDistinctBases(ctx, ms); err != nil {
 		logger.Ctx(ctx).With("error", err).Infow(
-			"base snapshot collision, falling back to full backup",
+			"unioned snapshot collision, falling back to full backup",
 			clues.In(ctx).Slice()...)
 
 		return ms, nil, false, nil
@@ -255,19 +256,19 @@ func unionManifests(
 	}
 
 	// collect the results into a single slice of manifests
-	ms := []*kopia.ManifestEntry{}
+	ms := map[string]*kopia.ManifestEntry{}
 
 	for _, m := range tups {
 		if m.complete != nil {
-			ms = append(ms, m.complete)
+			ms[string(m.complete.ID)] = m.complete
 		}
 
 		if m.incomplete != nil {
-			ms = append(ms, m.incomplete)
+			ms[string(m.incomplete.ID)] = m.incomplete
 		}
 	}
 
-	return ms
+	return maps.Values(ms)
 }
 
 // verifyDistinctBases is a validation checker that ensures, for a given slice
