@@ -269,6 +269,10 @@ func (oc Collection) LocationPath() *path.Builder {
 }
 
 func (oc Collection) PreviousLocationPath() details.LocationIDer {
+	if oc.prevLocPath == nil {
+		return nil
+	}
+
 	switch oc.source {
 	case OneDriveSource:
 		return details.NewOneDriveLocationIDer(
