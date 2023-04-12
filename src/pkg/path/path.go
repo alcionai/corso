@@ -341,7 +341,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 
@@ -398,7 +398,7 @@ func (pb Builder) ToDataLayerPath(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 

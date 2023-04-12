@@ -50,13 +50,17 @@ func (ul uniqueLoc) InDetails() *path.Builder {
 func NewExchangeLocationIDer(
 	category path.CategoryType,
 	escapedFolders ...string,
-) uniqueLoc {
+) (uniqueLoc, error) {
+	if err := path.ValidateServiceAndCategory(path.ExchangeService, category); err != nil {
+		return uniqueLoc{}, clues.Wrap(err, "making exchange LocationIDer")
+	}
+
 	pb := path.Builder{}.Append(category.String()).Append(escapedFolders...)
 
 	return uniqueLoc{
 		pb:          pb,
 		prefixElems: 1,
-	}
+	}, nil
 }
 
 // NewOneDriveLocationIDer builds a LocationIDer for the drive and folder path.
@@ -777,7 +781,7 @@ func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, erro
 		category = path.EmailCategory
 	}
 
-	return NewExchangeLocationIDer(category, baseLoc.Elements()...), nil
+	return NewExchangeLocationIDer(category, baseLoc.Elements()...)
 }
 
 // SharePointInfo describes a sharepoint item
