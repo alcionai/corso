@@ -23,10 +23,22 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+// ---------------------------------------------------------------------------
+// types, consts, etc
+// ---------------------------------------------------------------------------
+
 type permissionInfo struct {
 	entityID string
 	roles    []string
 }
+
+const (
+	owner = "owner"
+)
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
 
 func main() {
 	ctx, log := logger.Seed(context.Background(), "info", logger.GetLogFile(""))
@@ -71,6 +83,10 @@ func main() {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// exchange
+// ---------------------------------------------------------------------------
+
 // checkEmailRestoration verifies that the emails count in restored folder is equivalent to
 // emails in actual m365 account
 func checkEmailRestoration(
@@ -104,7 +120,7 @@ func checkEmailRestoration(
 
 			if itemName == dataFolder || itemName == baseBackupFolder {
 				// otherwise, recursively aggregate all child folders.
-				getAllSubFolder(ctx, client, testUser, v, itemName, dataFolder, itemCount)
+				getAllMailSubFolders(ctx, client, testUser, v, itemName, dataFolder, itemCount)
 
 				itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
 			}
@@ -170,7 +186,7 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 
 // getAllSubFolder will recursively check for all subfolders and get the corresponding
 // email count.
-func getAllSubFolder(
+func getAllMailSubFolders(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	testUser string,
@@ -214,7 +230,7 @@ func getAllSubFolder(
 			if childFolderCount > 0 {
 				parentFolder := fullFolderName
 
-				getAllSubFolder(ctx, client, testUser, child, parentFolder, dataFolder, messageCount)
+				getAllMailSubFolders(ctx, client, testUser, child, parentFolder, dataFolder, messageCount)
 			}
 		}
 	}
@@ -270,6 +286,10 @@ func checkAllSubFolder(
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// oneDrive
+// ---------------------------------------------------------------------------
 
 func checkOnedriveRestoration(
 	ctx context.Context,
@@ -347,21 +367,21 @@ func checkOnedriveRestoration(
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, itemName, folderPermission)
+		folderPermission[itemName] = permissionIn(ctx, client, driveID, itemID)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, fileSizes, folderPermission, startTime)
 	}
 
-	getRestoreData(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
+	getRestoredDrive(ctx, client, *drive.GetId(), restoreFolderID, restoreFile, restoreFolderPermission, startTime)
 
 	for folderName, permissions := range folderPermission {
-		logger.Ctx(ctx).Info("checking for folder: ", folderName, "\n")
-		fmt.Printf("checking for folder: %s \n", folderName)
+		logger.Ctx(ctx).Info("checking for folder: ", folderName)
+		fmt.Printf("checking for folder: %s\n", folderName)
 
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
 		if len(permissions) < 1 {
-			logger.Ctx(ctx).Info("no permissions found for folder :", folderName)
-			fmt.Println("no permissions found for folder :", folderName)
+			logger.Ctx(ctx).Info("no permissions found in :", folderName)
+			fmt.Println("no permissions found in :", folderName)
 
 			continue
 		}
@@ -460,60 +480,12 @@ func getOneDriveChildFolder(
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, fullName, folderPermission)
+		folderPermission[fullName] = permissionIn(ctx, client, driveID, itemID)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, fullName, fileSizes, folderPermission, startTime)
 	}
 }
 
-func permissionIn(
-	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	driveID, itemID, folderName string,
-	permMap map[string][]permissionInfo,
-) {
-	permMap[folderName] = []permissionInfo{}
-
-	pcr, err := client.
-		DrivesById(driveID).
-		ItemsById(itemID).
-		Permissions().
-		Get(ctx, nil)
-	if err != nil {
-		fatal(ctx, "getting permission", err)
-	}
-
-	for _, perm := range pcr.GetValue() {
-		if perm.GetGrantedToV2() == nil {
-			continue
-		}
-
-		var (
-			gv2      = perm.GetGrantedToV2()
-			perInfo  = permissionInfo{}
-			entityID string
-		)
-
-		if gv2.GetUser() != nil {
-			entityID = ptr.Val(gv2.GetUser().GetId())
-		} else if gv2.GetGroup() != nil {
-			entityID = ptr.Val(gv2.GetGroup().GetId())
-		}
-
-		roles := perm.GetRoles()
-		for _, role := range roles {
-			if role != "owner" {
-				perInfo.entityID = entityID
-				perInfo.roles = append(perInfo.roles, role)
-			}
-		}
-
-		slices.Sort(perInfo.roles)
-
-		permMap[folderName] = append(permMap[folderName], perInfo)
-	}
-}
-
-func getRestoreData(
+func getRestoredDrive(
 	ctx context.Context,
 	client *msgraphsdk.GraphServiceClient,
 	driveID, restoreFolderID string,
@@ -546,9 +518,61 @@ func getRestoreData(
 			continue
 		}
 
-		permissionIn(ctx, client, driveID, itemID, itemName, restoreFolder)
+		restoreFolder[itemName] = permissionIn(ctx, client, driveID, itemID)
 		getOneDriveChildFolder(ctx, client, driveID, itemID, itemName, restoreFile, restoreFolder, startTime)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// permission helpers
+// ---------------------------------------------------------------------------
+
+func permissionIn(
+	ctx context.Context,
+	client *msgraphsdk.GraphServiceClient,
+	driveID, itemID string,
+) []permissionInfo {
+	pi := []permissionInfo{}
+
+	pcr, err := client.
+		DrivesById(driveID).
+		ItemsById(itemID).
+		Permissions().
+		Get(ctx, nil)
+	if err != nil {
+		fatal(ctx, "getting permission", err)
+	}
+
+	for _, perm := range pcr.GetValue() {
+		if perm.GetGrantedToV2() == nil {
+			continue
+		}
+
+		var (
+			gv2      = perm.GetGrantedToV2()
+			permInfo = permissionInfo{}
+			entityID string
+		)
+
+		if gv2.GetUser() != nil {
+			entityID = ptr.Val(gv2.GetUser().GetId())
+		} else if gv2.GetGroup() != nil {
+			entityID = ptr.Val(gv2.GetGroup().GetId())
+		}
+
+		roles := filterSlice(perm.GetRoles(), owner)
+		for _, role := range roles {
+			permInfo.entityID = entityID
+			permInfo.roles = append(permInfo.roles, role)
+		}
+
+		if len(roles) > 0 {
+			slices.Sort(permInfo.roles)
+			pi = append(pi, permInfo)
+		}
+	}
+
+	return pi
 }
 
 // ---------------------------------------------------------------------------
@@ -582,4 +606,16 @@ func isWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool
 	}
 
 	return true
+}
+
+func filterSlice(sl []string, remove string) []string {
+	r := []string{}
+
+	for _, s := range sl {
+		if !strings.EqualFold(s, remove) {
+			r = append(r, s)
+		}
+	}
+
+	return r
 }
