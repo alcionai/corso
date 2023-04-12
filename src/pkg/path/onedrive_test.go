@@ -21,6 +21,8 @@ func TestOneDrivePathSuite(t *testing.T) {
 }
 
 func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
+	const root = "root:"
+
 	tests := []struct {
 		name         string
 		pathElements []string
@@ -34,14 +36,14 @@ func (suite *OneDrivePathSuite) Test_ToOneDrivePath() {
 		},
 		{
 			name:         "Root path",
-			pathElements: []string{"drive", "driveID", "root:"},
-			expected:     &path.DrivePath{DriveID: "driveID", Root: "root:", Folders: []string{}},
+			pathElements: []string{"drive", "driveID", root},
+			expected:     &path.DrivePath{DriveID: "driveID", Root: root, Folders: []string{}},
 			errCheck:     assert.NoError,
 		},
 		{
 			name:         "Deeper path",
-			pathElements: []string{"drive", "driveID", "root:", "folder1", "folder2"},
-			expected:     &path.DrivePath{DriveID: "driveID", Root: "root:", Folders: []string{"folder1", "folder2"}},
+			pathElements: []string{"drive", "driveID", root, "folder1", "folder2"},
+			expected:     &path.DrivePath{DriveID: "driveID", Root: root, Folders: []string{"folder1", "folder2"}},
 			errCheck:     assert.NoError,
 		},
 	}

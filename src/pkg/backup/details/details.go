@@ -17,14 +17,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// UniqueLocationer provides access to location information but guarantees that
-// it can also generate a unique location (among items in the same service but
+// LocationIDer provides access to location information but guarantees that it
+// can also generate a unique location (among items in the same service but
 // possibly across data types within the service) that can be used as a key in
 // maps and other structures. The unique location may be different than
-// DetailsLocation, the location used in backup details.
-type UniqueLocationer interface {
-	UniqueLocation() *path.Builder
-	DetailsLocation() *path.Builder
+// InDetails, the location used in backup details.
+type LocationIDer interface {
+	ID() *path.Builder
+	InDetails() *path.Builder
 }
 
 type uniqueLoc struct {
@@ -32,21 +32,25 @@ type uniqueLoc struct {
 	prefixElems int
 }
 
-func (ul uniqueLoc) UniqueLocation() *path.Builder {
+func (ul uniqueLoc) ID() *path.Builder {
 	return ul.pb
 }
 
-func (ul uniqueLoc) DetailsLocation() *path.Builder {
+func (ul uniqueLoc) InDetails() *path.Builder {
 	return path.Builder{}.Append(ul.pb.Elements()[ul.prefixElems:]...)
 }
 
 // Having service-specific constructors can be kind of clunky, but in this case
 // I think they'd be useful to ensure the proper args are used since this
 // path.Builder is used as a key in some maps.
-func NewExchangeUniqueLocation(
+
+// NewExchangeLocationIDer builds a LocationIDer for the given category and
+// folder path. The path denoted by the folders should be unique within the
+// category.
+func NewExchangeLocationIDer(
 	category path.CategoryType,
 	escapedFolders ...string,
-) UniqueLocationer {
+) LocationIDer {
 	pb := path.Builder{}.Append(category.String()).Append(escapedFolders...)
 
 	return &uniqueLoc{
@@ -55,10 +59,12 @@ func NewExchangeUniqueLocation(
 	}
 }
 
-func NewOneDriveUniqueLocation(
+// NewOneDriveLocationIDer builds a LocationIDer for the drive and folder path.
+// The path denoted by the folders should be unique within the drive.
+func NewOneDriveLocationIDer(
 	driveID string,
 	escapedFolders ...string,
-) UniqueLocationer {
+) LocationIDer {
 	pb := path.Builder{}.
 		Append(path.FilesCategory.String(), driveID).
 		Append(escapedFolders...)
@@ -69,10 +75,12 @@ func NewOneDriveUniqueLocation(
 	}
 }
 
-func NewSharePointUniqueLocation(
+// NewSharePointLocationIDer builds a LocationIDer for the drive and folder
+// path. The path denoted by the folders should be unique within the drive.
+func NewSharePointLocationIDer(
 	driveID string,
 	escapedFolders ...string,
-) UniqueLocationer {
+) LocationIDer {
 	pb := path.Builder{}.
 		Append(path.LibrariesCategory.String(), driveID).
 		Append(escapedFolders...)
@@ -430,10 +438,10 @@ type DetailsEntry struct {
 	ItemInfo
 }
 
-// UniqueLocation takes a backup version and produces the unique location for
+// ToLocationIDer takes a backup version and produces the unique location for
 // this entry if possible. Reasons it may not be possible to produce the unique
 // location include an unsupported backup version or missing information.
-func (de DetailsEntry) UniqueLocation(backupVersion int) (UniqueLocationer, error) {
+func (de DetailsEntry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 	if len(de.LocationRef) > 0 {
 		baseLoc, err := path.Builder{}.SplitUnescapeAppend(de.LocationRef)
 		if err != nil {
@@ -654,7 +662,7 @@ func (i ItemInfo) Modified() time.Time {
 	return time.Time{}
 }
 
-func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.uniqueLocation(baseLoc)
@@ -757,7 +765,7 @@ func (i *ExchangeInfo) UpdateParentPath(_ path.Path, locPath *path.Builder) erro
 	return nil
 }
 
-func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
 	var category path.CategoryType
 
 	switch i.ItemType {
@@ -769,7 +777,7 @@ func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, 
 		category = path.EmailCategory
 	}
 
-	return NewExchangeUniqueLocation(category, baseLoc.Elements()...), nil
+	return NewExchangeLocationIDer(category, baseLoc.Elements()...), nil
 }
 
 // SharePointInfo describes a sharepoint item
@@ -817,12 +825,12 @@ func (i *SharePointInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) er
 	return nil
 }
 
-func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
 	if len(i.DriveID) == 0 {
 		return nil, clues.New("empty drive ID")
 	}
 
-	return NewSharePointUniqueLocation(i.DriveID, baseLoc.Elements()...), nil
+	return NewSharePointLocationIDer(i.DriveID, baseLoc.Elements()...), nil
 }
 
 // OneDriveInfo describes a oneDrive item
@@ -869,10 +877,10 @@ func (i *OneDriveInfo) UpdateParentPath(newPath path.Path, _ *path.Builder) erro
 	return nil
 }
 
-func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (UniqueLocationer, error) {
+func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
 	if len(i.DriveID) == 0 {
 		return nil, clues.New("empty drive ID")
 	}
 
-	return NewOneDriveUniqueLocation(i.DriveID, baseLoc.Elements()...), nil
+	return NewOneDriveLocationIDer(i.DriveID, baseLoc.Elements()...), nil
 }

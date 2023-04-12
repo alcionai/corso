@@ -1225,7 +1225,7 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 	}
 }
 
-func (suite *DetailsUnitSuite) TestUniqueLocation_FromEntry() {
+func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 	const (
 		rrString = "tenant-id/%s/user-id/%s/drives/drive-id/root:/some/folder/stuff/item"
 		driveID  = "driveID"
@@ -1396,7 +1396,7 @@ func (suite *DetailsUnitSuite) TestUniqueLocation_FromEntry() {
 				entry.LocationRef = expectedDetailsLoc
 			}
 
-			loc, err := entry.UniqueLocation(test.backupVersion)
+			loc, err := entry.ToLocationIDer(test.backupVersion)
 			test.expectedErr(t, err, clues.ToCore(err))
 
 			if err != nil {
@@ -1406,12 +1406,12 @@ func (suite *DetailsUnitSuite) TestUniqueLocation_FromEntry() {
 			assert.Equal(
 				t,
 				test.expectedUniqueLoc,
-				loc.UniqueLocation().String(),
+				loc.ID().String(),
 				"unique location")
 			assert.Equal(
 				t,
 				expectedDetailsLoc,
-				loc.DetailsLocation().String(),
+				loc.InDetails().String(),
 				"details location")
 		})
 	}

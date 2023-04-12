@@ -1,7 +1,5 @@
 package version
 
-// TODO(ashmrtn): If bumping this adjust OneDriveXLocRef. It's not used in prod
-// yet but does gate some tests.
 const Backup = 6
 
 // Various labels to refer to important version changes.
@@ -40,5 +38,5 @@ const (
 
 	// OneDriveXLocationRef provides LocationRef information for Exchange,
 	// OneDrive, and SharePoint libraries.
-	OneDriveXLocationRef = 7
+	OneDriveXLocationRef = Backup + 1
 )
