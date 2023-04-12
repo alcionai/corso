@@ -245,8 +245,7 @@ func (op *BackupOperation) do(
 		op.store,
 		reasons, fallbackReasons,
 		op.account.ID(),
-		op.incremental,
-		op.Errors)
+		op.incremental)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
