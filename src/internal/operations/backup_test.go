@@ -351,8 +351,9 @@ func makeDetailsEntry(
 		}
 
 	case path.OneDriveService:
-		require.NotNil(t, l)
-		parent := l.PopFront().String()
+		parent, err := path.GetDriveFolderPath(p)
+		require.NoError(t, err, clues.ToCore(err))
+
 		res.OneDrive = &details.OneDriveInfo{
 			ItemType:   details.OneDriveItem,
 			ParentPath: parent,

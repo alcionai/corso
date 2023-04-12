@@ -540,32 +540,12 @@ func getNewPathRefs(
 		return nil, nil, false, nil
 	}
 
-	// Exact match for this location, no need to pull in data from the entry.
-	if newPrefix != nil {
-		return newPath, newPrefix, newPrefix.String() != entry.LocationRef, nil
+	// OneDrive doesn't return prefixes yet.
+	if newPrefix == nil {
+		newPrefix = &path.Builder{}
 	}
 
-	// We didn't have an exact entry, so retry with a location.
-	locRef, err := entry.ToLocationIDer(backupVersion)
-	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting previous item location")
-	}
-
-	if locRef == nil {
-		return nil, nil, false, clues.New("entry with empty LocationRef")
-	}
-
-	newPath, oldPrefix, newPrefix := dataFromBackup.GetNewPathRefs(repoRefPB, locRef)
-
-	// This entry wasn't moved.
-	if oldPrefix == nil || newPrefix == nil {
-		return newPath, locRef.InDetails(), false, nil
-	}
-
-	newLoc := locRef.InDetails()
-	newLoc.UpdateParent(oldPrefix, newPrefix)
-
-	return newPath, newLoc, newLoc.String() != entry.LocationRef, nil
+	return newPath, newPrefix, newPrefix.String() != entry.LocationRef, nil
 }
 
 func mergeDetails(
@@ -649,7 +629,7 @@ func mergeDetails(
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
-			if err := details.UpdateItem(&item, rr, newLoc); err != nil {
+			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
 				return clues.Wrap(err, "updating merged item info")
 			}
 
