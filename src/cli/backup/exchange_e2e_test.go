@@ -176,15 +176,15 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category strin
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_email() {
-	runExchangeBackupCategoryTest(suite, "email")
+	runExchangeBackupUserNotFoundTest(suite, "email")
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_contacts() {
-	runExchangeBackupCategoryTest(suite, "contacts")
+	runExchangeBackupUserNotFoundTest(suite, "contacts")
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_events() {
-	runExchangeBackupCategoryTest(suite, "events")
+	runExchangeBackupUserNotFoundTest(suite, "events")
 }
 
 func runExchangeBackupUserNotFoundTest(suite *BackupExchangeE2ESuite, category string) {
