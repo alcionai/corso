@@ -122,10 +122,10 @@ jobs:
           ./corso backup create exchange \
           --no-stats \
           --user "${CORSO_M365_TEST_USER_ID}" \
-           --hide-progress \
-           --data 'email' \
-            --json \
-            2>&1 | tee $TEST_RESULT/backup_exchange.txt 
+          --hide-progress \
+          --data 'email' \
+          --json \
+          2>&1 | tee $TEST_RESULT/backup_exchange.txt 
 
           resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
 

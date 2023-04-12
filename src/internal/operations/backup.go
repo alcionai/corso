@@ -145,7 +145,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
-		"resource_owner", clues.Hide(op.ResourceOwner),
+		"resource_owner", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
 		"incremental", op.incremental)
@@ -567,7 +567,7 @@ func mergeDetails(
 			if err != nil {
 				return clues.New("parsing base item info path").
 					WithClues(mctx).
-					With("repo_ref", entry.RepoRef) // todo: pii, path needs concealer compliance
+					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
 			// Although this base has an entry it may not be the most recent. Check
