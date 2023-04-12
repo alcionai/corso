@@ -1,6 +1,4 @@
 name: Nightly Test Corso
-env:
-  IMAGE_NAME: ghcr.io/alcionai/corso
 on:
   workflow_dispatch:
 
