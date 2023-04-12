@@ -61,19 +61,20 @@ func RestoreCollections(
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
 				"category", category,
-				"destination", dest.ContainerName, // TODO: pii
-				"resource_owner", dc.FullPath().ResourceOwner()) // TODO: pii
+				"destination", clues.Hide(dest.ContainerName),
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()))
 		)
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			metrics, _, err = onedrive.RestoreCollection(
+			metrics, err = onedrive.RestoreCollection(
 				ictx,
 				creds,
 				backupVersion,
 				service,
 				dc,
 				map[string]onedrive.Metadata{}, // Currently permission data is not stored for sharepoint
+				map[string]string{},
 				onedrive.SharePointSource,
 				dest.ContainerName,
 				deets,

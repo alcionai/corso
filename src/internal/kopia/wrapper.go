@@ -124,13 +124,6 @@ type IncrementalBase struct {
 	SubtreePaths []*path.Builder
 }
 
-// PrevRefs hold the repoRef and locationRef from the items
-// that need to be merged in from prior snapshots.
-type PrevRefs struct {
-	Repo     path.Path
-	Location path.Path
-}
-
 // ConsumeBackupCollections takes a set of collections and creates a kopia snapshot
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
@@ -145,7 +138,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
-) (*BackupStats, *details.Builder, map[string]PrevRefs, error) {
+) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
@@ -160,7 +153,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
-		toMerge: map[string]PrevRefs{},
+		toMerge: newMergeDetails(),
 		errs:    errs,
 	}
 

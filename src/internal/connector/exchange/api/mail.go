@@ -303,11 +303,10 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 	if len(os.Getenv("CORSO_URL_LOGGING")) > 0 {
 		gri, err := builder.ToGetRequestInformation(ctx, options)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("getting builder info", "error", err)
+			logger.CtxErr(ctx, err).Error("getting builder info")
 		} else {
 			logger.Ctx(ctx).
-				With("user", user, "container", directoryID).
-				Warnw("builder path-parameters", "path_parameters", gri.PathParameters)
+				Infow("builder path-parameters", "path_parameters", gri.PathParameters)
 		}
 	}
 
@@ -361,7 +360,7 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	var (
-		sender     = graph.UnwrapEmailAddress(msg.GetSender())
+		sender     = UnwrapEmailAddress(msg.GetSender())
 		subject    = ptr.Val(msg.GetSubject())
 		received   = ptr.Val(msg.GetReceivedDateTime())
 		created    = ptr.Val(msg.GetCreatedDateTime())
@@ -371,7 +370,7 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 	if msg.GetToRecipients() != nil {
 		ppl := msg.GetToRecipients()
 		for _, entry := range ppl {
-			temp := graph.UnwrapEmailAddress(entry)
+			temp := UnwrapEmailAddress(entry)
 			if len(temp) > 0 {
 				recipients = append(recipients, temp)
 			}
@@ -387,4 +386,13 @@ func MailInfo(msg models.Messageable) *details.ExchangeInfo {
 		Created:   created,
 		Modified:  ptr.OrNow(msg.GetLastModifiedDateTime()),
 	}
+}
+
+func UnwrapEmailAddress(contact models.Recipientable) string {
+	var empty string
+	if contact == nil || contact.GetEmailAddress() == nil {
+		return empty
+	}
+
+	return ptr.Val(contact.GetEmailAddress().GetAddress())
 }

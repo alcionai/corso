@@ -127,7 +127,7 @@ type itemDetails struct {
 	info         *details.ItemInfo
 	repoPath     path.Path
 	prevPath     path.Path
-	locationPath path.Path
+	locationPath *path.Builder
 	cached       bool
 }
 
@@ -137,7 +137,7 @@ type corsoProgress struct {
 	deets   *details.Builder
 	// toMerge represents items that we don't have in-memory item info for. The
 	// item info for these items should be sourced from a base snapshot later on.
-	toMerge    map[string]PrevRefs
+	toMerge    *mergeDetails
 	mu         sync.RWMutex
 	totalBytes int64
 	errs       *fault.Bus
@@ -195,9 +195,14 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		cp.toMerge[d.prevPath.ShortRef()] = PrevRefs{
-			Repo:     d.repoPath,
-			Location: d.locationPath,
+		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath)
+		if err != nil {
+			cp.errs.AddRecoverable(clues.Wrap(err, "adding item to merge list").
+				With(
+					"service", d.repoPath.Service().String(),
+					"category", d.repoPath.Category().String(),
+				).
+				Label(fault.LabelForceNoBackupCreation))
 		}
 
 		return
@@ -205,20 +210,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	var (
 		locationFolders string
-		locPB           *path.Builder
 		parent          = d.repoPath.ToBuilder().Dir()
 	)
 
 	if d.locationPath != nil {
-		locationFolders = d.locationPath.Folder(true)
-
-		locPB = d.locationPath.ToBuilder()
-
-		// folderEntriesForPath assumes the location will
-		// not have an item element appended
-		if len(d.locationPath.Item()) > 0 {
-			locPB = locPB.Dir()
-		}
+		locationFolders = d.locationPath.String()
 	}
 
 	err = cp.deets.Add(
@@ -239,7 +235,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	folders := details.FolderEntriesForPath(parent, locPB)
+	folders := details.FolderEntriesForPath(parent, d.locationPath)
 	cp.deets.AddFoldersForItem(
 		folders,
 		*d.info,
@@ -328,7 +324,7 @@ func collectionEntries(
 	}
 
 	var (
-		locationPath path.Path
+		locationPath *path.Builder
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
@@ -431,7 +427,7 @@ func streamBaseEntries(
 	cb func(context.Context, fs.Entry) error,
 	curPath path.Path,
 	prevPath path.Path,
-	locationPath path.Path,
+	locationPath *path.Builder,
 	dir fs.Directory,
 	encodedSeen map[string]struct{},
 	globalExcludeSet map[string]map[string]struct{},
@@ -556,7 +552,7 @@ func getStreamItemFunc(
 			}
 		}
 
-		var locationPath path.Path
+		var locationPath *path.Builder
 
 		if lp, ok := streamedEnts.(data.LocationPather); ok {
 			locationPath = lp.LocationPath()
@@ -720,6 +716,7 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.BackupCollection,
+	toMerge *mergeDetails,
 ) (map[string]*treeMap, map[string]path.Path, error) {
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that have been moved or renamed.
@@ -757,6 +754,15 @@ func inflateCollectionTree(
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
+		}
+
+		// TODO(ashmrtn): Get old location ref and add it to the prefix matcher.
+		lp, ok := s.(data.LocationPather)
+		if ok && s.PreviousPath() != nil {
+			if err := toMerge.addLocation(s.PreviousPath().ToBuilder(), lp.LocationPath()); err != nil {
+				return nil, nil, clues.Wrap(err, "building updated location set").
+					With("collection_location", lp.LocationPath())
+			}
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
@@ -1025,7 +1031,7 @@ func inflateDirTree(
 	globalExcludeSet map[string]map[string]struct{},
 	progress *corsoProgress,
 ) (fs.Directory, error) {
-	roots, updatedPaths, err := inflateCollectionTree(ctx, collections)
+	roots, updatedPaths, err := inflateCollectionTree(ctx, collections, progress.toMerge)
 	if err != nil {
 		return nil, clues.Wrap(err, "inflating collection tree")
 	}

@@ -1,9 +1,14 @@
 package utils
 
 import (
+	"context"
+	"net/url"
+	"strings"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -135,6 +140,15 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		return clues.New("a backup ID is required")
 	}
 
+	// ensure url can parse all weburls provided by --site.
+	if _, ok := opts.Populated[SiteFN]; ok {
+		for _, wu := range opts.WebURL {
+			if _, err := url.Parse(wu); err != nil {
+				return clues.New("invalid site url: " + wu)
+			}
+		}
+	}
+
 	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
 		return clues.New("invalid time format for " + FileCreatedAfterFN)
 	}
@@ -170,7 +184,7 @@ func AddSharePointInfo(
 
 // IncludeSharePointRestoreDataSelectors builds the common data-selector
 // inclusions for SharePoint commands.
-func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.SharePointRestore {
+func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointOpts) *selectors.SharePointRestore {
 	sites := opts.SiteID
 
 	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
@@ -241,16 +255,29 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 	}
 
 	if lwu > 0 {
-		opts.WebURL = trimFolderSlash(opts.WebURL)
-		containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURL)
+		urls := make([]string, 0, len(opts.WebURL))
 
-		if len(containsURLs) > 0 {
-			sel.Include(sel.WebURL(containsURLs))
+		for _, wu := range opts.WebURL {
+			// for normalization, ensure the site has a https:// prefix.
+			wu = strings.TrimPrefix(wu, "https://")
+			wu = strings.TrimPrefix(wu, "http://")
+
+			// don't add a prefix to path-only values
+			if len(wu) > 0 && wu != "*" && !strings.HasPrefix(wu, "/") {
+				wu = "https://" + wu
+			}
+
+			u, err := url.Parse(wu)
+			if err != nil {
+				// shouldn't be possible to err, if we called validation first.
+				logger.Ctx(ctx).With("web_url", wu).Error("malformed web url")
+				continue
+			}
+
+			urls = append(urls, u.String())
 		}
 
-		if len(suffixURLs) > 0 {
-			sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
-		}
+		sel.Include(sel.WebURL(urls))
 	}
 
 	return sel

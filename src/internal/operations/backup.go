@@ -33,8 +33,7 @@ import (
 type BackupOperation struct {
 	operation
 
-	ResourceOwner     string `json:"resourceOwner"`
-	ResourceOwnerName string `json:"resourceOwnerName"`
+	ResourceOwner common.IDNamer
 
 	Results   BackupResults      `json:"results"`
 	Selectors selectors.Selector `json:"selectors"`
@@ -63,22 +62,17 @@ func NewBackupOperation(
 	bp inject.BackupProducer,
 	acct account.Account,
 	selector selectors.Selector,
-	ownerName string,
+	owner common.IDNamer,
 	bus events.Eventer,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:         newOperation(opts, bus, kw, sw),
-		ResourceOwner:     selector.DiscreteOwner,
-		ResourceOwnerName: ownerName,
-		Selectors:         selector,
-		Version:           "v0",
-		account:           acct,
-		incremental:       useIncrementalBackup(selector, opts),
-		bp:                bp,
-	}
-
-	if len(ownerName) == 0 {
-		op.ResourceOwnerName = op.ResourceOwner
+		operation:     newOperation(opts, bus, kw, sw),
+		ResourceOwner: owner,
+		Selectors:     selector,
+		Version:       "v0",
+		account:       acct,
+		incremental:   useIncrementalBackup(selector, opts),
+		bp:            bp,
 	}
 
 	if err := op.validate(); err != nil {
@@ -89,8 +83,12 @@ func NewBackupOperation(
 }
 
 func (op BackupOperation) validate() error {
-	if len(op.ResourceOwner) == 0 {
+	if op.ResourceOwner == nil {
 		return clues.New("backup requires a resource owner")
+	}
+
+	if len(op.ResourceOwner.ID()) == 0 {
+		return clues.New("backup requires a resource owner with a populated ID")
 	}
 
 	if op.bp == nil {
@@ -146,8 +144,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	ctx = clues.Add(
 		ctx,
-		"tenant_id", op.account.ID(), // TODO: pii
-		"resource_owner", op.ResourceOwner, // TODO: pii
+		"tenant_id", clues.Hide(op.account.ID()),
+		"resource_owner", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
 		"incremental", op.incremental)
@@ -165,7 +163,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	observe.Message(ctx, "Backing Up", observe.Bullet, clues.Hide(op.ResourceOwner))
+	observe.Message(ctx, "Backing Up", observe.Bullet, clues.Hide(op.ResourceOwner.Name()))
 
 	deets, err := op.do(
 		ctx,
@@ -231,7 +229,11 @@ func (op *BackupOperation) do(
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
-	reasons := selectorToReasons(op.Selectors)
+	var (
+		reasons         = selectorToReasons(op.Selectors, false)
+		fallbackReasons = makeFallbackReasons(op.Selectors)
+	)
+
 	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
@@ -241,10 +243,9 @@ func (op *BackupOperation) do(
 		ctx,
 		op.kopia,
 		op.store,
-		reasons,
+		reasons, fallbackReasons,
 		op.account.ID(),
-		op.incremental,
-		op.Errors)
+		op.incremental)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
@@ -253,7 +254,6 @@ func (op *BackupOperation) do(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
-		op.ResourceOwnerName,
 		op.Selectors,
 		mdColls,
 		op.Options,
@@ -300,23 +300,26 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
+func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
+	if sel.PathService() != path.SharePointService &&
+		sel.DiscreteOwner != sel.DiscreteOwnerName {
+		return selectorToReasons(sel, true)
+	}
+
+	return nil
+}
+
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 	enabled := !opts.ToggleFeatures.DisableIncrementals
 
-	switch sel.Service {
-	case selectors.ServiceExchange:
+	if sel.Service == selectors.ServiceExchange ||
+		sel.Service == selectors.ServiceOneDrive {
 		return enabled
-
-	case selectors.ServiceOneDrive:
-		// TODO(ashmrtn): Remove the && part once we support permissions and
-		// incrementals.
-		return enabled && !opts.ToggleFeatures.EnablePermissionsBackup
-
-	default:
-		return false
 	}
+
+	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -327,7 +330,7 @@ func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
 func produceBackupDataCollections(
 	ctx context.Context,
 	bp inject.BackupProducer,
-	ownerID, ownerName string,
+	resourceOwner common.IDNamer,
 	sel selectors.Selector,
 	metadata []data.RestoreCollection,
 	ctrlOpts control.Options,
@@ -340,14 +343,14 @@ func produceBackupDataCollections(
 		closer()
 	}()
 
-	return bp.ProduceBackupCollections(ctx, ownerID, ownerName, sel, metadata, ctrlOpts, errs)
+	return bp.ProduceBackupCollections(ctx, resourceOwner, sel, metadata, ctrlOpts, errs)
 }
 
 // ---------------------------------------------------------------------------
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(sel selectors.Selector) []kopia.Reason {
+func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
 
@@ -358,10 +361,15 @@ func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 		return nil
 	}
 
+	owner := sel.DiscreteOwner
+	if useOwnerNameForID {
+		owner = sel.DiscreteOwnerName
+	}
+
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
 			reasons = append(reasons, kopia.Reason{
-				ResourceOwner: sel.DiscreteOwner,
+				ResourceOwner: owner,
 				Service:       service,
 				Category:      cat,
 			})
@@ -403,7 +411,7 @@ func consumeBackupCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
@@ -513,12 +521,12 @@ func mergeDetails(
 	ms *store.Wrapper,
 	detailsStore streamstore.Streamer,
 	mans []*kopia.ManifestEntry,
-	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
+	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.
-	if len(shortRefsFromPrevBackup) == 0 {
+	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
 	}
 
@@ -558,7 +566,7 @@ func mergeDetails(
 			if err != nil {
 				return clues.New("parsing base item info path").
 					WithClues(mctx).
-					With("repo_ref", entry.RepoRef) // todo: pii
+					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
 			// Although this base has an entry it may not be the most recent. Check
@@ -571,15 +579,16 @@ func mergeDetails(
 				continue
 			}
 
-			prev, ok := shortRefsFromPrevBackup[rr.ShortRef()]
-			if !ok {
+			pb := rr.ToBuilder()
+
+			newPath := dataFromBackup.GetNewRepoRef(pb)
+			if newPath == nil {
 				// This entry was not sourced from a base snapshot or cached from a
 				// previous backup, skip it.
 				continue
 			}
 
-			newPath := prev.Repo
-			newLoc := prev.Location
+			newLoc := dataFromBackup.GetNewLocation(pb.Dir())
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
@@ -592,12 +601,10 @@ func mergeDetails(
 			var (
 				itemUpdated = newPath.String() != rr.String()
 				newLocStr   string
-				locBuilder  *path.Builder
 			)
 
 			if newLoc != nil {
-				locBuilder = newLoc.ToBuilder()
-				newLocStr = newLoc.Folder(true)
+				newLocStr = newLoc.String()
 				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
 			}
 
@@ -612,7 +619,7 @@ func mergeDetails(
 				return clues.Wrap(err, "adding item to details")
 			}
 
-			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), locBuilder)
+			folders := details.FolderEntriesForPath(newPath.ToBuilder().Dir(), newLoc)
 			deets.AddFoldersForItem(folders, item, itemUpdated)
 
 			// Track how many entries we added so that we know if we got them all when
@@ -627,10 +634,12 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	if addedEntries != len(shortRefsFromPrevBackup) {
+	if addedEntries != dataFromBackup.ItemsToMerge() {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
-			With("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
+			With(
+				"item_count", addedEntries,
+				"expected_item_count", dataFromBackup.ItemsToMerge())
 	}
 
 	return nil
@@ -717,8 +726,8 @@ func (op *BackupOperation) createBackupModels(
 		op.Status.String(),
 		backupID,
 		op.Selectors,
-		op.ResourceOwner,
-		op.ResourceOwnerName,
+		op.ResourceOwner.ID(),
+		op.ResourceOwner.Name(),
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
 		op.Errors.Errors())

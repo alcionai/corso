@@ -4,30 +4,20 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"runtime/trace"
-	"strings"
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
@@ -45,12 +35,17 @@ var (
 // bookkeeping and interfacing with other component.
 type GraphConnector struct {
 	Service    graph.Servicer
-	Owners     api.Client
+	Discovery  api.Client
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
-	Sites       map[string]string // webURL -> siteID and siteID -> webURL
 	credentials account.M365Config
+
+	ownerLookup getOwnerIDAndNamer
+	// maps of resource owner ids to names, and names to ids.
+	// not guaranteed to be populated, only here as a post-population
+	// reference for processes that choose to populate the values.
+	IDNameLookup common.IDNameSwapper
 
 	// wg is used to track completion of GC tasks
 	wg     *sync.WaitGroup
@@ -61,15 +56,6 @@ type GraphConnector struct {
 	status support.ConnectorOperationStatus // contains the status of the last run status
 }
 
-type resource int
-
-const (
-	UnknownResource resource = iota
-	AllResources
-	Users
-	Sites
-)
-
 func NewGraphConnector(
 	ctx context.Context,
 	itemClient *http.Client,
@@ -77,43 +63,51 @@ func NewGraphConnector(
 	r resource,
 	errs *fault.Bus,
 ) (*GraphConnector, error) {
-	m365, err := acct.M365Config()
+	creds, err := acct.M365Config()
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	gc := GraphConnector{
-		itemClient:  itemClient,
-		tenant:      m365.AzureTenantID,
-		wg:          &sync.WaitGroup{},
-		credentials: m365,
-	}
-
-	gc.Service, err = gc.createService()
+	service, err := createService(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating service connection").WithClues(ctx)
 	}
 
-	gc.Owners, err = api.NewClient(m365)
+	discovery, err := api.NewClient(creds)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
-	if r == AllResources || r == Sites {
-		if err = gc.setTenantSites(ctx, errs); err != nil {
-			return nil, clues.Wrap(err, "retrieveing tenant site list")
-		}
+	rc, err := r.resourceClient(discovery)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
+	}
+
+	gc := GraphConnector{
+		Discovery:    discovery,
+		IDNameLookup: common.IDsNames{},
+		Service:      service,
+
+		credentials: creds,
+		itemClient:  itemClient,
+		ownerLookup: rc,
+		tenant:      acct.ID(),
+		wg:          &sync.WaitGroup{},
 	}
 
 	return &gc, nil
 }
 
+// ---------------------------------------------------------------------------
+// Service Client
+// ---------------------------------------------------------------------------
+
 // createService constructor for graphService component
-func (gc *GraphConnector) createService() (*graph.Service, error) {
+func createService(creds account.M365Config) (*graph.Service, error) {
 	adapter, err := graph.CreateAdapter(
-		gc.credentials.AzureTenantID,
-		gc.credentials.AzureClientID,
-		gc.credentials.AzureClientSecret)
+		creds.AzureTenantID,
+		creds.AzureClientID,
+		creds.AzureClientSecret)
 	if err != nil {
 		return &graph.Service{}, err
 	}
@@ -121,114 +115,9 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	return graph.NewService(adapter), nil
 }
 
-// setTenantSites queries the M365 to identify the sites in the
-// workspace. The sites field is updated during this method
-// iff the returned error is nil.
-func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) error {
-	gc.Sites = map[string]string{}
-
-	ctx, end := diagnostics.Span(ctx, "gc:setTenantSites")
-	defer end()
-
-	sites, err := getResources(
-		ctx,
-		gc.Service,
-		gc.tenant,
-		sharepoint.GetAllSitesForTenant,
-		models.CreateSiteCollectionResponseFromDiscriminatorValue,
-		identifySite,
-		errs)
-	if err != nil {
-		return err
-	}
-
-	gc.Sites = sites
-
-	return nil
-}
-
-var errKnownSkippableCase = clues.New("case is known and skippable")
-
-const personalSitePath = "sharepoint.com/personal/"
-
-// Transforms an interface{} into a key,value pair representing
-// siteName:siteID.
-func identifySite(item any) (string, string, error) {
-	m, ok := item.(models.Siteable)
-	if !ok {
-		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
-	}
-
-	id := ptr.Val(m.GetId())
-	url, ok := ptr.ValOK(m.GetWebUrl())
-
-	if m.GetName() == nil {
-		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if ok && strings.HasSuffix(url, "/search") {
-			// TODO: pii siteID, on this and all following cases
-			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
-		}
-
-		return "", "", clues.New("site has no name").With("site_id", id)
-	}
-
-	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if ok && strings.Contains(url, personalSitePath) {
-		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
-	}
-
-	return url, id, nil
-}
-
-// GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.
-func (gc *GraphConnector) GetSiteWebURLs() []string {
-	return maps.Keys(gc.Sites)
-}
-
-// GetSiteIds returns the canonical site IDs in the tenant
-func (gc *GraphConnector) GetSiteIDs() []string {
-	return maps.Values(gc.Sites)
-}
-
-// UnionSiteIDsAndWebURLs reduces the id and url slices into a single slice of site IDs.
-// WebURLs will run as a path-suffix style matcher.  Callers may provide partial urls, though
-// each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
-// but not match "www.ex.com/foobar".
-// The returned IDs are reduced to a set of unique values.
-func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
-	ctx context.Context,
-	ids, urls []string,
-	errs *fault.Bus,
-) ([]string, error) {
-	if len(gc.Sites) == 0 {
-		if err := gc.setTenantSites(ctx, errs); err != nil {
-			return nil, err
-		}
-	}
-
-	idm := map[string]struct{}{}
-
-	for _, id := range ids {
-		idm[id] = struct{}{}
-	}
-
-	match := filters.PathSuffix(urls)
-
-	for url, id := range gc.Sites {
-		if !match.Compare(url) {
-			continue
-		}
-
-		idm[id] = struct{}{}
-	}
-
-	idsl := make([]string, 0, len(idm))
-	for id := range idm {
-		idsl = append(idsl, id)
-	}
-
-	return idsl, nil
-}
+// ---------------------------------------------------------------------------
+// Processing Status
+// ---------------------------------------------------------------------------
 
 // AwaitStatus waits for all gc tasks to complete and then returns status
 func (gc *GraphConnector) Wait() *data.CollectionStats {
@@ -287,57 +176,123 @@ func (gc *GraphConnector) incrementMessagesBy(num int) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper Funcs
+// Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
-func getResources(
+type resource int
+
+const (
+	UnknownResource resource = iota
+	AllResources             // unused
+	Users
+	Sites
+)
+
+func (r resource) resourceClient(discovery api.Client) (*resourceClient, error) {
+	switch r {
+	case Users:
+		return &resourceClient{enum: r, getter: discovery.Users()}, nil
+	case Sites:
+		return &resourceClient{enum: r, getter: discovery.Sites()}, nil
+	default:
+		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", r)
+	}
+}
+
+type resourceClient struct {
+	enum   resource
+	getter getIDAndNamer
+}
+
+type getIDAndNamer interface {
+	GetIDAndName(ctx context.Context, owner string) (
+		ownerID string,
+		ownerName string,
+		err error,
+	)
+}
+
+var _ getOwnerIDAndNamer = &resourceClient{}
+
+type getOwnerIDAndNamer interface {
+	getOwnerIDAndNameFrom(
+		ctx context.Context,
+		discovery api.Client,
+		owner string,
+		ins common.IDNameSwapper,
+	) (
+		ownerID string,
+		ownerName string,
+		err error,
+	)
+}
+
+// getOwnerIDAndNameFrom looks up the owner's canonical id and display name.
+// If the owner is present in the idNameSwapper, then that interface's id and
+// name values are returned.  As a fallback, the resource calls the discovery
+// api to fetch the user or site using the owner value. This fallback assumes
+// that the owner is a well formed ID or display name of appropriate design
+// (PrincipalName for users, WebURL for sites).
+func (r resourceClient) getOwnerIDAndNameFrom(
 	ctx context.Context,
-	gs graph.Servicer,
-	tenantID string,
-	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
-	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
-	identify func(any) (string, string, error),
-	errs *fault.Bus,
-) (map[string]string, error) {
-	resources := map[string]string{}
-
-	response, err := query(ctx, gs)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "retrieving tenant's resources")
+	discovery api.Client,
+	owner string,
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	if ins != nil {
+		if n, ok := ins.NameOf(owner); ok {
+			return owner, n, nil
+		} else if i, ok := ins.IDOf(owner); ok {
+			return i, owner, nil
+		}
 	}
 
-	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
+	ctx = clues.Add(ctx, "owner_identifier", owner)
+
+	var (
+		id, name string
+		err      error
+	)
+
+	id, name, err = r.getter.GetIDAndName(ctx, owner)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	el := errs.Local()
-
-	callbackFunc := func(item any) bool {
-		if el.Failure() != nil {
-			return false
+		if graph.IsErrUserNotFound(err) {
+			return "", "", clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
-		k, v, err := identify(item)
-		if err != nil {
-			if !errors.Is(err, errKnownSkippableCase) {
-				el.AddRecoverable(clues.Stack(err).
-					WithClues(ctx).
-					With("query_url", gs.Adapter().GetBaseUrl()))
-			}
-
-			return true
-		}
-
-		resources[k] = v
-		resources[v] = k
-
-		return true
+		return "", "", err
 	}
 
-	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, graph.Stack(ctx, err)
+	if len(id) == 0 || len(name) == 0 {
+		return "", "", clues.Stack(graph.ErrResourceOwnerNotFound)
 	}
 
-	return resources, el.Failure()
+	return id, name, nil
+}
+
+// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// the owner's name and ID from that value.  Returns an error if the owner is
+// not recognized by the current tenant.
+//
+// The id-name swapper is optional.  Some processes will look up all owners in
+// the tenant before reaching this step.  In that case, the data gets handed
+// down for this func to consume instead of performing further queries.  The
+// data gets stored inside the gc instance for later re-use.
+func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+	ctx context.Context,
+	owner string, // input value, can be either id or name
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	// move this to GC method
+	id, name, err := gc.ownerLookup.getOwnerIDAndNameFrom(ctx, gc.Discovery, owner, ins)
+	if err != nil {
+		return "", "", clues.Wrap(err, "identifying resource owner")
+	}
+
+	gc.IDNameLookup = common.IDsNames{
+		IDToName: map[string]string{id: name},
+		NameToID: map[string]string{name: id},
+	}
+
+	return id, name, nil
 }

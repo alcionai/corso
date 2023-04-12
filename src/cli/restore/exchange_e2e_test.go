@@ -2,6 +2,7 @@ package restore_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -12,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -72,8 +74,17 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	}
 	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
 
-	suite.m365UserID = tester.M365UserID(t)
-	users := []string{suite.m365UserID}
+	suite.m365UserID = strings.ToLower(tester.M365UserID(t))
+
+	var (
+		users    = []string{suite.m365UserID}
+		idToName = map[string]string{suite.m365UserID: suite.m365UserID}
+		nameToID = map[string]string{suite.m365UserID: suite.m365UserID}
+		ins      = common.IDsNames{
+			IDToName: idToName,
+			NameToID: nameToID,
+		}
+	)
 
 	// init the repo first
 	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
@@ -100,7 +111,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)

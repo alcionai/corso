@@ -3,6 +3,7 @@ package inject
 import (
 	"context"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -17,7 +18,7 @@ type (
 	BackupProducer interface {
 		ProduceBackupCollections(
 			ctx context.Context,
-			ownerID, ownerName string,
+			resourceOwner common.IDNamer,
 			sels selectors.Selector,
 			metadata []data.RestoreCollection,
 			ctrlOpts control.Options,
@@ -36,7 +37,7 @@ type (
 			tags map[string]string,
 			buildTreeWithBase bool,
 			errs *fault.Bus,
-		) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
+		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
 	}
 
 	RestoreProducer interface {

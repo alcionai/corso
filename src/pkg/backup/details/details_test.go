@@ -2,6 +2,7 @@ package details
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -880,17 +882,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 			item,
 		},
 	)
-	newExchangePath := makeItemPath(
-		suite.T(),
-		path.ExchangeService,
-		path.EmailCategory,
-		tenant,
-		resourceOwner,
-		[]string{
-			folder3,
-			item,
-		},
-	)
+	newExchangePB := path.Builder{}.Append(folder3)
 	badOneDrivePath := makeItemPath(
 		suite.T(),
 		path.OneDriveService,
@@ -904,7 +896,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 		name         string
 		input        ItemInfo
 		repoPath     path.Path
-		locPath      path.Path
+		locPath      *path.Builder
 		errCheck     assert.ErrorAssertionFunc
 		expectedItem ItemInfo
 	}{
@@ -917,7 +909,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -935,7 +927,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -953,7 +945,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				Exchange: &ExchangeInfo{
@@ -971,7 +963,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				OneDrive: &OneDriveInfo{
@@ -989,7 +981,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: newOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.NoError,
 			expectedItem: ItemInfo{
 				SharePoint: &SharePointInfo{
@@ -1007,7 +999,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: badOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.Error,
 		},
 		{
@@ -1019,7 +1011,7 @@ func (suite *DetailsUnitSuite) TestUpdateItem() {
 				},
 			},
 			repoPath: badOneDrivePath,
-			locPath:  newExchangePath,
+			locPath:  newExchangePB,
 			errCheck: assert.Error,
 		},
 	}
@@ -1149,12 +1141,6 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 			expect: baseFolderEnts,
 		},
 		{
-			name:     "base path with location",
-			parent:   basePath,
-			location: basePath,
-			expect:   baseFolderEnts,
-		},
-		{
 			name:   "single depth parent only",
 			parent: basePath.Append(fnords...),
 			expect: folderEntriesFor(fnords, nil),
@@ -1162,7 +1148,7 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		{
 			name:     "single depth with location",
 			parent:   basePath.Append(fnords...),
-			location: basePath.Append(beau...),
+			location: path.Builder{}.Append(beau...),
 			expect:   folderEntriesFor(fnords, beau),
 		},
 		{
@@ -1173,13 +1159,13 @@ func (suite *DetailsUnitSuite) TestFolderEntriesForPath() {
 		{
 			name:     "two depth with location",
 			parent:   basePath.Append(smarf...),
-			location: basePath.Append(regard...),
+			location: path.Builder{}.Append(regard...),
 			expect:   folderEntriesFor(smarf, regard),
 		},
 		{
 			name:     "mismatched depth, parent longer",
 			parent:   basePath.Append(smarf...),
-			location: basePath.Append(beau...),
+			location: path.Builder{}.Append(beau...),
 			expect:   folderEntriesFor(smarf, beau),
 		},
 		// We can't handle this right now.  But we don't have any cases
@@ -1235,6 +1221,198 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, result)
 			assert.ElementsMatch(t, orig.Entries, result.Entries)
+		})
+	}
+}
+
+func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
+	const (
+		rrString = "tenant-id/%s/user-id/%s/drives/drive-id/root:/some/folder/stuff/item"
+		driveID  = "driveID"
+
+		expectedUniqueLocFmt         = "%s/" + driveID + "/root:/some/folder/stuff"
+		expectedExchangeUniqueLocFmt = "%s/root:/some/folder/stuff"
+		expectedDetailsLoc           = "root:/some/folder/stuff"
+	)
+
+	table := []struct {
+		name              string
+		service           string
+		category          string
+		itemInfo          ItemInfo
+		hasLocRef         bool
+		backupVersion     int
+		expectedErr       require.ErrorAssertionFunc
+		expectedUniqueLoc string
+	}{
+		{
+			name:     "OneDrive With Drive ID Old Version",
+			service:  path.OneDriveService.String(),
+			category: path.FilesCategory.String(),
+			itemInfo: ItemInfo{
+				OneDrive: &OneDriveInfo{
+					ItemType: OneDriveItem,
+					DriveID:  driveID,
+				},
+			},
+			backupVersion:     version.OneDriveXLocationRef - 1,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedUniqueLocFmt, path.FilesCategory),
+		},
+		{
+			name:     "OneDrive With Drive ID And LocationRef",
+			service:  path.OneDriveService.String(),
+			category: path.FilesCategory.String(),
+			itemInfo: ItemInfo{
+				OneDrive: &OneDriveInfo{
+					ItemType: OneDriveItem,
+					DriveID:  driveID,
+				},
+			},
+			backupVersion:     version.OneDriveXLocationRef,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedUniqueLocFmt, path.FilesCategory),
+		},
+		{
+			name:     "OneDrive With Drive ID New Version Errors",
+			service:  path.OneDriveService.String(),
+			category: path.FilesCategory.String(),
+			itemInfo: ItemInfo{
+				OneDrive: &OneDriveInfo{
+					ItemType: OneDriveItem,
+					DriveID:  driveID,
+				},
+			},
+			backupVersion: version.OneDriveXLocationRef,
+			expectedErr:   require.Error,
+		},
+		{
+			name:     "SharePoint With Drive ID Old Version",
+			service:  path.SharePointService.String(),
+			category: path.LibrariesCategory.String(),
+			itemInfo: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType: SharePointLibrary,
+					DriveID:  driveID,
+				},
+			},
+			backupVersion:     version.OneDriveXLocationRef - 1,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedUniqueLocFmt, path.LibrariesCategory),
+		},
+		{
+			name:     "SharePoint With Drive ID And LocationRef",
+			service:  path.SharePointService.String(),
+			category: path.LibrariesCategory.String(),
+			itemInfo: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType: SharePointLibrary,
+					DriveID:  driveID,
+				},
+			},
+			backupVersion:     version.OneDriveXLocationRef,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedUniqueLocFmt, path.LibrariesCategory),
+		},
+		{
+			name:     "SharePoint With Drive ID New Version Errors",
+			service:  path.SharePointService.String(),
+			category: path.LibrariesCategory.String(),
+			itemInfo: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType: SharePointLibrary,
+					DriveID:  driveID,
+				},
+			},
+			backupVersion: version.OneDriveXLocationRef,
+			expectedErr:   require.Error,
+		},
+		{
+			name:     "Exchange Email With LocationRef Old Version",
+			service:  path.ExchangeService.String(),
+			category: path.EmailCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
+				},
+			},
+			backupVersion:     version.OneDriveXLocationRef - 1,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedExchangeUniqueLocFmt, path.EmailCategory),
+		},
+		{
+			name:     "Exchange Email With LocationRef New Version",
+			service:  path.ExchangeService.String(),
+			category: path.EmailCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
+				},
+			},
+			backupVersion:     version.OneDriveXLocationRef,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedExchangeUniqueLocFmt, path.EmailCategory),
+		},
+		{
+			name:     "Exchange Email Without LocationRef Old Version Errors",
+			service:  path.ExchangeService.String(),
+			category: path.EmailCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
+				},
+			},
+			backupVersion: version.OneDriveXLocationRef - 1,
+			expectedErr:   require.Error,
+		},
+		{
+			name:     "Exchange Email Without LocationRef New Version Errors",
+			service:  path.ExchangeService.String(),
+			category: path.EmailCategory.String(),
+			itemInfo: ItemInfo{
+				Exchange: &ExchangeInfo{
+					ItemType: ExchangeMail,
+				},
+			},
+			backupVersion: version.OneDriveXLocationRef,
+			expectedErr:   require.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			entry := DetailsEntry{
+				RepoRef:  fmt.Sprintf(rrString, test.service, test.category),
+				ItemInfo: test.itemInfo,
+			}
+
+			if test.hasLocRef {
+				entry.LocationRef = expectedDetailsLoc
+			}
+
+			loc, err := entry.ToLocationIDer(test.backupVersion)
+			test.expectedErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(
+				t,
+				test.expectedUniqueLoc,
+				loc.ID().String(),
+				"unique location")
+			assert.Equal(
+				t,
+				expectedDetailsLoc,
+				loc.InDetails().String(),
+				"details location")
 		})
 	}
 }

@@ -88,8 +88,7 @@ func generateAndRestoreItems(
 		service,
 		tenantID, userID,
 		dest,
-		collections,
-	)
+		collections)
 	if err != nil {
 		return nil, err
 	}
@@ -121,21 +120,18 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 		return nil, account.Account{}, clues.Wrap(err, "finding m365 account details")
 	}
 
-	// build a graph connector
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
-	normUsers := map[string]struct{}{}
 
-	users, err := m365.UserPNs(ctx, acct, errs)
+	ins, err := m365.UsersMap(ctx, acct, errs)
 	if err != nil {
 		return nil, account.Account{}, clues.Wrap(err, "getting tenant users")
 	}
 
-	for _, k := range users {
-		normUsers[strings.ToLower(k)] = struct{}{}
-	}
+	_, idOK := ins.NameOf(strings.ToLower(userID))
+	_, nameOK := ins.IDOf(strings.ToLower(userID))
 
-	if _, ok := normUsers[strings.ToLower(User)]; !ok {
+	if !idOK && !nameOK {
 		return nil, account.Account{}, clues.New("user not found within tenant")
 	}
 

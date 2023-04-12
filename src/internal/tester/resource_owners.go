@@ -81,7 +81,6 @@ func LoadTestM365SiteID(t *testing.T) string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving load test m365 site id from test configuration", clues.ToCore(err))
 
-	// TODO: load test site id, not standard test site id
 	return cfg[TestCfgSiteID]
 }
 
@@ -161,4 +160,15 @@ func M365SiteID(t *testing.T) string {
 	require.NoError(t, err, "retrieving m365 site id from test configuration", clues.ToCore(err))
 
 	return cfg[TestCfgSiteID]
+}
+
+// M365SiteURL returns a site webURL string representing the m365SiteURL described
+// by either the env var CORSO_M365_TEST_SITE_URL, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func M365SiteURL(t *testing.T) string {
+	cfg, err := readTestConfig()
+	require.NoError(t, err, "retrieving m365 site url from test configuration", clues.ToCore(err))
+
+	return cfg[TestCfgSiteURL]
 }

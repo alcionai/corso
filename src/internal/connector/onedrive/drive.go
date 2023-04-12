@@ -303,7 +303,7 @@ func GetAllFolders(
 			name = ptr.Val(d.GetName())
 		)
 
-		ictx := clues.Add(ctx, "drive_id", id, "drive_name", name) // TODO: pii
+		ictx := clues.Add(ctx, "drive_id", id, "drive_name", clues.Hide(name))
 		collector := func(
 			_ context.Context,
 			_, _ string,

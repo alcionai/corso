@@ -68,13 +68,11 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
 		fs.SortFlags = false
 
-		options.AddFeatureToggle(cmd, options.EnablePermissionsBackup())
-
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
 		utils.AddUserFlag(c)
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
@@ -148,14 +146,14 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, *acct, errs)
+	ins, err := m365.UsersMap(ctx, *acct, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(users) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -164,7 +162,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"OneDrive", "user",
 		selectorSet,
-	)
+		ins)
 }
 
 func validateOneDriveBackupCreateFlags(users []string) error {

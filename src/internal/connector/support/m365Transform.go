@@ -88,6 +88,14 @@ func ToEventSimplified(orig models.Eventable) models.Eventable {
 	orig.SetICalUId(nil)
 	orig.SetId(nil)
 
+	// Sanitize recurrence timezone.
+	if orig.GetRecurrence() != nil {
+		recurrenceTimezone := ptr.Val(orig.GetRecurrence().GetRange().GetRecurrenceTimeZone())
+		if len(recurrenceTimezone) == 0 {
+			orig.GetRecurrence().GetRange().SetRecurrenceTimeZone(nil)
+		}
+	}
+
 	return orig
 }
 

@@ -78,8 +78,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
 		fs.SortFlags = false
 
-		options.AddFeatureToggle(cmd, options.DisableIncrementals())
-
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
 
@@ -88,7 +86,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddUserFlag(c)
 		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		options.AddFetchParallelismFlag(c)
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
+		options.AddDisableIncrementalsFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
@@ -164,14 +163,14 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	users, err := m365.UserPNs(ctx, *acct, errs)
+	ins, err := m365.UsersMap(ctx, *acct, errs)
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 user(s)"))
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(users) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
@@ -180,7 +179,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"Exchange", "user",
 		selectorSet,
-	)
+		ins)
 }
 
 func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {

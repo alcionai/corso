@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -92,14 +93,15 @@ func PopulateExchangeContainerResolver(
 // - the human-readable path using display names.
 // - true if the path passes the scope comparison.
 func includeContainer(
+	ctx context.Context,
 	qp graph.QueryParams,
 	c graph.CachedContainer,
 	scope selectors.ExchangeScope,
-) (path.Path, path.Path, bool) {
+	category path.CategoryType,
+) (path.Path, *path.Builder, bool) {
 	var (
 		directory string
 		locPath   path.Path
-		category  = scope.Category().PathType()
 		pb        = c.Path()
 		loc       = c.Location()
 	)
@@ -154,5 +156,11 @@ func includeContainer(
 		return nil, nil, false
 	}
 
-	return pathRes, locPath, ok
+	logger.Ctx(ctx).With(
+		"included", ok,
+		"scope", scope,
+		"matches_input", directory,
+	).Debug("backup folder selection filter")
+
+	return pathRes, loc, ok
 }

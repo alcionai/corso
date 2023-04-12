@@ -37,7 +37,7 @@ func (suite *SupportTestSuite) TestToMessage() {
 	assert.NotEqual(t, message.GetId(), clone.GetId())
 }
 
-func (suite *SupportTestSuite) TestToEventSimplified() {
+func (suite *SupportTestSuite) TestToEventSimplified_attendees() {
 	t := suite.T()
 	bytes := mockconnector.GetMockEventWithAttendeesBytes("M365 Event Support Test")
 	event, err := CreateEventFromBytes(bytes)
@@ -54,6 +54,80 @@ func (suite *SupportTestSuite) TestToEventSimplified() {
 	for _, member := range attendees {
 		assert.Contains(t, ptr.Val(event.GetBody().GetContent()), ptr.Val(member.GetEmailAddress().GetName()))
 		assert.Contains(t, ptr.Val(event.GetBody().GetContent()), ptr.Val(member.GetEmailAddress().GetAddress()))
+	}
+}
+
+func (suite *SupportTestSuite) TestToEventSimplified_recurrence() {
+	var (
+		t       = suite.T()
+		subject = "M365 Event Support Test"
+	)
+
+	tests := []struct {
+		name           string
+		event          func() models.Eventable
+		validateOutput func(e models.Eventable) bool
+	}{
+		{
+			name: "Test recurrence: Unspecified",
+			event: func() models.Eventable {
+				bytes := mockconnector.GetMockEventWithSubjectBytes(subject)
+				e, err := CreateEventFromBytes(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return e
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetRecurrence() == nil
+			},
+		},
+		{
+			name: "Test recurrenceTimeZone: Unspecified",
+			event: func() models.Eventable {
+				bytes := mockconnector.GetMockEventWithRecurrenceBytes(subject, `null`)
+				e, err := CreateEventFromBytes(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return e
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetRecurrence().GetRange().GetRecurrenceTimeZone() == nil
+			},
+		},
+		{
+			name: "Test recurrenceTimeZone: Empty",
+			event: func() models.Eventable {
+				bytes := mockconnector.GetMockEventWithRecurrenceBytes(subject, `""`)
+				event, err := CreateEventFromBytes(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return event
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return e.GetRecurrence().GetRange().GetRecurrenceTimeZone() == nil
+			},
+		},
+		{
+			name: "Test recurrenceTimeZone: Valid",
+			event: func() models.Eventable {
+				bytes := mockconnector.GetMockEventWithRecurrenceBytes(subject, `"Pacific Standard Time"`)
+				event, err := CreateEventFromBytes(bytes)
+				require.NoError(t, err, clues.ToCore(err))
+				return event
+			},
+
+			validateOutput: func(e models.Eventable) bool {
+				return ptr.Val(e.GetRecurrence().GetRange().GetRecurrenceTimeZone()) == "Pacific Standard Time"
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			event := test.event()
+			newEvent := ToEventSimplified(event)
+			assert.True(t, test.validateOutput(newEvent), test.name)
+		})
 	}
 }
 
