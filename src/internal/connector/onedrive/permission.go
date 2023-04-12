@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -126,14 +125,6 @@ func createRestoreFoldersWithPermissions(
 		permissionIDMappings)
 
 	return id, err
-}
-
-// isSame checks equality of two string slices
-func isSame(first, second []string) bool {
-	slices.Sort(first)
-	slices.Sort(second)
-
-	return slices.Equal(first, second)
 }
 
 func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
@@ -331,42 +322,6 @@ func RestorePermissions(
 	}
 
 	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions)
-
-	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
-}
-
-// SetPermissions is similar to RestorePermissions, but fetches the
-// current permissions from graph inorder to update the permissions on
-// an item. This is necessary in tests as we have to delete
-// permissions of items that we have created.
-// NOTE: This function is currently only used in tests.
-func SetPermissions(
-	ctx context.Context,
-	creds account.M365Config,
-	service graph.Servicer,
-	driveID string,
-	itemID string,
-	meta Metadata,
-) error {
-	if meta.SharingMode == SharingModeInherited {
-		return nil
-	}
-
-	ctx = clues.Add(ctx, "permission_item_id", itemID)
-
-	currentPermissions, err := driveItemPermissionInfo(ctx, service, driveID, itemID)
-	if err != nil {
-		return graph.Wrap(ctx, err, "fetching current permissions")
-	}
-
-	// TODO(meain): Diff permissions should be done via ids
-	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
-
-	// Compute permissions id mappings as if we get from and backup metadata
-	permissionIDMappings := map[string]string{}
-	for _, perm := range permRemoved {
-		permissionIDMappings[perm.ID] = perm.ID
-	}
 
 	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }
