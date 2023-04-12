@@ -14,6 +14,9 @@ const (
 	// the data and metadata in two files.
 	OneDrive1DataAndMetaFiles = 1
 
+	// Version 2 switched Exchange calendars from using folder display names to
+	// folder IDs in their RepoRef.
+
 	// OneDrive3IsMetaMarker is a small improvement on
 	// VersionWithDataAndMetaFiles, but has a marker IsMeta which
 	// specifies if the file is a meta file or a data file.
@@ -32,4 +35,8 @@ const (
 	// storing files in kopia with their item ID instead of their OneDrive file
 	// name.
 	OneDrive6NameInMeta = 6
+
+	// OneDriveXLocationRef provides LocationRef information for Exchange,
+	// OneDrive, and SharePoint libraries.
+	OneDriveXLocationRef = Backup + 1
 )
