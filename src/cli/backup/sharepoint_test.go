@@ -16,15 +16,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-type SharePointSuite struct {
+type SharePointUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, &SharePointSuite{tester.NewUnitSuite(t)})
+func TestSharePointUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointUnitSuite{tester.NewUnitSuite(t)})
 }
 
-func (suite *SharePointSuite) TestAddSharePointCommands() {
+func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 	expectUse := sharePointServiceCommand
 
 	table := []struct {
@@ -101,7 +101,7 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 	}
 }
 
-func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
+func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 	table := []struct {
 		name   string
 		site   []string
@@ -137,7 +137,7 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 	}
 }
 
-func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
+func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 	const (
 		id1  = "id_1"
 		id2  = "id_2"
@@ -245,7 +245,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 	}
 }
 
-func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
+func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -265,7 +265,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 	}
 }
 
-func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
+func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 

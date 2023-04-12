@@ -14,15 +14,15 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type ExchangeSuite struct {
+type ExchangeUnitSuite struct {
 	tester.Suite
 }
 
-func TestExchangeSuite(t *testing.T) {
-	suite.Run(t, &ExchangeSuite{Suite: tester.NewUnitSuite(t)})
+func TestExchangeUnitSuite(t *testing.T) {
+	suite.Run(t, &ExchangeUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExchangeSuite) TestAddExchangeCommands() {
+func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
 
 	table := []struct {
@@ -104,7 +104,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	}
 }
 
-func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
+func (suite *ExchangeUnitSuite) TestValidateBackupCreateFlags() {
 	table := []struct {
 		name       string
 		user, data []string
@@ -141,7 +141,7 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 	table := []struct {
 		name             string
 		user, data       []string
@@ -256,7 +256,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -276,7 +276,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
