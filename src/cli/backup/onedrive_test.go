@@ -37,7 +37,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			createCommand,
 			expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
 			oneDriveCreateCmd().Short,
-			[]string{"user", "disable-incrementals"},
+			[]string{"user", "disable-incrementals", "fail-fast"},
 			createOneDriveCmd,
 		},
 		{

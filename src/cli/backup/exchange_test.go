@@ -30,23 +30,58 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		use         string
 		expectUse   string
 		expectShort string
+		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create exchange", createCommand, expectUse + " " + exchangeServiceCommandCreateUseSuffix,
-			exchangeCreateCmd().Short, createExchangeCmd,
+			"create exchange",
+			createCommand,
+			expectUse + " " + exchangeServiceCommandCreateUseSuffix,
+			exchangeCreateCmd().Short,
+			[]string{"user", "data", "disable-incrementals", "fail-fast", "fetch-parallelism", "skip-reduce", "no-stats"},
+			createExchangeCmd,
 		},
 		{
-			"list exchange", listCommand, expectUse,
-			exchangeListCmd().Short, listExchangeCmd,
+			"list exchange",
+			listCommand,
+			expectUse,
+			exchangeListCmd().Short,
+			[]string{"backup", "failed-items", "skipped-items", "recovered-errors"},
+			listExchangeCmd,
 		},
 		{
-			"details exchange", detailsCommand, expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
-			exchangeDetailsCmd().Short, detailsExchangeCmd,
+			"details exchange",
+			detailsCommand,
+			expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
+			exchangeDetailsCmd().Short,
+			[]string{
+				"backup",
+				"email",
+				"email-folder",
+				"email-subject",
+				"email-sender",
+				"email-received-after",
+				"email-received-before",
+				"event",
+				"event-calendar",
+				"event-subject",
+				"event-organizer",
+				"event-recurs",
+				"event-starts-after",
+				"event-starts-before",
+				"contact",
+				"contact-folder",
+				"contact-name",
+			},
+			detailsExchangeCmd,
 		},
 		{
-			"delete exchange", deleteCommand, expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
-			exchangeDeleteCmd().Short, deleteExchangeCmd,
+			"delete exchange",
+			deleteCommand,
+			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
+			exchangeDeleteCmd().Short,
+			[]string{"backup"},
+			deleteExchangeCmd,
 		},
 	}
 	for _, test := range table {

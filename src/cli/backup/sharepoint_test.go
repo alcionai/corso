@@ -32,23 +32,49 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 		use         string
 		expectUse   string
 		expectShort string
+		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create sharepoint", createCommand, expectUse + " " + sharePointServiceCommandCreateUseSuffix,
-			sharePointCreateCmd().Short, createSharePointCmd,
+			"create sharepoint",
+			createCommand,
+			expectUse + " " + sharePointServiceCommandCreateUseSuffix,
+			sharePointCreateCmd().Short,
+			[]string{"site", "disable-incrementals", "fail-fast"},
+			createSharePointCmd,
 		},
 		{
-			"list sharepoint", listCommand, expectUse,
-			sharePointListCmd().Short, listSharePointCmd,
+			"list sharepoint",
+			listCommand,
+			expectUse,
+			sharePointListCmd().Short,
+			[]string{"backup", "failed-items", "skipped-items", "recovered-errors"},
+			listSharePointCmd,
 		},
 		{
-			"details sharepoint", detailsCommand, expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
-			sharePointDetailsCmd().Short, detailsSharePointCmd,
+			"details sharepoint",
+			detailsCommand,
+			expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
+			sharePointDetailsCmd().Short,
+			[]string{
+				"backup",
+				"library",
+				"folder",
+				"file",
+				"file-created-after",
+				"file-created-before",
+				"file-modified-after",
+				"file-modified-before",
+			},
+			detailsSharePointCmd,
 		},
 		{
-			"delete sharepoint", deleteCommand, expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
-			sharePointDeleteCmd().Short, deleteSharePointCmd,
+			"delete sharepoint",
+			deleteCommand,
+			expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
+			sharePointDeleteCmd().Short,
+			[]string{"backup"},
+			deleteSharePointCmd,
 		},
 	}
 	for _, test := range table {
@@ -67,6 +93,10 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+
+			for _, f := range test.flags {
+				assert.NotNil(t, c.Flag(f), f+" flag")
+			}
 		})
 	}
 }
