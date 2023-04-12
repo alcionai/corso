@@ -38,6 +38,11 @@ inputs:
 runs:
   using: composite
   steps:
+
+    ################################################################################################################
+    # Exchange
+    #
+
     - name: Run the Exchange purge scripts for user
       if: ${{ inputs.user != '' }}
       shell: pwsh
@@ -48,6 +53,20 @@ runs:
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
       run: |
         ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
+
+    - name: Reset retention for all mailboxes to 0
+      if: ${{ inputs.user == '' }}
+      shell: pwsh
+      working-directory: ./src/cmd/purge/scripts
+      env:
+        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
+        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+      run: |
+        ./exchangeRetention.ps1
+
+    ################################################################################################################
+    # OneDrive
+    #
     
     - name: Run the OneDrive purge scripts for user
       if: ${{ inputs.user != '' }}
@@ -59,8 +78,12 @@ runs:
       run: |
         ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
+    ################################################################################################################
+    # Sharepoint
+    #
+
     - name: Run SharePoint purge script
-      if: ${{ inputs.user == '' }}
+      if: ${{ inputs.site != '' }}
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
       env:
@@ -68,13 +91,3 @@ runs:
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
         ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
-
-    - name: Reset retention for all mailboxes to 0
-      if: ${{ inputs.user == '' }}
-      shell: pwsh
-      working-directory: ./src/cmd/purge/scripts
-      env:
-        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
-      run: |
-        ./exchangeRetention.ps1

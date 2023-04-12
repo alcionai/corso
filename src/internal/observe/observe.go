@@ -26,7 +26,7 @@ const (
 
 var (
 	wg sync.WaitGroup
-	// TODO: Revisit this being a global nd make it a parameter to the progress methods
+	// TODO: Revisit this being a global and make it a parameter to the progress methods
 	// so that each bar can be initialized with different contexts if needed.
 	contxt   context.Context
 	writer   io.Writer

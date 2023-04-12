@@ -86,7 +86,7 @@ type Path interface {
 	Tenant() string
 	ResourceOwner() string
 	Folder(bool) string
-	Folders() []string
+	Folders() Elements
 	Item() string
 	// UpdateParent updates parent from old to new if the item/folder was
 	// parented by old path
@@ -102,7 +102,7 @@ type Path interface {
 	// Elements returns all the elements in the path. This is a temporary function
 	// and will likely be updated to handle encoded elements instead of clear-text
 	// elements in the future.
-	Elements() []string
+	Elements() Elements
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.
@@ -113,7 +113,22 @@ type Path interface {
 	ShortRef() string
 	// ToBuilder returns a Builder instance that represents the current Path.
 	ToBuilder() *Builder
+
+	// Every path needs to comply with these funcs to ensure that PII
+	// is appropriately hidden from logging, errors, and other outputs.
+	clues.Concealer
+	fmt.Stringer
+
+	// In the rare case that the path needs to get printed as a plain string,
+	// without obscuring values for PII.
+	clues.PlainStringer
 }
+
+// interface compliance required for handling PII
+var (
+	_ clues.Concealer = &Builder{}
+	_ fmt.Stringer    = &Builder{}
+)
 
 // Builder is a simple path representation that only tracks path elements. It
 // can join, escape, and unescape elements. Higher-level packages are expected
@@ -125,7 +140,7 @@ type Path interface {
 // tenant ID, service, user ID, etc).
 type Builder struct {
 	// Unescaped version of elements.
-	elements []string
+	elements Elements
 }
 
 // UnescapeAndAppend creates a copy of this Builder and adds one or more already
@@ -223,18 +238,6 @@ func (pb Builder) LastElem() string {
 	return pb.elements[len(pb.elements)-1]
 }
 
-// String returns a string that contains all path elements joined together.
-// Elements of the path that need escaping are escaped.
-func (pb Builder) String() string {
-	escaped := make([]string, 0, len(pb.elements))
-
-	for _, e := range pb.elements {
-		escaped = append(escaped, escapeElement(e))
-	}
-
-	return join(escaped)
-}
-
 func (pb Builder) ShortRef() string {
 	if len(pb.elements) == 0 {
 		return ""
@@ -261,8 +264,8 @@ func (pb Builder) ShortRef() string {
 // Elements returns all the elements in the path. This is a temporary function
 // and will likely be updated to handle encoded elements instead of clear-text
 // elements in the future.
-func (pb Builder) Elements() []string {
-	return append([]string{}, pb.elements...)
+func (pb Builder) Elements() Elements {
+	return append(Elements{}, pb.elements...)
 }
 
 func verifyInputValues(tenant, resourceOwner string) error {
@@ -657,4 +660,36 @@ func Split(segment string) []string {
 	res = append(res, segment[startIdx:])
 
 	return res
+}
+
+// ---------------------------------------------------------------------------
+// PII Concealer Compliance
+// ---------------------------------------------------------------------------
+
+// Conceal produces a concealed representation of the builder, suitable for
+// logging, storing in errors, and other output.
+func (pb Builder) Conceal() string {
+	return pb.elements.Conceal()
+}
+
+// Format produces a concealed representation of the builder, even when
+// used within a PrintF, suitable for logging, storing in errors,
+// and other output.
+func (pb Builder) Format(fs fmt.State, _ rune) {
+	fmt.Fprint(fs, pb.Conceal())
+}
+
+// String returns a string that contains all path elements joined together.
+// Elements of the path that need escaping are escaped.
+// The result is not concealed, and is not suitable for logging or structured
+// errors.
+func (pb Builder) String() string {
+	return pb.elements.String()
+}
+
+// PlainString returns an unescaped, unmodified string of the builder.
+// The result is not concealed, and is not suitable for logging or structured
+// errors.
+func (pb Builder) PlainString() string {
+	return pb.elements.PlainString()
 }

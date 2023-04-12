@@ -419,8 +419,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		// TODO(keepers): conceal compliance in path, drop Hide()
-		clues.Hide(queuedPath),
+		path.NewElements(queuedPath),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
