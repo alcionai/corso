@@ -541,7 +541,16 @@ func getNewPathRefs(
 
 	// Exact match for this location, no need to pull in data from the entry.
 	if newLocPrefix != nil {
-		return newPath, newLocPrefix, newLocPrefix.String() != entry.LocationRef, nil
+		// This is kind of jank cause we're in a transitionary period, but even if
+		// we're consesrvative here about marking something as updated the RepoRef
+		// comparison in the caller should catch the change. Calendars is the only
+		// on that would matter, but we should already be populating the LocationRef
+		// for them.
+		//
+		// Without this, all OneDrive items will be marked as updated the first time
+		// around because OneDrive hasn't been persisting LocationRef before now.
+		updated := len(entry.LocationRef) > 0 && newLocPrefix.String() != entry.LocationRef
+		return newPath, newLocPrefix, updated, nil
 	}
 
 	// We didn't have an exact entry, so retry with a location.
