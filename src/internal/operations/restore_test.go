@@ -278,7 +278,7 @@ func setupExchangeBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(owner, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	bsel.DiscreteOwner = owner
@@ -340,7 +340,7 @@ func setupSharePointBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
-	id, name, err := gc.PopulateOwnerIDAndNamesFrom(owner, nil)
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(ctx, owner, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	spsel.DiscreteOwner = owner

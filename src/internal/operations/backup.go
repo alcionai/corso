@@ -145,7 +145,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
-		"resource_owner", clues.Hide(op.ResourceOwner),
+		"resource_owner", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
 		"incremental", op.incremental)
@@ -229,7 +229,11 @@ func (op *BackupOperation) do(
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
 ) (*details.Builder, error) {
-	reasons := selectorToReasons(op.Selectors)
+	var (
+		reasons         = selectorToReasons(op.Selectors, false)
+		fallbackReasons = makeFallbackReasons(op.Selectors)
+	)
+
 	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
@@ -239,10 +243,9 @@ func (op *BackupOperation) do(
 		ctx,
 		op.kopia,
 		op.store,
-		reasons,
+		reasons, fallbackReasons,
 		op.account.ID(),
-		op.incremental,
-		op.Errors)
+		op.incremental)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
@@ -297,6 +300,15 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
+func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
+	if sel.PathService() != path.SharePointService &&
+		sel.DiscreteOwner != sel.DiscreteOwnerName {
+		return selectorToReasons(sel, true)
+	}
+
+	return nil
+}
+
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
@@ -338,7 +350,7 @@ func produceBackupDataCollections(
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(sel selectors.Selector) []kopia.Reason {
+func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
 
@@ -349,10 +361,15 @@ func selectorToReasons(sel selectors.Selector) []kopia.Reason {
 		return nil
 	}
 
+	owner := sel.DiscreteOwner
+	if useOwnerNameForID {
+		owner = sel.DiscreteOwnerName
+	}
+
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
 		for _, cat := range sl {
 			reasons = append(reasons, kopia.Reason{
-				ResourceOwner: sel.DiscreteOwner,
+				ResourceOwner: owner,
 				Service:       service,
 				Category:      cat,
 			})
@@ -394,7 +411,7 @@ func consumeBackupCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
 	defer func() {
 		complete <- struct{}{}
@@ -504,12 +521,12 @@ func mergeDetails(
 	ms *store.Wrapper,
 	detailsStore streamstore.Streamer,
 	mans []*kopia.ManifestEntry,
-	shortRefsFromPrevBackup map[string]kopia.PrevRefs,
+	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.
-	if len(shortRefsFromPrevBackup) == 0 {
+	if dataFromBackup.ItemsToMerge() == 0 {
 		return nil
 	}
 
@@ -549,7 +566,7 @@ func mergeDetails(
 			if err != nil {
 				return clues.New("parsing base item info path").
 					WithClues(mctx).
-					With("repo_ref", entry.RepoRef) // todo: pii, path needs concealer compliance
+					With("repo_ref", path.NewElements(entry.RepoRef))
 			}
 
 			// Although this base has an entry it may not be the most recent. Check
@@ -562,15 +579,16 @@ func mergeDetails(
 				continue
 			}
 
-			prev, ok := shortRefsFromPrevBackup[rr.ShortRef()]
-			if !ok {
+			pb := rr.ToBuilder()
+
+			newPath := dataFromBackup.GetNewRepoRef(pb)
+			if newPath == nil {
 				// This entry was not sourced from a base snapshot or cached from a
 				// previous backup, skip it.
 				continue
 			}
 
-			newPath := prev.Repo
-			newLoc := prev.Location
+			newLoc := dataFromBackup.GetNewLocation(pb.Dir())
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
@@ -616,10 +634,12 @@ func mergeDetails(
 			"base_item_count_added", manifestAddedEntries)
 	}
 
-	if addedEntries != len(shortRefsFromPrevBackup) {
+	if addedEntries != dataFromBackup.ItemsToMerge() {
 		return clues.New("incomplete migration of backup details").
 			WithClues(ctx).
-			With("item_count", addedEntries, "expected_item_count", len(shortRefsFromPrevBackup))
+			With(
+				"item_count", addedEntries,
+				"expected_item_count", dataFromBackup.ItemsToMerge())
 	}
 
 	return nil

@@ -459,13 +459,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				assert.False(t, onedrive.IsMetaFile(entry.RepoRef), "metadata entry in details")
 			}
 
-			assert.Len(t, prevShortRefs, 0)
-			for _, prevRef := range prevShortRefs {
-				assert.False(
-					t,
-					onedrive.IsMetaFile(prevRef.Repo.String()),
-					"metadata entry in base details")
-			}
+			// Shouldn't have any items to merge because the cached files are metadata
+			// files.
+			assert.Equal(t, 0, prevShortRefs.ItemsToMerge())
 
 			checkSnapshotTags(
 				t,

@@ -314,7 +314,7 @@ func (r repository) NewBackupWithLookup(
 		return operations.BackupOperation{}, errors.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(sel.DiscreteOwner, ins)
+	ownerID, ownerName, err := gc.PopulateOwnerIDAndNamesFrom(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, errors.Wrap(err, "resolving resource owner details")
 	}

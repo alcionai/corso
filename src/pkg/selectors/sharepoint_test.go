@@ -73,7 +73,9 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_AllData() {
 				cat  = spsc.Category()
 			)
 
-			suite.T().Run(test.name+"-"+cat.String(), func(t *testing.T) {
+			suite.Run(test.name+"-"+cat.String(), func() {
+				t := suite.T()
+
 				switch cat {
 				case SharePointLibraryItem:
 					scopeMustHave(
@@ -411,13 +413,11 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 	}{
 		{"host match", host, sel.WebURL([]string{host}), assert.True},
 		{"url match", url, sel.WebURL([]string{url}), assert.True},
-		{"url contains host", url, sel.WebURL([]string{host}), assert.True},
 		{"host suffixes host", host, sel.WebURL([]string{host}, SuffixMatch()), assert.True},
 		{"url does not suffix host", url, sel.WebURL([]string{host}, SuffixMatch()), assert.False},
-		{"url contains path", url, sel.WebURL([]string{pth}), assert.True},
 		{"url has path suffix", url, sel.WebURL([]string{pth}, SuffixMatch()), assert.True},
 		{"host does not contain substring", host, sel.WebURL([]string{"website"}), assert.False},
-		{"url does not suffix substring", url, sel.WebURL([]string{"oo"}), assert.False},
+		{"url does not suffix substring", url, sel.WebURL([]string{"oo"}, SuffixMatch()), assert.False},
 		{"host mismatch", host, sel.WebURL([]string{"www.google.com"}), assert.False},
 		{"file create after the epoch", host, sel.CreatedAfter(common.FormatTime(epoch)), assert.True},
 		{"file create after now", host, sel.CreatedAfter(common.FormatTime(now)), assert.False},
@@ -473,8 +473,8 @@ func (suite *SharePointSelectorSuite) TestCategory_PathType() {
 		{SharePointList, path.ListsCategory},
 	}
 	for _, test := range table {
-		suite.T().Run(test.cat.String(), func(t *testing.T) {
-			assert.Equal(t, test.pathType, test.cat.PathType())
+		suite.Run(test.cat.String(), func() {
+			assert.Equal(suite.T(), test.pathType, test.cat.PathType())
 		})
 	}
 }

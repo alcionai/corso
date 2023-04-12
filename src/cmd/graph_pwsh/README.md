@@ -6,7 +6,7 @@ their environment.
 
 One convenient mechanism to accomplish this without going down to the level of
 wrapping individual Graph API calls is to use the
-[Microsoft Graph PowerShell](https://learn.microsoft.com/en-us/powershell/microsoftgraph/overview?view=graph-powershell-1.0).
+[Microsoft Graph Powershell](https://learn.microsoft.com/en-us/powershell/microsoftgraph/overview?view=graph-powershell-1.0).
 It provides a convenient wrapper and great coverage of the API surface.
 
 ## Build container
@@ -16,6 +16,8 @@ Before using the tool you want to build the container that packages it.
 ```sh
 docker build -t corso/graph_pwsh:latest .
 ```
+
+A prebuilt image is also available currently available as `gmatev/graph_pwsh`.
 
 ## Prerequisites
 
@@ -82,10 +84,25 @@ docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
        pwsh -c "Get-MgUserMessage -UserId <userID or UPN> -MessageID <messageID>"
 ```
 
+### Running a remote script
+
+In some cases, it may be prudent to run a more complex Powershell script that strings
+a number of commands together. While it is possible to compact the sctipt to a single line,
+that is quite inconvenient.
+
+Instead, it is possible to stash the desired script somewhere publically accessible (e.g. Gist)
+and execute the container which will pull it and then execute it. This can be done using the
+`Execute-Script.ps1` command as follows.
+
+```sh
+docker run --rm -it -v $(pwd):/usr/pwsh --env-file env_names corso/graph_pwsh \
+       pwsh -c "Execute-Script.ps1 -ScriptUrl <script download URL>"
+```
+
 ## Debug output
 
-To see the requests and responses made by the specific Graph PowerShell commands, add `-Debug` to you command,
-similar to the example below.
+To see the requests and responses made by the specific Graph Powershell commands, add `-Debug` to you command, 
+similar to the example below. 
 
 ```sh
 # This is the equivalent of GET https://graph.microsoft.com/v1.0/users

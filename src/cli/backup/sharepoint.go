@@ -83,8 +83,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		utils.AddSiteFlag(c)
 		utils.AddSiteIDFlag(c)
 		utils.AddDataFlag(c, []string{dataLibraries}, true)
-
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
@@ -361,7 +360,7 @@ func runDetailsSharePointCmd(
 	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
 
 	if !skipReduce {
-		sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+		sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 		d = sel.Reduce(ctx, d, errs)
 	}

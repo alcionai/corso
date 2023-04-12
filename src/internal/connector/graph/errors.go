@@ -70,6 +70,8 @@ var (
 	// graph client's built-in retries.
 	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
 	ErrTimeout = clues.New("communication timeout")
+
+	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
 
 func IsErrDeletedInFlight(err error) bool {
@@ -191,7 +193,11 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return clues.Wrap(e, msg).WithClues(ctx)
 	}
 
-	data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(odErr)
+
+	if len(mainMsg) > 0 {
+		e = clues.Stack(e, clues.New(mainMsg))
+	}
 
 	return setLabels(clues.Wrap(e, msg).WithClues(ctx).With(data...), innerMsg)
 }
@@ -208,7 +214,11 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return clues.Stack(e).WithClues(ctx)
 	}
 
-	data, innerMsg := errData(odErr)
+	mainMsg, data, innerMsg := errData(odErr)
+
+	if len(mainMsg) > 0 {
+		e = clues.Stack(e, clues.New(mainMsg))
+	}
 
 	return setLabels(clues.Stack(e).WithClues(ctx).With(data...), innerMsg)
 }
@@ -226,11 +236,12 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 	return err
 }
 
-func errData(err odataerrors.ODataErrorable) ([]any, string) {
+func errData(err odataerrors.ODataErrorable) (string, []any, string) {
 	data := make([]any, 0)
 
 	// Get MainError
 	mainErr := err.GetError()
+	mainMsg := ptr.Val(mainErr.GetMessage())
 
 	data = appendIf(data, "odataerror_code", mainErr.GetCode())
 	data = appendIf(data, "odataerror_message", mainErr.GetMessage())
@@ -251,7 +262,7 @@ func errData(err odataerrors.ODataErrorable) ([]any, string) {
 		data = appendIf(data, "odataerror_inner_req_id", inner.GetRequestId())
 	}
 
-	return data, strings.ToLower(msgConcat)
+	return mainMsg, data, strings.ToLower(msgConcat)
 }
 
 func appendIf(a []any, k string, v *string) []any {
