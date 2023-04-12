@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -119,6 +120,15 @@ func (s sharePoint) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s SharePointScope) Conceal() string             { return conceal(s) }
+func (s SharePointScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s SharePointScope) String() string              { return conceal(s) }
+func (s SharePointScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories

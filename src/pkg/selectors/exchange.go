@@ -2,6 +2,7 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -120,6 +121,15 @@ func (s exchange) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Includes),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s ExchangeScope) Conceal() string             { return conceal(s) }
+func (s ExchangeScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s ExchangeScope) String() string              { return conceal(s) }
+func (s ExchangeScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Exclude/Includes

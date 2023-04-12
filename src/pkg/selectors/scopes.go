@@ -2,6 +2,8 @@ package selectors
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -151,6 +153,9 @@ type (
 		// Primarily to ensure that root- or mid-tier scopes (such as folders)
 		// cascade 'Any' matching to more granular categories.
 		setDefaults()
+
+		// Scopes need to comply with PII printing controls.
+		clues.PlainConcealer
 	}
 	// scopeT is the generic type interface of a scoper.
 	scopeT interface {
@@ -194,6 +199,46 @@ func makeInfoScope[T scopeT](
 		scopeKeyInfoCategory: filters.Identity(infoCat.String()),
 		infoCat.String():     filterize(*sc, ff, tgts...),
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+// loggableMSS transforms the scope into a map by stringifying each filter.
+func loggableMSS[T scopeT](s T, plain bool) map[string]string {
+	m := map[string]string{}
+
+	for k, filt := range s {
+		if plain {
+			m[k] = filt.PlainString()
+		} else {
+			m[k] = filt.Conceal()
+		}
+	}
+
+	return m
+}
+
+func conceal[T scopeT](s T) string {
+	return marshalScope(loggableMSS(s, false))
+}
+
+func format[T scopeT](s T, fs fmt.State, _ rune) {
+	fmt.Fprint(fs, conceal(s))
+}
+
+func plainString[T scopeT](s T) string {
+	return marshalScope(loggableMSS(s, true))
+}
+
+func marshalScope(mss map[string]string) string {
+	bs, err := json.Marshal(mss)
+	if err != nil {
+		return "error-marshalling-selector"
+	}
+
+	return string(bs)
 }
 
 // ---------------------------------------------------------------------------
