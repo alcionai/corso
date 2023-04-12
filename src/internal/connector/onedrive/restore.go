@@ -75,9 +75,9 @@ func RestoreCollections(
 			err  error
 			ictx = clues.Add(
 				ctx,
-				"resource_owner", dc.FullPath().ResourceOwner(), // TODO: pii
+				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
 				"category", dc.FullPath().Category(),
-				"path", dc.FullPath()) // TODO: pii
+				"path", dc.FullPath()) // TODO: pii, path needs concealer compliance
 		)
 
 		metrics, folderMetas, err = RestoreCollection(
@@ -598,7 +598,12 @@ func restoreData(
 	}
 
 	iReader := itemData.ToReader()
-	progReader, closer := observe.ItemProgress(ctx, iReader, observe.ItemRestoreMsg, observe.PII(itemName), ss.Size())
+	progReader, closer := observe.ItemProgress(
+		ctx,
+		iReader,
+		observe.ItemRestoreMsg,
+		clues.Hide(itemName),
+		ss.Size())
 
 	go closer()
 

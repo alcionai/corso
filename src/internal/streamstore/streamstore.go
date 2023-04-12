@@ -11,8 +11,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -221,26 +221,14 @@ func collect(
 	return &dc, nil
 }
 
-type backuper interface {
-	BackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.BackupCollection,
-		globalExcludeSet map[string]map[string]struct{},
-		tags map[string]string,
-		buildTreeWithBase bool,
-		errs *fault.Bus,
-	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
-}
-
 // write persists bytes to the store
 func write(
 	ctx context.Context,
-	bup backuper,
+	bup inject.BackupConsumer,
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
-	backupStats, _, _, err := bup.BackupCollections(
+	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,
 		dbcs,
@@ -255,16 +243,6 @@ func write(
 	return backupStats.SnapshotID, nil
 }
 
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-		errs *fault.Bus,
-	) ([]data.RestoreCollection, error)
-}
-
 // read retrieves an object from the store
 func read(
 	ctx context.Context,
@@ -272,7 +250,7 @@ func read(
 	tenantID string,
 	service path.ServiceType,
 	col Collectable,
-	rer restorer,
+	rer inject.RestoreProducer,
 	errs *fault.Bus,
 ) error {
 	// construct the path of the container
@@ -285,7 +263,7 @@ func read(
 
 	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
 
-	cs, err := rer.RestoreMultipleItems(
+	cs, err := rer.ProduceRestoreCollections(
 		ctx,
 		snapshotID,
 		[]path.Path{p},

@@ -4,33 +4,32 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"runtime/trace"
-	"strings"
 	"sync"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
-	"github.com/alcionai/corso/src/internal/connector/sharepoint"
 	"github.com/alcionai/corso/src/internal/connector/support"
-	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 // ---------------------------------------------------------------------------
 // Graph Connector
 // ---------------------------------------------------------------------------
+
+// must comply with BackupProducer and RestoreConsumer
+var (
+	_ inject.BackupProducer  = &GraphConnector{}
+	_ inject.RestoreConsumer = &GraphConnector{}
+)
 
 // GraphConnector is a struct used to wrap the GraphServiceClient and
 // GraphRequestAdapter from the msgraph-sdk-go. Additional fields are for
@@ -41,8 +40,12 @@ type GraphConnector struct {
 	itemClient *http.Client // configured to handle large item downloads
 
 	tenant      string
-	Sites       map[string]string // webURL -> siteID and siteID -> webURL
 	credentials account.M365Config
+
+	// maps of resource owner ids to names, and names to ids.
+	// not guaranteed to be populated, only here as a post-population
+	// reference for processes that choose to populate the values.
+	IDNameLookup common.IDNameSwapper
 
 	// wg is used to track completion of GC tasks
 	wg     *sync.WaitGroup
@@ -75,10 +78,11 @@ func NewGraphConnector(
 	}
 
 	gc := GraphConnector{
-		itemClient:  itemClient,
-		tenant:      m365.AzureTenantID,
-		wg:          &sync.WaitGroup{},
-		credentials: m365,
+		itemClient:   itemClient,
+		tenant:       m365.AzureTenantID,
+		wg:           &sync.WaitGroup{},
+		credentials:  m365,
+		IDNameLookup: common.IDsNames{},
 	}
 
 	gc.Service, err = gc.createService()
@@ -91,13 +95,64 @@ func NewGraphConnector(
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
-	if r == AllResources || r == Sites {
-		if err = gc.setTenantSites(ctx, errs); err != nil {
-			return nil, clues.Wrap(err, "retrieveing tenant site list")
+	return &gc, nil
+}
+
+// PopulateOwnerIDAndNamesFrom takes the provided owner identifier and produces
+// the owner's name and ID from that value.  Returns an error if the owner is
+// not recognized by the current tenant.
+//
+// The id-name swapper is optional.  Some processes will look up all owners in
+// the tenant before reaching this step.  In that case, the data gets handed
+// down for this func to consume instead of performing further queries.  The
+// maps get stored inside the gc instance for later re-use.
+//
+// TODO: If the maps are nil or empty, this func will perform a lookup on the given
+// owner, and populate each map with that owner's id and name for downstream
+// guarantees about that data being present.  Optional performance enhancement
+// idea: downstream from here, we should _only_ need the given user's id and name,
+// and could store minimal map copies with that info instead of the whole tenant.
+func (gc *GraphConnector) PopulateOwnerIDAndNamesFrom(
+	owner string, // input value, can be either id or name
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	// move this to GC method
+	id, name, err := getOwnerIDAndNameFrom(owner, ins)
+	if err != nil {
+		return "", "", errors.Wrap(err, "resolving resource owner details")
+	}
+
+	gc.IDNameLookup = ins
+
+	if ins == nil || (len(ins.IDs()) == 0 && len(ins.Names()) == 0) {
+		gc.IDNameLookup = common.IDsNames{
+			IDToName: map[string]string{id: name},
+			NameToID: map[string]string{name: id},
 		}
 	}
 
-	return &gc, nil
+	return id, name, nil
+}
+
+func getOwnerIDAndNameFrom(
+	owner string,
+	ins common.IDNameSwapper,
+) (string, string, error) {
+	if ins == nil {
+		return owner, owner, nil
+	}
+
+	if n, ok := ins.NameOf(owner); ok {
+		return owner, n, nil
+	} else if i, ok := ins.IDOf(owner); ok {
+		return i, owner, nil
+	}
+
+	// TODO: look-up user by owner, either id or name,
+	// and populate with maps as a result.  Only
+	// return owner, owner as a very last resort.
+
+	return "", "", clues.New("not found within tenant")
 }
 
 // createService constructor for graphService component
@@ -113,117 +168,8 @@ func (gc *GraphConnector) createService() (*graph.Service, error) {
 	return graph.NewService(adapter), nil
 }
 
-// setTenantSites queries the M365 to identify the sites in the
-// workspace. The sites field is updated during this method
-// iff the returned error is nil.
-func (gc *GraphConnector) setTenantSites(ctx context.Context, errs *fault.Bus) error {
-	gc.Sites = map[string]string{}
-
-	ctx, end := diagnostics.Span(ctx, "gc:setTenantSites")
-	defer end()
-
-	sites, err := getResources(
-		ctx,
-		gc.Service,
-		gc.tenant,
-		sharepoint.GetAllSitesForTenant,
-		models.CreateSiteCollectionResponseFromDiscriminatorValue,
-		identifySite,
-		errs)
-	if err != nil {
-		return err
-	}
-
-	gc.Sites = sites
-
-	return nil
-}
-
-var errKnownSkippableCase = clues.New("case is known and skippable")
-
-const personalSitePath = "sharepoint.com/personal/"
-
-// Transforms an interface{} into a key,value pair representing
-// siteName:siteID.
-func identifySite(item any) (string, string, error) {
-	m, ok := item.(models.Siteable)
-	if !ok {
-		return "", "", clues.New("non-Siteable item").With("item_type", fmt.Sprintf("%T", item))
-	}
-
-	id := ptr.Val(m.GetId())
-	url, ok := ptr.ValOK(m.GetWebUrl())
-
-	if m.GetName() == nil {
-		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if ok && strings.HasSuffix(url, "/search") {
-			// TODO: pii siteID, on this and all following cases
-			return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
-		}
-
-		return "", "", clues.New("site has no name").With("site_id", id)
-	}
-
-	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if ok && strings.Contains(url, personalSitePath) {
-		return "", "", clues.Stack(errKnownSkippableCase).With("site_id", id)
-	}
-
-	return url, id, nil
-}
-
-// GetSiteWebURLs returns the WebURLs of sharepoint sites within the tenant.
-func (gc *GraphConnector) GetSiteWebURLs() []string {
-	return maps.Keys(gc.Sites)
-}
-
-// GetSiteIds returns the canonical site IDs in the tenant
-func (gc *GraphConnector) GetSiteIDs() []string {
-	return maps.Values(gc.Sites)
-}
-
-// UnionSiteIDsAndWebURLs reduces the id and url slices into a single slice of site IDs.
-// WebURLs will run as a path-suffix style matcher.  Callers may provide partial urls, though
-// each element in the url must fully match.  Ex: the webURL value "foo" will match "www.ex.com/foo",
-// but not match "www.ex.com/foobar".
-// The returned IDs are reduced to a set of unique values.
-func (gc *GraphConnector) UnionSiteIDsAndWebURLs(
-	ctx context.Context,
-	ids, urls []string,
-	errs *fault.Bus,
-) ([]string, error) {
-	if len(gc.Sites) == 0 {
-		if err := gc.setTenantSites(ctx, errs); err != nil {
-			return nil, err
-		}
-	}
-
-	idm := map[string]struct{}{}
-
-	for _, id := range ids {
-		idm[id] = struct{}{}
-	}
-
-	match := filters.PathSuffix(urls)
-
-	for url, id := range gc.Sites {
-		if !match.Compare(url) {
-			continue
-		}
-
-		idm[id] = struct{}{}
-	}
-
-	idsl := make([]string, 0, len(idm))
-	for id := range idm {
-		idsl = append(idsl, id)
-	}
-
-	return idsl, nil
-}
-
 // AwaitStatus waits for all gc tasks to complete and then returns status
-func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
+func (gc *GraphConnector) Wait() *data.CollectionStats {
 	defer func() {
 		if gc.region != nil {
 			gc.region.End()
@@ -233,12 +179,18 @@ func (gc *GraphConnector) AwaitStatus() *support.ConnectorOperationStatus {
 	gc.wg.Wait()
 
 	// clean up and reset statefulness
-	status := gc.status
+	dcs := data.CollectionStats{
+		Folders:   gc.status.Folders,
+		Objects:   gc.status.Metrics.Objects,
+		Successes: gc.status.Metrics.Successes,
+		Bytes:     gc.status.Metrics.Bytes,
+		Details:   gc.status.String(),
+	}
 
 	gc.wg = &sync.WaitGroup{}
 	gc.status = support.ConnectorOperationStatus{}
 
-	return &status
+	return &dcs
 }
 
 // UpdateStatus is used by gc initiated tasks to indicate completion
@@ -270,60 +222,4 @@ func (gc *GraphConnector) incrementAwaitingMessages() {
 
 func (gc *GraphConnector) incrementMessagesBy(num int) {
 	gc.wg.Add(num)
-}
-
-// ---------------------------------------------------------------------------
-// Helper Funcs
-// ---------------------------------------------------------------------------
-
-func getResources(
-	ctx context.Context,
-	gs graph.Servicer,
-	tenantID string,
-	query func(context.Context, graph.Servicer) (serialization.Parsable, error),
-	parser func(parseNode serialization.ParseNode) (serialization.Parsable, error),
-	identify func(any) (string, string, error),
-	errs *fault.Bus,
-) (map[string]string, error) {
-	resources := map[string]string{}
-
-	response, err := query(ctx, gs)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "retrieving tenant's resources")
-	}
-
-	iter, err := msgraphgocore.NewPageIterator(response, gs.Adapter(), parser)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	el := errs.Local()
-
-	callbackFunc := func(item any) bool {
-		if el.Failure() != nil {
-			return false
-		}
-
-		k, v, err := identify(item)
-		if err != nil {
-			if !errors.Is(err, errKnownSkippableCase) {
-				el.AddRecoverable(clues.Stack(err).
-					WithClues(ctx).
-					With("query_url", gs.Adapter().GetBaseUrl()))
-			}
-
-			return true
-		}
-
-		resources[k] = v
-		resources[v] = k
-
-		return true
-	}
-
-	if err := iter.Iterate(ctx, callbackFunc); err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resources, el.Failure()
 }

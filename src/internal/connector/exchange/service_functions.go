@@ -95,7 +95,7 @@ func includeContainer(
 	qp graph.QueryParams,
 	c graph.CachedContainer,
 	scope selectors.ExchangeScope,
-) (path.Path, path.Path, bool) {
+) (path.Path, *path.Builder, bool) {
 	var (
 		directory string
 		locPath   path.Path
@@ -154,5 +154,5 @@ func includeContainer(
 		return nil, nil, false
 	}
 
-	return pathRes, locPath, ok
+	return pathRes, loc, ok
 }

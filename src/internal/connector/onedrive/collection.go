@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
+	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -132,7 +133,6 @@ type itemMetaReaderFunc func(
 	service graph.Servicer,
 	driveID string,
 	item models.DriveItemable,
-	fetchPermissions bool,
 ) (io.ReadCloser, int, error)
 
 // NewCollection creates a Collection
@@ -167,11 +167,11 @@ func NewCollection(
 	// Allows tests to set a mock populator
 	switch source {
 	case SharePointSource:
-		c.itemGetter = getDriveItem
+		c.itemGetter = api.GetDriveItem
 		c.itemReader = sharePointItemReader
 		c.itemMetaReader = sharePointItemMetaReader
 	default:
-		c.itemGetter = getDriveItem
+		c.itemGetter = api.GetDriveItem
 		c.itemReader = oneDriveItemReader
 		c.itemMetaReader = oneDriveItemMetaReader
 	}
@@ -419,7 +419,8 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	folderProgress, colCloser := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		observe.PII(queuedPath),
+		// TODO(keepers): conceal compliance in path, drop Hide()
+		clues.Hide(queuedPath),
 		int64(len(oc.driveItems)))
 	defer colCloser()
 	defer close(folderProgress)
@@ -480,8 +481,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 				ctx,
 				oc.service,
 				oc.driveID,
-				item,
-				oc.ctrl.ToggleFeatures.EnablePermissionsBackup)
+				item)
 
 			if err != nil {
 				el.AddRecoverable(clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
@@ -517,7 +517,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 						ctx,
 						itemData,
 						observe.ItemBackupMsg,
-						observe.PII(itemID+dataSuffix),
+						clues.Hide(itemID+dataSuffix),
 						itemSize)
 					go closer()
 
@@ -533,15 +533,20 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 
 			metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 				progReader, closer := observe.ItemProgress(
-					ctx, itemMeta, observe.ItemBackupMsg,
-					observe.PII(metaFileName+metaSuffix), int64(itemMetaSize))
+					ctx,
+					itemMeta,
+					observe.ItemBackupMsg,
+					clues.Hide(metaFileName+metaSuffix),
+					int64(itemMetaSize))
 				go closer()
 				return progReader, nil
 			})
 
 			oc.data <- &MetadataItem{
-				id:      metaFileName + metaSuffix,
-				data:    metaReader,
+				id:   metaFileName + metaSuffix,
+				data: metaReader,
+				// Metadata file should always use the latest time as
+				// permissions change does not update mod time.
 				modTime: time.Now(),
 			}
 

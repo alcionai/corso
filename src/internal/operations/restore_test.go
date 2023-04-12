@@ -16,12 +16,12 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/mockconnector"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
-	"github.com/alcionai/corso/src/internal/connector/support"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -50,7 +50,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw   = &kopia.Wrapper{}
 		sw   = &store.Wrapper{}
-		gc   = &connector.GraphConnector{}
+		gc   = &mockconnector.GraphConnector{}
 		acct = account.Account{}
 		now  = time.Now()
 		dest = tester.DefaultTestRestoreDestination()
@@ -75,11 +75,9 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 						Collection: &mockconnector.MockExchangeDataCollection{},
 					},
 				},
-				gc: &support.ConnectorOperationStatus{
-					Metrics: support.CollectionMetrics{
-						Objects:   1,
-						Successes: 1,
-					},
+				gc: &data.CollectionStats{
+					Objects:   1,
+					Successes: 1,
 				},
 			},
 		},
@@ -89,7 +87,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
-				gc:        &support.ConnectorOperationStatus{},
+				gc:        &data.CollectionStats{},
 			},
 		},
 		{
@@ -98,7 +96,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 			stats: restoreStats{
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.RestoreCollection{},
-				gc:        &support.ConnectorOperationStatus{},
+				gc:        &data.CollectionStats{},
 			},
 		},
 	}
@@ -126,7 +124,7 @@ func (suite *RestoreOpSuite) TestRestoreOperation_PersistResults() {
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, len(test.stats.cs), op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.gc.Metrics.Successes, op.Results.ItemsWritten, "items written")
+			assert.Equal(t, test.stats.gc.Successes, op.Results.ItemsWritten, "items written")
 			assert.Equal(t, test.stats.bytesRead.NumBytes, op.Results.BytesRead, "resource owners")
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
@@ -217,7 +215,7 @@ func (suite *RestoreOpIntegrationSuite) TearDownSuite() {
 func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	kw := &kopia.Wrapper{}
 	sw := &store.Wrapper{}
-	gc := &connector.GraphConnector{}
+	gc := &mockconnector.GraphConnector{}
 	acct := tester.NewM365Account(suite.T())
 	dest := tester.DefaultTestRestoreDestination()
 
@@ -226,7 +224,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		opts     control.Options
 		kw       *kopia.Wrapper
 		sw       *store.Wrapper
-		gc       *connector.GraphConnector
+		rc       inject.RestoreConsumer
 		acct     account.Account
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
@@ -234,7 +232,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		{"good", control.Options{}, kw, sw, gc, acct, nil, assert.NoError},
 		{"missing kopia", control.Options{}, nil, sw, gc, acct, nil, assert.Error},
 		{"missing modelstore", control.Options{}, kw, nil, gc, acct, nil, assert.Error},
-		{"missing graphConnector", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
+		{"missing restore consumer", control.Options{}, kw, sw, nil, acct, nil, assert.Error},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -246,7 +244,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 				test.opts,
 				test.kw,
 				test.sw,
-				test.gc,
+				test.rc,
 				test.acct,
 				"backup-id",
 				selectors.Selector{DiscreteOwner: "test"},
@@ -280,12 +278,17 @@ func setupExchangeBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(owner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
 	bsel.DiscreteOwner = owner
 	bsel.Include(
 		bsel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch()),
 		bsel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch()),
 		bsel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch()),
 	)
+
+	bsel.SetDiscreteOwnerIDName(id, name)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -295,7 +298,7 @@ func setupExchangeBackup(
 		gc,
 		acct,
 		bsel.Selector,
-		bsel.Selector.DiscreteOwner,
+		bsel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -337,12 +340,17 @@ func setupSharePointBackup(
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	id, name, err := gc.PopulateOwnerIDAndNamesFrom(owner, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
 	spsel.DiscreteOwner = owner
 	// assume a folder name "test" exists in the drive.
 	// this is brittle, and requires us to backfill anytime
 	// the site under test changes, but also prevents explosive
 	// growth from re-backup/restore of restored files.
 	spsel.Include(spsel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+
+	spsel.SetDiscreteOwnerIDName(id, name)
 
 	bo, err := NewBackupOperation(
 		ctx,
@@ -352,7 +360,7 @@ func setupSharePointBackup(
 		gc,
 		acct,
 		spsel.Selector,
-		spsel.Selector.DiscreteOwner,
+		spsel.Selector,
 		evmock.NewBus())
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -439,7 +447,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run() {
 
 			ro, err := NewRestoreOperation(
 				ctx,
-				control.Options{FailFast: true},
+				control.Options{FailureHandling: control.FailFast},
 				suite.kw,
 				suite.sw,
 				bup.gc,

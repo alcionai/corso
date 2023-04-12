@@ -314,7 +314,7 @@ func RestoreExchangeDataCollections(
 
 	if len(dcs) > 0 {
 		userID = dcs[0].FullPath().ResourceOwner()
-		ctx = clues.Add(ctx, "resource_owner", userID) // TODO: pii
+		ctx = clues.Add(ctx, "resource_owner", clues.Hide(userID))
 	}
 
 	for _, dc := range dcs {
@@ -390,7 +390,7 @@ func restoreCollection(
 	colProgress, closer := observe.CollectionProgress(
 		ctx,
 		category.String(),
-		observe.PII(directory.Folder(false)))
+		clues.Hide(directory.Folder(false)))
 	defer closer()
 	defer close(colProgress)
 
