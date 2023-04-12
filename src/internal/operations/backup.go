@@ -611,7 +611,7 @@ func mergeDetails(
 				continue
 			}
 
-			mctx = clues.Add(mctx, "repo_ref", entry.RepoRef)
+			mctx = clues.Add(mctx, "repo_ref", rr)
 
 			newPath, newLoc, locUpdated, err := getNewPathRefs(
 				dataFromBackup,
