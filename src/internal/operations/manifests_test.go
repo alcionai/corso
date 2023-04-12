@@ -933,9 +933,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					incomplete = "ir"
 				}
 
-				mn := makeMan(m.id, incomplete, mainReasons)
-				t.Logf("adding manifest (%p)\n%v\n%v\n\n", mn, *mn.Manifest, mn.Reasons)
-
 				mans = append(mans, makeMan(m.id, incomplete, mainReasons))
 			}
 
@@ -944,9 +941,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 				if m.incomplete {
 					incomplete = "ir"
 				}
-
-				mn := makeMan(m.id, incomplete, fbReasons)
-				t.Logf("adding manifest (%p)\n%v\n%v\n\n", mn, *mn.Manifest, mn.Reasons)
 
 				mans = append(mans, makeMan(m.id, incomplete, fbReasons))
 			}
