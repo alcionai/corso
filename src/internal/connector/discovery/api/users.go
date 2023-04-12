@@ -150,43 +150,22 @@ func (c Users) GetByID(ctx context.Context, userID string) (models.Userable, err
 	return resp, err
 }
 
-func (c Users) GetMailSetting(ctx context.Context, userID string) (models.MailboxSettingsable, error) {
+func (c Users) GetUserPurpose(ctx context.Context, userID string) (string, error) {
 	var (
-		resp models.Userable
-		err  error
+		err     error
+		rawURL  = "https://graph.microsoft.com/v1.0/users/" + userID + "/mailboxSettings"
+		apadtor = c.stable.Adapter()
+		builder = users.NewUserItemRequestBuilder(rawURL, apadtor)
 	)
 
-	resp, err = c.stable.Client().UsersById(userID).Get(ctx, nil)
+	newItem, err := builder.Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user")
+		return "", graph.Wrap(ctx, err, "creating item")
 	}
 
-	userResponse := resp.GetMailboxSettings()
+	userPurpose := *(newItem.GetAdditionalData()["userPurpose"].(*string))
 
-	//TODO: work on this
-	// rawURL := "https://graph.microsoft.com/v1.0/users/" + userID + "/mailboxSettings" //fmt.Sprintf(itemChildrenRawURLFmt, driveID, parentFolderID)
-	// apadtor := c.stable.Adapter()
-	// // builder := users.NewDeltaRequestBuilder(rawURL, apadtor)
-	// // users.ItemSettingsRequestBuilder(rawURL, apadtor)
-	// builder := users.NewUserItemRequestBuilder(rawURL, apadtor)
-
-	// // builder := users.NewCollectionsRequestBuilder(rawURL, apadtor)
-	// newItem, err := builder.Get(ctx, nil)
-	// if err != nil {
-	// 	fmt.Println("Error: ", err)
-	// 	return nil, graph.Wrap(ctx, err, "creating item")
-	// }
-	// fmt.Println("NewItem: ", newItem.GetAdditionalData())
-	// data := newItem.GetMailboxSettings()
-	// // data := newItem.GetAdditionalData()
-	// // address := data["userPurpose"].(*string)
-	// // address1 := data["userPurpose"].(*models.MailboxSettingsable)
-	// fmt.Println("*******newItem: ", data) // ["userPurpose"], &address, address, address1
-
-	// // userable := newItem.GetValue()
-	// // fmt.Println("*******newItem userable: ", userable)
-
-	return userResponse, nil
+	return userPurpose, nil
 }
 
 func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {

@@ -71,13 +71,13 @@ func UsersDetails(
 	acct account.Account,
 	userID string,
 	errs *fault.Bus,
-) (models.MailboxSettingsable, error) {
+) (string, error) {
 	client, err := apiClient(ctx, acct)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return client.Users().GetMailSetting(ctx, userID)
+	return client.Users().GetUserPurpose(ctx, userID)
 }
 
 // User fetches a single user's data.

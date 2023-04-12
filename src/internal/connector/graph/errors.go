@@ -36,6 +36,7 @@ const (
 	errCodeResourceNotFound            = "ResourceNotFound"
 	errCodeRequestResourceNotFound     = "Request_ResourceNotFound"
 	errCodeMailboxNotEnabledForRESTAPI = "MailboxNotEnabledForRESTAPI"
+	errCodeErrorAccessDenied           = "ErrorAccessDenied"
 )
 
 const (
@@ -96,6 +97,10 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 
 func IsErrUserNotFound(err error) bool {
 	return hasErrorCode(err, errCodeRequestResourceNotFound)
+}
+
+func IsErrAccessDenied(err error) bool {
+	return hasErrorCode(err, errCodeErrorAccessDenied)
 }
 
 func IsErrTimeout(err error) bool {

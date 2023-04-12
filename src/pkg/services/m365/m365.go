@@ -10,15 +10,17 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
+	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 type User struct {
 	PrincipalName string
 	ID            string
 	Name          string
-	userPurpose   string
+	UserPurpose   string
 }
 
 // UsersCompat returns a list of users in the specified M365 tenant.
@@ -51,13 +53,16 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "parsing userable")
 		}
 
-		mailBoxSetting, err := discovery.UsersDetails(ctx, acct, pu.ID, errs)
+		pu.UserPurpose, err = discovery.UsersDetails(ctx, acct, pu.ID, errs)
 		if err != nil {
-			return nil, clues.Wrap(err, "parsing userable")
+			// TODO: handle the access denied scenario
+			if graph.IsErrAccessDenied(err) {
+				// // clues.Wrap(err, fmt.Sprintf("access denied for %s", pu.ID))
+				// errList = append(errList, fmt.Errorf("access denied for %s", pu.ID))
+				logger.Ctx(ctx).Infow("access denied for %s", pu.ID)
+			}
 		}
 
-		userPurpose := mailBoxSetting.GetUserPurpose()
-		pu.userPurpose = userPurpose.String()
 		ret = append(ret, pu)
 	}
 
