@@ -29,25 +29,51 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 		use         string
 		expectUse   string
 		expectShort string
+		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create onedrive", createCommand, expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
-			oneDriveCreateCmd().Short, createOneDriveCmd,
+			"create onedrive",
+			createCommand,
+			expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
+			oneDriveCreateCmd().Short,
+			[]string{"user", "disable-incrementals"},
+			createOneDriveCmd,
 		},
 		{
-			"list onedrive", listCommand, expectUse,
-			oneDriveListCmd().Short, listOneDriveCmd,
+			"list onedrive",
+			listCommand,
+			expectUse,
+			oneDriveListCmd().Short,
+			[]string{"backup", "failed-items", "skipped-items", "recovered-errors"},
+			listOneDriveCmd,
 		},
 		{
-			"details onedrive", detailsCommand, expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
-			oneDriveDetailsCmd().Short, detailsOneDriveCmd,
+			"details onedrive",
+			detailsCommand,
+			expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
+			oneDriveDetailsCmd().Short,
+			[]string{
+				"backup",
+				"folder",
+				"file",
+				"file-created-after",
+				"file-created-before",
+				"file-modified-after",
+				"file-modified-before",
+			},
+			detailsOneDriveCmd,
 		},
 		{
-			"delete onedrive", deleteCommand, expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
-			oneDriveDeleteCmd().Short, deleteOneDriveCmd,
+			"delete onedrive",
+			deleteCommand,
+			expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
+			oneDriveDeleteCmd().Short,
+			[]string{"backup"},
+			deleteOneDriveCmd,
 		},
 	}
+
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
@@ -64,6 +90,10 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+
+			for _, f := range test.flags {
+				assert.NotNil(t, c.Flag(f), f+" flag")
+			}
 		})
 	}
 }
