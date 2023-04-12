@@ -183,6 +183,7 @@ func (c Mail) GetItem(
 	}
 
 	atts := []models.Attachmentable{}
+
 	for _, a := range attachments.GetValue() {
 		options := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
 			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
@@ -206,6 +207,7 @@ func (c Mail) GetItem(
 	}
 
 	mail.SetAttachments(atts)
+
 	return mail, MailInfo(mail), nil
 }
 

@@ -12,7 +12,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/clues"
 	backoff "github.com/cenkalti/backoff/v4"
-	"github.com/h2non/gock"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kauth "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -106,9 +105,6 @@ type clientConfig struct {
 	// The minimum delay in seconds between retries
 	minDelay           time.Duration
 	overrideRetryCount bool
-
-	// mockable adds option for gock to intercept requests
-	mockable bool
 }
 
 type Option func(*clientConfig)
@@ -146,12 +142,6 @@ func (c *clientConfig) apply(hc *http.Client) {
 		// https://github.com/microsoft/kiota-http-go/pull/71
 		hc.Timeout = 48 * time.Hour
 	}
-
-	if c.mockable {
-		// This makes sure that we are able to intercept any requests via
-		// gock. Only necessary for testing.
-		gock.InterceptClient(hc)
-	}
 }
 
 // NoTimeout sets the httpClient.Timeout to 0 (unlimited).
@@ -177,12 +167,6 @@ func MinimumBackoff(dur time.Duration) Option {
 	}
 }
 
-func Mockable() Option {
-	return func(c *clientConfig) {
-		c.mockable = true
-	}
-}
-
 // CreateAdapter uses provided credentials to log into M365 using Kiota Azure Library
 // with Azure identity package. An adapter object is a necessary to component
 // to create  *msgraphsdk.GraphServiceClient
@@ -190,6 +174,20 @@ func CreateAdapter(
 	tenant, client, secret string,
 	opts ...Option,
 ) (*msgraphsdkgo.GraphRequestAdapter, error) {
+	auth, err := GetAuth(tenant, client, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := HTTPClient(opts...)
+
+	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+		auth,
+		nil, nil,
+		httpClient)
+}
+
+func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityAuthenticationProvider, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
@@ -204,12 +202,7 @@ func CreateAdapter(
 		return nil, clues.Wrap(err, "creating azure authentication")
 	}
 
-	httpClient := HTTPClient(opts...)
-
-	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth,
-		nil, nil,
-		httpClient)
+	return auth, nil
 }
 
 // HTTPClient creates the httpClient with middlewares and timeout configured
