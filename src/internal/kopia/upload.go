@@ -195,9 +195,15 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		// TODO(ashmrtn): Add a recoverable error to the bus?
-		//nolint:errcheck
-		cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath)
+		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath)
+		if err != nil {
+			cp.errs.AddRecoverable(clues.Wrap(err, "adding item to merge list").
+				With(
+					"service", d.repoPath.Service().String(),
+					"category", d.repoPath.Category().String(),
+				).
+				Label(fault.LabelForceNoBackupCreation))
+		}
 
 		return
 	}
