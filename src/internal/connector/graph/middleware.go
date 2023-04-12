@@ -29,7 +29,7 @@ type LoggingMiddleware struct{}
 
 // well-known path names used by graph api calls
 // used to un-hide path elements in a pii.SafeURL
-var safePathParams = pii.MapWithPlurals(
+var SafeURLPathParams = pii.MapWithPlurals(
 	//nolint:misspell
 	"alltime",
 	"analytics",
@@ -75,7 +75,7 @@ var safePathParams = pii.MapWithPlurals(
 //	well-known safe query parameters used by graph api calls
 //
 // used to un-hide query params in a pii.SafeURL
-var safeQueryParams = map[string]struct{}{
+var SafeURLQueryParams = map[string]struct{}{
 	"deltatoken":    {},
 	"startdatetime": {},
 	"enddatetime":   {},
@@ -89,8 +89,8 @@ var safeQueryParams = map[string]struct{}{
 func LoggableURL(url string) pii.SafeURL {
 	return pii.SafeURL{
 		URL:           url,
-		SafePathElems: SafePathParams,
-		SafeQueryKeys: SafeQueryParams,
+		SafePathElems: SafeURLPathParams,
+		SafeQueryKeys: SafeURLQueryParams,
 	}
 }
 
