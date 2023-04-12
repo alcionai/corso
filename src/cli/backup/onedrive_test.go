@@ -13,15 +13,15 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type OneDriveSuite struct {
+type OneDriveUnitSuite struct {
 	tester.Suite
 }
 
-func TestOneDriveSuite(t *testing.T) {
-	suite.Run(t, &OneDriveSuite{Suite: tester.NewUnitSuite(t)})
+func TestOneDriveUnitSuite(t *testing.T) {
+	suite.Run(t, &OneDriveUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OneDriveSuite) TestAddOneDriveCommands() {
+func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 	expectUse := oneDriveServiceCommand
 
 	table := []struct {
@@ -68,7 +68,7 @@ func (suite *OneDriveSuite) TestAddOneDriveCommands() {
 	}
 }
 
-func (suite *OneDriveSuite) TestValidateOneDriveBackupCreateFlags() {
+func (suite *OneDriveUnitSuite) TestValidateOneDriveBackupCreateFlags() {
 	table := []struct {
 		name   string
 		user   []string
@@ -92,7 +92,7 @@ func (suite *OneDriveSuite) TestValidateOneDriveBackupCreateFlags() {
 	}
 }
 
-func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
+func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -112,7 +112,7 @@ func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectors() {
 	}
 }
 
-func (suite *OneDriveSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
+func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
