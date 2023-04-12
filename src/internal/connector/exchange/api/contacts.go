@@ -47,7 +47,7 @@ func (c Contacts) CreateContactFolder(
 	temp := folderName
 	requestBody.SetDisplayName(&temp)
 
-	mdl, err := c.stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
+	mdl, err := c.Stable.Client().UsersById(user).ContactFolders().Post(ctx, requestBody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating contact folder")
 	}
@@ -62,7 +62,7 @@ func (c Contacts) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := newService(c.Credentials)
+	srv, err := NewService(c.Credentials)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -81,7 +81,7 @@ func (c Contacts) GetItem(
 	user, itemID string,
 	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
-	cont, err := c.stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
+	cont, err := c.Stable.Client().UsersById(user).ContactsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -98,7 +98,7 @@ func (c Contacts) GetContainerByID(
 		return nil, graph.Wrap(ctx, err, "setting contact folder options")
 	}
 
-	resp, err := c.stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
+	resp, err := c.Stable.Client().UsersById(userID).ContactFoldersById(dirID).Get(ctx, ofcf)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}

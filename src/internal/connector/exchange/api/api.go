@@ -54,20 +54,20 @@ type GraphRetrievalFunc func(
 type Client struct {
 	Credentials account.M365Config
 
-	// The stable service is re-usable for any non-paged request.
+	// The Stable service is re-usable for any non-paged request.
 	// This allows us to maintain performance across async requests.
-	stable graph.Servicer
+	Stable graph.Servicer
 
-	// The largeItem graph servicer is configured specifically for
+	// The LargeItem graph servicer is configured specifically for
 	// downloading large items.  Specifically for use when handling
 	// attachments, and for no other use.
-	largeItem graph.Servicer
+	LargeItem graph.Servicer
 }
 
 // NewClient produces a new exchange api client.  Must be used in
 // place of creating an ad-hoc client struct.
 func NewClient(creds account.M365Config) (Client, error) {
-	s, err := newService(creds)
+	s, err := NewService(creds)
 	if err != nil {
 		return Client{}, err
 	}
@@ -80,32 +80,15 @@ func NewClient(creds account.M365Config) (Client, error) {
 	return Client{creds, s, li}, nil
 }
 
-// NewMockableClient produces a new exchange api client that can be
-// mocked using gock.  Must be used in place of creating an ad-hoc
-// client struct.
-func NewMockableClient(creds account.M365Config) (Client, error) {
-	s, err := newService(creds, graph.Mockable())
-	if err != nil {
-		return Client{}, err
-	}
-
-	li, err := newService(creds, graph.NoTimeout(), graph.Mockable())
-	if err != nil {
-		return Client{}, err
-	}
-
-	return Client{creds, s, li}, nil
-}
-
 // service generates a new service.  Used for paged and other long-running
 // requests instead of the client's stable service, so that in-flight state
 // within the adapter doesn't get clobbered
 func (c Client) service() (*graph.Service, error) {
-	s, err := newService(c.Credentials)
+	s, err := NewService(c.Credentials)
 	return s, err
 }
 
-func newService(creds account.M365Config, opts ...graph.Option) (*graph.Service, error) {
+func NewService(creds account.M365Config, opts ...graph.Option) (*graph.Service, error) {
 	a, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
@@ -119,7 +102,7 @@ func newService(creds account.M365Config, opts ...graph.Option) (*graph.Service,
 }
 
 func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
-	a, err := newService(creds, graph.NoTimeout())
+	a, err := NewService(creds, graph.NoTimeout())
 	if err != nil {
 		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
 	}

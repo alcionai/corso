@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"encoding/json"
@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api"
+	"github.com/alcionai/corso/src/internal/connector/exchange/api/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -149,7 +152,7 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
-			assert.Equal(suite.T(), expected, MailInfo(msg))
+			assert.Equal(suite.T(), expected, api.MailInfo(msg))
 		})
 	}
 }
@@ -157,7 +160,7 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 type MailAPIE2ESuite struct {
 	tester.Suite
 	credentials account.M365Config
-	ac          Client
+	ac          api.Client
 	user        string
 }
 
@@ -180,7 +183,7 @@ func (suite *MailAPIE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.credentials = m365
-	suite.ac, err = NewMockableClient(m365)
+	suite.ac, err = mock.NewMockableClient(m365)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.user = tester.M365UserID(suite.T())
@@ -213,7 +216,7 @@ func (suite *MailAPIE2ESuite) TestHugeAttachmentListDownload() {
 		expect          assert.ErrorAssertionFunc
 	}{
 		{
-			name: "simple fetch",
+			name: "no attachments",
 			setupf: func() {
 				mitem := models.NewMessage()
 				mitem.SetId(&mid)
@@ -228,10 +231,9 @@ func (suite *MailAPIE2ESuite) TestHugeAttachmentListDownload() {
 		{
 			name: "fetch with attachment",
 			setupf: func() {
-				truthy := true
 				mitem := models.NewMessage()
 				mitem.SetId(&mid)
-				mitem.SetHasAttachments(&truthy)
+				mitem.SetHasAttachments(ptr.To(true))
 
 				gock.New("https://graph.microsoft.com").
 					Get("/v1.0/users/user/messages/" + mid).
