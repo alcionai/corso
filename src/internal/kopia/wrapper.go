@@ -124,13 +124,6 @@ type IncrementalBase struct {
 	SubtreePaths []*path.Builder
 }
 
-// PrevRefs hold the repoRef and locationRef from the items
-// that need to be merged in from prior snapshots.
-type PrevRefs struct {
-	Repo     path.Path
-	Location *path.Builder
-}
-
 // ConsumeBackupCollections takes a set of collections and creates a kopia snapshot
 // with the data that they contain. previousSnapshots is used for incremental
 // backups and should represent the base snapshot from which metadata is sourced
@@ -145,22 +138,22 @@ func (w Wrapper) ConsumeBackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
-) (*BackupStats, *details.Builder, map[string]PrevRefs, *LocationPrefixMatcher, error) {
+) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
-		return nil, nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
+		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
 	}
 
 	ctx, end := diagnostics.Span(ctx, "kopia:consumeBackupCollections")
 	defer end()
 
 	if len(collections) == 0 && len(globalExcludeSet) == 0 {
-		return &BackupStats{}, &details.Builder{}, nil, nil, nil
+		return &BackupStats{}, &details.Builder{}, nil, nil
 	}
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
-		toMerge: map[string]PrevRefs{},
+		toMerge: newMergeDetails(),
 		errs:    errs,
 	}
 
@@ -172,7 +165,7 @@ func (w Wrapper) ConsumeBackupCollections(
 		base = previousSnapshots
 	}
 
-	dirTree, updatedLocations, err := inflateDirTree(
+	dirTree, err := inflateDirTree(
 		ctx,
 		w.c,
 		base,
@@ -180,7 +173,7 @@ func (w Wrapper) ConsumeBackupCollections(
 		globalExcludeSet,
 		progress)
 	if err != nil {
-		return nil, nil, nil, nil, clues.Wrap(err, "building kopia directories")
+		return nil, nil, nil, clues.Wrap(err, "building kopia directories")
 	}
 
 	s, err := w.makeSnapshotWithRoot(
@@ -190,10 +183,10 @@ func (w Wrapper) ConsumeBackupCollections(
 		tags,
 		progress)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return s, progress.deets, progress.toMerge, updatedLocations, progress.errs.Failure()
+	return s, progress.deets, progress.toMerge, progress.errs.Failure()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(

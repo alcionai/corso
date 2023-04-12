@@ -276,7 +276,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			stats, deets, _, _, err := suite.w.ConsumeBackupCollections(
+			stats, deets, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -423,7 +423,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			t := suite.T()
 			collections := test.cols()
 
-			stats, deets, prevShortRefs, _, err := suite.w.ConsumeBackupCollections(
+			stats, deets, prevShortRefs, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				prevSnaps,
 				collections,
@@ -459,13 +459,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				assert.False(t, onedrive.IsMetaFile(entry.RepoRef), "metadata entry in details")
 			}
 
-			assert.Len(t, prevShortRefs, 0)
-			for _, prevRef := range prevShortRefs {
-				assert.False(
-					t,
-					onedrive.IsMetaFile(prevRef.Repo.String()),
-					"metadata entry in base details")
-			}
+			// Shouldn't have any items to merge because the cached files are metadata
+			// files.
+			assert.Equal(t, 0, prevShortRefs.ItemsToMerge())
 
 			checkSnapshotTags(
 				t,
@@ -525,7 +521,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	fp2, err := suite.storePath2.Append(dc2.Names[0], true)
 	require.NoError(t, err, clues.ToCore(err))
 
-	stats, _, _, _, err := w.ConsumeBackupCollections(
+	stats, _, _, err := w.ConsumeBackupCollections(
 		ctx,
 		nil,
 		[]data.BackupCollection{dc1, dc2},
@@ -644,7 +640,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	stats, deets, _, _, err := suite.w.ConsumeBackupCollections(
+	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -706,7 +702,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 			ctx, flush := tester.NewContext()
 			defer flush()
 
-			s, d, _, _, err := suite.w.ConsumeBackupCollections(
+			s, d, _, err := suite.w.ConsumeBackupCollections(
 				ctx,
 				nil,
 				test.collections,
@@ -866,7 +862,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		tags[k] = ""
 	}
 
-	stats, deets, _, _, err := suite.w.ConsumeBackupCollections(
+	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		nil,
 		collections,
@@ -1018,7 +1014,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				}
 			}
 
-			stats, _, _, _, err := suite.w.ConsumeBackupCollections(
+			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				[]IncrementalBase{
 					{
