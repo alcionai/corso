@@ -146,8 +146,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, pp := range before {
-			if isSame(cp.Roles, pp.Roles) &&
-				cp.EntityID == pp.EntityID {
+			if pp.ID == cp.ID {
 				found = true
 				break
 			}
@@ -162,8 +161,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, cp := range after {
-			if isSame(cp.Roles, pp.Roles) &&
-				cp.EntityID == pp.EntityID {
+			if pp.ID == cp.ID {
 				found = true
 				break
 			}
@@ -218,9 +216,9 @@ func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadat
 	}
 }
 
-// updatePermissions takes in the set of permission to be added and
+// UpdatePermissions takes in the set of permission to be added and
 // removed from an item to bring it to the desired state.
-func updatePermissions(
+func UpdatePermissions(
 	ctx context.Context,
 	creds account.M365Config,
 	service graph.Servicer,
@@ -334,7 +332,7 @@ func RestorePermissions(
 
 	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions)
 
-	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
+	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }
 
 // SetPermissions is similar to RestorePermissions, but fetches the
@@ -361,6 +359,7 @@ func SetPermissions(
 		return graph.Wrap(ctx, err, "fetching current permissions")
 	}
 
+	// TODO(meain): Diff permissions should be done via ids
 	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
 
 	// Compute permissions id mappings as if we get from and backup metadata
@@ -369,5 +368,5 @@ func SetPermissions(
 		permissionIDMappings[perm.ID] = perm.ID
 	}
 
-	return updatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
+	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }
