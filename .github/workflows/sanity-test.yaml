@@ -51,6 +51,8 @@ jobs:
 
       - run: mkdir test_results
 
+      - run: mkdir testlog
+
       # run the tests
       - name: Version Test
         run: |
