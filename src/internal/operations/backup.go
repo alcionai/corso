@@ -546,7 +546,7 @@ func getNewPathRefs(
 	}
 
 	// We didn't have an exact entry, so retry with a location.
-	locRef, err := entry.UniqueLocation(backupVersion)
+	locRef, err := entry.ToLocationIDer(backupVersion)
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "getting previous item location")
 	}
@@ -559,10 +559,10 @@ func getNewPathRefs(
 
 	// This entry wasn't moved.
 	if oldPrefix == nil || newPrefix == nil {
-		return newPath, locRef.DetailsLocation(), false, nil
+		return newPath, locRef.InDetails(), false, nil
 	}
 
-	newLoc := locRef.DetailsLocation()
+	newLoc := locRef.InDetails()
 	newLoc.UpdateParent(oldPrefix, newPrefix)
 
 	return newPath, newLoc, newLoc.String() != entry.LocationRef, nil

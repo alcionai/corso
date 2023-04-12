@@ -112,7 +112,7 @@ type LocationPather interface {
 // *LocationPather interface with current and previous location functions.
 type PreviousLocationPather interface {
 	LocationPather
-	PreviousLocationPath() *path.Builder
+	PreviousLocationPath() details.LocationIDer
 }
 
 // StreamInfo is used to provide service specific

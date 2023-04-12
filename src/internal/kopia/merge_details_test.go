@@ -16,11 +16,11 @@ type fakeUniqueLocation struct {
 	pb *path.Builder
 }
 
-func (ul fakeUniqueLocation) UniqueLocation() *path.Builder {
+func (ul fakeUniqueLocation) ID() *path.Builder {
 	return ul.pb
 }
 
-func (ul fakeUniqueLocation) DetailsLocation() *path.Builder {
+func (ul fakeUniqueLocation) InDetails() *path.Builder {
 	return ul.pb
 }
 

@@ -209,7 +209,7 @@ func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, oldPrefix, newLoc
 
 func (m *mockDetailsMergeInfoer) GetNewPathRefs(
 	oldRef *path.Builder,
-	oldLoc details.UniqueLocationer,
+	oldLoc details.LocationIDer,
 ) (path.Path, *path.Builder, *path.Builder) {
 	locs := m.locs[oldRef.ShortRef()]
 	return m.repoRefs[oldRef.ShortRef()], locs.old, locs.newL
