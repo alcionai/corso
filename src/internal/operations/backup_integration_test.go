@@ -1264,6 +1264,13 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 	var (
 		newFile     models.DriveItemable
 		newFileName = "new_file.txt"
+
+		permissionIDMappings = map[string]string{}
+		writePerm            = onedrive.UserPermission{
+			ID:       "perm-id",
+			Roles:    []string{"write"},
+			EntityID: suite.user,
+		}
 	)
 
 	// Although established as a table, these tests are not isolated from each other.
@@ -1307,21 +1314,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.UpdatePermissions(
 					ctx,
 					creds,
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					onedrive.Metadata{
-						SharingMode: onedrive.SharingModeCustom,
-						Permissions: []onedrive.UserPermission{
-							{
-								Roles:    []string{"write"},
-								EntityID: suite.user,
-							},
-						},
-					})
+					[]onedrive.UserPermission{writePerm},
+					[]onedrive.UserPermission{},
+					permissionIDMappings,
+				)
 				require.NoErrorf(t, err, "add permission to file %v", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
@@ -1333,16 +1335,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.UpdatePermissions(
 					ctx,
 					creds,
 					gc.Service,
 					driveID,
 					*newFile.GetId(),
-					onedrive.Metadata{
-						SharingMode: onedrive.SharingModeCustom,
-						Permissions: []onedrive.UserPermission{},
-					})
+					[]onedrive.UserPermission{},
+					[]onedrive.UserPermission{writePerm},
+					permissionIDMappings,
+				)
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
 			},
 			itemsRead:    1, // .data file for newitem
@@ -1355,21 +1357,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.UpdatePermissions(
 					ctx,
 					creds,
 					gc.Service,
 					driveID,
 					targetContainer,
-					onedrive.Metadata{
-						SharingMode: onedrive.SharingModeCustom,
-						Permissions: []onedrive.UserPermission{
-							{
-								Roles:    []string{"write"},
-								EntityID: suite.user,
-							},
-						},
-					})
+					[]onedrive.UserPermission{writePerm},
+					[]onedrive.UserPermission{},
+					permissionIDMappings,
+				)
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
 			},
 			itemsRead:    0,
@@ -1382,16 +1379,16 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				driveItem := models.NewDriveItem()
 				driveItem.SetName(&newFileName)
 				driveItem.SetFile(models.NewFile())
-				err = onedrive.RestorePermissions(
+				err = onedrive.UpdatePermissions(
 					ctx,
 					creds,
 					gc.Service,
 					driveID,
 					targetContainer,
-					onedrive.Metadata{
-						SharingMode: onedrive.SharingModeCustom,
-						Permissions: []onedrive.UserPermission{},
-					})
+					[]onedrive.UserPermission{},
+					[]onedrive.UserPermission{writePerm},
+					permissionIDMappings,
+				)
 				require.NoError(t, err, "add permission to file", clues.ToCore(err))
 			},
 			itemsRead:    0,
