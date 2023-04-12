@@ -54,12 +54,12 @@ func LogFaultErrors(ctx context.Context, fe *fault.Errors, prefix string) {
 	)
 
 	if fe.Failure == nil && li+ls+lr == 0 {
-		log.Info(pfxMsg, "no errors")
+		log.Info(pfxMsg + " no issues")
 		return
 	}
 
 	if fe.Failure != nil {
-		log.With("error", fe.Failure).Error(pfxMsg, "primary failure")
+		log.With("error", fe.Failure).Error(pfxMsg + " primary failure")
 	}
 
 	for i, item := range fe.Items {

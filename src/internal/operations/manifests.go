@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
@@ -46,7 +47,6 @@ func produceManifestsAndMetadata(
 	reasons, fallbackReasons []kopia.Reason,
 	tenantID string,
 	getMetadata bool,
-	errs *fault.Bus,
 ) ([]*kopia.ManifestEntry, []data.RestoreCollection, bool, error) {
 	var (
 		tags          = map[string]string{kopia.TagBackupCategory: ""}
@@ -77,7 +77,7 @@ func produceManifestsAndMetadata(
 
 	// Also check distinct bases for the fallback set.
 	if err := verifyDistinctBases(ctx, fbms); err != nil {
-		logger.CtxErr(ctx, err).Info("base snapshot collision, falling back to full backup")
+		logger.CtxErr(ctx, err).Info("fallback snapshot collision, falling back to full backup")
 		return ms, nil, false, nil
 	}
 
@@ -101,7 +101,7 @@ func produceManifestsAndMetadata(
 	// details from previous snapshots when using kopia-assisted incrementals.
 	if err := verifyDistinctBases(ctx, ms); err != nil {
 		logger.Ctx(ctx).With("error", err).Infow(
-			"base snapshot collision, falling back to full backup",
+			"unioned snapshot collision, falling back to full backup",
 			clues.In(ctx).Slice()...)
 
 		return ms, nil, false, nil
@@ -151,7 +151,17 @@ func produceManifestsAndMetadata(
 			return ms, nil, false, nil
 		}
 
-		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, errs)
+		// a local fault.Bus intance is used to collect metadata files here.
+		// we avoid the global fault.Bus because all failures here are ignorable,
+		// and cascading errors up to the operation can cause a conflict that forces
+		// the operation into a failure state unnecessarily.
+		// TODO(keepers): this is not a pattern we want to
+		// spread around.  Need to find more idiomatic handling.
+		fb := fault.New(true)
+
+		colls, err := collectMetadata(mctx, mr, man, metadataFiles, tenantID, fb)
+		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+
 		if err != nil && !errors.Is(err, data.ErrNotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
@@ -162,7 +172,11 @@ func produceManifestsAndMetadata(
 		collections = append(collections, colls...)
 	}
 
-	return ms, collections, true, err
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	return ms, collections, true, nil
 }
 
 // unionManifests reduces the two manifest slices into a single slice.
@@ -242,19 +256,19 @@ func unionManifests(
 	}
 
 	// collect the results into a single slice of manifests
-	ms := []*kopia.ManifestEntry{}
+	ms := map[string]*kopia.ManifestEntry{}
 
 	for _, m := range tups {
 		if m.complete != nil {
-			ms = append(ms, m.complete)
+			ms[string(m.complete.ID)] = m.complete
 		}
 
 		if m.incomplete != nil {
-			ms = append(ms, m.incomplete)
+			ms[string(m.incomplete.ID)] = m.incomplete
 		}
 	}
 
-	return ms
+	return maps.Values(ms)
 }
 
 // verifyDistinctBases is a validation checker that ensures, for a given slice

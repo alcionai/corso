@@ -1,4 +1,4 @@
-package kopia_test
+package kopia
 
 import (
 	"testing"
@@ -8,33 +8,58 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var (
-	testTenant = "a-tenant"
-	testUser   = "a-user"
-	service    = path.ExchangeService
-	category   = path.EmailCategory
-)
-
-type LocationPrefixMatcherUnitSuite struct {
+type DetailsMergeInfoerUnitSuite struct {
 	tester.Suite
 }
 
-func makePath(
-	t *testing.T,
-	service path.ServiceType,
-	category path.CategoryType,
-	tenant, user string,
-	folders []string,
-) path.Path {
-	p, err := path.Build(tenant, user, service, category, false, folders...)
+func TestDetailsMergeInfoerUnitSuite(t *testing.T) {
+	suite.Run(t, &DetailsMergeInfoerUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+// TestRepoRefs is a basic sanity test to ensure lookups are working properly
+// for stored RepoRefs.
+func (suite *DetailsMergeInfoerUnitSuite) TestRepoRefs() {
+	t := suite.T()
+	oldRef := makePath(
+		t,
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+			"folder1",
+		},
+		false).ToBuilder()
+	newRef := makePath(
+		t,
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+			"folder2",
+		},
+		false)
+
+	dm := newMergeDetails()
+
+	err := dm.addRepoRef(oldRef, newRef)
 	require.NoError(t, err, clues.ToCore(err))
 
-	return p
+	got := dm.GetNewRepoRef(oldRef)
+	require.NotNil(t, got)
+	assert.Equal(t, newRef.String(), got.String())
+
+	got = dm.GetNewRepoRef(newRef.ToBuilder())
+	assert.Nil(t, got)
+}
+
+type LocationPrefixMatcherUnitSuite struct {
+	tester.Suite
 }
 
 func TestLocationPrefixMatcherUnitSuite(t *testing.T) {
@@ -50,43 +75,52 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 	t := suite.T()
 	p := makePath(
 		t,
-		service,
-		category,
-		testTenant,
-		testUser,
-		[]string{"folder1"})
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+			"folder1",
+		},
+		false).ToBuilder()
 	loc1 := path.Builder{}.Append("folder1")
 	loc2 := path.Builder{}.Append("folder2")
 
-	lpm := kopia.NewLocationPrefixMatcher()
+	lpm := newLocationPrefixMatcher()
 
-	err := lpm.Add(p, loc1)
+	err := lpm.add(p, loc1)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = lpm.Add(p, loc2)
+	err = lpm.add(p, loc2)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
 	p1 := makePath(
 		suite.T(),
-		service,
-		category,
-		testTenant,
-		testUser,
-		[]string{"folder1"})
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+			"folder1",
+		},
+		false)
 
+	loc1 := path.Builder{}.Append("folder1")
 	p1Parent, err := p1.Dir()
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	p2 := makePath(
 		suite.T(),
-		service,
-		category,
-		testTenant,
-		testUser,
-		[]string{"folder2"})
-	loc1 := path.Builder{}.Append("folder1")
+		[]string{
+			testTenant,
+			service,
+			testUser,
+			category,
+			"folder2",
+		},
+		false)
 
 	table := []struct {
 		name      string
@@ -134,14 +168,14 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			lpm := kopia.NewLocationPrefixMatcher()
+			lpm := newLocationPrefixMatcher()
 
 			for _, input := range test.inputs {
-				err := lpm.Add(input.repoRef, input.locRef)
+				err := lpm.add(input.repoRef.ToBuilder(), input.locRef)
 				require.NoError(t, err, clues.ToCore(err))
 			}
 
-			loc := lpm.LongestPrefix(test.searchKey)
+			loc := lpm.longestPrefix(test.searchKey)
 			test.check(t, loc)
 
 			if loc == nil {

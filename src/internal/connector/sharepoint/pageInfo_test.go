@@ -1,8 +1,6 @@
 package sharepoint
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/alcionai/corso/src/internal/connector/graph/betasdk/models"
@@ -37,7 +35,9 @@ func (suite *SharePointInfoSuite) TestSharePointInfo_Pages() {
 		},
 	}
 	for _, test := range tests {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			paged, expected := test.pageAndDeets()
 			info := sharePointPageInfo(paged, "", 0)
 			assert.Equal(t, expected.ItemType, info.ItemType)
