@@ -167,20 +167,15 @@ func checkEmailRestoration(
 }
 
 func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
-	for fldName, emailCount := range messageCount {
-		if restoreMessageCount[fldName] != emailCount {
-			logger.Ctx(ctx).Errorw(
-				"test failure: Restore item counts do not match",
-				"expected:", emailCount,
-				"actual:", restoreMessageCount[fldName])
+	for fldName, expected := range messageCount {
+		got := restoreMessageCount[fldName]
 
-			fmt.Println(
-				"test failure: Restore item counts do not match",
-				"* expected:", emailCount,
-				"* actual:", restoreMessageCount[fldName])
-
-			os.Exit(1)
-		}
+		assert(
+			ctx,
+			func() bool { return expected == got },
+			fmt.Sprintf("Restore item counts do not match: %s", fldName),
+			expected,
+			got)
 	}
 }
 
@@ -380,58 +375,48 @@ func checkOnedriveRestoration(
 		restoreFolderPerm := restoreFolderPermission[folderName]
 
 		if len(permissions) < 1 {
-			logger.Ctx(ctx).Info("no permissions found in :", folderName)
-			fmt.Println("no permissions found in :", folderName)
+			logger.Ctx(ctx).Info("no permissions found in:", folderName)
+			fmt.Println("no permissions found in:", folderName)
 
 			continue
 		}
 
-		if len(restoreFolderPerm) < 1 {
-			logger.Ctx(ctx).Info("permission roles are not equal for :",
-				"Item:", folderName,
-				"* Permission found: ", permissions,
-				"* blank permission found in restore.")
+		assert(
+			ctx,
+			func() bool { return len(permissions) == len(restoreFolderPerm) },
+			fmt.Sprintf("wrong number of restored permissions: %s", folderName),
+			permissions,
+			restoreFolderPerm)
 
-			fmt.Println("permission roles are not equal for:")
-			fmt.Println("Item:", folderName)
-			fmt.Println("* Permission found: ", permissions)
-			fmt.Println("blank permission found in restore.")
+		for i, perm := range permissions {
+			// permissions should be sorted, so a by-index comparison works
+			restored := restoreFolderPerm[i]
 
-			os.Exit(1)
-		}
+			assert(
+				ctx,
+				func() bool { return strings.EqualFold(perm.entityID, restored.entityID) },
+				fmt.Sprintf("non-matching entity id: %s", folderName),
+				perm.entityID,
+				restored.entityID)
 
-		for i, orginalPerm := range permissions {
-			restorePerm := restoreFolderPerm[i]
-
-			if !(orginalPerm.entityID != restorePerm.entityID) &&
-				!slices.Equal(orginalPerm.roles, restorePerm.roles) {
-				logger.Ctx(ctx).Info("permission roles are not equal for :",
-					"Item:", folderName,
-					"* Original permission: ", orginalPerm.entityID,
-					"* Restored permission: ", restorePerm.entityID)
-
-				fmt.Println("permission roles are not equal for:")
-				fmt.Println("Item:", folderName)
-				fmt.Println("* Original permission: ", orginalPerm.entityID)
-				fmt.Println("* Restored permission: ", restorePerm.entityID)
-				os.Exit(1)
-			}
+			assert(
+				ctx,
+				func() bool { return slices.Equal(perm.roles, restored.roles) },
+				fmt.Sprintf("different roles restored: %s", folderName),
+				perm.roles,
+				restored.roles)
 		}
 	}
 
-	for fileName, fileSize := range fileSizes {
-		if fileSize != restoreFile[fileName] {
-			logger.Ctx(ctx).Info("File size does not match for:",
-				"Item:", fileName,
-				"*  expected:", fileSize,
-				"*  actual:", restoreFile[fileName])
+	for fileName, expected := range fileSizes {
+		got := restoreFile[fileName]
 
-			fmt.Println("File size does not match for:")
-			fmt.Println("item:", fileName)
-			fmt.Println("*  expected:", fileSize)
-			fmt.Println("*  actual:", restoreFile[fileName])
-			os.Exit(1)
-		}
+		assert(
+			ctx,
+			func() bool { return expected == got },
+			fmt.Sprintf("different file size: %s", fileName),
+			expected,
+			got)
 	}
 
 	fmt.Println("Success")
@@ -618,4 +603,27 @@ func filterSlice(sl []string, remove string) []string {
 	}
 
 	return r
+}
+
+func assert(
+	ctx context.Context,
+	passes func() bool,
+	header string,
+	expect, current any,
+) {
+	if passes() {
+		return
+	}
+
+	header = "Error: " + header
+	expected := fmt.Sprintf("* Expected: %+v", expect)
+	got := fmt.Sprintf("* Current: %+v", current)
+
+	logger.Ctx(ctx).Info(strings.Join([]string{header, expected, got}, " "))
+
+	fmt.Println(header)
+	fmt.Println(expected)
+	fmt.Println(got)
+
+	os.Exit(1)
 }
