@@ -125,7 +125,7 @@ func AddUserFlag(cmd *cobra.Command) {
 		UserFN, nil,
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
 
-	cobra.CheckErr(flags.MarkDeprecated(UserFN, fmt.Sprintf("user flag is deprecated. Use - %s", MailBoxFN)))
+	cobra.CheckErr(flags.MarkDeprecated(UserFN, fmt.Sprintf("use - %s instead", MailBoxFN)))
 
 	flags.StringSliceVar(
 		&UserFV,
