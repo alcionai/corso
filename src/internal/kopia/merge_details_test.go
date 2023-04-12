@@ -197,7 +197,7 @@ func TestLocationPrefixMatcherUnitSuite(t *testing.T) {
 
 func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 	t := suite.T()
-	p := makePath(
+	p := mockLocationIDer{makePath(
 		t,
 		[]string{
 			testTenant,
@@ -206,7 +206,7 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 			category,
 			"folder1",
 		},
-		false).ToBuilder()
+		false).ToBuilder()}
 	loc1 := path.Builder{}.Append("folder1")
 	loc2 := path.Builder{}.Append("folder2")
 
@@ -220,20 +220,20 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 }
 
 func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
-	loc1 := path.Builder{}.Append("folder1")
-	loc2 := loc1.Append("folder2")
-	loc3 := path.Builder{}.Append("foo")
+	loc1 := mockLocationIDer{path.Builder{}.Append("folder1")}
+	loc2 := mockLocationIDer{loc1.InDetails().Append("folder2")}
+	loc3 := mockLocationIDer{path.Builder{}.Append("foo")}
 
-	res1 := path.Builder{}.Append("1")
+	res1 := mockLocationIDer{path.Builder{}.Append("1")}
 
 	lpm := newLocationPrefixMatcher()
 
-	err := lpm.add(loc1, res1)
+	err := lpm.add(loc1, res1.InDetails())
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name      string
-		searchKey *path.Builder
+		searchKey mockLocationIDer
 		found     bool
 	}{
 		{
@@ -265,8 +265,8 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
 				return
 			}
 
-			assert.Equal(t, loc1, prefixes.oldLoc, "old prefix")
-			assert.Equal(t, res1, prefixes.newLoc, "new prefix")
+			assert.Equal(t, loc1.InDetails(), prefixes.oldLoc, "old prefix")
+			assert.Equal(t, res1.InDetails(), prefixes.newLoc, "new prefix")
 		})
 	}
 }
