@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/common"
@@ -40,7 +41,11 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			createCommand,
 			expectUse + " " + sharePointServiceCommandCreateUseSuffix,
 			sharePointCreateCmd().Short,
-			[]string{"site", "disable-incrementals", "fail-fast"},
+			[]string{
+				utils.SiteFN,
+				options.DisableIncrementalsFN,
+				options.FailFastFN,
+			},
 			createSharePointCmd,
 		},
 		{
@@ -48,7 +53,12 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			listCommand,
 			expectUse,
 			sharePointListCmd().Short,
-			[]string{"backup", "failed-items", "skipped-items", "recovered-errors"},
+			[]string{
+				utils.BackupFN,
+				failedItemsFN,
+				skippedItemsFN,
+				recoveredErrorsFN,
+			},
 			listSharePointCmd,
 		},
 		{
@@ -57,14 +67,14 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
 			sharePointDetailsCmd().Short,
 			[]string{
-				"backup",
-				"library",
-				"folder",
-				"file",
-				"file-created-after",
-				"file-created-before",
-				"file-modified-after",
-				"file-modified-before",
+				utils.BackupFN,
+				utils.LibraryFN,
+				utils.FolderFN,
+				utils.FileFN,
+				utils.FileCreatedAfterFN,
+				utils.FileCreatedBeforeFN,
+				utils.FileModifiedAfterFN,
+				utils.FileModifiedBeforeFN,
 			},
 			detailsSharePointCmd,
 		},
@@ -73,7 +83,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			deleteCommand,
 			expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
 			sharePointDeleteCmd().Short,
-			[]string{"backup"},
+			[]string{utils.BackupFN},
 			deleteSharePointCmd,
 		},
 	}

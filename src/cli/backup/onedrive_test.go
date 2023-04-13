@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -37,7 +39,11 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			createCommand,
 			expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
 			oneDriveCreateCmd().Short,
-			[]string{"user", "disable-incrementals", "fail-fast"},
+			[]string{
+				utils.UserFN,
+				options.DisableIncrementalsFN,
+				options.FailFastFN,
+			},
 			createOneDriveCmd,
 		},
 		{
@@ -45,7 +51,12 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			listCommand,
 			expectUse,
 			oneDriveListCmd().Short,
-			[]string{"backup", "failed-items", "skipped-items", "recovered-errors"},
+			[]string{
+				utils.BackupFN,
+				failedItemsFN,
+				skippedItemsFN,
+				recoveredErrorsFN,
+			},
 			listOneDriveCmd,
 		},
 		{
@@ -54,13 +65,13 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
 			oneDriveDetailsCmd().Short,
 			[]string{
-				"backup",
-				"folder",
-				"file",
-				"file-created-after",
-				"file-created-before",
-				"file-modified-after",
-				"file-modified-before",
+				utils.BackupFN,
+				utils.FolderFN,
+				utils.FileFN,
+				utils.FileCreatedAfterFN,
+				utils.FileCreatedBeforeFN,
+				utils.FileModifiedAfterFN,
+				utils.FileModifiedBeforeFN,
 			},
 			detailsOneDriveCmd,
 		},
@@ -69,7 +80,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			deleteCommand,
 			expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
 			oneDriveDeleteCmd().Short,
-			[]string{"backup"},
+			[]string{utils.BackupFN},
 			deleteOneDriveCmd,
 		},
 	}

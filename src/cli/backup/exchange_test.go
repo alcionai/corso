@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -38,7 +39,15 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			createCommand,
 			expectUse + " " + exchangeServiceCommandCreateUseSuffix,
 			exchangeCreateCmd().Short,
-			[]string{"user", "data", "disable-incrementals", "fail-fast", "fetch-parallelism", "skip-reduce", "no-stats"},
+			[]string{
+				utils.UserFN,
+				utils.CategoryDataFN,
+				options.DisableIncrementalsFN,
+				options.FailFastFN,
+				options.FetchParallelismFN,
+				options.SkipReduceFN,
+				options.NoStatsFN,
+			},
 			createExchangeCmd,
 		},
 		{
@@ -46,7 +55,12 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			listCommand,
 			expectUse,
 			exchangeListCmd().Short,
-			[]string{"backup", "failed-items", "skipped-items", "recovered-errors"},
+			[]string{
+				utils.BackupFN,
+				failedItemsFN,
+				skippedItemsFN,
+				recoveredErrorsFN,
+			},
 			listExchangeCmd,
 		},
 		{
@@ -55,23 +69,23 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
 			exchangeDetailsCmd().Short,
 			[]string{
-				"backup",
-				"email",
-				"email-folder",
-				"email-subject",
-				"email-sender",
-				"email-received-after",
-				"email-received-before",
-				"event",
-				"event-calendar",
-				"event-subject",
-				"event-organizer",
-				"event-recurs",
-				"event-starts-after",
-				"event-starts-before",
-				"contact",
-				"contact-folder",
-				"contact-name",
+				utils.BackupFN,
+				utils.ContactFN,
+				utils.ContactFolderFN,
+				utils.ContactNameFN,
+				utils.EmailFN,
+				utils.EmailFolderFN,
+				utils.EmailReceivedAfterFN,
+				utils.EmailReceivedBeforeFN,
+				utils.EmailSenderFN,
+				utils.EmailSubjectFN,
+				utils.EventFN,
+				utils.EventCalendarFN,
+				utils.EventOrganizerFN,
+				utils.EventRecursFN,
+				utils.EventStartsAfterFN,
+				utils.EventStartsBeforeFN,
+				utils.EventSubjectFN,
 			},
 			detailsExchangeCmd,
 		},
@@ -80,7 +94,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			deleteCommand,
 			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
 			exchangeDeleteCmd().Short,
-			[]string{"backup"},
+			[]string{utils.BackupFN},
 			deleteExchangeCmd,
 		},
 	}
