@@ -157,7 +157,7 @@ func (gc *GraphConnector) UpdateStatus(status *support.ConnectorOperationStatus)
 	gc.status = support.MergeStatus(gc.status, *status)
 }
 
-// Status returns the current status of the graphConnector operaion.
+// Status returns the current status of the graphConnector operation.
 func (gc *GraphConnector) Status() support.ConnectorOperationStatus {
 	return gc.status
 }
@@ -253,10 +253,6 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 		id, name string
 		err      error
 	)
-
-	// if r.enum == Sites {
-	// TODO: check all suffixes in nameToID
-	// }
 
 	id, name, err = r.getter.GetIDAndName(ctx, owner)
 	if err != nil {

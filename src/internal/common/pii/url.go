@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // SafeURL complies with the clues.Concealer and fmt.Stringer
@@ -42,17 +41,7 @@ func (u SafeURL) Conceal() string {
 		return "malformed-URL"
 	}
 
-	elems := slices.Clone(strings.Split(p.EscapedPath(), "/"))
-
-	// conceal any non-safe path elem
-	for i := range elems {
-		e := elems[i]
-
-		if _, ok := u.SafePathElems[strings.ToLower(e)]; !ok {
-			elems[i] = clues.Conceal(e)
-		}
-	}
-
+	elems := ConcealElements(strings.Split(p.EscapedPath(), "/"), u.SafePathElems)
 	qry := maps.Clone(p.Query())
 
 	// conceal any non-safe query param values

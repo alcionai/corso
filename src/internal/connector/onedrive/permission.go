@@ -6,8 +6,8 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
@@ -93,7 +93,11 @@ func createRestoreFoldersWithPermissions(
 	service graph.Servicer,
 	drivePath *path.DrivePath,
 	restoreFolders []string,
+	folderPath path.Path,
 	folderMetadata Metadata,
+	folderMetas map[string]Metadata,
+	permissionIDMappings map[string]string,
+	restorePerms bool,
 ) (string, error) {
 	id, err := CreateRestoreFolders(ctx, service, drivePath.DriveID, restoreFolders)
 	if err != nil {
@@ -105,28 +109,25 @@ func createRestoreFoldersWithPermissions(
 		return id, nil
 	}
 
+	if !restorePerms {
+		return id, nil
+	}
+
 	err = RestorePermissions(
 		ctx,
 		creds,
 		service,
 		drivePath.DriveID,
 		id,
-		folderMetadata)
+		folderPath,
+		folderMetadata,
+		folderMetas,
+		permissionIDMappings)
 
 	return id, err
 }
 
-// isSame checks equality of two string slices
-func isSame(first, second []string) bool {
-	slices.Sort(first)
-	slices.Sort(second)
-
-	return slices.Equal(first, second)
-}
-
-func diffPermissions(
-	before, after []UserPermission,
-) ([]UserPermission, []UserPermission) {
+func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
 	var (
 		added   = []UserPermission{}
 		removed = []UserPermission{}
@@ -136,8 +137,7 @@ func diffPermissions(
 		found := false
 
 		for _, pp := range before {
-			if isSame(cp.Roles, pp.Roles) &&
-				cp.EntityID == pp.EntityID {
+			if pp.ID == cp.ID {
 				found = true
 				break
 			}
@@ -152,8 +152,7 @@ func diffPermissions(
 		found := false
 
 		for _, cp := range after {
-			if isSame(cp.Roles, pp.Roles) &&
-				cp.EntityID == pp.EntityID {
+			if pp.ID == cp.ID {
 				found = true
 				break
 			}
@@ -167,31 +166,58 @@ func diffPermissions(
 	return added, removed
 }
 
-// RestorePermissions takes in the permissions that were added and the
-// removed(ones present in parent but not in child) and adds/removes
-// the necessary permissions on onedrive objects.
-func RestorePermissions(
+// computeParentPermissions computes the parent permissions by
+// traversing folderMetas and finding the first item with custom
+// permissions. folderMetas is expected to have all the parent
+// directory metas for this to work.
+func computeParentPermissions(itemPath path.Path, folderMetas map[string]Metadata) (Metadata, error) {
+	var (
+		parent path.Path
+		meta   Metadata
+
+		err error
+		ok  bool
+	)
+
+	parent = itemPath
+
+	for {
+		parent, err = parent.Dir()
+		if err != nil {
+			return Metadata{}, clues.New("getting parent")
+		}
+
+		onedrivePath, err := path.ToOneDrivePath(parent)
+		if err != nil {
+			return Metadata{}, clues.New("get parent path")
+		}
+
+		if len(onedrivePath.Folders) == 0 {
+			return Metadata{}, nil
+		}
+
+		meta, ok = folderMetas[parent.String()]
+		if !ok {
+			return Metadata{}, clues.New("no parent meta")
+		}
+
+		if meta.SharingMode == SharingModeCustom {
+			return meta, nil
+		}
+	}
+}
+
+// UpdatePermissions takes in the set of permission to be added and
+// removed from an item to bring it to the desired state.
+func UpdatePermissions(
 	ctx context.Context,
 	creds account.M365Config,
 	service graph.Servicer,
 	driveID string,
 	itemID string,
-	meta Metadata,
+	permAdded, permRemoved []UserPermission,
+	permissionIDMappings map[string]string,
 ) error {
-	if meta.SharingMode == SharingModeInherited {
-		return nil
-	}
-
-	ctx = clues.Add(ctx, "permission_item_id", itemID)
-
-	// TODO(meain): Compute this from the data that we have instead of fetching from graph
-	currentPermissions, err := driveItemPermissionInfo(ctx, service, driveID, itemID)
-	if err != nil {
-		return graph.Wrap(ctx, err, "fetching current permissions")
-	}
-
-	permAdded, permRemoved := diffPermissions(currentPermissions, meta.Permissions)
-
 	for _, p := range permRemoved {
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707
@@ -202,11 +228,16 @@ func RestorePermissions(
 			return graph.Wrap(ctx, err, "creating delete client")
 		}
 
+		pid, ok := permissionIDMappings[p.ID]
+		if !ok {
+			return clues.New("no new permission id").WithClues(ctx)
+		}
+
 		err = graph.NewService(a).
 			Client().
 			DrivesById(driveID).
 			ItemsById(itemID).
-			PermissionsById(p.ID).
+			PermissionsById(pid).
 			Delete(ctx, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "removing permissions")
@@ -253,11 +284,44 @@ func RestorePermissions(
 
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
-		_, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
+		np, err := service.Client().DrivesById(driveID).ItemsById(itemID).Invite().Post(ctx, pbody, nil)
 		if err != nil {
 			return graph.Wrap(ctx, err, "setting permissions")
 		}
+
+		permissionIDMappings[p.ID] = ptr.Val(np.GetValue()[0].GetId())
 	}
 
 	return nil
+}
+
+// RestorePermissions takes in the permissions of an item, computes
+// what permissions need to added and removed based on the parent
+// folder metas and uses that to add/remove the necessary permissions
+// on onedrive items.
+func RestorePermissions(
+	ctx context.Context,
+	creds account.M365Config,
+	service graph.Servicer,
+	driveID string,
+	itemID string,
+	itemPath path.Path,
+	meta Metadata,
+	folderMetas map[string]Metadata,
+	permissionIDMappings map[string]string,
+) error {
+	if meta.SharingMode == SharingModeInherited {
+		return nil
+	}
+
+	ctx = clues.Add(ctx, "permission_item_id", itemID)
+
+	parentPermissions, err := computeParentPermissions(itemPath, folderMetas)
+	if err != nil {
+		return clues.Wrap(err, "parent permissions").WithClues(ctx)
+	}
+
+	permAdded, permRemoved := diffPermissions(parentPermissions.Permissions, meta.Permissions)
+
+	return UpdatePermissions(ctx, creds, service, driveID, itemID, permAdded, permRemoved, permissionIDMappings)
 }

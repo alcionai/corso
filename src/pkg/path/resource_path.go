@@ -128,14 +128,14 @@ func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, 
 		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("category", fmt.Sprintf("%q", c))
 	}
 
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return UnknownService, UnknownCategory, err
 	}
 
 	return service, category, nil
 }
 
-func validateServiceAndCategory(service ServiceType, category CategoryType) error {
+func ValidateServiceAndCategory(service ServiceType, category CategoryType) error {
 	cats, ok := serviceCategories[service]
 	if !ok {
 		return clues.New("unsupported service").With("service", fmt.Sprintf("%q", service))
@@ -218,7 +218,7 @@ func (rp dataLayerResourcePath) Folder(escape bool) string {
 
 // Folders returns the individual folder elements embedded in the
 // dataLayerResourcePath.
-func (rp dataLayerResourcePath) Folders() []string {
+func (rp dataLayerResourcePath) Folders() Elements {
 	endIdx := rp.lastFolderIdx()
 	if endIdx == 4 {
 		return nil
@@ -239,7 +239,7 @@ func (rp dataLayerResourcePath) Item() string {
 
 func (rp dataLayerResourcePath) Dir() (Path, error) {
 	if len(rp.elements) <= 4 {
-		return nil, clues.New("unable to shorten path").With("path", fmt.Sprintf("%q", rp))
+		return nil, clues.New("unable to shorten path").With("path", rp)
 	}
 
 	return &dataLayerResourcePath{

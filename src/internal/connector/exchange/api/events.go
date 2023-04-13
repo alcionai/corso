@@ -48,7 +48,7 @@ func (c Events) CreateCalendar(
 	requestbody := models.NewCalendar()
 	requestbody.SetName(&calendarName)
 
-	mdl, err := c.stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
+	mdl, err := c.Stable.Client().UsersById(user).Calendars().Post(ctx, requestbody, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating calendar")
 	}
@@ -64,7 +64,7 @@ func (c Events) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := newService(c.Credentials)
+	srv, err := NewService(c.Credentials)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -110,7 +110,7 @@ func (c Events) GetItem(
 		event models.Eventable
 	)
 
-	event, err = c.stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
+	event, err = c.Stable.Client().UsersById(user).EventsById(itemID).Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -122,7 +122,7 @@ func (c Events) GetItem(
 			},
 		}
 
-		attached, err := c.largeItem.
+		attached, err := c.LargeItem.
 			Client().
 			UsersById(user).
 			EventsById(itemID).

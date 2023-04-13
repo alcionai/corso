@@ -152,9 +152,9 @@ else {
 }
 
 #extract the suffix after the domain
-$siteSiffix = ""
+$siteSuffix = ""
 if ($siteUrl -imatch "^.*?(?<=sharepoint.com)(.*?$)") {
-    $siteSiffix = $Matches.1
+    $siteSuffix = $Matches.1
 }
 else {
     Write-Host "Site url appears to be malformed"
@@ -169,6 +169,10 @@ Write-Host "`nAuthenticating and connecting to $SiteUrl"
 Connect-PnPOnline -Url $siteUrl -Credential $cred
 Write-Host "Connected to $siteUrl`n"
 
+# ensure that there are no unexpanded entries in the list of parameters
+$LibraryNameList = $LibraryNameList | ForEach-Object { @($_.Split(',').Trim()) }
+$FolderPrefixPurgeList = $FolderPrefixPurgeList | ForEach-Object { @($_.Split(',').Trim()) }
+
 foreach ($library in $LibraryNameList) {
-    Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSiffix
+    Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSuffix
 }

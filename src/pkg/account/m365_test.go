@@ -82,9 +82,9 @@ func (suite *M365CfgSuite) TestAccount_M365Config_InvalidCases() {
 		{"missing tenant ID", makeTestM365Cfg("cid", "cs", "")},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
 			_, err := account.NewAccount(account.ProviderUnknown, test.cfg)
-			assert.Error(t, err)
+			assert.Error(suite.T(), err)
 		})
 	}
 
@@ -113,7 +113,9 @@ func (suite *M365CfgSuite) TestAccount_M365Config_InvalidCases() {
 		},
 	}
 	for _, test := range table2 {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			st, err := account.NewAccount(account.ProviderUnknown, goodM365Config)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
