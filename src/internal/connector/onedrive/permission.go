@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	msdrive "github.com/microsoftgraph/msgraph-sdk-go/drive"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
@@ -127,6 +128,14 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
+// isSame checks equality of two string slices
+func isSame(first, second []string) bool {
+	slices.Sort(first)
+	slices.Sort(second)
+
+	return slices.Equal(first, second)
+}
+
 func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
 	var (
 		added   = []UserPermission{}
@@ -137,7 +146,8 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, pp := range before {
-			if pp.ID == cp.ID {
+			if isSame(cp.Roles, pp.Roles) &&
+				cp.EntityID == pp.EntityID {
 				found = true
 				break
 			}
@@ -152,7 +162,8 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, cp := range after {
-			if pp.ID == cp.ID {
+			if isSame(cp.Roles, pp.Roles) &&
+				cp.EntityID == pp.EntityID {
 				found = true
 				break
 			}
