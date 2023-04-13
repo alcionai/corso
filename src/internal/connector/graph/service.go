@@ -106,8 +106,22 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 // to create  *msgraphsdk.GraphServiceClient
 func CreateAdapter(
 	tenant, client, secret string,
-	opts ...option,
+	opts ...Option,
 ) (*msgraphsdkgo.GraphRequestAdapter, error) {
+	auth, err := GetAuth(tenant, client, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := HTTPClient(opts...)
+
+	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+		auth,
+		nil, nil,
+		httpClient)
+}
+
+func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityAuthenticationProvider, error) {
 	// Client Provider: Uses Secret for access to tenant-level data
 	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
 	if err != nil {
@@ -122,12 +136,7 @@ func CreateAdapter(
 		return nil, clues.Wrap(err, "creating azure authentication")
 	}
 
-	httpClient := HTTPClient(opts...)
-
-	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth,
-		nil, nil,
-		httpClient)
+	return auth, nil
 }
 
 // HTTPClient creates the httpClient with middlewares and timeout configured
@@ -136,7 +145,7 @@ func CreateAdapter(
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func HTTPClient(opts ...option) *http.Client {
+func HTTPClient(opts ...Option) *http.Client {
 	clientOptions := msgraphsdkgo.GetDefaultClientOptions()
 	clientconfig := (&clientConfig{}).populate(opts...)
 	noOfRetries, minRetryDelay := clientconfig.applyMiddlewareConfig()
@@ -162,10 +171,10 @@ type clientConfig struct {
 	overrideRetryCount bool
 }
 
-type option func(*clientConfig)
+type Option func(*clientConfig)
 
 // populate constructs a clientConfig according to the provided options.
-func (c *clientConfig) populate(opts ...option) *clientConfig {
+func (c *clientConfig) populate(opts ...Option) *clientConfig {
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -203,20 +212,20 @@ func (c *clientConfig) apply(hc *http.Client) {
 // The resulting client isn't suitable for most queries, due to the
 // capacity for a call to persist forever.  This configuration should
 // only be used when downloading very large files.
-func NoTimeout() option {
+func NoTimeout() Option {
 	return func(c *clientConfig) {
 		c.noTimeout = true
 	}
 }
 
-func MaxRetries(max int) option {
+func MaxRetries(max int) Option {
 	return func(c *clientConfig) {
 		c.overrideRetryCount = true
 		c.maxRetries = max
 	}
 }
 
-func MinimumBackoff(dur time.Duration) option {
+func MinimumBackoff(dur time.Duration) Option {
 	return func(c *clientConfig) {
 		c.minDelay = dur
 	}
