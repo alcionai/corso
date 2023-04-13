@@ -757,18 +757,20 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 
 	table := []struct {
 		name            string
-		main            []testInput
+		man             []testInput
 		fallback        []testInput
 		reasons         []kopia.Reason
 		fallbackReasons []kopia.Reason
-		categories      []path.CategoryType
+		manCategories   []path.CategoryType
+		fbCategories    []path.CategoryType
 		assertErr       assert.ErrorAssertionFunc
 		expectManIDs    []string
 		expectNilMans   bool
+		expectReasons   map[string][]path.CategoryType
 	}{
 		{
 			name: "only mans, no fallbacks",
-			main: []testInput{
+			man: []testInput{
 				{
 					id: manComplete,
 				},
@@ -777,8 +779,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					incomplete: true,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{manComplete, manIncomplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete, manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete:   {path.EmailCategory},
+				manIncomplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "no mans, only fallbacks",
@@ -791,12 +798,17 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					incomplete: true,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{fbComplete, fbIncomplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{fbComplete, fbIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				fbComplete:   {path.EmailCategory},
+				fbIncomplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "complete mans and fallbacks",
-			main: []testInput{
+			man: []testInput{
 				{
 					id: manComplete,
 				},
@@ -806,12 +818,16 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					id: fbComplete,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{manComplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "incomplete mans and fallbacks",
-			main: []testInput{
+			man: []testInput{
 				{
 					id:         manIncomplete,
 					incomplete: true,
@@ -823,12 +839,16 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					incomplete: true,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{manIncomplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				manIncomplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "complete and incomplete mans and fallbacks",
-			main: []testInput{
+			man: []testInput{
 				{
 					id: manComplete,
 				},
@@ -846,12 +866,17 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					incomplete: true,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{manComplete, manIncomplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete, manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete:   {path.EmailCategory},
+				manIncomplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "incomplete mans, complete fallbacks",
-			main: []testInput{
+			man: []testInput{
 				{
 					id:         manIncomplete,
 					incomplete: true,
@@ -862,12 +887,17 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					id: fbComplete,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{fbComplete, manIncomplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{fbComplete, manIncomplete},
+			expectReasons: map[string][]path.CategoryType{
+				fbComplete:    {path.EmailCategory},
+				manIncomplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "complete mans, incomplete fallbacks",
-			main: []testInput{
+			man: []testInput{
 				{
 					id: manComplete,
 				},
@@ -878,12 +908,16 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					incomplete: true,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory},
-			expectManIDs: []string{manComplete},
+			manCategories: []path.CategoryType{path.EmailCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.EmailCategory},
+			},
 		},
 		{
 			name: "complete mans, complete fallbacks, multiple reasons",
-			main: []testInput{
+			man: []testInput{
 				{
 					id: manComplete,
 				},
@@ -893,8 +927,52 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 					id: fbComplete,
 				},
 			},
-			categories:   []path.CategoryType{path.EmailCategory, path.ContactsCategory},
-			expectManIDs: []string{manComplete},
+			manCategories: []path.CategoryType{path.EmailCategory, path.ContactsCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory, path.ContactsCategory},
+			expectManIDs:  []string{manComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.EmailCategory, path.ContactsCategory},
+			},
+		},
+		{
+			name: "complete mans, complete fallbacks, distinct reasons",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.ContactsCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory},
+			expectManIDs:  []string{manComplete, fbComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.ContactsCategory},
+				fbComplete:  {path.EmailCategory},
+			},
+		},
+		{
+			name: "fb has superset of mans reasons",
+			man: []testInput{
+				{
+					id: manComplete,
+				},
+			},
+			fallback: []testInput{
+				{
+					id: fbComplete,
+				},
+			},
+			manCategories: []path.CategoryType{path.ContactsCategory},
+			fbCategories:  []path.CategoryType{path.EmailCategory, path.ContactsCategory, path.EventsCategory},
+			expectManIDs:  []string{manComplete, fbComplete},
+			expectReasons: map[string][]path.CategoryType{
+				manComplete: {path.ContactsCategory},
+				fbComplete:  {path.EmailCategory, path.EventsCategory},
+			},
 		},
 	}
 	for _, test := range table {
@@ -907,7 +985,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 			mainReasons := []kopia.Reason{}
 			fbReasons := []kopia.Reason{}
 
-			for _, cat := range test.categories {
+			for _, cat := range test.manCategories {
 				mainReasons = append(
 					mainReasons,
 					kopia.Reason{
@@ -915,7 +993,9 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 						Service:       path.ExchangeService,
 						Category:      cat,
 					})
+			}
 
+			for _, cat := range test.fbCategories {
 				fbReasons = append(
 					fbReasons,
 					kopia.Reason{
@@ -927,7 +1007,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 
 			mans := []*kopia.ManifestEntry{}
 
-			for _, m := range test.main {
+			for _, m := range test.man {
 				incomplete := ""
 				if m.incomplete {
 					incomplete = "ir"
@@ -959,8 +1039,19 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 			assert.False(t, b, "no-metadata is forced for this test")
 
 			manIDs := []string{}
+
 			for _, m := range mans {
 				manIDs = append(manIDs, string(m.ID))
+
+				reasons, ok := test.expectReasons[string(m.ID)]
+				assert.True(t, ok, "unexpected manifest in result: ", m.ID)
+
+				mrs := []path.CategoryType{}
+				for _, r := range m.Reasons {
+					mrs = append(mrs, r.Category)
+				}
+
+				assert.ElementsMatch(t, reasons, mrs)
 			}
 
 			assert.ElementsMatch(t, test.expectManIDs, manIDs)
