@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
@@ -150,7 +149,6 @@ func produceManifestsAndMetadata(
 		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
 
 		if err != nil && !errors.Is(err, data.ErrNotFound) {
-			fmt.Printf("\n-----\nCOLLECTING METADATA %+v\n-----\n", err)
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.
