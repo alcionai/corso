@@ -36,6 +36,7 @@ type (
 			excluded map[string]map[string]struct{},
 			tags map[string]string,
 			buildTreeWithBase bool,
+			stm kopia.SubtreeMigrator,
 			errs *fault.Bus,
 		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
 	}

@@ -132,7 +132,7 @@ func StateOf(prev, curr path.Path) CollectionState {
 		return NewState
 	}
 
-	if curr.Folder(false) != prev.Folder(false) {
+	if curr.String() != prev.String() {
 		return MovedState
 	}
 

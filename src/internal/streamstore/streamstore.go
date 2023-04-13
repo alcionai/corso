@@ -235,6 +235,7 @@ func write(
 		nil,
 		nil,
 		false,
+		nil,
 		errs)
 	if err != nil {
 		return "", clues.Wrap(err, "storing marshalled bytes in repository")

@@ -283,6 +283,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				tags,
 				true,
+				nil,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
@@ -430,6 +431,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				nil,
 				tags,
 				true,
+				nil,
 				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
@@ -528,6 +530,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		tags,
 		true,
+		nil,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -647,6 +650,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		tags,
 		true,
+		nil,
 		fault.New(true))
 	require.Error(t, err, clues.ToCore(err))
 	assert.Equal(t, 0, stats.ErrorCount)
@@ -709,6 +713,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				nil,
 				true,
+				nil,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -869,6 +874,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		nil,
 		tags,
 		false,
+		nil,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.Equal(t, stats.ErrorCount, 0)
@@ -1028,6 +1034,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				excluded,
 				tags,
 				true,
+				nil,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)

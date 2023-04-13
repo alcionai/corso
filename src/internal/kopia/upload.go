@@ -137,7 +137,10 @@ type corsoProgress struct {
 	deets   *details.Builder
 	// toMerge represents items that we don't have in-memory item info for. The
 	// item info for these items should be sourced from a base snapshot later on.
-	toMerge    *mergeDetails
+	toMerge *mergeDetails
+	// the SubtreeMigrator can be optionally poplated to force a subtree migration
+	// when merging files from the a prior base.
+	stm        SubtreeMigrator
 	mu         sync.RWMutex
 	totalBytes int64
 	errs       *fault.Bus
@@ -890,8 +893,7 @@ func traverseBaseDir(
 			oldDirPath,
 			currentPath,
 			dEntry,
-			roots,
-		)
+			roots)
 	})
 	if err != nil {
 		return clues.Wrap(err, "traversing base directory")
@@ -948,6 +950,7 @@ func inflateBaseTree(
 	snap IncrementalBase,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
+	stm SubtreeMigrator,
 ) error {
 	// Only complete snapshots should be used to source base information.
 	// Snapshots for checkpoints will rely on kopia-assisted dedupe to efficiently
@@ -991,6 +994,11 @@ func inflateBaseTree(
 			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
 		}
 
+		migratedPath := subtreePath
+		if stm != nil {
+			migratedPath = stm.GetNewSubtree(subtreePath)
+		}
+
 		// We're assuming here that the prefix for the path has not changed (i.e.
 		// all of tenant, service, resource owner, and category are the same in the
 		// old snapshot (snap) and the snapshot we're currently trying to make.
@@ -999,7 +1007,7 @@ func inflateBaseTree(
 			0,
 			updatedPaths,
 			subtreePath.Dir(),
-			subtreePath.Dir(),
+			migratedPath.Dir(),
 			subtreeDir,
 			roots,
 		); err != nil {
@@ -1050,7 +1058,8 @@ func inflateDirTree(
 	}
 
 	for _, snap := range baseSnaps {
-		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
+		err := inflateBaseTree(ctx, loader, snap, updatedPaths, roots, progress.stm)
+		if err != nil {
 			return nil, clues.Wrap(err, "inflating base snapshot tree(s)")
 		}
 	}

@@ -101,6 +101,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	excluded map[string]map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
+	_ kopia.SubtreeMigrator,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	if mbu.checkFunc != nil {
@@ -624,6 +625,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 				nil,
 				model.StableID(""),
 				true,
+				nil,
 				fault.New(true))
 		})
 	}

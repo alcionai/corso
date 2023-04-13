@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -1596,6 +1597,139 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 				incMB.CalledWith[events.BackupStart][0][events.BackupID],
 				incBO.Results.BackupID, "incremental backupID pre-declaration")
 		})
+	}
+}
+
+func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveOwnerMigration() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		ffs  = control.Toggles{}
+		mb   = evmock.NewBus()
+
+		// `now` has to be formatted with SimpleDateTimeOneDrive as
+		// some onedrive cannot have `:` in file/folder names
+		now = common.FormatNow(common.SimpleTimeTesting)
+
+		owners = []string{suite.user}
+
+		categories = map[path.CategoryType][]string{
+			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+		}
+		container = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
+		genDests  = []string{container}
+	)
+
+	creds, err := acct.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	gc, err := connector.NewGraphConnector(
+		ctx,
+		graph.HTTPClient(graph.NoTimeout()),
+		acct,
+		connector.Users,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	driveID := mustGetDefaultDriveID(t, ctx, gc.Service, suite.user)
+
+	fileDBF := func(id, timeStamp, subject, body string) []byte {
+		return []byte(id + subject)
+	}
+
+	// Populate initial test data.
+	for _, destName := range genDests {
+		generateContainerOfItems(
+			t,
+			ctx,
+			gc,
+			path.OneDriveService,
+			acct,
+			path.FilesCategory,
+			selectors.NewOneDriveRestore(owners).Selector,
+			creds.AzureTenantID, suite.user, driveID, destName,
+			2,
+			// Use an old backup version so we don't need metadata files.
+			0,
+			fileDBF)
+	}
+
+	// container3 does not exist yet. It will get created later on
+	// during the tests.
+	containers := []string{container}
+	sel := selectors.NewOneDriveBackup(owners)
+	sel.Include(sel.Folders(containers, selectors.PrefixMatch()))
+
+	bo, _, kw, ms, gc, closer := prepNewTestBackupOp(t, ctx, mb, sel.Selector, ffs)
+	defer closer()
+
+	// ensure the initial owner uses name in both cases
+	sel.SetDiscreteOwnerIDName(suite.user, suite.user)
+	bo.ResourceOwner = sel
+
+	// TODO: ensure this equals the PN
+	require.Equal(t, bo.ResourceOwner.Name(), bo.ResourceOwner.ID(), "historical representation of user")
+
+	// run the initial backup
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+
+	var (
+		incMB = evmock.NewBus()
+		// the incremental backup op should have a proper user ID for the id.
+		incBO = newTestBackupOp(t, ctx, kw, ms, gc, acct, sel.Selector, incMB, ffs, closer)
+	)
+
+	require.NotEqual(
+		t,
+		incBO.ResourceOwner.Name(),
+		incBO.ResourceOwner.ID(),
+		"current representation of user: id should differ from PN")
+
+	err = incBO.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+	checkBackupIsInManifests(t, ctx, kw, &incBO, sel.Selector, suite.user, maps.Keys(categories)...)
+	checkMetadataFilesExist(
+		t,
+		ctx,
+		incBO.Results.BackupID,
+		kw,
+		ms,
+		creds.AzureTenantID,
+		suite.user,
+		path.OneDriveService,
+		categories)
+
+	// 2 on read/writes to account for metadata: 1 delta and 1 path.
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsWritten, "items written")
+	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
+	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
+	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "backup-start events")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "backup-end events")
+	assert.Equal(t,
+		incMB.CalledWith[events.BackupStart][0][events.BackupID],
+		incBO.Results.BackupID, "backupID pre-declaration")
+
+	bid := incBO.Results.BackupID
+	bup := &backup.Backup{}
+
+	err = ms.Get(ctx, model.BackupSchema, bid, bup)
+	require.NoError(t, err, clues.ToCore(err))
+
+	var (
+		ssid  = bup.StreamStoreID
+		deets details.Details
+		ss    = streamstore.NewStreamer(kw, creds.AzureTenantID, path.OneDriveService)
+	)
+
+	err = ss.Read(ctx, ssid, streamstore.DetailsReader(details.UnmarshalTo(&deets)), fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, ent := range deets.Entries {
+		assert.Contains(t, ent.RepoRef, incBO.ResourceOwner.ID())
 	}
 }
 

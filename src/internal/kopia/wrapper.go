@@ -137,6 +137,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	globalExcludeSet map[string]map[string]struct{},
 	tags map[string]string,
 	buildTreeWithBase bool,
+	stm SubtreeMigrator,
 	errs *fault.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
@@ -155,6 +156,7 @@ func (w Wrapper) ConsumeBackupCollections(
 		deets:   &details.Builder{},
 		toMerge: newMergeDetails(),
 		errs:    errs,
+		stm:     stm,
 	}
 
 	// When running an incremental backup, we need to pass the prior

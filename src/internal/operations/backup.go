@@ -230,8 +230,8 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	var (
-		reasons         = selectorToReasons(op.Selectors, false)
-		fallbackReasons = makeFallbackReasons(op.Selectors)
+		reasons              = selectorToReasons(op.Selectors, op.Selectors.DiscreteOwner)
+		fallbackReasons, stm = makeFallbackReasons(op.Selectors)
 	)
 
 	logger.Ctx(ctx).With("selectors", op.Selectors).Info("backing up selection")
@@ -274,6 +274,7 @@ func (op *BackupOperation) do(
 		excludes,
 		backupID,
 		op.incremental && canUseMetaData,
+		stm,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
@@ -300,13 +301,25 @@ func (op *BackupOperation) do(
 	return deets, nil
 }
 
-func makeFallbackReasons(sel selectors.Selector) []kopia.Reason {
-	if sel.PathService() != path.SharePointService &&
-		sel.DiscreteOwner != sel.DiscreteOwnerName {
-		return selectorToReasons(sel, true)
+func makeFallbackReasons(sel selectors.Selector) ([]kopia.Reason, kopia.SubtreeMigrator) {
+	if sel.PathService() == path.SharePointService ||
+		sel.DiscreteOwner == sel.DiscreteOwnerName {
+		return nil, nil
 	}
 
-	return nil
+	var (
+		fbs = selectorToReasons(sel, sel.DiscreteOwnerName)
+		stm kopia.SubtreeMigrator
+	)
+
+	switch sel.PathService() {
+	// only onedrive is required here.  Exchange will naturally get migrated
+	// since all exchange folders are enumerated during backup collection aggregation.
+	case path.OneDriveService:
+		stm = kopia.NewSubtreeOwnerMigration(sel.DiscreteOwner, sel.DiscreteOwnerName)
+	}
+
+	return fbs, stm
 }
 
 // checker to see if conditions are correct for incremental backup behavior such as
@@ -350,7 +363,7 @@ func produceBackupDataCollections(
 // Consumer funcs
 // ---------------------------------------------------------------------------
 
-func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.Reason {
+func selectorToReasons(sel selectors.Selector, owner string) []kopia.Reason {
 	service := sel.PathService()
 	reasons := []kopia.Reason{}
 
@@ -359,11 +372,6 @@ func selectorToReasons(sel selectors.Selector, useOwnerNameForID bool) []kopia.R
 		// This is technically safe, it's just that the resulting backup won't be
 		// usable as a base for future incremental backups.
 		return nil
-	}
-
-	owner := sel.DiscreteOwner
-	if useOwnerNameForID {
-		owner = sel.DiscreteOwnerName
 	}
 
 	for _, sl := range [][]path.CategoryType{pcs.Includes, pcs.Filters} {
@@ -410,6 +418,7 @@ func consumeBackupCollections(
 	excludes map[string]map[string]struct{},
 	backupID model.StableID,
 	isIncremental bool,
+	stm kopia.SubtreeMigrator,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	complete, closer := observe.MessageWithCompletion(ctx, "Backing up data")
@@ -483,6 +492,7 @@ func consumeBackupCollections(
 		excludes,
 		tags,
 		isIncremental,
+		stm,
 		errs)
 	if err != nil {
 		if kopiaStats == nil {
