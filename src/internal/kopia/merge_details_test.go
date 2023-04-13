@@ -12,15 +12,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type fakeUniqueLocation struct {
+type mockLocationIDer struct {
 	pb *path.Builder
 }
 
-func (ul fakeUniqueLocation) ID() *path.Builder {
+func (ul mockLocationIDer) ID() *path.Builder {
 	return ul.pb
 }
 
-func (ul fakeUniqueLocation) InDetails() *path.Builder {
+func (ul mockLocationIDer) InDetails() *path.Builder {
 	return ul.pb
 }
 
@@ -32,7 +32,7 @@ func TestDetailsMergeInfoerUnitSuite(t *testing.T) {
 	suite.Run(t, &DetailsMergeInfoerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *DetailsMergeInfoerUnitSuite) TestAdd_Twice_Fails() {
+func (suite *DetailsMergeInfoerUnitSuite) TestAddRepoRef_DuplicateFails() {
 	t := suite.T()
 	oldRef1 := makePath(
 		t,
@@ -104,8 +104,8 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	oldLoc1 := path.Builder{}.Append(oldRef1.Folders()...)
 	oldLoc2 := path.Builder{}.Append(oldRef2.Folders()...)
 
-	searchLoc1 := fakeUniqueLocation{oldLoc1}
-	searchLoc2 := fakeUniqueLocation{oldLoc2}
+	searchLoc1 := mockLocationIDer{oldLoc1}
+	searchLoc2 := mockLocationIDer{oldLoc2}
 
 	dm := newMergeDetails()
 
@@ -122,7 +122,7 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	table := []struct {
 		name              string
 		searchRef         *path.Builder
-		searchLoc         fakeUniqueLocation
+		searchLoc         mockLocationIDer
 		expectedRef       path.Path
 		prefixFound       bool
 		expectedOldPrefix *path.Builder
@@ -164,7 +164,7 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 		{
 			name:        "Ref Found Loc Not",
 			searchRef:   oldRef2.ToBuilder(),
-			searchLoc:   fakeUniqueLocation{path.Builder{}.Append("foo")},
+			searchLoc:   mockLocationIDer{path.Builder{}.Append("foo")},
 			expectedRef: newRef2,
 		},
 	}
@@ -256,17 +256,17 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			oldPrefix, newPrefix := lpm.longestPrefix(test.searchKey)
+			prefixes := lpm.longestPrefix(test.searchKey)
 
 			if !test.found {
-				assert.Nil(t, oldPrefix)
-				assert.Nil(t, newPrefix)
+				assert.Nil(t, prefixes.oldLoc)
+				assert.Nil(t, prefixes.newLoc)
 
 				return
 			}
 
-			assert.Equal(t, loc1, oldPrefix, "old prefix")
-			assert.Equal(t, res1, newPrefix, "new prefix")
+			assert.Equal(t, loc1, prefixes.oldLoc, "old prefix")
+			assert.Equal(t, res1, prefixes.newLoc, "new prefix")
 		})
 	}
 }

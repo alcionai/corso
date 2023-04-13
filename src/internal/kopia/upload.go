@@ -713,6 +713,31 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 	return dir
 }
 
+func addMergeLocation(col data.BackupCollection, toMerge *mergeDetails) error {
+	lp, ok := col.(data.PreviousLocationPather)
+	if !ok {
+		return nil
+	}
+
+	prevLoc := lp.PreviousLocationPath()
+	newLoc := lp.LocationPath()
+
+	if prevLoc == nil {
+		return clues.New("moved collection with nil previous location")
+	} else if newLoc == nil {
+		return clues.New("moved collection with nil location")
+	}
+
+	if err := toMerge.addLocation(prevLoc, newLoc); err != nil {
+		return clues.Wrap(err, "building updated location set").
+			With(
+				"collection_previous_location", prevLoc,
+				"collection_location", newLoc)
+	}
+
+	return nil
+}
+
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.BackupCollection,
@@ -728,17 +753,22 @@ func inflateCollectionTree(
 	changedPaths := []path.Path{}
 
 	for _, s := range collections {
+		ictx := clues.Add(
+			ctx,
+			"collection_full_path", s.FullPath(),
+			"collection_previous_path", s.PreviousPath())
+
 		switch s.State() {
 		case data.DeletedState:
 			if s.PreviousPath() == nil {
-				return nil, nil, clues.New("nil previous path on deleted collection")
+				return nil, nil, clues.New("nil previous path on deleted collection").WithClues(ictx)
 			}
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					With("collection_previous_path", s.PreviousPath())
+					WithClues(ictx)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -750,53 +780,34 @@ func inflateCollectionTree(
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					With("collection_previous_path", s.PreviousPath())
+					WithClues(ictx)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
 
-			// Safe to do only for moved collections as we really only need prefix
-			// matching if a nested folder changed in some way that didn't generate a
+			// Only safe when collections are moved since we only need prefix matching
+			// if a nested folder's path changed in some way that didn't generate a
 			// collection. For that to the be case, the nested folder's path must have
 			// changed via one of the ancestor folders being moved. This catches the
 			// ancestor folder move.
-			lp, ok := s.(data.PreviousLocationPather)
-			if ok {
-				prevLoc := lp.PreviousLocationPath()
-				newLoc := lp.LocationPath()
-
-				if prevLoc == nil {
-					return nil, nil, clues.New("moved collection with nil previous location").
-						With("collection_full_path", s.FullPath())
-				} else if newLoc == nil {
-					return nil, nil, clues.New("moved collection with nil location").
-						With("collection_full_path", s.FullPath())
-				}
-
-				if err := toMerge.addLocation(prevLoc, newLoc); err != nil {
-					return nil, nil, clues.Wrap(err, "building updated location set").
-						With(
-							"collection_location", lp.LocationPath(),
-							"collection_full_path", s.FullPath())
-				}
+			if err := addMergeLocation(s, toMerge); err != nil {
+				return nil, nil, clues.Wrap(err, "adding merge location").WithClues(ictx)
 			}
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, clues.New("no identifier for collection")
+			return nil, nil, clues.New("no identifier for collection").WithClues(ictx)
 		}
-
-		ctx = clues.Add(ctx, "collection_full_path", s.FullPath())
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, clues.New("getting tree node").WithClues(ctx)
+			return nil, nil, clues.New("getting tree node").WithClues(ictx)
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").WithClues(ctx)
+			return nil, nil, clues.New("multiple instances of collection").WithClues(ictx)
 		}
 
 		node.collection = s

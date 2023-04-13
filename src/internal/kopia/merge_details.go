@@ -88,9 +88,9 @@ func (m *mergeDetails) GetNewPathRefs(
 	// This is a location that we need to do prefix matching on because we didn't
 	// see the new location of it in a collection. For example, it's a subfolder
 	// whose parent folder was moved.
-	prefix, newPrefix := m.locations.longestPrefix(oldLoc.ID())
+	prefixes := m.locations.longestPrefix(oldLoc.ID())
 
-	return pr.repoRef, prefix, newPrefix
+	return pr.repoRef, prefixes.oldLoc, prefixes.newLoc
 }
 
 func (m *mergeDetails) addLocation(
@@ -128,11 +128,9 @@ func (m *locationPrefixMatcher) add(oldRef, newLoc *path.Builder) error {
 	return nil
 }
 
-func (m *locationPrefixMatcher) longestPrefix(
-	oldRef *path.Builder,
-) (*path.Builder, *path.Builder) {
+func (m *locationPrefixMatcher) longestPrefix(oldRef *path.Builder) locRefs {
 	_, v, _ := m.m.LongestPrefix(oldRef.String())
-	return v.oldLoc, v.newLoc
+	return v
 }
 
 func newLocationPrefixMatcher() *locationPrefixMatcher {

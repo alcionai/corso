@@ -524,8 +524,7 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 func getNewPathRefs(
 	dataFromBackup kopia.DetailsMergeInfoer,
 	entry *details.DetailsEntry,
-	repoRefPB *path.Builder,
-	backupVersion int,
+	repoRef *path.Builder,
 ) (path.Path, *path.Builder, bool, error) {
 	// Right now we can't guarantee that we have an old location in the
 	// previous details entry so first try a lookup without a location to see
@@ -534,18 +533,18 @@ func getNewPathRefs(
 	// TODO(ashmrtn): In the future we can remove this first check as we'll be
 	// able to assume we always have the location in the previous entry. We'll end
 	// up doing some extra parsing, but it will simplify this code.
-	newPath, _, newPrefix := dataFromBackup.GetNewPathRefs(repoRefPB, nil)
+	newPath, _, newLocPrefix := dataFromBackup.GetNewPathRefs(repoRef, nil)
 	if newPath == nil {
 		// This entry doesn't need merging.
 		return nil, nil, false, nil
 	}
 
 	// OneDrive doesn't return prefixes yet.
-	if newPrefix == nil {
-		newPrefix = &path.Builder{}
+	if newLocPrefix == nil {
+		newLocPrefix = &path.Builder{}
 	}
 
-	return newPath, newPrefix, newPrefix.String() != entry.LocationRef, nil
+	return newPath, newLocPrefix, newLocPrefix.String() != entry.LocationRef, nil
 }
 
 func mergeDetails(
@@ -583,7 +582,7 @@ func mergeDetails(
 
 		mctx = clues.Add(mctx, "base_manifest_backup_id", bID)
 
-		baseBackup, baseDeets, err := getBackupAndDetailsFromID(
+		_, baseDeets, err := getBackupAndDetailsFromID(
 			mctx,
 			model.StableID(bID),
 			ms,
@@ -616,10 +615,9 @@ func mergeDetails(
 			newPath, newLoc, locUpdated, err := getNewPathRefs(
 				dataFromBackup,
 				entry,
-				rr.ToBuilder(),
-				baseBackup.Version)
+				rr.ToBuilder())
 			if err != nil {
-				return clues.Wrap(err, "getting updated info for entry").With(mctx)
+				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
 			}
 
 			// This entry isn't merged.
@@ -630,7 +628,7 @@ func mergeDetails(
 			// Fixup paths in the item.
 			item := entry.ItemInfo
 			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
-				return clues.Wrap(err, "updating merged item info")
+				return clues.Wrap(err, "updating merged item info").WithClues(mctx)
 			}
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
