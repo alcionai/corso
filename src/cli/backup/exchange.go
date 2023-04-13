@@ -83,7 +83,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		utils.AddUserFlag(c)
+		utils.AddMailBoxFlag(c)
 		utils.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		options.AddFetchParallelismFlag(c)
 		options.AddFailFastFlag(c)

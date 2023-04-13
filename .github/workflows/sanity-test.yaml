@@ -245,7 +245,7 @@ jobs:
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
-          --mailbox "${CORSO_M365_TEST_USER_ID}" \
+          --user "${CORSO_M365_TEST_USER_ID}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
 
@@ -319,7 +319,7 @@ jobs:
           ./corso backup create onedrive \
           --no-stats \
           --hide-progress \
-          --mailbox "${CORSO_M365_TEST_USER_ID}" \
+          --user "${CORSO_M365_TEST_USER_ID}" \
           --json \
           2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
           
