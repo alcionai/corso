@@ -98,7 +98,7 @@ func LoadTestM365UserID(t *testing.T) string {
 
 // expects cfg value to be a string representing an array such as:
 // ["site1\,uuid","site2\,uuid"]
-// the delimeter must be a |.
+// the delimiter must be a |.
 func LoadTestM365OrgSites(t *testing.T) []string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving load test m365 org sites from test configuration", clues.ToCore(err))
@@ -118,7 +118,7 @@ func LoadTestM365OrgSites(t *testing.T) []string {
 
 // expects cfg value to be a string representing an array such as:
 // ["foo@example.com","bar@example.com"]
-// the delimeter may be either a , or |.
+// the delimiter may be either a , or |.
 func LoadTestM365OrgUsers(t *testing.T) []string {
 	cfg, err := readTestConfig()
 	require.NoError(t, err, "retrieving load test m365 org users from test configuration", clues.ToCore(err))

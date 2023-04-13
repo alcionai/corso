@@ -784,7 +784,7 @@ func (suite *SnapshotFetchUnitSuite) TestFetchPrevSnapshots() {
 
 			assert.ElementsMatch(t, expected, got)
 
-			// Check the resons for selecting each manifest are correct.
+			// Check the reasons for selecting each manifest are correct.
 			expectedReasons := make(map[manifest.ID][]Reason, len(test.expectedReasons))
 			for idx, reason := range test.expectedReasons {
 				expectedReasons[test.data[idx].man.ID] = reason
