@@ -96,9 +96,12 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			sel := test.getSelector(t)
+
 			collections, excludes, err := exchange.DataCollections(
 				ctx,
-				test.getSelector(t),
+				sel,
+				sel,
 				nil,
 				connector.credentials,
 				connector.UpdateStatus,
