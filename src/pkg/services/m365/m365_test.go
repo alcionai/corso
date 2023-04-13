@@ -1,14 +1,16 @@
-package m365
+package m365_test
 
 import (
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 type M365IntegrationSuite struct {
@@ -33,7 +35,7 @@ func (suite *M365IntegrationSuite) TestUsers() {
 		acct = tester.NewM365Account(suite.T())
 	)
 
-	users, err := Users(ctx, acct, fault.New(true))
+	users, err := m365.Users(ctx, acct, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, users)
 
@@ -48,6 +50,30 @@ func (suite *M365IntegrationSuite) TestUsers() {
 	}
 }
 
+func (suite *M365IntegrationSuite) TestGetUserInfo() {
+	ctx, flush := tester.NewContext()
+	defer flush()
+
+	var (
+		t    = suite.T()
+		acct = tester.NewM365Account(t)
+		uid  = tester.M365UserID(t)
+	)
+
+	info, err := m365.GetUserInfo(ctx, acct, uid)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, info)
+	require.NotEmpty(t, info)
+
+	expect := &m365.UserInfo{
+		ServicesEnabled: m365.ServiceAccess{
+			Exchange: true,
+		},
+	}
+
+	assert.Equal(t, expect, info)
+}
+
 func (suite *M365IntegrationSuite) TestSites() {
 	ctx, flush := tester.NewContext()
 	defer flush()
@@ -57,7 +83,7 @@ func (suite *M365IntegrationSuite) TestSites() {
 		acct = tester.NewM365Account(suite.T())
 	)
 
-	sites, err := Sites(ctx, acct, fault.New(true))
+	sites, err := m365.Sites(ctx, acct, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
 

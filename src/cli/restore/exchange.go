@@ -36,9 +36,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		utils.AddBackupIDFlag(c, true)
 		utils.AddExchangeDetailsAndRestoreFlags(c)
-
-		// others
-		options.AddOperationFlags(c)
+		options.AddFailFastFlag(c)
 	}
 
 	return c

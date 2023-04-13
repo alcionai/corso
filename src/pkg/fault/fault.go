@@ -51,7 +51,7 @@ func New(failFast bool) *Bus {
 	}
 }
 
-// FailFast returs the failFast flag in the bus.
+// FailFast returns the failFast flag in the bus.
 func (e *Bus) FailFast() bool {
 	return e.failFast
 }

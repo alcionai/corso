@@ -36,7 +36,7 @@ func (suite *UploadSessionSuite) TestWriter() {
 	contentRangeRegex := regexp.MustCompile(`^bytes (?P<rangestart>\d+)-(?P<rangeend>\d+)/(?P<length>\d+)$`)
 	nextOffset := -1
 
-	// Initialize a test http server that validates expeected headers
+	// Initialize a test http server that validates expected headers
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, r.Method, http.MethodPut)
 

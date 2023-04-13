@@ -65,7 +65,7 @@ func ToMessage(orig models.Messageable) models.Messageable {
 	return aMessage
 }
 
-// ToEventSimplified transforms an event to simplifed restore format
+// ToEventSimplified transforms an event to simplified restore format
 // To overcome some of the MS Graph API challenges, the event object is modified in the following ways:
 //   - Instead of adding attendees and generating spurious notifications,
 //     add a summary of attendees at the beginning to the event before the original body content
@@ -87,6 +87,14 @@ func ToEventSimplified(orig models.Eventable) models.Eventable {
 	orig.SetWebLink(nil)
 	orig.SetICalUId(nil)
 	orig.SetId(nil)
+
+	// Sanitize recurrence timezone.
+	if orig.GetRecurrence() != nil {
+		recurrenceTimezone := ptr.Val(orig.GetRecurrence().GetRange().GetRecurrenceTimeZone())
+		if len(recurrenceTimezone) == 0 {
+			orig.GetRecurrence().GetRange().SetRecurrenceTimeZone(nil)
+		}
+	}
 
 	return orig
 }

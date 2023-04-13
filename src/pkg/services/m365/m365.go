@@ -10,17 +10,35 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
-	"github.com/alcionai/corso/src/internal/connector/graph"
+
+	"github.com/alcionai/corso/src/internal/connector/discovery/api"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
+  "github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ServiceAccess is true if a resource owner is capable of
+// accessing or utilizing the specified service.
+type ServiceAccess struct {
+	Exchange bool
+	// TODO: onedrive, sharepoint
+}
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+// User is the minimal information required to identify and display a user.
 type User struct {
 	PrincipalName string
 	ID            string
 	Name          string
 	UserPurpose   string
+}
+
+type UserInfo struct {
+	ServicesEnabled ServiceAccess
 }
 
 // UsersCompat returns a list of users in the specified M365 tenant.
@@ -38,9 +56,13 @@ func UsersCompat(ctx context.Context, acct account.Account) ([]*User, error) {
 }
 
 // Users returns a list of users in the specified M365 tenant
-// TODO: Implement paging support
 func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User, error) {
-	users, err := discovery.Users(ctx, acct, errs)
+	uapi, err := makeUserAPI(acct)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting users").WithClues(ctx)
+	}
+
+	users, err := discovery.Users(ctx, uapi, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +72,7 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 	for _, u := range users {
 		pu, err := parseUser(u)
 		if err != nil {
-			return nil, clues.Wrap(err, "parsing userable")
+			return nil, clues.Wrap(err, "formatting user data")
 		}
 
 		pu.UserPurpose, err = discovery.UsersDetails(ctx, acct, pu.ID, errs)
@@ -116,8 +138,38 @@ func UsersMap(
 	return ins, nil
 }
 
+// UserInfo returns the corso-specific set of user metadata.
+func GetUserInfo(
+	ctx context.Context,
+	acct account.Account,
+	userID string,
+) (*UserInfo, error) {
+	uapi, err := makeUserAPI(acct)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting user info").WithClues(ctx)
+	}
+
+	ui, err := discovery.UserInfo(ctx, uapi, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	info := UserInfo{
+		ServicesEnabled: ServiceAccess{
+			Exchange: ui.ServiceEnabled(path.ExchangeService),
+		},
+	}
+
+	return &info, nil
+}
+
+// ---------------------------------------------------------------------------
+// Sites
+// ---------------------------------------------------------------------------
+
+// Site is the minimal information required to identify and display a SharePoint site.
 type Site struct {
-	// WebURL that displays the item in the browser
+	// WebURL is the url for the site, works as an alias for the user name.
 	WebURL string
 
 	// ID is of the format: <site collection hostname>.<site collection unique id>.<site unique id>
@@ -185,4 +237,22 @@ func SitesMap(
 	}
 
 	return ins, nil
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func makeUserAPI(acct account.Account) (api.Users, error) {
+	creds, err := acct.M365Config()
+	if err != nil {
+		return api.Users{}, clues.Wrap(err, "getting m365 account creds")
+	}
+
+	cli, err := api.NewClient(creds)
+	if err != nil {
+		return api.Users{}, clues.Wrap(err, "constructing api client")
+	}
+
+	return cli.Users(), nil
 }

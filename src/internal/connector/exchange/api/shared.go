@@ -94,7 +94,7 @@ func getItemsAddedAndRemovedFromContainer(
 
 		// iterate through the items in the page
 		for _, item := range items {
-			// if the additional data conains a `@removed` key, the value will either
+			// if the additional data contains a `@removed` key, the value will either
 			// be 'changed' or 'deleted'.  We don't really care about the cause: both
 			// cases are handled the same way in storage.
 			if item.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
