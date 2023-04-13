@@ -11,10 +11,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/discovery"
 	"github.com/alcionai/corso/src/internal/connector/discovery/api"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -35,6 +33,8 @@ type User struct {
 	ID            string
 	Name          string
 	UserPurpose   string
+	HasMailBox    bool
+	HasOnedrive   bool
 }
 
 type UserInfo struct {
@@ -75,14 +75,10 @@ func Users(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*User,
 			return nil, clues.Wrap(err, "formatting user data")
 		}
 
-		pu.UserPurpose, err = discovery.UsersDetails(ctx, acct, pu.ID, errs)
+		pu.UserPurpose, pu.HasMailBox, pu.HasOnedrive, err = discovery.UsersDetails(ctx, acct, pu.ID, errs)
+
 		if err != nil {
-			// TODO: handle the access denied scenario
-			if graph.IsErrAccessDenied(err) {
-				// // clues.Wrap(err, fmt.Sprintf("access denied for %s", pu.ID))
-				// errList = append(errList, fmt.Errorf("access denied for %s", pu.ID))
-				logger.Ctx(ctx).Infow("access denied for %s", pu.ID)
-			}
+			return nil, clues.Wrap(err, "getting user details")
 		}
 
 		ret = append(ret, pu)

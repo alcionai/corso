@@ -75,13 +75,13 @@ func UsersDetails(
 	acct account.Account,
 	userID string,
 	errs *fault.Bus,
-) (string, error) {
+) (string, bool, bool, error) {
 	client, err := apiClient(ctx, acct)
 	if err != nil {
-		return "", err
+		return "", false, false, err
 	}
 
-	return client.Users().GetUserPurpose(ctx, userID)
+	return client.Users().GetUserInfo(ctx, userID)
 }
 
 // User fetches a single user's data.

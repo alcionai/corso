@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -165,22 +166,75 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 	return resp, err
 }
 
-func (c Users) GetUserPurpose(ctx context.Context, userID string) (string, error) {
+func (c Users) GetUserInfo(
+	ctx context.Context,
+	userID string,
+) (
+	userPurpose string,
+	hasMailBox, hasOneDrive bool,
+	err error,
+) {
 	var (
-		err     error
 		rawURL  = "https://graph.microsoft.com/v1.0/users/" + userID + "/mailboxSettings"
 		apadtor = c.stable.Adapter()
 		builder = users.NewUserItemRequestBuilder(rawURL, apadtor)
 	)
 
-	newItem, err := builder.Get(ctx, nil)
+	// verify mailbox enabled for user
+	_, err = c.stable.Client().UsersById(userID).MailFolders().Get(ctx, nil)
+	hasMailBox = true
+
 	if err != nil {
-		return "", graph.Wrap(ctx, err, "creating item")
+		if !graph.IsErrExchangeMailFolderNotFound(err) {
+			return "", false, false, graph.Wrap(ctx, err, "error getting mail folder")
+		}
+
+		logger.Ctx(ctx).Infof("resource owner does not have a mailbox enabled")
+
+		hasMailBox = false
 	}
 
-	userPurpose := ptr.Val(newItem.GetAdditionalData()["userPurpose"].(*string))
+	// verify onedrive enabled for user
+	_, err = c.stable.Client().UsersById(userID).Drives().Get(ctx, nil)
+	hasOneDrive = true
 
-	return userPurpose, nil
+	if err != nil {
+		err = graph.Stack(ctx, err)
+		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) {
+			return "", false, false, graph.Wrap(ctx, err, "error getting onedrive")
+		}
+
+		logger.Ctx(ctx).Infof("resource owner does not have a drive")
+
+		hasOneDrive = false
+	}
+
+	// get userPurpose for user
+	newItem, err := builder.Get(ctx, nil)
+	if err == nil {
+		userPurpose = ptr.Val(newItem.GetAdditionalData()["userPurpose"].(*string))
+	}
+
+	if err != nil {
+		if !(graph.IsErrAccessDenied(err) || graph.IsErrExchangeMailFolderNotFound(err)) {
+			return "", false, false, graph.Wrap(ctx, err, "getting purpose")
+		}
+
+		// not the best way to handle the errors. But since we don't won't to break
+		// this request and just want to convey a message that access are invalid have
+		// added value here. Can also add another variable which specify the same if access
+		// denied
+		if graph.IsErrAccessDenied(err) {
+			userPurpose = "err: access denied"
+		}
+
+		if graph.IsErrExchangeMailFolderNotFound(err) {
+			userPurpose = "err: not found"
+			hasMailBox = false
+		}
+	}
+
+	return userPurpose, hasMailBox, hasOneDrive, nil
 }
 
 // GetIDAndName looks up the user matching the given ID, and returns
