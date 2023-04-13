@@ -1,9 +1,10 @@
 package mock
 
 import (
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/h2non/gock"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
+
+	"github.com/alcionai/corso/src/internal/connector/graph"
 )
 
 // CreateAdapter is similar to graph.CreateAdapter, but with option to

@@ -526,7 +526,7 @@ func mergeDetails(
 	errs *fault.Bus,
 ) error {
 	// Don't bother loading any of the base details if there's nothing we need to merge.
-	if dataFromBackup.ItemsToMerge() == 0 {
+	if dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
 		return nil
 	}
 

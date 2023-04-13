@@ -28,11 +28,12 @@ func Control() control.Options {
 // ---------------------------------------------------------------------------
 
 const (
-	failFastFN           = "fail-fast"
-	fetchParallelismFN   = "fetch-parallelism"
-	noStatsFN            = "no-stats"
-	restorePermissionsFN = "restore-permissions"
-	skipReduceFN         = "skip-reduce"
+	FailFastFN            = "fail-fast"
+	FetchParallelismFN    = "fetch-parallelism"
+	NoStatsFN             = "no-stats"
+	RestorePermissionsFN  = "restore-permissions"
+	SkipReduceFN          = "skip-reduce"
+	DisableIncrementalsFN = "disable-incrementals"
 )
 
 var (
@@ -46,29 +47,29 @@ var (
 // AddGlobalOperationFlags adds the global operations flag set.
 func AddGlobalOperationFlags(cmd *cobra.Command) {
 	fs := cmd.PersistentFlags()
-	fs.BoolVar(&noStatsFV, noStatsFN, false, "disable anonymous usage statistics gathering")
+	fs.BoolVar(&noStatsFV, NoStatsFN, false, "disable anonymous usage statistics gathering")
 }
 
 // AddFailFastFlag adds a flag to toggle fail-fast error handling behavior.
 func AddFailFastFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.BoolVar(&failFastFV, failFastFN, false, "stop processing immediately if any error occurs")
+	fs.BoolVar(&failFastFV, FailFastFN, false, "stop processing immediately if any error occurs")
 	// TODO: reveal this flag when fail-fast support is implemented
-	cobra.CheckErr(fs.MarkHidden(failFastFN))
+	cobra.CheckErr(fs.MarkHidden(FailFastFN))
 }
 
 // AddRestorePermissionsFlag adds OneDrive flag for restoring permissions
 func AddRestorePermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.BoolVar(&restorePermissionsFV, restorePermissionsFN, false, "Restore permissions for files and folders")
+	fs.BoolVar(&restorePermissionsFV, RestorePermissionsFN, false, "Restore permissions for files and folders")
 }
 
 // AddSkipReduceFlag adds a hidden flag that allows callers to skip the selector
 // reduction step.  Currently only intended for details commands, not restore.
 func AddSkipReduceFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.BoolVar(&skipReduceFV, skipReduceFN, false, "Skip the selector reduce filtering")
-	cobra.CheckErr(fs.MarkHidden(skipReduceFN))
+	fs.BoolVar(&skipReduceFV, SkipReduceFN, false, "Skip the selector reduce filtering")
+	cobra.CheckErr(fs.MarkHidden(SkipReduceFN))
 }
 
 // AddFetchParallelismFlag adds a hidden flag that allows callers to reduce call
@@ -77,17 +78,15 @@ func AddFetchParallelismFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.IntVar(
 		&fetchParallelismFV,
-		fetchParallelismFN,
+		FetchParallelismFN,
 		4,
 		"Control the number of concurrent data fetches for Exchange. Valid range is [1-4]. Default: 4")
-	cobra.CheckErr(fs.MarkHidden(fetchParallelismFN))
+	cobra.CheckErr(fs.MarkHidden(FetchParallelismFN))
 }
 
 // ---------------------------------------------------------------------------
 // Feature Flags
 // ---------------------------------------------------------------------------
-
-const disableIncrementalsFN = "disable-incrementals"
 
 var disableIncrementalsFV bool
 
@@ -97,8 +96,8 @@ func AddDisableIncrementalsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(
 		&disableIncrementalsFV,
-		disableIncrementalsFN,
+		DisableIncrementalsFN,
 		false,
 		"Disable incremental data retrieval in backups.")
-	cobra.CheckErr(fs.MarkHidden(disableIncrementalsFN))
+	cobra.CheckErr(fs.MarkHidden(DisableIncrementalsFN))
 }
