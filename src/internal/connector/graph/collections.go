@@ -48,6 +48,7 @@ func (c emptyCollection) DoNotMergeItems() bool {
 
 func BaseCollections(
 	ctx context.Context,
+	colls []data.BackupCollection,
 	tenant, rOwner string,
 	service path.ServiceType,
 	categories map[path.CategoryType]struct{},
@@ -55,15 +56,20 @@ func BaseCollections(
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	var (
-		res     = []data.BackupCollection{}
-		el      = errs.Local()
-		lastErr error
+		res      = []data.BackupCollection{}
+		el       = errs.Local()
+		lastErr  error
+		collKeys = map[string]struct{}{}
 	)
+
+	for _, c := range colls {
+		collKeys[c.FullPath().String()] = struct{}{}
+	}
 
 	for cat := range categories {
 		ictx := clues.Add(ctx, "base_service", service, "base_category", cat)
 
-		p, err := path.Build(tenant, rOwner, service, cat, false, "tmp")
+		p, err := path.Builder{}.ToServicePrefix(tenant, rOwner, service, cat)
 		if err != nil {
 			// Shouldn't happen.
 			err = clues.Wrap(err, "making path").WithClues(ictx)
@@ -73,18 +79,11 @@ func BaseCollections(
 			continue
 		}
 
-		// Pop off the last path element because we just want the prefix.
-		p, err = p.Dir()
-		if err != nil {
-			// Shouldn't happen.
-			err = clues.Wrap(err, "getting base prefix").WithClues(ictx)
-			el.AddRecoverable(err)
-			lastErr = err
-
-			continue
+		// only add this collection if it doesn't already exist in the set.
+		if _, ok := collKeys[p.String()]; !ok {
+			res = append(res, emptyCollection{p: p, su: su})
 		}
 
-		res = append(res, emptyCollection{p: p, su: su})
 	}
 
 	return res, lastErr

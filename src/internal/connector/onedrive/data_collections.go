@@ -91,9 +91,22 @@ func DataCollections(
 		}
 	}
 
+	mcs, err := migrationCollections(
+		service,
+		tenant,
+		user,
+		su,
+		ctrlOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	collections = append(collections, mcs...)
+
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
+			collections,
 			tenant,
 			user.ID(),
 			path.OneDriveService,
@@ -108,4 +121,46 @@ func DataCollections(
 	}
 
 	return collections, allExcludes, el.Failure()
+}
+
+// adds data migrations to the collection set.
+func migrationCollections(
+	svc graph.Servicer,
+	tenant string,
+	user common.IDNamer,
+	su support.StatusUpdater,
+	ctrlOpts control.Options,
+) ([]data.BackupCollection, error) {
+	// unlike exchange, which enumerates all folders on every
+	// backup, onedrive needs to force the owner PN -> ID migration
+	mc, err := path.Builder{}.ToServicePrefix(
+		tenant,
+		user.ID(),
+		path.OneDriveService,
+		path.FilesCategory)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating user id migration path")
+	}
+
+	mpc, err := path.Builder{}.ToServicePrefix(
+		tenant,
+		user.Name(),
+		path.OneDriveService,
+		path.FilesCategory)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating user name migration path")
+	}
+
+	mgn := NewCollection(
+		nil,
+		mc, mpc,
+		"",
+		svc,
+		su,
+		OneDriveSource,
+		ctrlOpts,
+		CollectionScopeUnknown,
+		false)
+
+	return []data.BackupCollection{mgn}, nil
 }

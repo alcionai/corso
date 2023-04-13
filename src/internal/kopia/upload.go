@@ -1011,6 +1011,11 @@ func inflateBaseTree(
 			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
 		}
 
+		newSubtreePath := subtreePath
+		if p, ok := updatedPaths[subtreePath.String()]; ok {
+			newSubtreePath = p.ToBuilder()
+		}
+
 		// We're assuming here that the prefix for the path has not changed (i.e.
 		// all of tenant, service, resource owner, and category are the same in the
 		// old snapshot (snap) and the snapshot we're currently trying to make.
@@ -1019,7 +1024,7 @@ func inflateBaseTree(
 			0,
 			updatedPaths,
 			subtreePath.Dir(),
-			subtreePath.Dir(),
+			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
 		); err != nil {

@@ -749,3 +749,75 @@ func (suite *PathUnitSuite) TestPath_piiHandling() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) TestToServicePrefix() {
+	table := []struct {
+		name      string
+		pb        Builder
+		service   ServiceType
+		category  CategoryType
+		tenant    string
+		owner     string
+		expect    string
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name:      "ok",
+			pb:        Builder{},
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String()}),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "bad category",
+			pb:        Builder{},
+			service:   ExchangeService,
+			category:  FilesCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad tenant",
+			pb:        Builder{},
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad owner",
+			pb:        Builder{},
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad pb",
+			pb:        *Builder{}.Append("foo"),
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := test.pb.ToServicePrefix(test.tenant, test.owner, test.service, test.category)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if r != nil {
+				assert.Equal(t, test.expect, r.String())
+			}
+		})
+	}
+}
