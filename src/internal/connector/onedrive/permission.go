@@ -128,12 +128,23 @@ func createRestoreFoldersWithPermissions(
 	return id, err
 }
 
-// isSame checks equality of two string slices
-func isSame(first, second []string) bool {
-	slices.Sort(first)
-	slices.Sort(second)
+// isSame checks equality of two UserPermission objects
+func isSame(p1, p2 UserPermission) bool {
+	if p1.EntityID != "" && p1.EntityID != p2.EntityID {
+		return false
+	}
 
-	return slices.Equal(first, second)
+	if p1.Email != "" && p1.Email != p2.Email {
+		return false
+	}
+
+	p1r := p1.Roles
+	p2r := p2.Roles
+
+	slices.Sort(p1r)
+	slices.Sort(p2r)
+
+	return slices.Equal(p1r, p2r)
 }
 
 func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPermission) {
@@ -146,8 +157,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, pp := range before {
-			if isSame(cp.Roles, pp.Roles) &&
-				cp.EntityID == pp.EntityID {
+			if isSame(cp, pp) {
 				found = true
 				break
 			}
@@ -162,8 +172,7 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		found := false
 
 		for _, cp := range after {
-			if isSame(cp.Roles, pp.Roles) &&
-				cp.EntityID == pp.EntityID {
+			if isSame(cp, pp) {
 				found = true
 				break
 			}
