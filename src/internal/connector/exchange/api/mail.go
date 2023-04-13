@@ -167,6 +167,7 @@ func (c Mail) GetItem(
 	// graph.IsErrTimeout(err) || graph.IsServiceUnavailable(err)
 	// TODO: Once MS Graph fixes pagination for this, we can
 	// probably paginate and fetch items.
+	// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
 	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
 
 	// Getting size just to log in case of error
