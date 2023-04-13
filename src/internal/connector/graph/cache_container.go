@@ -66,12 +66,12 @@ type ContainerResolver interface {
 	// conclude its search. Default input is "".
 	Populate(ctx context.Context, errs *fault.Bus, baseFolderID string, baseContainerPather ...string) error
 
-	// PathInCache performs a look up of a path reprensentation
+	// PathInCache performs a look up of a path representation
 	// and returns the m365ID of directory iff the pathString
 	// matches the path of a container within the cache.
 	// @returns bool represents if m365ID was found.
 	PathInCache(pathString string) (string, bool)
-	// LocationInCache performs a look up of a path reprensentation
+	// LocationInCache performs a look up of a path representation
 	// and returns the m365ID of directory iff the pathString
 	// matches the logical path of a container within the cache.
 	// @returns bool represents if m365ID was found.

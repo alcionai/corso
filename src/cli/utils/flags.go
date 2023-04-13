@@ -59,7 +59,7 @@ const (
 	FileModifiedBeforeFN = "file-modified-before"
 )
 
-// well-knwon flag values
+// well-known flag values
 const (
 	RunModeFlagTest = "flag-test"
 	RunModeRun      = "run"

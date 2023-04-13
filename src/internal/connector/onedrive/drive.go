@@ -33,7 +33,7 @@ const (
 
 // DeltaUpdate holds the results of a current delta token.  It normally
 // gets produced when aggregating the addition and removal of items in
-// a delta-queriable folder.
+// a delta-queryable folder.
 // FIXME: This is same as exchange.api.DeltaUpdate
 type DeltaUpdate struct {
 	// the deltaLink itself

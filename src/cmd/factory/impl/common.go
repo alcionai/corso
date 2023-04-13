@@ -35,7 +35,7 @@ var (
 
 // TODO: ErrGenerating       = clues.New("not all items were successfully generated")
 
-var ErrNotYetImplemeted = clues.New("not yet implemented")
+var ErrNotYetImplemented = clues.New("not yet implemented")
 
 // ------------------------------------------------------------------------------------------
 // Restoration

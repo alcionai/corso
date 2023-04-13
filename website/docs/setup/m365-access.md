@@ -1,5 +1,5 @@
 ---
-description: "Connect to a Microsft 365 tenant"
+description: "Connect to a Microsoft 365 tenant"
 ---
 
 # Microsoft 365 access

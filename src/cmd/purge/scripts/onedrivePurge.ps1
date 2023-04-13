@@ -152,9 +152,9 @@ else {
 }
 
 #extract the suffix after the domain
-$siteSiffix = ""
+$siteSuffix = ""
 if ($siteUrl -imatch "^.*?(?<=sharepoint.com)(.*?$)") {
-    $siteSiffix = $Matches.1
+    $siteSuffix = $Matches.1
 }
 else {
     Write-Host "Site url appears to be malformed"
@@ -174,5 +174,5 @@ $LibraryNameList = $LibraryNameList | ForEach-Object { @($_.Split(',').Trim()) }
 $FolderPrefixPurgeList = $FolderPrefixPurgeList | ForEach-Object { @($_.Split(',').Trim()) }
 
 foreach ($library in $LibraryNameList) {
-    Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSiffix
+    Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSuffix
 }
