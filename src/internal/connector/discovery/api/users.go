@@ -165,7 +165,6 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 	return resp, err
 }
 
-
 func (c Users) GetUserPurpose(ctx context.Context, userID string) (string, error) {
 	var (
 		err     error
@@ -178,7 +177,7 @@ func (c Users) GetUserPurpose(ctx context.Context, userID string) (string, error
 	if err != nil {
 		return "", graph.Wrap(ctx, err, "creating item")
 	}
-  
+
 	userPurpose := ptr.Val(newItem.GetAdditionalData()["userPurpose"].(*string))
 
 	return userPurpose, nil
