@@ -183,6 +183,15 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		}
 	}
 
+	// Since we only try to restore permissions if the mode is
+	// SharingModeCustom, if all the permission match, we have to
+	// delete and recreate at least one to make sure that the
+	// permission inheritance chain is broken.
+	if len(added) == 0 && len(removed) == 0 {
+		added = append(added, before[0])
+		removed = append(removed, before[0])
+	}
+
 	return added, removed
 }
 
