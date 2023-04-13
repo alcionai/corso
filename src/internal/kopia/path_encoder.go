@@ -20,6 +20,22 @@ func encodeElements(elements ...string) []string {
 	return encoded
 }
 
+func decodeElements(elements ...string) []string {
+	decoded := make([]string, 0, len(elements))
+
+	for _, e := range elements {
+		bs, err := encoder.DecodeString(e)
+		if err != nil {
+			decoded = append(decoded, "error decoding: "+e)
+			continue
+		}
+
+		decoded = append(decoded, string(bs))
+	}
+
+	return decoded
+}
+
 // encodeAsPath takes a set of elements and returns the concatenated elements as
 // if they were a path. The elements are joined with the separator in the golang
 // path package.

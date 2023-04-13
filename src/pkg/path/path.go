@@ -299,18 +299,29 @@ func (pb Builder) Elements() Elements {
 	return append(Elements{}, pb.elements...)
 }
 
-// verifyPrefix ensures that the tenant and resourceOwner are valid
-// values, and that the builder has some directory structure.
-func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+func (pb Builder) ToServicePrefix(
+	tenant, resourceOwner string,
+	s ServiceType,
+	c CategoryType,
+) (Path, error) {
+	if len(pb.elements) > 0 {
+		return nil, clues.New("contains path beyond prefix")
+	}
+
+	if err := ValidateServiceAndCategory(s, c); err != nil {
+		return nil, err
+	}
+
 	if err := verifyInputValues(tenant, resourceOwner); err != nil {
-		return err
+		return nil, err
 	}
 
-	if len(pb.elements) == 0 {
-		return clues.New("missing path beyond prefix")
-	}
-
-	return nil
+	return &dataLayerResourcePath{
+		Builder:  *pb.withPrefix(tenant, s.String(), resourceOwner, c.String()),
+		service:  s,
+		category: c,
+		hasItem:  false,
+	}, nil
 }
 
 // withPrefix creates a Builder prefixed with the parameter values, and
@@ -739,4 +750,18 @@ func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(PathSeparator))
+}
+
+// verifyPrefix ensures that the tenant and resourceOwner are valid
+// values, and that the builder has some directory structure.
+func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
+	if err := verifyInputValues(tenant, resourceOwner); err != nil {
+		return err
+	}
+
+	if len(pb.elements) == 0 {
+		return clues.New("missing path beyond prefix")
+	}
+
+	return nil
 }

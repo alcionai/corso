@@ -214,6 +214,7 @@ func DataCollections(
 	if len(collections) > 0 {
 		baseCols, err := graph.BaseCollections(
 			ctx,
+			collections,
 			acct.AzureTenantID,
 			user.ID(),
 			path.ExchangeService,
