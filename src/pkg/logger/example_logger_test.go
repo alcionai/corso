@@ -59,7 +59,7 @@ func Example_seed() {
 func Example_logger_standards() {
 	log := logger.Ctx(context.Background())
 
-	// 1. Keep messsages short.  Lowercase text, no ending punctuation.
+	// 1. Keep messages short.  Lowercase text, no ending punctuation.
 	// This ensures logs are easy to scan, and simple to grok.
 	//
 	// preferred

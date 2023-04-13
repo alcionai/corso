@@ -9,7 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 )
 
-// attachementUploadable represents structs that are able to upload small attachments directly to an item or use an
+// attachmentUploadable represents structs that are able to upload small attachments directly to an item or use an
 // upload session to connect large attachments to their corresponding M365 item.
 type attachmentUploadable interface {
 	uploadSmallAttachment(ctx context.Context, attachment models.Attachmentable) error

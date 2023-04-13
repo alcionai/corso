@@ -132,7 +132,7 @@ var (
 
 // Builder is a simple path representation that only tracks path elements. It
 // can join, escape, and unescape elements. Higher-level packages are expected
-// to wrap this struct to build resource-speicific contexts (e.x. an
+// to wrap this struct to build resource-specific contexts (e.x. an
 // ExchangeMailPath).
 // Resource-specific paths allow access to more information like segments in the
 // path. Builders that are turned into resource paths later on do not need to
@@ -341,7 +341,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 
@@ -398,7 +398,7 @@ func (pb Builder) ToDataLayerPath(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 

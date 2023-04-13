@@ -61,16 +61,16 @@ func main() {
 }
 
 func handleFactoryRoot(cmd *cobra.Command, args []string) error {
-	Err(cmd.Context(), impl.ErrNotYetImplemeted)
+	Err(cmd.Context(), impl.ErrNotYetImplemented)
 	return cmd.Help()
 }
 
 func handleExchangeFactory(cmd *cobra.Command, args []string) error {
-	Err(cmd.Context(), impl.ErrNotYetImplemeted)
+	Err(cmd.Context(), impl.ErrNotYetImplemented)
 	return cmd.Help()
 }
 
 func handleOneDriveFactory(cmd *cobra.Command, args []string) error {
-	Err(cmd.Context(), impl.ErrNotYetImplemeted)
+	Err(cmd.Context(), impl.ErrNotYetImplemented)
 	return cmd.Help()
 }

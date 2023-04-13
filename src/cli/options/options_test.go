@@ -26,12 +26,12 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.True(t, failFastFV, failFastFN)
-			assert.True(t, disableIncrementalsFV, disableIncrementalsFN)
-			assert.True(t, noStatsFV, noStatsFN)
-			assert.True(t, restorePermissionsFV, restorePermissionsFN)
-			assert.True(t, skipReduceFV, skipReduceFN)
-			assert.Equal(t, 2, fetchParallelismFV, fetchParallelismFN)
+			assert.True(t, failFastFV, FailFastFN)
+			assert.True(t, disableIncrementalsFV, DisableIncrementalsFN)
+			assert.True(t, noStatsFV, NoStatsFN)
+			assert.True(t, restorePermissionsFV, RestorePermissionsFN)
+			assert.True(t, skipReduceFV, SkipReduceFN)
+			assert.Equal(t, 2, fetchParallelismFV, FetchParallelismFN)
 		},
 	}
 
@@ -48,13 +48,13 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
-		"--" + failFastFN,
-		"--" + disableIncrementalsFN,
-		"--" + noStatsFN,
-		"--" + restorePermissionsFN,
-		"--" + skipReduceFN,
+		"--" + FailFastFN,
+		"--" + DisableIncrementalsFN,
+		"--" + NoStatsFN,
+		"--" + RestorePermissionsFN,
+		"--" + SkipReduceFN,
 
-		"--" + fetchParallelismFN, "2",
+		"--" + FetchParallelismFN, "2",
 	})
 
 	err := cmd.Execute()

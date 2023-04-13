@@ -128,14 +128,14 @@ func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, 
 		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("category", fmt.Sprintf("%q", c))
 	}
 
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return UnknownService, UnknownCategory, err
 	}
 
 	return service, category, nil
 }
 
-func validateServiceAndCategory(service ServiceType, category CategoryType) error {
+func ValidateServiceAndCategory(service ServiceType, category CategoryType) error {
 	cats, ok := serviceCategories[service]
 	if !ok {
 		return clues.New("unsupported service").With("service", fmt.Sprintf("%q", service))
