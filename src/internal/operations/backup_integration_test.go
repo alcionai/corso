@@ -115,7 +115,6 @@ func prepNewTestBackupOp(
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connectorResource,
 		fault.New(true))
@@ -750,7 +749,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_exchangeIncrementals() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))
@@ -1203,7 +1201,6 @@ func (suite *BackupOpIntegrationSuite) TestBackup_Run_oneDriveIncrementals() {
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		fault.New(true))

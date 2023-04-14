@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector"
 	exchMock "github.com/alcionai/corso/src/internal/connector/exchange/mock"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -137,7 +136,6 @@ func getGCAndVerifyUser(ctx context.Context, userID string) (*connector.GraphCon
 
 	gc, err := connector.NewGraphConnector(
 		ctx,
-		graph.HTTPClient(graph.NoTimeout()),
 		acct,
 		connector.Users,
 		errs)

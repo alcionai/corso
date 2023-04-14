@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -1284,10 +1283,10 @@ func getSelectorWith(
 	}
 }
 
-func loadConnector(ctx context.Context, t *testing.T, itemClient *http.Client, r resource) *GraphConnector {
+func loadConnector(ctx context.Context, t *testing.T, r resource) *GraphConnector {
 	a := tester.NewM365Account(t)
 
-	connector, err := NewGraphConnector(ctx, itemClient, a, r, fault.New(true))
+	connector, err := NewGraphConnector(ctx, a, r, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	return connector

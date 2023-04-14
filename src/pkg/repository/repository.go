@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
@@ -643,7 +642,7 @@ func connectToM365(
 		resource = connector.Sites
 	}
 
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
+	gc, err := connector.NewGraphConnector(ctx, acct, resource, errs)
 	if err != nil {
 		return nil, err
 	}
