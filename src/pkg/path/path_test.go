@@ -753,7 +753,6 @@ func (suite *PathUnitSuite) TestPath_piiHandling() {
 func (suite *PathUnitSuite) TestToServicePrefix() {
 	table := []struct {
 		name      string
-		pb        Builder
 		service   ServiceType
 		category  CategoryType
 		tenant    string
@@ -763,7 +762,6 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 	}{
 		{
 			name:      "ok",
-			pb:        Builder{},
 			service:   ExchangeService,
 			category:  ContactsCategory,
 			tenant:    "t",
@@ -773,7 +771,6 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 		},
 		{
 			name:      "bad category",
-			pb:        Builder{},
 			service:   ExchangeService,
 			category:  FilesCategory,
 			tenant:    "t",
@@ -782,7 +779,6 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 		},
 		{
 			name:      "bad tenant",
-			pb:        Builder{},
 			service:   ExchangeService,
 			category:  ContactsCategory,
 			tenant:    "",
@@ -791,20 +787,10 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 		},
 		{
 			name:      "bad owner",
-			pb:        Builder{},
 			service:   ExchangeService,
 			category:  ContactsCategory,
 			tenant:    "t",
 			owner:     "",
-			expectErr: require.Error,
-		},
-		{
-			name:      "bad pb",
-			pb:        *Builder{}.Append("foo"),
-			service:   ExchangeService,
-			category:  ContactsCategory,
-			tenant:    "t",
-			owner:     "ro",
 			expectErr: require.Error,
 		},
 	}
@@ -812,7 +798,7 @@ func (suite *PathUnitSuite) TestToServicePrefix() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			r, err := test.pb.ToServicePrefix(test.tenant, test.owner, test.service, test.category)
+			r, err := ServicePrefix(test.tenant, test.owner, test.service, test.category)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if r != nil {

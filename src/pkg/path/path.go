@@ -299,14 +299,12 @@ func (pb Builder) Elements() Elements {
 	return append(Elements{}, pb.elements...)
 }
 
-func (pb Builder) ToServicePrefix(
+func ServicePrefix(
 	tenant, resourceOwner string,
 	s ServiceType,
 	c CategoryType,
 ) (Path, error) {
-	if len(pb.elements) > 0 {
-		return nil, clues.New("contains path beyond prefix")
-	}
+	pb := Builder{}
 
 	if err := ValidateServiceAndCategory(s, c); err != nil {
 		return nil, err

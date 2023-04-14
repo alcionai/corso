@@ -1020,14 +1020,14 @@ func inflateBaseTree(
 			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
 		}
 
+		// This ensures that a migration on the directory prefix can complete.
+		// The prefix is the tenant/service/owner/category set, which remains
+		// otherwise unchecked in tree inflation below this point.
 		newSubtreePath := subtreePath
 		if p, ok := updatedPaths[subtreePath.String()]; ok {
 			newSubtreePath = p.ToBuilder()
 		}
 
-		// We're assuming here that the prefix for the path has not changed (i.e.
-		// all of tenant, service, resource owner, and category are the same in the
-		// old snapshot (snap) and the snapshot we're currently trying to make.
 		if err = traverseBaseDir(
 			ictx,
 			0,
