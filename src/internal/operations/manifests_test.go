@@ -1043,7 +1043,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_fallb
 			for _, m := range mans {
 				manIDs = append(manIDs, string(m.ID))
 
-				reasons, _ := test.expectReasons[string(m.ID)]
+				reasons := test.expectReasons[string(m.ID)]
 
 				mrs := []path.CategoryType{}
 				for _, r := range m.Reasons {
