@@ -264,10 +264,8 @@ func RestoreListCollection(
 			}
 
 			err = deets.Add(
-				itemPath.String(),
-				itemPath.ShortRef(),
-				"",
-				"", // TODO: implement locationRef
+				itemPath,
+				&path.Builder{}, // TODO: implement locationRef
 				true,
 				itemInfo)
 			if err != nil {
@@ -354,10 +352,8 @@ func RestorePageCollection(
 			}
 
 			err = deets.Add(
-				itemPath.String(),
-				itemPath.ShortRef(),
-				"",
-				"", // TODO: implement locationRef
+				itemPath,
+				&path.Builder{}, // TODO: implement locationRef
 				true,
 				itemInfo)
 			if err != nil {

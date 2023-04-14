@@ -249,10 +249,8 @@ func RestoreCollection(
 			}
 
 			err = deets.Add(
-				itemPath.String(),
-				itemPath.ShortRef(),
-				"",
-				"", // TODO: implement locationRef
+				itemPath,
+				&path.Builder{}, // TODO: implement locationRef
 				true,
 				itemInfo)
 			if err != nil {
