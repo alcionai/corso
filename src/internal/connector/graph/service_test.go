@@ -47,19 +47,19 @@ func (suite *GraphUnitSuite) TestCreateAdapter() {
 func (suite *GraphUnitSuite) TestHTTPClient() {
 	table := []struct {
 		name  string
-		opts  []option
+		opts  []Option
 		check func(*testing.T, *http.Client)
 	}{
 		{
 			name: "no options",
-			opts: []option{},
+			opts: []Option{},
 			check: func(t *testing.T, c *http.Client) {
 				assert.Equal(t, defaultHTTPClientTimeout, c.Timeout, "default timeout")
 			},
 		},
 		{
 			name: "no timeout",
-			opts: []option{NoTimeout()},
+			opts: []Option{NoTimeout()},
 			check: func(t *testing.T, c *http.Client) {
 				// FIXME: Change to 0 one upstream issue is fixed
 				assert.Equal(t, time.Duration(48*time.Hour), c.Timeout, "unlimited timeout")

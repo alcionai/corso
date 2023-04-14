@@ -109,22 +109,22 @@ func (i Item) Values() []string {
 	return []string{"Error", i.Type.Printable(), i.Name, cn, i.Cause}
 }
 
-// ContainerErr produces a Container-type Item for tracking erronous items
+// ContainerErr produces a Container-type Item for tracking erroneous items
 func ContainerErr(cause error, id, name string, addtl map[string]any) *Item {
 	return itemErr(ContainerType, cause, id, name, addtl)
 }
 
-// FileErr produces a File-type Item for tracking erronous items.
+// FileErr produces a File-type Item for tracking erroneous items.
 func FileErr(cause error, id, name string, addtl map[string]any) *Item {
 	return itemErr(FileType, cause, id, name, addtl)
 }
 
-// OnwerErr produces a ResourceOwner-type Item for tracking erronous items.
+// OnwerErr produces a ResourceOwner-type Item for tracking erroneous items.
 func OwnerErr(cause error, id, name string, addtl map[string]any) *Item {
 	return itemErr(ResourceOwnerType, cause, id, name, addtl)
 }
 
-// itemErr produces a Item of the provided type for tracking erronous items.
+// itemErr produces a Item of the provided type for tracking erroneous items.
 func itemErr(t itemType, cause error, id, name string, addtl map[string]any) *Item {
 	return &Item{
 		ID:         id,
@@ -176,7 +176,7 @@ var _ print.Printable = &Skipped{}
 // the underlying reason is transient or otherwise recoverable,
 // the item should not be skipped.
 //
-// Skipped wraps Item primarily to minimze confusion when sharing the
+// Skipped wraps Item primarily to minimize confusion when sharing the
 // fault interface.  Skipped items are not errors, and Item{} errors are
 // not the basis for a Skip.
 type Skipped struct {

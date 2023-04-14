@@ -2,13 +2,13 @@ package connector
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,10 @@ func getMetadata(fileName string, perm permData, permUseID bool) onedrive.Metada
 		}
 	}
 
-	id := base64.StdEncoding.EncodeToString([]byte(perm.user + strings.Join(perm.roles, "+")))
+	// In case of permissions, the id will usually be same for same
+	// user/role combo unless deleted and readded, but we have to do
+	// this as we only have two users of which one is already taken.
+	id := uuid.NewString()
 	uperm := onedrive.UserPermission{ID: id, Roles: perm.roles}
 
 	if permUseID {

@@ -55,8 +55,8 @@ func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
 }
 
 type cmdCfg struct {
-	hidden    bool
-	preRelese bool
+	hidden     bool
+	preRelease bool
 }
 
 type cmdOpt func(*cmdCfg)
@@ -76,7 +76,7 @@ func HideCommand() cmdOpt {
 func MarkPreReleaseCommand() cmdOpt {
 	return func(cc *cmdCfg) {
 		cc.hidden = true
-		cc.preRelese = true
+		cc.preRelease = true
 	}
 }
 
@@ -89,7 +89,7 @@ func AddCommand(parent, c *cobra.Command, opts ...cmdOpt) (*cobra.Command, *pfla
 	parent.AddCommand(c)
 	c.Hidden = cc.hidden
 
-	if cc.preRelese {
+	if cc.preRelease {
 		// There is a default deprecated message that always shows so we do some terminal magic to overwrite it
 		c.Deprecated = "\n\033[1F\033[K" +
 			"==================================================================================================\n" +

@@ -106,7 +106,7 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
 	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
-	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
 	ro, err := r.NewRestore(ctx, utils.BackupIDFV, sel.Selector, dest)

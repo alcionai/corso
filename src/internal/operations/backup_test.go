@@ -102,7 +102,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
-) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error) {
+) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(bases, cs, tags, buildTreeWithBase)
 	}
@@ -179,6 +179,55 @@ func (mbs mockBackupStorer) Put(context.Context, model.Schema, model.Model) erro
 
 func (mbs mockBackupStorer) Update(context.Context, model.Schema, model.Model) error {
 	return clues.New("not implemented")
+}
+
+// ----- model store for backups
+
+type locPair struct {
+	old  *path.Builder
+	newL *path.Builder
+}
+
+type mockDetailsMergeInfoer struct {
+	repoRefs map[string]path.Path
+	locs     map[string]locPair
+}
+
+func (m *mockDetailsMergeInfoer) add(oldRef, newRef path.Path, oldPrefix, newLoc *path.Builder) {
+	oldPB := oldRef.ToBuilder()
+	// Items are indexed individually.
+	m.repoRefs[oldPB.ShortRef()] = newRef
+
+	if newLoc != nil {
+		// Locations are indexed by directory.
+		m.locs[oldPB.ShortRef()] = locPair{
+			old:  oldPrefix,
+			newL: newLoc,
+		}
+	}
+}
+
+func (m *mockDetailsMergeInfoer) GetNewPathRefs(
+	oldRef *path.Builder,
+	oldLoc details.LocationIDer,
+) (path.Path, *path.Builder, *path.Builder) {
+	locs := m.locs[oldRef.ShortRef()]
+	return m.repoRefs[oldRef.ShortRef()], locs.old, locs.newL
+}
+
+func (m *mockDetailsMergeInfoer) ItemsToMerge() int {
+	if m == nil {
+		return 0
+	}
+
+	return len(m.repoRefs)
+}
+
+func newMockDetailsMergeInfoer() *mockDetailsMergeInfoer {
+	return &mockDetailsMergeInfoer{
+		repoRefs: map[string]path.Path{},
+		locs:     map[string]locPair{},
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -669,11 +718,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
-		name                         string
-		populatedModels              map[model.StableID]backup.Backup
-		populatedDetails             map[string]*details.Details
-		inputMans                    []*kopia.ManifestEntry
-		inputShortRefsFromPrevBackup map[string]kopia.PrevRefs
+		name             string
+		populatedModels  map[model.StableID]backup.Backup
+		populatedDetails map[string]*details.Details
+		inputMans        []*kopia.ManifestEntry
+		mdm              *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
 		expectedEntries []*details.DetailsEntry
@@ -685,20 +734,20 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			expectedEntries: []*details.DetailsEntry{},
 		},
 		{
-			name:                         "EmptyShortRefsFromPrevBackup",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{},
-			errCheck:                     assert.NoError,
+			name:     "EmptyShortRefsFromPrevBackup",
+			mdm:      newMockDetailsMergeInfoer(),
+			errCheck: assert.NoError,
 			// Use empty slice so we don't error out on nil != empty.
 			expectedEntries: []*details.DetailsEntry{},
 		},
 		{
 			name: "BackupIDNotFound",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), "foo", ""),
@@ -711,12 +760,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "DetailsIDNotFound",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -737,16 +786,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "BaseMissingItems",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-				itemPath2.ShortRef(): {
-					Repo:     itemPath2,
-					Location: locationPath2,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+				res.add(itemPath2, itemPath2, locationPath2, locationPath2)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -771,12 +817,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "TooManyItems",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -807,12 +853,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "BadBaseRepoRef",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath2,
-					Location: locationPath2,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath2, locationPath1, locationPath2)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -856,22 +902,25 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "BadOneDrivePath",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo: makePath(
-						suite.T(),
-						[]string{
-							itemPath1.Tenant(),
-							path.OneDriveService.String(),
-							itemPath1.ResourceOwner(),
-							path.FilesCategory.String(),
-							"personal",
-							"item1",
-						},
-						true,
-					),
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				p := makePath(
+					suite.T(),
+					[]string{
+						itemPath1.Tenant(),
+						path.OneDriveService.String(),
+						itemPath1.ResourceOwner(),
+						path.FilesCategory.String(),
+						"personal",
+						"item1",
+					},
+					true,
+				)
+
+				res.add(itemPath1, p, locationPath1, nil)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -896,12 +945,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "ItemMerged",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -928,45 +977,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 		},
 		{
-			name: "ItemMergedNoLocation",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo: itemPath1,
-				},
-			},
-			inputMans: []*kopia.ManifestEntry{
-				{
-					Manifest: makeManifest(suite.T(), backup1.ID, ""),
-					Reasons: []kopia.Reason{
-						pathReason1,
-					},
-				},
-			},
-			populatedModels: map[model.StableID]backup.Backup{
-				backup1.ID: backup1,
-			},
-			populatedDetails: map[string]*details.Details{
-				backup1.DetailsID: {
-					DetailsModel: details.DetailsModel{
-						Entries: []details.DetailsEntry{
-							*makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-			expectedEntries: []*details.DetailsEntry{
-				makeDetailsEntry(suite.T(), itemPath1, nil, 42, false),
-			},
-		},
-		{
 			name: "ItemMergedSameLocation",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -994,12 +1011,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "ItemMergedExtraItemsInBase",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1028,12 +1045,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "ItemMoved",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath2,
-					Location: locationPath2,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath2, locationPath1, locationPath2)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1061,16 +1078,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "MultipleBases",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-				itemPath3.ShortRef(): {
-					Repo:     itemPath3,
-					Location: locationPath3,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+				res.add(itemPath3, itemPath3, locationPath3, locationPath3)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1116,12 +1130,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		},
 		{
 			name: "SomeBasesIncomplete",
-			inputShortRefsFromPrevBackup: map[string]kopia.PrevRefs{
-				itemPath1.ShortRef(): {
-					Repo:     itemPath1,
-					Location: locationPath1,
-				},
-			},
+			mdm: func() *mockDetailsMergeInfoer {
+				res := newMockDetailsMergeInfoer()
+				res.add(itemPath1, itemPath1, locationPath1, locationPath1)
+
+				return res
+			}(),
 			inputMans: []*kopia.ManifestEntry{
 				{
 					Manifest: makeManifest(suite.T(), backup1.ID, ""),
@@ -1180,7 +1194,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				w,
 				mds,
 				test.inputMans,
-				test.inputShortRefsFromPrevBackup,
+				test.mdm,
 				&deets,
 				fault.New(true))
 			test.errCheck(t, err, clues.ToCore(err))
@@ -1230,13 +1244,6 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			Category:      itemPath1.Category(),
 		}
 
-		inputToMerge = map[string]kopia.PrevRefs{
-			itemPath1.ShortRef(): {
-				Repo:     itemPath1,
-				Location: locPath1,
-			},
-		}
-
 		inputMans = []*kopia.ManifestEntry{
 			{
 				Manifest: makeManifest(t, backup1.ID, ""),
@@ -1254,6 +1261,9 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		now      = time.Now()
 		// later    = now.Add(42 * time.Minute)
 	)
+
+	mdm := newMockDetailsMergeInfoer()
+	mdm.add(itemPath1, itemPath1, locPath1, locPath1)
 
 	itemDetails := makeDetailsEntry(t, itemPath1, locPath1, itemSize, false)
 	// itemDetails.Exchange.Modified = now
@@ -1293,7 +1303,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 		w,
 		mds,
 		inputMans,
-		inputToMerge,
+		mdm,
 		&deets,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))

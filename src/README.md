@@ -12,7 +12,7 @@ Manages compilation and validation of repository configuration and consts.  Both
 -----
 
 ## /cli
-Command Line Interface controller.  Utilizes /pkg/repository as an exernal dependency.
+Command Line Interface controller.  Utilizes /pkg/repository as an external dependency.
 
 -----
 

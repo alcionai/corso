@@ -10,7 +10,7 @@ type HorizontalSection struct {
 	msmodel.Entity
 	// The set of vertical columns in this section.
 	columns []HorizontalSectionColumnable
-	// Enumeration value that indicates the emphasis of the section background. The possible values are: none, netural, soft, strong, unknownFutureValue.
+	// Enumeration value that indicates the emphasis of the section background. The possible values are: none, neutral, soft, strong, unknownFutureValue.
 	emphasis *SectionEmphasisType
 	// Layout type of the section. The possible values are: none, oneColumn, twoColumns, threeColumns, oneThirdLeftColumn, oneThirdRightColumn, fullWidth, unknownFutureValue.
 	layout *HorizontalSectionLayoutType
@@ -34,7 +34,7 @@ func (m *HorizontalSection) GetColumns() []HorizontalSectionColumnable {
 	return m.columns
 }
 
-// GetEmphasis gets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, netural, soft, strong, unknownFutureValue.
+// GetEmphasis gets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, neutral, soft, strong, unknownFutureValue.
 func (m *HorizontalSection) GetEmphasis() *SectionEmphasisType {
 	return m.emphasis
 }
@@ -122,7 +122,7 @@ func (m *HorizontalSection) SetColumns(value []HorizontalSectionColumnable) {
 	m.columns = value
 }
 
-// SetEmphasis sets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, netural, soft, strong, unknownFutureValue.
+// SetEmphasis sets the emphasis property value. Enumeration value that indicates the emphasis of the section background. The possible values are: none, neutral, soft, strong, unknownFutureValue.
 func (m *HorizontalSection) SetEmphasis(value *SectionEmphasisType) {
 	m.emphasis = value
 }

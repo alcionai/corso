@@ -18,7 +18,7 @@ func AddOneDriveCommands(cmd *cobra.Command) {
 }
 
 func handleOneDriveFileFactory(cmd *cobra.Command, args []string) error {
-	Err(cmd.Context(), ErrNotYetImplemeted)
+	Err(cmd.Context(), ErrNotYetImplemented)
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil

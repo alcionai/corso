@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/common"
@@ -16,15 +17,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-type SharePointSuite struct {
+type SharePointUnitSuite struct {
 	tester.Suite
 }
 
-func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, &SharePointSuite{tester.NewUnitSuite(t)})
+func TestSharePointUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointUnitSuite{tester.NewUnitSuite(t)})
 }
 
-func (suite *SharePointSuite) TestAddSharePointCommands() {
+func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 	expectUse := sharePointServiceCommand
 
 	table := []struct {
@@ -32,23 +33,58 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 		use         string
 		expectUse   string
 		expectShort string
+		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create sharepoint", createCommand, expectUse + " " + sharePointServiceCommandCreateUseSuffix,
-			sharePointCreateCmd().Short, createSharePointCmd,
+			"create sharepoint",
+			createCommand,
+			expectUse + " " + sharePointServiceCommandCreateUseSuffix,
+			sharePointCreateCmd().Short,
+			[]string{
+				utils.SiteFN,
+				options.DisableIncrementalsFN,
+				options.FailFastFN,
+			},
+			createSharePointCmd,
 		},
 		{
-			"list sharepoint", listCommand, expectUse,
-			sharePointListCmd().Short, listSharePointCmd,
+			"list sharepoint",
+			listCommand,
+			expectUse,
+			sharePointListCmd().Short,
+			[]string{
+				utils.BackupFN,
+				failedItemsFN,
+				skippedItemsFN,
+				recoveredErrorsFN,
+			},
+			listSharePointCmd,
 		},
 		{
-			"details sharepoint", detailsCommand, expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
-			sharePointDetailsCmd().Short, detailsSharePointCmd,
+			"details sharepoint",
+			detailsCommand,
+			expectUse + " " + sharePointServiceCommandDetailsUseSuffix,
+			sharePointDetailsCmd().Short,
+			[]string{
+				utils.BackupFN,
+				utils.LibraryFN,
+				utils.FolderFN,
+				utils.FileFN,
+				utils.FileCreatedAfterFN,
+				utils.FileCreatedBeforeFN,
+				utils.FileModifiedAfterFN,
+				utils.FileModifiedBeforeFN,
+			},
+			detailsSharePointCmd,
 		},
 		{
-			"delete sharepoint", deleteCommand, expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
-			sharePointDeleteCmd().Short, deleteSharePointCmd,
+			"delete sharepoint",
+			deleteCommand,
+			expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
+			sharePointDeleteCmd().Short,
+			[]string{utils.BackupFN},
+			deleteSharePointCmd,
 		},
 	}
 	for _, test := range table {
@@ -67,11 +103,15 @@ func (suite *SharePointSuite) TestAddSharePointCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
+
+			for _, f := range test.flags {
+				assert.NotNil(t, c.Flag(f), f+" flag")
+			}
 		})
 	}
 }
 
-func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
+func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 	table := []struct {
 		name   string
 		site   []string
@@ -107,7 +147,7 @@ func (suite *SharePointSuite) TestValidateSharePointBackupCreateFlags() {
 	}
 }
 
-func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
+func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 	const (
 		id1  = "id_1"
 		id2  = "id_2"
@@ -215,7 +255,7 @@ func (suite *SharePointSuite) TestSharePointBackupCreateSelectors() {
 	}
 }
 
-func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
+func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -235,7 +275,7 @@ func (suite *SharePointSuite) TestSharePointBackupDetailsSelectors() {
 	}
 }
 
-func (suite *SharePointSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
+func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 

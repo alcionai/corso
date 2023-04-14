@@ -44,6 +44,9 @@ linters-settings:
       - '(errors|fmt)\.(New|Stack|Wrap|Error)f?\((# error handling should use clues pkg)?'
       # Avoid Warn-level logging in favor of Info or Error.
       - 'Warn[wf]?\((# logging should use Info or Error)?'
+      # Prefer suite.Run(name, func() {}) for subtests as testify has it instead
+      # of suite.T().Run(name, func(t *testing.T) {}).
+      - '(T\(\)|\st[a-zA-Z0-9]*)\.Run(# prefer testify suite.Run(name, func()) )?'
   lll:
     line-length: 120
   revive:

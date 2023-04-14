@@ -136,6 +136,10 @@ func TestDataLayerResourcePath(t *testing.T) {
 	suite.Run(t, &DataLayerResourcePath{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *DataLayerResourcePath) SetupSuite() {
+	clues.SetHasher(clues.NoHash())
+}
+
 func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 	for _, types := range serviceCategories {
 		suite.Run(types.service.String()+types.category.String(), func() {
@@ -402,7 +406,7 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 					assert.Equal(t, test.category, p.Category())
 					assert.Equal(t, testUser, p.ResourceOwner())
 					assert.Equal(t, strings.Join(m.expectedFolders, "/"), p.Folder(false))
-					assert.Equal(t, m.expectedFolders, p.Folders())
+					assert.Equal(t, path.Elements(m.expectedFolders), p.Folders())
 					assert.Equal(t, m.expectedItem, p.Item())
 				})
 			}
@@ -496,7 +500,7 @@ func (suite *PopulatedDataLayerResourcePath) TestFolders() {
 		suite.Run(m.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, m.expectedFolders, suite.paths[m.isItem].Folders())
+			assert.Equal(t, path.Elements(m.expectedFolders), suite.paths[m.isItem].Folders())
 		})
 	}
 }
@@ -632,6 +636,40 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
 			if tc.updated {
 				assert.Equal(t, expected, item, "modified path")
 			}
+		})
+	}
+}
+
+func (suite *PopulatedDataLayerResourcePath) TestUpdateParent_NoopsNils() {
+	oldPB := path.Builder{}.Append("hello", "world")
+	newPB := path.Builder{}.Append("hola", "mundo")
+	// So we can get a new copy for each test.
+	testPBElems := []string{"bar", "baz"}
+
+	table := []struct {
+		name  string
+		oldPB *path.Builder
+		newPB *path.Builder
+	}{
+		{
+			name:  "Nil Prev",
+			newPB: newPB,
+		},
+		{
+			name:  "Nil New",
+			oldPB: oldPB,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			base := oldPB.Append(testPBElems...)
+			expected := base.String()
+
+			assert.False(t, base.UpdateParent(test.oldPB, test.newPB))
+			assert.Equal(t, expected, base.String())
 		})
 	}
 }

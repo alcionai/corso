@@ -9,20 +9,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type ExchangeSuite struct {
+type ExchangeUnitSuite struct {
 	tester.Suite
 }
 
-func TestExchangeSuite(t *testing.T) {
-	suite.Run(t, &ExchangeSuite{Suite: tester.NewUnitSuite(t)})
+func TestExchangeUnitSuite(t *testing.T) {
+	suite.Run(t, &ExchangeUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExchangeSuite) TestAddExchangeCommands() {
+func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
 
 	table := []struct {
@@ -30,23 +31,71 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		use         string
 		expectUse   string
 		expectShort string
+		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create exchange", createCommand, expectUse + " " + exchangeServiceCommandCreateUseSuffix,
-			exchangeCreateCmd().Short, createExchangeCmd,
+			"create exchange",
+			createCommand,
+			expectUse + " " + exchangeServiceCommandCreateUseSuffix,
+			exchangeCreateCmd().Short,
+			[]string{
+				utils.UserFN,
+				utils.CategoryDataFN,
+				options.DisableIncrementalsFN,
+				options.FailFastFN,
+				options.FetchParallelismFN,
+				options.SkipReduceFN,
+				options.NoStatsFN,
+			},
+			createExchangeCmd,
 		},
 		{
-			"list exchange", listCommand, expectUse,
-			exchangeListCmd().Short, listExchangeCmd,
+			"list exchange",
+			listCommand,
+			expectUse,
+			exchangeListCmd().Short,
+			[]string{
+				utils.BackupFN,
+				failedItemsFN,
+				skippedItemsFN,
+				recoveredErrorsFN,
+			},
+			listExchangeCmd,
 		},
 		{
-			"details exchange", detailsCommand, expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
-			exchangeDetailsCmd().Short, detailsExchangeCmd,
+			"details exchange",
+			detailsCommand,
+			expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
+			exchangeDetailsCmd().Short,
+			[]string{
+				utils.BackupFN,
+				utils.ContactFN,
+				utils.ContactFolderFN,
+				utils.ContactNameFN,
+				utils.EmailFN,
+				utils.EmailFolderFN,
+				utils.EmailReceivedAfterFN,
+				utils.EmailReceivedBeforeFN,
+				utils.EmailSenderFN,
+				utils.EmailSubjectFN,
+				utils.EventFN,
+				utils.EventCalendarFN,
+				utils.EventOrganizerFN,
+				utils.EventRecursFN,
+				utils.EventStartsAfterFN,
+				utils.EventStartsBeforeFN,
+				utils.EventSubjectFN,
+			},
+			detailsExchangeCmd,
 		},
 		{
-			"delete exchange", deleteCommand, expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
-			exchangeDeleteCmd().Short, deleteExchangeCmd,
+			"delete exchange",
+			deleteCommand,
+			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
+			exchangeDeleteCmd().Short,
+			[]string{utils.BackupFN},
+			deleteExchangeCmd,
 		},
 	}
 	for _, test := range table {
@@ -69,7 +118,7 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	}
 }
 
-func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
+func (suite *ExchangeUnitSuite) TestValidateBackupCreateFlags() {
 	table := []struct {
 		name       string
 		user, data []string
@@ -106,7 +155,7 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 	table := []struct {
 		name             string
 		user, data       []string
@@ -221,7 +270,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectors() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 
@@ -241,7 +290,7 @@ func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
 	ctx, flush := tester.NewContext()
 	defer flush()
 

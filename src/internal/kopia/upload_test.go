@@ -532,7 +532,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
-		toMerge:        map[string]PrevRefs{},
+		toMerge:        newMergeDetails(),
 		errs:           fault.New(true),
 	}
 
@@ -542,7 +542,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 
 	cp.FinishedFile(suite.targetFileName, nil)
 
-	assert.Empty(t, cp.toMerge)
+	assert.Equal(t, 0, cp.toMerge.ItemsToMerge())
 
 	// Gather information about the current state.
 	var (
@@ -587,6 +587,11 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBuildsHierarchyNewItem() {
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
+	type expectedRef struct {
+		oldRef *path.Builder
+		newRef path.Path
+	}
+
 	t := suite.T()
 
 	prevPath := makePath(
@@ -595,10 +600,11 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		true,
 	)
 
-	expectedToMerge := map[string]PrevRefs{
-		prevPath.ShortRef(): {
-			Repo:     suite.targetFilePath,
-			Location: suite.targetFileLoc,
+	// Location is sourced from collections now so we don't need to check it here.
+	expectedToMerge := []expectedRef{
+		{
+			oldRef: prevPath.ToBuilder(),
+			newRef: suite.targetFilePath,
 		},
 	}
 
@@ -608,7 +614,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          db,
 		pending:        map[string]*itemDetails{},
-		toMerge:        map[string]PrevRefs{},
+		toMerge:        newMergeDetails(),
 		errs:           fault.New(true),
 	}
 
@@ -623,8 +629,16 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	require.Len(t, cp.pending, 1)
 
 	cp.FinishedFile(suite.targetFileName, nil)
-	assert.Equal(t, expectedToMerge, cp.toMerge)
 	assert.Empty(t, cp.deets)
+
+	for _, expected := range expectedToMerge {
+		gotRef, _, _ := cp.toMerge.GetNewPathRefs(expected.oldRef, nil)
+		if !assert.NotNil(t, gotRef) {
+			continue
+		}
+
+		assert.Equal(t, expected.newRef.String(), gotRef.String())
+	}
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
@@ -698,6 +712,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 
@@ -816,6 +831,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 
@@ -920,7 +936,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, nil)
+			progress := &corsoProgress{
+				toMerge: newMergeDetails(),
+				errs:    fault.New(true),
+			}
+
+			_, err := inflateDirTree(ctx, nil, nil, test.layout, nil, progress)
 			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
@@ -1010,6 +1031,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 
@@ -1301,6 +1323,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 			msw := &mockSnapshotWalker{
@@ -2080,6 +2103,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 
 			progress := &corsoProgress{
 				pending: map[string]*itemDetails{},
+				toMerge: newMergeDetails(),
 				errs:    fault.New(true),
 			}
 			msw := &mockSnapshotWalker{
@@ -2228,6 +2252,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 	mc := mockconnector.NewMockExchangeCollection(suite.testStoragePath, suite.testStoragePath, 1)
@@ -2329,6 +2354,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 	mc := mockconnector.NewMockExchangeCollection(archiveStorePath, archiveLocPath, 1)
@@ -2584,6 +2610,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 
 	progress := &corsoProgress{
 		pending: map[string]*itemDetails{},
+		toMerge: newMergeDetails(),
 		errs:    fault.New(true),
 	}
 

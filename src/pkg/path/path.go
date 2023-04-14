@@ -86,7 +86,7 @@ type Path interface {
 	Tenant() string
 	ResourceOwner() string
 	Folder(bool) string
-	Folders() []string
+	Folders() Elements
 	Item() string
 	// UpdateParent updates parent from old to new if the item/folder was
 	// parented by old path
@@ -102,7 +102,7 @@ type Path interface {
 	// Elements returns all the elements in the path. This is a temporary function
 	// and will likely be updated to handle encoded elements instead of clear-text
 	// elements in the future.
-	Elements() []string
+	Elements() Elements
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.
@@ -113,11 +113,26 @@ type Path interface {
 	ShortRef() string
 	// ToBuilder returns a Builder instance that represents the current Path.
 	ToBuilder() *Builder
+
+	// Every path needs to comply with these funcs to ensure that PII
+	// is appropriately hidden from logging, errors, and other outputs.
+	clues.Concealer
+	fmt.Stringer
+
+	// In the rare case that the path needs to get printed as a plain string,
+	// without obscuring values for PII.
+	clues.PlainStringer
 }
+
+// interface compliance required for handling PII
+var (
+	_ clues.Concealer = &Builder{}
+	_ fmt.Stringer    = &Builder{}
+)
 
 // Builder is a simple path representation that only tracks path elements. It
 // can join, escape, and unescape elements. Higher-level packages are expected
-// to wrap this struct to build resource-speicific contexts (e.x. an
+// to wrap this struct to build resource-specific contexts (e.x. an
 // ExchangeMailPath).
 // Resource-specific paths allow access to more information like segments in the
 // path. Builders that are turned into resource paths later on do not need to
@@ -125,29 +140,7 @@ type Path interface {
 // tenant ID, service, user ID, etc).
 type Builder struct {
 	// Unescaped version of elements.
-	elements []string
-}
-
-// UnescapeAndAppend creates a copy of this Builder and adds one or more already
-// escaped path elements to the end of the new Builder. Elements are added in
-// the order they are passed.
-func (pb Builder) UnescapeAndAppend(elements ...string) (*Builder, error) {
-	res := &Builder{elements: make([]string, 0, len(pb.elements))}
-	copy(res.elements, pb.elements)
-
-	if err := res.appendElements(true, elements); err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-// SplitUnescapeAppend takes in an escaped string representing a directory
-// path, splits the string, and appends it to the current builder.
-func (pb Builder) SplitUnescapeAppend(s string) (*Builder, error) {
-	elems := Split(TrimTrailingSlash(s))
-
-	return pb.UnescapeAndAppend(elems...)
+	elements Elements
 }
 
 // Append creates a copy of this Builder and adds the given elements them to the
@@ -191,6 +184,28 @@ func (pb *Builder) appendElements(escaped bool, elements []string) error {
 	return nil
 }
 
+// UnescapeAndAppend creates a copy of this Builder and adds one or more already
+// escaped path elements to the end of the new Builder. Elements are added in
+// the order they are passed.
+func (pb Builder) UnescapeAndAppend(elements ...string) (*Builder, error) {
+	res := &Builder{elements: make([]string, 0, len(pb.elements))}
+	copy(res.elements, pb.elements)
+
+	if err := res.appendElements(true, elements); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// SplitUnescapeAppend takes in an escaped string representing a directory
+// path, splits the string, and appends it to the current builder.
+func (pb Builder) SplitUnescapeAppend(s string) (*Builder, error) {
+	elems := Split(TrimTrailingSlash(s))
+
+	return pb.UnescapeAndAppend(elems...)
+}
+
 func (pb Builder) PopFront() *Builder {
 	if len(pb.elements) <= 1 {
 		return &Builder{}
@@ -204,6 +219,7 @@ func (pb Builder) PopFront() *Builder {
 	}
 }
 
+// Dir removes the last element from the builder.
 func (pb Builder) Dir() *Builder {
 	if len(pb.elements) <= 1 {
 		return &Builder{}
@@ -215,6 +231,7 @@ func (pb Builder) Dir() *Builder {
 	}
 }
 
+// LastElem returns the last element in the Builder.
 func (pb Builder) LastElem() string {
 	if len(pb.elements) == 0 {
 		return ""
@@ -223,18 +240,35 @@ func (pb Builder) LastElem() string {
 	return pb.elements[len(pb.elements)-1]
 }
 
-// String returns a string that contains all path elements joined together.
-// Elements of the path that need escaping are escaped.
-func (pb Builder) String() string {
-	escaped := make([]string, 0, len(pb.elements))
-
-	for _, e := range pb.elements {
-		escaped = append(escaped, escapeElement(e))
+// UpdateParent updates leading elements matching prev to be cur and returns
+// true if it was updated. If prev is not a prefix of this Builder changes
+// nothing and returns false. If either prev or cur is nil does nothing and
+// returns false.
+func (pb *Builder) UpdateParent(prev, cur *Builder) bool {
+	if prev == cur || prev == nil || cur == nil || len(prev.Elements()) > len(pb.Elements()) {
+		return false
 	}
 
-	return join(escaped)
+	parent := true
+
+	for i, e := range prev.Elements() {
+		if pb.elements[i] != e {
+			parent = false
+			break
+		}
+	}
+
+	if !parent {
+		return false
+	}
+
+	pb.elements = append(cur.Elements(), pb.elements[len(prev.Elements()):]...)
+
+	return true
 }
 
+// ShortRef produces a truncated hash of the builder that
+// acts as a unique identifier.
 func (pb Builder) ShortRef() string {
 	if len(pb.elements) == 0 {
 		return ""
@@ -261,22 +295,12 @@ func (pb Builder) ShortRef() string {
 // Elements returns all the elements in the path. This is a temporary function
 // and will likely be updated to handle encoded elements instead of clear-text
 // elements in the future.
-func (pb Builder) Elements() []string {
-	return append([]string{}, pb.elements...)
+func (pb Builder) Elements() Elements {
+	return append(Elements{}, pb.elements...)
 }
 
-func verifyInputValues(tenant, resourceOwner string) error {
-	if len(tenant) == 0 {
-		return clues.Stack(errMissingSegment, clues.New("tenant"))
-	}
-
-	if len(resourceOwner) == 0 {
-		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
-	}
-
-	return nil
-}
-
+// verifyPrefix ensures that the tenant and resourceOwner are valid
+// values, and that the builder has some directory structure.
 func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
 	if err := verifyInputValues(tenant, resourceOwner); err != nil {
 		return err
@@ -289,12 +313,18 @@ func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
 	return nil
 }
 
+// withPrefix creates a Builder prefixed with the parameter values, and
+// concatenated with the current builder elements.
 func (pb Builder) withPrefix(elements ...string) *Builder {
 	res := Builder{}.Append(elements...)
 	res.elements = append(res.elements, pb.elements...)
 
 	return res
 }
+
+// ---------------------------------------------------------------------------
+// Data Layer Path Transformers
+// ---------------------------------------------------------------------------
 
 func (pb Builder) ToStreamStorePath(
 	tenant, purpose string,
@@ -338,7 +368,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 
@@ -374,28 +404,13 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 	}, nil
 }
 
-func Build(
-	tenant, resourceOwner string,
-	service ServiceType,
-	category CategoryType,
-	hasItem bool,
-	elements ...string,
-) (Path, error) {
-	b := Builder{}.Append(elements...)
-
-	return b.ToDataLayerPath(
-		tenant, resourceOwner,
-		service, category,
-		hasItem)
-}
-
 func (pb Builder) ToDataLayerPath(
 	tenant, user string,
 	service ServiceType,
 	category CategoryType,
 	isItem bool,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
 	}
 
@@ -439,6 +454,57 @@ func (pb Builder) ToDataLayerSharePointPath(
 	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
 }
 
+// ---------------------------------------------------------------------------
+// Stringers and PII Concealer Compliance
+// ---------------------------------------------------------------------------
+
+// Conceal produces a concealed representation of the builder, suitable for
+// logging, storing in errors, and other output.
+func (pb Builder) Conceal() string {
+	return pb.elements.Conceal()
+}
+
+// Format produces a concealed representation of the builder, even when
+// used within a PrintF, suitable for logging, storing in errors,
+// and other output.
+func (pb Builder) Format(fs fmt.State, _ rune) {
+	fmt.Fprint(fs, pb.Conceal())
+}
+
+// String returns a string that contains all path elements joined together.
+// Elements of the path that need escaping are escaped.
+// The result is not concealed, and is not suitable for logging or structured
+// errors.
+func (pb Builder) String() string {
+	return pb.elements.String()
+}
+
+// PlainString returns an unescaped, unmodified string of the builder.
+// The result is not concealed, and is not suitable for logging or structured
+// errors.
+func (pb Builder) PlainString() string {
+	return pb.elements.PlainString()
+}
+
+// ---------------------------------------------------------------------------
+// Exported Helpers
+// ---------------------------------------------------------------------------
+
+func Build(
+	tenant, resourceOwner string,
+	service ServiceType,
+	category CategoryType,
+	hasItem bool,
+	elements ...string,
+) (Path, error) {
+	b := Builder{}.Append(elements...)
+
+	return b.ToDataLayerPath(
+		tenant, resourceOwner,
+		service, category,
+		hasItem)
+}
+
 // FromDataLayerPath parses the escaped path p, validates the elements in p
 // match a resource-specific path format, and returns a Path struct for that
 // resource-specific type. If p does not match any resource-specific paths or
@@ -474,6 +540,102 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		category: category,
 		hasItem:  isItem,
 	}, nil
+}
+
+// TrimTrailingSlash takes an escaped path element and returns an escaped path
+// element with the trailing path separator character(s) removed if they were not
+// escaped. If there were no trailing path separator character(s) or the separator(s)
+// were escaped the input is returned unchanged.
+func TrimTrailingSlash(element string) string {
+	for len(element) > 0 && element[len(element)-1] == PathSeparator {
+		lastIdx := len(element) - 1
+		numSlashes := 0
+
+		for i := lastIdx - 1; i >= 0; i-- {
+			if element[i] != escapeCharacter {
+				break
+			}
+
+			numSlashes++
+		}
+
+		if numSlashes%2 != 0 {
+			break
+		}
+
+		element = element[:lastIdx]
+	}
+
+	return element
+}
+
+// split takes an escaped string and returns a slice of path elements. The
+// string is split on the path separator according to the escaping rules. The
+// provided string must not contain an unescaped trailing path separator.
+func Split(segment string) []string {
+	res := make([]string, 0)
+	numEscapes := 0
+	startIdx := 0
+	// Start with true to ignore leading separator.
+	prevWasSeparator := true
+
+	for i, c := range segment {
+		if c == escapeCharacter {
+			prevWasSeparator = false
+			numEscapes++
+
+			continue
+		}
+
+		if c != PathSeparator {
+			prevWasSeparator = false
+			numEscapes = 0
+
+			continue
+		}
+
+		// Remaining is just path separator handling.
+		if numEscapes%2 != 0 {
+			// This is an escaped separator.
+			prevWasSeparator = false
+			numEscapes = 0
+
+			continue
+		}
+
+		// Ignore leading separator characters and don't add elements that would
+		// be empty.
+		if !prevWasSeparator {
+			res = append(res, segment[startIdx:i])
+		}
+
+		// We don't want to include the path separator in the result.
+		startIdx = i + 1
+		prevWasSeparator = true
+		numEscapes = 0
+	}
+
+	// Add the final segment because the loop above won't catch it. There should
+	// be no trailing separator character.
+	res = append(res, segment[startIdx:])
+
+	return res
+}
+
+// ---------------------------------------------------------------------------
+// Unexported Helpers
+// ---------------------------------------------------------------------------
+
+func verifyInputValues(tenant, resourceOwner string) error {
+	if len(tenant) == 0 {
+		return clues.Stack(errMissingSegment, clues.New("tenant"))
+	}
+
+	if len(resourceOwner) == 0 {
+		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
+	}
+
+	return nil
 }
 
 // escapeElement takes a single path element and escapes all characters that
@@ -571,90 +733,10 @@ func validateEscapedElement(element string) error {
 	return nil
 }
 
-// TrimTrailingSlash takes an escaped path element and returns an escaped path
-// element with the trailing path separator character(s) removed if they were not
-// escaped. If there were no trailing path separator character(s) or the separator(s)
-// were escaped the input is returned unchanged.
-func TrimTrailingSlash(element string) string {
-	for len(element) > 0 && element[len(element)-1] == PathSeparator {
-		lastIdx := len(element) - 1
-		numSlashes := 0
-
-		for i := lastIdx - 1; i >= 0; i-- {
-			if element[i] != escapeCharacter {
-				break
-			}
-
-			numSlashes++
-		}
-
-		if numSlashes%2 != 0 {
-			break
-		}
-
-		element = element[:lastIdx]
-	}
-
-	return element
-}
-
 // join returns a string containing the given elements joined by the path
 // separator '/'.
 func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(PathSeparator))
-}
-
-// split takes an escaped string and returns a slice of path elements. The
-// string is split on the path separator according to the escaping rules. The
-// provided string must not contain an unescaped trailing path separator.
-func Split(segment string) []string {
-	res := make([]string, 0)
-	numEscapes := 0
-	startIdx := 0
-	// Start with true to ignore leading separator.
-	prevWasSeparator := true
-
-	for i, c := range segment {
-		if c == escapeCharacter {
-			prevWasSeparator = false
-			numEscapes++
-
-			continue
-		}
-
-		if c != PathSeparator {
-			prevWasSeparator = false
-			numEscapes = 0
-
-			continue
-		}
-
-		// Remaining is just path separator handling.
-		if numEscapes%2 != 0 {
-			// This is an escaped separator.
-			prevWasSeparator = false
-			numEscapes = 0
-
-			continue
-		}
-
-		// Ignore leading separator characters and don't add elements that would
-		// be empty.
-		if !prevWasSeparator {
-			res = append(res, segment[startIdx:i])
-		}
-
-		// We don't want to include the path separator in the result.
-		startIdx = i + 1
-		prevWasSeparator = true
-		numEscapes = 0
-	}
-
-	// Add the final segment because the loop above won't catch it. There should
-	// be no trailing separator character.
-	res = append(res, segment[startIdx:])
-
-	return res
 }
