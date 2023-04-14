@@ -632,7 +632,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	assert.Empty(t, cp.deets)
 
 	for _, expected := range expectedToMerge {
-		gotRef := cp.toMerge.GetNewRepoRef(expected.oldRef)
+		gotRef, _, _ := cp.toMerge.GetNewPathRefs(expected.oldRef, nil)
 		if !assert.NotNil(t, gotRef) {
 			continue
 		}
@@ -685,89 +685,6 @@ func (suite *HierarchyBuilderUnitSuite) SetupSuite() {
 
 func TestHierarchyBuilderUnitSuite(t *testing.T) {
 	suite.Run(t, &HierarchyBuilderUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-func (suite *HierarchyBuilderUnitSuite) TestPopulatesPrefixMatcher() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	t := suite.T()
-
-	p1 := makePath(
-		t,
-		[]string{testTenant, service, testUser, category, "folder1"},
-		false)
-	p2 := makePath(
-		t,
-		[]string{testTenant, service, testUser, category, "folder2"},
-		false)
-	p3 := makePath(
-		t,
-		[]string{testTenant, service, testUser, category, "folder3"},
-		false)
-	p4 := makePath(
-		t,
-		[]string{testTenant, service, testUser, category, "folder4"},
-		false)
-
-	c1 := mockconnector.NewMockExchangeCollection(p1, p1, 1)
-	c1.PrevPath = p1
-	c1.ColState = data.NotMovedState
-
-	c2 := mockconnector.NewMockExchangeCollection(p2, p2, 1)
-	c2.PrevPath = p3
-	c1.ColState = data.MovedState
-
-	c3 := mockconnector.NewMockExchangeCollection(nil, nil, 0)
-	c3.PrevPath = p4
-	c3.ColState = data.DeletedState
-
-	cols := []data.BackupCollection{c1, c2, c3}
-
-	cp := corsoProgress{
-		toMerge: newMergeDetails(),
-		errs:    fault.New(true),
-	}
-
-	_, err := inflateDirTree(ctx, nil, nil, cols, nil, &cp)
-	require.NoError(t, err)
-
-	table := []struct {
-		inputPath   *path.Builder
-		check       require.ValueAssertionFunc
-		expectedLoc *path.Builder
-	}{
-		{
-			inputPath:   p1.ToBuilder(),
-			check:       require.NotNil,
-			expectedLoc: path.Builder{}.Append(p1.Folders()...),
-		},
-		{
-			inputPath:   p3.ToBuilder(),
-			check:       require.NotNil,
-			expectedLoc: path.Builder{}.Append(p2.Folders()...),
-		},
-		{
-			inputPath:   p4.ToBuilder(),
-			check:       require.Nil,
-			expectedLoc: nil,
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.inputPath.String(), func() {
-			t := suite.T()
-
-			loc := cp.toMerge.GetNewLocation(test.inputPath)
-			test.check(t, loc)
-
-			if loc == nil {
-				return
-			}
-
-			assert.Equal(t, test.expectedLoc.String(), loc.String())
-		})
-	}
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {

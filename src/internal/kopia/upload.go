@@ -195,7 +195,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
-		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath)
+		err := cp.toMerge.addRepoRef(d.prevPath.ToBuilder(), d.repoPath, d.locationPath)
 		if err != nil {
 			cp.errs.AddRecoverable(clues.Wrap(err, "adding item to merge list").
 				With(
@@ -713,6 +713,31 @@ func getTreeNode(roots map[string]*treeMap, pathElements []string) *treeMap {
 	return dir
 }
 
+func addMergeLocation(col data.BackupCollection, toMerge *mergeDetails) error {
+	lp, ok := col.(data.PreviousLocationPather)
+	if !ok {
+		return nil
+	}
+
+	prevLoc := lp.PreviousLocationPath()
+	newLoc := lp.LocationPath()
+
+	if prevLoc == nil {
+		return clues.New("moved collection with nil previous location")
+	} else if newLoc == nil {
+		return clues.New("moved collection with nil location")
+	}
+
+	if err := toMerge.addLocation(prevLoc, newLoc); err != nil {
+		return clues.Wrap(err, "building updated location set").
+			With(
+				"collection_previous_location", prevLoc,
+				"collection_location", newLoc)
+	}
+
+	return nil
+}
+
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.BackupCollection,
@@ -728,17 +753,22 @@ func inflateCollectionTree(
 	changedPaths := []path.Path{}
 
 	for _, s := range collections {
+		ictx := clues.Add(
+			ctx,
+			"collection_full_path", s.FullPath(),
+			"collection_previous_path", s.PreviousPath())
+
 		switch s.State() {
 		case data.DeletedState:
 			if s.PreviousPath() == nil {
-				return nil, nil, clues.New("nil previous path on deleted collection")
+				return nil, nil, clues.New("nil previous path on deleted collection").WithClues(ictx)
 			}
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					With("collection_previous_path", s.PreviousPath())
+					WithClues(ictx)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -750,34 +780,34 @@ func inflateCollectionTree(
 
 			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					With("collection_previous_path", s.PreviousPath())
+					WithClues(ictx)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
-		}
 
-		// TODO(ashmrtn): Get old location ref and add it to the prefix matcher.
-		lp, ok := s.(data.LocationPather)
-		if ok && s.PreviousPath() != nil {
-			if err := toMerge.addLocation(s.PreviousPath().ToBuilder(), lp.LocationPath()); err != nil {
-				return nil, nil, clues.Wrap(err, "building updated location set").
-					With("collection_location", lp.LocationPath())
+			// Only safe when collections are moved since we only need prefix matching
+			// if a nested folder's path changed in some way that didn't generate a
+			// collection. For that to the be case, the nested folder's path must have
+			// changed via one of the ancestor folders being moved. This catches the
+			// ancestor folder move.
+			if err := addMergeLocation(s, toMerge); err != nil {
+				return nil, nil, clues.Wrap(err, "adding merge location").WithClues(ictx)
 			}
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, clues.New("no identifier for collection")
+			return nil, nil, clues.New("no identifier for collection").WithClues(ictx)
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, clues.New("getting tree node").With("collection_full_path", s.FullPath())
+			return nil, nil, clues.New("getting tree node").WithClues(ictx)
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").With("collection_full_path", s.FullPath())
+			return nil, nil, clues.New("multiple instances of collection").WithClues(ictx)
 		}
 
 		node.collection = s
