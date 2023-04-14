@@ -109,10 +109,9 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          CORSO_M365_LOAD_TEST_USER_ID: ${{ secrets.CORSO_M365_LOAD_TEST_USER_ID }}
         run: |
           go run . exchange emails \
-          --mailbox ${{ env.CORSO_M365_TEST_USER_ID }} \
+          --user ${{ env.CORSO_M365_TEST_USER_ID }} \
           --tenant ${{ env.AZURE_TENANT_ID }} \
           --destination Corso_Restore_st_${{ steps.repo-init.outputs.result }} \
           --count 4
