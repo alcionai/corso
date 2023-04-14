@@ -922,15 +922,18 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 func mockIncrementalBase(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
-	category path.CategoryType,
+	categories ...path.CategoryType,
 ) IncrementalBase {
+	stps := []*path.Builder{}
+	for _, c := range categories {
+		stps = append(stps, path.Builder{}.Append(tenant, service.String(), resourceOwner, c.String()))
+	}
+
 	return IncrementalBase{
 		Manifest: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
-		SubtreePaths: []*path.Builder{
-			path.Builder{}.Append(tenant, service.String(), resourceOwner, category.String()),
-		},
+		SubtreePaths: stps,
 	}
 }
 
@@ -2762,14 +2765,17 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	ctx, flush := tester.NewContext()
 	defer flush()
 
-	const contactsDir = "contacts"
+	const (
+		contactsDir  = "contacts"
+		migratedUser = "user_migrate"
+	)
 
 	oldPrefixPathEmail, err := path.Builder{}.
 		ToServicePrefix(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	newPrefixPathEmail, err := path.Builder{}.
-		ToServicePrefix(testTenant, testUser+"new", path.ExchangeService, path.EmailCategory)
+		ToServicePrefix(testTenant, migratedUser, path.ExchangeService, path.EmailCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	oldPrefixPathCont, err := path.Builder{}.
@@ -2777,14 +2783,14 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	require.NoError(t, err, clues.ToCore(err))
 
 	newPrefixPathCont, err := path.Builder{}.
-		ToServicePrefix(testTenant, testUser+"new", path.ExchangeService, path.ContactsCategory)
+		ToServicePrefix(testTenant, migratedUser, path.ExchangeService, path.ContactsCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
 		inboxFileName1 = testFileName
 
-		inboxFileData1   = testFileData
-		inboxFileData1v2 = testFileData5
+		inboxFileData1 = testFileData
+		// inboxFileData1v2 = testFileData5
 
 		contactsFileName1 = testFileName3
 		contactsFileData1 = testFileData3
@@ -2815,7 +2821,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(inboxFileData1))),
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(inboxFileData1)))),
 							}),
 					}),
 				virtualfs.NewStaticDirectory(
@@ -2827,7 +2835,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(contactsFileData1))),
+									newBackupStreamReader(
+										serializationVersion,
+										io.NopCloser(bytes.NewReader(contactsFileData1)))),
 							}),
 					}),
 			},
@@ -2853,7 +2863,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	//         - contacts
 	//           - file2
 	expected := expectedTreeWithChildren(
-		[]string{testTenant, service, testUser + "new"},
+		[]string{testTenant, service, migratedUser},
 		[]*expectedNode{
 			{
 				name: category,
@@ -2864,7 +2874,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 							{
 								name:     inboxFileName1,
 								children: []*expectedNode{},
-								data:     inboxFileData1v2,
+								data:     inboxFileData1,
 							},
 						},
 					},
@@ -2908,7 +2918,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]IncrementalBase{},
+		[]IncrementalBase{
+			mockIncrementalBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		},
 		[]data.BackupCollection{mce, mcc},
 		nil,
 		progress)
