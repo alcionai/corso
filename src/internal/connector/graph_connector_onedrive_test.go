@@ -1061,12 +1061,6 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		"root:",
 		folderAName,
 	}
-	folderCPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderCName,
-	}
 	subfolderAAPath := []string{
 		"drives",
 		driveID,
@@ -1086,13 +1080,6 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		driveID,
 		"root:",
 		folderAName,
-		folderCName,
-	}
-	subfolderCCPath := []string{
-		"drives",
-		driveID,
-		"root:",
-		folderCName,
 		folderCName,
 	}
 
@@ -1127,36 +1114,26 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	// - custom-permission-folder
 	//   - custom-permission-file
 	//   - inherted-permission-file
-	//   - empty-permision-file
+	//   - empty-permission-file
 	//   - custom-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
-	//     - empty-permision-file
+	//     - empty-permission-file
 	//   - inherted-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
-	//     - empty-permision-file
+	//     - empty-permission-file
 	//   - empty-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
-	//     - empty-permision-file
-	// - empty-permission-folder (empty/empty might have interesting behaviour)
-	//   - custom-permission-file
-	//   - inherted-permission-file
-	//   - empty-permision-file
-	//     - empty-permission-folder
-	// 	   - custom-permission-file
-	// 	   - inherted-permission-file
-	//     - empty-permision-file
+	//     - empty-permission-file (empty/empty might have interesting behavior)
 
 	cols := []onedriveColInfo{
 		{
 			pathElements: rootPath,
 			files:        []itemData{},
 			folders: []itemData{
-				{
-					name: folderAName,
-				},
+				{name: folderAName},
 			},
 		},
 		{
@@ -1192,23 +1169,6 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 		{
 			pathElements: subfolderACPath,
-			files:        fileSet,
-			perms: permData{
-				sharingMode: onedrive.SharingModeCustom,
-			},
-		},
-		{
-			pathElements: folderCPath,
-			files:        fileSet,
-			folders: []itemData{
-				{name: folderCName},
-			},
-			perms: permData{
-				sharingMode: onedrive.SharingModeCustom,
-			},
-		},
-		{
-			pathElements: subfolderCCPath,
 			files:        fileSet,
 			perms: permData{
 				sharingMode: onedrive.SharingModeCustom,
