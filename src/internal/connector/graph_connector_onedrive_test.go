@@ -357,6 +357,7 @@ type suiteInfo interface {
 	// permissions.
 	PrimaryUser() (string, string)
 	SecondaryUser() (string, string)
+	TertiaryUser() (string, string)
 	// BackupResourceOwner returns the resource owner to run the backup/restore
 	// with. This can be different from the values used for permissions and it can
 	// also be a site.
@@ -377,6 +378,8 @@ type suiteInfoImpl struct {
 	userID          string
 	secondaryUser   string
 	secondaryUserID string
+	tertiaryUser    string
+	tertiaryUserID  string
 	acct            account.Account
 	service         path.ServiceType
 	resourceType    resource
@@ -400,6 +403,10 @@ func (si suiteInfoImpl) PrimaryUser() (string, string) {
 
 func (si suiteInfoImpl) SecondaryUser() (string, string) {
 	return si.secondaryUser, si.secondaryUserID
+}
+
+func (si suiteInfoImpl) TertiaryUser() (string, string) {
+	return si.tertiaryUser, si.tertiaryUserID
 }
 
 func (si suiteInfoImpl) BackupResourceOwner() string {
@@ -448,6 +455,7 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 		connector:     loadConnector(ctx, suite.T(), graph.HTTPClient(graph.NoTimeout()), Sites),
 		user:          tester.M365UserID(suite.T()),
 		secondaryUser: tester.SecondaryM365UserID(suite.T()),
+		tertiaryUser:  tester.TertiaryM365UserID(suite.T()),
 		acct:          tester.NewM365Account(suite.T()),
 		service:       path.SharePointService,
 		resourceType:  Sites,
@@ -462,6 +470,10 @@ func (suite *GraphConnectorSharePointIntegrationSuite) SetupSuite() {
 	secondaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.secondaryUser)
 	require.NoError(suite.T(), err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
+
+	tertiaryUser, err := si.connector.Discovery.Users().GetByID(ctx, si.tertiaryUser)
+	require.NoError(suite.T(), err, "fetching user", si.tertiaryUser, clues.ToCore(err))
+	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
 	suite.suiteInfo = si
 }
@@ -1036,6 +1048,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	defer flush()
 
 	secondaryUserName, secondaryUserID := suite.SecondaryUser()
+	tertiaryUserName, tertiaryUserID := suite.TertiaryUser()
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
@@ -1145,8 +1158,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				{name: folderCName},
 			},
 			perms: permData{
-				user:     secondaryUserName,
-				entityID: secondaryUserID,
+				user:     tertiaryUserName,
+				entityID: tertiaryUserID,
 				roles:    readPerm,
 			},
 		},
@@ -1154,8 +1167,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			pathElements: subfolderAAPath,
 			files:        fileSet,
 			perms: permData{
-				user:        secondaryUserName,
-				entityID:    secondaryUserID,
+				user:        tertiaryUserName,
+				entityID:    tertiaryUserID,
 				roles:       writePerm,
 				sharingMode: onedrive.SharingModeCustom,
 			},
