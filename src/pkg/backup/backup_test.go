@@ -1,9 +1,11 @@
 package backup_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -50,7 +52,7 @@ func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 		},
 		StartAndEndTime: stats.StartAndEndTime{
 			StartedAt:   t,
-			CompletedAt: t,
+			CompletedAt: t.Add(1 * time.Minute),
 		},
 		SkippedCounts: stats.SkippedCounts{
 			TotalSkippedItems: 1,
@@ -203,4 +205,53 @@ func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	assert.Equal(t, b.BytesRead, result.BytesRead, "size")
 	assert.Equal(t, b.BytesUploaded, result.BytesUploaded, "stored size")
 	assert.Equal(t, b.Selector.DiscreteOwner, result.Owner, "owner")
+}
+
+func (suite *BackupUnitSuite) TestStats() {
+	var (
+		t     = suite.T()
+		start = time.Now()
+		b     = stubBackup(start, "owner", "ownername")
+		s     = b.Stats()
+	)
+
+	assert.Equal(t, b.BytesRead, s.BytesRead, "bytes read")
+	assert.Equal(t, b.BytesUploaded, s.BytesUploaded, "bytes uploaded")
+	assert.Equal(t, b.CompletedAt, s.EndedAt, "completion time")
+	assert.Equal(t, b.ErrorCount, s.ErrorCount, "error count")
+	assert.Equal(t, b.ItemsRead, s.ItemsRead, "items read")
+	assert.Equal(t, b.TotalSkippedItems, s.ItemsSkipped, "items skipped")
+	assert.Equal(t, b.ItemsWritten, s.ItemsWritten, "items written")
+	assert.Equal(t, b.StartedAt, s.StartedAt, "started at")
+}
+
+func (suite *BackupUnitSuite) TestStats_headersValues() {
+	var (
+		t     = suite.T()
+		start = time.Now()
+		b     = stubBackup(start, "owner", "ownername")
+		s     = b.Stats()
+	)
+
+	expectHeaders := []string{
+		"Started At",
+		"Duration",
+		"Bytes Uploaded",
+		"Items Uploaded",
+		"Items Skipped",
+		"Errors",
+	}
+
+	assert.Equal(t, expectHeaders, s.Headers())
+
+	expectValues := []string{
+		common.FormatTabularDisplayTime(b.StartedAt),
+		b.CompletedAt.Sub(b.StartedAt).String(),
+		humanize.Bytes(uint64(b.BytesUploaded)),
+		strconv.Itoa(b.ItemsWritten),
+		strconv.Itoa(b.TotalSkippedItems),
+		strconv.Itoa(b.ErrorCount),
+	}
+
+	assert.Equal(t, expectValues, s.Values())
 }

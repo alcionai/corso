@@ -3,8 +3,11 @@ package backup
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dustin/go-humanize"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
@@ -141,6 +144,8 @@ func New(
 // CLI Output
 // --------------------------------------------------------------------------------
 
+// ----- print backups
+
 // Print writes the Backup to StdOut, in the format requested by the caller.
 func (b Backup) Print(ctx context.Context) {
 	print.Item(ctx, b)
@@ -164,7 +169,7 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 type Printable struct {
 	ID            model.StableID `json:"id"`
 	ErrorCount    int            `json:"errorCount"`
-	StartedAt     time.Time      `json:"started at"`
+	StartedAt     time.Time      `json:"startedAt"`
 	Status        string         `json:"status"`
 	Version       string         `json:"version"`
 	BytesRead     int64          `json:"bytesRead"`
@@ -260,5 +265,70 @@ func (b Backup) Values() []string {
 		string(b.ID),
 		status,
 		name,
+	}
+}
+
+// ----- print backup stats
+
+func (b Backup) Stats() backupStats {
+	return backupStats{
+		BytesRead:     b.BytesRead,
+		BytesUploaded: b.BytesUploaded,
+		EndedAt:       b.CompletedAt,
+		ErrorCount:    b.ErrorCount,
+		ItemsRead:     b.ItemsRead,
+		ItemsSkipped:  b.TotalSkippedItems,
+		ItemsWritten:  b.ItemsWritten,
+		StartedAt:     b.StartedAt,
+	}
+}
+
+// interface compliance checks
+var _ print.Printable = &backupStats{}
+
+type backupStats struct {
+	BytesRead     int64     `json:"bytesRead"`
+	BytesUploaded int64     `json:"bytesUploaded"`
+	EndedAt       time.Time `json:"endedAt"`
+	ErrorCount    int       `json:"errorCount"`
+	ItemsRead     int       `json:"itemsRead"`
+	ItemsSkipped  int       `json:"itemsSkipped"`
+	ItemsWritten  int       `json:"itemsWritten"`
+	StartedAt     time.Time `json:"startedAt"`
+}
+
+// Print writes the Backup to StdOut, in the format requested by the caller.
+func (bs backupStats) Print(ctx context.Context) {
+	print.Item(ctx, bs)
+}
+
+// MinimumPrintable reduces the Backup to its minimally printable details.
+func (bs backupStats) MinimumPrintable() any {
+	return bs
+}
+
+// Headers returns the human-readable names of properties in a Backup
+// for printing out to a terminal in a columnar display.
+func (bs backupStats) Headers() []string {
+	return []string{
+		"Started At",
+		"Duration",
+		"Bytes Uploaded",
+		"Items Uploaded",
+		"Items Skipped",
+		"Errors",
+	}
+}
+
+// Values returns the values matching the Headers list for printing
+// out to a terminal in a columnar display.
+func (bs backupStats) Values() []string {
+	return []string{
+		common.FormatTabularDisplayTime(bs.StartedAt),
+		bs.EndedAt.Sub(bs.StartedAt).String(),
+		humanize.Bytes(uint64(bs.BytesUploaded)),
+		strconv.Itoa(bs.ItemsWritten),
+		strconv.Itoa(bs.ItemsSkipped),
+		strconv.Itoa(bs.ErrorCount),
 	}
 }
