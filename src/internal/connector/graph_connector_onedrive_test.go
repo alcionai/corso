@@ -1048,6 +1048,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 
 	folderAName := "custom"
 	folderBName := "inherited"
+	folderCName := "empty"
 
 	rootPath := []string{
 		"drives",
@@ -1060,19 +1061,39 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		"root:",
 		folderAName,
 	}
-	subfolderAPath := []string{
+	folderCPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderCName,
+	}
+	subfolderAAPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderAName,
 		folderAName,
 	}
-	subfolderBPath := []string{
+	subfolderABPath := []string{
 		"drives",
 		driveID,
 		"root:",
 		folderAName,
 		folderBName,
+	}
+	subfolderACPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderAName,
+		folderCName,
+	}
+	subfolderCCPath := []string{
+		"drives",
+		driveID,
+		"root:",
+		folderCName,
+		folderCName,
 	}
 
 	fileSet := []itemData{
@@ -1093,18 +1114,40 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 				sharingMode: onedrive.SharingModeInherited,
 			},
 		},
+		{
+			name: "file-empty",
+			data: fileAData,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
 	}
 
 	// Here is what this test is testing
 	// - custom-permission-folder
 	//   - custom-permission-file
 	//   - inherted-permission-file
+	//   - empty-permision-file
 	//   - custom-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
+	//     - empty-permision-file
 	//   - inherted-permission-folder
 	// 	   - custom-permission-file
 	// 	   - inherted-permission-file
+	//     - empty-permision-file
+	//   - empty-permission-folder
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
+	//     - empty-permision-file
+	// - empty-permission-folder (empty/empty might have interesting behaviour)
+	//   - custom-permission-file
+	//   - inherted-permission-file
+	//   - empty-permision-file
+	//     - empty-permission-folder
+	// 	   - custom-permission-file
+	// 	   - inherted-permission-file
+	//     - empty-permision-file
 
 	cols := []onedriveColInfo{
 		{
@@ -1122,6 +1165,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			folders: []itemData{
 				{name: folderAName},
 				{name: folderBName},
+				{name: folderCName},
 			},
 			perms: permData{
 				user:     secondaryUserName,
@@ -1130,7 +1174,7 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			},
 		},
 		{
-			pathElements: subfolderAPath,
+			pathElements: subfolderAAPath,
 			files:        fileSet,
 			perms: permData{
 				user:        secondaryUserName,
@@ -1140,10 +1184,34 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			},
 		},
 		{
-			pathElements: subfolderBPath,
+			pathElements: subfolderABPath,
 			files:        fileSet,
 			perms: permData{
 				sharingMode: onedrive.SharingModeInherited,
+			},
+		},
+		{
+			pathElements: subfolderACPath,
+			files:        fileSet,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
+		{
+			pathElements: folderCPath,
+			files:        fileSet,
+			folders: []itemData{
+				{name: folderCName},
+			},
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
+			},
+		},
+		{
+			pathElements: subfolderCCPath,
+			files:        fileSet,
+			perms: permData{
+				sharingMode: onedrive.SharingModeCustom,
 			},
 		},
 	}
