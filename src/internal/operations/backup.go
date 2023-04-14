@@ -548,8 +548,8 @@ func getNewPathRefs(
 		// This is kind of jank cause we're in a transitionary period, but even if
 		// we're consesrvative here about marking something as updated the RepoRef
 		// comparison in the caller should catch the change. Calendars is the only
-		// on that would matter, but we should already be populating the LocationRef
-		// for them.
+		// exception, since it uses IDs for folders, but we should already be
+		// populating the LocationRef for them.
 		//
 		// Without this, all OneDrive items will be marked as updated the first time
 		// around because OneDrive hasn't been persisting LocationRef before now.
