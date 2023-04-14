@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/connector/exchange/api"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -162,6 +163,7 @@ func parseMetadataCollections(
 //	Add iota to this call -> mail, contacts, calendar,  etc.
 func DataCollections(
 	ctx context.Context,
+	user common.IDNamer,
 	selector selectors.Selector,
 	metadata []data.RestoreCollection,
 	acct account.M365Config,
@@ -175,7 +177,6 @@ func DataCollections(
 	}
 
 	var (
-		user        = selector.DiscreteOwner
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
 		categories  = map[path.CategoryType]struct{}{}
@@ -214,7 +215,7 @@ func DataCollections(
 		baseCols, err := graph.BaseCollections(
 			ctx,
 			acct.AzureTenantID,
-			user,
+			user.ID(),
 			path.ExchangeService,
 			categories,
 			su,
@@ -248,7 +249,7 @@ func getterByType(ac api.Client, category path.CategoryType) (addedAndRemovedIte
 func createCollections(
 	ctx context.Context,
 	creds account.M365Config,
-	user string,
+	user common.IDNamer,
 	scope selectors.ExchangeScope,
 	dps DeltaPaths,
 	ctrlOpts control.Options,
