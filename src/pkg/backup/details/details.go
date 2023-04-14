@@ -759,13 +759,7 @@ func (i ExchangeInfo) Values() []string {
 }
 
 func (i *ExchangeInfo) UpdateParentPath(_ path.Path, locPath *path.Builder) error {
-	// Not all data types have this set yet.
-	if locPath == nil {
-		return nil
-	}
-
 	i.ParentPath = locPath.String()
-
 	return nil
 }
 
