@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common"
@@ -38,6 +39,35 @@ func (ul uniqueLoc) ID() *path.Builder {
 
 func (ul uniqueLoc) InDetails() *path.Builder {
 	return path.Builder{}.Append(ul.pb.Elements()[ul.prefixElems:]...)
+}
+
+// elementCount returns the number of non-prefix elements in the LocationIDer
+// (i.e. the number of elements in the InDetails path.Builder).
+func (ul uniqueLoc) elementCount() int {
+	res := len(ul.pb.Elements()) - ul.prefixElems
+	if res < 0 {
+		res = 0
+	}
+
+	return res
+}
+
+func (ul *uniqueLoc) dir() {
+	if ul.elementCount() == 0 {
+		return
+	}
+
+	ul.pb = ul.pb.Dir()
+}
+
+// lastElem returns the unescaped last element in the location. If the location
+// is empty returns an empty string.
+func (ul uniqueLoc) lastElem() string {
+	if ul.elementCount() == 0 {
+		return ""
+	}
+
+	return ul.pb.LastElem()
 }
 
 // Having service-specific constructors can be kind of clunky, but in this case
@@ -93,15 +123,6 @@ func NewSharePointLocationIDer(
 		pb:          pb,
 		prefixElems: 2,
 	}
-}
-
-type folderEntry struct {
-	RepoRef     string
-	ShortRef    string
-	ParentRef   string
-	LocationRef string
-	Updated     bool
-	Info        ItemInfo
 }
 
 // --------------------------------------------------------------------------------
@@ -218,19 +239,117 @@ func (de DetailsEntry) isMetaFile() bool {
 // Builder should be used to create a details model.
 type Builder struct {
 	d            Details
-	mu           sync.Mutex             `json:"-"`
-	knownFolders map[string]folderEntry `json:"-"`
+	mu           sync.Mutex              `json:"-"`
+	knownFolders map[string]DetailsEntry `json:"-"`
 }
 
 func (b *Builder) Add(
-	repoRef, shortRef, parentRef, locationRef string,
+	repoRef path.Path,
+	locationRef *path.Builder,
 	updated bool,
 	info ItemInfo,
 ) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return b.d.add(repoRef, shortRef, parentRef, locationRef, updated, info)
+	entry, err := b.d.add(
+		repoRef,
+		locationRef,
+		updated,
+		info)
+	if err != nil {
+		return clues.Wrap(err, "adding entry to details")
+	}
+
+	if err := b.addFolderEntries(
+		repoRef.ToBuilder().Dir(),
+		locationRef,
+		entry,
+	); err != nil {
+		return clues.Wrap(err, "adding folder entries")
+	}
+
+	return nil
+}
+
+func (b *Builder) addFolderEntries(
+	repoRef, locationRef *path.Builder,
+	entry DetailsEntry,
+) error {
+	if len(repoRef.Elements()) < len(locationRef.Elements()) {
+		return clues.New("RepoRef shorter than LocationRef").
+			With("repo_ref", repoRef, "location_ref", locationRef)
+	}
+
+	if b.knownFolders == nil {
+		b.knownFolders = map[string]DetailsEntry{}
+	}
+
+	// Need a unique location because we want to have separate folders for
+	// different drives and categories even if there's duplicate folder names in
+	// them.
+	uniqueLoc, err := entry.uniqueLocation(locationRef)
+	if err != nil {
+		return clues.Wrap(err, "getting LocationIDer")
+	}
+
+	for uniqueLoc.elementCount() > 0 {
+		mapKey := uniqueLoc.ID().ShortRef()
+
+		name := uniqueLoc.lastElem()
+		if len(name) == 0 {
+			return clues.New("folder with no display name").
+				With("repo_ref", repoRef, "location_ref", uniqueLoc.InDetails())
+		}
+
+		shortRef := repoRef.ShortRef()
+		rr := repoRef.String()
+
+		// Get the parent of this entry to add as the LocationRef for the folder.
+		uniqueLoc.dir()
+
+		repoRef = repoRef.Dir()
+		parentRef := repoRef.ShortRef()
+
+		folder, ok := b.knownFolders[mapKey]
+		if !ok {
+			loc := uniqueLoc.InDetails().String()
+
+			folder = DetailsEntry{
+				RepoRef:     rr,
+				ShortRef:    shortRef,
+				ParentRef:   parentRef,
+				LocationRef: loc,
+				ItemInfo: ItemInfo{
+					Folder: &FolderInfo{
+						ItemType: FolderItem,
+						// TODO(ashmrtn): Use the item type returned by the entry once
+						// SharePoint properly sets it.
+						DisplayName: name,
+					},
+				},
+			}
+
+			if err := entry.updateFolder(folder.Folder); err != nil {
+				return clues.Wrap(err, "adding folder").
+					With("parent_repo_ref", repoRef, "location_ref", loc)
+			}
+		}
+
+		folder.Folder.Size += entry.size()
+		folder.Updated = folder.Updated || entry.Updated
+
+		itemModified := entry.Modified()
+		if folder.Folder.Modified.Before(itemModified) {
+			folder.Folder.Modified = itemModified
+		}
+
+		// Always update the map because we're storing structs not pointers to
+		// structs.
+		b.knownFolders[mapKey] = folder
+	}
+
+	return nil
 }
 
 func (b *Builder) Details() *Details {
@@ -238,94 +357,9 @@ func (b *Builder) Details() *Details {
 	defer b.mu.Unlock()
 
 	// Write the cached folder entries to details
-	for _, folder := range b.knownFolders {
-		b.d.addFolder(folder)
-	}
+	b.d.Entries = append(b.d.Entries, maps.Values(b.knownFolders)...)
 
 	return &b.d
-}
-
-// TODO(ashmrtn): If we never need to pre-populate the modified time of a folder
-// we should just merge this with AddFoldersForItem, have Add call
-// AddFoldersForItem, and unexport AddFoldersForItem.
-func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
-	folders := []folderEntry{}
-	lfs := location
-
-	for len(parent.Elements()) > 0 {
-		var (
-			nextParent = parent.Dir()
-			lr         string
-			dn         = parent.LastElem()
-		)
-
-		// TODO: We may have future cases where the storage hierarchy
-		// doesn't match the location hierarchy.
-		if lfs != nil {
-			lr = lfs.String()
-
-			if len(lfs.Elements()) > 0 {
-				dn = lfs.LastElem()
-			}
-		}
-
-		folders = append(folders, folderEntry{
-			RepoRef:     parent.String(),
-			ShortRef:    parent.ShortRef(),
-			ParentRef:   nextParent.ShortRef(),
-			LocationRef: lr,
-			Info: ItemInfo{
-				Folder: &FolderInfo{
-					ItemType:    FolderItem,
-					DisplayName: dn,
-				},
-			},
-		})
-
-		parent = nextParent
-
-		if lfs != nil {
-			lfs = lfs.Dir()
-		}
-	}
-
-	return folders
-}
-
-// AddFoldersForItem adds entries for the given folders. It skips adding entries that
-// have been added by previous calls.
-func (b *Builder) AddFoldersForItem(folders []folderEntry, itemInfo ItemInfo, updated bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.knownFolders == nil {
-		b.knownFolders = map[string]folderEntry{}
-	}
-
-	for _, folder := range folders {
-		if existing, ok := b.knownFolders[folder.ShortRef]; ok {
-			// We've seen this folder before for a different item.
-			// Update the "cached" folder entry
-			folder = existing
-		}
-
-		// Update the folder's size and modified time
-		itemModified := itemInfo.Modified()
-
-		folder.Info.Folder.Size += itemInfo.size()
-
-		if folder.Info.Folder.Modified.Before(itemModified) {
-			folder.Info.Folder.Modified = itemModified
-		}
-
-		// If the item being added was "updated" - propagate that to the
-		// folder entries
-		if updated {
-			folder.Updated = true
-		}
-
-		b.knownFolders[folder.ShortRef] = folder
-	}
 }
 
 // --------------------------------------------------------------------------------
@@ -340,15 +374,20 @@ type Details struct {
 }
 
 func (d *Details) add(
-	repoRef, shortRef, parentRef, locationRef string,
+	repoRef path.Path,
+	locationRef *path.Builder,
 	updated bool,
 	info ItemInfo,
-) error {
+) (DetailsEntry, error) {
+	if locationRef == nil {
+		return DetailsEntry{}, clues.New("nil LocationRef").With("repo_ref", repoRef)
+	}
+
 	entry := DetailsEntry{
-		RepoRef:     repoRef,
-		ShortRef:    shortRef,
-		ParentRef:   parentRef,
-		LocationRef: locationRef,
+		RepoRef:     repoRef.String(),
+		ShortRef:    repoRef.ShortRef(),
+		ParentRef:   repoRef.ToBuilder().Dir().ShortRef(),
+		LocationRef: locationRef.String(),
 		Updated:     updated,
 		ItemInfo:    info,
 	}
@@ -356,13 +395,8 @@ func (d *Details) add(
 	// Use the item name and the path for the ShortRef. This ensures that renames
 	// within a directory generate unique ShortRefs.
 	if info.infoType() == OneDriveItem || info.infoType() == SharePointLibrary {
-		p, err := path.FromDataLayerPath(repoRef, true)
-		if err != nil {
-			return clues.Wrap(err, "munging OneDrive or SharePoint ShortRef")
-		}
-
 		if info.OneDrive == nil && info.SharePoint == nil {
-			return clues.New("item is not SharePoint or OneDrive type")
+			return entry, clues.New("item is not SharePoint or OneDrive type")
 		}
 
 		filename := ""
@@ -381,25 +415,14 @@ func (d *Details) add(
 		// M365 ID of this file and also have a subfolder in the folder with a
 		// display name that matches the file's display name. That would result in
 		// duplicate ShortRefs, which we can't allow.
-		elements := p.Elements()
-		elements = append(elements[:len(elements)-1], filename, p.Item())
+		elements := repoRef.Elements()
+		elements = append(elements[:len(elements)-1], filename, repoRef.Item())
 		entry.ShortRef = path.Builder{}.Append(elements...).ShortRef()
 	}
 
 	d.Entries = append(d.Entries, entry)
 
-	return nil
-}
-
-// addFolder adds an entry for the given folder.
-func (d *Details) addFolder(folder folderEntry) {
-	d.Entries = append(d.Entries, DetailsEntry{
-		RepoRef:   folder.RepoRef,
-		ShortRef:  folder.ShortRef,
-		ParentRef: folder.ParentRef,
-		ItemInfo:  folder.Info,
-		Updated:   folder.Updated,
-	})
+	return entry, nil
 }
 
 // Marshal complies with the marshaller interface in streamStore.
@@ -666,7 +689,7 @@ func (i ItemInfo) Modified() time.Time {
 	return time.Time{}
 }
 
-func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.uniqueLocation(baseLoc)
@@ -682,11 +705,30 @@ func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
 	}
 }
 
+func (i ItemInfo) updateFolder(f *FolderInfo) error {
+	switch {
+	case i.Exchange != nil:
+		return i.Exchange.updateFolder(f)
+
+	case i.OneDrive != nil:
+		return i.OneDrive.updateFolder(f)
+
+	case i.SharePoint != nil:
+		return i.SharePoint.updateFolder(f)
+
+	default:
+		return clues.New("unsupported type")
+	}
+}
+
 type FolderInfo struct {
 	ItemType    ItemType  `json:"itemType,omitempty"`
 	DisplayName string    `json:"displayName"`
 	Modified    time.Time `json:"modified,omitempty"`
 	Size        int64     `json:"size,omitempty"`
+	DataType    ItemType  `json:"dataType,omitempty"`
+	DriveName   string    `json:"driveName,omitempty"`
+	DriveID     string    `json:"driveID,omitempty"`
 }
 
 func (i FolderInfo) Headers() []string {
@@ -762,7 +804,7 @@ func (i *ExchangeInfo) UpdateParentPath(newLocPath *path.Builder) {
 	i.ParentPath = newLocPath.String()
 }
 
-func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	var category path.CategoryType
 
 	switch i.ItemType {
@@ -774,7 +816,24 @@ func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, erro
 		category = path.EmailCategory
 	}
 
-	return NewExchangeLocationIDer(category, baseLoc.Elements()...)
+	loc, err := NewExchangeLocationIDer(category, baseLoc.Elements()...)
+
+	return &loc, err
+}
+
+func (i *ExchangeInfo) updateFolder(f *FolderInfo) error {
+	// Use a switch instead of a rather large if-statement. Just make sure it's an
+	// Exchange type. If it's not return an error.
+	switch i.ItemType {
+	case ExchangeContact, ExchangeEvent, ExchangeMail:
+	default:
+		return clues.New("unsupported SharePoint ItemType").
+			With("item_type", i.ItemType)
+	}
+
+	f.DataType = i.ItemType
+
+	return nil
 }
 
 // SharePointInfo describes a sharepoint item
@@ -815,12 +874,24 @@ func (i *SharePointInfo) UpdateParentPath(newLocPath *path.Builder) {
 	i.ParentPath = newLocPath.PopFront().String()
 }
 
-func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	if len(i.DriveID) == 0 {
 		return nil, clues.New("empty drive ID")
 	}
 
-	return NewSharePointLocationIDer(i.DriveID, baseLoc.Elements()...), nil
+	loc := NewSharePointLocationIDer(i.DriveID, baseLoc.Elements()...)
+
+	return &loc, nil
+}
+
+func (i *SharePointInfo) updateFolder(f *FolderInfo) error {
+	// TODO(ashmrtn): Change to just SharePointLibrary when the code that
+	// generates the item type is fixed.
+	if i.ItemType == OneDriveItem || i.ItemType == SharePointLibrary {
+		return updateOneDriveishFolder(SharePointLibrary, i.DriveName, i.DriveID, f)
+	}
+
+	return clues.New("unsupported SharePoint ItemType").With("item_type", i.ItemType)
 }
 
 // OneDriveInfo describes a oneDrive item
@@ -860,10 +931,34 @@ func (i *OneDriveInfo) UpdateParentPath(newLocPath *path.Builder) {
 	i.ParentPath = newLocPath.PopFront().String()
 }
 
-func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (LocationIDer, error) {
+func (i *OneDriveInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	if len(i.DriveID) == 0 {
 		return nil, clues.New("empty drive ID")
 	}
 
-	return NewOneDriveLocationIDer(i.DriveID, baseLoc.Elements()...), nil
+	loc := NewOneDriveLocationIDer(i.DriveID, baseLoc.Elements()...)
+
+	return &loc, nil
+}
+
+func (i *OneDriveInfo) updateFolder(f *FolderInfo) error {
+	return updateOneDriveishFolder(OneDriveItem, i.DriveName, i.DriveID, f)
+}
+
+func updateOneDriveishFolder(
+	t ItemType,
+	driveName, driveID string,
+	f *FolderInfo,
+) error {
+	if len(driveName) == 0 {
+		return clues.New("empty drive name")
+	} else if len(driveID) == 0 {
+		return clues.New("empty drive ID")
+	}
+
+	f.DriveName = driveName
+	f.DriveID = driveID
+	f.DataType = t
+
+	return nil
 }
