@@ -240,6 +240,33 @@ func (pb Builder) LastElem() string {
 	return pb.elements[len(pb.elements)-1]
 }
 
+// UpdateParent updates leading elements matching prev to be cur and returns
+// true if it was updated. If prev is not a prefix of this Builder changes
+// nothing and returns false. If either prev or cur is nil does nothing and
+// returns false.
+func (pb *Builder) UpdateParent(prev, cur *Builder) bool {
+	if prev == cur || prev == nil || cur == nil || len(prev.Elements()) > len(pb.Elements()) {
+		return false
+	}
+
+	parent := true
+
+	for i, e := range prev.Elements() {
+		if pb.elements[i] != e {
+			parent = false
+			break
+		}
+	}
+
+	if !parent {
+		return false
+	}
+
+	pb.elements = append(cur.Elements(), pb.elements[len(prev.Elements()):]...)
+
+	return true
+}
+
 // ShortRef produces a truncated hash of the builder that
 // acts as a unique identifier.
 func (pb Builder) ShortRef() string {
