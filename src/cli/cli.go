@@ -163,6 +163,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 
@@ -170,8 +171,7 @@ func Handle() {
 
 	BuildCommandTree(corsoCmd)
 
-	loglevel, logfile := logger.PreloadLoggingFlags()
-	ctx, log := logger.Seed(ctx, loglevel, logfile)
+	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
 
 	defer func() {
 		_ = log.Sync() // flush all logs in the buffer
