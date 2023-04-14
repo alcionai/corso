@@ -3,6 +3,8 @@ package kopia
 import (
 	"encoding/base64"
 	"path"
+
+	"github.com/alcionai/clues"
 )
 
 var encoder = base64.URLEncoding
@@ -20,20 +22,19 @@ func encodeElements(elements ...string) []string {
 	return encoded
 }
 
-func decodeElements(elements ...string) []string {
+func decodeElements(elements ...string) ([]string, error) {
 	decoded := make([]string, 0, len(elements))
 
 	for _, e := range elements {
 		bs, err := encoder.DecodeString(e)
 		if err != nil {
-			decoded = append(decoded, "error decoding: "+e)
-			continue
+			return nil, clues.Wrap(err, "decoding element").With("element", e)
 		}
 
 		decoded = append(decoded, string(bs))
 	}
 
-	return decoded
+	return decoded, nil
 }
 
 // encodeAsPath takes a set of elements and returns the concatenated elements as

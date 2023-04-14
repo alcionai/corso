@@ -69,7 +69,7 @@ func BaseCollections(
 	for cat := range categories {
 		ictx := clues.Add(ctx, "base_service", service, "base_category", cat)
 
-		p, err := path.Builder{}.ToServicePrefix(tenant, rOwner, service, cat)
+		p, err := path.ServicePrefix(tenant, rOwner, service, cat)
 		if err != nil {
 			// Shouldn't happen.
 			err = clues.Wrap(err, "making path").WithClues(ictx)
@@ -83,7 +83,6 @@ func BaseCollections(
 		if _, ok := collKeys[p.String()]; !ok {
 			res = append(res, emptyCollection{p: p, su: su})
 		}
-
 	}
 
 	return res, lastErr
