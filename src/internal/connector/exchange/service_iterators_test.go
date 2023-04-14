@@ -116,11 +116,13 @@ func (suite *ServiceIteratorsSuite) SetupSuite() {
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections() {
+	ss := selectors.Selector{}
+	ss.SetDiscreteOwnerIDName("user_id", "user_id")
+
 	var (
-		userID = "user_id"
-		qp     = graph.QueryParams{
+		qp = graph.QueryParams{
 			Category:      path.EmailCategory, // doesn't matter which one we use.
-			ResourceOwner: userID,
+			ResourceOwner: ss,
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -435,11 +437,13 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 			ctx, flush := tester.NewContext()
 			defer flush()
 
+			ss := selectors.Selector{}
+			ss.SetDiscreteOwnerIDName("user_id", "user_id")
+
 			var (
-				userID = "user_id"
-				qp     = graph.QueryParams{
+				qp = graph.QueryParams{
 					Category:      path.EmailCategory, // doesn't matter which one we use.
-					ResourceOwner: userID,
+					ResourceOwner: ss,
 					Credentials:   suite.creds,
 				}
 				statusUpdater = func(*support.ConnectorOperationStatus) {}
@@ -514,13 +518,16 @@ func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_repea
 }
 
 func (suite *ServiceIteratorsSuite) TestFilterContainersAndFillCollections_incrementals() {
+	ss := selectors.Selector{}
+	ss.SetDiscreteOwnerIDName("user_id", "user_id")
+
 	var (
 		userID   = "user_id"
 		tenantID = suite.creds.AzureTenantID
 		cat      = path.EmailCategory // doesn't matter which one we use,
 		qp       = graph.QueryParams{
 			Category:      cat,
-			ResourceOwner: userID,
+			ResourceOwner: ss,
 			Credentials:   suite.creds,
 		}
 		statusUpdater = func(*support.ConnectorOperationStatus) {}
