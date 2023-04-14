@@ -426,7 +426,7 @@ func (suite *OneDriveSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NoTimeoutHTTPWrapper(),
 				creds.AzureTenantID,
 				test.user,
 				OneDriveSource,

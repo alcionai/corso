@@ -62,7 +62,7 @@ const (
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	// configured to handle large item downloads
-	itemClient *http.Client
+	itemClient graph.Requester
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Stream
@@ -110,7 +110,7 @@ type Collection struct {
 	doNotMergeItems bool
 }
 
-// itemGetterFunc gets an specified item
+// itemGetterFunc gets a specified item
 type itemGetterFunc func(
 	ctx context.Context,
 	srv graph.Servicer,
@@ -120,7 +120,7 @@ type itemGetterFunc func(
 // itemReadFunc returns a reader for the specified item
 type itemReaderFunc func(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error)
 
@@ -148,7 +148,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 
 // NewCollection creates a Collection
 func NewCollection(
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	folderPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -403,14 +403,14 @@ func (oc *Collection) getDriveItemContent(
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
 			el.AddSkip(fault.FileSkip(fault.SkipMalware, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
 			el.AddSkip(fault.FileSkip(fault.SkipNotFound, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
 		// Skip big OneNote files as they can't be downloaded
@@ -425,7 +425,7 @@ func (oc *Collection) getDriveItemContent(
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
 			el.AddSkip(fault.FileSkip(fault.SkipBigOneNote, itemID, itemName, graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "downloading item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
 		logger.CtxErr(ctx, err).Error("downloading item")
@@ -433,7 +433,7 @@ func (oc *Collection) getDriveItemContent(
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
-		return nil, clues.Wrap(err, "downloading item")
+		return nil, clues.Wrap(err, "fetching item content")
 	}
 
 	return itemData, nil

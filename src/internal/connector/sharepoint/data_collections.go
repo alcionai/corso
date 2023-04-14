@@ -2,7 +2,6 @@ package sharepoint
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/alcionai/clues"
 
@@ -29,7 +28,7 @@ type statusUpdater interface {
 // for the specified user
 func DataCollections(
 	ctx context.Context,
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	selector selectors.Selector,
 	creds account.M365Config,
 	serv graph.Servicer,
@@ -182,7 +181,7 @@ func collectLists(
 // all the drives associated with the site.
 func collectLibraries(
 	ctx context.Context,
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	serv graph.Servicer,
 	tenantID, siteID string,
 	scope selectors.SharePointScope,

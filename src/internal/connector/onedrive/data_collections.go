@@ -2,7 +2,6 @@ package onedrive
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
@@ -38,7 +37,7 @@ func DataCollections(
 	user common.IDNamer,
 	metadata []data.RestoreCollection,
 	tenant string,
-	itemClient *http.Client,
+	itemClient graph.Requester,
 	service graph.Servicer,
 	su support.StatusUpdater,
 	ctrlOpts control.Options,

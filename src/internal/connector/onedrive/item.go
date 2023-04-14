@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/api"
 	"github.com/alcionai/corso/src/internal/connector/uploadsession"
-	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -33,12 +32,12 @@ const (
 // TODO: Add metadata fetching to SharePoint
 func sharePointItemReader(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
-	resp, err := downloadItem(ctx, hc, item)
+	resp, err := downloadItem(ctx, client, item)
 	if err != nil {
-		return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
+		return details.ItemInfo{}, nil, clues.Wrap(err, "sharepoint reader")
 	}
 
 	dii := details.ItemInfo{
@@ -107,7 +106,7 @@ func baseItemMetaReader(
 // and using a http client to initialize a reader
 func oneDriveItemReader(
 	ctx context.Context,
-	hc *http.Client,
+	client graph.Requester,
 	item models.DriveItemable,
 ) (details.ItemInfo, io.ReadCloser, error) {
 	var (
@@ -116,9 +115,9 @@ func oneDriveItemReader(
 	)
 
 	if isFile {
-		resp, err := downloadItem(ctx, hc, item)
+		resp, err := downloadItem(ctx, client, item)
 		if err != nil {
-			return details.ItemInfo{}, nil, clues.Wrap(err, "downloading item")
+			return details.ItemInfo{}, nil, clues.Wrap(err, "onedrive reader")
 		}
 
 		rc = resp.Body
@@ -131,23 +130,17 @@ func oneDriveItemReader(
 	return dii, rc, nil
 }
 
-func downloadItem(ctx context.Context, hc *http.Client, item models.DriveItemable) (*http.Response, error) {
+func downloadItem(
+	ctx context.Context,
+	client graph.Requester,
+	item models.DriveItemable,
+) (*http.Response, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
 		return nil, clues.New("extracting file url").With("item_id", ptr.Val(item.GetId()))
 	}
 
-	req, err := http.NewRequest(http.MethodGet, *url, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "new item download request")
-	}
-
-	//nolint:lll
-	// Decorate the traffic
-	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
-	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
-
-	resp, err := hc.Do(req)
+	resp, err := client.Request(ctx, http.MethodGet, ptr.Val(url), nil, nil)
 	if err != nil {
 		cerr := graph.Wrap(ctx, err, "downloading item")
 

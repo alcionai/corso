@@ -98,7 +98,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -114,7 +114,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -130,7 +130,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, clues.New("test malware").Label(graph.LabelsMalware)
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -146,7 +146,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			source:       OneDriveSource,
 			itemDeets:    nst{testItemName, 42, now},
 			// Usually `Not Found` is returned from itemGetter and not itemReader
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound))
 			},
 			infoFrom: func(t *testing.T, dii details.ItemInfo) (string, string) {
@@ -161,7 +161,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 1,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -177,7 +177,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			numInstances: 3,
 			source:       SharePointSource,
 			itemDeets:    nst{testItemName, 42, now},
-			itemReader: func(context.Context, *http.Client, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+			itemReader: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: testItemName, Modified: now}},
 					io.NopCloser(bytes.NewReader(testItemData)),
 					nil
@@ -207,7 +207,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"drive-id",
@@ -347,7 +347,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"fakeDriveID",
@@ -370,7 +370,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 
 			coll.itemReader = func(
 				context.Context,
-				*http.Client,
+				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, assert.AnError
@@ -437,7 +437,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 			require.NoError(t, err)
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"fakeDriveID",
@@ -470,7 +470,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 
 			coll.itemReader = func(
 				context.Context,
-				*http.Client,
+				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				if count < 2 {
@@ -537,7 +537,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 			require.NoError(t, err, clues.ToCore(err))
 
 			coll, err := NewCollection(
-				graph.HTTPClient(graph.NoTimeout()),
+				graph.NoTimeoutHTTPWrapper(),
 				folderPath,
 				nil,
 				"drive-id",
@@ -561,7 +561,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 
 			coll.itemReader = func(
 				context.Context,
-				*http.Client,
+				graph.Requester,
 				models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}},
@@ -689,9 +689,9 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			item.SetSize(&test.itemSize)
 
 			col.itemReader = func(
-				ctx context.Context,
-				hc *http.Client,
-				item models.DriveItemable,
+				_ context.Context,
+				_ graph.Requester,
+				_ models.DriveItemable,
 			) (details.ItemInfo, io.ReadCloser, error) {
 				return details.ItemInfo{}, nil, test.err
 			}

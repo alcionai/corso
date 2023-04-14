@@ -77,7 +77,10 @@ func handleOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "creating graph adapter"))
 	}
 
-	err = runDisplayM365JSON(ctx, graph.NewService(adpt), creds, user, m365ID)
+	svc := graph.NewService(adpt)
+	gr := graph.NoTimeoutHTTPWrapper()
+
+	err = runDisplayM365JSON(ctx, svc, gr, creds, user, m365ID)
 	if err != nil {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
@@ -105,6 +108,7 @@ func (i itemPrintable) MinimumPrintable() any {
 func runDisplayM365JSON(
 	ctx context.Context,
 	srv graph.Servicer,
+	gr graph.Requester,
 	creds account.M365Config,
 	user, itemID string,
 ) error {
@@ -123,7 +127,7 @@ func runDisplayM365JSON(
 	}
 
 	if item != nil {
-		content, err := getDriveItemContent(item)
+		content, err := getDriveItemContent(ctx, gr, item)
 		if err != nil {
 			return err
 		}
@@ -180,22 +184,19 @@ func serializeObject(data serialization.Parsable) (string, error) {
 	return string(content), err
 }
 
-func getDriveItemContent(item models.DriveItemable) ([]byte, error) {
+func getDriveItemContent(
+	ctx context.Context,
+	gr graph.Requester,
+	item models.DriveItemable,
+) ([]byte, error) {
 	url, ok := item.GetAdditionalData()[downloadURLKey].(*string)
 	if !ok {
-		return nil, clues.New("get download url")
+		return nil, clues.New("retrieving download url")
 	}
 
-	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	resp, err := gr.Request(ctx, http.MethodGet, *url, nil, nil)
 	if err != nil {
-		return nil, clues.New("create download request").With("error", err)
-	}
-
-	hc := graph.HTTPClient(graph.NoTimeout())
-
-	resp, err := hc.Do(req)
-	if err != nil {
-		return nil, clues.New("download item").With("error", err)
+		return nil, clues.New("downloading item").With("error", err)
 	}
 
 	content, err := io.ReadAll(resp.Body)
