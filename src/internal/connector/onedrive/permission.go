@@ -188,16 +188,6 @@ func diffPermissions(before, after []UserPermission) ([]UserPermission, []UserPe
 		}
 	}
 
-	// Since we only try to restore permissions if the mode is
-	// SharingModeCustom, if all the permission match, we have to
-	// delete and recreate at least one to make sure that the
-	// permission inheritance chain is broken. We need to make sure
-	// that the item is first removed, then added.
-	if len(added) == 0 && len(removed) == 0 {
-		added = append(added, before[0])
-		removed = append(removed, before[0])
-	}
-
 	return added, removed
 }
 
@@ -255,9 +245,6 @@ func UpdatePermissions(
 ) error {
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
-	// This is also important as diffPermissions will add and remove a
-	// single permission in order to break the inheritance chain and we
-	// have to make sure that the remove happens before the add.
 	for _, p := range permRemoved {
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707

@@ -266,13 +266,6 @@ func (suite *PermissionsUnitTestSuite) TestDiffPermissions() {
 			added:   []UserPermission{},
 			removed: []UserPermission{emailperm2},
 		},
-		{
-			name:    "same permissions", // add and remove one to break inheritance
-			before:  []UserPermission{perm1, perm2},
-			after:   []UserPermission{perm1, perm2},
-			added:   []UserPermission{perm1},
-			removed: []UserPermission{perm1},
-		},
 	}
 
 	for _, test := range table {
