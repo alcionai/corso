@@ -142,13 +142,7 @@ func downloadItem(
 
 	resp, err := client.Request(ctx, http.MethodGet, ptr.Val(url), nil, nil)
 	if err != nil {
-		cerr := graph.Wrap(ctx, err, "downloading item")
-
-		if graph.IsMalware(err) {
-			cerr = cerr.Label(graph.LabelsMalware)
-		}
-
-		return nil, cerr
+		return nil, err
 	}
 
 	if (resp.StatusCode / 100) == 2 {

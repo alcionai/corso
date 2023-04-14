@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/connector/onedrive/metadata"
 	"github.com/alcionai/corso/src/internal/connector/support"
@@ -611,7 +612,7 @@ func TestGetDriveItemUnitTestSuite(t *testing.T) {
 	suite.Run(t, &GetDriveItemUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
+func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 	strval := "not-important"
 
 	table := []struct {
@@ -719,6 +720,106 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItemError() {
 			}
 
 			assert.Equal(t, labelsMap, clues.Labels(err))
+		})
+	}
+}
+
+func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
+	var (
+		svc     graph.Servicer
+		gr      graph.Requester
+		driveID string
+		iorc    = io.NopCloser(bytes.NewReader([]byte("fnords")))
+		item    = &models.DriveItem{}
+		itemWID = &models.DriveItem{}
+	)
+
+	itemWID.SetId(ptr.To("brainhooldy"))
+
+	table := []struct {
+		name      string
+		igf       itemGetterFunc
+		irf       itemReaderFunc
+		expectErr require.ErrorAssertionFunc
+		expect    require.ValueAssertionFunc
+	}{
+		{
+			name: "good",
+			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, iorc, nil
+			},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
+		},
+		{
+			name: "expired url redownloads",
+			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+				return itemWID, nil
+			},
+			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				// a bit hacky: assume only igf returns an item with a non-zero id.
+				if len(ptr.Val(m.GetId())) == 0 {
+					return details.ItemInfo{},
+						nil,
+						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
+				}
+
+				return details.ItemInfo{}, iorc, nil
+			},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
+		},
+		{
+			name: "immediate error",
+			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{}, nil, assert.AnError
+			},
+			expectErr: require.Error,
+			expect:    require.Nil,
+		},
+		{
+			name: "re-fetching the item fails",
+			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+				return nil, assert.AnError
+			},
+			irf: func(context.Context, graph.Requester, models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				return details.ItemInfo{},
+					nil,
+					clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
+			},
+			expectErr: require.Error,
+			expect:    require.Nil,
+		},
+		{
+			name: "expired url fails redownload",
+			igf: func(context.Context, graph.Servicer, string, string) (models.DriveItemable, error) {
+				return itemWID, nil
+			},
+			irf: func(c context.Context, g graph.Requester, m models.DriveItemable) (details.ItemInfo, io.ReadCloser, error) {
+				// a bit hacky: assume only igf returns an item with a non-zero id.
+				if len(ptr.Val(m.GetId())) == 0 {
+					return details.ItemInfo{},
+						nil,
+						clues.Stack(assert.AnError).Label(graph.LabelStatus(http.StatusUnauthorized))
+				}
+
+				return details.ItemInfo{}, iorc, assert.AnError
+			},
+			expectErr: require.Error,
+			expect:    require.Nil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ctx, flush := tester.NewContext()
+			defer flush()
+
+			t := suite.T()
+
+			r, err := downloadContent(ctx, svc, test.igf, test.irf, gr, item, driveID)
+
+			test.expect(t, r)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }
