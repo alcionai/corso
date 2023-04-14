@@ -97,10 +97,11 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 			testUser,
 			category,
 			"folder3",
-			"folder4",
+			"folder2",
 		},
 		false)
 	newLoc1 := path.Builder{}.Append(newRef1.Folders()...)
+	newLoc2 := path.Builder{}.Append(newRef2.Folders()...)
 	oldLoc1 := path.Builder{}.Append(oldRef1.Folders()...)
 	oldLoc2 := path.Builder{}.Append(oldRef2.Folders()...)
 
@@ -120,69 +121,62 @@ func (suite *DetailsMergeInfoerUnitSuite) TestGetNewPathRefs() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
-		name              string
-		searchRef         *path.Builder
-		searchLoc         mockLocationIDer
-		expectedRef       path.Path
-		prefixFound       bool
-		expectedOldPrefix *path.Builder
+		name        string
+		searchRef   *path.Builder
+		searchLoc   mockLocationIDer
+		errCheck    require.ErrorAssertionFunc
+		expectedRef path.Path
+		expectedLoc *path.Builder
 	}{
 		{
-			name:              "Exact Match With Loc",
-			searchRef:         oldRef1.ToBuilder(),
-			searchLoc:         searchLoc1,
-			expectedRef:       newRef1,
-			prefixFound:       true,
-			expectedOldPrefix: oldLoc1,
-		},
-		{
-			name:              "Exact Match Without Loc",
-			searchRef:         oldRef1.ToBuilder(),
-			expectedRef:       newRef1,
-			prefixFound:       true,
-			expectedOldPrefix: nil,
-		},
-		{
-			name:              "Prefix Match",
-			searchRef:         oldRef2.ToBuilder(),
-			searchLoc:         searchLoc2,
-			expectedRef:       newRef2,
-			prefixFound:       true,
-			expectedOldPrefix: oldLoc1,
-		},
-		{
-			name:        "Not Found",
-			searchRef:   newRef1.ToBuilder(),
-			expectedRef: nil,
-		},
-		{
-			name:        "Not Found With Loc",
-			searchRef:   newRef1.ToBuilder(),
+			name:        "Exact Match With Loc",
+			searchRef:   oldRef1.ToBuilder(),
 			searchLoc:   searchLoc1,
-			expectedRef: nil,
+			errCheck:    require.NoError,
+			expectedRef: newRef1,
+			expectedLoc: newLoc1,
 		},
 		{
-			name:        "Ref Found Loc Not",
+			name:        "Exact Match Without Loc",
+			searchRef:   oldRef1.ToBuilder(),
+			errCheck:    require.NoError,
+			expectedRef: newRef1,
+			expectedLoc: newLoc1,
+		},
+		{
+			name:        "Prefix Match",
 			searchRef:   oldRef2.ToBuilder(),
-			searchLoc:   mockLocationIDer{path.Builder{}.Append("foo")},
+			searchLoc:   searchLoc2,
+			errCheck:    require.NoError,
 			expectedRef: newRef2,
+			expectedLoc: newLoc2,
+		},
+		{
+			name:      "Would Be Prefix Match Without Old Loc Errors",
+			searchRef: oldRef2.ToBuilder(),
+			errCheck:  require.Error,
+		},
+		{
+			name:      "Not Found With Old Loc",
+			searchRef: newRef1.ToBuilder(),
+			searchLoc: searchLoc2,
+			errCheck:  require.NoError,
+		},
+		{
+			name:      "Not Found Without Old Loc",
+			searchRef: newRef1.ToBuilder(),
+			errCheck:  require.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			newRef, oldPrefix, newPrefix := dm.GetNewPathRefs(test.searchRef, test.searchLoc)
+			newRef, newLoc, err := dm.GetNewPathRefs(test.searchRef, test.searchLoc)
+			test.errCheck(t, err, clues.ToCore(err))
+
 			assert.Equal(t, test.expectedRef, newRef, "RepoRef")
-
-			if !test.prefixFound {
-				assert.Nil(t, oldPrefix)
-				assert.Nil(t, newPrefix)
-				return
-			}
-
-			assert.Equal(t, test.expectedOldPrefix, oldPrefix, "old prefix")
-			assert.Equal(t, newLoc1, newPrefix, "new prefix")
+			assert.Equal(t, test.expectedLoc, newLoc, "LocationRef")
 		})
 	}
 }
@@ -197,7 +191,7 @@ func TestLocationPrefixMatcherUnitSuite(t *testing.T) {
 
 func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 	t := suite.T()
-	p := makePath(
+	p := mockLocationIDer{makePath(
 		t,
 		[]string{
 			testTenant,
@@ -206,7 +200,7 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 			category,
 			"folder1",
 		},
-		false).ToBuilder()
+		false).ToBuilder()}
 	loc1 := path.Builder{}.Append("folder1")
 	loc2 := path.Builder{}.Append("folder2")
 
@@ -220,20 +214,20 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_Twice_Fails() {
 }
 
 func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
-	loc1 := path.Builder{}.Append("folder1")
-	loc2 := loc1.Append("folder2")
-	loc3 := path.Builder{}.Append("foo")
+	loc1 := mockLocationIDer{path.Builder{}.Append("folder1")}
+	loc2 := mockLocationIDer{loc1.InDetails().Append("folder2")}
+	loc3 := mockLocationIDer{path.Builder{}.Append("foo")}
 
-	res1 := path.Builder{}.Append("1")
+	res1 := mockLocationIDer{path.Builder{}.Append("1")}
 
 	lpm := newLocationPrefixMatcher()
 
-	err := lpm.add(loc1, res1)
+	err := lpm.add(loc1, res1.InDetails())
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
 		name      string
-		searchKey *path.Builder
+		searchKey mockLocationIDer
 		found     bool
 	}{
 		{
@@ -265,8 +259,8 @@ func (suite *LocationPrefixMatcherUnitSuite) TestAdd_And_Match() {
 				return
 			}
 
-			assert.Equal(t, loc1, prefixes.oldLoc, "old prefix")
-			assert.Equal(t, res1, prefixes.newLoc, "new prefix")
+			assert.Equal(t, loc1.InDetails(), prefixes.oldLoc, "old prefix")
+			assert.Equal(t, res1.InDetails(), prefixes.newLoc, "new prefix")
 		})
 	}
 }
