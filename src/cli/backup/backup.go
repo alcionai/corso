@@ -294,7 +294,7 @@ func genericListCommand(cmd *cobra.Command, bID string, service path.ServiceType
 				return Only(ctx, clues.New("No backup exists with the id "+bID))
 			}
 
-			return Only(ctx, clues.Wrap(err, "Failed to find backup "+bID))
+			return Only(ctx, clues.Wrap(errs.Failure(), "Failed to list backup id "+bID))
 		}
 
 		b.Print(ctx)

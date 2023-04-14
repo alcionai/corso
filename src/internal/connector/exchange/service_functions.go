@@ -52,7 +52,7 @@ func PopulateExchangeContainerResolver(
 	case path.EmailCategory:
 		acm := ac.Mail()
 		res = &mailFolderCache{
-			userID: qp.ResourceOwner,
+			userID: qp.ResourceOwner.ID(),
 			getter: acm,
 			enumer: acm,
 		}
@@ -61,7 +61,7 @@ func PopulateExchangeContainerResolver(
 	case path.ContactsCategory:
 		acc := ac.Contacts()
 		res = &contactFolderCache{
-			userID: qp.ResourceOwner,
+			userID: qp.ResourceOwner.ID(),
 			getter: acc,
 			enumer: acc,
 		}
@@ -70,7 +70,7 @@ func PopulateExchangeContainerResolver(
 	case path.EventsCategory:
 		ecc := ac.Events()
 		res = &eventCalendarCache{
-			userID: qp.ResourceOwner,
+			userID: qp.ResourceOwner.ID(),
 			getter: ecc,
 			enumer: ecc,
 		}
@@ -113,7 +113,7 @@ func includeContainer(
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
 		qp.Credentials.AzureTenantID,
-		qp.ResourceOwner,
+		qp.ResourceOwner.ID(),
 		category,
 		false)
 	// Containers without a path (e.g. Root mail folder) always err here.
@@ -126,7 +126,7 @@ func includeContainer(
 	if loc != nil {
 		locPath, err = loc.ToDataLayerExchangePathForCategory(
 			qp.Credentials.AzureTenantID,
-			qp.ResourceOwner,
+			qp.ResourceOwner.ID(),
 			category,
 			false)
 		// Containers without a path (e.g. Root mail folder) always err here.

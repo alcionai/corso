@@ -639,3 +639,37 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
 		})
 	}
 }
+
+func (suite *PopulatedDataLayerResourcePath) TestUpdateParent_NoopsNils() {
+	oldPB := path.Builder{}.Append("hello", "world")
+	newPB := path.Builder{}.Append("hola", "mundo")
+	// So we can get a new copy for each test.
+	testPBElems := []string{"bar", "baz"}
+
+	table := []struct {
+		name  string
+		oldPB *path.Builder
+		newPB *path.Builder
+	}{
+		{
+			name:  "Nil Prev",
+			newPB: newPB,
+		},
+		{
+			name:  "Nil New",
+			oldPB: oldPB,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			base := oldPB.Append(testPBElems...)
+			expected := base.String()
+
+			assert.False(t, base.UpdateParent(test.oldPB, test.newPB))
+			assert.Equal(t, expected, base.String())
+		})
+	}
+}

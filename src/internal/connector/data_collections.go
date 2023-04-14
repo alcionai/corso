@@ -69,6 +69,7 @@ func (gc *GraphConnector) ProduceBackupCollections(
 		colls, excludes, err := exchange.DataCollections(
 			ctx,
 			sels,
+			sels,
 			metadata,
 			gc.credentials,
 			gc.UpdateStatus,
@@ -95,7 +96,9 @@ func (gc *GraphConnector) ProduceBackupCollections(
 	case selectors.ServiceOneDrive:
 		colls, excludes, err := onedrive.DataCollections(
 			ctx,
-			sels, metadata,
+			sels,
+			sels,
+			metadata,
 			gc.credentials.AzureTenantID,
 			gc.itemClient,
 			gc.Service,

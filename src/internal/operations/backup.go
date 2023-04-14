@@ -516,6 +516,37 @@ func matchesReason(reasons []kopia.Reason, p path.Path) bool {
 	return false
 }
 
+// getNewPathRefs returns
+//  1. the new RepoRef for the item if it needs merged
+//  2. the new locationPath
+//  3. if the location was likely updated
+//  4. any errors encountered
+func getNewPathRefs(
+	dataFromBackup kopia.DetailsMergeInfoer,
+	entry *details.DetailsEntry,
+	repoRef *path.Builder,
+) (path.Path, *path.Builder, bool, error) {
+	// Right now we can't guarantee that we have an old location in the
+	// previous details entry so first try a lookup without a location to see
+	// if it matches so we don't need to try parsing from the old entry.
+	//
+	// TODO(ashmrtn): In the future we can remove this first check as we'll be
+	// able to assume we always have the location in the previous entry. We'll end
+	// up doing some extra parsing, but it will simplify this code.
+	newPath, _, newLocPrefix := dataFromBackup.GetNewPathRefs(repoRef, nil)
+	if newPath == nil {
+		// This entry doesn't need merging.
+		return nil, nil, false, nil
+	}
+
+	// OneDrive doesn't return prefixes yet.
+	if newLocPrefix == nil {
+		newLocPrefix = &path.Builder{}
+	}
+
+	return newPath, newLocPrefix, newLocPrefix.String() != entry.LocationRef, nil
+}
+
 func mergeDetails(
 	ctx context.Context,
 	ms *store.Wrapper,
@@ -579,40 +610,36 @@ func mergeDetails(
 				continue
 			}
 
-			pb := rr.ToBuilder()
+			mctx = clues.Add(mctx, "repo_ref", rr)
 
-			newPath := dataFromBackup.GetNewRepoRef(pb)
-			if newPath == nil {
-				// This entry was not sourced from a base snapshot or cached from a
-				// previous backup, skip it.
-				continue
+			newPath, newLoc, locUpdated, err := getNewPathRefs(
+				dataFromBackup,
+				entry,
+				rr.ToBuilder())
+			if err != nil {
+				return clues.Wrap(err, "getting updated info for entry").WithClues(mctx)
 			}
 
-			newLoc := dataFromBackup.GetNewLocation(pb.Dir())
+			// This entry isn't merged.
+			if newPath == nil {
+				continue
+			}
 
 			// Fixup paths in the item.
 			item := entry.ItemInfo
 			if err := details.UpdateItem(&item, newPath, newLoc); err != nil {
-				return clues.New("updating item details").WithClues(mctx)
+				return clues.Wrap(err, "updating merged item info").WithClues(mctx)
 			}
 
 			// TODO(ashmrtn): This may need updated if we start using this merge
 			// strategry for items that were cached in kopia.
-			var (
-				itemUpdated = newPath.String() != rr.String()
-				newLocStr   string
-			)
-
-			if newLoc != nil {
-				newLocStr = newLoc.String()
-				itemUpdated = itemUpdated || newLocStr != entry.LocationRef
-			}
+			itemUpdated := newPath.String() != rr.String() || locUpdated
 
 			err = deets.Add(
 				newPath.String(),
 				newPath.ShortRef(),
 				newPath.ToBuilder().Dir().ShortRef(),
-				newLocStr,
+				newLoc.String(),
 				itemUpdated,
 				item)
 			if err != nil {
