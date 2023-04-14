@@ -64,6 +64,11 @@ func (suite *StreamStoreIntgSuite) TearDownSubTest() {
 }
 
 func (suite *StreamStoreIntgSuite) TestStreamer() {
+	deetsPath, err := path.FromDataLayerPath("tenant-id/exchange/user-id/email/Inbox/folder1/foo", true)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	locPath := path.Builder{}.Append(deetsPath.Folders()...)
+
 	table := []struct {
 		name      string
 		deets     func(*testing.T) *details.Details
@@ -81,7 +86,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
 				require.NoError(t, deetsBuilder.Add(
-					"rr", "sr", "pr", "lr",
+					deetsPath,
+					locPath,
 					true,
 					details.ItemInfo{
 						Exchange: &details.ExchangeInfo{Subject: "hello world"},
@@ -112,7 +118,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
 				require.NoError(t, deetsBuilder.Add(
-					"rr", "sr", "pr", "lr",
+					deetsPath,
+					locPath,
 					true,
 					details.ItemInfo{
 						Exchange: &details.ExchangeInfo{Subject: "hello world"},

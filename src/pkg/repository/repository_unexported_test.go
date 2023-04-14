@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 	"github.com/alcionai/corso/src/pkg/store/mock"
@@ -340,8 +341,13 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 		},
 	}
 
+	repoPath, err := path.FromDataLayerPath(tenantID+"exchange/user-id/email/Inbox/test", false)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	loc := path.Builder{}.Append(repoPath.Folders()...)
+
 	builder := &details.Builder{}
-	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
 
 	table := []struct {
 		name       string
@@ -417,9 +423,14 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 		}
 	)
 
+	repoPath, err2 := path.FromDataLayerPath(tenantID+"exchange/user-id/email/Inbox/test", false)
+	require.NoError(suite.T(), err2, clues.ToCore(err2))
+
+	loc := path.Builder{}.Append(repoPath.Folders()...)
+
 	builder := &details.Builder{}
 
-	require.NoError(suite.T(), builder.Add("ref", "short", "pref", "lref", false, info))
+	require.NoError(suite.T(), builder.Add(repoPath, loc, false, info))
 
 	table := []struct {
 		name         string
